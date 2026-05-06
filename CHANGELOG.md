@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.3] - 2026-05-06
+
+### Correcciones y Mejoras de Calendario
+- Corregido sistema de autenticación (sesión estable en todo el dashboard)
+- Reemplazado @supabase/supabase-js por clientes correctos en 8 archivos
+- Calendario ajustado: horario de 7:00 AM a 00:00 (medianoche)
+- Altura de filas reducida a 48px para mejor visualización
+- Implementado scroll horizontal con Ctrl+Click en PC
+- Agregado scroll vertical automático para calendario más alto
+- Eliminado indicador visual de navegación
+
 ## [0.1.2] - 2026-05-06
 
 ### Recuperación de Contraseña

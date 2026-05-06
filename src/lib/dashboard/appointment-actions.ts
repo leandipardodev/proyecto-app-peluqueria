@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
 
@@ -8,10 +8,7 @@ export async function fetchAppointments(startDate: string, endDate: string) {
   const session = await getAuthSession();
   const shopId = await getShopId(session);
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = await createServerClient();
 
   const { data, error } = await supabase
     .from("appointments")
@@ -60,10 +57,7 @@ export async function fetchActiveServices() {
   const session = await getAuthSession();
   const shopId = await getShopId(session);
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = await createServerClient();
 
   const { data, error } = await supabase
     .from("services")
@@ -79,10 +73,7 @@ export async function fetchStaffMembers() {
   const session = await getAuthSession();
   const shopId = await getShopId(session);
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = await createServerClient();
 
   const { data, error } = await supabase
     .from("user_profiles")
@@ -123,10 +114,7 @@ export async function createAppointment(formData: FormData) {
     return { error: "Todos los campos obligatorios deben completarse" };
   }
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = await createServerClient();
 
   const { error } = await supabase.from("appointments").insert({
     shop_id: shopId,
@@ -153,10 +141,7 @@ export async function updateAppointmentStatus(
   const session = await getAuthSession();
   const shopId = await getShopId(session);
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = await createServerClient();
 
   const updates: Record<string, unknown> = { status };
   if (isPaid !== undefined) {

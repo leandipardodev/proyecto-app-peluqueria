@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "@/lib/supabase/server";
 import { getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
 import "server-only";
 
@@ -8,10 +8,7 @@ export async function fetchDashboardSummary() {
   const session = await getAuthSession();
   const shopId = await getShopId(session);
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = await createServerClient();
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);

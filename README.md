@@ -45,4 +45,4 @@ Optimizado para despliegue en [Vercel](https://vercel.com).
 
 ## Versión
 
-0.1.2 - Recuperación de contraseña
+0.1.3 - Correcciones de autenticación y calendario

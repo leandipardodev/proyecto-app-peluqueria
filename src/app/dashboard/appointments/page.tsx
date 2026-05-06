@@ -1,15 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
-import { getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
+import { createClient } from "@/lib/supabase/client";
 import AppointmentFormModal from "@/components/calendar/appointment-form-modal";
 import { Button } from "@/components/ui/button";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+const supabase = createClient();
 
 interface Appointment {
   id: string;
@@ -53,9 +49,17 @@ export default function AppointmentsPage() {
 
   useEffect(() => {
     async function loadData() {
-      const session = await getAuthSession();
-      if (!session) return;
-      const sId = await getShopId(session);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("shop_id")
+        .eq("user_id", user.id)
+        .single();
+      
+      if (!profile?.shop_id) return;
+      const sId = profile.shop_id;
       setShopId(sId);
 
       const [appointmentsRes, servicesRes, staffRes, customersRes] = await Promise.all([

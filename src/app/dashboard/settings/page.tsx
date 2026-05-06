@@ -1,16 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 interface ShopProfile {
   id: string;
@@ -27,6 +22,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const supabase = createClient();
 
   // Load shop profile
   useEffect(() => {

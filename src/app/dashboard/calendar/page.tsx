@@ -4,7 +4,7 @@ import {
   fetchStaffMembers,
 } from "@/lib/dashboard/appointment-actions";
 import CalendarPageClient from "@/components/calendar/calendar-page-client";
-import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "@/lib/supabase/server";
 import { getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
 
 export const dynamic = "force-dynamic";
@@ -49,10 +49,7 @@ async function fetchCustomers() {
   if (!session) return [];
   const shopId = await getShopId(session);
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = await createServerClient();
 
   const { data, error } = await supabase
     .from("customers")

@@ -3,6 +3,7 @@
 import { X, Plus, UserPlus } from "lucide-react";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createAppointment } from "@/lib/dashboard/appointment-actions";
+import { createClient } from "@/lib/supabase/client";
 
 type Service = {
   id: string;
@@ -107,20 +108,15 @@ export default function AppointmentFormModal({
     e.preventDefault();
     setError(null);
 
-    const formData = new FormData(e.currentTarget);
+      const formData = new FormData(e.currentTarget);
 
-    if (showNewCustomer) {
-      if (!newCustomerName.trim()) {
-        setError("El nombre del cliente es obligatorio");
-        return;
-      }
+      if (showNewCustomer) {
+        if (!newCustomerName.trim()) {
+          setError("El nombre del cliente es obligatorio");
+          return;
+        }
 
-      const supabase = await import("@supabase/supabase-js").then((m) =>
-        m.createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-        )
-      );
+        const supabase = createClient();
 
       const { data: customerData, error: customerError } = await supabase
         .from("customers")
