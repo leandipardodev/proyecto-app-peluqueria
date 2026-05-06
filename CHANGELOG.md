@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.1] - 2026-05-06
+
+### Landing Page
+- Nueva página de inicio con navegación clara
+- Acceso directo a Login y Registro desde la home
+- Diseño profesional con gradiente y cards de características
+- Botones de acción prominentes para conversión
+- Responsive design para móviles y desktop
+
 ## [0.1.0] - 2026-05-06
 
 ### Inicial

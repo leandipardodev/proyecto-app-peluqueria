@@ -45,4 +45,4 @@ Optimizado para despliegue en [Vercel](https://vercel.com).
 
 ## Versión
 
-0.1.0 - Inicial
+0.1.1 - Landing page inicial
