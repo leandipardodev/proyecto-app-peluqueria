@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
 
@@ -8,10 +8,7 @@ export async function fetchServices() {
   const session = await getAuthSession();
   const shopId = await getShopId(session);
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = await createServerClient();
 
   const { data, error } = await supabase
     .from("services")
@@ -39,10 +36,7 @@ export async function createService(formData: FormData) {
     return { error: "El precio no puede ser negativo" };
   }
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = await createServerClient();
 
   const { error } = await supabase.from("services").insert({
     shop_id: shopId,
@@ -69,10 +63,7 @@ export async function updateService(id: string, formData: FormData) {
     return { error: "Todos los campos son obligatorios" };
   }
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = await createServerClient();
 
   const { error } = await supabase
     .from("services")
@@ -90,10 +81,7 @@ export async function deleteService(id: string) {
   const session = await getAuthSession();
   const shopId = await getShopId(session);
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = await createServerClient();
 
   const { error } = await supabase
     .from("services")

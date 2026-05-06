@@ -2,8 +2,6 @@
 
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
-import { createClient } from "@supabase/supabase-js";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import "server-only";
 
@@ -63,14 +61,19 @@ export async function registerShop(formData: FormData) {
     return { error: "La contraseña debe tener al menos 6 caracteres" };
   }
 
-  const supabase = createClient(
+  const supabaseAdmin = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-
-  const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return [];
+        },
+        setAll() {
+          // No necesitamos setear cookies para admin
+        },
+      },
+    }
   );
 
   const { data: shop, error: shopError } = await supabaseAdmin
@@ -92,7 +95,7 @@ export async function registerShop(formData: FormData) {
     return { error: shopError.message };
   }
 
-  const { data: authData, error: authError } = await supabase.auth.signUp({
+  const { data: authData, error: authError } = await supabaseAdmin.auth.signUp({
     email,
     password,
   });
@@ -114,7 +117,28 @@ export async function registerShop(formData: FormData) {
 }
 
 export async function getGoogleAuthUrl() {
-  const supabase = await createServerSupabaseClient();
+  const cookieStore = await cookies();
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          } catch {
+            // Ignored
+          }
+        },
+      },
+    }
+  );
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",

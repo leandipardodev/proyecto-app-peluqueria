@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import DashboardSidebar from "@/components/dashboard/dashboard-sidebar";
 import DashboardHeader from "@/components/dashboard/dashboard-header";
@@ -8,10 +8,7 @@ import { logout } from "@/lib/dashboard/logout-action";
 export const dynamic = "force-dynamic";
 
 async function getSessionOrRedirect() {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = await createServerClient();
 
   const {
     data: { session },
@@ -30,7 +27,7 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const session = await getSessionOrRedirect();
-  const { shopName, userName } = await getTenantAndUser(session);
+  const { shopName, userName } = await getTenantAndUser();
 
   return (
     <div className="flex h-screen bg-gray-50">

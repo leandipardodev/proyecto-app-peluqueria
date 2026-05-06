@@ -1,29 +1,24 @@
-import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "@/lib/supabase/server";
 
-export async function getTenantAndUser(session: {
-  access_token: string;
-  user: { id: string; email?: string };
-}) {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      global: {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      },
-    }
-  );
+export async function getTenantAndUser() {
+  const supabase = await createServerClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  
+  if (!user) {
+    return { shopName: "Mi Peluquería", userName: "Usuario" };
+  }
 
   const { data: userProfile, error: profileError } = await supabase
     .from("user_profiles")
     .select("shop_id, role")
-    .eq("user_id", session.user.id)
+    .eq("user_id", user.id)
     .single();
 
   if (profileError || !userProfile) {
-    return { shopName: "Mi Peluquería", userName: session.user.email || "Usuario" };
+    return { shopName: "Mi Peluquería", userName: user.email || "Usuario" };
   }
 
   const { data: shop } = await supabase
@@ -34,6 +29,6 @@ export async function getTenantAndUser(session: {
 
   return {
     shopName: shop?.name || "Mi Peluquería",
-    userName: session.user.email || "Usuario",
+    userName: user.email || "Usuario",
   };
 }

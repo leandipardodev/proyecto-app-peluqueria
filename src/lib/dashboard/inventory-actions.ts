@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
 
@@ -8,10 +8,7 @@ export async function fetchStockItems() {
   const session = await getAuthSession();
   const shopId = await getShopId(session);
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = await createServerClient();
 
   const { data, error } = await supabase
     .from("stock")
@@ -39,10 +36,7 @@ export async function addProduct(formData: FormData) {
     return { error: "Los valores no pueden ser negativos" };
   }
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = await createServerClient();
 
   const { error } = await supabase.from("stock").insert({
     shop_id: shopId,
@@ -61,10 +55,7 @@ export async function updateStock(id: string, delta: number) {
   const session = await getAuthSession();
   const shopId = await getShopId(session);
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = await createServerClient();
 
   const { data: existing, error: fetchError } = await supabase
     .from("stock")
@@ -98,10 +89,7 @@ export async function deleteProduct(id: string) {
   const session = await getAuthSession();
   const shopId = await getShopId(session);
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = await createServerClient();
 
   const { error } = await supabase
     .from("stock")
