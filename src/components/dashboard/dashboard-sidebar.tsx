@@ -9,6 +9,7 @@ import {
   Scissors,
   Package,
   Settings,
+  Users,
   LogOut,
 } from "lucide-react";
 
@@ -18,6 +19,7 @@ const navItems = [
   { label: "Turnos", href: "/dashboard/appointments", icon: Clock },
   { label: "Servicios", href: "/dashboard/services", icon: Scissors },
   { label: "Inventario", href: "/dashboard/inventory", icon: Package },
+  { label: "Personal", href: "/dashboard/staff", icon: Users },
   { label: "Configuración", href: "/dashboard/settings", icon: Settings },
 ];
 

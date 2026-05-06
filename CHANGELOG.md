@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.4] - 2026-05-06
+
+### Sección de Personal (Staff)
+- Nueva sección `/dashboard/staff` para gestionar peluqueros
+- Lista de personal con roles (Peluquero/Administrador)
+- Formulario para agregar nuevos peluqueros por email
+- Estimativo de facturación por peluquero
+- Cálculo automático basado en turnos completados y pagados
+- Cambio de rol y eliminación de personal
+- Enlace agregado en el sidebar del dashboard
+
 ## [0.1.3] - 2026-05-06
 
 ### Correcciones y Mejoras de Calendario

@@ -45,4 +45,4 @@ Optimizado para despliegue en [Vercel](https://vercel.com).
 
 ## Versión
 
-0.1.3 - Correcciones de autenticación y calendario
+0.1.4 - Sección de Personal con facturación
