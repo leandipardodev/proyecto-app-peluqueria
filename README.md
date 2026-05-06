@@ -45,4 +45,4 @@ Optimizado para despliegue en [Vercel](https://vercel.com).
 
 ## Versión
 
-0.1.1 - Landing page inicial
+0.1.2 - Recuperación de contraseña

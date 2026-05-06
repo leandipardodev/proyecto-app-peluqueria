@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase/client";
 export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resetMode, setResetMode] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -36,8 +38,31 @@ export default function LoginPage() {
       return;
     }
 
-    // Redirect completo para que el middleware detecte la cookie
     window.location.href = "/dashboard";
+  };
+
+  const handleResetPassword = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get("email") as string;
+
+    const supabase = createClient();
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/login`,
+    });
+
+    if (error) {
+      setError(error.message);
+      setLoading(false);
+      return;
+    }
+
+    setResetSent(true);
+    setLoading(false);
   };
 
   return (
@@ -45,7 +70,9 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-violet-700">Klip</h1>
-          <p className="mt-2 text-gray-600">Iniciá sesión en tu cuenta</p>
+          <p className="mt-2 text-gray-600">
+            {resetMode ? "Restablecer contraseña" : "Iniciá sesión en tu cuenta"}
+          </p>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 space-y-6">
@@ -55,51 +82,116 @@ export default function LoginPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Email
-              </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                required
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                placeholder="tu@email.com"
-              />
+          {resetSent ? (
+            <div className="text-center space-y-4">
+              <div className="bg-green-50 text-green-700 text-sm px-4 py-3 rounded-lg">
+                Te enviamos un email con las instrucciones para restablecer tu contraseña.
+              </div>
+              <button
+                onClick={() => {
+                  setResetMode(false);
+                  setResetSent(false);
+                  setError("");
+                }}
+                className="text-sm text-violet-600 hover:text-violet-700 font-medium"
+              >
+                Volver al inicio de sesión
+              </button>
             </div>
+          ) : resetMode ? (
+            <form onSubmit={handleResetPassword} className="space-y-5">
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  required
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                  placeholder="tu@email.com"
+                />
+              </div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                Contraseña
-              </label>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                required
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                placeholder="••••••••"
-              />
-            </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-violet-600 text-white py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-violet-700 transition-colors disabled:opacity-50"
+              >
+                {loading ? "Enviando..." : "Enviar instrucciones"}
+              </button>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-violet-600 text-white py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-violet-700 transition-colors disabled:opacity-50"
-            >
-              {loading ? "Iniciando..." : "Iniciar Sesión"}
-            </button>
-          </form>
+              <button
+                type="button"
+                onClick={() => setResetMode(false)}
+                className="w-full text-sm text-gray-600 hover:text-gray-700 font-medium"
+              >
+                Volver al inicio de sesión
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  required
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                  placeholder="tu@email.com"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                  Contraseña
+                </label>
+                <input
+                  type="password"
+                  id="password"
+                  name="password"
+                  required
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                  placeholder="••••••••"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-violet-600 text-white py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-violet-700 transition-colors disabled:opacity-50"
+              >
+                {loading ? "Iniciando..." : "Iniciar Sesión"}
+              </button>
+            </form>
+          )}
         </div>
 
-        <p className="mt-6 text-center text-sm text-gray-600">
-          ¿No tenés cuenta?{" "}
-          <Link href="/register" className="font-medium text-violet-600 hover:text-violet-700">
-            Registrate
-          </Link>
-        </p>
+        {!resetMode && !resetSent && (
+          <>
+            <p className="mt-4 text-center">
+              <button
+                onClick={() => {
+                  setResetMode(true);
+                  setError("");
+                }}
+                className="text-sm text-violet-600 hover:text-violet-700 font-medium"
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
+            </p>
+            <p className="mt-2 text-center text-sm text-gray-600">
+              ¿No tenés cuenta?{" "}
+              <Link href="/register" className="font-medium text-violet-600 hover:text-violet-700">
+                Registrate
+              </Link>
+            </p>
+          </>
+        )}
       </div>
     </div>
   );

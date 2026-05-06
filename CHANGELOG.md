@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.2] - 2026-05-06
+
+### Recuperación de Contraseña
+- Agregado botón "¿Olvidaste tu contraseña?" en login
+- Formulario de recuperación con envío de email
+- Integración con Supabase Auth resetPasswordForEmail
+- Mensaje de confirmación de email enviado
+- Navegación fluida entre login y recuperación
+
 ## [0.1.1] - 2026-05-06
 
 ### Landing Page
