@@ -58,14 +58,14 @@ export async function middleware(request: NextRequest) {
 
   const { data: shop, error: shopError } = await supabase
     .from("shops")
-    .select("is_active, plan_expiry")
+    .select("active, plan_expiry")
     .eq("id", userProfile.shop_id)
     .single();
 
   if (
     shopError ||
     !shop ||
-    !shop.is_active ||
+    !shop.active ||
     (shop.plan_expiry && new Date(shop.plan_expiry) <= new Date())
   ) {
     const billingUrl = request.nextUrl.clone();

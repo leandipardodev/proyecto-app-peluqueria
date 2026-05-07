@@ -90,7 +90,7 @@ export async function registerShop(formData: FormData) {
     .from("shops")
     .insert({
       name: shopName,
-      is_active: true,
+      active: true,
       plan_expiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
         .toISOString()
         .split("T")[0],
@@ -117,11 +117,23 @@ export async function registerShop(formData: FormData) {
   }
 
   if (authData.user) {
-    await supabaseAdmin.from("user_profiles").insert({
-      user_id: authData.user.id,
-      shop_id: shop.id,
-      role: "owner",
-    });
+    const { error: profileError } = await supabaseAdmin
+      .from("user_profiles")
+      .insert({
+        user_id: authData.user.id,
+        shop_id: shop.id,
+        name: email,
+        email,
+        role: "owner",
+      });
+
+    if (profileError) {
+      await supabaseAdmin.from("shops").delete().eq("id", shop.id);
+      try {
+        await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      } catch {}
+      return { error: profileError.message };
+    }
   }
 
   return { success: true };

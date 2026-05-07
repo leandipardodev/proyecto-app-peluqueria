@@ -11,8 +11,7 @@ interface ShopProfile {
   id: string;
   name: string;
   plan_expiry: string;
-  payment_status: boolean;
-  is_active: boolean;
+  active: boolean;
 }
 
 export default function SettingsPage() {
@@ -123,36 +122,20 @@ export default function SettingsPage() {
           <div>
             <dt className="text-sm font-medium text-gray-500">Estado</dt>
             <dd className="mt-1 text-sm text-gray-900">
-              {profile.is_active ? (
+              {profile.active ? (
                 <span className="text-green-600">Activo</span>
               ) : (
                 <span className="text-red-600">Inactivo</span>
               )}
             </dd>
           </div>
-          <div>
-            <dt className="text-sm font-medium text-gray-500">Pago</dt>
-            <dd className="mt-1 text-sm text-gray-900">
-              {profile.payment_status ? (
-                <span className="text-green-600">Al día</span>
-              ) : (
-                <span className="text-red-600">Pendiente</span>
-              )}
-            </dd>
-          </div>
+
           <div>
             <dt className="text-sm font-medium text-gray-500">Vencimiento del Plan</dt>
             <dd className="mt-1 text-sm text-gray-900">{expiryDate}</dd>
           </div>
         </dl>
-        {!profile.payment_status && (
-          <div className="mt-4 p-4 bg-yellow-50 rounded-lg">
-            <p className="text-sm text-yellow-800">
-              Tu período de prueba ha finalizado o el pago está pendiente. 
-              Contacta a soporte: soporte@klip.app
-            </p>
-          </div>
-        )}
+
       </div>
 
       <div className="bg-white rounded-lg shadow p-6">
