@@ -3,6 +3,7 @@
 import { createServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
+import "server-only";
 
 export async function fetchStaffMembers() {
   const session = await getAuthSession();
@@ -16,11 +17,10 @@ export async function fetchStaffMembers() {
       user_id,
       name,
       email,
-      role,
-      users!user_profiles_user_id_fkey(id, name, email)
+      role
     `)
     .eq("shop_id", shopId)
-    .in("role", ["admin", "staff"])
+    .in("role", ["owner", "staff"])
     .order("created_at", { ascending: false });
 
   if (error) throw error;
@@ -49,7 +49,6 @@ export async function fetchStaffMembers() {
         email: member.email,
         role: member.role,
         revenue,
-        users: member.users,
       };
     })
   );
@@ -63,7 +62,7 @@ export async function addStaffMember(formData: FormData) {
 
   const name = formData.get("name") as string;
   const email = formData.get("email") as string;
-  const role = formData.get("role") as "staff" | "admin";
+  const role = formData.get("role") as "staff" | "owner";
 
   if (!name || !email || !role) {
     return { error: "Todos los campos son obligatorios" };
@@ -112,7 +111,7 @@ export async function addStaffMember(formData: FormData) {
   return { success: true, password };
 }
 
-export async function updateStaffRole(id: string, role: "staff" | "admin") {
+export async function updateStaffRole(id: string, role: "staff" | "owner") {
   const session = await getAuthSession();
   const shopId = await getShopId(session);
 
@@ -120,7 +119,7 @@ export async function updateStaffRole(id: string, role: "staff" | "admin") {
 
   const { error } = await supabase
     .from("user_profiles")
-    .update({ role })
+    .update({ role, updated_at: new Date().toISOString() })
     .eq("user_id", id)
     .eq("shop_id", shopId);
 

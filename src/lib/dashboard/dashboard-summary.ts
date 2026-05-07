@@ -58,10 +58,10 @@ export async function fetchDashboardSummary() {
       >(),
   ]);
 
-  const revenue = (revenueToday.data ?? []).reduce(
-    (sum, a) => sum + (a.services?.price ?? 0),
-    0
-  );
+  const revenue = (revenueToday.data ?? []).reduce((sum, a) => {
+    const svc = Array.isArray(a.services) ? a.services[0] : a.services;
+    return sum + (svc?.price ?? 0);
+  }, 0);
 
   const nextAppointments = (
     await supabase

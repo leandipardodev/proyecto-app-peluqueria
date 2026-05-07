@@ -3,6 +3,7 @@
 import { createServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
+import "server-only";
 
 export async function fetchStockItems() {
   const session = await getAuthSession();
@@ -75,7 +76,7 @@ export async function updateStock(id: string, delta: number) {
 
   const { error } = await supabase
     .from("stock")
-    .update({ quantity: newQuantity })
+    .update({ quantity: newQuantity, updated_at: new Date().toISOString() })
     .eq("id", id)
     .eq("shop_id", shopId);
 

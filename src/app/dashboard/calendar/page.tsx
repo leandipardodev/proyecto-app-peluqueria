@@ -11,12 +11,14 @@ export const dynamic = "force-dynamic";
 
 export default async function CalendarPage() {
   const today = new Date();
-  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
-    .toISOString()
-    .split("T")[0];
-  const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0)
-    .toISOString()
-    .split("T")[0];
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+  weekStart.setHours(0, 0, 0, 0);
+  const rangeStart = new Date(weekStart);
+  rangeStart.setDate(weekStart.getDate() - 7);
+  const rangeEnd = new Date(weekStart);
+  rangeEnd.setDate(weekStart.getDate() + 14);
+  rangeEnd.setHours(23, 59, 59, 999);
 
   let appointments: Awaited<ReturnType<typeof fetchAppointments>> = [];
   let services: Awaited<ReturnType<typeof fetchActiveServices>> = [];
@@ -26,7 +28,7 @@ export default async function CalendarPage() {
 
   try {
     const results = await Promise.allSettled([
-      fetchAppointments(startOfMonth, endOfMonth),
+      fetchAppointments(rangeStart.toISOString(), rangeEnd.toISOString()),
       fetchActiveServices(),
       fetchStaffMembers(),
       fetchCustomers(),
@@ -71,12 +73,13 @@ async function fetchCustomers() {
   const supabase = await createServerClient();
 
   const { data, error } = await supabase
-    .from("customers")
-    .select("id, name, email, phone")
+    .from("user_profiles")
+    .select("user_id, name, email, phone")
     .eq("shop_id", shopId)
+    .in("role", ["customer"])
     .order("name", { ascending: true })
-    .returns<{ id: string; name: string; email: string | null; phone: string | null }[]>();
+    .returns<{ user_id: string; name: string; email: string | null; phone: string | null }[]>();
 
   if (error) throw error;
-  return data;
+  return data.map(c => ({ id: c.user_id, name: c.name, email: c.email, phone: c.phone }));
 }

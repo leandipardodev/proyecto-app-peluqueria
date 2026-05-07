@@ -31,7 +31,7 @@ export default function StaffList({
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<"staff" | "admin">("staff");
+  const [role, setRole] = useState<"staff" | "owner">("staff");
   const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -62,7 +62,7 @@ export default function StaffList({
     setRole("staff");
   }
 
-  async function handleRoleChange(id: string, newRole: "staff" | "admin") {
+  async function handleRoleChange(id: string, newRole: "staff" | "owner") {
     const result = await updateStaffRole(id, newRole);
     if (result.error) {
       alert(result.error as string);
@@ -124,11 +124,11 @@ export default function StaffList({
               <select
                 id="role"
                 value={role}
-                onChange={(e) => setRole(e.target.value as "staff" | "admin")}
+                onChange={(e) => setRole(e.target.value as "staff" | "owner")}
                 className="mt-1 block w-full rounded-lg border border-gray-300 bg-white py-2 px-3 text-sm"
               >
                 <option value="staff">Peluquero</option>
-                <option value="admin">Administrador</option>
+                <option value="owner">Administrador</option>
               </select>
             </div>
             <div className="flex gap-3">
@@ -217,11 +217,11 @@ export default function StaffList({
                   <td className="px-6 py-4 whitespace-nowrap">
                     <select
                       value={member.role}
-                      onChange={(e) => handleRoleChange(member.id, e.target.value as "staff" | "admin")}
+                      onChange={(e) => handleRoleChange(member.id, e.target.value as "staff" | "owner")}
                       className="text-sm rounded border border-gray-300 py-1 px-2"
                     >
                       <option value="staff">Peluquero</option>
-                      <option value="admin">Admin</option>
+                      <option value="owner">Admin</option>
                     </select>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

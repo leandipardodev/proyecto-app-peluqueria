@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState, useEffect } from "react";
 import { updateClientProfile } from "@/lib/dashboard/client-actions";
+import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +15,14 @@ export default function ClientProfilePage() {
     },
     null
   );
+  const [userEmail, setUserEmail] = useState("");
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user?.email) setUserEmail(user.email);
+    });
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -68,7 +77,7 @@ export default function ClientProfilePage() {
               type="email"
               className="mt-1 bg-gray-50"
               disabled
-              value="usuario@email.com"
+              value={userEmail}
             />
             <p className="mt-1 text-xs text-gray-500">
               El email no se puede cambiar

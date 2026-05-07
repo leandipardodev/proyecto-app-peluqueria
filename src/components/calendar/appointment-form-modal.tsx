@@ -127,8 +127,6 @@ export default function AppointmentFormModal({
     });
   }
 
-  const defaults2 = getDefaultDateTime();
-
   return (
     <div
       ref={backdropRef}
@@ -298,7 +296,7 @@ export default function AppointmentFormModal({
                     type="date"
                     id="start_date"
                     name="start_date"
-                    defaultValue={defaults2.date}
+                    defaultValue={defaults.date}
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
                   />
@@ -314,7 +312,7 @@ export default function AppointmentFormModal({
                     type="time"
                     id="start_time"
                     name="start_time"
-                    defaultValue={defaults2.time}
+                    defaultValue={defaults.time}
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
                   />
@@ -326,22 +324,11 @@ export default function AppointmentFormModal({
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     Hora fin (calculada)
                   </label>
-                  <input
-                    type="hidden"
-                    name="end_time"
-                    defaultValue={`${defaults2.date}T${endTime}:00`}
-                  />
                   <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600">
                     {endTime}
                   </div>
                 </div>
               )}
-
-              <input
-                type="hidden"
-                name="start_time"
-                defaultValue={`${defaults2.date}T${defaults2.time}:00`}
-              />
             </div>
           </form>
         </div>

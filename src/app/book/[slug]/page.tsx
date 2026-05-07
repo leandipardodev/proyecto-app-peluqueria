@@ -49,7 +49,7 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
     .from("user_profiles")
     .select("user_id, name")
     .eq("shop_id", shop.id)
-    .in("role", ["admin", "staff"])
+    .in("role", ["owner", "staff"])
     .order("name", { ascending: true });
 
   // Parse opening hours

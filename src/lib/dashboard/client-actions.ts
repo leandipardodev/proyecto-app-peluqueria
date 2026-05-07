@@ -58,22 +58,26 @@ export async function fetchClientAppointments() {
 
   if (error) throw error;
 
-  return data.map((apt) => ({
-    id: apt.id,
-    start_time: apt.start_time,
-    end_time: apt.end_time,
-    status: apt.status,
-    is_paid: apt.is_paid,
-    notes: apt.notes,
-    service: apt.services && apt.services.length > 0
-      ? {
-          name: apt.services[0].name,
-          price: apt.services[0].price,
-          duration_minutes: apt.services[0].duration_minutes,
-        }
-      : null,
-    staff: apt.staff && apt.staff.length > 0 ? { name: apt.staff[0].name } : null,
-  }));
+  return data.map((apt) => {
+    const svc = Array.isArray(apt.services) ? apt.services[0] : apt.services;
+    const stf = Array.isArray(apt.staff) ? apt.staff[0] : apt.staff;
+    return {
+      id: apt.id,
+      start_time: apt.start_time,
+      end_time: apt.end_time,
+      status: apt.status,
+      is_paid: apt.is_paid,
+      notes: apt.notes,
+      service: svc
+        ? {
+            name: svc.name,
+            price: svc.price,
+            duration_minutes: svc.duration_minutes,
+          }
+        : null,
+      staff: stf ? { name: stf.name } : null,
+    };
+  });
 }
 
 // Cancel appointment (only if it belongs to the client)
@@ -142,7 +146,7 @@ export async function updateClientProfile(formData: FormData) {
 
   const { error } = await supabase
     .from("user_profiles")
-    .update({ name, phone: phone || null })
+    .update({ name, phone: phone || null, updated_at: new Date().toISOString() })
     .eq("user_id", session.user.id);
 
   if (error) return { error: error.message };
@@ -193,7 +197,7 @@ export async function fetchPublicStaff(shopId: string) {
     .from("user_profiles")
     .select("user_id, name")
     .eq("shop_id", shopId)
-    .in("role", ["admin", "staff"])
+    .in("role", ["owner", "staff"])
     .order("name", { ascending: true });
 
   if (error) throw error;

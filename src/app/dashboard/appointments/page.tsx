@@ -79,8 +79,8 @@ export default function AppointmentsPage() {
           .eq("shop_id", sId)
           .order("start_time", { ascending: true }),
         supabase.from("services").select("*").eq("shop_id", sId),
-        supabase.from("staff").select("*, users(*)").eq("shop_id", sId),
-        supabase.from("customers").select("*").eq("shop_id", sId),
+        supabase.from("user_profiles").select("user_id, name, email, role").eq("shop_id", sId).in("role", ["owner", "staff"]),
+        supabase.from("user_profiles").select("user_id, name, email, phone").eq("shop_id", sId).eq("role", "customer"),
       ]);
 
       if (!appointmentsRes.error && appointmentsRes.data) {
@@ -90,10 +90,10 @@ export default function AppointmentsPage() {
         setServices(servicesRes.data as Service[]);
       }
       if (!staffRes.error && staffRes.data) {
-        setStaff(staffRes.data as StaffMember[]);
+        setStaff(staffRes.data.map((s: any) => ({ id: s.user_id, role: s.role, name: s.name, email: s.email })));
       }
       if (!customersRes.error && customersRes.data) {
-        setCustomers(customersRes.data as Customer[]);
+        setCustomers(customersRes.data.map((c: any) => ({ id: c.user_id, name: c.name, email: c.email, phone: c.phone })));
       }
       setLoading(false);
     }

@@ -3,6 +3,7 @@
 import { createServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
+import "server-only";
 
 export async function fetchAppointments(startDate: string, endDate: string) {
   const session = await getAuthSession();
@@ -92,7 +93,7 @@ export async function fetchStaffMembers() {
   const { data, error } = await supabase
     .from("user_profiles")
     .select(`
-      id,
+      user_id,
       role,
       name,
       email
@@ -102,7 +103,7 @@ export async function fetchStaffMembers() {
     .order("created_at", { ascending: true })
     .returns<
       {
-        id: string;
+        user_id: string;
         role: string;
         name: string | null;
         email: string | null;
@@ -110,7 +111,7 @@ export async function fetchStaffMembers() {
     >();
 
   if (error) throw error;
-  return data;
+  return (data || []).map(s => ({ id: s.user_id, role: s.role, name: s.name, email: s.email }));
 }
 
 export async function createAppointment(formData: FormData) {
@@ -120,23 +121,34 @@ export async function createAppointment(formData: FormData) {
   const customerId = formData.get("customer_id") as string;
   const staffId = formData.get("staff_id") as string;
   const serviceId = formData.get("service_id") as string;
+  const startDate = formData.get("start_date") as string;
   const startTime = formData.get("start_time") as string;
-  const endTime = formData.get("end_time") as string;
   const notes = formData.get("notes") as string;
 
-  if (!customerId || !staffId || !serviceId || !startTime || !endTime) {
+  if (!customerId || !staffId || !serviceId || !startDate || !startTime) {
     return { error: "Todos los campos obligatorios deben completarse" };
   }
 
   const supabase = await createServerClient();
+
+  const { data: service } = await supabase
+    .from("services")
+    .select("duration_minutes")
+    .eq("id", serviceId)
+    .single();
+
+  if (!service) return { error: "Servicio no encontrado" };
+
+  const startDateTime = new Date(`${startDate}T${startTime}:00`);
+  const endDateTime = new Date(startDateTime.getTime() + service.duration_minutes * 60000);
 
   const { error } = await supabase.from("appointments").insert({
     shop_id: shopId,
     customer_id: customerId,
     staff_id: staffId,
     service_id: serviceId,
-    start_time: startTime,
-    end_time: endTime,
+    start_time: startDateTime.toISOString(),
+    end_time: endDateTime.toISOString(),
     status: "scheduled",
     notes: notes || null,
   });
@@ -157,7 +169,7 @@ export async function updateAppointmentStatus(
 
   const supabase = await createServerClient();
 
-  const updates: Record<string, unknown> = { status };
+  const updates: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
   if (isPaid !== undefined) {
     updates.is_paid = isPaid;
   }

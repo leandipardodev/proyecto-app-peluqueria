@@ -10,6 +10,7 @@ import {
   Search,
 } from "lucide-react";
 import { useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { deleteProduct, updateStock } from "@/lib/dashboard/inventory-actions";
 
 type StockItem = {
@@ -24,6 +25,7 @@ interface StockTableProps {
 }
 
 export default function StockTable({ items }: StockTableProps) {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [pending, startTransition] = useTransition();
 
@@ -38,6 +40,7 @@ export default function StockTable({ items }: StockTableProps) {
   function handleDelta(id: string, delta: number) {
     startTransition(async () => {
       await updateStock(id, delta);
+      router.refresh();
     });
   }
 
@@ -45,6 +48,7 @@ export default function StockTable({ items }: StockTableProps) {
     if (!confirm("¿Eliminar este producto del inventario?")) return;
     startTransition(async () => {
       await deleteProduct(id);
+      router.refresh();
     });
   }
 

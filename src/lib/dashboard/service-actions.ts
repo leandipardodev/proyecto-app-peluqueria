@@ -3,6 +3,7 @@
 import { createServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
+import "server-only";
 
 export async function fetchServices() {
   const session = await getAuthSession();
@@ -67,7 +68,7 @@ export async function updateService(id: string, formData: FormData) {
 
   const { error } = await supabase
     .from("services")
-    .update({ name, price, duration_minutes: durationMinutes })
+    .update({ name, price, duration_minutes: durationMinutes, updated_at: new Date().toISOString() })
     .eq("id", id)
     .eq("shop_id", shopId);
 
