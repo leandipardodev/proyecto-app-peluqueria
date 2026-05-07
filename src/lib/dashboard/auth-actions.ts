@@ -91,9 +91,7 @@ export async function registerShop(formData: FormData) {
     .insert({
       name: shopName,
       active: true,
-      plan_expiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .split("T")[0],
+      plan_expiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       slug: generateShopSlug(shopName),
     })
     .select()
