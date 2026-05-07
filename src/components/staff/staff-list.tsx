@@ -32,6 +32,7 @@ export default function StaffList({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"staff" | "admin">("staff");
+  const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -52,11 +53,13 @@ export default function StaffList({
       return;
     }
 
-    setShowForm(false);
+    if (result.password) {
+      setGeneratedPassword(result.password);
+    }
+
     setName("");
     setEmail("");
     setRole("staff");
-    window.location.reload();
   }
 
   async function handleRoleChange(id: string, newRole: "staff" | "admin") {
@@ -135,12 +138,42 @@ export default function StaffList({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setShowForm(false)}
+                onClick={() => {
+                  setShowForm(false);
+                  setGeneratedPassword(null);
+                }}
               >
                 Cancelar
               </Button>
             </div>
           </form>
+
+          {generatedPassword && (
+            <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <p className="text-sm text-green-800 font-medium mb-2">
+                Usuario creado correctamente. Contraseña generada:
+              </p>
+              <div className="flex items-center gap-2">
+                <code className="bg-white px-3 py-1.5 rounded border border-green-300 text-sm font-mono">
+                  {generatedPassword}
+                </code>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(generatedPassword);
+                    alert("Contraseña copiada al portapapeles");
+                  }}
+                >
+                  Copiar
+                </Button>
+              </div>
+              <p className="text-xs text-green-600 mt-2">
+                Comparte esta contraseña con el peluquero. Se le solicitará cambiarla en el primer inicio de sesión.
+              </p>
+            </div>
+          )}
         </div>
       )}
 

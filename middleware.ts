@@ -5,8 +5,8 @@ const DASHBOARD_PREFIX = "/dashboard";
 const LOGIN_PATH = "/login";
 const BILLING_REQUIRED_PATH = "/billing-required";
 
-const PROTECTED_PATHS = ["/dashboard"];
-const PUBLIC_PATHS = ["/login", "/register", "/api/health", "/billing-required"];
+const PROTECTED_PATHS = ["/dashboard", "/client"];
+const PUBLIC_PATHS = ["/login", "/register", "/api/health", "/billing-required", "/book"];
 
 function isPublicPath(pathname: string): boolean {
   return (

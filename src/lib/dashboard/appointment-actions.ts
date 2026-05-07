@@ -12,8 +12,7 @@ export async function fetchAppointments(startDate: string, endDate: string) {
 
   const { data, error } = await supabase
     .from("appointments")
-    .select(
-      `
+    .select(`
       id,
       customer_id,
       staff_id,
@@ -22,35 +21,50 @@ export async function fetchAppointments(startDate: string, endDate: string) {
       end_time,
       status,
       is_paid,
-      notes,
-      customers!appointments_customer_id_fkey (name, email, phone),
-      staff!appointments_staff_id_fkey (name, email),
-      services!appointments_service_id_fkey (name, price, duration_minutes)
-      `
-    )
+      notes
+    `)
     .eq("shop_id", shopId)
     .gte("start_time", startDate)
     .lte("start_time", endDate)
-    .order("start_time", { ascending: true })
-    .returns<
-      {
-        id: string;
-        customer_id: string;
-        staff_id: string;
-        service_id: string;
-        start_time: string;
-        end_time: string;
-        status: string;
-        is_paid: boolean;
-        notes: string | null;
-        customers: { name: string; email: string; phone: string | null } | null;
-        staff: { name: string; email: string } | null;
-        services: { name: string; price: number; duration_minutes: number } | null;
-      }[]
-    >();
+    .order("start_time", { ascending: true });
 
   if (error) throw error;
-  return data;
+
+  const appointments = data || [];
+
+  const customerIds = [...new Set(appointments.map(a => a.customer_id))];
+  const staffIds = [...new Set(appointments.map(a => a.staff_id))];
+  const serviceIds = [...new Set(appointments.map(a => a.service_id))];
+
+  const [customersData, staffData, servicesData] = await Promise.all([
+    supabase.from("user_profiles").select("user_id, name, email, phone").in("user_id", customerIds),
+    supabase.from("user_profiles").select("user_id, name, email").in("user_id", staffIds),
+    supabase.from("services").select("id, name, price, duration_minutes").in("id", serviceIds),
+  ]);
+
+  const customersMap = new Map((customersData.data || []).map(c => [c.user_id, c]));
+  const staffMap = new Map((staffData.data || []).map(s => [s.user_id, s]));
+  const servicesMap = new Map((servicesData.data || []).map(s => [s.id, s]));
+
+  return appointments.map(apt => ({
+    ...apt,
+    customers: customersMap.get(apt.customer_id) || null,
+    staff: staffMap.get(apt.staff_id) || null,
+    services: servicesMap.get(apt.service_id) || null,
+  })) as {
+    id: string;
+    customer_id: string;
+    staff_id: string;
+    service_id: string;
+    start_time: string;
+    end_time: string;
+    status: string;
+    is_paid: boolean;
+    notes: string | null;
+    customers: { user_id: string; name: string; email: string; phone: string | null } | null;
+    staff: { user_id: string; name: string; email: string } | null;
+    services: { id: string; name: string; price: number; duration_minutes: number } | null;
+  }[];
 }
 
 export async function fetchActiveServices() {
@@ -77,21 +91,21 @@ export async function fetchStaffMembers() {
 
   const { data, error } = await supabase
     .from("user_profiles")
-    .select(
-      `
+    .select(`
       id,
       role,
-      users!user_profiles_user_id_fkey (id, name, email)
-      `
-    )
+      name,
+      email
+    `)
     .eq("shop_id", shopId)
-    .in("role", ["admin", "staff"])
+    .in("role", ["owner", "staff"])
     .order("created_at", { ascending: true })
     .returns<
       {
         id: string;
         role: string;
-        users: { id: string; name: string | null; email: string | null } | null;
+        name: string | null;
+        email: string | null;
       }[]
     >();
 

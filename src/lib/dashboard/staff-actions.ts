@@ -17,7 +17,7 @@ export async function fetchStaffMembers() {
       name,
       email,
       role,
-      created_at
+      users!user_profiles_user_id_fkey(id, name, email)
     `)
     .eq("shop_id", shopId)
     .in("role", ["admin", "staff"])
@@ -49,6 +49,7 @@ export async function fetchStaffMembers() {
         email: member.email,
         role: member.role,
         revenue,
+        users: member.users,
       };
     })
   );
@@ -80,17 +81,25 @@ export async function addStaffMember(formData: FormData) {
     return { error: "Este email ya está registrado" };
   }
 
-  const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+  const password = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
+
+  const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
     email,
-    password: Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8),
-    email_confirm: true,
-    user_metadata: { name },
+    password,
+    options: {
+      data: { name },
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/verify?type=signup`,
+    },
   });
 
-  if (authError) return { error: authError.message };
+  if (signUpError) return { error: signUpError.message };
+
+  if (!signUpData.user) {
+    return { error: "Error al crear el usuario" };
+  }
 
   const { error } = await supabase.from("user_profiles").insert({
-    user_id: authUser.user.id,
+    user_id: signUpData.user.id,
     shop_id: shopId,
     name,
     email,
@@ -100,7 +109,7 @@ export async function addStaffMember(formData: FormData) {
   if (error) return { error: error.message };
 
   revalidatePath("/dashboard/staff");
-  return { success: true };
+  return { success: true, password };
 }
 
 export async function updateStaffRole(id: string, role: "staff" | "admin") {

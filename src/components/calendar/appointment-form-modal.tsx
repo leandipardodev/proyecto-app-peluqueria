@@ -15,7 +15,8 @@ type Service = {
 type StaffMember = {
   id: string;
   role: string;
-  users: { id: string; name: string | null; email: string | null } | null;
+  name: string | null;
+  email: string | null;
 };
 
 type Customer = {
@@ -108,34 +109,12 @@ export default function AppointmentFormModal({
     e.preventDefault();
     setError(null);
 
-      const formData = new FormData(e.currentTarget);
-
-      if (showNewCustomer) {
-        if (!newCustomerName.trim()) {
-          setError("El nombre del cliente es obligatorio");
-          return;
-        }
-
-        const supabase = createClient();
-
-      const { data: customerData, error: customerError } = await supabase
-        .from("customers")
-        .insert({
-          name: newCustomerName,
-          email: newCustomerEmail || null,
-          phone: newCustomerPhone || null,
-        })
-        .select()
-        .single();
-
-      if (customerError) {
-        setError(customerError.message);
-        return;
-      }
-
-      formData.set("customer_id", customerData.id);
-      onCustomerCreated?.(customerData);
+    if (showNewCustomer) {
+      setError("La creación de nuevos clientes no está disponible desde el modal. Seleccioná un cliente existente.");
+      return;
     }
+
+    const formData = new FormData(e.currentTarget);
 
     startTransition(async () => {
       const result = await createAppointment(formData);
@@ -255,7 +234,7 @@ export default function AppointmentFormModal({
                 >
                   Staff asignado
                 </label>
-                <select
+                  <select
                   id="staff_id"
                   name="staff_id"
                   value={selectedStaffId}
@@ -264,13 +243,15 @@ export default function AppointmentFormModal({
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
                 >
                   <option value="">Seleccionar staff...</option>
-                  {staff
-                    .filter((s) => s.users)
-                    .map((s) => (
+                  {staff && staff.length > 0 ? (
+                    staff.map((s) => (
                       <option key={s.id} value={s.id}>
-                        {s.users?.name || s.users?.email}
+                        {s.name || s.email || s.id}
                       </option>
-                    ))}
+                    ))
+                  ) : (
+                    <option value="" disabled>No hay personal registrado</option>
+                  )}
                 </select>
               </div>
 

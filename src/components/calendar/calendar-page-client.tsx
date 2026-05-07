@@ -28,7 +28,8 @@ type Service = {
 type StaffMember = {
   id: string;
   role: string;
-  users: { id: string; name: string | null; email: string | null } | null;
+  name: string | null;
+  email: string | null;
 };
 
 type Customer = {
@@ -43,6 +44,7 @@ interface CalendarPageClientProps {
   services: Service[];
   staff: StaffMember[];
   customers: Customer[];
+  error?: string | null;
 }
 
 export default function CalendarPageClient({
@@ -50,6 +52,7 @@ export default function CalendarPageClient({
   services,
   staff,
   customers,
+  error,
 }: CalendarPageClientProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [formModalOpen, setFormModalOpen] = useState(false);
@@ -78,6 +81,21 @@ export default function CalendarPageClient({
 
   return (
     <div className="h-full flex flex-col">
+      {error && (
+        <div className="bg-red-50 text-red-700 text-sm px-4 py-3 rounded-lg mb-4">
+          Error: {error}
+        </div>
+      )}
+      {(!services || services.length === 0) && (
+        <div className="bg-yellow-50 text-yellow-700 text-sm px-4 py-3 rounded-lg mb-4">
+          No hay servicios registrados. Agregá servicios en la sección Servicios.
+        </div>
+      )}
+      {(!staff || staff.length === 0) && (
+        <div className="bg-yellow-50 text-yellow-700 text-sm px-4 py-3 rounded-lg mb-4">
+          No hay personal registrado. Agregá personal en la sección Personal.
+        </div>
+      )}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Calendario</h1>
       </div>

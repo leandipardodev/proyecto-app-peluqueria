@@ -5,6 +5,16 @@ import { createServerClient } from "@supabase/ssr";
 import { redirect } from "next/navigation";
 import "server-only";
 
+function generateShopSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .substring(0, 50);
+}
+
 export async function login(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
@@ -80,10 +90,11 @@ export async function registerShop(formData: FormData) {
     .from("shops")
     .insert({
       name: shopName,
-      active: true,
+      is_active: true,
       plan_expiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
         .toISOString()
         .split("T")[0],
+      slug: generateShopSlug(shopName),
     })
     .select()
     .single();

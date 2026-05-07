@@ -28,7 +28,8 @@ interface Service {
 interface StaffMember {
   id: string;
   role: string;
-  users: { id: string; name: string | null; email: string | null } | null;
+  name: string | null;
+  email: string | null;
 }
 
 interface Customer {

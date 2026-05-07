@@ -22,16 +22,34 @@ export default async function CalendarPage() {
   let services: Awaited<ReturnType<typeof fetchActiveServices>> = [];
   let staff: Awaited<ReturnType<typeof fetchStaffMembers>> = [];
   let customers: Awaited<ReturnType<typeof fetchCustomers>> = [];
+  let error: string | null = null;
 
   try {
-    [appointments, services, staff, customers] = await Promise.all([
+    const results = await Promise.allSettled([
       fetchAppointments(startOfMonth, endOfMonth),
       fetchActiveServices(),
       fetchStaffMembers(),
       fetchCustomers(),
     ]);
-  } catch {
-    // Return empty arrays on error
+
+    if (results[0].status === "fulfilled") appointments = results[0].value;
+    else console.error("Error fetching appointments:", results[0].reason);
+
+    if (results[1].status === "fulfilled") services = results[1].value;
+    else console.error("Error fetching services:", results[1].reason);
+
+    if (results[2].status === "fulfilled") staff = results[2].value;
+    else console.error("Error fetching staff:", results[2].reason);
+
+    if (results[3].status === "fulfilled") customers = results[3].value;
+    else console.error("Error fetching customers:", results[3].reason);
+
+    const hasError = results.some(r => r.status === "rejected");
+    if (hasError) {
+      error = "Error al cargar algunos datos. Verifica la consola.";
+    }
+  } catch (e) {
+    error = e instanceof Error ? e.message : "Error al cargar datos";
   }
 
   return (
@@ -40,6 +58,7 @@ export default async function CalendarPage() {
       services={services}
       staff={staff}
       customers={customers}
+      error={error}
     />
   );
 }
