@@ -1,13 +1,13 @@
 "use server";
 
+import { createServerClient as createSsrClient } from "@supabase/ssr";
 import { createServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
 import "server-only";
 
 function createAdminClient() {
-  const { createServerClient } = require("@supabase/ssr");
-  return createServerClient(
+  return createSsrClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     {

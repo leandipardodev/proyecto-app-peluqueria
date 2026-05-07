@@ -162,35 +162,9 @@ export async function updateClientProfile(formData: FormData) {
 // Create appointment from client side
 export async function createClientAppointment(formData: FormData) {
   const session = await getAuthSession();
+  const shopId = await getShopId(session);
 
   const supabase = await createServerClient();
-
-  // Ensure user has a profile (needed for FK constraint)
-  const { data: existingProfile } = await supabase
-    .from("user_profiles")
-    .select("shop_id, user_id")
-    .eq("user_id", session.user.id)
-    .maybeSingle();
-
-  if (!existingProfile) {
-    const { data: userData } = await supabase.auth.getUser();
-    const email = userData?.user?.email || "";
-    const name = userData?.user?.user_metadata?.full_name || email || "Cliente";
-
-    const { error: profileError } = await supabase
-      .from("user_profiles")
-      .insert({
-        user_id: session.user.id,
-        shop_id: null,
-        name,
-        email,
-        role: "customer",
-      });
-
-    if (profileError) return { error: profileError.message };
-  }
-
-  const shopId = existingProfile?.shop_id || null;
 
   const serviceId = formData.get("service_id") as string;
   const staffId = formData.get("staff_id") as string;

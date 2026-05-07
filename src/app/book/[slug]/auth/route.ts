@@ -33,7 +33,9 @@ export async function GET(request: NextRequest) {
     }
   );
 
-  const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000").replace(/\/$/, '');
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
+    ? process.env.NEXT_PUBLIC_BASE_URL.replace(/\/$/, '')
+    : new URL(request.url).origin;
   const redirectTo = `${baseUrl}/auth/callback?state=${stateParam || ""}`;
   
   console.log("Auth route - RedirectTo:", redirectTo);
