@@ -43,6 +43,7 @@ export default function BookingFlow({ shopId, services, staffMembers }: BookingF
   const [selectedDate, setSelectedDate] = useState("");
   const [slots, setSlots] = useState<Slot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
+  const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -96,10 +97,16 @@ export default function BookingFlow({ shopId, services, staffMembers }: BookingF
   function handleConfirm() {
     if (!selectedService || !selectedSlot) return;
 
+    if (!phone.trim()) {
+      setError("El teléfono es obligatorio para recibir recordatorios");
+      return;
+    }
+
     const formData = new FormData();
     formData.set("service_id", selectedService.id);
     formData.set("start_time", selectedSlot.start);
     formData.set("end_time", selectedSlot.end);
+    formData.set("phone", phone.trim());
     if (selectedStaff) {
       formData.set("staff_id", selectedStaff.user_id);
     }
@@ -343,6 +350,23 @@ export default function BookingFlow({ shopId, services, staffMembers }: BookingF
               <span className="text-lg font-bold text-violet-600">
                 ${selectedService.price.toFixed(2)}
               </span>
+            </div>
+
+            <div className="pt-2 border-t border-gray-100">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Teléfono <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                required
+                placeholder="Ej: 11 1234-5678"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Lo usaremos para enviarte recordatorios
+              </p>
             </div>
           </div>
 

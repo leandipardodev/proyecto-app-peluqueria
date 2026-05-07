@@ -142,11 +142,15 @@ export async function updateClientProfile(formData: FormData) {
     return { error: "El nombre es obligatorio" };
   }
 
+  if (!phone) {
+    return { error: "El teléfono es obligatorio para recibir recordatorios" };
+  }
+
   const supabase = await createServerClient();
 
   const { error } = await supabase
     .from("user_profiles")
-    .update({ name, phone: phone || null, updated_at: new Date().toISOString() })
+    .update({ name, phone, updated_at: new Date().toISOString() })
     .eq("user_id", session.user.id);
 
   if (error) return { error: error.message };
@@ -158,19 +162,54 @@ export async function updateClientProfile(formData: FormData) {
 // Create appointment from client side
 export async function createClientAppointment(formData: FormData) {
   const session = await getAuthSession();
-  const shopId = await getShopId(session);
+
+  const supabase = await createServerClient();
+
+  // Ensure user has a profile (needed for FK constraint)
+  const { data: existingProfile } = await supabase
+    .from("user_profiles")
+    .select("shop_id, user_id")
+    .eq("user_id", session.user.id)
+    .maybeSingle();
+
+  if (!existingProfile) {
+    const { data: userData } = await supabase.auth.getUser();
+    const email = userData?.user?.email || "";
+    const name = userData?.user?.user_metadata?.full_name || email || "Cliente";
+
+    const { error: profileError } = await supabase
+      .from("user_profiles")
+      .insert({
+        user_id: session.user.id,
+        shop_id: null,
+        name,
+        email,
+        role: "customer",
+      });
+
+    if (profileError) return { error: profileError.message };
+  }
+
+  const shopId = existingProfile?.shop_id || null;
 
   const serviceId = formData.get("service_id") as string;
   const staffId = formData.get("staff_id") as string;
   const startTime = formData.get("start_time") as string;
   const endTime = formData.get("end_time") as string;
   const notes = formData.get("notes") as string;
+  const phone = formData.get("phone") as string;
 
   if (!serviceId || !startTime || !endTime) {
     return { error: "Todos los campos obligatorios deben completarse" };
   }
 
-  const supabase = await createServerClient();
+  // Save phone number in user profile
+  if (phone) {
+    await supabase
+      .from("user_profiles")
+      .update({ phone, updated_at: new Date().toISOString() })
+      .eq("user_id", session.user.id);
+  }
 
   const { error } = await supabase.from("appointments").insert({
     shop_id: shopId,
@@ -223,11 +262,40 @@ export async function fetchAvailableSlots(
 
   if (!service) return [];
 
-  // Get all appointments for that day
-  const dayStart = new Date(date);
-  dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(date);
-  dayEnd.setHours(23, 59, 59, 999);
+  // Get shop opening hours
+  const { data: shop } = await supabase
+    .from("shops")
+    .select("opening_hours")
+    .eq("id", shopId)
+    .single();
+
+  let startHour = 9;
+  let endHour = 18;
+
+  if (shop?.opening_hours) {
+    try {
+      const hours = typeof shop.opening_hours === "string"
+        ? JSON.parse(shop.opening_hours)
+        : shop.opening_hours;
+
+      const dayMap = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+      const dayIndex = new Date(date).getDay();
+      const dayKey = dayMap[dayIndex];
+      const dayHours = hours[dayKey];
+
+      if (dayHours && dayHours !== "Cerrado") {
+        const match = dayHours.match(/(\d+):(\d+)\s*-\s*(\d+):(\d+)/);
+        if (match) {
+          startHour = parseInt(match[1], 10);
+          endHour = parseInt(match[3], 10);
+        }
+      }
+    } catch {}
+  }
+
+  // Get all appointments for that day (UTC range covering all timezones)
+  const dayStart = new Date(date + "T00:00:00.000Z");
+  const dayEnd = new Date(date + "T23:59:59.999Z");
 
   const { data: appointments } = await supabase
     .from("appointments")
@@ -237,25 +305,24 @@ export async function fetchAvailableSlots(
     .lte("start_time", dayEnd.toISOString())
     .not("status", "eq", "cancelled");
 
-  // Generate available slots (assuming 9 AM to 6 PM working hours)
+  const now = new Date();
   const slots = [];
-  const startHour = 9;
-  const endHour = 18;
   const slotDuration = service.duration_minutes;
 
   for (let hour = startHour; hour < endHour; hour++) {
     for (let minute = 0; minute < 60; minute += slotDuration) {
       if (hour === endHour && minute > 0) break;
 
-      const slotStart = new Date(date);
-      slotStart.setHours(hour, minute, 0, 0);
+      // Build slot in local time, then convert to Date
+      const [y, m, d] = date.split("-").map(Number);
+      const slotStart = new Date(y, m - 1, d, hour, minute, 0, 0);
       const slotEnd = new Date(slotStart.getTime() + slotDuration * 60000);
 
       // Check if slot is in the past
-      if (slotStart < new Date()) continue;
+      if (slotStart < now) continue;
 
       // Check if slot extends beyond working hours
-      if (slotEnd.getHours() > endHour) continue;
+      if (slotEnd.getHours() > endHour || (slotEnd.getHours() === endHour && slotEnd.getMinutes() > 0)) continue;
 
       // Check for conflicts
       const hasConflict = (appointments || []).some((apt) => {

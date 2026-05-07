@@ -5,6 +5,20 @@ import { revalidatePath } from "next/cache";
 import { getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
 import "server-only";
 
+function createAdminClient() {
+  const { createServerClient } = require("@supabase/ssr");
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      cookies: {
+        getAll() { return []; },
+        setAll() {},
+      },
+    }
+  );
+}
+
 export async function fetchAppointments(startDate: string, endDate: string) {
   const session = await getAuthSession();
   const shopId = await getShopId(session);
@@ -154,6 +168,83 @@ export async function createAppointment(formData: FormData) {
   });
 
   if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/calendar");
+  return { success: true };
+}
+
+export async function createCustomerAndAppointment(formData: FormData) {
+  const session = await getAuthSession();
+  const shopId = await getShopId(session);
+
+  const customerName = formData.get("customer_name") as string;
+  const customerEmail = formData.get("customer_email") as string;
+  const customerPhone = formData.get("customer_phone") as string;
+  const staffId = formData.get("staff_id") as string;
+  const serviceId = formData.get("service_id") as string;
+  const startDate = formData.get("start_date") as string;
+  const startTime = formData.get("start_time") as string;
+  const notes = formData.get("notes") as string;
+
+  if (!customerName || !customerEmail || !serviceId || !startDate || !startTime) {
+    return { error: "Nombre, email, servicio, fecha y hora son obligatorios" };
+  }
+
+  const admin = createAdminClient();
+  const { data: authData, error: authError } = await admin.auth.admin.createUser({
+    email: customerEmail,
+    password: crypto.randomUUID(),
+    email_confirm: true,
+    user_metadata: { full_name: customerName },
+  });
+
+  if (authError) return { error: authError.message };
+  if (!authData.user) return { error: "No se pudo crear el usuario" };
+
+  const { error: profileError } = await admin
+    .from("user_profiles")
+    .insert({
+      user_id: authData.user.id,
+      shop_id: shopId,
+      name: customerName,
+      email: customerEmail,
+      phone: customerPhone || null,
+      role: "customer",
+    });
+
+  if (profileError) {
+    try { await admin.auth.admin.deleteUser(authData.user.id); } catch {}
+    return { error: profileError.message };
+  }
+
+  const supabase = await createServerClient();
+  const { data: service } = await supabase
+    .from("services")
+    .select("duration_minutes")
+    .eq("id", serviceId)
+    .single();
+
+  if (!service) return { error: "Servicio no encontrado" };
+
+  const startDateTime = new Date(`${startDate}T${startTime}:00`);
+  const endDateTime = new Date(startDateTime.getTime() + service.duration_minutes * 60000);
+
+  const { error: aptError } = await supabase.from("appointments").insert({
+    shop_id: shopId,
+    customer_id: authData.user.id,
+    staff_id: staffId || null,
+    service_id: serviceId,
+    start_time: startDateTime.toISOString(),
+    end_time: endDateTime.toISOString(),
+    status: "scheduled",
+    notes: notes || null,
+  });
+
+  if (aptError) {
+    try { await admin.from("user_profiles").delete().eq("user_id", authData.user.id); } catch {}
+    try { await admin.auth.admin.deleteUser(authData.user.id); } catch {}
+    return { error: aptError.message };
+  }
 
   revalidatePath("/dashboard/calendar");
   return { success: true };

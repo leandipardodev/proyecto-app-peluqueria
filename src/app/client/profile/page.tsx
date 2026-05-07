@@ -65,9 +65,13 @@ export default function ClientProfilePage() {
               id="phone"
               name="phone"
               type="tel"
+              required
               className="mt-1"
-              placeholder="Opcional"
+              placeholder="Ej: 11 1234-5678"
             />
+            <p className="mt-1 text-xs text-gray-500">
+              Lo usaremos para enviarte recordatorios
+            </p>
           </div>
 
           <div>

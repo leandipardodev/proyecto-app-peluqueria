@@ -171,3 +171,31 @@ export async function getGoogleAuthUrl() {
   if (error) return { error: error.message };
   return { url: data.url };
 }
+
+export async function updateShopName(formData: FormData) {
+  const shopId = formData.get("shop_id") as string;
+  const name = formData.get("name") as string;
+
+  if (!shopId || !name) {
+    return { error: "Faltan datos" };
+  }
+
+  const supabaseAdmin = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      cookies: {
+        getAll() { return []; },
+        setAll() {},
+      },
+    }
+  );
+
+  const { error } = await supabaseAdmin
+    .from("shops")
+    .update({ name, updated_at: new Date().toISOString() })
+    .eq("id", shopId);
+
+  if (error) return { error: error.message };
+  return { success: true };
+}

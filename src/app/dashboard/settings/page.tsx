@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { updateShopName } from "@/lib/dashboard/auth-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +22,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [pending, startTransition] = useTransition();
   const supabase = createClient();
 
   // Load shop profile
@@ -58,23 +60,23 @@ export default function SettingsPage() {
     loadProfile();
   }, []);
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!profile) return;
-    setSaving(true);
-    setMessage(null);
 
-    const { error } = await supabase
-      .from("shops")
-      .update({ name, updated_at: new Date().toISOString() })
-      .eq("id", profile.id);
+    const formData = new FormData();
+    formData.set("shop_id", profile.id);
+    formData.set("name", name);
 
-    if (error) {
-      setMessage({ type: 'error', text: error.message });
-    } else {
-      setMessage({ type: 'success', text: "Configuración guardada exitosamente" });
-      setProfile({ ...profile, name });
-    }
-    setSaving(false);
+    startTransition(async () => {
+      setMessage(null);
+      const result = await updateShopName(formData);
+      if (result.error) {
+        setMessage({ type: 'error', text: result.error });
+      } else {
+        setMessage({ type: 'success', text: "Configuración guardada exitosamente" });
+        setProfile({ ...profile, name });
+      }
+    });
   };
 
   const handleLogout = async () => {
@@ -110,8 +112,8 @@ export default function SettingsPage() {
               className="mt-1"
             />
           </div>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Guardando..." : "Guardar Cambios"}
+          <Button onClick={handleSave} disabled={pending}>
+            {pending ? "Guardando..." : "Guardar Cambios"}
           </Button>
         </div>
       </div>

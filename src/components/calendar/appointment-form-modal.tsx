@@ -2,8 +2,7 @@
 
 import { X, Plus, UserPlus } from "lucide-react";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { createAppointment } from "@/lib/dashboard/appointment-actions";
-import { createClient } from "@/lib/supabase/client";
+import { createAppointment, createCustomerAndAppointment } from "@/lib/dashboard/appointment-actions";
 
 type Service = {
   id: string;
@@ -109,15 +108,13 @@ export default function AppointmentFormModal({
     e.preventDefault();
     setError(null);
 
-    if (showNewCustomer) {
-      setError("La creación de nuevos clientes no está disponible desde el modal. Seleccioná un cliente existente.");
-      return;
-    }
-
     const formData = new FormData(e.currentTarget);
 
     startTransition(async () => {
-      const result = await createAppointment(formData);
+      const result = showNewCustomer
+        ? await createCustomerAndAppointment(formData)
+        : await createAppointment(formData);
+
       if (result.error) {
         setError(result.error);
       } else {
@@ -201,26 +198,30 @@ export default function AppointmentFormModal({
                     </div>
                     <input
                       type="text"
+                      name="customer_name"
                       placeholder="Nombre completo"
                       value={newCustomerName}
                       onChange={(e) => setNewCustomerName(e.target.value)}
+                      required
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
                     />
                     <input
                       type="email"
-                      placeholder="Email (opcional)"
+                      name="customer_email"
+                      placeholder="Email"
                       value={newCustomerEmail}
                       onChange={(e) => setNewCustomerEmail(e.target.value)}
+                      required
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
                     />
                     <input
                       type="tel"
-                      placeholder="Teléfono (opcional)"
+                      name="customer_phone"
+                      placeholder="Teléfono"
                       value={newCustomerPhone}
                       onChange={(e) => setNewCustomerPhone(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
                     />
-                    <input type="hidden" name="customer_id" value="" />
                   </div>
                 )}
               </div>
