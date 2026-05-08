@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { fetchAvailableSlots } from "@/lib/dashboard/client-actions";
 import { createClientAppointment } from "@/lib/dashboard/client-actions";
@@ -35,7 +35,7 @@ interface BookingFlowProps {
 
 type Step = "service" | "staff" | "datetime" | "confirm";
 
-export default function BookingFlow({ shopId, services, staffMembers }: BookingFlowProps) {
+export default function BookingFlow({ shopId, services, staffMembers, selectedServiceId, selectedStaffId }: BookingFlowProps) {
   const router = useRouter();
   const [step, setStep] = useState<Step>("service");
   const [selectedService, setSelectedService] = useState<Service | null>(null);
@@ -47,6 +47,30 @@ export default function BookingFlow({ shopId, services, staffMembers }: BookingF
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (!selectedServiceId) return;
+
+    const service = services.find((s) => s.id === selectedServiceId);
+    if (!service) return;
+
+    setSelectedService(service);
+
+    if (selectedStaffId && staffMembers) {
+      const staff = staffMembers.find((s) => s.user_id === selectedStaffId);
+      if (staff) {
+        setSelectedStaff(staff);
+        setStep("datetime");
+        return;
+      }
+    }
+
+    if (staffMembers && staffMembers.length > 0) {
+      setStep("staff");
+    } else {
+      setStep("datetime");
+    }
+  }, [selectedServiceId, selectedStaffId, services, staffMembers]);
 
   function handleServiceSelect(service: Service) {
     setSelectedService(service);

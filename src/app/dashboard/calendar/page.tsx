@@ -73,13 +73,12 @@ async function fetchCustomers() {
   const supabase = await createServerClient();
 
   const { data, error } = await supabase
-    .from("user_profiles")
-    .select("user_id, name, email, phone")
+    .from("customers")
+    .select("id, name, email, phone")
     .eq("shop_id", shopId)
-    .in("role", ["customer"])
     .order("name", { ascending: true })
-    .returns<{ user_id: string; name: string; email: string | null; phone: string | null }[]>();
+    .returns<{ id: string; name: string; email: string | null; phone: string | null }[]>();
 
   if (error) throw error;
-  return data.map(c => ({ id: c.user_id, name: c.name, email: c.email, phone: c.phone }));
+  return data.map(c => ({ id: c.id, name: c.name, email: c.email, phone: c.phone }));
 }

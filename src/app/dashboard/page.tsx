@@ -81,13 +81,13 @@ export default async function DashboardPage() {
           </h2>
         </div>
 
-        {summary && summary.nextAppointments.length === 0 ? (
+        {!summary || summary.nextAppointments.length === 0 ? (
           <div className="px-6 py-12 text-center text-sm text-gray-500">
             No hay turnos programados para hoy.
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
-            {summary?.nextAppointments.map((appt) => {
+            {summary.nextAppointments.map((appt) => {
               const start = new Date(appt.start_time);
               const end = new Date(appt.end_time);
 

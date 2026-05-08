@@ -1,7 +1,18 @@
-import { createServerClient } from "@/lib/supabase/server";
+import { createServerClient } from "@supabase/ssr";
+import { createServerClient as createCookieClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { CalendarDays, MapPin, Phone, Clock } from "lucide-react";
+
+function createAdminClient() {
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      cookies: { getAll() { return []; }, setAll() {} },
+    }
+  );
+}
 
 interface BookPageProps {
   params: Promise<{ slug: string }>;
@@ -13,9 +24,13 @@ export const dynamic = "force-dynamic";
 export default async function BookPage({ params, searchParams }: BookPageProps) {
   const { slug } = await params;
   const { staffId: preselectedStaffId, serviceId: preselectedServiceId, error } = await searchParams;
-  const supabase = await createServerClient();
 
-  // Fetch shop by slug
+  console.log("[BookPage] slug param:", slug);
+
+  const supabase = createAdminClient();
+  const authClient = await createCookieClient();
+
+  // Fetch shop by slug first
   const { data: shop, error: shopError } = await supabase
     .from("shops")
     .select("id, name, address, phone, opening_hours, google_maps_url, slug")
@@ -35,6 +50,16 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
         </div>
       </div>
     );
+  }
+
+  // If user is already logged in, redirect to the client booking flow directly
+  const session = await authClient.auth.getSession();
+  if (session?.data?.session?.user) {
+    const sp = new URLSearchParams();
+    if (preselectedServiceId) sp.set("serviceId", preselectedServiceId);
+    if (preselectedStaffId) sp.set("staffId", preselectedStaffId);
+    const qs = sp.toString();
+    redirect(qs ? `/client/book?${qs}` : "/client/book");
   }
 
   // Fetch active services

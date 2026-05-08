@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { createServerClient } from "@/lib/supabase/server";
+import { createServerClient } from "@supabase/ssr";
 
 interface BookLayoutProps {
   children: React.ReactNode;
@@ -10,9 +10,15 @@ export async function generateMetadata({
   params,
 }: BookLayoutProps): Promise<Metadata> {
   const { slug } = await params;
-  const supabase = await createServerClient();
+  const adminClient = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      cookies: { getAll() { return []; }, setAll() {} },
+    }
+  );
 
-  const { data: shop } = await supabase
+  const { data: shop } = await adminClient
     .from("shops")
     .select("name")
     .eq("slug", slug)
@@ -27,9 +33,5 @@ export async function generateMetadata({
 export default async function BookLayout({
   children,
 }: BookLayoutProps) {
-  return (
-    <html lang="es">
-      <body className="antialiased bg-gray-50">{children}</body>
-    </html>
-  );
+  return <>{children}</>;
 }

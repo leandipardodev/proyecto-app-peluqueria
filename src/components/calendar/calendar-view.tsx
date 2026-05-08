@@ -65,12 +65,17 @@ export default function CalendarView({
 }: CalendarViewProps) {
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const [mounted, setMounted] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showScrollHint, setShowScrollHint] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const isDragging = useRef(false);
   const startX = useRef(0);
   const scrollLeft = useRef(0);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const checkDesktop = () => {
@@ -121,6 +126,22 @@ export default function CalendarView({
     };
   }, [showScrollHint]);
 
+  if (!mounted) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-20 h-9 bg-gray-100 rounded-lg animate-pulse" />
+            <div className="w-20 h-9 bg-gray-100 rounded-lg animate-pulse" />
+            <div className="w-16 h-9 bg-gray-100 rounded-lg animate-pulse ml-2" />
+          </div>
+          <div className="w-64 h-6 bg-gray-100 rounded animate-pulse hidden sm:block" />
+        </div>
+        <div className="flex-1 bg-gray-50 rounded-xl animate-pulse" />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between mb-4">
@@ -169,7 +190,7 @@ export default function CalendarView({
                 className="h-12 flex items-start justify-end pr-2 pt-1"
               >
                 <span className="text-xs text-gray-500">
-                  {format(new Date().setHours(hour, 0, 0, 0), "HH:mm")}
+                  {format(new Date(2000, 0, 1).setHours(hour, 0, 0, 0), "HH:mm")}
                 </span>
               </div>
             ))}

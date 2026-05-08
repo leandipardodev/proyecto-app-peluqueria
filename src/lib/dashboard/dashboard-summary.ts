@@ -63,36 +63,36 @@ export async function fetchDashboardSummary() {
     return sum + (svc?.price ?? 0);
   }, 0);
 
-  const nextAppointments = (
-    await supabase
-      .from("appointments")
-      .select(
-        `
-        id,
-        start_time,
-        end_time,
-        status,
-        customers!appointments_customer_id_fkey(name),
-        services!appointments_service_id_fkey(name)
-        `
-      )
-      .eq("shop_id", shopId)
-      .gte("start_time", todayStart)
-      .lt("start_time", tomorrowStart)
-      .not("status", "eq", "cancelled")
-      .order("start_time", { ascending: true })
-      .limit(5)
-      .returns<
-        {
-          id: string;
-          start_time: string;
-          end_time: string;
-          status: string;
-          customers: { name: string } | null;
-          services: { name: string } | null;
-        }[]
-      >()
-  ).data ?? [];
+  const nextResult = await supabase
+    .from("appointments")
+    .select(
+      `
+      id,
+      start_time,
+      end_time,
+      status,
+      customers!appointments_customer_id_fkey(name),
+      services!appointments_service_id_fkey(name)
+      `
+    )
+    .eq("shop_id", shopId)
+    .gte("start_time", todayStart)
+    .lt("start_time", tomorrowStart)
+    .not("status", "eq", "cancelled")
+    .order("start_time", { ascending: true })
+    .limit(5);
+
+  console.log("[fetchDashboardSummary] nextAppointments error:", nextResult.error);
+  console.log("[fetchDashboardSummary] nextAppointments data:", JSON.stringify(nextResult.data));
+
+  const nextAppointments = (nextResult.data ?? []).map((a: Record<string, unknown>) => ({
+    id: a.id as string,
+    start_time: a.start_time as string,
+    end_time: a.end_time as string,
+    status: a.status as string,
+    customers: Array.isArray(a.customers) ? (a.customers as { name: string }[])[0] ?? null : (a.customers as { name: string } | null),
+    services: Array.isArray(a.services) ? (a.services as { name: string }[])[0] ?? null : (a.services as { name: string } | null),
+  }));
 
   return {
     appointmentsCount: (appointmentsToday.data ?? []).length,

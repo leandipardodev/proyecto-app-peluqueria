@@ -52,12 +52,12 @@ export async function fetchAppointments(startDate: string, endDate: string) {
   const serviceIds = [...new Set(appointments.map(a => a.service_id))];
 
   const [customersData, staffData, servicesData] = await Promise.all([
-    supabase.from("user_profiles").select("user_id, name, email, phone").in("user_id", customerIds),
+    supabase.from("customers").select("id, name, email, phone").in("id", customerIds),
     supabase.from("user_profiles").select("user_id, name, email").in("user_id", staffIds),
     supabase.from("services").select("id, name, price, duration_minutes").in("id", serviceIds),
   ]);
 
-  const customersMap = new Map((customersData.data || []).map(c => [c.user_id, c]));
+  const customersMap = new Map((customersData.data || []).map(c => [c.id, c]));
   const staffMap = new Map((staffData.data || []).map(s => [s.user_id, s]));
   const servicesMap = new Map((servicesData.data || []).map(s => [s.id, s]));
 
@@ -76,7 +76,7 @@ export async function fetchAppointments(startDate: string, endDate: string) {
     status: string;
     is_paid: boolean;
     notes: string | null;
-    customers: { user_id: string; name: string; email: string; phone: string | null } | null;
+    customers: { id: string; name: string; email: string; phone: string | null } | null;
     staff: { user_id: string; name: string; email: string } | null;
     services: { id: string; name: string; price: number; duration_minutes: number } | null;
   }[];
@@ -201,6 +201,21 @@ export async function createCustomerAndAppointment(formData: FormData) {
   if (authError) return { error: authError.message };
   if (!authData.user) return { error: "No se pudo crear el usuario" };
 
+  const { error: customerInsertError } = await admin
+    .from("customers")
+    .insert({
+      id: authData.user.id,
+      shop_id: shopId,
+      name: customerName,
+      email: customerEmail,
+      phone: customerPhone || null,
+    });
+
+  if (customerInsertError) {
+    try { await admin.auth.admin.deleteUser(authData.user.id); } catch {}
+    return { error: customerInsertError.message };
+  }
+
   const { error: profileError } = await admin
     .from("user_profiles")
     .insert({
@@ -208,11 +223,11 @@ export async function createCustomerAndAppointment(formData: FormData) {
       shop_id: shopId,
       name: customerName,
       email: customerEmail,
-      phone: customerPhone || null,
       role: "customer",
     });
 
   if (profileError) {
+    try { await admin.from("customers").delete().eq("id", authData.user.id); } catch {}
     try { await admin.auth.admin.deleteUser(authData.user.id); } catch {}
     return { error: profileError.message };
   }
@@ -241,6 +256,7 @@ export async function createCustomerAndAppointment(formData: FormData) {
   });
 
   if (aptError) {
+    try { await admin.from("customers").delete().eq("id", authData.user.id); } catch {}
     try { await admin.from("user_profiles").delete().eq("user_id", authData.user.id); } catch {}
     try { await admin.auth.admin.deleteUser(authData.user.id); } catch {}
     return { error: aptError.message };

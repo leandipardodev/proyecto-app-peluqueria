@@ -133,6 +133,32 @@ export async function GET(request: NextRequest) {
         new URL(`/login?error=${encodeURIComponent(profileError.message)}`, request.url)
       );
     }
+
+    const { error: customerError } = await adminClient
+      .from("customers")
+      .upsert({
+        id: user.id,
+        shop_id: shopId,
+        name: user.user_metadata?.full_name || user.email || "Cliente",
+        email: user.email || "",
+        phone: null,
+      });
+
+    if (customerError) {
+      try { await adminClient.from("user_profiles").delete().eq("user_id", user.id); } catch {}
+      return NextResponse.redirect(
+        new URL(`/login?error=${encodeURIComponent(customerError.message)}`, request.url)
+      );
+    }
+  } else if (existingProfile.shop_id) {
+    const adminClient = createAdminClient();
+    await adminClient.from("customers").upsert({
+      id: user.id,
+      shop_id: existingProfile.shop_id,
+      name: user.user_metadata?.full_name || user.email || "Cliente",
+      email: user.email || "",
+      phone: null,
+    });
   }
 
   return response;

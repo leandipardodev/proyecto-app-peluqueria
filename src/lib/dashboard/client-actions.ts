@@ -1,9 +1,23 @@
 "use server";
 
 import { createServerClient } from "@/lib/supabase/server";
+import { createServerClient as createSsrClient } from "@supabase/ssr";
 import { revalidatePath } from "next/cache";
 import { getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
 import "server-only";
+
+function createAdminClient() {
+  return createSsrClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      cookies: {
+        getAll() { return []; },
+        setAll() {},
+      },
+    }
+  );
+}
 
 // Fetch shop by slug (public)
 export async function fetchShopBySlug(slug: string) {
@@ -50,17 +64,17 @@ export async function fetchClientAppointments() {
       is_paid,
       notes,
       services!appointments_service_id_fkey(name, price, duration_minutes),
-      staff!appointments_staff_id_fkey(name)
+      user_profiles!appointments_staff_id_fkey(name)
     `)
     .eq("customer_id", session.user.id)
     .eq("shop_id", shopId)
     .order("start_time", { ascending: false });
 
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 
   return data.map((apt) => {
     const svc = Array.isArray(apt.services) ? apt.services[0] : apt.services;
-    const stf = Array.isArray(apt.staff) ? apt.staff[0] : apt.staff;
+    const stf = Array.isArray(apt.user_profiles) ? apt.user_profiles[0] : apt.user_profiles;
     return {
       id: apt.id,
       start_time: apt.start_time,
@@ -122,18 +136,29 @@ export async function fetchClientProfile() {
   const supabase = await createServerClient();
 
   const { data, error } = await supabase
-    .from("user_profiles")
+    .from("customers")
     .select("name, email, phone")
+    .eq("id", session.user.id)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  if (data) return data;
+
+  const { data: fallback, error: fallbackError } = await supabase
+    .from("user_profiles")
+    .select("name, email")
     .eq("user_id", session.user.id)
     .single();
 
-  if (error) throw error;
-  return data;
+  if (fallbackError) throw fallbackError;
+  return { name: fallback.name, email: fallback.email, phone: null };
 }
 
 // Update client profile
 export async function updateClientProfile(formData: FormData) {
   const session = await getAuthSession();
+  const shopId = await getShopId(session);
 
   const name = formData.get("name") as string;
   const phone = formData.get("phone") as string;
@@ -146,12 +171,17 @@ export async function updateClientProfile(formData: FormData) {
     return { error: "El teléfono es obligatorio para recibir recordatorios" };
   }
 
-  const supabase = await createServerClient();
+  const admin = createAdminClient();
 
-  const { error } = await supabase
-    .from("user_profiles")
-    .update({ name, phone, updated_at: new Date().toISOString() })
-    .eq("user_id", session.user.id);
+  const { error } = await admin
+    .from("customers")
+    .upsert({
+      id: session.user.id,
+      shop_id: shopId,
+      name,
+      phone,
+      updated_at: new Date().toISOString(),
+    });
 
   if (error) return { error: error.message };
 
@@ -177,13 +207,24 @@ export async function createClientAppointment(formData: FormData) {
     return { error: "Todos los campos obligatorios deben completarse" };
   }
 
-  // Save phone number in user profile
-  if (phone) {
-    await supabase
-      .from("user_profiles")
-      .update({ phone, updated_at: new Date().toISOString() })
-      .eq("user_id", session.user.id);
-  }
+  // Ensure customer exists in customers table (FK requirement)
+  const admin = createAdminClient();
+
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("name")
+    .eq("user_id", session.user.id)
+    .maybeSingle();
+
+  const { error: customerError } = await admin.from("customers").upsert({
+    id: session.user.id,
+    shop_id: shopId,
+    name: profile?.name || "Cliente",
+    phone: phone || null,
+    updated_at: new Date().toISOString(),
+  });
+
+  if (customerError) return { error: customerError.message };
 
   const { error } = await supabase.from("appointments").insert({
     shop_id: shopId,
@@ -244,7 +285,9 @@ export async function fetchAvailableSlots(
     .single();
 
   let startHour = 9;
+  let startMinute = 0;
   let endHour = 18;
+  let endMinute = 0;
 
   if (shop?.opening_hours) {
     try {
@@ -261,13 +304,14 @@ export async function fetchAvailableSlots(
         const match = dayHours.match(/(\d+):(\d+)\s*-\s*(\d+):(\d+)/);
         if (match) {
           startHour = parseInt(match[1], 10);
+          startMinute = parseInt(match[2], 10);
           endHour = parseInt(match[3], 10);
+          endMinute = parseInt(match[4], 10);
         }
       }
     } catch {}
   }
 
-  // Get all appointments for that day (UTC range covering all timezones)
   const dayStart = new Date(date + "T00:00:00.000Z");
   const dayEnd = new Date(date + "T23:59:59.999Z");
 
@@ -282,23 +326,22 @@ export async function fetchAvailableSlots(
   const now = new Date();
   const slots = [];
   const slotDuration = service.duration_minutes;
+  const endTotalMinutes = endHour * 60 + endMinute;
 
-  for (let hour = startHour; hour < endHour; hour++) {
-    for (let minute = 0; minute < 60; minute += slotDuration) {
-      if (hour === endHour && minute > 0) break;
+  for (let hour = startHour; hour <= endHour; hour++) {
+    const minuteStart = hour === startHour ? startMinute : 0;
+    const minuteEnd = hour === endHour ? endMinute : 60;
 
-      // Build slot in local time, then convert to Date
+    for (let minute = minuteStart; minute < minuteEnd; minute += slotDuration) {
       const [y, m, d] = date.split("-").map(Number);
       const slotStart = new Date(y, m - 1, d, hour, minute, 0, 0);
       const slotEnd = new Date(slotStart.getTime() + slotDuration * 60000);
 
-      // Check if slot is in the past
       if (slotStart < now) continue;
 
-      // Check if slot extends beyond working hours
-      if (slotEnd.getHours() > endHour || (slotEnd.getHours() === endHour && slotEnd.getMinutes() > 0)) continue;
+      const slotEndTotal = slotEnd.getHours() * 60 + slotEnd.getMinutes();
+      if (slotEndTotal > endTotalMinutes) continue;
 
-      // Check for conflicts
       const hasConflict = (appointments || []).some((apt) => {
         const aptStart = new Date(apt.start_time);
         const aptEnd = new Date(apt.end_time);
