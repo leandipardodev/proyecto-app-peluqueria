@@ -59,7 +59,7 @@ export default function ServicesList({ initialServices }: ServicesListProps) {
         <h1 className="text-2xl font-bold text-gray-900">Servicios</h1>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-violet-700 transition-colors"
+          className="flex items-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-violet-700 transition-colors cursor-pointer select-none"
         >
           <Plus className="w-4 h-4" />
           Nuevo Servicio
@@ -73,7 +73,7 @@ export default function ServicesList({ initialServices }: ServicesListProps) {
           </p>
           <button
             onClick={openCreate}
-            className="mt-4 inline-flex items-center gap-2 text-violet-600 text-sm font-medium hover:text-violet-700"
+            className="mt-4 inline-flex items-center gap-2 text-violet-600 text-sm font-medium hover:text-violet-700 cursor-pointer select-none"
           >
             <Plus className="w-4 h-4" />
             Crear el primero
@@ -101,7 +101,7 @@ export default function ServicesList({ initialServices }: ServicesListProps) {
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                 {services.map((service) => (
-                  <tr key={service.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                  <tr key={service.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
                     <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-gray-100">
                       {service.name}
                     </td>
@@ -115,14 +115,14 @@ export default function ServicesList({ initialServices }: ServicesListProps) {
                       <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={() => openEdit(service)}
-                          className="p-1.5 rounded-md text-gray-500 hover:text-violet-600 hover:bg-violet-50 transition-colors"
+                          className="p-1.5 rounded-md text-gray-500 hover:text-violet-600 hover:bg-violet-50 transition-colors cursor-pointer select-none"
                           title="Editar"
                         >
                           <Pencil className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(service.id)}
-                          className="p-1.5 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          className="p-1.5 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer select-none"
                           title="Eliminar"
                         >
                           <Trash2 className="w-4 h-4" />

@@ -110,7 +110,7 @@ export default function AppointmentDetailModal({
           </h2>
           <button
             onClick={onClose}
-            className="p-1 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="p-1 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer select-none"
           >
             <X className="w-5 h-5" />
           </button>
@@ -201,7 +201,7 @@ export default function AppointmentDetailModal({
               <button
                 onClick={handleTogglePaid}
                 disabled={pending}
-                className={`relative w-11 h-6 rounded-full transition-colors ${
+                className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer select-none ${
                   localPaid ? "bg-green-500" : "bg-gray-300"
                 }`}
               >
@@ -222,7 +222,7 @@ export default function AppointmentDetailModal({
                       key={nextStatus}
                       onClick={() => handleStatusChange(nextStatus)}
                       disabled={pending}
-                      className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer select-none ${
                         isCancel
                           ? "text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950 hover:bg-red-100 dark:hover:bg-red-900"
                           : "text-white bg-violet-600 hover:bg-violet-700"

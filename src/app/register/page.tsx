@@ -97,7 +97,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={pending}
-              className="w-full bg-violet-600 text-white py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+               className="w-full bg-violet-600 text-white py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
             >
               {pending ? "Creando cuenta..." : "Crear Cuenta"}
             </button>

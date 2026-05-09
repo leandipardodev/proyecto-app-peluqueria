@@ -125,7 +125,7 @@ export default function StaffList({
                 id="role"
                 value={role}
                 onChange={(e) => setRole(e.target.value as "staff" | "owner")}
-                className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-950 py-2 px-3 text-sm dark:text-gray-100"
+                className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-950 py-2 px-3 text-sm dark:text-gray-100 cursor-pointer"
               >
                 <option value="staff">Peluquero</option>
                 <option value="owner">Administrador</option>
@@ -207,7 +207,7 @@ export default function StaffList({
               </tr>
             ) : (
               staff.map((member) => (
-                <tr key={member.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                <tr key={member.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                     {member.name}
                   </td>
@@ -218,7 +218,7 @@ export default function StaffList({
                     <select
                       value={member.role}
                       onChange={(e) => handleRoleChange(member.id, e.target.value as "staff" | "owner")}
-                      className="text-sm rounded border border-gray-300 dark:border-gray-600 py-1 px-2 bg-white dark:bg-gray-950 dark:text-gray-100"
+                      className="text-sm rounded border border-gray-300 dark:border-gray-600 py-1 px-2 bg-white dark:bg-gray-950 dark:text-gray-100 cursor-pointer"
                     >
                       <option value="staff">Peluquero</option>
                       <option value="owner">Admin</option>
@@ -230,7 +230,7 @@ export default function StaffList({
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <button
                       onClick={() => handleRemove(member.id)}
-                      className="text-red-600 hover:text-red-800"
+                      className="text-red-600 hover:text-red-800 cursor-pointer select-none"
                     >
                       Eliminar
                     </button>

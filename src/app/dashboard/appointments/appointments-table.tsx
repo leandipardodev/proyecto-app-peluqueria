@@ -131,7 +131,7 @@ export default function AppointmentsTable({ initialAppointments, services, staff
               appointments.map((apt) => {
                 const svc = apt.services?.name ? extractEmoji(apt.services.name) : null;
                 return (
-                  <tr key={apt.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                  <tr key={apt.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer">
                     <td suppressHydrationWarning className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                       {new Date(apt.start_time).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })}
                     </td>
@@ -178,7 +178,7 @@ export default function AppointmentsTable({ initialAppointments, services, staff
                                 rel={phone ? "noopener noreferrer" : undefined}
                                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                                   phone
-                                    ? "bg-green-600 text-white hover:bg-green-700 shadow-sm"
+                                    ? "bg-green-600 text-white hover:bg-green-700 shadow-sm cursor-pointer select-none"
                                     : "bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed"
                                 }`}
                                 title={phone ? "Enviar WhatsApp" : "Sin teléfono — editá el cliente para agregarlo"}
@@ -195,7 +195,7 @@ export default function AppointmentsTable({ initialAppointments, services, staff
                                     href={link}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                                    className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors cursor-pointer select-none"
                                     title="Abrir link de pago"
                                   >
                                     <CreditCard className="w-3.5 h-3.5" />
@@ -207,7 +207,7 @@ export default function AppointmentsTable({ initialAppointments, services, staff
                                       setCopiedId(apt.id);
                                       setTimeout(() => setCopiedId(null), 2000);
                                     }}
-                                    className="p-1.5 rounded-md text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                                    className="p-1.5 rounded-md text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer select-none"
                                     title="Copiar link"
                                   >
                                     {copiedId === apt.id ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
@@ -217,7 +217,7 @@ export default function AppointmentsTable({ initialAppointments, services, staff
                                       href={`https://wa.me/${phone.replace(/[^\d]/g, "").replace(/^00/, "")}?text=${encodeURIComponent(`Hola! Te paso el link para pagar tu turno: ${link}`)}`}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="p-1.5 rounded-md text-gray-500 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors"
+                                      className="p-1.5 rounded-md text-gray-500 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors cursor-pointer select-none"
                                       title="Enviar por WhatsApp"
                                     >
                                       <MessageCircle className="w-3.5 h-3.5" />
@@ -242,7 +242,7 @@ export default function AppointmentsTable({ initialAppointments, services, staff
                                     setGeneratingId(null);
                                   }}
                                   disabled={generating}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm cursor-pointer select-none"
                                 >
                                   <CreditCard className="w-4 h-4" />
                                   {generating ? "Generando..." : "Cobrar"}

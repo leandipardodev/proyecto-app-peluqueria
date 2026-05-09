@@ -58,7 +58,7 @@ export default function AddProductModal({ open, onClose }: AddProductModalProps)
           </h2>
           <button
             onClick={onClose}
-            className="p-1 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="p-1 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer select-none"
           >
             <X className="w-5 h-5" />
           </button>
@@ -74,7 +74,7 @@ export default function AddProductModal({ open, onClose }: AddProductModalProps)
           <div>
             <label
               htmlFor="name"
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 cursor-pointer"
             >
               Nombre del producto
             </label>
@@ -92,7 +92,7 @@ export default function AddProductModal({ open, onClose }: AddProductModalProps)
             <div>
               <label
                 htmlFor="quantity"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 cursor-pointer"
               >
                 Cantidad inicial
               </label>
@@ -110,7 +110,7 @@ export default function AddProductModal({ open, onClose }: AddProductModalProps)
             <div>
               <label
                 htmlFor="unit_cost"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 cursor-pointer"
               >
                 Costo unitario ($)
               </label>
@@ -130,7 +130,7 @@ export default function AddProductModal({ open, onClose }: AddProductModalProps)
           <button
             type="submit"
             disabled={pending}
-            className="w-full flex items-center justify-center gap-2 bg-violet-600 text-white py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full flex items-center justify-center gap-2 bg-violet-600 text-white py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
           >
             <Plus className="w-4 h-4" />
             {pending ? "Agregando..." : "Agregar Producto"}

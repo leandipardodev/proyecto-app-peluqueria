@@ -44,7 +44,7 @@ export default function ServiceModal({
           <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
           <button
             onClick={onClose}
-            className="p-1 rounded-md text-gray-500 hover:bg-gray-100 transition-colors"
+            className="p-1 rounded-md text-gray-500 hover:bg-gray-100 transition-colors cursor-pointer select-none"
           >
             <X className="w-5 h-5" />
           </button>

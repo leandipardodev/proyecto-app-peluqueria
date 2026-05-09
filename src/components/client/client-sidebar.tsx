@@ -51,7 +51,7 @@ export default function ClientSidebar({
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors cursor-pointer select-none ${
                 isActive
                   ? "bg-violet-800 text-white"
                   : "text-violet-100 hover:bg-violet-600"
@@ -69,7 +69,7 @@ export default function ClientSidebar({
         <form action={logout}>
           <button
             type="submit"
-            className="flex items-center gap-2 text-sm text-violet-200 hover:text-white transition-colors"
+            className="flex items-center gap-2 text-sm text-violet-200 hover:text-white transition-colors cursor-pointer select-none"
           >
             <LogOut className="w-4 h-4" />
             Cerrar Sesión

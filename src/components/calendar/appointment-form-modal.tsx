@@ -139,7 +139,7 @@ export default function AppointmentFormModal({
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Nuevo Turno</h2>
           <button
             onClick={onClose}
-            className="p-1 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="p-1 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer select-none"
           >
             <X className="w-5 h-5" />
           </button>
@@ -155,7 +155,7 @@ export default function AppointmentFormModal({
 
             <div className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5 cursor-pointer">
                   Cliente
                 </label>
 
@@ -166,7 +166,7 @@ export default function AppointmentFormModal({
                       value={selectedCustomerId}
                       onChange={(e) => setSelectedCustomerId(e.target.value)}
                       required
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent cursor-pointer"
                     >
                       <option value="">Seleccionar cliente...</option>
                       {customers.map((c) => (
@@ -178,7 +178,7 @@ export default function AppointmentFormModal({
                     <button
                       type="button"
                       onClick={() => setShowNewCustomer(true)}
-                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer select-none"
                       title="Nuevo cliente"
                     >
                       <UserPlus className="w-4 h-4" />
@@ -193,7 +193,7 @@ export default function AppointmentFormModal({
                       <button
                         type="button"
                         onClick={() => setShowNewCustomer(false)}
-                        className="text-xs text-gray-500 hover:text-gray-700"
+                          className="text-xs text-gray-500 hover:text-gray-700 cursor-pointer select-none"
                       >
                         Cancelar
                       </button>
@@ -229,19 +229,19 @@ export default function AppointmentFormModal({
               </div>
 
               <div>
-                <label
-                  htmlFor="staff_id"
-                  className="block text-sm font-medium text-gray-700 mb-1.5"
-                >
-                  Staff asignado
-                </label>
-                  <select
-                  id="staff_id"
-                  name="staff_id"
-                  value={selectedStaffId}
-                  onChange={(e) => setSelectedStaffId(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                  <label
+                    htmlFor="staff_id"
+                    className="block text-sm font-medium text-gray-700 mb-1.5 cursor-pointer"
+                  >
+                    Staff asignado
+                  </label>
+                    <select
+                    id="staff_id"
+                    name="staff_id"
+                    value={selectedStaffId}
+                    onChange={(e) => setSelectedStaffId(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent cursor-pointer"
                 >
                   <option value="">Seleccionar staff...</option>
                   {staff && staff.length > 0 ? (
@@ -258,18 +258,18 @@ export default function AppointmentFormModal({
 
               <div>
                 <label
-                  htmlFor="service_id"
-                  className="block text-sm font-medium text-gray-700 mb-1.5"
-                >
-                  Servicio
-                </label>
-                <select
-                  id="service_id"
-                  name="service_id"
-                  value={selectedServiceId}
-                  onChange={(e) => setSelectedServiceId(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                    htmlFor="service_id"
+                    className="block text-sm font-medium text-gray-700 mb-1.5 cursor-pointer"
+                  >
+                    Servicio
+                  </label>
+                  <select
+                    id="service_id"
+                    name="service_id"
+                    value={selectedServiceId}
+                    onChange={(e) => setSelectedServiceId(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent cursor-pointer"
                 >
                   <option value="">Seleccionar servicio...</option>
                   {services.map((s) => (
@@ -291,7 +291,7 @@ export default function AppointmentFormModal({
                 <div>
                   <label
                     htmlFor="start_date"
-                    className="block text-sm font-medium text-gray-700 mb-1.5"
+                    className="block text-sm font-medium text-gray-700 mb-1.5 cursor-pointer"
                   >
                     Fecha
                   </label>
@@ -307,7 +307,7 @@ export default function AppointmentFormModal({
                 <div>
                   <label
                     htmlFor="start_time"
-                    className="block text-sm font-medium text-gray-700 mb-1.5"
+                    className="block text-sm font-medium text-gray-700 mb-1.5 cursor-pointer"
                   >
                     Hora inicio
                   </label>
@@ -324,7 +324,7 @@ export default function AppointmentFormModal({
 
               {endTime && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5 cursor-pointer">
                     Hora fin (calculada)
                   </label>
                   <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600">
@@ -341,7 +341,7 @@ export default function AppointmentFormModal({
             type="submit"
             form="appointment-form"
             disabled={pending}
-            className="w-full flex items-center justify-center gap-2 bg-violet-600 text-white py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full flex items-center justify-center gap-2 bg-violet-600 text-white py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
           >
             <Plus className="w-4 h-4" />
             {pending ? "Creando..." : "Crear Turno"}

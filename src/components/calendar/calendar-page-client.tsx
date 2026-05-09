@@ -110,7 +110,7 @@ export default function CalendarPageClient({
           <select
             value={staffFilter || ""}
             onChange={(e) => setStaffFilter(e.target.value || null)}
-            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 cursor-pointer"
           >
             <option value="">Todos los peluqueros</option>
             {staff.map((s) => (

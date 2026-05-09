@@ -56,7 +56,7 @@ export default function DashboardSidebar({
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer select-none ${
                 isActive
                   ? "bg-violet-50 dark:bg-violet-950 text-violet-700 dark:text-violet-300"
                   : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
@@ -76,7 +76,7 @@ export default function DashboardSidebar({
           </span>
           <button
             onClick={onLogout}
-            className="p-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
+            className="p-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 transition-colors cursor-pointer"
             title="Cerrar Sesión"
           >
             <LogOut className="w-5 h-5" />

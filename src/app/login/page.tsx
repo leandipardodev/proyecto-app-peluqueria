@@ -93,7 +93,7 @@ export default function LoginPage() {
                   setResetSent(false);
                   setError("");
                 }}
-                className="text-sm text-violet-600 hover:text-violet-700 font-medium"
+                className="text-sm text-violet-600 hover:text-violet-700 font-medium cursor-pointer select-none"
               >
                 Volver al inicio de sesión
               </button>
@@ -117,7 +117,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-violet-600 text-white py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-violet-700 transition-colors disabled:opacity-50"
+                className="w-full bg-violet-600 text-white py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-violet-700 transition-colors disabled:opacity-50 cursor-pointer select-none"
               >
                 {loading ? "Enviando..." : "Enviar instrucciones"}
               </button>
@@ -125,7 +125,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setResetMode(false)}
-                className="w-full text-sm text-gray-600 hover:text-gray-700 font-medium"
+                className="w-full text-sm text-gray-600 hover:text-gray-700 font-medium cursor-pointer select-none"
               >
                 Volver al inicio de sesión
               </button>
@@ -163,7 +163,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-violet-600 text-white py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-violet-700 transition-colors disabled:opacity-50"
+                className="w-full bg-violet-600 text-white py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-violet-700 transition-colors disabled:opacity-50 cursor-pointer select-none"
               >
                 {loading ? "Iniciando..." : "Iniciar Sesión"}
               </button>
@@ -179,7 +179,7 @@ export default function LoginPage() {
                   setResetMode(true);
                   setError("");
                 }}
-                className="text-sm text-violet-600 hover:text-violet-700 font-medium"
+                className="text-sm text-violet-600 hover:text-violet-700 font-medium cursor-pointer select-none"
               >
                 ¿Olvidaste tu contraseña?
               </button>

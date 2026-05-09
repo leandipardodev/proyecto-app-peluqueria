@@ -222,7 +222,7 @@ export default function BookingFlow({ shopId, services, staffMembers, selectedSe
           <div>
             <button
               onClick={() => setStep("service")}
-              className="text-sm text-violet-600 hover:text-violet-700"
+              className="text-sm text-violet-600 hover:text-violet-700 cursor-pointer select-none"
             >
               ← Volver a servicios
             </button>
@@ -271,7 +271,7 @@ export default function BookingFlow({ shopId, services, staffMembers, selectedSe
           <div>
             <button
               onClick={() => setStep("service")}
-              className="text-sm text-violet-600 hover:text-violet-700"
+              className="text-sm text-violet-600 hover:text-violet-700 cursor-pointer select-none"
             >
               ← Volver a servicios
             </button>
@@ -317,7 +317,7 @@ export default function BookingFlow({ shopId, services, staffMembers, selectedSe
                     <button
                       key={slot.start}
                       onClick={() => handleSlotSelect(slot)}
-                      className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:text-gray-100 hover:border-violet-500 hover:bg-violet-50 dark:hover:bg-violet-900/30 transition-colors"
+                      className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:text-gray-100 hover:border-violet-500 hover:bg-violet-50 dark:hover:bg-violet-900/30 transition-colors cursor-pointer select-none"
                     >
                       {slot.time}
                     </button>
@@ -398,14 +398,14 @@ export default function BookingFlow({ shopId, services, staffMembers, selectedSe
           <div className="flex gap-3">
             <button
               onClick={() => setStep("datetime")}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer select-none"
             >
               Volver
             </button>
             <button
               onClick={handleConfirm}
               disabled={pending}
-              className="px-6 py-2 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 disabled:opacity-50 transition-colors"
+              className="px-6 py-2 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 disabled:opacity-50 transition-colors cursor-pointer select-none"
             >
               {pending ? "Confirmando..." : "Confirmar Turno"}
             </button>

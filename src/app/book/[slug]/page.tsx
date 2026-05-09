@@ -2,7 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { createServerClient as createCookieClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { CalendarDays, MapPin, Phone, Clock } from "lucide-react";
+import PaymentButton from "@/components/book/payment-button";
+import { CalendarDays, MapPin, Phone, Clock, ExternalLink } from "lucide-react";
 
 function createAdminClient() {
   return createServerClient(
@@ -33,7 +34,7 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
   // Fetch shop by slug first
   const { data: shop, error: shopError } = await supabase
     .from("shops")
-    .select("id, name, address, phone, opening_hours, google_maps_url, slug")
+    .select("id, name, description, address, phone, opening_hours, google_maps_url, instagram_url, logo_url, slug")
     .eq("slug", slug)
     .single();
 
@@ -123,8 +124,24 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
       {/* Header */}
       <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{shop.name}</h1>
-          <p className="mt-1 text-gray-600 dark:text-gray-400">Reservá tu turno online</p>
+          <div className="flex items-center gap-4">
+            {shop.logo_url && (
+              <img
+                src={shop.logo_url}
+                alt={shop.name}
+                className="w-14 h-14 rounded-xl object-cover border border-gray-200 dark:border-gray-700"
+              />
+            )}
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{shop.name}</h1>
+              <p className="mt-1 text-gray-600 dark:text-gray-400">Reservá tu turno online</p>
+            </div>
+          </div>
+          {shop.description && (
+            <p className="mt-4 text-gray-600 dark:text-gray-400 max-w-2xl leading-relaxed">
+              {shop.description}
+            </p>
+          )}
         </div>
       </header>
 
@@ -171,16 +188,12 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
                     </div>
                     <a
                       href={getGoogleAuthUrl(service.id)}
-                      className="mt-3 block w-full text-center px-4 py-2 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 transition-colors"
+                      className="mt-3 block w-full text-center px-4 py-2 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 transition-colors cursor-pointer select-none"
                     >
                       Reservar con Google
                     </a>
                     
-                    {/* Debug info - remove later */}
-                    <details className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                      <summary>Debug: URL de auth</summary>
-                      <code className="break-all">{getGoogleAuthUrl(service.id)}</code>
-                    </details>
+                    <PaymentButton serviceId={service.id} />
                   </div>
                 ))}
               </div>
@@ -194,16 +207,35 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
               <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Información</h3>
               <div className="space-y-3">
                 {shop.address && (
-                  <div className="flex items-start gap-3">
-                    <MapPin className="w-5 h-5 text-gray-400 mt-0.5" />
-                    <span className="text-sm text-gray-600 dark:text-gray-400">{shop.address}</span>
-                  </div>
+                  <a
+                    href={`https://www.google.com/maps/search/${encodeURIComponent(shop.address)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
+                  >
+                    <MapPin className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
+                    <span>{shop.address}</span>
+                  </a>
                 )}
                 {shop.phone && (
-                  <div className="flex items-center gap-3">
-                    <Phone className="w-5 h-5 text-gray-400" />
-                    <span className="text-sm text-gray-600 dark:text-gray-400">{shop.phone}</span>
-                  </div>
+                  <a
+                    href={`tel:${shop.phone.replace(/[^\d+]/g, "")}`}
+                    className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
+                  >
+                    <Phone className="w-5 h-5 text-gray-400 shrink-0" />
+                    <span>{shop.phone}</span>
+                  </a>
+                )}
+                {shop.instagram_url && (
+                  <a
+                    href={shop.instagram_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
+                  >
+                    <ExternalLink className="w-5 h-5 text-gray-400 shrink-0" />
+                    <span>Instagram</span>
+                  </a>
                 )}
               </div>
             </div>

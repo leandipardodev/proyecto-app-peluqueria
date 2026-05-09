@@ -50,7 +50,7 @@ export default function FinancesClient({ initialExpenses }: { initialExpenses: E
         <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Gastos del día</h2>
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-violet-700 transition-colors"
+          className="flex items-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-violet-700 transition-colors cursor-pointer select-none"
         >
           <Plus className="w-4 h-4" />
           Cargar Gasto
@@ -62,7 +62,7 @@ export default function FinancesClient({ initialExpenses }: { initialExpenses: E
           <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg dark:shadow-2xl w-full max-w-md mx-4 overflow-hidden transition-colors">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Nuevo Gasto</h3>
-              <button onClick={() => setShowForm(false)} className="p-1 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
+              <button onClick={() => setShowForm(false)} className="p-1 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer select-none">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -71,7 +71,7 @@ export default function FinancesClient({ initialExpenses }: { initialExpenses: E
                 <div className="bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 text-sm px-4 py-2 rounded-lg">{error}</div>
               )}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Monto ($)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 cursor-pointer">Monto ($)</label>
                 <input
                   type="number"
                   name="amount"
@@ -83,11 +83,11 @@ export default function FinancesClient({ initialExpenses }: { initialExpenses: E
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Categoría</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 cursor-pointer">Categoría</label>
                 <select
                   name="category"
                   required
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500 cursor-pointer"
                 >
                   <option value="">Seleccionar...</option>
                   {EXPENSE_CATEGORIES.map((cat) => (
@@ -96,7 +96,7 @@ export default function FinancesClient({ initialExpenses }: { initialExpenses: E
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descripción</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 cursor-pointer">Descripción</label>
                 <textarea
                   name="description"
                   rows={3}
@@ -107,7 +107,7 @@ export default function FinancesClient({ initialExpenses }: { initialExpenses: E
               <button
                 type="submit"
                 disabled={pending}
-                className="w-full bg-violet-600 text-white py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-violet-700 disabled:opacity-50 transition-colors"
+                className="w-full bg-violet-600 text-white py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-violet-700 disabled:opacity-50 transition-colors cursor-pointer select-none"
               >
                 {pending ? "Guardando..." : "Guardar Gasto"}
               </button>

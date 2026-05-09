@@ -13,10 +13,15 @@ import { isMuted, setMuted, playPop } from "@/lib/sound";
 import { fetchWhatsappTemplate, updateWhatsappTemplate } from "@/lib/dashboard/whatsapp-actions";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
 import { fetchMercadoPagoKeys, updateMercadoPagoKeys } from "@/lib/payments/mercadopago-actions";
+import { updateShopInfo } from "@/lib/dashboard/shop-actions";
 
 interface ShopProfile {
   id: string;
   name: string;
+  description?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  instagram_url?: string | null;
   plan_expiry: string;
   active: boolean;
   mp_public_key?: string;
@@ -29,6 +34,10 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [shopAddress, setShopAddress] = useState("");
+  const [shopPhone, setShopPhone] = useState("");
+  const [instagramUrl, setInstagramUrl] = useState("");
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const { dark, toggle: toggleDark } = useDarkMode();
@@ -82,6 +91,10 @@ export default function SettingsPage() {
       if (!shopError && shopData) {
         setProfile(shopData as unknown as ShopProfile);
         setName(shopData.name);
+        setDescription(shopData.description || "");
+        setShopAddress(shopData.address || "");
+        setShopPhone(shopData.phone || "");
+        setInstagramUrl(shopData.instagram_url || "");
       }
       setLoading(false);
     }
@@ -147,6 +160,85 @@ export default function SettingsPage() {
       </div>
 
       <div className="bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-gray-950 p-6 mb-6 transition-colors">
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Información del Local</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+          Estos datos se muestran en la página pública de reservas.
+        </p>
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="shop-name">Nombre del Local</Label>
+            <Input
+              id="shop-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <Label htmlFor="shop-description">Descripción</Label>
+            <textarea
+              id="shop-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-950 px-3 py-2 text-sm dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"
+              placeholder="Contanos brevemente sobre tu local..."
+            />
+          </div>
+          <div>
+            <Label htmlFor="shop-address">Dirección</Label>
+            <Input
+              id="shop-address"
+              value={shopAddress}
+              onChange={(e) => setShopAddress(e.target.value)}
+              className="mt-1"
+              placeholder="Ej: Av. Siempre Viva 123"
+            />
+          </div>
+          <div>
+            <Label htmlFor="shop-phone">Teléfono</Label>
+            <Input
+              id="shop-phone"
+              value={shopPhone}
+              onChange={(e) => setShopPhone(e.target.value)}
+              className="mt-1"
+              placeholder="Ej: 11 1234-5678"
+            />
+          </div>
+          <div>
+            <Label htmlFor="shop-instagram">Instagram</Label>
+            <Input
+              id="shop-instagram"
+              value={instagramUrl}
+              onChange={(e) => setInstagramUrl(e.target.value)}
+              className="mt-1"
+              placeholder="https://instagram.com/tu-local"
+            />
+          </div>
+          <Button
+            onClick={async () => {
+              setMessage(null);
+              const result = await updateShopInfo({
+                name,
+                description,
+                address: shopAddress,
+                phone: shopPhone,
+                instagram_url: instagramUrl,
+              });
+              if (result.error) {
+                setMessage({ type: "error", text: result.error });
+              } else {
+                setMessage({ type: "success", text: "Información guardada exitosamente" });
+              }
+            }}
+            disabled={pending}
+          >
+            Guardar Cambios
+          </Button>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-gray-950 p-6 mb-6 transition-colors">
         <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Plan y Facturación</h2>
         <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -183,7 +275,7 @@ export default function SettingsPage() {
           </div>
           <button
             onClick={toggleDark}
-            className={`relative w-11 h-6 rounded-full transition-colors ${
+            className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer select-none ${
               dark ? "bg-violet-600" : "bg-gray-300"
             }`}
           >
@@ -219,7 +311,7 @@ export default function SettingsPage() {
               setMuted(!next);
               if (next) playPop();
             }}
-            className={`relative w-11 h-6 rounded-full transition-colors ${
+            className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer select-none ${
               soundEnabled ? "bg-violet-600" : "bg-gray-300"
             }`}
           >

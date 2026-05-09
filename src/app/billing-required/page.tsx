@@ -41,13 +41,13 @@ export default function BillingRequiredPage() {
           <div className="flex flex-col gap-3 pt-2">
             <a
               href="mailto:soporte@klip.app"
-              className="inline-flex items-center justify-center gap-2 bg-violet-600 text-white py-2.5 px-6 rounded-lg text-sm font-medium hover:bg-violet-700 transition-colors"
+              className="inline-flex items-center justify-center gap-2 bg-violet-600 text-white py-2.5 px-6 rounded-lg text-sm font-medium hover:bg-violet-700 transition-colors cursor-pointer select-none"
             >
               Contactar Soporte
             </a>
             <Link
               href="/login"
-              className="inline-flex items-center justify-center gap-2 border border-gray-300 bg-white py-2.5 px-6 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              className="inline-flex items-center justify-center gap-2 border border-gray-300 bg-white py-2.5 px-6 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer select-none"
             >
               Volver al Login
             </Link>

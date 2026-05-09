@@ -9,13 +9,13 @@ export default function Home() {
           <div className="flex gap-3">
             <Link
               href="/login"
-              className="px-4 py-2 text-sm font-medium text-violet-700 hover:text-violet-800 transition-colors"
+              className="px-4 py-2 text-sm font-medium text-violet-700 hover:text-violet-800 transition-colors cursor-pointer select-none"
             >
               Iniciar Sesión
             </Link>
             <Link
               href="/register"
-              className="px-4 py-2 text-sm font-medium bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors"
+              className="px-4 py-2 text-sm font-medium bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors cursor-pointer select-none"
             >
               Registrarse
             </Link>
@@ -34,13 +34,13 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row gap-4">
             <Link
               href="/register"
-              className="px-8 py-3 bg-violet-600 text-white rounded-lg font-medium hover:bg-violet-700 transition-colors text-lg"
+              className="px-8 py-3 bg-violet-600 text-white rounded-lg font-medium hover:bg-violet-700 transition-colors text-lg cursor-pointer select-none"
             >
               Comenzar Ahora
             </Link>
             <Link
               href="/login"
-              className="px-8 py-3 border-2 border-violet-600 text-violet-600 rounded-lg font-medium hover:bg-violet-50 transition-colors text-lg"
+              className="px-8 py-3 border-2 border-violet-600 text-violet-600 rounded-lg font-medium hover:bg-violet-50 transition-colors text-lg cursor-pointer select-none"
             >
               Ya tengo cuenta
             </Link>

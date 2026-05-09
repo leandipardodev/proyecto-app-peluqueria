@@ -79,7 +79,7 @@ export default function ServiceForm({ service, onSuccess }: ServiceFormProps) {
       )}
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-gray-700 mb-1 cursor-pointer">
           Nombre
         </label>
         <div className="flex gap-2">
@@ -112,7 +112,7 @@ export default function ServiceForm({ service, onSuccess }: ServiceFormProps) {
                 }
                 setShowEmojis(!showEmojis);
               }}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors text-lg"
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors text-lg cursor-pointer select-none"
               title="Agregar emoji"
             >
               😀
@@ -141,11 +141,11 @@ export default function ServiceForm({ service, onSuccess }: ServiceFormProps) {
 
       <div>
         <label
-          htmlFor="price"
-          className="block text-sm font-medium text-gray-700 mb-1"
-        >
-          Precio ($)
-        </label>
+            htmlFor="price"
+            className="block text-sm font-medium text-gray-700 mb-1 cursor-pointer"
+          >
+            Precio ($)
+          </label>
         <input
           type="number"
           id="price"
@@ -161,16 +161,16 @@ export default function ServiceForm({ service, onSuccess }: ServiceFormProps) {
 
       <div>
         <label
-          htmlFor="duration_minutes"
-          className="block text-sm font-medium text-gray-700 mb-1"
-        >
-          Duración
-        </label>
-        <select
-          id="duration_minutes"
-          name="duration_minutes"
-          defaultValue={service?.duration_minutes ?? 30}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+            htmlFor="duration_minutes"
+            className="block text-sm font-medium text-gray-700 mb-1 cursor-pointer"
+          >
+            Duración
+          </label>
+          <select
+            id="duration_minutes"
+            name="duration_minutes"
+            defaultValue={service?.duration_minutes ?? 30}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent cursor-pointer"
         >
           {durationOptions.map((mins) => (
             <option key={mins} value={mins}>
@@ -184,7 +184,7 @@ export default function ServiceForm({ service, onSuccess }: ServiceFormProps) {
         <button
           type="submit"
           disabled={pending}
-          className="flex-1 bg-violet-600 text-white py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="flex-1 bg-violet-600 text-white py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
         >
           {pending
             ? "Guardando..."

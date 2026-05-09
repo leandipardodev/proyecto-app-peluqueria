@@ -157,7 +157,7 @@ export default function StockTable({ items }: StockTableProps) {
                           <button
                             onClick={() => handleDelta(item.id, -1)}
                             disabled={pending || item.quantity <= 0}
-                            className="p-1.5 rounded-md text-gray-500 hover:text-violet-600 hover:bg-violet-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            className="p-1.5 rounded-md text-gray-500 hover:text-violet-600 hover:bg-violet-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
                             title="Restar unidad"
                           >
                             <Minus className="w-4 h-4" />
@@ -165,7 +165,7 @@ export default function StockTable({ items }: StockTableProps) {
                           <button
                             onClick={() => handleDelta(item.id, 1)}
                             disabled={pending}
-                            className="p-1.5 rounded-md text-gray-500 hover:text-violet-600 hover:bg-violet-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            className="p-1.5 rounded-md text-gray-500 hover:text-violet-600 hover:bg-violet-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
                             title="Sumar unidad"
                           >
                             <Plus className="w-4 h-4" />
@@ -173,7 +173,7 @@ export default function StockTable({ items }: StockTableProps) {
                           <button
                             onClick={() => handleDelete(item.id)}
                             disabled={pending}
-                            className="p-1.5 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            className="p-1.5 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
                             title="Eliminar"
                           >
                             <Trash2 className="w-4 h-4" />

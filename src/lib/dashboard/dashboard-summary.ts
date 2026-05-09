@@ -96,10 +96,18 @@ export async function fetchDashboardSummary() {
     services: Array.isArray(a.services) ? (a.services as { name: string }[])[0] ?? null : (a.services as { name: string } | null),
   }));
 
+  const { data: shop } = await supabase
+    .from("shops")
+    .select("name, slug")
+    .eq("id", shopId)
+    .single();
+
   return {
     appointmentsCount: (appointmentsToday.data ?? []).length,
     revenue,
     lowStockCount: (lowStock.data ?? []).length,
     nextAppointments,
+    shopName: shop?.name || "",
+    shopSlug: shop?.slug || "",
   };
 }

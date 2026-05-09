@@ -22,7 +22,7 @@ export default function DashboardHeader({
       <header className="sticky top-0 z-40 flex items-center gap-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-3 lg:px-6 transition-colors">
         <button
           onClick={() => setMobileOpen(true)}
-          className="lg:hidden p-2 rounded-md text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+          className="lg:hidden p-2 rounded-md text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer select-none"
         >
           <Menu className="w-5 h-5" />
         </button>
@@ -41,7 +41,7 @@ export default function DashboardHeader({
               <h1 className="text-xl font-bold text-violet-700">Klip</h1>
               <button
                 onClick={() => setMobileOpen(false)}
-                className="p-2 rounded-md text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+                className="p-2 rounded-md text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer select-none"
               >
                 <X className="w-5 h-5" />
               </button>
