@@ -4,15 +4,23 @@ import { useState, useEffect, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { updateShopName } from "@/lib/dashboard/auth-actions";
+import { Bell, BellOff, Moon, Sun } from "lucide-react";
+import { useDarkMode } from "@/lib/use-dark-mode";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { isMuted, setMuted, playPop } from "@/lib/sound";
+import { fetchWhatsappTemplate, updateWhatsappTemplate } from "@/lib/dashboard/whatsapp-actions";
+import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
+import { fetchMercadoPagoKeys, updateMercadoPagoKeys } from "@/lib/payments/mercadopago-actions";
 
 interface ShopProfile {
   id: string;
   name: string;
   plan_expiry: string;
   active: boolean;
+  mp_public_key?: string;
+  mp_access_token?: string;
 }
 
 export default function SettingsPage() {
@@ -22,7 +30,27 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const { dark, toggle: toggleDark } = useDarkMode();
+  const [whatsappTemplate, setWhatsappTemplate] = useState(DEFAULT_WHATSAPP_TEMPLATE);
+  const [templateSaving, setTemplateSaving] = useState(false);
+  const [mpPublicKey, setMpPublicKey] = useState("");
+  const [mpAccessToken, setMpAccessToken] = useState("");
+  const [mpSaving, setMpSaving] = useState(false);
   const [pending, startTransition] = useTransition();
+
+  useEffect(() => {
+    setSoundEnabled(!isMuted());
+  }, []);
+
+  useEffect(() => {
+    if (!profile?.id) return;
+    fetchWhatsappTemplate().then(setWhatsappTemplate);
+    fetchMercadoPagoKeys().then((keys) => {
+      setMpPublicKey(keys.mp_public_key);
+      setMpAccessToken(keys.mp_access_token);
+    });
+  }, [profile?.id]);
   const supabase = createClient();
 
   // Load shop profile
@@ -92,7 +120,7 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-4xl mx-auto p-6">
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Configuración</h1>
+      <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">Configuración</h1>
 
       {message && (
         <div className={`p-4 rounded-lg mb-6 ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
@@ -100,8 +128,8 @@ export default function SettingsPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Información de la Peluquería</h2>
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-gray-950 p-6 mb-6 transition-colors">
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Información de la Peluquería</h2>
         <div className="space-y-4">
           <div>
             <Label htmlFor="shop-name">Nombre</Label>
@@ -118,12 +146,12 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Plan y Facturación</h2>
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-gray-950 p-6 mb-6 transition-colors">
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Plan y Facturación</h2>
         <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <dt className="text-sm font-medium text-gray-500">Estado</dt>
-            <dd className="mt-1 text-sm text-gray-900">
+            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Estado</dt>
+            <dd className="mt-1 text-sm text-gray-900 dark:text-gray-100">
               {profile.active ? (
                 <span className="text-green-600">Activo</span>
               ) : (
@@ -133,15 +161,167 @@ export default function SettingsPage() {
           </div>
 
           <div>
-            <dt className="text-sm font-medium text-gray-500">Vencimiento del Plan</dt>
-            <dd className="mt-1 text-sm text-gray-900">{expiryDate}</dd>
+            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Vencimiento del Plan</dt>
+            <dd suppressHydrationWarning className="mt-1 text-sm text-gray-900 dark:text-gray-100">{expiryDate}</dd>
           </div>
         </dl>
 
       </div>
 
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Cuenta</h2>
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-gray-950 p-6 mb-6 transition-colors">
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Apariencia</h2>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {dark ? (
+              <Moon className="w-5 h-5 text-violet-600" />
+            ) : (
+              <Sun className="w-5 h-5 text-amber-500" />
+            )}
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {dark ? "Modo oscuro" : "Modo claro"}
+            </span>
+          </div>
+          <button
+            onClick={toggleDark}
+            className={`relative w-11 h-6 rounded-full transition-colors ${
+              dark ? "bg-violet-600" : "bg-gray-300"
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                dark ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-gray-950 p-6 mb-6 transition-colors">
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Notificaciones Sonoras</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Sonido sutil al crear un turno o cuando un turno programado entra en la ventana de 1 hora.
+        </p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {soundEnabled ? (
+              <Bell className="w-5 h-5 text-violet-600" />
+            ) : (
+              <BellOff className="w-5 h-5 text-gray-400" />
+            )}
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {soundEnabled ? "Sonido activado" : "Sonido silenciado"}
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              const next = !soundEnabled;
+              setSoundEnabled(next);
+              setMuted(!next);
+              if (next) playPop();
+            }}
+            className={`relative w-11 h-6 rounded-full transition-colors ${
+              soundEnabled ? "bg-violet-600" : "bg-gray-300"
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                soundEnabled ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-gray-950 p-6 mb-6 transition-colors">
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Pagos y Cobros</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+          Configurá tus claves de Mercado Pago para generar links de pago desde los turnos.
+        </p>
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="mp_public_key">MP_PUBLIC_KEY</Label>
+            <Input
+              id="mp_public_key"
+              value={mpPublicKey}
+              onChange={(e) => setMpPublicKey(e.target.value)}
+              className="mt-1 font-mono text-sm"
+              placeholder="APP_USR-xxxx-xxxxxxx"
+            />
+          </div>
+          <div>
+            <Label htmlFor="mp_access_token">MP_ACCESS_TOKEN</Label>
+            <Input
+              id="mp_access_token"
+              value={mpAccessToken}
+              onChange={(e) => setMpAccessToken(e.target.value)}
+              className="mt-1 font-mono text-sm"
+              type="password"
+              placeholder="APP_USR-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-xxxxxxx"
+            />
+          </div>
+          <Button
+            onClick={async () => {
+              setMpSaving(true);
+              setMessage(null);
+              const result = await updateMercadoPagoKeys(mpPublicKey, mpAccessToken);
+              if (result.error) {
+                setMessage({ type: "error", text: result.error });
+              } else {
+                setMessage({ type: "success", text: "Claves de Mercado Pago guardadas" });
+              }
+              setMpSaving(false);
+            }}
+            disabled={mpSaving}
+          >
+            {mpSaving ? "Guardando..." : "Guardar Claves"}
+          </Button>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-gray-950 p-6 mb-6 transition-colors">
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Mensaje de WhatsApp</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+          Personalizá el texto que se envía desde el botón WhatsApp en la tabla de turnos.
+          Usá <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded text-xs">{'{Nombre}'}</code>, <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded text-xs">{'{Peluqueria}'}</code> y <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded text-xs">{'{Hora}'}</code> como placeholders.
+        </p>
+        <div className="space-y-3">
+          <textarea
+            value={whatsappTemplate}
+            onChange={(e) => setWhatsappTemplate(e.target.value)}
+            rows={3}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"
+          />
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-gray-400 dark:text-gray-500">
+              {whatsappTemplate.includes("{Hora}") ? (
+                <span className="text-green-600">✓ Contiene {`{Hora}`}</span>
+              ) : (
+                <span className="text-amber-600">⚠ No contiene {`{Hora}`} — el horario no se va a mostrar</span>
+              )}
+            </p>
+            <Button
+              onClick={async () => {
+                setTemplateSaving(true);
+                setMessage(null);
+                const result = await updateWhatsappTemplate(whatsappTemplate);
+                if (result.error) {
+                  setMessage({ type: 'error', text: result.error });
+                } else {
+                  setMessage({ type: 'success', text: "Plantilla de WhatsApp guardada" });
+                }
+                setTemplateSaving(false);
+              }}
+              disabled={templateSaving}
+              size="sm"
+            >
+              {templateSaving ? "Guardando..." : "Guardar Plantilla"}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-gray-950 p-6 transition-colors">
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Cuenta</h2>
         <Button 
           variant="outline" 
           onClick={handleLogout}

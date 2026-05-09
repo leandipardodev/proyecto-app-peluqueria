@@ -33,20 +33,20 @@ export default async function ClientAppointmentsPage({ searchParams }: ClientApp
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Mis Turnos</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Mis Turnos</h1>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
           Gestioná tus reservas
         </p>
       </div>
 
       {success === "appointment_created" && (
-        <div className="bg-green-50 text-green-700 text-sm px-4 py-3 rounded-lg">
+        <div className="bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-sm px-4 py-3 rounded-lg">
           ¡Turno reservado con éxito!
         </div>
       )}
 
       {error && (
-        <div className="bg-red-50 text-red-700 text-sm px-4 py-3 rounded-lg">
+        <div className="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-sm px-4 py-3 rounded-lg">
           {error}
         </div>
       )}

@@ -6,9 +6,9 @@ const buttonVariants = {
   variant: {
     default: "bg-violet-600 text-white hover:bg-violet-700",
     destructive: "bg-red-600 text-white hover:bg-red-700",
-    outline: "border border-gray-300 bg-white hover:bg-gray-50",
-    secondary: "bg-gray-200 text-gray-800 hover:bg-gray-300",
-    ghost: "hover:bg-gray-100",
+    outline: "border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-950 hover:bg-gray-50 dark:hover:bg-gray-800",
+    secondary: "bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-700",
+    ghost: "hover:bg-gray-100 dark:hover:bg-gray-800",
     link: "text-violet-600 underline-offset-4 hover:text-violet-700",
   },
   size: {

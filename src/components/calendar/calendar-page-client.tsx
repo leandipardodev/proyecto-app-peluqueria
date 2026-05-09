@@ -5,9 +5,13 @@ import { format, addWeeks, subWeeks } from "date-fns";
 import CalendarView from "./calendar-view";
 import AppointmentFormModal from "./appointment-form-modal";
 import AppointmentDetailModal from "./appointment-detail-modal";
+import { useAppointmentAlarm } from "@/lib/use-appointment-alarm";
 
 type Appointment = {
   id: string;
+  staff_id: string | null;
+  customer_id: string;
+  service_id: string;
   start_time: string;
   end_time: string;
   status: string;
@@ -60,6 +64,9 @@ export default function CalendarPageClient({
   const [formInitialHour, setFormInitialHour] = useState<number | undefined>();
   const [selectedAppointment, setSelectedAppointment] =
     useState<Appointment | null>(null);
+  const [staffFilter, setStaffFilter] = useState<string | null>(null);
+
+  useAppointmentAlarm(initialAppointments);
 
   function handleSlotClick(date: Date, hour: number) {
     setFormInitialDate(format(date, "yyyy-MM-dd"));
@@ -98,6 +105,21 @@ export default function CalendarPageClient({
       )}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Calendario</h1>
+        <div className="flex items-center gap-3">
+          <label className="text-sm text-gray-600 font-medium">Filtrar por:</label>
+          <select
+            value={staffFilter || ""}
+            onChange={(e) => setStaffFilter(e.target.value || null)}
+            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+          >
+            <option value="">Todos los peluqueros</option>
+            {staff.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name || s.email}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="flex-1 min-h-0">
@@ -109,6 +131,8 @@ export default function CalendarPageClient({
           onToday={handleToday}
           onSlotClick={handleSlotClick}
           onAppointmentClick={setSelectedAppointment}
+          staffList={staff}
+          staffFilter={staffFilter}
         />
       </div>
 

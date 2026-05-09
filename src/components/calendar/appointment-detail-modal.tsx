@@ -103,14 +103,14 @@ export default function AppointmentDetailModal({
         if (e.target === backdropRef.current) onClose();
       }}
     >
-      <div className="bg-white rounded-xl shadow-lg w-full max-w-md mx-4 overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg dark:shadow-2xl w-full max-w-md mx-4 overflow-hidden transition-colors">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             Detalle del Turno
           </h2>
           <button
             onClick={onClose}
-            className="p-1 rounded-md text-gray-500 hover:bg-gray-100 transition-colors"
+            className="p-1 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -119,19 +119,19 @@ export default function AppointmentDetailModal({
         <div className="p-6 space-y-5">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <span className="text-xs text-gray-500 uppercase">Cliente</span>
-              <p className="text-sm font-medium text-gray-900 mt-0.5">
+              <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">Cliente</span>
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mt-0.5">
                 {appointment.customers?.name || "—"}
               </p>
               {appointment.customers?.email && (
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
                   {appointment.customers.email}
                 </p>
               )}
             </div>
             <div>
-              <span className="text-xs text-gray-500 uppercase">Staff</span>
-              <p className="text-sm font-medium text-gray-900 mt-0.5">
+              <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">Staff</span>
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mt-0.5">
                 {appointment.staff?.name || "—"}
               </p>
             </div>
@@ -139,29 +139,29 @@ export default function AppointmentDetailModal({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <span className="text-xs text-gray-500 uppercase">Servicio</span>
-              <p className="text-sm font-medium text-gray-900 mt-0.5">
+              <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">Servicio</span>
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mt-0.5">
                 {appointment.services?.name || "—"}
               </p>
             </div>
             <div>
-              <span className="text-xs text-gray-500 uppercase">Precio</span>
-              <p className="text-sm font-medium text-gray-900 mt-0.5">
+              <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">Precio</span>
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mt-0.5">
                 ${appointment.services?.price.toFixed(2) || "—"}
               </p>
             </div>
           </div>
 
           <div>
-            <span className="text-xs text-gray-500 uppercase">Horario</span>
-            <p className="text-sm font-medium text-gray-900 mt-0.5">
+            <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">Horario</span>
+            <p suppressHydrationWarning className="text-sm font-medium text-gray-900 dark:text-gray-100 mt-0.5">
               {start.toLocaleDateString("es-AR", {
                 weekday: "long",
                 day: "numeric",
                 month: "long",
               })}
             </p>
-            <p className="text-sm text-gray-600">
+            <p suppressHydrationWarning className="text-sm text-gray-600 dark:text-gray-400">
               {start.toLocaleTimeString("es-AR", {
                 hour: "2-digit",
                 minute: "2-digit",
@@ -176,17 +176,17 @@ export default function AppointmentDetailModal({
 
           {appointment.notes && (
             <div>
-              <span className="text-xs text-gray-500 uppercase">Notas</span>
-              <p className="text-sm text-gray-700 mt-0.5">
+              <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">Notas</span>
+              <p className="text-sm text-gray-700 dark:text-gray-300 mt-0.5">
                 {appointment.notes}
               </p>
             </div>
           )}
 
-          <div className="border-t border-gray-200 pt-5 space-y-3">
+          <div className="border-t border-gray-200 dark:border-gray-800 pt-5 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-700">Estado</span>
-              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-violet-100 text-violet-800">
+              <span className="text-sm text-gray-700 dark:text-gray-300">Estado</span>
+              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-violet-100 dark:bg-violet-950 text-violet-800 dark:text-violet-200">
                 {localStatus === "scheduled" && "Programado"}
                 {localStatus === "confirmed" && "Confirmado"}
                 {localStatus === "in_progress" && "En curso"}
@@ -197,7 +197,7 @@ export default function AppointmentDetailModal({
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-700">Pago</span>
+              <span className="text-sm text-gray-700 dark:text-gray-300">Pago</span>
               <button
                 onClick={handleTogglePaid}
                 disabled={pending}
@@ -224,7 +224,7 @@ export default function AppointmentDetailModal({
                       disabled={pending}
                       className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                         isCancel
-                          ? "text-red-700 bg-red-50 hover:bg-red-100"
+                          ? "text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950 hover:bg-red-100 dark:hover:bg-red-900"
                           : "text-white bg-violet-600 hover:bg-violet-700"
                       } disabled:opacity-50`}
                     >

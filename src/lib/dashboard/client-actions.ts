@@ -258,17 +258,17 @@ export async function fetchPublicStaff(shopId: string) {
   return data || [];
 }
 
-// Fetch available time slots for a given date and service
+// Fetch available time slots for a given date, service, and optional staff
 export async function fetchAvailableSlots(
   serviceId: string,
-  date: string
+  date: string,
+  staffId?: string
 ) {
   const session = await getAuthSession();
   const shopId = await getShopId(session);
 
   const supabase = await createServerClient();
 
-  // Get service duration
   const { data: service } = await supabase
     .from("services")
     .select("duration_minutes")
@@ -277,7 +277,6 @@ export async function fetchAvailableSlots(
 
   if (!service) return [];
 
-  // Get shop opening hours
   const { data: shop } = await supabase
     .from("shops")
     .select("opening_hours")
@@ -315,13 +314,29 @@ export async function fetchAvailableSlots(
   const dayStart = new Date(date + "T00:00:00.000Z");
   const dayEnd = new Date(date + "T23:59:59.999Z");
 
-  const { data: appointments } = await supabase
+  let query = supabase
     .from("appointments")
-    .select("start_time, end_time")
+    .select("start_time, end_time, staff_id")
     .eq("shop_id", shopId)
     .gte("start_time", dayStart.toISOString())
     .lte("start_time", dayEnd.toISOString())
     .not("status", "eq", "cancelled");
+
+  if (staffId) {
+    query = query.eq("staff_id", staffId);
+  }
+
+  const { data: appointments } = await query;
+
+  let staffCount = 1;
+  if (!staffId) {
+    const { data: allStaff } = await supabase
+      .from("user_profiles")
+      .select("user_id")
+      .eq("shop_id", shopId)
+      .in("role", ["owner", "staff"]);
+    staffCount = allStaff?.length || 1;
+  }
 
   const now = new Date();
   const slots = [];
@@ -342,21 +357,27 @@ export async function fetchAvailableSlots(
       const slotEndTotal = slotEnd.getHours() * 60 + slotEnd.getMinutes();
       if (slotEndTotal > endTotalMinutes) continue;
 
-      const hasConflict = (appointments || []).some((apt) => {
-        const aptStart = new Date(apt.start_time);
-        const aptEnd = new Date(apt.end_time);
-        return slotStart < aptEnd && slotEnd > aptStart;
-      });
-
-      if (!hasConflict) {
-        slots.push({
-          start: slotStart.toISOString(),
-          end: slotEnd.toISOString(),
-          time: slotStart.toLocaleTimeString("es-AR", {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
+      if (staffId) {
+        const hasConflict = (appointments || []).some((apt) => {
+          const aptStart = new Date(apt.start_time);
+          const aptEnd = new Date(apt.end_time);
+          return slotStart < aptEnd && slotEnd > aptStart;
         });
+        if (!hasConflict) {
+          slots.push({ start: slotStart.toISOString(), end: slotEnd.toISOString(), time: slotStart.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) });
+        }
+      } else {
+        const busyStaff = new Set<string>();
+        (appointments || []).forEach((apt) => {
+          const aptStart = new Date(apt.start_time);
+          const aptEnd = new Date(apt.end_time);
+          if (slotStart < aptEnd && slotEnd > aptStart && apt.staff_id) {
+            busyStaff.add(apt.staff_id);
+          }
+        });
+        if (busyStaff.size < staffCount) {
+          slots.push({ start: slotStart.toISOString(), end: slotEnd.toISOString(), time: slotStart.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) });
+        }
       }
     }
   }

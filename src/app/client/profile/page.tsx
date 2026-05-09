@@ -27,21 +27,21 @@ export default function ClientProfilePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Mi Perfil</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Mi Perfil</h1>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
           Gestioná tu información personal
         </p>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-6 max-w-2xl">
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 max-w-2xl">
         {state?.success && (
-          <div className="mb-4 bg-green-50 text-green-700 text-sm px-4 py-3 rounded-lg">
+          <div className="mb-4 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-sm px-4 py-3 rounded-lg">
             Perfil actualizado correctamente
           </div>
         )}
 
         {state?.error && (
-          <div className="mb-4 bg-red-50 text-red-700 text-sm px-4 py-3 rounded-lg">
+          <div className="mb-4 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-sm px-4 py-3 rounded-lg">
             {state.error}
           </div>
         )}
@@ -69,7 +69,7 @@ export default function ClientProfilePage() {
               className="mt-1"
               placeholder="Ej: 11 1234-5678"
             />
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               Lo usaremos para enviarte recordatorios
             </p>
           </div>
@@ -79,11 +79,11 @@ export default function ClientProfilePage() {
             <Input
               id="email"
               type="email"
-              className="mt-1 bg-gray-50"
+              className="mt-1 bg-gray-50 dark:bg-gray-800 dark:text-gray-300"
               disabled
               value={userEmail}
             />
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               El email no se puede cambiar
             </p>
           </div>

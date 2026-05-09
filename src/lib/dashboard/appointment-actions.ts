@@ -266,6 +266,77 @@ export async function createCustomerAndAppointment(formData: FormData) {
   return { success: true };
 }
 
+export async function fetchAllAppointmentsForTable() {
+  const session = await getAuthSession();
+  const shopId = await getShopId(session);
+
+  const admin = createAdminClient();
+
+  const { data: appointments, error: aptError } = await admin
+    .from("appointments")
+    .select(`
+      id,
+      start_time,
+      end_time,
+      status,
+      is_paid,
+      customer_id,
+      staff_id,
+      service_id
+    `)
+    .eq("shop_id", shopId)
+    .order("start_time", { ascending: true });
+
+  if (aptError) {
+    console.error("[fetchAllAppointmentsForTable] appointments error:", aptError);
+    throw aptError;
+  }
+
+  const customerIds = [...new Set((appointments || []).map(a => a.customer_id).filter(Boolean))];
+  const staffIds = [...new Set((appointments || []).map(a => a.staff_id).filter(Boolean))];
+  const serviceIds = [...new Set((appointments || []).map(a => a.service_id).filter(Boolean))];
+
+  const [customersRes, staffRes, servicesRes] = await Promise.all([
+    customerIds.length > 0
+      ? admin.from("customers").select("id, name, email, phone").in("id", customerIds)
+      : { data: [], error: null },
+    staffIds.length > 0
+      ? admin.from("user_profiles").select("user_id, name").in("user_id", staffIds)
+      : { data: [], error: null },
+    serviceIds.length > 0
+      ? admin.from("services").select("id, name, price").in("id", serviceIds)
+      : { data: [], error: null },
+  ]);
+
+  if (customersRes.error) console.error("[fetchAllAppointmentsForTable] customers error:", customersRes.error);
+  if (staffRes.error) console.error("[fetchAllAppointmentsForTable] staff error:", staffRes.error);
+  if (servicesRes.error) console.error("[fetchAllAppointmentsForTable] services error:", servicesRes.error);
+
+  const customerMap = new Map((customersRes.data || []).map(c => [c.id, c]));
+  const staffMap = new Map((staffRes.data || []).map(s => [s.user_id, s]));
+  const serviceMap = new Map((servicesRes.data || []).map(s => [s.id, s]));
+
+  return (appointments || []).map(apt => ({
+    id: apt.id,
+    start_time: apt.start_time,
+    end_time: apt.end_time,
+    status: apt.status,
+    is_paid: apt.is_paid,
+    customers: customerMap.get(apt.customer_id) || null,
+    staff: staffMap.get(apt.staff_id) || null,
+    services: serviceMap.get(apt.service_id) || null,
+  })) as {
+    id: string;
+    start_time: string;
+    end_time: string;
+    status: string;
+    is_paid: boolean;
+    customers: { id: string; name: string; email: string; phone: string | null } | null;
+    staff: { user_id: string; name: string } | null;
+    services: { id: string; name: string; price: number } | null;
+  }[];
+}
+
 export async function updateAppointmentStatus(
   id: string,
   status: string,

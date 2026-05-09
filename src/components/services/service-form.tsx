@@ -1,7 +1,8 @@
 "use client";
 
 import { createService, updateService } from "@/lib/dashboard/service-actions";
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef, useEffect } from "react";
+import EmojiPicker from "emoji-picker-react";
 
 interface ServiceFormProps {
   service?: {
@@ -18,12 +19,42 @@ const durationOptions = [15, 30, 45, 60, 90, 120];
 export default function ServiceForm({ service, onSuccess }: ServiceFormProps) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [showEmojis, setShowEmojis] = useState(false);
+  const [pickerStyle, setPickerStyle] = useState<React.CSSProperties>({});
+  const [nameValue, setNameValue] = useState(service?.name || "");
+  const nameRef = useRef<HTMLInputElement>(null);
+  const emojiRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  function insertEmoji(emoji: string) {
+    const clean = nameValue.replace(/^(\p{Emoji}\uFE0F?\u200D\p{Emoji}\uFE0F?|\p{Emoji}\uFE0F?|\p{Emoji_Presentation}|\p{Emoji_Modifier_Base})+\s*/u, "");
+    const newVal = `${emoji} ${clean}`;
+    setNameValue(newVal);
+    setShowEmojis(false);
+    nameRef.current?.focus();
+  }
+
+  function handleNameChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setNameValue(e.target.value);
+  }
+
+  useEffect(() => {
+    if (!showEmojis) return;
+    function handleClick(e: MouseEvent) {
+      if (emojiRef.current && !emojiRef.current.contains(e.target as Node)) {
+        setShowEmojis(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showEmojis]);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
 
     const formData = new FormData(e.currentTarget);
+    formData.set("name", nameValue);
 
     const action = service
       ? () => updateService(service.id, formData)
@@ -48,21 +79,64 @@ export default function ServiceForm({ service, onSuccess }: ServiceFormProps) {
       )}
 
       <div>
-        <label
-          htmlFor="name"
-          className="block text-sm font-medium text-gray-700 mb-1"
-        >
+        <label className="block text-sm font-medium text-gray-700 mb-1">
           Nombre
         </label>
-        <input
-          type="text"
-          id="name"
-          name="name"
-          defaultValue={service?.name}
-          required
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-          placeholder="Ej: Corte de pelo"
-        />
+        <div className="flex gap-2">
+          <input
+            ref={nameRef}
+            type="text"
+            id="name"
+            name="name"
+            value={nameValue}
+            onChange={handleNameChange}
+            required
+            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+            placeholder="Ej: Corte de pelo"
+          />
+          <div className="relative">
+            <button
+              ref={buttonRef}
+              type="button"
+              onClick={() => {
+                if (!showEmojis && buttonRef.current) {
+                  const rect = buttonRef.current.getBoundingClientRect();
+                  const openUp = window.innerHeight - rect.bottom < 360;
+                  setPickerStyle({
+                    position: 'fixed',
+                    top: openUp ? 'auto' : `${rect.bottom + 4}px`,
+                    bottom: openUp ? `${window.innerHeight - rect.top + 4}px` : 'auto',
+                    right: `${window.innerWidth - rect.right}px`,
+                    zIndex: 9999,
+                  });
+                }
+                setShowEmojis(!showEmojis);
+              }}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors text-lg"
+              title="Agregar emoji"
+            >
+              😀
+            </button>
+            {showEmojis && (
+              <div
+                ref={emojiRef}
+                className="z-50"
+                style={pickerStyle}
+              >
+                <EmojiPicker
+                  onEmojiClick={(data) => insertEmoji(data.emoji)}
+                  skinTonesDisabled
+                  searchPlaceholder="Buscar emoji..."
+                  width={300}
+                  height={350}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+        <p className="mt-1 text-xs text-gray-400">
+          Elegí un emoji para identificar el servicio visualmente en el calendario
+        </p>
       </div>
 
       <div>

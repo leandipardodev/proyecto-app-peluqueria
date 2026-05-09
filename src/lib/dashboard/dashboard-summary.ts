@@ -24,6 +24,8 @@ export async function fetchDashboardSummary() {
       .eq("shop_id", shopId)
       .gte("start_time", todayStart)
       .lt("start_time", tomorrowStart)
+      .not("status", "eq", "cancelled")
+      .not("status", "eq", "no_show")
       .order("start_time", { ascending: true })
       .returns<{ id: string; start_time: string; status: string }[]>(),
 

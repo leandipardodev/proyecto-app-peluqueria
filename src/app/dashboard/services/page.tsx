@@ -8,7 +8,8 @@ export default async function ServicesPage() {
 
   try {
     services = await fetchServices();
-  } catch {
+  } catch (e) {
+    console.error("[ServicesPage] Error al cargar servicios:", e);
     services = [];
   }
 

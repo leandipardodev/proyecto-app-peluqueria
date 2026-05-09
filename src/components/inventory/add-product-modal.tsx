@@ -51,14 +51,14 @@ export default function AddProductModal({ open, onClose }: AddProductModalProps)
         if (e.target === backdropRef.current) onClose();
       }}
     >
-      <div className="bg-white rounded-xl shadow-lg w-full max-w-md mx-4 overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg w-full max-w-md mx-4 overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             Nuevo Producto
           </h2>
           <button
             onClick={onClose}
-            className="p-1 rounded-md text-gray-500 hover:bg-gray-100 transition-colors"
+            className="p-1 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -66,7 +66,7 @@ export default function AddProductModal({ open, onClose }: AddProductModalProps)
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           {error && (
-            <div className="bg-red-50 text-red-700 text-sm px-4 py-2 rounded-lg">
+            <div className="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-sm px-4 py-2 rounded-lg">
               {error}
             </div>
           )}
@@ -74,7 +74,7 @@ export default function AddProductModal({ open, onClose }: AddProductModalProps)
           <div>
             <label
               htmlFor="name"
-              className="block text-sm font-medium text-gray-700 mb-1"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
             >
               Nombre del producto
             </label>
@@ -83,7 +83,7 @@ export default function AddProductModal({ open, onClose }: AddProductModalProps)
               id="name"
               name="name"
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-950 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
               placeholder="Ej: Tinte rubio cenizo"
             />
           </div>
@@ -92,7 +92,7 @@ export default function AddProductModal({ open, onClose }: AddProductModalProps)
             <div>
               <label
                 htmlFor="quantity"
-                className="block text-sm font-medium text-gray-700 mb-1"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
               >
                 Cantidad inicial
               </label>
@@ -103,14 +103,14 @@ export default function AddProductModal({ open, onClose }: AddProductModalProps)
                 min="0"
                 defaultValue="0"
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-950 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
               />
             </div>
 
             <div>
               <label
                 htmlFor="unit_cost"
-                className="block text-sm font-medium text-gray-700 mb-1"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
               >
                 Costo unitario ($)
               </label>
@@ -121,7 +121,7 @@ export default function AddProductModal({ open, onClose }: AddProductModalProps)
                 step="0.01"
                 min="0"
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-950 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
                 placeholder="0.00"
               />
             </div>

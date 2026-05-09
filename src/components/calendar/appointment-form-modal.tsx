@@ -3,6 +3,7 @@
 import { X, Plus, UserPlus } from "lucide-react";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createAppointment, createCustomerAndAppointment } from "@/lib/dashboard/appointment-actions";
+import { playPop } from "@/lib/sound";
 
 type Service = {
   id: string;
@@ -118,6 +119,7 @@ export default function AppointmentFormModal({
       if (result.error) {
         setError(result.error);
       } else {
+        playPop();
         onSuccess?.();
         onClose();
       }
@@ -132,12 +134,12 @@ export default function AppointmentFormModal({
         if (e.target === backdropRef.current) onClose();
       }}
     >
-      <div className="bg-white rounded-xl shadow-lg w-full max-w-lg mx-4 overflow-hidden max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Nuevo Turno</h2>
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg dark:shadow-2xl w-full max-w-lg mx-4 overflow-hidden max-h-[90vh] flex flex-col transition-colors">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Nuevo Turno</h2>
           <button
             onClick={onClose}
-            className="p-1 rounded-md text-gray-500 hover:bg-gray-100 transition-colors"
+            className="p-1 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>

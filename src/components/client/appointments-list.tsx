@@ -74,20 +74,20 @@ export default function ClientAppointmentsList({
   return (
     <div className="space-y-6">
       {/* Upcoming Appointments */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
             <CalendarDays className="w-5 h-5 text-violet-600" />
             Próximos Turnos
           </h2>
         </div>
 
         {upcoming.length === 0 ? (
-          <div className="px-6 py-12 text-center text-sm text-gray-500">
+          <div className="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">
             No tenés turnos programados.
           </div>
         ) : (
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-gray-100 dark:divide-gray-700">
             {upcoming.map((apt) => {
               const start = formatDateTime(apt.start_time);
               const end = formatDateTime(apt.end_time);
@@ -96,17 +96,17 @@ export default function ClientAppointmentsList({
               return (
                 <div
                   key={apt.id}
-                  className="px-6 py-4 hover:bg-gray-50 transition-colors"
+                  className="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3">
                         <div className="w-1.5 h-10 bg-violet-500 rounded-full" />
                         <div>
-                          <p className="font-medium text-gray-900">
+                          <p className="font-medium text-gray-900 dark:text-gray-100">
                             {apt.service?.name || "Servicio"}
                           </p>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
                             {apt.staff?.name || "Staff no asignado"}
                           </p>
                         </div>
@@ -114,10 +114,10 @@ export default function ClientAppointmentsList({
                     </div>
 
                     <div className="text-right">
-                      <p className="text-sm font-medium text-gray-900">
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                         {start.date}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
                         {start.time} - {end.time}
                       </p>
                     </div>
@@ -133,7 +133,7 @@ export default function ClientAppointmentsList({
                         {formatStatus(apt.status)}
                       </span>
                       {apt.service && (
-                        <span className="text-sm text-gray-600 flex items-center gap-1">
+                        <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
                           <DollarSign className="w-3 h-3" />$
                           {apt.service.price.toFixed(2)}
                         </span>
@@ -164,7 +164,7 @@ export default function ClientAppointmentsList({
                   </div>
 
                   {apt.notes && (
-                    <p className="mt-2 text-sm text-gray-500 italic">
+                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 italic">
                       Nota: {apt.notes}
                     </p>
                   )}
@@ -177,14 +177,14 @@ export default function ClientAppointmentsList({
 
       {/* Past Appointments */}
       {past.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
               Historial de Turnos
             </h2>
           </div>
 
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-gray-100 dark:divide-gray-700">
             {past.map((apt) => {
               const start = formatDateTime(apt.start_time);
 
@@ -195,12 +195,12 @@ export default function ClientAppointmentsList({
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-1.5 h-10 bg-gray-300 rounded-full" />
+                      <div className="w-1.5 h-10 bg-gray-300 dark:bg-gray-600 rounded-full" />
                       <div>
-                        <p className="font-medium text-gray-700">
+                        <p className="font-medium text-gray-700 dark:text-gray-300">
                           {apt.service?.name || "Servicio"}
                         </p>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
                           {start.date} - {start.time}
                         </p>
                       </div>

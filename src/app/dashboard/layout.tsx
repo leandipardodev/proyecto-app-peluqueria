@@ -30,7 +30,7 @@ export default async function DashboardLayout({
   const { shopName, userName } = await getTenantAndUser();
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-950 transition-colors">
       <div className="hidden lg:flex lg:w-64 lg:flex-shrink-0">
         <DashboardSidebar userName={userName} onLogout={logout} />
       </div>

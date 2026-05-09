@@ -100,7 +100,8 @@ export default function BookingFlow({ shopId, services, staffMembers, selectedSe
 
     if (date && selectedService) {
       setLoading(true);
-      fetchAvailableSlots(selectedService.id, date)
+      const staffFilter = selectedStaff?.user_id || undefined;
+      fetchAvailableSlots(selectedService.id, date, staffFilter)
         .then((result) => {
           setSlots(result as unknown as Slot[]);
         })
@@ -189,7 +190,7 @@ export default function BookingFlow({ shopId, services, staffMembers, selectedSe
       {/* Step 1: Select Service */}
       {step === "service" && (
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
             <CalendarDays className="w-5 h-5 text-violet-600" />
             Elegí tu servicio
           </h2>
@@ -198,11 +199,11 @@ export default function BookingFlow({ shopId, services, staffMembers, selectedSe
               <div
                 key={service.id}
                 onClick={() => handleServiceSelect(service)}
-                className="bg-white rounded-xl border border-gray-200 p-5 hover:border-violet-300 hover:shadow-md cursor-pointer transition-all"
+                className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 hover:border-violet-300 hover:shadow-md cursor-pointer transition-all"
               >
-                <h3 className="font-semibold text-gray-900">{service.name}</h3>
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100">{service.name}</h3>
                 <div className="mt-2 flex items-center justify-between">
-                  <span className="text-sm text-gray-500">
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
                     {service.duration_minutes} min
                   </span>
                   <span className="text-lg font-bold text-violet-600">
@@ -228,17 +229,17 @@ export default function BookingFlow({ shopId, services, staffMembers, selectedSe
           </div>
 
           <div>
-            <h3 className="font-semibold text-gray-900 mb-1">
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">
               {selectedService.name}
             </h3>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               {selectedService.duration_minutes} min - $
               {selectedService.price.toFixed(2)}
             </p>
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
               Elegí tu peluquero
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -246,18 +247,18 @@ export default function BookingFlow({ shopId, services, staffMembers, selectedSe
                 <div
                   key={staff.user_id}
                   onClick={() => handleStaffSelect(staff)}
-                  className="bg-white rounded-xl border border-gray-200 p-5 hover:border-violet-300 hover:shadow-md cursor-pointer transition-all"
+                  className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 hover:border-violet-300 hover:shadow-md cursor-pointer transition-all"
                 >
-                  <h3 className="font-semibold text-gray-900">{staff.name}</h3>
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">{staff.name}</h3>
                 </div>
               ))}
               {/* Option for no preference */}
               <div
                 onClick={() => handleStaffSelect({ user_id: "", name: "Sin preferencia" })}
-                className="bg-white rounded-xl border border-gray-200 p-5 hover:border-violet-300 hover:shadow-md cursor-pointer transition-all"
+                className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 hover:border-violet-300 hover:shadow-md cursor-pointer transition-all"
               >
-                <h3 className="font-semibold text-gray-900">Sin preferencia</h3>
-                <p className="text-sm text-gray-500 mt-1">Cualquier peluquero disponible</p>
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100">Sin preferencia</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Cualquier peluquero disponible</p>
               </div>
             </div>
           </div>
@@ -266,7 +267,7 @@ export default function BookingFlow({ shopId, services, staffMembers, selectedSe
 
       {/* Step 3: Select Date and Time */}
       {step === "datetime" && selectedService && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 space-y-6">
           <div>
             <button
               onClick={() => setStep("service")}
@@ -277,17 +278,17 @@ export default function BookingFlow({ shopId, services, staffMembers, selectedSe
           </div>
 
           <div>
-            <h3 className="font-semibold text-gray-900 mb-1">
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">
               {selectedService.name}
             </h3>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               {selectedService.duration_minutes} min - $
               {selectedService.price.toFixed(2)}
             </p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Fecha
             </label>
             <input
@@ -295,19 +296,19 @@ export default function BookingFlow({ shopId, services, staffMembers, selectedSe
               min={getMinDate()}
               value={selectedDate}
               onChange={handleDateChange}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-950 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500"
             />
           </div>
 
           {selectedDate && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Horarios Disponibles
               </label>
               {loading ? (
-                <p className="text-sm text-gray-500">Cargando...</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Cargando...</p>
               ) : slots.length === 0 ? (
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   No hay horarios disponibles para esta fecha.
                 </p>
               ) : (
@@ -316,7 +317,7 @@ export default function BookingFlow({ shopId, services, staffMembers, selectedSe
                     <button
                       key={slot.start}
                       onClick={() => handleSlotSelect(slot)}
-                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm hover:border-violet-500 hover:bg-violet-50 transition-colors"
+                      className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:text-gray-100 hover:border-violet-500 hover:bg-violet-50 dark:hover:bg-violet-900/30 transition-colors"
                     >
                       {slot.time}
                     </button>
@@ -330,54 +331,54 @@ export default function BookingFlow({ shopId, services, staffMembers, selectedSe
 
       {/* Step 4: Confirm */}
       {step === "confirm" && selectedService && selectedSlot && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 space-y-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
             <Check className="w-5 h-5 text-green-600" />
             Confirmar Turno
           </h2>
 
           <div className="space-y-4">
             <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Servicio</span>
-              <span className="text-sm font-medium text-gray-900">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Servicio</span>
+              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                 {selectedService.name}
               </span>
             </div>
             {selectedStaff && (
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Peluquero</span>
-                <span className="text-sm font-medium text-gray-900">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Peluquero</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                   {selectedStaff.name}
                 </span>
               </div>
             )}
             <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Fecha</span>
-              <span className="text-sm font-medium text-gray-900">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Fecha</span>
+              <span suppressHydrationWarning className="text-sm font-medium text-gray-900 dark:text-gray-100">
                 {new Date(selectedSlot.start).toLocaleDateString("es-AR")}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Hora</span>
-              <span className="text-sm font-medium text-gray-900">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Hora</span>
+              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                 {selectedSlot.time}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Duración</span>
-              <span className="text-sm font-medium text-gray-900">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Duración</span>
+              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                 {selectedService.duration_minutes} min
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Precio</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">Precio</span>
               <span className="text-lg font-bold text-violet-600">
                 ${selectedService.price.toFixed(2)}
               </span>
             </div>
 
-            <div className="pt-2 border-t border-gray-100">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+            <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Teléfono <span className="text-red-500">*</span>
               </label>
               <input
@@ -386,9 +387,9 @@ export default function BookingFlow({ shopId, services, staffMembers, selectedSe
                 onChange={(e) => setPhone(e.target.value)}
                 required
                 placeholder="Ej: 11 1234-5678"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-950 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
               />
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 Lo usaremos para enviarte recordatorios
               </p>
             </div>
@@ -397,7 +398,7 @@ export default function BookingFlow({ shopId, services, staffMembers, selectedSe
           <div className="flex gap-3">
             <button
               onClick={() => setStep("datetime")}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
             >
               Volver
             </button>

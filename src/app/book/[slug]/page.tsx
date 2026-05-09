@@ -39,12 +39,12 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
 
   if (shopError || !shop) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
             Peluquería no encontrada
           </h1>
-          <p className="text-gray-600">
+          <p className="text-gray-600 dark:text-gray-400">
             El enlace que seguiste no es válido.
           </p>
         </div>
@@ -111,19 +111,19 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
+      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <h1 className="text-3xl font-bold text-gray-900">{shop.name}</h1>
-          <p className="mt-1 text-gray-600">Reservá tu turno online</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{shop.name}</h1>
+          <p className="mt-1 text-gray-600 dark:text-gray-400">Reservá tu turno online</p>
         </div>
       </header>
 
       {/* Error Message */}
       {error && (
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">
+          <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 text-red-700 dark:text-red-300 text-sm px-4 py-3 rounded-lg">
             {error}
           </div>
         </div>
@@ -133,13 +133,13 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column - Services */}
           <div className="lg:col-span-2">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
               Nuestros Servicios
             </h2>
 
             {!services || services.length === 0 ? (
-              <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-                <p className="text-gray-500">
+              <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-8 text-center">
+                <p className="text-gray-500 dark:text-gray-400">
                   No hay servicios disponibles en este momento.
                 </p>
               </div>
@@ -148,13 +148,13 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
                 {services.map((service) => (
                   <div
                     key={service.id}
-                    className="bg-white rounded-xl border border-gray-200 p-5 hover:border-violet-300 transition-colors"
+                    className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 hover:border-violet-300 transition-colors"
                   >
-                    <h3 className="font-semibold text-gray-900">
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">
                       {service.name}
                     </h3>
                     <div className="mt-2 flex items-center justify-between">
-                      <span className="text-sm text-gray-500">
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
                         {service.duration_minutes} min
                       </span>
                       <span className="text-lg font-bold text-violet-600">
@@ -169,7 +169,7 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
                     </a>
                     
                     {/* Debug info - remove later */}
-                    <details className="mt-2 text-xs text-gray-500">
+                    <details className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                       <summary>Debug: URL de auth</summary>
                       <code className="break-all">{getGoogleAuthUrl(service.id)}</code>
                     </details>
@@ -182,19 +182,19 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
           {/* Right Column - Info */}
           <div className="space-y-6">
             {/* Contact Info */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <h3 className="font-semibold text-gray-900 mb-3">Información</h3>
+            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Información</h3>
               <div className="space-y-3">
                 {shop.address && (
                   <div className="flex items-start gap-3">
                     <MapPin className="w-5 h-5 text-gray-400 mt-0.5" />
-                    <span className="text-sm text-gray-600">{shop.address}</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">{shop.address}</span>
                   </div>
                 )}
                 {shop.phone && (
                   <div className="flex items-center gap-3">
                     <Phone className="w-5 h-5 text-gray-400" />
-                    <span className="text-sm text-gray-600">{shop.phone}</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">{shop.phone}</span>
                   </div>
                 )}
               </div>
@@ -202,16 +202,16 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
 
             {/* Opening Hours */}
             {openingHours && (
-              <div className="bg-white rounded-xl border border-gray-200 p-5">
-                <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
                   <Clock className="w-5 h-5 text-gray-400" />
                   Horarios
                 </h3>
                 <div className="space-y-2">
                   {Object.entries(dayNames).map(([key, label]) => (
                     <div key={key} className="flex justify-between text-sm">
-                      <span className="text-gray-600">{label}</span>
-                      <span className="text-gray-900 font-medium">
+                      <span className="text-gray-600 dark:text-gray-400">{label}</span>
+                      <span className="text-gray-900 dark:text-gray-100 font-medium">
                         {openingHours![key] || "Cerrado"}
                       </span>
                     </div>
@@ -222,8 +222,8 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
 
             {/* Google Maps */}
             {shop.google_maps_url && (
-              <div className="bg-white rounded-xl border border-gray-200 p-5">
-                <h3 className="font-semibold text-gray-900 mb-3">Ubicación</h3>
+              <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Ubicación</h3>
                 <div className="aspect-video rounded-lg overflow-hidden">
                   <iframe
                     src={shop.google_maps_url}
@@ -243,8 +243,8 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 mt-12">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 text-center text-sm text-gray-500">
+      <footer className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 mt-12">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
           Powered by <span className="font-semibold text-violet-600">Klip</span>
         </div>
       </footer>

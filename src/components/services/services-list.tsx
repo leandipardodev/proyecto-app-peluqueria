@@ -67,8 +67,8 @@ export default function ServicesList({ initialServices }: ServicesListProps) {
       </div>
 
       {services.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 py-16 px-6 text-center">
-          <p className="text-gray-500 text-sm">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 py-16 px-6 text-center">
+          <p className="text-gray-500 dark:text-gray-400 text-sm">
             No hay servicios creados aún.
           </p>
           <button
@@ -80,35 +80,35 @@ export default function ServicesList({ initialServices }: ServicesListProps) {
           </button>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
+                <tr className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                  <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider px-6 py-3">
                     Nombre
                   </th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
+                  <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider px-6 py-3">
                     Precio
                   </th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
+                  <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider px-6 py-3">
                     Duración
                   </th>
-                  <th className="text-right text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
+                  <th className="text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider px-6 py-3">
                     Acciones
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                 {services.map((service) => (
-                  <tr key={service.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                  <tr key={service.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-gray-100">
                       {service.name}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
+                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
                       ${service.price.toFixed(2)}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
+                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
                       {service.duration_minutes} min
                     </td>
                     <td className="px-6 py-4 text-right">

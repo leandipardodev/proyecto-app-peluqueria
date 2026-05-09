@@ -35,7 +35,7 @@ export default async function ClientLayout({
   const { shopName, userName } = await getTenantAndUser();
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
       <div className="hidden lg:flex lg:w-64 lg:flex-shrink-0">
         <ClientSidebar userName={userName} shopName={shopName} />
       </div>

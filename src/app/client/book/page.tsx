@@ -25,8 +25,8 @@ export default async function ClientBookPage({ searchParams }: ClientBookPagePro
   if (!profile?.shop_id) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-gray-900">Reservar Turno</h1>
-        <div className="bg-yellow-50 text-yellow-700 text-sm px-4 py-3 rounded-lg">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Reservar Turno</h1>
+        <div className="bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 text-sm px-4 py-3 rounded-lg">
           No tenés una peluquería asignada. Contactá a tu peluquería.
         </div>
       </div>
@@ -52,8 +52,8 @@ export default async function ClientBookPage({ searchParams }: ClientBookPagePro
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Reservar Turno</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Reservar Turno</h1>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
           Elegí el servicio, peluquero, fecha y hora
         </p>
       </div>
