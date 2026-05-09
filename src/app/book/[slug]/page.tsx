@@ -52,14 +52,22 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
     );
   }
 
-  // If user is already logged in, redirect to the client booking flow directly
+  // If a customer is logged in, redirect to their booking flow
   const session = await authClient.auth.getSession();
   if (session?.data?.session?.user) {
-    const sp = new URLSearchParams();
-    if (preselectedServiceId) sp.set("serviceId", preselectedServiceId);
-    if (preselectedStaffId) sp.set("staffId", preselectedStaffId);
-    const qs = sp.toString();
-    redirect(qs ? `/client/book?${qs}` : "/client/book");
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("role")
+      .eq("user_id", session.data.session.user.id)
+      .single();
+
+    if (profile?.role === "customer") {
+      const sp = new URLSearchParams();
+      if (preselectedServiceId) sp.set("serviceId", preselectedServiceId);
+      if (preselectedStaffId) sp.set("staffId", preselectedStaffId);
+      const qs = sp.toString();
+      redirect(qs ? `/client/book?${qs}` : "/client/book");
+    }
   }
 
   // Fetch active services
