@@ -2,6 +2,7 @@
 
 import { createServerClient } from "@/lib/supabase/server";
 import { getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
+import { getTodayArgentinaBounds } from "@/lib/argentina-time";
 import "server-only";
 
 export async function fetchDashboardSummary() {
@@ -10,10 +11,8 @@ export async function fetchDashboardSummary() {
 
   const supabase = await createServerClient();
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayStart = today.toISOString();
-  const tomorrow = new Date(today);
+  const { start: todayStart } = getTodayArgentinaBounds();
+  const tomorrow = new Date(todayStart);
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowStart = tomorrow.toISOString();
 

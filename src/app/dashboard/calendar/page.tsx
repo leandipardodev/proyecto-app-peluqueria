@@ -6,19 +6,17 @@ import {
 import CalendarPageClient from "@/components/calendar/calendar-page-client";
 import { createServerClient } from "@/lib/supabase/server";
 import { getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
+import { getArgentinaWeekStart } from "@/lib/argentina-time";
 
 export const dynamic = "force-dynamic";
 
 export default async function CalendarPage() {
-  const today = new Date();
-  const weekStart = new Date(today);
-  weekStart.setDate(today.getDate() - ((today.getDay() + 6) % 7));
-  weekStart.setHours(0, 0, 0, 0);
+  const weekStart = getArgentinaWeekStart();
   const rangeStart = new Date(weekStart);
-  rangeStart.setDate(weekStart.getDate() - 7);
+  rangeStart.setUTCDate(weekStart.getUTCDate() - 7);
   const rangeEnd = new Date(weekStart);
-  rangeEnd.setDate(weekStart.getDate() + 14);
-  rangeEnd.setHours(23, 59, 59, 999);
+  rangeEnd.setUTCDate(weekStart.getUTCDate() + 14);
+  rangeEnd.setUTCHours(23, 59, 59, 999);
 
   let appointments: Awaited<ReturnType<typeof fetchAppointments>> = [];
   let services: Awaited<ReturnType<typeof fetchActiveServices>> = [];

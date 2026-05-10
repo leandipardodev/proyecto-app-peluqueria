@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { format, addWeeks, subWeeks } from "date-fns";
+import { addWeeks, subWeeks } from "date-fns";
 import CalendarView from "./calendar-view";
 import AppointmentFormModal from "./appointment-form-modal";
 import AppointmentDetailModal from "./appointment-detail-modal";
 import { useAppointmentAlarm } from "@/lib/use-appointment-alarm";
+import { getArgentinaDateKey } from "@/lib/argentina-time";
 
 type Appointment = {
   id: string;
@@ -69,7 +70,7 @@ export default function CalendarPageClient({
   useAppointmentAlarm(initialAppointments);
 
   function handleSlotClick(date: Date, hour: number) {
-    setFormInitialDate(format(date, "yyyy-MM-dd"));
+    setFormInitialDate(getArgentinaDateKey(date));
     setFormInitialHour(hour);
     setFormModalOpen(true);
   }

@@ -1,9 +1,20 @@
 "use server";
 
+import { createServerClient as createSsrClient } from "@supabase/ssr";
 import { createServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
 import "server-only";
+
+function createAdminClient() {
+  return createSsrClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      cookies: { getAll() { return []; }, setAll() {} },
+    }
+  );
+}
 
 export async function fetchStaffMembers() {
   const session = await getAuthSession();
@@ -80,32 +91,34 @@ export async function addStaffMember(formData: FormData) {
     return { error: "Este email ya está registrado" };
   }
 
+  const admin = createAdminClient();
   const password = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
 
-  const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+  const { data: adminData, error: adminError } = await admin.auth.admin.createUser({
     email,
     password,
-    options: {
-      data: { name },
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/verify?type=signup`,
-    },
+    email_confirm: true,
+    user_metadata: { full_name: name },
   });
 
-  if (signUpError) return { error: signUpError.message };
+  if (adminError) return { error: adminError.message };
 
-  if (!signUpData.user) {
+  if (!adminData.user) {
     return { error: "Error al crear el usuario" };
   }
 
   const { error } = await supabase.from("user_profiles").insert({
-    user_id: signUpData.user.id,
+    user_id: adminData.user.id,
     shop_id: shopId,
     name,
     email,
     role,
   });
 
-  if (error) return { error: error.message };
+  if (error) {
+    try { await admin.auth.admin.deleteUser(adminData.user.id); } catch {}
+    return { error: error.message };
+  }
 
   revalidatePath("/dashboard/staff");
   return { success: true, password };

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Plus, X, Trash2 } from "lucide-react";
-import { createExpense } from "@/lib/dashboard/finances-actions";
+import { createExpense, deleteExpense } from "@/lib/dashboard/finances-actions";
 
 type Expense = {
   id: string;
@@ -34,14 +34,35 @@ export default function FinancesClient({ initialExpenses }: { initialExpenses: E
     setError(null);
 
     const formData = new FormData(e.currentTarget);
-    startTransition(async () => {
-      const result = await createExpense(formData);
-      if (result.error) {
-        setError(result.error);
-      } else {
-        setShowForm(false);
-      }
-    });
+    const amount = parseFloat(formData.get("amount") as string);
+    const category = formData.get("category") as string;
+    const description = formData.get("description") as string || null;
+
+    const tempId = crypto.randomUUID();
+    const optimisticExpense = {
+      id: tempId,
+      amount,
+      category,
+      description,
+      created_at: new Date().toISOString(),
+    };
+
+    setExpenses((prev) => [optimisticExpense, ...prev]);
+    setShowForm(false);
+
+    const result = await createExpense(formData);
+    if (result.error) {
+      setExpenses((prev) => prev.filter((e) => e.id !== tempId));
+      setError(result.error);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    setExpenses((prev) => prev.filter((e) => e.id !== id));
+    const result = await deleteExpense(id);
+    if (result.error) {
+      setError(result.error);
+    }
   }
 
   return (
@@ -129,6 +150,7 @@ export default function FinancesClient({ initialExpenses }: { initialExpenses: E
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Categoría</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Descripción</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hora</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acción</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -141,6 +163,15 @@ export default function FinancesClient({ initialExpenses }: { initialExpenses: E
                   <td className="px-6 py-4 text-sm text-gray-500">{exp.description || "—"}</td>
                   <td suppressHydrationWarning className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
                     {new Date(exp.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <button
+                      onClick={() => handleDelete(exp.id)}
+                      className="p-1.5 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors cursor-pointer select-none"
+                      title="Eliminar gasto"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </td>
                 </tr>
               ))}

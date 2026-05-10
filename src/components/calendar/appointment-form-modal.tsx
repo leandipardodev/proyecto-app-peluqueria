@@ -4,6 +4,10 @@ import { X, Plus, UserPlus } from "lucide-react";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createAppointment, createCustomerAndAppointment } from "@/lib/dashboard/appointment-actions";
 import { playPop } from "@/lib/sound";
+import { getArgentinaDateString } from "@/lib/argentina-time";
+import { AnimatePresence, motion } from "framer-motion";
+
+const IOS_MODAL_SPRING = { stiffness: 460, damping: 34, mass: 0.65 };
 
 type Service = {
   id: string;
@@ -82,12 +86,10 @@ export default function AppointmentFormModal({
     }
   }, [open]);
 
-  if (!open) return null;
-
   const selectedService = services.find((s) => s.id === selectedServiceId);
 
   function getDefaultDateTime() {
-    const today = initialDate || new Date().toISOString().split("T")[0];
+    const today = initialDate || getArgentinaDateString();
     const hour = initialHour ?? 9;
     return {
       date: today,
@@ -127,14 +129,26 @@ export default function AppointmentFormModal({
   }
 
   return (
-    <div
-      ref={backdropRef}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={(e) => {
-        if (e.target === backdropRef.current) onClose();
-      }}
-    >
-      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg dark:shadow-2xl w-full max-w-lg mx-4 overflow-hidden max-h-[90vh] flex flex-col transition-colors">
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          ref={backdropRef}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={(e) => {
+            if (e.target === backdropRef.current) onClose();
+          }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.22 }}
+        >
+          <motion.div
+            className="bg-white dark:bg-gray-900 rounded-xl shadow-lg dark:shadow-2xl w-full max-w-lg mx-4 overflow-hidden max-h-[90vh] flex flex-col transition-colors"
+            initial={{ opacity: 0, y: 56, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 40, scale: 0.985 }}
+            transition={{ type: "spring", ...IOS_MODAL_SPRING }}
+          >
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Nuevo Turno</h2>
           <button
@@ -347,7 +361,9 @@ export default function AppointmentFormModal({
             {pending ? "Creando..." : "Crear Turno"}
           </button>
         </div>
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

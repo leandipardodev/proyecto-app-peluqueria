@@ -98,6 +98,33 @@ export async function fetchActiveServices() {
   return data;
 }
 
+function addMinutesToDateTimeString(dateStr: string, timeStr: string, minutesToAdd: number): { date: string; time: string } {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const [h, min] = timeStr.split(":").map(Number);
+
+  const totalStartMinutes = h * 60 + min;
+  const totalEndMinutes = totalStartMinutes + minutesToAdd;
+  const dayOffset = Math.floor(totalEndMinutes / (24 * 60));
+  const normalizedMinutes = ((totalEndMinutes % (24 * 60)) + (24 * 60)) % (24 * 60);
+
+  const endHour = Math.floor(normalizedMinutes / 60);
+  const endMinute = normalizedMinutes % 60;
+
+  const endDateUtc = new Date(Date.UTC(y, m - 1, d + dayOffset, 0, 0, 0, 0));
+  const endDate = `${endDateUtc.getUTCFullYear()}-${String(endDateUtc.getUTCMonth() + 1).padStart(2, "0")}-${String(endDateUtc.getUTCDate()).padStart(2, "0")}`;
+  const endTime = `${String(endHour).padStart(2, "0")}:${String(endMinute).padStart(2, "0")}`;
+
+  return { date: endDate, time: endTime };
+}
+
+function toArgentinaOffsetTimestamp(dateStr: string, timeStr: string): string {
+  return `${dateStr}T${timeStr}:00-03:00`;
+}
+
+function toDbTimestamp(dateStr: string, timeStr: string): string {
+  return new Date(toArgentinaOffsetTimestamp(dateStr, timeStr)).toISOString();
+}
+
 export async function fetchStaffMembers() {
   const session = await getAuthSession();
   const shopId = await getShopId(session);
@@ -153,16 +180,17 @@ export async function createAppointment(formData: FormData) {
 
   if (!service) return { error: "Servicio no encontrado" };
 
-  const startDateTime = new Date(`${startDate}T${startTime}:00`);
-  const endDateTime = new Date(startDateTime.getTime() + service.duration_minutes * 60000);
+  const startTimestamp = toDbTimestamp(startDate, startTime);
+  const endParts = addMinutesToDateTimeString(startDate, startTime, service.duration_minutes);
+  const endTimestamp = toDbTimestamp(endParts.date, endParts.time);
 
   const { error } = await supabase.from("appointments").insert({
     shop_id: shopId,
     customer_id: customerId,
     staff_id: staffId,
     service_id: serviceId,
-    start_time: startDateTime.toISOString(),
-    end_time: endDateTime.toISOString(),
+    start_time: startTimestamp,
+    end_time: endTimestamp,
     status: "scheduled",
     notes: notes || null,
   });
@@ -241,16 +269,17 @@ export async function createCustomerAndAppointment(formData: FormData) {
 
   if (!service) return { error: "Servicio no encontrado" };
 
-  const startDateTime = new Date(`${startDate}T${startTime}:00`);
-  const endDateTime = new Date(startDateTime.getTime() + service.duration_minutes * 60000);
+  const startTimestamp = toDbTimestamp(startDate, startTime);
+  const endParts = addMinutesToDateTimeString(startDate, startTime, service.duration_minutes);
+  const endTimestamp = toDbTimestamp(endParts.date, endParts.time);
 
   const { error: aptError } = await supabase.from("appointments").insert({
     shop_id: shopId,
     customer_id: authData.user.id,
     staff_id: staffId || null,
     service_id: serviceId,
-    start_time: startDateTime.toISOString(),
-    end_time: endDateTime.toISOString(),
+    start_time: startTimestamp,
+    end_time: endTimestamp,
     status: "scheduled",
     notes: notes || null,
   });
@@ -361,5 +390,24 @@ export async function updateAppointmentStatus(
   if (error) return { error: error.message };
 
   revalidatePath("/dashboard/calendar");
+  return { success: true };
+}
+
+export async function deleteAppointment(id: string) {
+  const session = await getAuthSession();
+  const shopId = await getShopId(session);
+
+  const supabase = await createServerClient();
+
+  const { error } = await supabase
+    .from("appointments")
+    .delete()
+    .eq("id", id)
+    .eq("shop_id", shopId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/calendar");
+  revalidatePath("/dashboard/appointments");
   return { success: true };
 }

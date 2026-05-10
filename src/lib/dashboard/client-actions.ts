@@ -4,6 +4,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { createServerClient as createSsrClient } from "@supabase/ssr";
 import { revalidatePath } from "next/cache";
 import { getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
+import { createArgentinaDate, formatArgentinaTime, getArgentinaDayBounds } from "@/lib/argentina-time";
 import "server-only";
 
 function createAdminClient() {
@@ -197,17 +198,20 @@ export async function createClientAppointment(formData: FormData) {
   const supabase = await createServerClient();
 
   const serviceId = formData.get("service_id") as string;
+  const serviceIdsRaw = formData.get("service_ids") as string | null;
   const staffId = formData.get("staff_id") as string;
   const startTime = formData.get("start_time") as string;
   const endTime = formData.get("end_time") as string;
   const notes = formData.get("notes") as string;
   const phone = formData.get("phone") as string;
 
-  if (!serviceId || !startTime || !endTime) {
+  if ((!serviceId && !serviceIdsRaw) || !startTime || !endTime) {
     return { error: "Todos los campos obligatorios deben completarse" };
   }
 
-  // Ensure customer exists in customers table (FK requirement)
+  const startDate = new Date(startTime);
+  const endDate = new Date(endTime);
+
   const admin = createAdminClient();
 
   const { data: profile } = await supabase
@@ -221,21 +225,52 @@ export async function createClientAppointment(formData: FormData) {
     shop_id: shopId,
     name: profile?.name || "Cliente",
     phone: phone || null,
-    updated_at: new Date().toISOString(),
+    updated_at: startDate.toISOString(),
   });
 
   if (customerError) return { error: customerError.message };
 
-  const { error } = await supabase.from("appointments").insert({
-    shop_id: shopId,
-    customer_id: session.user.id,
-    staff_id: staffId || null,
-    service_id: serviceId,
-    start_time: startTime,
-    end_time: endTime,
-    status: "scheduled",
-    notes: notes || null,
+  const parsedServiceIds = serviceIdsRaw
+    ? serviceIdsRaw
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean)
+    : [];
+
+  const serviceIds = parsedServiceIds.length > 0 ? parsedServiceIds : [serviceId];
+
+  const { data: serviceDurations, error: durationError } = await supabase
+    .from("services")
+    .select("id, duration_minutes")
+    .in("id", serviceIds);
+
+  if (durationError) return { error: durationError.message };
+
+  const durationMap = new Map((serviceDurations || []).map((s) => [s.id, s.duration_minutes]));
+  const missingServiceId = serviceIds.find((id) => !durationMap.has(id));
+  if (missingServiceId) {
+    return { error: "Uno de los servicios seleccionados no existe" };
+  }
+
+  let currentStart = new Date(startDate);
+  const payload = serviceIds.map((id, index) => {
+    const duration = durationMap.get(id) || 0;
+    const currentEnd = new Date(currentStart.getTime() + duration * 60000);
+    const appointment = {
+      shop_id: shopId,
+      customer_id: session.user.id,
+      staff_id: staffId || null,
+      service_id: id,
+      start_time: currentStart.toISOString(),
+      end_time: currentEnd.toISOString(),
+      status: "scheduled",
+      notes: index === 0 ? notes || null : null,
+    };
+    currentStart = currentEnd;
+    return appointment;
   });
+
+  const { error } = await supabase.from("appointments").insert(payload);
 
   if (error) return { error: error.message };
 
@@ -262,7 +297,8 @@ export async function fetchPublicStaff(shopId: string) {
 export async function fetchAvailableSlots(
   serviceId: string,
   date: string,
-  staffId?: string
+  staffId?: string,
+  durationMinutesOverride?: number
 ) {
   const session = await getAuthSession();
   const shopId = await getShopId(session);
@@ -275,7 +311,7 @@ export async function fetchAvailableSlots(
     .eq("id", serviceId)
     .single();
 
-  if (!service) return [];
+  if (!service && !durationMinutesOverride) return [];
 
   const { data: shop } = await supabase
     .from("shops")
@@ -311,8 +347,7 @@ export async function fetchAvailableSlots(
     } catch {}
   }
 
-  const dayStart = new Date(date + "T00:00:00.000Z");
-  const dayEnd = new Date(date + "T23:59:59.999Z");
+  const { start: dayStart, end: dayEnd } = getArgentinaDayBounds(date);
 
   let query = supabase
     .from("appointments")
@@ -328,33 +363,36 @@ export async function fetchAvailableSlots(
 
   const { data: appointments } = await query;
 
-  let staffCount = 1;
-  if (!staffId) {
-    const { data: allStaff } = await supabase
-      .from("user_profiles")
-      .select("user_id")
-      .eq("shop_id", shopId)
-      .in("role", ["owner", "staff"]);
-    staffCount = allStaff?.length || 1;
-  }
+  const { data: allStaff } = await supabase
+    .from("user_profiles")
+    .select("user_id")
+    .eq("shop_id", shopId)
+    .in("role", ["owner", "staff"]);
+
+  const allStaffIds = (allStaff || []).map((s) => s.user_id);
+
+  const toArgentinaMinutes = (dt: Date) => {
+    const hour = (dt.getUTCHours() - 3 + 24) % 24;
+    return hour * 60 + dt.getUTCMinutes();
+  };
 
   const now = new Date();
   const slots = [];
-  const slotDuration = service.duration_minutes;
+  const slotDuration = durationMinutesOverride || service?.duration_minutes || 0;
   const endTotalMinutes = endHour * 60 + endMinute;
+  const [y, m, d] = date.split("-").map(Number);
 
   for (let hour = startHour; hour <= endHour; hour++) {
     const minuteStart = hour === startHour ? startMinute : 0;
     const minuteEnd = hour === endHour ? endMinute : 60;
 
     for (let minute = minuteStart; minute < minuteEnd; minute += slotDuration) {
-      const [y, m, d] = date.split("-").map(Number);
-      const slotStart = new Date(y, m - 1, d, hour, minute, 0, 0);
+      const slotStart = createArgentinaDate(y, m, d, hour, minute);
       const slotEnd = new Date(slotStart.getTime() + slotDuration * 60000);
 
       if (slotStart < now) continue;
 
-      const slotEndTotal = slotEnd.getHours() * 60 + slotEnd.getMinutes();
+      const slotEndTotal = toArgentinaMinutes(slotEnd);
       if (slotEndTotal > endTotalMinutes) continue;
 
       if (staffId) {
@@ -364,7 +402,7 @@ export async function fetchAvailableSlots(
           return slotStart < aptEnd && slotEnd > aptStart;
         });
         if (!hasConflict) {
-          slots.push({ start: slotStart.toISOString(), end: slotEnd.toISOString(), time: slotStart.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) });
+          slots.push({ start: slotStart.toISOString(), end: slotEnd.toISOString(), time: formatArgentinaTime(slotStart) });
         }
       } else {
         const busyStaff = new Set<string>();
@@ -375,8 +413,10 @@ export async function fetchAvailableSlots(
             busyStaff.add(apt.staff_id);
           }
         });
-        if (busyStaff.size < staffCount) {
-          slots.push({ start: slotStart.toISOString(), end: slotEnd.toISOString(), time: slotStart.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) });
+
+        const availableStaff = allStaffIds.filter((id) => !busyStaff.has(id));
+        if (availableStaff.length > 0) {
+          slots.push({ start: slotStart.toISOString(), end: slotEnd.toISOString(), time: formatArgentinaTime(slotStart) });
         }
       }
     }

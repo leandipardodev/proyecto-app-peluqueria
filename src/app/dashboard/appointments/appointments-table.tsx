@@ -44,11 +44,12 @@ interface Props {
   staff: StaffMember[];
   customers: Customer[];
   shopName: string;
+  shopAddress?: string | null;
   whatsappTemplate?: string | null;
   error?: string | null;
 }
 
-export default function AppointmentsTable({ initialAppointments, services, staff, customers, shopName, whatsappTemplate, error }: Props) {
+export default function AppointmentsTable({ initialAppointments, services, staff, customers, shopName, shopAddress, whatsappTemplate, error }: Props) {
   const [appointments, setAppointments] = useState(initialAppointments);
   const [showForm, setShowForm] = useState(false);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
@@ -69,10 +70,11 @@ export default function AppointmentsTable({ initialAppointments, services, staff
       minute: "2-digit",
     });
     const template = whatsappTemplate || DEFAULT_WHATSAPP_TEMPLATE;
+    const locationLine = shopAddress ? `\n📍 ${shopAddress}` : "";
     const text = template
       .replace(/\{Nombre\}/g, customerName)
       .replace(/\{Peluqueria\}/g, shopName)
-      .replace(/\{Hora\}/g, time);
+      .replace(/\{Hora\}/g, time) + locationLine;
     return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
   }
 

@@ -1,9 +1,17 @@
 "use client";
 
-import { format, startOfWeek, addDays, isSameDay, isToday } from "date-fns";
+import { format, startOfWeek, addDays, isToday } from "date-fns";
 import { es } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useRef, useState, useEffect, useMemo } from "react";
+import { AnimatePresence, motion, useMotionValue, useSpring } from "framer-motion";
+import { GRID_END_HOUR, GRID_START_HOUR, HOUR_HEIGHT } from "@/lib/calendar-constants";
+import {
+  extractArgentinaTimeHHmm,
+  getArgentinaDateKey,
+  minutesFromHHmm,
+  toArgentinaLocalIsoString,
+} from "@/lib/argentina-time";
 
 type Appointment = {
   id: string;
@@ -18,6 +26,19 @@ type Appointment = {
   customers: { name: string; email: string; phone: string | null } | null;
   staff: { name: string; email: string } | null;
   services: { name: string; price: number; duration_minutes: number } | null;
+};
+
+type NormalizedAppointment = Appointment & {
+  start_local_iso: string;
+  end_local_iso: string;
+  date_key_ar: string;
+  start_hhmm: string;
+  end_hhmm: string;
+  duration_minutes_ar: number;
+};
+
+type HoverTooltipState = {
+  appointment: NormalizedAppointment;
 };
 
 type StaffMember = {
@@ -40,13 +61,11 @@ interface CalendarViewProps {
 }
 
 const hours = (() => {
-  const h = [];
-  for (let i = 7; i <= 23; i++) h.push(i);
+  const h: number[] = [];
+  for (let i = GRID_START_HOUR; i <= GRID_END_HOUR; i++) h.push(i);
   h.push(0);
   return h;
 })();
-
-const HOUR_HEIGHT = 48;
 
 const STAFF_COLORS = [
   { bg: "#f3e8ff", border: "#c084fc", text: "#6b21a8" },
@@ -69,6 +88,11 @@ const STATUS_STYLES: Record<string, { bg: string; border: string; dot: string; l
 };
 
 const STATUS_FINAL = new Set(["completed", "cancelled", "no_show"]);
+const MOTION_PRESET = {
+  pill: { stiffness: 460, damping: 30, mass: 0.55 },
+  tooltipFollow: { stiffness: 340, damping: 36, mass: 0.58 },
+  tooltipInOut: { stiffness: 430, damping: 34, mass: 0.56 },
+};
 
 function extractEmoji(name: string): { emoji: string; label: string } {
   const parts = name.split(/\s+/);
@@ -87,8 +111,8 @@ const statusLabels: Record<string, string> = {
   no_show: "No asistió",
 };
 
-function computeOverlapLayout(
-  dayAppointments: Appointment[]
+function computeOverlapLayout<T extends { id: string; start_time: string; end_time: string }>(
+  dayAppointments: T[]
 ): Map<string, { width: number; left: number }> {
   const layout = new Map<string, { width: number; left: number }>();
 
@@ -106,7 +130,7 @@ function computeOverlapLayout(
   for (let i = 0; i < sorted.length; i++) {
     if (layout.has(sorted[i].id)) continue;
 
-    const group: Appointment[] = [sorted[i]];
+    const group: T[] = [sorted[i]];
     for (let j = i + 1; j < sorted.length; j++) {
       const overlapsWithGroup = group.some((g) => {
         const gStart = new Date(g.start_time).getTime();
@@ -129,6 +153,12 @@ function computeOverlapLayout(
   return layout;
 }
 
+function getTopOffset(timeStr: string): number {
+  const minutes = minutesFromHHmm(timeStr);
+  const adjustedMinutes = minutes < GRID_START_HOUR * 60 ? minutes + 24 * 60 : minutes;
+  return ((adjustedMinutes / 60) - GRID_START_HOUR) * HOUR_HEIGHT;
+}
+
 export default function CalendarView({
   appointments,
   currentDate,
@@ -143,15 +173,50 @@ export default function CalendarView({
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const [mounted, setMounted] = useState(false);
+  const [hoverTooltip, setHoverTooltip] = useState<HoverTooltipState | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const startX = useRef(0);
   const scrollLeft = useRef(0);
+  const tooltipTargetX = useMotionValue(0);
+  const tooltipTargetY = useMotionValue(0);
+  const tooltipX = useSpring(tooltipTargetX, MOTION_PRESET.tooltipFollow);
+  const tooltipY = useSpring(tooltipTargetY, MOTION_PRESET.tooltipFollow);
 
   const filteredAppointments = useMemo(() => {
     if (!staffFilter) return appointments;
     return appointments.filter((a) => a.staff_id === staffFilter);
   }, [appointments, staffFilter]);
+
+  const normalizedAppointments = useMemo<NormalizedAppointment[]>(() => {
+    const byId = new Map<string, Appointment>();
+    for (const appt of filteredAppointments) {
+      if (!byId.has(appt.id)) byId.set(appt.id, appt);
+    }
+
+    return Array.from(byId.values()).map((a) => {
+      const startLocalIso = toArgentinaLocalIsoString(a.start_time);
+      const endLocalIso = toArgentinaLocalIsoString(a.end_time);
+      const startHhmm = extractArgentinaTimeHHmm(startLocalIso);
+      const endHhmm = extractArgentinaTimeHHmm(endLocalIso);
+      const startMinutes = minutesFromHHmm(startHhmm);
+      const endMinutes = minutesFromHHmm(endHhmm);
+      const sameDay = getArgentinaDateKey(startLocalIso) === getArgentinaDateKey(endLocalIso);
+      const durationMinutes = sameDay
+        ? Math.max(endMinutes - startMinutes, 1)
+        : Math.max((24 * 60 - startMinutes) + endMinutes, 1);
+
+      return {
+        ...a,
+        start_local_iso: startLocalIso,
+        end_local_iso: endLocalIso,
+        date_key_ar: getArgentinaDateKey(startLocalIso),
+        start_hhmm: startHhmm,
+        end_hhmm: endHhmm,
+        duration_minutes_ar: durationMinutes,
+      };
+    });
+  }, [filteredAppointments]);
 
   const staffColorMap = useMemo(() => {
     const map = new Map<string, typeof STAFF_COLORS[0]>();
@@ -162,17 +227,27 @@ export default function CalendarView({
     return map;
   }, [staffList]);
 
+  const appointmentsByDay = useMemo(() => {
+    const map = new Map<string, NormalizedAppointment[]>();
+    for (const day of weekDays) {
+      map.set(getArgentinaDateKey(day), []);
+    }
+    for (const appt of normalizedAppointments) {
+      const dayAppointments = map.get(appt.date_key_ar);
+      if (dayAppointments) dayAppointments.push(appt);
+    }
+    return map;
+  }, [normalizedAppointments, weekDays]);
+
   const dayLayouts = useMemo(() => {
     const layouts = new Map<string, Map<string, { width: number; left: number }>>();
     for (const day of weekDays) {
-      const dayStr = format(day, "yyyy-MM-dd");
-      const dayAppts = filteredAppointments.filter((a) =>
-        isSameDay(new Date(a.start_time), day)
-      );
+      const dayStr = getArgentinaDateKey(day);
+      const dayAppts = appointmentsByDay.get(dayStr) || [];
       layouts.set(dayStr, computeOverlapLayout(dayAppts));
     }
     return layouts;
-  }, [filteredAppointments, weekDays]);
+  }, [appointmentsByDay, weekDays]);
 
   useEffect(() => {
     setMounted(true);
@@ -233,6 +308,30 @@ export default function CalendarView({
     );
   }
 
+  function getTooltipPosition(x: number, y: number): { left: number; top: number } {
+    const offset = 15;
+    const tooltipWidth = 300;
+    const tooltipHeight = 165;
+    const padding = 8;
+    const vw = typeof window !== "undefined" ? window.innerWidth : 1280;
+    const vh = typeof window !== "undefined" ? window.innerHeight : 720;
+
+    let left = x + offset;
+    let top = y + offset;
+
+    if (left + tooltipWidth > vw - padding) {
+      left = x - tooltipWidth - offset;
+    }
+    if (top + tooltipHeight > vh - padding) {
+      top = y - tooltipHeight - offset;
+    }
+
+    left = Math.max(padding, left);
+    top = Math.max(padding, top);
+
+    return { left, top };
+  }
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between mb-4">
@@ -278,7 +377,8 @@ export default function CalendarView({
             {hours.map((hour) => (
               <div
                 key={hour}
-                className="h-12 flex items-start justify-end pr-2 pt-1"
+                className="flex items-start justify-end pr-2 pt-1"
+                style={{ height: `${HOUR_HEIGHT}px` }}
               >
                 <span className="text-xs text-gray-500 dark:text-gray-400">
                   {format(new Date(2000, 0, 1).setHours(hour, 0, 0, 0), "HH:mm")}
@@ -288,10 +388,8 @@ export default function CalendarView({
           </div>
 
           {weekDays.map((day) => {
-            const dayStr = format(day, "yyyy-MM-dd");
-            const dayAppointments = filteredAppointments.filter((a) =>
-              isSameDay(new Date(a.start_time), day)
-            );
+            const dayStr = getArgentinaDateKey(day);
+            const dayAppointments = appointmentsByDay.get(dayStr) || [];
             const dayLayout = dayLayouts.get(dayStr) || new Map();
 
             return (
@@ -303,6 +401,7 @@ export default function CalendarView({
                   className={`h-12 border-b border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center shrink-0 ${
                     isToday(day) ? "bg-violet-50 dark:bg-violet-950" : ""
                   }`}
+                  style={{ height: `${HOUR_HEIGHT}px` }}
                 >
                   <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">
                     {format(day, "EEE", { locale: es })}
@@ -323,22 +422,15 @@ export default function CalendarView({
                   {hours.map((hour) => (
                     <div
                       key={hour}
-                      className="h-12 border-b border-gray-100 dark:border-gray-800 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-800/30 cursor-pointer transition-colors"
+                      className="border-b border-gray-100 dark:border-gray-800 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-800/30 cursor-pointer transition-colors"
+                      style={{ height: `${HOUR_HEIGHT}px` }}
                       onClick={() => onSlotClick(day, hour)}
                     />
                   ))}
 
                   {dayAppointments.map((appt) => {
-                    const start = new Date(appt.start_time);
-                    const end = new Date(appt.end_time);
-                    const dayStart = new Date(day);
-                    dayStart.setHours(0, 0, 0, 0);
-                    const minutesSinceMidnight =
-                      (start.getTime() - dayStart.getTime()) / 60000;
-                    const durationMinutes =
-                      (end.getTime() - start.getTime()) / 60000;
-                    const topOffset =
-                      (minutesSinceMidnight / 60) * HOUR_HEIGHT;
+                    const durationMinutes = appt.duration_minutes_ar;
+                    const topOffset = getTopOffset(appt.start_hhmm);
                     const height = Math.max(
                       (durationMinutes / 60) * HOUR_HEIGHT,
                       28
@@ -359,7 +451,7 @@ export default function CalendarView({
 
                     const statusStyle = STATUS_STYLES[appt.status] || STATUS_STYLES.scheduled;
                     const isFinalStatus = STATUS_FINAL.has(appt.status);
-                    const diffMs = start.getTime() - Date.now();
+                    const diffMs = new Date(appt.start_time).getTime() - Date.now();
                     const isUrgent = appt.status === "scheduled" && diffMs > 0 && diffMs <= 3600000;
 
                     const tooltipLines = [
@@ -369,36 +461,53 @@ export default function CalendarView({
                       appt.staff?.name && `Peluquero: ${appt.staff.name}`,
                     ].filter(Boolean);
 
-                    const timeStr = start.toLocaleTimeString("es-AR", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    });
+                    const timeStr = appt.start_hhmm;
 
                     return (
-                      <div
+                      <motion.div
                         key={appt.id}
                         title={tooltipLines.join(" | ")}
-                        className={`absolute rounded-md px-1.5 py-1 text-xs cursor-pointer overflow-hidden hover:!z-30 transition-all duration-150 hover:scale-105 hover:shadow-lg flex flex-col ${isFinalStatus ? "opacity-60" : ""} ${isUrgent ? "animate-pulse-border" : ""}`}
+                        className={`absolute rounded-xl px-2.5 py-2 text-xs cursor-pointer overflow-hidden flex flex-col font-sans backdrop-blur-md ${isFinalStatus ? "opacity-60" : ""} ${isUrgent ? "animate-pulse-border" : ""}`}
                         style={{
                           top: `${topOffset}px`,
                           height: `${height}px`,
                           width: `calc(${pos.width}% - 4px)`,
                           left: `calc(${pos.left}% + 2px)`,
                           borderLeft: `4px solid ${staffColor.border}`,
-                          borderTop: `1px solid ${statusStyle.border}40`,
-                          borderRight: `1px solid ${statusStyle.border}40`,
-                          borderBottom: `1px solid ${statusStyle.border}40`,
-                          backgroundColor: statusStyle.bg,
+                          borderTop: `1px solid ${statusStyle.border}55`,
+                          borderRight: `1px solid ${statusStyle.border}55`,
+                          borderBottom: `1px solid ${statusStyle.border}55`,
+                          backgroundColor: `${statusStyle.bg}B3`,
                           zIndex: 10,
                         }}
+                        initial={{ opacity: 0, scale: 0.96 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ type: "spring", ...MOTION_PRESET.pill }}
+                        whileHover={{ y: -4, scale: 1.015, boxShadow: "0 14px 28px rgba(0, 0, 0, 0.16)" }}
+                        whileTap={{ scale: 0.985 }}
                         onClick={(e) => {
                           e.stopPropagation();
                           onAppointmentClick(appt);
                         }}
+                        onMouseEnter={(e) => {
+                          const pos = { x: e.clientX, y: e.clientY };
+                          const adjusted = getTooltipPosition(pos.x, pos.y);
+                          tooltipTargetX.set(adjusted.left);
+                          tooltipTargetY.set(adjusted.top);
+                          setHoverTooltip({ appointment: appt });
+                        }}
+                        onMouseMove={(e) => {
+                          const adjusted = getTooltipPosition(e.clientX, e.clientY);
+                          tooltipTargetX.set(adjusted.left);
+                          tooltipTargetY.set(adjusted.top);
+                        }}
+                        onMouseLeave={() => {
+                          setHoverTooltip(null);
+                        }}
                       >
                         <div className="flex items-center justify-between gap-1">
-                          <span className="font-semibold text-gray-900 leading-tight shrink-0">
-                            {timeStr}
+                          <span className="font-semibold text-gray-900 dark:text-gray-100 leading-tight min-w-0 truncate">
+                            {appt.customers?.name || "Sin cliente"}
                           </span>
                           <div className="flex items-center gap-1 shrink-0">
                             {svc.emoji && (
@@ -410,13 +519,15 @@ export default function CalendarView({
                             />
                           </div>
                         </div>
-                        <span
-                          className="font-medium truncate leading-tight text-gray-900 min-w-0 mt-0.5"
-                          title={appt.customers?.name || "Sin cliente"}
-                        >
-                          {appt.customers?.name || "Sin cliente"}
+                        <span className="text-[11px] text-gray-700 dark:text-gray-300 truncate leading-tight mt-0.5">
+                          {timeStr} - {appt.end_hhmm}
                         </span>
-                      </div>
+                        {appt.staff?.name && !appt.customers?.name && (
+                          <span className="text-[10px] text-gray-500 dark:text-gray-400 truncate leading-tight mt-0.5">
+                            {appt.staff.name}
+                          </span>
+                        )}
+                      </motion.div>
                     );
                   })}
                 </div>
@@ -425,6 +536,37 @@ export default function CalendarView({
           })}
         </div>
       </div>
+
+      <AnimatePresence>
+        {hoverTooltip && (() => {
+          const tipAppt = hoverTooltip.appointment;
+          const humanDate = format(new Date(tipAppt.start_local_iso), "EEEE d MMMM", { locale: es });
+          return (
+            <motion.div
+              key={tipAppt.id}
+              className="fixed left-0 top-0 pointer-events-none z-[60] w-[300px] rounded-3xl border border-white/35 bg-white/90 dark:bg-gray-900/78 shadow-2xl backdrop-blur-2xl px-4 py-3 text-gray-900 dark:text-gray-100"
+              style={{ x: tooltipX, y: tooltipY }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.97 }}
+              transition={{ type: "spring", ...MOTION_PRESET.tooltipInOut }}
+            >
+              <div className="text-base font-semibold leading-tight">
+                👤 {tipAppt.customers?.name || "Sin cliente"}
+              </div>
+              <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">
+                📅 {humanDate.charAt(0).toUpperCase() + humanDate.slice(1)}
+              </div>
+              <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">
+                ⏰ {tipAppt.start_hhmm} - {tipAppt.end_hhmm}
+              </div>
+              <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">
+                💈 {tipAppt.staff?.name || "Sin asignar"}
+              </div>
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
 
       <div className="mt-4 flex flex-wrap gap-3 text-xs">
         {staffList && staffList.length > 0 && (

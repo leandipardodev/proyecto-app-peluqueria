@@ -4,11 +4,13 @@ import { registerShop } from "@/lib/dashboard/auth-actions";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/components/ui/toast";
 
 export default function RegisterPage() {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const { addToast } = useToast();
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -19,7 +21,8 @@ export default function RegisterPage() {
       if (result.error) {
         setError(result.error);
       } else {
-        router.push("/login?registered=true");
+        addToast("Cuenta creada con éxito. Revisá tu email para confirmar.", "success");
+        setTimeout(() => router.push("/login?registered=true"), 1500);
       }
     });
   }

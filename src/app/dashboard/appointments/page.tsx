@@ -31,6 +31,17 @@ async function fetchShopName(shopId: string) {
   return data?.name || "Mi Peluquería";
 }
 
+async function fetchShopAddress(shopId: string) {
+  const { createServerClient } = await import("@/lib/supabase/server");
+  const supabase = await createServerClient();
+  const { data } = await supabase
+    .from("shops")
+    .select("address")
+    .eq("id", shopId)
+    .single();
+  return data?.address || null;
+}
+
 async function fetchWhatsappTemplate(shopId: string) {
   const { createServerClient: createSsrClient } = await import("@supabase/ssr");
   const admin = createSsrClient(
@@ -53,6 +64,7 @@ export default async function AppointmentsPage() {
   let staff: Awaited<ReturnType<typeof fetchStaffMembers>> = [];
   let customers: Awaited<ReturnType<typeof fetchCustomers>> = [];
   let shopName = "Mi Peluquería";
+  let shopAddress: string | null = null;
   let whatsappTemplate: string | null = null;
   let error: string | null = null;
 
@@ -75,6 +87,7 @@ export default async function AppointmentsPage() {
       fetchCustomers(shopId),
       fetchShopName(shopId),
       fetchWhatsappTemplate(shopId),
+      fetchShopAddress(shopId),
     ]);
 
     if (results[0].status === "fulfilled") appointments = results[0].value;
@@ -94,6 +107,9 @@ export default async function AppointmentsPage() {
 
     if (results[5].status === "fulfilled") whatsappTemplate = results[5].value;
     else console.error("[AppointmentsPage] whatsappTemplate error:", results[5].reason);
+
+    if (results[6].status === "fulfilled") shopAddress = results[6].value;
+    else console.error("[AppointmentsPage] shopAddress error:", results[6].reason);
   } catch (e) {
     console.error("[AppointmentsPage] error:", e);
     error = e instanceof Error ? e.message : "Error al cargar datos";
@@ -106,6 +122,7 @@ export default async function AppointmentsPage() {
       staff={staff}
       customers={customers}
       shopName={shopName}
+      shopAddress={shopAddress}
       whatsappTemplate={whatsappTemplate}
       error={error}
     />

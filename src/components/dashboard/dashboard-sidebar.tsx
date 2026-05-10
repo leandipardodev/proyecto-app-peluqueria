@@ -29,12 +29,14 @@ interface DashboardSidebarProps {
   userName: string;
   onLogout: () => void;
   className?: string;
+  notifications?: { urgentAppointments?: boolean; lowStock?: boolean };
 }
 
 export default function DashboardSidebar({
   userName,
   onLogout,
   className = "",
+  notifications,
 }: DashboardSidebarProps) {
   const pathname = usePathname();
 
@@ -52,6 +54,10 @@ export default function DashboardSidebar({
             pathname === href ||
             (href !== "/dashboard" && pathname.startsWith(href));
 
+          const showAlert =
+            (href === "/dashboard/appointments" && notifications?.urgentAppointments) ||
+            (href === "/dashboard/inventory" && notifications?.lowStock);
+
           return (
             <Link
               key={href}
@@ -62,8 +68,11 @@ export default function DashboardSidebar({
                   : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
               }`}
             >
-              <Icon className="w-5 h-5" />
-              {label}
+              <Icon className="w-5 h-5 shrink-0" />
+              <span className="flex-1">{label}</span>
+              {showAlert && (
+                <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" title={href === "/dashboard/appointments" ? "Turnos próximos urgentes" : "Stock bajo"} />
+              )}
             </Link>
           );
         })}

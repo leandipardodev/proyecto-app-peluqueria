@@ -1,9 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { createServerClient as createCookieClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import PaymentButton from "@/components/book/payment-button";
-import { CalendarDays, MapPin, Phone, Clock, ExternalLink } from "lucide-react";
+import { MapPin, Phone, Clock, ExternalLink, LogIn, Scissors, UserRound, CreditCard } from "lucide-react";
 
 function createAdminClient() {
   return createServerClient(
@@ -155,6 +153,32 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
       )}
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+            Reserva en 4 pasos
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2">
+              <LogIn className="w-4 h-4 text-violet-600" /> 1) Login con Google
+            </div>
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2">
+              <Scissors className="w-4 h-4 text-violet-600" /> 2) Elegir servicios
+            </div>
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2">
+              <UserRound className="w-4 h-4 text-violet-600" /> 3) Profesional y horario
+            </div>
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-violet-600" /> 4) Checkout Mercado Pago
+            </div>
+          </div>
+          <a
+            href={getGoogleAuthUrl(preselectedServiceId, preselectedStaffId)}
+            className="inline-flex items-center justify-center px-5 py-2.5 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 transition-colors cursor-pointer select-none"
+          >
+            Iniciar reserva con Google
+          </a>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column - Services */}
           <div className="lg:col-span-2">
@@ -186,15 +210,10 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
                         ${service.price.toFixed(2)}
                       </span>
                     </div>
-                    <a
-                      href={getGoogleAuthUrl(service.id)}
-                      className="mt-3 block w-full text-center px-4 py-2 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 transition-colors cursor-pointer select-none"
-                    >
-                      Reservar con Google
-                    </a>
-                    
-                    <PaymentButton serviceId={service.id} />
-                  </div>
+                     <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                       Este servicio se selecciona luego del login.
+                     </p>
+                   </div>
                 ))}
               </div>
             )}

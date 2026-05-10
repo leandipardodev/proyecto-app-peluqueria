@@ -1,8 +1,11 @@
 "use client";
 
-import { X, Check, XCircle } from "lucide-react";
+import { X, Check, XCircle, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { updateAppointmentStatus } from "@/lib/dashboard/appointment-actions";
+import { deleteAppointment, updateAppointmentStatus } from "@/lib/dashboard/appointment-actions";
+import { AnimatePresence, motion } from "framer-motion";
+
+const IOS_MODAL_SPRING = { stiffness: 460, damping: 34, mass: 0.65 };
 
 type Appointment = {
   id: string;
@@ -44,11 +47,13 @@ export default function AppointmentDetailModal({
   const [pending, startTransition] = useTransition();
   const [localStatus, setLocalStatus] = useState(appointment?.status || "");
   const [localPaid, setLocalPaid] = useState(appointment?.is_paid || false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!appointment) return;
     setLocalStatus(appointment.status);
     setLocalPaid(appointment.is_paid);
+    setError(null);
   }, [appointment]);
 
   useEffect(() => {
@@ -60,10 +65,9 @@ export default function AppointmentDetailModal({
     return () => document.removeEventListener("keydown", handleEscape);
   }, [appointment, onClose]);
 
-  if (!appointment) return null;
-
   function handleStatusChange(newStatus: string) {
     if (!appointment) return;
+    setError(null);
     startTransition(async () => {
       const result = await updateAppointmentStatus(
         appointment.id,
@@ -71,6 +75,8 @@ export default function AppointmentDetailModal({
       );
       if (result.success) {
         setLocalStatus(newStatus);
+      } else if (result.error) {
+        setError(result.error);
       }
     });
   }
@@ -78,6 +84,7 @@ export default function AppointmentDetailModal({
   function handleTogglePaid() {
     if (!appointment) return;
     const newPaid = !localPaid;
+    setError(null);
     startTransition(async () => {
       const result = await updateAppointmentStatus(
         appointment.id,
@@ -86,24 +93,54 @@ export default function AppointmentDetailModal({
       );
       if (result.success) {
         setLocalPaid(newPaid);
+      } else if (result.error) {
+        setError(result.error);
       }
     });
   }
 
-  const start = new Date(appointment.start_time);
-  const end = new Date(appointment.end_time);
+  function handleDeleteAppointment() {
+    if (!appointment) return;
+    const confirmed = window.confirm("Esta accion elimina el turno definitivamente. No se puede deshacer. Continuar?");
+    if (!confirmed) return;
+
+    setError(null);
+    startTransition(async () => {
+      const result = await deleteAppointment(appointment.id);
+      if (result.success) {
+        onClose();
+      } else if (result.error) {
+        setError(result.error);
+      }
+    });
+  }
+
+  const start = appointment ? new Date(appointment.start_time) : null;
+  const end = appointment ? new Date(appointment.end_time) : null;
 
   const actions = statusFlow[localStatus] || [];
 
   return (
-    <div
-      ref={backdropRef}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={(e) => {
-        if (e.target === backdropRef.current) onClose();
-      }}
-    >
-      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg dark:shadow-2xl w-full max-w-md mx-4 overflow-hidden transition-colors">
+    <AnimatePresence>
+      {appointment && (
+        <motion.div
+          ref={backdropRef}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={(e) => {
+            if (e.target === backdropRef.current) onClose();
+          }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.22 }}
+        >
+          <motion.div
+            className="bg-white dark:bg-gray-900 rounded-xl shadow-lg dark:shadow-2xl w-full max-w-md mx-4 overflow-hidden transition-colors"
+            initial={{ opacity: 0, y: 56, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 40, scale: 0.985 }}
+            transition={{ type: "spring", ...IOS_MODAL_SPRING }}
+          >
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             Detalle del Turno
@@ -117,6 +154,11 @@ export default function AppointmentDetailModal({
         </div>
 
         <div className="p-6 space-y-5">
+          {error && (
+            <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg border border-red-200">
+              {error}
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">Cliente</span>
@@ -155,19 +197,19 @@ export default function AppointmentDetailModal({
           <div>
             <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">Horario</span>
             <p suppressHydrationWarning className="text-sm font-medium text-gray-900 dark:text-gray-100 mt-0.5">
-              {start.toLocaleDateString("es-AR", {
+              {start?.toLocaleDateString("es-AR", {
                 weekday: "long",
                 day: "numeric",
                 month: "long",
               })}
             </p>
             <p suppressHydrationWarning className="text-sm text-gray-600 dark:text-gray-400">
-              {start.toLocaleTimeString("es-AR", {
+              {start?.toLocaleTimeString("es-AR", {
                 hour: "2-digit",
                 minute: "2-digit",
               })}{" "}
               —{" "}
-              {end.toLocaleTimeString("es-AR", {
+              {end?.toLocaleTimeString("es-AR", {
                 hour: "2-digit",
                 minute: "2-digit",
               })}
@@ -239,9 +281,22 @@ export default function AppointmentDetailModal({
                 })}
               </div>
             )}
+
+            <div className="pt-2">
+              <button
+                onClick={handleDeleteAppointment}
+                disabled={pending}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950 hover:bg-red-100 dark:hover:bg-red-900 transition-colors cursor-pointer select-none disabled:opacity-50"
+              >
+                <Trash2 className="w-4 h-4" />
+                Eliminar definitivamente
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

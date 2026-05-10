@@ -4,6 +4,7 @@ import { createServerClient as createSsrClient } from "@supabase/ssr";
 import { createServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
+import { getTodayArgentinaBounds } from "@/lib/argentina-time";
 import "server-only";
 
 function createAdminClient() {
@@ -22,11 +23,14 @@ export async function fetchDailyFinanceSummary(dateStr?: string) {
 
   const admin = createAdminClient();
 
-  const date = dateStr ? new Date(dateStr) : new Date();
-  const dayStart = new Date(date);
-  dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(date);
-  dayEnd.setHours(23, 59, 59, 999);
+  const { start: dayStart, end: dayEnd } = dateStr
+    ? (() => {
+        const [y, m, d] = dateStr.split("-").map(Number);
+        const s = new Date(Date.UTC(y, m - 1, d, 3, 0, 0, 0));
+        const e = new Date(Date.UTC(y, m - 1, d, 3 + 23, 59, 59, 999));
+        return { start: s, end: e };
+      })()
+    : getTodayArgentinaBounds();
 
   const [completedAppts, expenses] = await Promise.all([
     admin
@@ -106,6 +110,27 @@ export async function createExpense(formData: FormData) {
 
   if (error) {
     console.error("[createExpense] Supabase error:", error);
+    return { error: error.message };
+  }
+
+  revalidatePath("/dashboard/finances");
+  return { success: true };
+}
+
+export async function deleteExpense(id: string) {
+  const session = await getAuthSession();
+  const shopId = await getShopId(session);
+
+  const admin = createAdminClient();
+
+  const { error } = await admin
+    .from("finances")
+    .delete()
+    .eq("id", id)
+    .eq("shop_id", shopId);
+
+  if (error) {
+    console.error("[deleteExpense] error:", error);
     return { error: error.message };
   }
 

@@ -13,12 +13,11 @@ export default function ShareLinkCard({ slug, shopName }: ShareLinkCardProps) {
 
   if (!slug) return null;
 
-  const baseUrl = (
-    process.env.NEXT_PUBLIC_BASE_URL
-    || (typeof window !== "undefined" ? window.location.origin : "")
-  ).replace(/\/+$/, "");
-
-  const bookingUrl = `${baseUrl}/book/${slug}`;
+  const bookingUrl = (() => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const baseUrl = origin || process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "";
+    return `${baseUrl.replace(/\/+$/, "")}/book/${slug}`;
+  })();
 
   async function handleCopy() {
     try {
