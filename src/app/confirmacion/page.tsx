@@ -11,9 +11,9 @@ export default async function ConfirmacionPage({ searchParams }: ConfirmacionPag
   const isPending = status === "pending";
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 px-4">
+    <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-md text-center">
-        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-10 space-y-6">
+        <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-10 space-y-6">
           {isSuccess ? (
             <>
               <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
@@ -21,7 +21,7 @@ export default async function ConfirmacionPage({ searchParams }: ConfirmacionPag
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
                 Pago aprobado
               </h1>
               <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
@@ -35,7 +35,7 @@ export default async function ConfirmacionPage({ searchParams }: ConfirmacionPag
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
                 Pago pendiente
               </h1>
               <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
@@ -49,7 +49,7 @@ export default async function ConfirmacionPage({ searchParams }: ConfirmacionPag
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
                 Pago cancelado
               </h1>
               <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
@@ -61,7 +61,7 @@ export default async function ConfirmacionPage({ searchParams }: ConfirmacionPag
           <div className="pt-2">
             <Link
               href={slug ? `/book/${slug}` : "/"}
-              className="inline-flex items-center justify-center gap-2 bg-violet-600 text-white py-2.5 px-6 rounded-lg text-sm font-medium hover:bg-violet-700 transition-colors"
+              className="inline-flex items-center justify-center gap-2 bg-violet-600 text-white py-2.5 px-6 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 transition-colors"
             >
               Volver a reservas
             </Link>

@@ -81,8 +81,8 @@ export default async function DashboardLayout({
   const notifications = await getNotifications();
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-950 transition-colors">
-      <div className="hidden lg:flex lg:w-64 lg:flex-shrink-0">
+    <div className="flex h-screen bg-transparent transition-colors">
+      <div className="hidden lg:flex lg:w-64 lg:flex-shrink-0 overflow-hidden">
         <DashboardSidebar userName={userName} onLogout={logout} notifications={notifications} />
       </div>
 
@@ -93,7 +93,7 @@ export default async function DashboardLayout({
           onLogout={logout}
         />
 
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto p-6 lg:p-8">{children}</main>
       </div>
     </div>
   );

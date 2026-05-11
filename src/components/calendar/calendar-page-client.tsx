@@ -90,28 +90,28 @@ export default function CalendarPageClient({
   return (
     <div className="h-full flex flex-col">
       {error && (
-        <div className="bg-red-50 text-red-700 text-sm px-4 py-3 rounded-lg mb-4">
+        <div className="bg-red-100/60 dark:bg-red-950/40 backdrop-blur-sm border border-red-200/40 dark:border-red-800/30 text-red-700 dark:text-red-300 text-sm px-4 py-3 rounded-xl mb-4 shadow-sm">
           Error: {error}
         </div>
       )}
       {(!services || services.length === 0) && (
-        <div className="bg-yellow-50 text-yellow-700 text-sm px-4 py-3 rounded-lg mb-4">
+        <div className="bg-amber-100/60 dark:bg-amber-950/40 backdrop-blur-sm border border-amber-200/40 dark:border-amber-800/30 text-amber-700 dark:text-amber-300 text-sm px-4 py-3 rounded-xl mb-4 shadow-sm">
           No hay servicios registrados. Agregá servicios en la sección Servicios.
         </div>
       )}
       {(!staff || staff.length === 0) && (
-        <div className="bg-yellow-50 text-yellow-700 text-sm px-4 py-3 rounded-lg mb-4">
+        <div className="bg-amber-100/60 dark:bg-amber-950/40 backdrop-blur-sm border border-amber-200/40 dark:border-amber-800/30 text-amber-700 dark:text-amber-300 text-sm px-4 py-3 rounded-xl mb-4 shadow-sm">
           No hay personal registrado. Agregá personal en la sección Personal.
         </div>
       )}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Calendario</h1>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Calendario</h1>
         <div className="flex items-center gap-3">
-          <label className="text-sm text-gray-600 font-medium">Filtrar por:</label>
+          <label className="text-sm text-zinc-500 dark:text-zinc-400 font-medium">Filtrar por:</label>
           <select
             value={staffFilter || ""}
             onChange={(e) => setStaffFilter(e.target.value || null)}
-            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 cursor-pointer"
+            className="px-3 py-1.5 border border-white/10 dark:border-white/5 bg-white/40 dark:bg-black/30 backdrop-blur-md rounded-2xl text-sm focus:outline-none focus:ring-1 focus:ring-violet-500/20 transition-all cursor-pointer shadow-sm"
           >
             <option value="">Todos los peluqueros</option>
             {staff.map((s) => (

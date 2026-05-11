@@ -21,8 +21,8 @@ function getDatePartsInTimezone(tz: string): { year: number; month: number; day:
 }
 
 export function getArgentinaNow(): Date {
-  const { year, month, day } = getDatePartsInTimezone(AR_TZ);
-  return new Date(Date.UTC(year, month - 1, day, 3, 0, 0, 0));
+  const ds = getArgentinaDateString();
+  return new Date(`${ds}T00:00:00-03:00`);
 }
 
 export function getArgentinaWeekStart(): Date {
@@ -40,9 +40,8 @@ export function getArgentinaDateString(): string {
 
 export function getArgentinaDayBounds(dateStr?: string): { start: Date; end: Date } {
   const ds = dateStr || getArgentinaDateString();
-  const [y, m, d] = ds.split("-").map(Number);
-  const start = new Date(Date.UTC(y, m - 1, d, 3, 0, 0, 0));
-  const end = new Date(Date.UTC(y, m - 1, d, 3 + 23, 59, 59, 999));
+  const start = new Date(`${ds}T00:00:00-03:00`);
+  const end = new Date(`${ds}T23:59:59-03:00`);
   return { start, end };
 }
 
@@ -51,7 +50,8 @@ export function getTodayArgentinaBounds(): { start: Date; end: Date } {
 }
 
 export function createArgentinaDate(year: number, month: number, day: number, hour = 0, minute = 0): Date {
-  return new Date(Date.UTC(year, month - 1, day, hour + 3, minute, 0, 0));
+  const ds = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  return new Date(`${ds}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00-03:00`);
 }
 
 export function formatArgentinaTime(date: Date): string {

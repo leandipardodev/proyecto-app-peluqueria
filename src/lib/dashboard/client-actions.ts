@@ -204,6 +204,7 @@ export async function createClientAppointment(formData: FormData) {
   const endTime = formData.get("end_time") as string;
   const notes = formData.get("notes") as string;
   const phone = formData.get("phone") as string;
+  const isPaid = formData.get("is_paid") === "true";
 
   if ((!serviceId && !serviceIdsRaw) || !startTime || !endTime) {
     return { error: "Todos los campos obligatorios deben completarse" };
@@ -264,6 +265,7 @@ export async function createClientAppointment(formData: FormData) {
       start_time: currentStart.toISOString(),
       end_time: currentEnd.toISOString(),
       status: "scheduled",
+      is_paid: isPaid,
       notes: index === 0 ? notes || null : null,
     };
     currentStart = currentEnd;

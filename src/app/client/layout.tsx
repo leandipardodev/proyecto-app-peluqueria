@@ -35,13 +35,13 @@ export default async function ClientLayout({
   const { shopName, userName } = await getTenantAndUser();
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="flex h-screen bg-transparent">
       <div className="hidden lg:flex lg:w-64 lg:flex-shrink-0">
         <ClientSidebar userName={userName} shopName={shopName} />
       </div>
 
       <div className="flex flex-col flex-1 min-w-0">
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto p-6 lg:p-8">{children}</main>
       </div>
     </div>
   );

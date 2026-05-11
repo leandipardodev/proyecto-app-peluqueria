@@ -2,9 +2,9 @@ import Link from "next/link";
 
 export default function BillingRequiredPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-md text-center">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-10 space-y-6">
+        <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-10 space-y-6">
           <div className="mx-auto w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center">
             <svg
               className="w-8 h-8 text-amber-600"
@@ -22,7 +22,7 @@ export default function BillingRequiredPage() {
           </div>
 
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
               Acceso restringido
             </h1>
             <p className="mt-3 text-gray-600 text-sm leading-relaxed">
@@ -41,13 +41,13 @@ export default function BillingRequiredPage() {
           <div className="flex flex-col gap-3 pt-2">
             <a
               href="mailto:soporte@klip.app"
-              className="inline-flex items-center justify-center gap-2 bg-violet-600 text-white py-2.5 px-6 rounded-lg text-sm font-medium hover:bg-violet-700 transition-colors cursor-pointer select-none"
+              className="inline-flex items-center justify-center gap-2 bg-violet-600 text-white py-2.5 px-6 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 transition-colors cursor-pointer select-none"
             >
               Contactar Soporte
             </a>
             <Link
               href="/login"
-              className="inline-flex items-center justify-center gap-2 border border-gray-300 bg-white py-2.5 px-6 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer select-none"
+              className="inline-flex items-center justify-center gap-2 border border-gray-300 bg-white py-2.5 px-6 rounded-2xl text-sm font-medium shadow-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer select-none"
             >
               Volver al Login
             </Link>

@@ -132,8 +132,8 @@ export default function SettingsPage() {
   const expiryDate = new Date(profile.plan_expiry).toLocaleDateString("es-AR");
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">Configuración</h1>
+    <div className="max-w-4xl mx-auto p-8">
+      <h1 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6 tracking-tight">Configuración</h1>
 
       {message && (
         <div className={`p-4 rounded-lg mb-6 ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
@@ -141,8 +141,8 @@ export default function SettingsPage() {
         </div>
       )}
 
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-gray-950 p-6 mb-6 transition-colors">
-        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Información de la Peluquería</h2>
+      <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-8 mb-6 transition-colors">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 tracking-tight">Información de la Peluquería</h2>
         <div className="space-y-4">
           <div>
             <Label htmlFor="shop-name">Nombre</Label>
@@ -159,8 +159,8 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-gray-950 p-6 mb-6 transition-colors">
-        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Información del Local</h2>
+      <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-8 mb-6 transition-colors">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 tracking-tight">Información del Local</h2>
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
           Estos datos se muestran en la página pública de reservas.
         </p>
@@ -238,8 +238,8 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-gray-950 p-6 mb-6 transition-colors">
-        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Plan y Facturación</h2>
+      <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-8 mb-6 transition-colors">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 tracking-tight">Plan y Facturación</h2>
         <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Estado</dt>
@@ -260,8 +260,8 @@ export default function SettingsPage() {
 
       </div>
 
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-gray-950 p-6 mb-6 transition-colors">
-        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Apariencia</h2>
+      <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-8 mb-6 transition-colors">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 tracking-tight">Apariencia</h2>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {dark ? (
@@ -288,8 +288,8 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-gray-950 p-6 mb-6 transition-colors">
-        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Notificaciones Sonoras</h2>
+      <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-8 mb-6 transition-colors">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 tracking-tight">Notificaciones Sonoras</h2>
         <p className="text-sm text-gray-500 mb-4">
           Sonido sutil al crear un turno o cuando un turno programado entra en la ventana de 1 hora.
         </p>
@@ -324,8 +324,8 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-gray-950 p-6 mb-6 transition-colors">
-        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Pagos y Cobros</h2>
+      <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-8 mb-6 transition-colors">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 tracking-tight">Pagos y Cobros</h2>
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
           Configurá tus claves de Mercado Pago para generar links de pago desde los turnos.
         </p>
@@ -370,8 +370,8 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-gray-950 p-6 mb-6 transition-colors">
-        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Mensaje de WhatsApp</h2>
+      <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-8 mb-6 transition-colors">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 tracking-tight">Mensaje de WhatsApp</h2>
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
           Personalizá el texto que se envía desde el botón WhatsApp en la tabla de turnos.
           Usá <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded text-xs">{'{Nombre}'}</code>, <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded text-xs">{'{Peluqueria}'}</code> y <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded text-xs">{'{Hora}'}</code> como placeholders.
@@ -412,8 +412,8 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-gray-950 p-6 transition-colors">
-        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Cuenta</h2>
+      <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-6 transition-colors">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 tracking-tight">Cuenta</h2>
         <Button 
           variant="outline" 
           onClick={handleLogout}

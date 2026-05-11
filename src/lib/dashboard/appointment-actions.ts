@@ -198,6 +198,7 @@ export async function createAppointment(formData: FormData) {
   if (error) return { error: error.message };
 
   revalidatePath("/dashboard/calendar");
+  revalidatePath("/dashboard");
   return { success: true };
 }
 
@@ -292,6 +293,7 @@ export async function createCustomerAndAppointment(formData: FormData) {
   }
 
   revalidatePath("/dashboard/calendar");
+  revalidatePath("/dashboard");
   return { success: true };
 }
 
@@ -390,6 +392,7 @@ export async function updateAppointmentStatus(
   if (error) return { error: error.message };
 
   revalidatePath("/dashboard/calendar");
+  revalidatePath("/dashboard");
   return { success: true };
 }
 
@@ -409,5 +412,6 @@ export async function deleteAppointment(id: string) {
 
   revalidatePath("/dashboard/calendar");
   revalidatePath("/dashboard/appointments");
+  revalidatePath("/dashboard");
   return { success: true };
 }

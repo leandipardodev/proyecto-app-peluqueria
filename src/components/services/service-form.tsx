@@ -184,7 +184,7 @@ export default function ServiceForm({ service, onSuccess }: ServiceFormProps) {
         <button
           type="submit"
           disabled={pending}
-          className="flex-1 bg-violet-600 text-white py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
+          className="flex-1 bg-violet-600 text-white py-2.5 px-4 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
         >
           {pending
             ? "Guardando..."

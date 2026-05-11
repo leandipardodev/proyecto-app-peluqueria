@@ -95,7 +95,7 @@ export default function AppointmentsTable({ initialAppointments, services, staff
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Turnos</h1>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Turnos</h1>
         <Button onClick={() => setShowForm(true)}>Nuevo Turno</Button>
       </div>
 
@@ -110,9 +110,9 @@ export default function AppointmentsTable({ initialAppointments, services, staff
         />
       )}
 
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-gray-950 overflow-hidden transition-colors">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
-          <thead className="bg-gray-50 dark:bg-gray-800/50">
+      <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden transition-colors">
+        <table className="min-w-full divide-y divide-white/20 dark:divide-white/10">
+          <thead className="bg-white/40 dark:bg-black/20">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Fecha</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Horario</th>
@@ -124,7 +124,7 @@ export default function AppointmentsTable({ initialAppointments, services, staff
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Acciones</th>
             </tr>
           </thead>
-          <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
+          <tbody className="bg-transparent dark:bg-transparent divide-y divide-white/20 dark:divide-white/10">
             {appointments.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No hay turnos registrados</td>
@@ -133,7 +133,7 @@ export default function AppointmentsTable({ initialAppointments, services, staff
               appointments.map((apt) => {
                 const svc = apt.services?.name ? extractEmoji(apt.services.name) : null;
                 return (
-                  <tr key={apt.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer">
+                  <tr key={apt.id} className="hover:bg-white/40 dark:hover:bg-white/5 cursor-pointer">
                     <td suppressHydrationWarning className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                       {new Date(apt.start_time).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })}
                     </td>
@@ -178,7 +178,7 @@ export default function AppointmentsTable({ initialAppointments, services, staff
                                 href={whatsappUrl}
                                 target={phone ? "_blank" : undefined}
                                 rel={phone ? "noopener noreferrer" : undefined}
-                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-semibold transition-colors ${
                                   phone
                                     ? "bg-green-600 text-white hover:bg-green-700 shadow-sm cursor-pointer select-none"
                                     : "bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed"
@@ -244,7 +244,7 @@ export default function AppointmentsTable({ initialAppointments, services, staff
                                     setGeneratingId(null);
                                   }}
                                   disabled={generating}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm cursor-pointer select-none"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-semibold bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm cursor-pointer select-none"
                                 >
                                   <CreditCard className="w-4 h-4" />
                                   {generating ? "Generando..." : "Cobrar"}

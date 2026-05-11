@@ -6,6 +6,7 @@ import { createAppointment, createCustomerAndAppointment } from "@/lib/dashboard
 import { playPop } from "@/lib/sound";
 import { getArgentinaDateString } from "@/lib/argentina-time";
 import { AnimatePresence, motion } from "framer-motion";
+import GlassSelect from "@/components/ui/glass-select";
 
 const IOS_MODAL_SPRING = { stiffness: 460, damping: 34, mass: 0.65 };
 
@@ -133,7 +134,7 @@ export default function AppointmentFormModal({
       {open && (
         <motion.div
           ref={backdropRef}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-white/40 dark:bg-black/40 backdrop-blur-sm"
           onClick={(e) => {
             if (e.target === backdropRef.current) onClose();
           }}
@@ -143,17 +144,17 @@ export default function AppointmentFormModal({
           transition={{ duration: 0.22 }}
         >
           <motion.div
-            className="bg-white dark:bg-gray-900 rounded-xl shadow-lg dark:shadow-2xl w-full max-w-lg mx-4 overflow-hidden max-h-[90vh] flex flex-col transition-colors"
+             className="bg-white/60 dark:bg-black/60 backdrop-blur-3xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] w-full max-w-lg mx-4 overflow-hidden max-h-[90vh] flex flex-col transition-colors"
             initial={{ opacity: 0, y: 56, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 40, scale: 0.985 }}
             transition={{ type: "spring", ...IOS_MODAL_SPRING }}
           >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Nuevo Turno</h2>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/20 dark:border-white/10">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Nuevo Turno</h2>
           <button
             onClick={onClose}
-            className="p-1 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer select-none"
+            className="p-1 rounded-md text-gray-500 dark:text-gray-400 hover:bg-white/40 dark:hover:bg-white/10 transition-colors cursor-pointer select-none"
           >
             <X className="w-5 h-5" />
           </button>
@@ -162,52 +163,44 @@ export default function AppointmentFormModal({
         <div className="p-6 overflow-y-auto flex-1">
           <form id="appointment-form" onSubmit={handleSubmit}>
             {error && (
-              <div className="mb-4 bg-red-50 text-red-700 text-sm px-4 py-2 rounded-lg">
+              <div className="mb-4 bg-red-100/40 dark:bg-red-950/40 backdrop-blur-md border border-red-200/30 dark:border-red-800/30 text-red-700 dark:text-red-300 text-sm px-4 py-2 rounded-2xl">
                 {error}
               </div>
             )}
 
             <div className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5 cursor-pointer">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 cursor-pointer">
                   Cliente
                 </label>
-
                 {!showNewCustomer ? (
                   <div className="flex gap-2">
-                    <select
-                      name="customer_id"
+                    <GlassSelect
+                      options={customers.map((c) => ({ value: c.id, label: c.name }))}
                       value={selectedCustomerId}
-                      onChange={(e) => setSelectedCustomerId(e.target.value)}
+                      onChange={setSelectedCustomerId}
+                      placeholder="Seleccionar cliente..."
+                      name="customer_id"
                       required
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent cursor-pointer"
-                    >
-                      <option value="">Seleccionar cliente...</option>
-                      {customers.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
+                      className="flex-1"
+                    />
                     <button
                       type="button"
                       onClick={() => setShowNewCustomer(true)}
-                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer select-none"
+                      className="px-3 py-2 border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 backdrop-blur-md rounded-2xl text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-white hover:bg-white/70 dark:hover:bg-white/10 transition-all cursor-pointer select-none focus:outline-none focus:ring-1 focus:ring-violet-500/20"
                       title="Nuevo cliente"
                     >
                       <UserPlus className="w-4 h-4" />
                     </button>
                   </div>
                 ) : (
-                  <div className="space-y-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="space-y-3 p-4 bg-white/40 dark:bg-black/30 backdrop-blur-md rounded-2xl border border-white/20 dark:border-white/10">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-700">
-                        Nuevo cliente
-                      </span>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Nuevo cliente</span>
                       <button
                         type="button"
                         onClick={() => setShowNewCustomer(false)}
-                          className="text-xs text-gray-500 hover:text-gray-700 cursor-pointer select-none"
+                        className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-white cursor-pointer select-none"
                       >
                         Cancelar
                       </button>
@@ -219,7 +212,7 @@ export default function AppointmentFormModal({
                       value={newCustomerName}
                       onChange={(e) => setNewCustomerName(e.target.value)}
                       required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                      className="w-full px-3 py-2 rounded-2xl text-sm border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 backdrop-blur-md text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-violet-500/20 transition-all"
                     />
                     <input
                       type="email"
@@ -228,7 +221,7 @@ export default function AppointmentFormModal({
                       value={newCustomerEmail}
                       onChange={(e) => setNewCustomerEmail(e.target.value)}
                       required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                      className="w-full px-3 py-2 rounded-2xl text-sm border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 backdrop-blur-md text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-violet-500/20 transition-all"
                     />
                     <input
                       type="tel"
@@ -236,77 +229,54 @@ export default function AppointmentFormModal({
                       placeholder="Teléfono"
                       value={newCustomerPhone}
                       onChange={(e) => setNewCustomerPhone(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                      className="w-full px-3 py-2 rounded-2xl text-sm border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 backdrop-blur-md text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-violet-500/20 transition-all"
                     />
                   </div>
                 )}
               </div>
 
               <div>
-                  <label
-                    htmlFor="staff_id"
-                    className="block text-sm font-medium text-gray-700 mb-1.5 cursor-pointer"
-                  >
-                    Staff asignado
-                  </label>
-                    <select
-                    id="staff_id"
-                    name="staff_id"
-                    value={selectedStaffId}
-                    onChange={(e) => setSelectedStaffId(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent cursor-pointer"
-                >
-                  <option value="">Seleccionar staff...</option>
-                  {staff && staff.length > 0 ? (
-                    staff.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name || s.email || s.id}
-                      </option>
-                    ))
-                  ) : (
-                    <option value="" disabled>No hay personal registrado</option>
-                  )}
-                </select>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 cursor-pointer">
+                  Staff asignado
+                </label>
+                <GlassSelect
+                  options={staff && staff.length > 0
+                    ? staff.map((s) => ({ value: s.id, label: s.name || s.email || s.id }))
+                    : [{ value: "", label: "No hay personal registrado" }]
+                  }
+                  value={selectedStaffId}
+                  onChange={setSelectedStaffId}
+                  placeholder="Seleccionar staff..."
+                  name="staff_id"
+                  required
+                />
               </div>
 
               <div>
-                <label
-                    htmlFor="service_id"
-                    className="block text-sm font-medium text-gray-700 mb-1.5 cursor-pointer"
-                  >
-                    Servicio
-                  </label>
-                  <select
-                    id="service_id"
-                    name="service_id"
-                    value={selectedServiceId}
-                    onChange={(e) => setSelectedServiceId(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent cursor-pointer"
-                >
-                  <option value="">Seleccionar servicio...</option>
-                  {services.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} — ${s.price.toFixed(2)} ({s.duration_minutes}{" "}
-                      min)
-                    </option>
-                  ))}
-                </select>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 cursor-pointer">
+                  Servicio
+                </label>
+                <GlassSelect
+                  options={services.map((s) => ({
+                    value: s.id,
+                    label: `${s.name} — $${s.price.toFixed(2)} (${s.duration_minutes} min)`,
+                  }))}
+                  value={selectedServiceId}
+                  onChange={setSelectedServiceId}
+                  placeholder="Seleccionar servicio..."
+                  name="service_id"
+                  required
+                />
                 {selectedService && (
-                  <p className="mt-1.5 text-xs text-gray-500">
-                    Duración: {selectedService.duration_minutes} min | Precio: $
-                    {selectedService.price.toFixed(2)}
+                  <p className="mt-1.5 text-xs text-zinc-400">
+                    Duración: {selectedService.duration_minutes} min | Precio: ${selectedService.price.toFixed(2)}
                   </p>
                 )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label
-                    htmlFor="start_date"
-                    className="block text-sm font-medium text-gray-700 mb-1.5 cursor-pointer"
-                  >
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 cursor-pointer">
                     Fecha
                   </label>
                   <input
@@ -315,14 +285,11 @@ export default function AppointmentFormModal({
                     name="start_date"
                     defaultValue={defaults.date}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                    className="w-full px-3 py-2 rounded-2xl text-sm border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 backdrop-blur-md text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-violet-500/20 transition-all"
                   />
                 </div>
                 <div>
-                  <label
-                    htmlFor="start_time"
-                    className="block text-sm font-medium text-gray-700 mb-1.5 cursor-pointer"
-                  >
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 cursor-pointer">
                     Hora inicio
                   </label>
                   <input
@@ -331,17 +298,17 @@ export default function AppointmentFormModal({
                     name="start_time"
                     defaultValue={defaults.time}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                    className="w-full px-3 py-2 rounded-2xl text-sm border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 backdrop-blur-md text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-violet-500/20 transition-all"
                   />
                 </div>
               </div>
 
               {endTime && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5 cursor-pointer">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 cursor-pointer">
                     Hora fin (calculada)
                   </label>
-                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600">
+                  <div className="px-3 py-2 bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-2xl text-sm text-zinc-500 dark:text-zinc-400">
                     {endTime}
                   </div>
                 </div>
@@ -350,12 +317,12 @@ export default function AppointmentFormModal({
           </form>
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-200">
+        <div className="px-6 py-4 border-t border-white/20 dark:border-white/10">
           <button
             type="submit"
             form="appointment-form"
             disabled={pending}
-            className="w-full flex items-center justify-center gap-2 bg-violet-600 text-white py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
+            className="w-full flex items-center justify-center gap-2 bg-violet-600/90 backdrop-blur-md text-white py-2.5 px-4 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer select-none"
           >
             <Plus className="w-4 h-4" />
             {pending ? "Creando..." : "Crear Turno"}

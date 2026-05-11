@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import {
   Home,
   CalendarDays,
@@ -25,6 +26,18 @@ const navItems = [
   { label: "Configuración", href: "/dashboard/settings", icon: Settings },
 ];
 
+const containerVariants = {
+  hidden: {},
+  show: {
+    transition: { delayChildren: 0.15, staggerChildren: 0.06 },
+  },
+};
+
+const itemVariants = {
+  hidden: { x: -20, opacity: 0 },
+  show: { x: 0, opacity: 1, transition: { type: "spring" as const, damping: 25, stiffness: 200 } },
+};
+
 interface DashboardSidebarProps {
   userName: string;
   onLogout: () => void;
@@ -41,57 +54,94 @@ export default function DashboardSidebar({
   const pathname = usePathname();
 
   return (
-    <aside
-      className={`flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 h-full transition-colors ${className}`}
-    >
-      <div className="p-6">
-        <h1 className="text-2xl font-bold text-violet-700">Klip</h1>
+    <AnimatePresence mode="wait">
+      <motion.aside
+        key="desktop-sidebar"
+        className={`flex flex-col bg-white/10 dark:bg-black/10 backdrop-blur-3xl border-r border-white/20 dark:border-white/10 border-t border-l border-white/40 dark:border-t-white/20 dark:border-l-white/20 h-full transition-colors ${className}`}
+        initial={{ x: -300, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        exit={{ x: -300, opacity: 0, transition: { duration: 0.2, ease: "easeIn" } }}
+        transition={{ type: "spring", damping: 25, stiffness: 200 }}
+      >
+      <div className="px-6 pt-8 pb-6">
+        <h1 className="text-2xl font-bold text-violet-700 dark:text-white tracking-tight">Klip</h1>
       </div>
 
-      <nav className="flex-1 px-3 space-y-1">
-        {navItems.map(({ label, href, icon: Icon }) => {
-          const isActive =
-            pathname === href ||
-            (href !== "/dashboard" && pathname.startsWith(href));
+      <LayoutGroup>
+        <motion.nav
+          className="flex-1 px-3 space-y-1"
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+        >
+          {navItems.map(({ label, href, icon: Icon }) => {
+            const isActive =
+              pathname === href ||
+              (href !== "/dashboard" && pathname.startsWith(href));
 
-          const showAlert =
-            (href === "/dashboard/appointments" && notifications?.urgentAppointments) ||
-            (href === "/dashboard/inventory" && notifications?.lowStock);
+            const showAlert =
+              (href === "/dashboard/appointments" && notifications?.urgentAppointments) ||
+              (href === "/dashboard/inventory" && notifications?.lowStock);
 
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer select-none ${
-                isActive
-                  ? "bg-violet-50 dark:bg-violet-950 text-violet-700 dark:text-violet-300"
-                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-              }`}
-            >
-              <Icon className="w-5 h-5 shrink-0" />
-              <span className="flex-1">{label}</span>
-              {showAlert && (
-                <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" title={href === "/dashboard/appointments" ? "Turnos próximos urgentes" : "Stock bajo"} />
-              )}
-            </Link>
-          );
-        })}
-      </nav>
+            return (
+              <motion.div
+                key={href}
+                variants={itemVariants}
+                whileHover={{ x: 5 }}
+                whileTap={{ scale: 0.97 }}
+              >
+                <Link
+                  href={href}
+                  className={`relative flex items-center gap-3 px-3 py-3 rounded-2xl text-sm font-medium transition-colors cursor-pointer select-none ${
+                    isActive
+                      ? "text-violet-700 dark:text-white"
+                      : "text-zinc-500 dark:text-zinc-400 hover:bg-white/50 dark:hover:bg-white/5 hover:text-zinc-700 dark:hover:text-white"
+                  }`}
+                >
+                  {isActive && (
+                    <motion.div
+                      layoutId="active-pill"
+                      className="absolute inset-0 rounded-2xl bg-white/30 dark:bg-white/10 border border-white/20 dark:border-white/10 shadow-sm"
+                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                  <Icon
+                    className={`w-5 h-5 shrink-0 relative z-10 ${
+                      isActive ? "text-violet-600 dark:text-violet-400" : "text-zinc-400 dark:text-zinc-500"
+                    }`}
+                    strokeWidth={1.5}
+                  />
+                  <span className="flex-1 relative z-10">{label}</span>
+                  {showAlert && (
+                    <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 relative z-10" title={href === "/dashboard/appointments" ? "Turnos próximos urgentes" : "Stock bajo"} />
+                  )}
+                </Link>
+              </motion.div>
+            );
+          })}
+        </motion.nav>
+      </LayoutGroup>
 
-      <div className="p-4 border-t border-gray-200 dark:border-gray-800">
+      <div className="px-4 py-5">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
+          <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400 truncate">
             {userName}
           </span>
-          <button
-            onClick={onLogout}
-            className="p-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 transition-colors cursor-pointer"
-            title="Cerrar Sesión"
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            transition={{ type: "spring", stiffness: 400, damping: 15 }}
           >
-            <LogOut className="w-5 h-5" />
-          </button>
+            <button
+              onClick={onLogout}
+              className="p-1.5 rounded-xl text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-white/60 dark:hover:bg-white/5 transition-all cursor-pointer"
+              title="Cerrar Sesión"
+            >
+              <LogOut className="w-5 h-5" strokeWidth={1.5} />
+            </button>
+          </motion.div>
         </div>
       </div>
-    </aside>
+    </motion.aside>
+    </AnimatePresence>
   );
 }

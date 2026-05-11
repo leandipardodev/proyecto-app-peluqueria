@@ -125,7 +125,7 @@ export default function AppointmentDetailModal({
       {appointment && (
         <motion.div
           ref={backdropRef}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-white/40 dark:bg-black/40 backdrop-blur-sm"
           onClick={(e) => {
             if (e.target === backdropRef.current) onClose();
           }}
@@ -135,19 +135,19 @@ export default function AppointmentDetailModal({
           transition={{ duration: 0.22 }}
         >
           <motion.div
-            className="bg-white dark:bg-gray-900 rounded-xl shadow-lg dark:shadow-2xl w-full max-w-md mx-4 overflow-hidden transition-colors"
+            className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] w-full max-w-md mx-4 overflow-hidden transition-colors"
             initial={{ opacity: 0, y: 56, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 40, scale: 0.985 }}
             transition={{ type: "spring", ...IOS_MODAL_SPRING }}
           >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/20 dark:border-white/10">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             Detalle del Turno
           </h2>
           <button
             onClick={onClose}
-            className="p-1 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer select-none"
+            className="p-1 rounded-md text-gray-500 dark:text-gray-400 hover:bg-white/40 dark:hover:bg-white/10 transition-colors cursor-pointer select-none"
           >
             <X className="w-5 h-5" />
           </button>

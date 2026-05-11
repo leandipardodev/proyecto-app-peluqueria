@@ -82,11 +82,11 @@ export default function StockTable({ items }: StockTableProps) {
         )}
       </div>
 
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+              <tr className="bg-white/40 dark:bg-black/20 border-b border-white/20 dark:border-white/10">
                 <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider px-6 py-3">
                   Producto
                 </th>
@@ -104,7 +104,7 @@ export default function StockTable({ items }: StockTableProps) {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+            <tbody className="divide-y divide-white/20 dark:divide-white/10">
               {filtered.length === 0 ? (
                 <tr>
                   <td
@@ -124,7 +124,7 @@ export default function StockTable({ items }: StockTableProps) {
                   return (
                     <tr
                       key={item.id}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                      className="hover:bg-white/40 dark:hover:bg-white/5 transition-colors"
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">

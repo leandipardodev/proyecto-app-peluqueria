@@ -56,10 +56,10 @@ export default function ServicesList({ initialServices }: ServicesListProps) {
   return (
     <>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Servicios</h1>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Servicios</h1>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-violet-700 transition-colors cursor-pointer select-none"
+          className="flex items-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 transition-colors cursor-pointer select-none"
         >
           <Plus className="w-4 h-4" />
           Nuevo Servicio
@@ -67,7 +67,7 @@ export default function ServicesList({ initialServices }: ServicesListProps) {
       </div>
 
       {services.length === 0 ? (
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 py-16 px-6 text-center">
+        <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] py-16 px-6 text-center">
           <p className="text-gray-500 dark:text-gray-400 text-sm">
             No hay servicios creados aún.
           </p>
@@ -80,11 +80,11 @@ export default function ServicesList({ initialServices }: ServicesListProps) {
           </button>
         </div>
       ) : (
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                <tr className="bg-white/40 dark:bg-black/20 border-b border-white/20 dark:border-white/10">
                   <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider px-6 py-3">
                     Nombre
                   </th>
@@ -99,9 +99,9 @@ export default function ServicesList({ initialServices }: ServicesListProps) {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+              <tbody className="divide-y divide-white/20 dark:divide-white/10">
                 {services.map((service) => (
-                  <tr key={service.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
+                  <tr key={service.id} className="hover:bg-white/40 dark:hover:bg-white/5 cursor-pointer">
                     <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-gray-100">
                       {service.name}
                     </td>

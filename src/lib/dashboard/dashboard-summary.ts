@@ -2,7 +2,7 @@
 
 import { createServerClient } from "@/lib/supabase/server";
 import { getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
-import { getTodayArgentinaBounds } from "@/lib/argentina-time";
+import { getArgentinaDateString, getArgentinaDayBounds } from "@/lib/argentina-time";
 import "server-only";
 
 export async function fetchDashboardSummary() {
@@ -11,20 +11,19 @@ export async function fetchDashboardSummary() {
 
   const supabase = await createServerClient();
 
-  const { start: todayStart } = getTodayArgentinaBounds();
-  const tomorrow = new Date(todayStart);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowStart = tomorrow.toISOString();
+  const todayDateStr = getArgentinaDateString();
+  const { start: todayStart, end: todayEnd } = getArgentinaDayBounds(todayDateStr);
+  const todayStartIso = todayStart.toISOString();
+  const todayEndIso = todayEnd.toISOString();
 
   const [appointmentsToday, revenueToday, lowStock] = await Promise.all([
     supabase
       .from("appointments")
       .select("id, start_time, status")
       .eq("shop_id", shopId)
-      .gte("start_time", todayStart)
-      .lt("start_time", tomorrowStart)
-      .not("status", "eq", "cancelled")
-      .not("status", "eq", "no_show")
+      .gte("start_time", todayStartIso)
+      .lte("start_time", todayEndIso)
+      .in("status", ["scheduled", "confirmed", "completed"])
       .order("start_time", { ascending: true })
       .returns<{ id: string; start_time: string; status: string }[]>(),
 
@@ -32,10 +31,9 @@ export async function fetchDashboardSummary() {
       .from("appointments")
       .select("id, status, is_paid, services!appointments_service_id_fkey(price)")
       .eq("shop_id", shopId)
-      .gte("start_time", todayStart)
-      .lt("start_time", tomorrowStart)
-      .eq("status", "completed")
-      .eq("is_paid", true)
+      .gte("start_time", todayStartIso)
+      .lte("start_time", todayEndIso)
+      .in("status", ["scheduled", "confirmed", "completed"])
       .returns<
         {
           id: string;
@@ -77,14 +75,11 @@ export async function fetchDashboardSummary() {
       `
     )
     .eq("shop_id", shopId)
-    .gte("start_time", todayStart)
-    .lt("start_time", tomorrowStart)
-    .not("status", "eq", "cancelled")
+    .gte("start_time", todayStartIso)
+    .lte("start_time", todayEndIso)
+    .in("status", ["scheduled", "confirmed", "completed"])
     .order("start_time", { ascending: true })
     .limit(5);
-
-  console.log("[fetchDashboardSummary] nextAppointments error:", nextResult.error);
-  console.log("[fetchDashboardSummary] nextAppointments data:", JSON.stringify(nextResult.data));
 
   const nextAppointments = (nextResult.data ?? []).map((a: Record<string, unknown>) => ({
     id: a.id as string,

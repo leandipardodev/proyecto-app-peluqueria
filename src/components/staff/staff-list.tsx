@@ -84,7 +84,7 @@ export default function StaffList({
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Personal</h2>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white tracking-tight">Personal</h2>
         <Button onClick={() => setShowForm(true)}>Agregar Peluquero</Button>
       </div>
 
@@ -95,8 +95,8 @@ export default function StaffList({
       )}
 
       {showForm && (
-        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
-          <h3 className="text-lg font-medium dark:text-gray-100 mb-4">Nuevo Peluquero</h3>
+        <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-6 mb-6">
+          <h3 className="text-lg font-medium dark:text-gray-100 mb-4 tracking-tight">Nuevo Peluquero</h3>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label htmlFor="name">Nombre</Label>
@@ -177,9 +177,9 @@ export default function StaffList({
         </div>
       )}
 
-      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-          <thead className="bg-gray-50 dark:bg-gray-800">
+          <thead className="bg-white/40 dark:bg-black/20">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Nombre
@@ -198,7 +198,7 @@ export default function StaffList({
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+          <tbody className="bg-transparent dark:bg-transparent divide-y divide-white/20 dark:divide-white/10">
             {staff.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
@@ -207,7 +207,7 @@ export default function StaffList({
               </tr>
             ) : (
               staff.map((member) => (
-                <tr key={member.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
+                <tr key={member.id} className="hover:bg-white/40 dark:hover:bg-white/5 cursor-pointer">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                     {member.name}
                   </td>

@@ -154,9 +154,9 @@ function computeOverlapLayout<T extends { id: string; start_time: string; end_ti
 }
 
 function getTopOffset(timeStr: string): number {
-  const minutes = minutesFromHHmm(timeStr);
-  const adjustedMinutes = minutes < GRID_START_HOUR * 60 ? minutes + 24 * 60 : minutes;
-  return ((adjustedMinutes / 60) - GRID_START_HOUR) * HOUR_HEIGHT;
+  const [h, m] = timeStr.split(":").map(Number);
+  const totalHours = h + m / 60;
+  return (totalHours - GRID_START_HOUR) * HOUR_HEIGHT;
 }
 
 export default function CalendarView({
@@ -297,13 +297,13 @@ export default function CalendarView({
       <div className="flex flex-col h-full">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <div className="w-20 h-9 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse" />
-            <div className="w-20 h-9 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse" />
-            <div className="w-16 h-9 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse ml-2" />
+            <div className="w-20 h-9 bg-zinc-200/40 dark:bg-zinc-700/30 rounded-xl animate-pulse" />
+            <div className="w-20 h-9 bg-zinc-200/40 dark:bg-zinc-700/30 rounded-xl animate-pulse" />
+            <div className="w-16 h-9 bg-zinc-200/40 dark:bg-zinc-700/30 rounded-xl animate-pulse ml-2" />
           </div>
-          <div className="w-64 h-6 bg-gray-100 dark:bg-gray-800 rounded animate-pulse hidden sm:block" />
+          <div className="w-64 h-6 bg-zinc-200/40 dark:bg-zinc-700/30 rounded animate-pulse hidden sm:block" />
         </div>
-        <div className="flex-1 bg-gray-50 dark:bg-gray-900 rounded-xl animate-pulse" />
+        <div className="flex-1 bg-zinc-100/30 dark:bg-zinc-800/20 rounded-2xl backdrop-blur-xl animate-pulse border border-white/10" />
       </div>
     );
   }
@@ -338,30 +338,30 @@ export default function CalendarView({
         <div className="flex items-center gap-2">
           <button
             onClick={onPrevWeek}
-            className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer select-none"
+            className="p-2 rounded-2xl border border-white/50 dark:border-white/10 bg-white/40 dark:bg-black/30 hover:bg-white/70 dark:hover:bg-white/10 backdrop-blur-md shadow-sm transition-all cursor-pointer select-none"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
           <button
             onClick={onNextWeek}
-            className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer select-none"
+            className="p-2 rounded-2xl border border-white/50 dark:border-white/10 bg-white/40 dark:bg-black/30 hover:bg-white/70 dark:hover:bg-white/10 backdrop-blur-md shadow-sm transition-all cursor-pointer select-none"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
           <button
             onClick={onToday}
-            className="ml-2 px-3 py-1.5 text-sm font-medium border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer select-none"
+            className="ml-2 px-3 py-1.5 text-sm font-medium border border-white/50 dark:border-white/10 bg-white/40 dark:bg-black/30 hover:bg-white/70 dark:hover:bg-white/10 backdrop-blur-md rounded-2xl shadow-sm transition-all cursor-pointer select-none"
           >
             Hoy
           </button>
         </div>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 hidden sm:block">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white hidden sm:block">
           {format(weekStart, "d 'de' MMMM", { locale: es })} —{" "}
           {format(addDays(weekStart, 6), "d 'de' MMMM 'de' yyyy", {
             locale: es,
           })}
         </h2>
-        <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 sm:hidden">
+        <h2 className="text-sm font-semibold text-gray-900 dark:text-white sm:hidden">
           {format(weekStart, "d MMM", { locale: es })} -{" "}
           {format(addDays(weekStart, 6), "d MMM", { locale: es })}
         </h2>
@@ -371,9 +371,9 @@ export default function CalendarView({
         ref={scrollContainerRef}
         className="flex-1 min-h-0 overflow-auto"
       >
-        <div className="grid grid-cols-8 min-w-[700px] border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden bg-white dark:bg-gray-900 relative transition-colors">
-          <div className="col-span-1 bg-gray-50 dark:bg-gray-800/50 border-r border-gray-200 dark:border-gray-700">
-            <div className="h-12 border-b border-gray-200 dark:border-gray-700" />
+        <div className="grid grid-cols-8 min-w-[700px] border border-white/10 dark:border-white/5 border-t border-l border-white/40 dark:border-t-white/20 dark:border-l-white/20 border-b border-r border-black/5 dark:border-b-white/5 dark:border-r-white/5 rounded-[2.5rem] overflow-hidden bg-white/20 dark:bg-black/10 backdrop-blur-3xl shadow-[0_20px_50px_rgba(0,0,0,0.03)] dark:shadow-none relative">
+          <div className="col-span-1 border-r border-zinc-200/30 dark:border-white/10">
+            <div className="h-12 border-b border-zinc-200/30 dark:border-white/10" />
             {hours.map((hour) => (
               <div
                 key={hour}
@@ -381,7 +381,7 @@ export default function CalendarView({
                 style={{ height: `${HOUR_HEIGHT}px` }}
               >
                 <span className="text-xs text-gray-500 dark:text-gray-400">
-                  {format(new Date(2000, 0, 1).setHours(hour, 0, 0, 0), "HH:mm")}
+                  {`${String(hour).padStart(2, "0")}:00`}
                 </span>
               </div>
             ))}
@@ -395,15 +395,15 @@ export default function CalendarView({
             return (
               <div
                 key={dayStr}
-                className="col-span-1 border-r border-gray-100 dark:border-gray-800 last:border-r-0 flex flex-col"
+                className="col-span-1 border-r border-zinc-200/30 dark:border-white/10 last:border-r-0 flex flex-col"
               >
                 <div
-                  className={`h-12 border-b border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center shrink-0 ${
-                    isToday(day) ? "bg-violet-50 dark:bg-violet-950" : ""
+                  className={`h-12 border-b border-zinc-200/30 dark:border-white/10 flex flex-col items-center justify-center shrink-0 ${
+                    isToday(day) ? "bg-violet-200/40 dark:bg-violet-800/30" : ""
                   }`}
                   style={{ height: `${HOUR_HEIGHT}px` }}
                 >
-                  <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">
+                  <span className="text-[11px] text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                     {format(day, "EEE", { locale: es })}
                   </span>
                   <span
@@ -415,20 +415,52 @@ export default function CalendarView({
                   </span>
                 </div>
 
-                <div
-                  className="relative flex-1"
-                  style={{ minHeight: `${hours.length * HOUR_HEIGHT}px` }}
-                >
-                  {hours.map((hour) => (
-                    <div
-                      key={hour}
-                      className="border-b border-gray-100 dark:border-gray-800 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-800/30 cursor-pointer transition-colors"
-                      style={{ height: `${HOUR_HEIGHT}px` }}
-                      onClick={() => onSlotClick(day, hour)}
-                    />
-                  ))}
+                {(() => {
+                  const gridAppts = dayAppointments.filter(
+                    a => parseInt(a.start_hhmm) >= GRID_START_HOUR
+                  );
+                  const earlyAppts = dayAppointments.filter(
+                    a => parseInt(a.start_hhmm) < GRID_START_HOUR
+                  );
 
-                  {dayAppointments.map((appt) => {
+                  return (
+                    <>
+                      {earlyAppts.length > 0 && (
+                        <div className="sticky top-0 z-20 bg-amber-100/40 dark:bg-amber-950/40 backdrop-blur-xl border-b border-amber-200/30 dark:border-amber-800/30 px-2 py-1.5 space-y-1">
+                          <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-300 uppercase tracking-wide">
+                            ⏰ Fuera de hora
+                          </span>
+                          {earlyAppts.map((ea) => (
+                            <div
+                              key={ea.id}
+                              className="flex items-center gap-1.5 text-[11px] text-amber-800 dark:text-amber-200 truncate cursor-pointer"
+                              onClick={() => onAppointmentClick(ea)}
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                              <span className="font-medium truncate">
+                                {ea.customers?.name || "Sin cliente"}
+                              </span>
+                              <span className="shrink-0 opacity-70">
+                                {ea.start_hhmm}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div
+                        className="relative flex-1"
+                        style={{ minHeight: `${hours.length * HOUR_HEIGHT}px` }}
+                      >
+                        {hours.map((hour) => (
+                          <div
+                            key={hour}
+                            className="border-b border-zinc-200/30 dark:border-white/[0.03] last:border-b-0 hover:bg-white/30 dark:hover:bg-white/5 cursor-pointer transition-colors"
+                            style={{ height: `${HOUR_HEIGHT}px` }}
+                            onClick={() => onSlotClick(day, hour)}
+                          />
+                        ))}
+
+                        {gridAppts.map((appt) => {
                     const durationMinutes = appt.duration_minutes_ar;
                     const topOffset = getTopOffset(appt.start_hhmm);
                     const height = Math.max(
@@ -454,36 +486,22 @@ export default function CalendarView({
                     const diffMs = new Date(appt.start_time).getTime() - Date.now();
                     const isUrgent = appt.status === "scheduled" && diffMs > 0 && diffMs <= 3600000;
 
-                    const tooltipLines = [
-                      appt.customers?.name && `Cliente: ${appt.customers.name}`,
-                      svc.label && `Servicio: ${svc.emoji} ${svc.label}`,
-                      appt.customers?.email && `Email: ${appt.customers.email}`,
-                      appt.staff?.name && `Peluquero: ${appt.staff.name}`,
-                    ].filter(Boolean);
-
-                    const timeStr = appt.start_hhmm;
-
                     return (
                       <motion.div
                         key={appt.id}
-                        title={tooltipLines.join(" | ")}
-                        className={`absolute rounded-xl px-2.5 py-2 text-xs cursor-pointer overflow-hidden flex flex-col font-sans backdrop-blur-md ${isFinalStatus ? "opacity-60" : ""} ${isUrgent ? "animate-pulse-border" : ""}`}
+                        className={`absolute rounded-2xl px-2.5 py-2 text-xs cursor-pointer overflow-hidden flex flex-col font-sans bg-white/30 dark:bg-white/10 backdrop-blur-md border border-white/40 shadow-sm ${isFinalStatus ? "opacity-50" : ""} ${isUrgent ? "animate-pulse-border" : ""}`}
                         style={{
                           top: `${topOffset}px`,
                           height: `${height}px`,
                           width: `calc(${pos.width}% - 4px)`,
                           left: `calc(${pos.left}% + 2px)`,
-                          borderLeft: `4px solid ${staffColor.border}`,
-                          borderTop: `1px solid ${statusStyle.border}55`,
-                          borderRight: `1px solid ${statusStyle.border}55`,
-                          borderBottom: `1px solid ${statusStyle.border}55`,
-                          backgroundColor: `${statusStyle.bg}B3`,
+                          borderLeft: `3px solid ${staffColor.border}`,
                           zIndex: 10,
                         }}
                         initial={{ opacity: 0, scale: 0.96 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ type: "spring", ...MOTION_PRESET.pill }}
-                        whileHover={{ y: -4, scale: 1.015, boxShadow: "0 14px 28px rgba(0, 0, 0, 0.16)" }}
+                        whileHover={{ y: -2, scale: 1.02, boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)" }}
                         whileTap={{ scale: 0.985 }}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -505,6 +523,7 @@ export default function CalendarView({
                           setHoverTooltip(null);
                         }}
                       >
+                        <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent rounded-2xl pointer-events-none" />
                         <div className="flex items-center justify-between gap-1">
                           <span className="font-semibold text-gray-900 dark:text-gray-100 leading-tight min-w-0 truncate">
                             {appt.customers?.name || "Sin cliente"}
@@ -520,7 +539,7 @@ export default function CalendarView({
                           </div>
                         </div>
                         <span className="text-[11px] text-gray-700 dark:text-gray-300 truncate leading-tight mt-0.5">
-                          {timeStr} - {appt.end_hhmm}
+                          {appt.start_hhmm} - {appt.end_hhmm}
                         </span>
                         {appt.staff?.name && !appt.customers?.name && (
                           <span className="text-[10px] text-gray-500 dark:text-gray-400 truncate leading-tight mt-0.5">
@@ -531,6 +550,9 @@ export default function CalendarView({
                     );
                   })}
                 </div>
+              </>
+            );
+          })()}
               </div>
             );
           })}
@@ -544,7 +566,7 @@ export default function CalendarView({
           return (
             <motion.div
               key={tipAppt.id}
-              className="fixed left-0 top-0 pointer-events-none z-[60] w-[300px] rounded-3xl border border-white/35 bg-white/90 dark:bg-gray-900/78 shadow-2xl backdrop-blur-2xl px-4 py-3 text-gray-900 dark:text-gray-100"
+              className="fixed left-0 top-0 pointer-events-none z-[60] w-[300px] rounded-3xl border border-white/40 bg-white/70 dark:bg-black/50 shadow-2xl shadow-black/10 backdrop-blur-2xl px-4 py-3 text-gray-900 dark:text-white"
               style={{ x: tooltipX, y: tooltipY }}
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -560,6 +582,21 @@ export default function CalendarView({
               <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">
                 ⏰ {tipAppt.start_hhmm} - {tipAppt.end_hhmm}
               </div>
+              {(() => {
+                const tipSvc = tipAppt.services?.name
+                  ? extractEmoji(tipAppt.services.name)
+                  : null;
+                return tipSvc ? (
+                  <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">
+                    ✂️ {tipSvc.emoji} {tipSvc.label}
+                  </div>
+                ) : null;
+              })()}
+              {tipAppt.customers?.email && (
+                <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">
+                  📧 {tipAppt.customers.email}
+                </div>
+              )}
               <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">
                 💈 {tipAppt.staff?.name || "Sin asignar"}
               </div>
@@ -568,7 +605,7 @@ export default function CalendarView({
         })()}
       </AnimatePresence>
 
-      <div className="mt-4 flex flex-wrap gap-3 text-xs">
+      <div className="mt-4 flex flex-wrap gap-3 text-xs bg-white/30 dark:bg-black/20 backdrop-blur-2xl rounded-2xl px-4 py-3 border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-sm">
         {staffList && staffList.length > 0 && (
           <div className="flex items-center gap-3 mr-4 flex-wrap">
             {staffList.map((s, i) => {

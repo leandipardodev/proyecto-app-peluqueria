@@ -68,10 +68,10 @@ export default function FinancesClient({ initialExpenses }: { initialExpenses: E
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Gastos del día</h2>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Gastos del día</h2>
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-violet-700 transition-colors cursor-pointer select-none"
+          className="flex items-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 transition-colors cursor-pointer select-none"
         >
           <Plus className="w-4 h-4" />
           Cargar Gasto
@@ -79,10 +79,10 @@ export default function FinancesClient({ initialExpenses }: { initialExpenses: E
       </div>
 
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg dark:shadow-2xl w-full max-w-md mx-4 overflow-hidden transition-colors">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Nuevo Gasto</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm">
+          <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] w-full max-w-md mx-4 overflow-hidden transition-colors">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/20 dark:border-white/10">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Nuevo Gasto</h3>
               <button onClick={() => setShowForm(false)} className="p-1 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer select-none">
                 <X className="w-5 h-5" />
               </button>
@@ -128,7 +128,7 @@ export default function FinancesClient({ initialExpenses }: { initialExpenses: E
               <button
                 type="submit"
                 disabled={pending}
-                className="w-full bg-violet-600 text-white py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-violet-700 disabled:opacity-50 transition-colors cursor-pointer select-none"
+                className="w-full bg-violet-600 text-white py-2.5 px-4 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 disabled:opacity-50 transition-colors cursor-pointer select-none"
               >
                 {pending ? "Guardando..." : "Guardar Gasto"}
               </button>
@@ -138,13 +138,13 @@ export default function FinancesClient({ initialExpenses }: { initialExpenses: E
       )}
 
       {expenses.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 py-12 text-center text-sm text-gray-500">
+        <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] py-12 text-center text-sm text-zinc-500 dark:text-zinc-400">
           No hay gastos registrados hoy.
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+        <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden">
+          <table className="min-w-full divide-y divide-white/20 dark:divide-white/10">
+            <thead className="bg-white/40 dark:bg-black/20">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Monto</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Categoría</th>
