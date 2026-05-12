@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Gift, Loader2, Search, X } from "lucide-react";
-import { playPop } from "@/lib/sound";
+import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { supabase } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -54,6 +54,7 @@ function isBirthdayThisWeek(date: string | null): boolean {
 }
 
 export default function CustomersPage() {
+  const { playSuccess, playClick } = useKlipSounds();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -288,7 +289,7 @@ export default function CustomersPage() {
       return;
     }
 
-    playPop();
+    playSuccess();
     await loadCustomers();
     setSaving(false);
     closeEditor();
@@ -322,6 +323,7 @@ export default function CustomersPage() {
 
       <div>
         <button
+          onMouseDown={playClick}
           onClick={openCreate}
           className="bg-blue-600 text-white rounded-full px-6 py-2 text-sm font-medium hover:bg-blue-700 transition"
         >

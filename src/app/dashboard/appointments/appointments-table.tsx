@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useAppointmentAlarm } from "@/lib/use-appointment-alarm";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
 import { createPaymentLink } from "@/lib/payments/mercadopago-actions";
+import { useKlipSounds } from "@/lib/use-klip-sounds";
 
 type Appointment = {
   id: string;
@@ -30,12 +31,12 @@ function extractEmoji(name: string): { emoji: string; label: string } {
 }
 
 const statusBadge: Record<string, string> = {
-  scheduled: "bg-yellow-100 text-yellow-800",
-  confirmed: "bg-blue-100 text-blue-800",
-  in_progress: "bg-purple-100 text-purple-800",
-  completed: "bg-green-100 text-green-800",
-  cancelled: "bg-red-100 text-red-800",
-  no_show: "bg-gray-100 text-gray-800",
+  scheduled: "bg-amber-50 text-amber-700",
+  confirmed: "bg-sky-50 text-sky-700",
+  in_progress: "bg-indigo-50 text-indigo-700",
+  completed: "bg-emerald-50 text-emerald-700",
+  cancelled: "bg-rose-50 text-rose-700",
+  no_show: "bg-zinc-100 text-zinc-700",
 };
 
 interface Props {
@@ -50,6 +51,7 @@ interface Props {
 }
 
 export default function AppointmentsTable({ initialAppointments, services, staff, customers, shopName, shopAddress, whatsappTemplate, error }: Props) {
+  const { playSuccess, playError, playClick } = useKlipSounds();
   const [appointments, setAppointments] = useState(initialAppointments);
   const [showForm, setShowForm] = useState(false);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
@@ -77,6 +79,9 @@ export default function AppointmentsTable({ initialAppointments, services, staff
       .replace(/\{Hora\}/g, time) + locationLine;
     return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
   }
+
+  const hasRequiredWhatsappTemplate = (whatsappTemplate || DEFAULT_WHATSAPP_TEMPLATE).includes("{Hora}");
+  const hasLocation = Boolean((shopAddress || "").trim());
 
   function isUrgent(startTime: string, status: string): boolean {
     if (status !== "scheduled") return false;
@@ -111,7 +116,8 @@ export default function AppointmentsTable({ initialAppointments, services, staff
       )}
 
       <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden transition-colors">
-        <table className="min-w-full divide-y divide-white/20 dark:divide-white/10">
+        <div className="w-full overflow-x-auto">
+        <table className="min-w-[1100px] w-full divide-y divide-white/20 dark:divide-white/10">
           <thead className="bg-white/40 dark:bg-black/20">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Fecha</th>
@@ -142,13 +148,13 @@ export default function AppointmentsTable({ initialAppointments, services, staff
                       {" - "}
                       {new Date(apt.end_time).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100 max-w-[180px]">
                       {apt.customers?.nombre || "N/A"}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100 max-w-[220px]">
                       {svc ? `${svc.emoji} ${svc.label}` : apt.services?.name || "N/A"}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100 max-w-[160px]">
                       {apt.staff?.name || "N/A"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -157,7 +163,7 @@ export default function AppointmentsTable({ initialAppointments, services, staff
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {apt.is_paid ? <span className="text-green-600">Pagado</span> : <span className="text-red-600">Pendiente</span>}
+                      {apt.is_paid ? <span className="text-emerald-600">Pagado</span> : <span className="text-rose-500">Pendiente</span>}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex items-center gap-2">
@@ -180,17 +186,33 @@ export default function AppointmentsTable({ initialAppointments, services, staff
                                 rel={phone ? "noopener noreferrer" : undefined}
                                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-semibold transition-colors ${
                                   phone
-                                    ? "bg-green-600 text-white hover:bg-green-700 shadow-sm cursor-pointer select-none"
-                                    : "bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                                    ? "bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm cursor-pointer select-none"
+                                    : "bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 cursor-not-allowed"
                                 }`}
                                 title={phone ? "Enviar WhatsApp" : "Sin teléfono — editá el cliente para agregarlo"}
-                                onClick={!phone ? (e) => e.preventDefault() : undefined}
+                                onMouseDown={() => {
+                                  if (!phone || !hasRequiredWhatsappTemplate || !hasLocation) {
+                                    playError();
+                                    return;
+                                  }
+                                  playSuccess();
+                                }}
+                                onClick={(e) => {
+                                  if (!phone) {
+                                    e.preventDefault();
+                                    return;
+                                  }
+                                  if (!hasRequiredWhatsappTemplate || !hasLocation) {
+                                    e.preventDefault();
+                                    alert("Para enviar WhatsApp, asegurate de incluir {Hora} y dirección del local.");
+                                  }
+                                }}
                               >
                                 <MessageCircle className="w-4 h-4" />
                                 WhatsApp
                               </a>
                               {apt.is_paid ? (
-                                <span className="text-xs text-green-600 font-medium">Pagado</span>
+                                <span className="text-xs text-emerald-600 font-medium">Pagado</span>
                               ) : link ? (
                                 <div className="flex items-center gap-1">
                                   <a
@@ -205,6 +227,7 @@ export default function AppointmentsTable({ initialAppointments, services, staff
                                   </a>
                                   <button
                                     onClick={async () => {
+                                      playClick();
                                       await navigator.clipboard.writeText(link);
                                       setCopiedId(apt.id);
                                       setTimeout(() => setCopiedId(null), 2000);
@@ -212,14 +235,14 @@ export default function AppointmentsTable({ initialAppointments, services, staff
                                     className="p-1.5 rounded-md text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer select-none"
                                     title="Copiar link"
                                   >
-                                    {copiedId === apt.id ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+                                    {copiedId === apt.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                                   </button>
                                   {phone && (
                                     <a
                                       href={`https://wa.me/${phone.replace(/[^\d]/g, "").replace(/^00/, "")}?text=${encodeURIComponent(`Hola! Te paso el link para pagar tu turno: ${link}`)}`}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="p-1.5 rounded-md text-gray-500 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors cursor-pointer select-none"
+                                      className="p-1.5 rounded-md text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors cursor-pointer select-none"
                                       title="Enviar por WhatsApp"
                                     >
                                       <MessageCircle className="w-3.5 h-3.5" />
@@ -244,7 +267,7 @@ export default function AppointmentsTable({ initialAppointments, services, staff
                                     setGeneratingId(null);
                                   }}
                                   disabled={generating}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-semibold bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm cursor-pointer select-none"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-semibold bg-indigo-500 text-white hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm cursor-pointer select-none"
                                 >
                                   <CreditCard className="w-4 h-4" />
                                   {generating ? "Generando..." : "Cobrar"}
@@ -261,6 +284,7 @@ export default function AppointmentsTable({ initialAppointments, services, staff
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

@@ -1,15 +1,14 @@
 "use client";
 
 import { Menu, X, Search, Bell, BellOff, Moon, Sun } from "lucide-react";
-import { useState, useRef, useEffect, useTransition, type KeyboardEvent } from "react";
+import { useState, useRef, useEffect, useTransition, useMemo, type KeyboardEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import DashboardSidebar from "./dashboard-sidebar";
-import { playPop } from "@/lib/sound";
-import { useRouter } from "next/navigation";
-import { globalSearch, type GlobalSearchResult } from "@/lib/dashboard/global-search-actions";
-import { useDarkMode } from "@/lib/use-dark-mode";
 import { isMuted, setMuted } from "@/lib/sound";
-import { supabase } from "@/lib/supabase";
+import { useKlipSounds } from "@/lib/use-klip-sounds";
+import { useRouter } from "next/navigation";
+import { globalSearch, type OmniSearchResult } from "@/lib/dashboard/global-search-actions";
+import { useDarkMode } from "@/lib/use-dark-mode";
 
 interface DashboardHeaderProps {
   shopName: string;
@@ -17,6 +16,26 @@ interface DashboardHeaderProps {
   userEmail: string;
   onLogout: () => Promise<void>;
 }
+
+type CommandNav = { id: string; kind: "nav"; label: string; hint: string; to: string };
+type CommandAction = { id: string; kind: "action"; label: string; hint: string; action: "toggleTheme" | "logout" };
+type CommandData = { id: string; kind: "data"; value: OmniSearchResult };
+type CommandItem = CommandNav | CommandAction | CommandData;
+
+const NAV_COMMANDS: CommandNav[] = [
+  { id: "nav-staff", kind: "nav", label: "Ir a Staff", hint: "Personal", to: "/dashboard/staff" },
+  { id: "nav-services", kind: "nav", label: "Ir a Servicios", hint: "Catalogo", to: "/dashboard/services" },
+  { id: "nav-settings", kind: "nav", label: "Ir a Configuracion", hint: "Perfil y preferencias", to: "/dashboard" },
+  { id: "nav-calendar", kind: "nav", label: "Ver Agenda", hint: "Calendario", to: "/dashboard/calendar" },
+];
+
+const ACTION_COMMANDS: CommandAction[] = [
+  { id: "act-theme", kind: "action", label: "Cambiar tema", hint: "oscuro o claro", action: "toggleTheme" },
+  { id: "act-logout", kind: "action", label: "Cerrar sesion", hint: "salir", action: "logout" },
+];
+
+const SEARCH_COLLAPSED_WIDTH = 280;
+const SEARCH_EXPANDED_WIDTH = 640;
 
 function getInitials(name: string): string {
   return name
@@ -28,138 +47,125 @@ function getInitials(name: string): string {
     .toUpperCase();
 }
 
-export default function DashboardHeader({
-  shopName,
-  userName,
-  userEmail,
-  onLogout,
-}: DashboardHeaderProps) {
+function matchesQuery(query: string, terms: string[]) {
+  if (!query) return true;
+  const q = query.toLowerCase();
+  return terms.some((t) => t.toLowerCase().includes(q));
+}
+
+function formatDataLabel(item: OmniSearchResult) {
+  if (item.type === "stock") return item.nombre_producto;
+  if (item.type === "service") return item.name;
+  if (item.type === "customer") return item.nombre || item.telefono || "Cliente";
+  return item.name || item.email || "Staff";
+}
+
+function formatDataHint(item: OmniSearchResult) {
+  if (item.type === "stock") return `Cantidad disponible: ${item.quantity}`;
+  if (item.type === "service") return `Duracion: ${item.duration_minutes} min`;
+  if (item.type === "customer") return `Telefono: ${item.telefono || "Sin telefono"}`;
+  return `${item.role === "owner" ? "Administrador" : "Staff"} - ${item.email || "Sin email"}`;
+}
+
+export default function DashboardHeader({ shopName, userName, userEmail, onLogout }: DashboardHeaderProps) {
   const router = useRouter();
+  const { dark, toggle: toggleDark } = useDarkMode();
+  const { playClick, playSearchExpand } = useKlipSounds();
+
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [searchFocused, setSearchFocused] = useState(false);
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<GlobalSearchResult[]>([]);
-  const [activeIndex, setActiveIndex] = useState(-1);
-  const [searchError, setSearchError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
   const [menuOpen, setMenuOpen] = useState(false);
   const [logoutPending, startLogoutTransition] = useTransition();
-  const [menuLoading, setMenuLoading] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(false);
-  const [accountName, setAccountName] = useState<string | null>(null);
-  const [accountRole, setAccountRole] = useState<string | null>(null);
-  const [planExpiry, setPlanExpiry] = useState<string | null>(null);
-  const [shopActive, setShopActive] = useState<boolean | null>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
-  const searchBoxRef = useRef<HTMLDivElement>(null);
+
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [searchInputReady, setSearchInputReady] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
+  const [query, setQuery] = useState("");
+  const [dbResults, setDbResults] = useState<OmniSearchResult[]>([]);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [isPending, startTransition] = useTransition();
+
   const avatarMenuRef = useRef<HTMLDivElement>(null);
-  const { dark, toggle: toggleDark } = useDarkMode();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  const rotatingWords = ["clientes...", "productos...", "servicios...", "comandos..."];
 
   function handleMobileOpen() {
-    playPop();
+    playClick();
     setMobileOpen(true);
   }
-
-  useEffect(() => {
-    if (searchFocused && searchRef.current) {
-      searchRef.current.focus();
-    }
-  }, [searchFocused]);
-
-  useEffect(() => {
-    if (!searchFocused) return;
-    function handleClickOutside(e: MouseEvent) {
-      if (!searchBoxRef.current) return;
-      if (!searchBoxRef.current.contains(e.target as Node)) {
-        setSearchFocused(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [searchFocused]);
 
   useEffect(() => {
     setSoundEnabled(!isMuted());
   }, []);
 
   useEffect(() => {
+    function onKeyDown(e: globalThis.KeyboardEvent) {
+      const isModifier = e.ctrlKey || e.metaKey;
+      if (!isModifier) return;
+
+      if (e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  useEffect(() => {
+    if (!searchOpen) return;
+    const t = setTimeout(() => inputRef.current?.focus(), 0);
+    return () => clearTimeout(t);
+  }, [searchOpen]);
+
+  useEffect(() => {
+    if (!searchOpen) {
+      setShowSearchDropdown(false);
+      return;
+    }
+    const t = setTimeout(() => setShowSearchDropdown(true), 180);
+    return () => clearTimeout(t);
+  }, [searchOpen]);
+
+  useEffect(() => {
+    if (searchFocused) return;
+    const timer = setInterval(() => {
+      setPlaceholderIndex((prev) => (prev + 1) % rotatingWords.length);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [searchFocused, rotatingWords.length]);
+
+  useEffect(() => {
+    if (!searchOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (!searchRef.current) return;
+      if (!searchRef.current.contains(e.target as Node)) {
+        closeSearch();
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [searchOpen]);
+
+  useEffect(() => {
     if (!menuOpen) return;
     function handleClickOutside(e: MouseEvent) {
       if (!avatarMenuRef.current) return;
-      if (!avatarMenuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
+      if (!avatarMenuRef.current.contains(e.target as Node)) setMenuOpen(false);
     }
-
-    function handleEscape(e: globalThis.KeyboardEvent) {
-      if (e.key === "Escape") {
-        setMenuOpen(false);
-      }
-    }
-
     document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("keydown", handleEscape);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleEscape);
-    };
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [menuOpen]);
 
   useEffect(() => {
-    if (!menuOpen) return;
-    let cancelled = false;
-
-    async function loadMenuData() {
-      setMenuLoading(true);
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user || cancelled) {
-        setMenuLoading(false);
-        return;
-      }
-
-      const { data: profileData } = await supabase
-        .from("user_profiles")
-        .select("shop_id, name, role")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (cancelled) return;
-
-      setAccountName((profileData?.name as string | null) ?? user.user_metadata?.full_name ?? userName);
-      setAccountRole((profileData?.role as string | null) ?? null);
-
-      if (profileData?.shop_id) {
-        const { data: shopData } = await supabase
-          .from("shops")
-          .select("plan_expiry, active")
-          .eq("id", profileData.shop_id)
-          .maybeSingle();
-
-        if (!cancelled) {
-          setPlanExpiry((shopData?.plan_expiry as string | null) ?? null);
-          setShopActive((shopData?.active as boolean | null) ?? null);
-        }
-      }
-
-      if (!cancelled) {
-        setMenuLoading(false);
-      }
-    }
-
-    void loadMenuData();
-    return () => {
-      cancelled = true;
-    };
-  }, [menuOpen, userName]);
-
-  useEffect(() => {
     const q = query.trim();
-    if (q.length < 2) {
-      setResults([]);
-      setActiveIndex(-1);
+    if (!searchOpen || q.length < 3) {
+      setDbResults([]);
       setSearchError(null);
       return;
     }
@@ -169,59 +175,136 @@ export default function DashboardHeader({
         const res = await globalSearch(q);
         if (!res.success) {
           setSearchError(res.error);
-          setResults([]);
-          setActiveIndex(-1);
+          setDbResults([]);
           return;
         }
         setSearchError(null);
-        setResults(res.data ?? []);
-        setActiveIndex(-1);
+        setDbResults(res.data ?? []);
       });
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, searchOpen]);
 
-  function handleResultClick(result: GlobalSearchResult) {
-    setSearchFocused(false);
-    setQuery("");
-    setResults([]);
+  const commandItems = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const nav = NAV_COMMANDS.filter((c) => matchesQuery(q, [c.label, c.hint]));
 
-    if (result.type === "customer") {
-      router.push(`/dashboard/customers?q=${encodeURIComponent(result.nombre || result.email || result.telefono || "")}&customerId=${result.id}`);
+    const action = ACTION_COMMANDS.filter((c) => {
+      if (!q) return true;
+      if (c.action === "toggleTheme") return matchesQuery(q, ["oscuro", "claro", c.label, c.hint]);
+      return matchesQuery(q, ["cerrar", "salir", c.label, c.hint]);
+    });
+
+    const stock: CommandData[] = dbResults.filter((r) => r.type === "stock").map((r) => ({ id: `stock-${r.id}`, kind: "data", value: r }));
+    const services: CommandData[] = dbResults.filter((r) => r.type === "service").map((r) => ({ id: `service-${r.id}`, kind: "data", value: r }));
+    const people: CommandData[] = dbResults
+      .filter((r) => r.type === "customer" || r.type === "staff")
+      .map((r) => ({ id: `${r.type}-${r.id}`, kind: "data", value: r }));
+    return {
+      nav,
+      action,
+      stock,
+      services,
+      people,
+      flat: [...action, ...nav, ...stock, ...services, ...people] as CommandItem[],
+    };
+  }, [query, dbResults]);
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [commandItems.flat.length, query]);
+
+  function closeSearch(immediate = false) {
+    const clear = () => {
+      setQuery("");
+      setDbResults([]);
+      setSearchError(null);
+    };
+
+    if (immediate) {
+      setShowSearchDropdown(false);
+      setSearchOpen(false);
+      setSearchInputReady(false);
+      clear();
       return;
     }
 
-    const date = new Date(result.start_time);
-    const dateParam = Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
-    router.push(`/dashboard/calendar?date=${encodeURIComponent(dateParam)}&appointmentId=${result.id}`);
+    setShowSearchDropdown(false);
+    setTimeout(() => {
+      setSearchOpen(false);
+      setSearchInputReady(false);
+      clear();
+    }, 140);
   }
 
-  function handleSearchKeyDown(e: KeyboardEvent<HTMLInputElement>) {
-    if (!searchFocused || results.length === 0) return;
-
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setActiveIndex((prev) => (prev + 1) % results.length);
+  async function execute(item: CommandItem) {
+    if (item.kind === "data") {
+      const result = item.value;
+      closeSearch(true);
+      if (result.type === "customer") {
+        router.push(`/dashboard/customers?q=${encodeURIComponent(result.nombre || result.telefono || "")}&customerId=${result.id}`);
+        return;
+      }
+      if (result.type === "stock") {
+        router.push("/dashboard/inventory");
+        return;
+      }
+      if (result.type === "service") {
+        router.push("/dashboard/services");
+        return;
+      }
+      router.push("/dashboard/staff");
       return;
     }
 
-    if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setActiveIndex((prev) => (prev <= 0 ? results.length - 1 : prev - 1));
+    if (item.kind === "nav") {
+      closeSearch(true);
+      router.push(item.to);
       return;
     }
 
-    if (e.key === "Enter") {
-      e.preventDefault();
-      const target = activeIndex >= 0 ? results[activeIndex] : results[0];
-      if (target) handleResultClick(target);
+    if (item.action === "toggleTheme") {
+      toggleDark();
+      closeSearch(true);
       return;
     }
 
+    startLogoutTransition(async () => {
+      await onLogout();
+      router.refresh();
+      closeSearch(true);
+    });
+  }
+
+  function onPaletteKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      if (!searchOpen) setSearchOpen(true);
+      return;
+    }
+
+    const total = commandItems.flat.length;
     if (e.key === "Escape") {
       e.preventDefault();
-      setSearchFocused(false);
+      closeSearch();
+      inputRef.current?.blur();
+      return;
+    }
+    if (total === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((v) => (v + 1) % total);
+      return;
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((v) => (v <= 0 ? total - 1 : v - 1));
+      return;
+    }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      void execute(commandItems.flat[activeIndex]);
     }
   }
 
@@ -247,106 +330,286 @@ export default function DashboardHeader({
         </h2>
 
         <div className="hidden sm:flex flex-1 justify-center">
-          <div
-            ref={searchBoxRef}
-            className={`relative transition-all duration-300 ease-out ${
-              searchFocused ? "w-80" : "w-56"
-            }`}
+          <motion.div
+            ref={searchRef}
+            animate={{ width: searchOpen ? SEARCH_EXPANDED_WIDTH : SEARCH_COLLAPSED_WIDTH }}
+            transition={{ duration: 0.24, ease: "easeOut" }}
+            className="relative"
           >
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
             <input
-              ref={searchRef}
               type="text"
-              placeholder="Buscar turnos, clientes..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onFocus={() => setSearchFocused(true)}
-              onKeyDown={handleSearchKeyDown}
-              className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 pl-9 pr-4 py-2 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/40 transition-all"
+              name="username"
+              autoComplete="username"
+              tabIndex={-1}
+              aria-hidden="true"
+              className="absolute opacity-0 pointer-events-none h-0 w-0"
             />
-            {searchFocused && (query.trim().length >= 2 || isPending || searchError) && (
-              <div className="absolute top-11 left-0 right-0 z-50 rounded-2xl border border-white/20 dark:border-white/10 bg-white/90 dark:bg-black/80 backdrop-blur-xl shadow-xl overflow-hidden">
-                {isPending ? (
-                  <div className="px-4 py-3 text-sm text-zinc-500">Buscando...</div>
-                ) : searchError ? (
-                  <div className="px-4 py-3 text-sm text-red-600">{searchError}</div>
-                ) : results.length === 0 ? (
-                  <div className="px-4 py-3 text-sm text-zinc-500">Sin resultados</div>
-                ) : (
-                  <ul>
-                    {results.map((result, index) => (
-                      <li key={`${result.type}-${result.id}`}>
-                        <button
-                          type="button"
-                          onClick={() => handleResultClick(result)}
-                          onMouseEnter={() => setActiveIndex(index)}
-                          className={`w-full px-4 py-2.5 text-left transition-colors ${
-                            index === activeIndex
-                              ? "bg-white/80 dark:bg-white/15"
-                              : "hover:bg-white/70 dark:hover:bg-white/10"
-                          }`}
-                        >
-                          <div className="text-sm text-gray-900 dark:text-white">
-                            {result.type === "customer"
-                              ? result.nombre || result.email || result.telefono || "Cliente"
-                              : result.customer_name || "Turno"}
-                          </div>
-                          <div className="text-xs text-zinc-500">
-                            {result.type === "customer"
-                              ? `${result.email || "Sin email"} · ${result.telefono || "Sin tel"}`
-                              : `Turno · ${new Date(result.start_time).toLocaleString("es-AR")}`}
-                          </div>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-          </div>
+            <input
+              type="password"
+              name="password"
+              autoComplete="current-password"
+              tabIndex={-1}
+              aria-hidden="true"
+              className="absolute opacity-0 pointer-events-none h-0 w-0"
+            />
+            <div className="rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-4 py-2 text-sm text-zinc-500 transition-all flex items-center">
+              <Search className="w-4 h-4 mr-3" />
+              {!searchFocused && query.trim().length === 0 && (
+                <div className="absolute left-11 right-24 pointer-events-none flex items-center text-sm">
+                  <span className="text-zinc-500">Buscá </span>
+                  <span className="relative ml-1 inline-flex w-[12ch] overflow-hidden h-5 items-center text-zinc-400">
+                    <AnimatePresence mode="wait">
+                      <motion.span
+                        key={rotatingWords[placeholderIndex]}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        transition={{ duration: 0.24, ease: "easeOut" }}
+                        className="absolute left-0"
+                      >
+                        {rotatingWords[placeholderIndex]}
+                      </motion.span>
+                    </AnimatePresence>
+                  </span>
+                </div>
+              )}
+              <input
+                ref={inputRef}
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  if (!searchOpen) playSearchExpand();
+                  setSearchOpen(true);
+                }}
+                onFocus={() => {
+                  if (!searchOpen) playSearchExpand();
+                  setSearchOpen(true);
+                  setSearchInputReady(true);
+                  setSearchFocused(true);
+                }}
+                onBlur={() => setSearchFocused(false)}
+                onKeyDown={onPaletteKeyDown}
+                placeholder={searchFocused ? "Escribí para buscar..." : ""}
+                autoComplete="one-time-code"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                name="klip-global-search"
+                id="search-input-klip"
+                type="search"
+                inputMode="search"
+                data-lpignore="true"
+                data-form-type="other"
+                data-1p-ignore="true"
+                aria-autocomplete="none"
+                readOnly={!searchInputReady}
+                className="flex-1 bg-transparent outline-none text-zinc-700 dark:text-zinc-100 placeholder-zinc-400"
+              />
+              {!searchOpen && query.trim().length === 0 && (
+                <span className="inline-flex items-center gap-1 text-xs text-zinc-300 dark:text-zinc-500">
+                  <span>Ctrl</span>
+                  <span className="text-[11px]">+</span>
+                  <span className="text-sm leading-none">K</span>
+                </span>
+              )}
+            </div>
+
+            <AnimatePresence>
+              {showSearchDropdown && (query.trim().length > 0 || commandItems.flat.length > 0 || isPending || searchError) && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 8 }}
+                  className="absolute top-12 left-0 right-0 z-[70] rounded-2xl border border-black/[0.05] dark:border-white/10 bg-white/90 dark:bg-black/78 backdrop-blur-[16px] shadow-[0_24px_64px_rgba(0,0,0,0.18)] overflow-hidden"
+                >
+                  <div className="max-h-[56vh] overflow-y-auto p-2">
+                    {searchError && <p className="px-3 py-2 text-sm text-red-600">{searchError}</p>}
+                    {isPending && <p className="px-3 py-2 text-sm text-zinc-500">Buscando...</p>}
+
+                    {commandItems.action.length > 0 && (
+                      <>
+                        <p className="px-3 pt-2 pb-1 text-[11px] uppercase tracking-wide text-zinc-500">Acciones</p>
+                        {commandItems.action.map((item) => {
+                          const flatIndex = commandItems.flat.findIndex((x) => x.id === item.id);
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onMouseEnter={() => setActiveIndex(flatIndex)}
+                              onClick={() => void execute(item)}
+                              className={`w-full text-left px-3 py-2 rounded-lg border-l-4 transition-all ${
+                                flatIndex === activeIndex
+                                  ? "bg-[#E6F2FF] border-l-[#0071E3] text-[#0f2f57]"
+                                  : "border-l-transparent hover:bg-white/70 dark:hover:bg-zinc-900/40"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <p className="text-sm">{item.label}</p>
+                                  <p className="text-xs text-zinc-500">{item.hint}</p>
+                                </div>
+                                <span className="text-xs text-zinc-500">↵</span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </>
+                    )}
+
+                    {commandItems.nav.length > 0 && (
+                      <>
+                        <p className="px-3 pt-2 pb-1 text-[11px] uppercase tracking-wide text-zinc-500">Acciones</p>
+                        {commandItems.nav.map((item) => {
+                          const flatIndex = commandItems.flat.findIndex((x) => x.id === item.id);
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onMouseEnter={() => setActiveIndex(flatIndex)}
+                              onClick={() => void execute(item)}
+                              className={`w-full text-left px-3 py-2 rounded-lg border-l-4 transition-all ${
+                                flatIndex === activeIndex
+                                  ? "bg-[#E6F2FF] border-l-[#0071E3] text-[#0f2f57]"
+                                  : "border-l-transparent hover:bg-white/70 dark:hover:bg-zinc-900/40"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <p className="text-sm">{item.label}</p>
+                                  <p className="text-xs text-zinc-500">{item.hint}</p>
+                                </div>
+                                <span className="text-xs text-zinc-500">↵</span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </>
+                    )}
+
+                    {commandItems.stock.length > 0 && (
+                      <>
+                        <p className="px-3 pt-2 pb-1 text-[11px] uppercase tracking-wide text-zinc-500">📦 Stock</p>
+                        {commandItems.stock.map((item) => {
+                          const flatIndex = commandItems.flat.findIndex((x) => x.id === item.id);
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onMouseEnter={() => setActiveIndex(flatIndex)}
+                              onClick={() => void execute(item)}
+                              className={`w-full text-left px-3 py-2 rounded-lg border-l-4 transition-all ${
+                                flatIndex === activeIndex
+                                  ? "bg-[#E6F2FF] border-l-[#0071E3] text-[#0f2f57]"
+                                  : "border-l-transparent hover:bg-white/70 dark:hover:bg-zinc-900/40"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <p className="text-sm">{formatDataLabel(item.value)}</p>
+                                  <p className={`text-xs ${(item.value.type === "stock" && item.value.quantity < 3) ? "text-red-600" : "text-zinc-500"}`}>{formatDataHint(item.value)}</p>
+                                </div>
+                                <span className="text-xs text-zinc-500">↵</span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </>
+                    )}
+
+                    {commandItems.services.length > 0 && (
+                      <>
+                        <p className="px-3 pt-2 pb-1 text-[11px] uppercase tracking-wide text-zinc-500">✂️ Servicios</p>
+                        {commandItems.services.map((item) => {
+                          const flatIndex = commandItems.flat.findIndex((x) => x.id === item.id);
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onMouseEnter={() => setActiveIndex(flatIndex)}
+                              onClick={() => void execute(item)}
+                              className={`w-full text-left px-3 py-2 rounded-lg border-l-4 transition-all ${
+                                flatIndex === activeIndex
+                                  ? "bg-[#E6F2FF] border-l-[#0071E3] text-[#0f2f57]"
+                                  : "border-l-transparent hover:bg-white/70 dark:hover:bg-zinc-900/40"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <p className="text-sm">{formatDataLabel(item.value)}</p>
+                                  <p className="text-xs text-zinc-500">{formatDataHint(item.value)}</p>
+                                </div>
+                                <span className="text-xs text-zinc-500">↵</span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </>
+                    )}
+
+                    {commandItems.people.length > 0 && (
+                      <>
+                        <p className="px-3 pt-2 pb-1 text-[11px] uppercase tracking-wide text-zinc-500">👤 Personas</p>
+                        {commandItems.people.map((item) => {
+                          const flatIndex = commandItems.flat.findIndex((x) => x.id === item.id);
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onMouseEnter={() => setActiveIndex(flatIndex)}
+                              onClick={() => void execute(item)}
+                              className={`w-full text-left px-3 py-2 rounded-lg border-l-4 transition-all ${
+                                flatIndex === activeIndex
+                                  ? "bg-[#E6F2FF] border-l-[#0071E3] text-[#0f2f57]"
+                                  : "border-l-transparent hover:bg-white/70 dark:hover:bg-zinc-900/40"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <p className="text-sm">{formatDataLabel(item.value)}</p>
+                                  <p className="text-xs text-zinc-500">{formatDataHint(item.value)}</p>
+                                </div>
+                                <span className="text-xs text-zinc-500">↵</span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </>
+                    )}
+
+                    {!isPending && commandItems.flat.length === 0 && !searchError && query.trim().length > 0 && (
+                      <p className="px-3 py-6 text-sm text-zinc-500 text-center">Sin resultados</p>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
         </div>
 
         <div className="flex items-center gap-3 ml-auto">
           <div ref={avatarMenuRef} className="relative">
-            <button
-              type="button"
-              onClick={() => setMenuOpen((v) => !v)}
-              className="w-9 h-9 rounded-full bg-violet-600 border border-violet-500/80 flex items-center justify-center text-sm font-semibold text-white shrink-0 select-none hover:bg-violet-500 transition-colors"
-              title={userName}
-            >
-              {getInitials(userName)}
-            </button>
+            <div className="flex flex-col items-end gap-1">
+              <button
+                type="button"
+                onClick={() => setMenuOpen((v) => !v)}
+                className="relative h-10 w-10 rounded-full bg-[#0071E3] border border-[#0b7ff2] flex items-center justify-center text-sm font-semibold text-white shrink-0 select-none hover:bg-[#0b7ff2] transition-colors"
+                title={userName}
+              >
+                <span className="-translate-y-[2px]">{getInitials(userName)}</span>
+                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-[30%] rounded-full bg-[#0071E3] px-1.5 py-[1px] text-[9px] font-semibold leading-none text-white shadow-[0_2px_6px_rgba(0,113,227,0.45)] border border-[#5da9f4]">
+                  24d
+                </span>
+              </button>
+            </div>
 
             {menuOpen && (
               <div className="absolute right-0 mt-2 w-64 rounded-2xl border border-white/20 dark:border-white/10 bg-white/95 dark:bg-black/85 backdrop-blur-xl shadow-xl overflow-hidden z-50">
                 <div className="px-3 py-2 border-b border-white/20 dark:border-white/10">
                   <p className="text-xs text-zinc-500">Cuenta</p>
                   <p className="text-sm text-gray-900 dark:text-white truncate">{userEmail || userName}</p>
+                  <p className="text-[10px] font-medium text-slate-400 mt-1">PLAN PRO • 24 DIAS RESTANTES</p>
                 </div>
-                <div className="p-3 space-y-4 max-h-[70vh] overflow-y-auto">
-                  <div>
-                    <p className="text-xs text-zinc-500">Nombre</p>
-                    <p className="text-sm text-gray-900 dark:text-white">{accountName || userName}</p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <p className="text-xs text-zinc-500">Rol</p>
-                      <p className="text-gray-900 dark:text-white capitalize">{accountRole || "-"}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-zinc-500">Estado</p>
-                      <p className={shopActive ? "text-green-600" : "text-red-600"}>{shopActive === null ? "-" : shopActive ? "Activo" : "Inactivo"}</p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <p className="text-xs text-zinc-500">Vencimiento del plan</p>
-                    <p className="text-sm text-gray-900 dark:text-white">
-                      {planExpiry ? new Date(planExpiry).toLocaleDateString("es-AR") : "-"}
-                    </p>
-                  </div>
-
+                <div className="p-3 space-y-3">
                   <div className="flex items-center justify-between rounded-xl border border-white/20 dark:border-white/10 px-3 py-2">
                     <div className="flex items-center gap-2 text-sm text-gray-800 dark:text-gray-100">
                       {dark ? <Moon className="w-4 h-4 text-violet-500" /> : <Sun className="w-4 h-4 text-amber-500" />}
@@ -372,7 +635,7 @@ export default function DashboardHeader({
                         const next = !soundEnabled;
                         setSoundEnabled(next);
                         setMuted(!next);
-                        if (next) playPop();
+                        if (next) playClick();
                       }}
                       className={`relative w-10 h-5 rounded-full transition-colors ${soundEnabled ? "bg-violet-600" : "bg-gray-300"}`}
                     >
@@ -380,15 +643,13 @@ export default function DashboardHeader({
                     </button>
                   </div>
 
-                  {menuLoading && <p className="text-xs text-zinc-500">Cargando datos...</p>}
-
                   <button
                     type="button"
                     onClick={handleLogoutClick}
                     disabled={logoutPending}
                     className="block w-full text-left px-3 py-2 rounded-xl text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors disabled:opacity-60"
                   >
-                    {logoutPending ? "Cerrando sesión..." : "Cerrar Sesión"}
+                    {logoutPending ? "Cerrando sesion..." : "Cerrar Sesion"}
                   </button>
                 </div>
               </div>
@@ -422,7 +683,9 @@ export default function DashboardHeader({
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
             >
               <div className="flex items-center justify-between px-4 py-3 border-b border-white/20 dark:border-white/10 bg-white/30 dark:bg-black/30 backdrop-blur-3xl">
-                <h1 className="text-xl font-bold text-violet-700 tracking-tight">Klip</h1>
+                <div className="inline-flex items-center gap-2">
+                  <span className="text-xl font-bold tracking-tight text-[#0071E3]">Klip</span>
+                </div>
                 <button
                   onClick={() => setMobileOpen(false)}
                   className="p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-white/60 transition-all cursor-pointer select-none"
@@ -432,15 +695,27 @@ export default function DashboardHeader({
               </div>
               <DashboardSidebar
                 userName={userName}
+                showBrand={false}
                 onLogout={() => {
                   setMobileOpen(false);
-                  onLogout();
+                  void onLogout();
                 }}
               />
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      <style jsx global>{`
+        #search-input-klip::-webkit-search-decoration,
+        #search-input-klip::-webkit-search-cancel-button,
+        #search-input-klip::-webkit-search-results-button,
+        #search-input-klip::-webkit-search-results-decoration {
+          -webkit-appearance: none;
+          appearance: none;
+          display: none;
+        }
+      `}</style>
     </>
   );
 }

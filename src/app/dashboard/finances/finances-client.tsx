@@ -204,8 +204,8 @@ export default function FinancesClient({
           onClick={() => handlePreset("today")}
           className={`px-5 py-2 rounded-full text-sm font-medium transition-all cursor-pointer select-none ${
             isToday
-              ? "bg-white/40 backdrop-blur-md border border-white/20 text-gray-900 dark:text-white shadow-sm"
-              : "bg-white/10 border border-white/10 text-zinc-600 dark:text-zinc-300 hover:bg-white/20"
+              ? "bg-white/40 dark:bg-[#1c1c1e] backdrop-blur-md border border-white/20 dark:border-zinc-700 text-gray-900 dark:text-white shadow-sm"
+              : "bg-white/10 dark:bg-[#1c1c1e]/70 border border-white/10 dark:border-zinc-700/50 text-zinc-600 dark:text-zinc-300 hover:bg-white/20 dark:hover:bg-white/10"
           }`}
         >
           Hoy
@@ -214,8 +214,8 @@ export default function FinancesClient({
           onClick={() => handlePreset("month")}
           className={`px-5 py-2 rounded-full text-sm font-medium transition-all cursor-pointer select-none ${
             isMonth
-              ? "bg-white/40 backdrop-blur-md border border-white/20 text-gray-900 dark:text-white shadow-sm"
-              : "bg-white/10 border border-white/10 text-zinc-600 dark:text-zinc-300 hover:bg-white/20"
+              ? "bg-white/40 dark:bg-[#1c1c1e] backdrop-blur-md border border-white/20 dark:border-zinc-700 text-gray-900 dark:text-white shadow-sm"
+              : "bg-white/10 dark:bg-[#1c1c1e]/70 border border-white/10 dark:border-zinc-700/50 text-zinc-600 dark:text-zinc-300 hover:bg-white/20 dark:hover:bg-white/10"
           }`}
         >
           Este mes
@@ -223,14 +223,14 @@ export default function FinancesClient({
         <div className="flex items-center gap-1">
           <button
             onClick={() => shiftMonth(-1)}
-            className="p-2 rounded-full text-zinc-500 dark:text-zinc-400 hover:bg-white/20 transition-colors cursor-pointer select-none"
+            className="p-2 rounded-full text-zinc-500 dark:text-zinc-400 hover:bg-white/20 dark:hover:bg-white/10 transition-colors cursor-pointer select-none"
             title="Mes anterior"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           </button>
           <button
             onClick={() => shiftMonth(1)}
-            className="p-2 rounded-full text-zinc-500 dark:text-zinc-400 hover:bg-white/20 transition-colors cursor-pointer select-none"
+            className="p-2 rounded-full text-zinc-500 dark:text-zinc-400 hover:bg-white/20 dark:hover:bg-white/10 transition-colors cursor-pointer select-none"
             title="Mes siguiente"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
@@ -241,14 +241,14 @@ export default function FinancesClient({
           type="date"
           value={from}
           onChange={(e) => setFrom(e.target.value)}
-          className="rounded-full bg-white/40 backdrop-blur-md border border-white/20 px-4 py-2 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-50 [color-scheme:light] dark:[color-scheme:dark] cursor-pointer"
+          className="rounded-full bg-white/40 dark:bg-[#1c1c1e] backdrop-blur-md border border-white/20 dark:border-zinc-700 px-4 py-2 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-50 [color-scheme:light] dark:[color-scheme:dark] cursor-pointer"
         />
         <span className="text-zinc-400 text-xs select-none">→</span>
         <input
           type="date"
           value={to}
           onChange={(e) => setTo(e.target.value)}
-          className="rounded-full bg-white/40 backdrop-blur-md border border-white/20 px-4 py-2 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-50 [color-scheme:light] dark:[color-scheme:dark] cursor-pointer"
+          className="rounded-full bg-white/40 dark:bg-[#1c1c1e] backdrop-blur-md border border-white/20 dark:border-zinc-700 px-4 py-2 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-50 [color-scheme:light] dark:[color-scheme:dark] cursor-pointer"
         />
         <button
           onClick={applyCustomRange}
@@ -259,7 +259,7 @@ export default function FinancesClient({
         <div className="ml-auto">
           <button
             onClick={handleExport}
-            className="p-3 rounded-full bg-white/20 backdrop-blur-md border border-white/20 text-gray-600 dark:text-gray-300 hover:bg-white/30 transition-all cursor-pointer select-none"
+            className="p-3 rounded-full bg-white/20 dark:bg-[#1c1c1e]/60 backdrop-blur-md border border-white/20 dark:border-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-white/30 dark:hover:bg-white/10 transition-all cursor-pointer select-none"
             title="Compartir resumen"
           >
             <Share2 className="w-5 h-5" />
@@ -302,7 +302,7 @@ export default function FinancesClient({
               {[1, 2, 3].map((i) => (
                 <div
                   key={i}
-                  className="bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2.5rem] border border-white/10 dark:border-white/5 p-6 animate-pulse"
+                  className="bg-white/20 dark:bg-[#1c1c1e] backdrop-blur-3xl rounded-[2.5rem] border border-white/10 dark:border-white/5 p-6 animate-pulse"
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-full bg-white/20 dark:bg-white/10" />
@@ -315,7 +315,7 @@ export default function FinancesClient({
                 </div>
               ))}
             </div>
-            <div className="bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2.5rem] border border-white/10 dark:border-white/5 overflow-hidden animate-pulse">
+            <div className="bg-white/20 dark:bg-[#1c1c1e] backdrop-blur-3xl rounded-[2.5rem] border border-white/10 dark:border-white/5 overflow-hidden animate-pulse">
               <div className="px-6 py-4 border-b border-white/10">
                 <div className="h-5 w-24 rounded-full bg-white/20 dark:bg-white/10" />
               </div>
@@ -350,33 +350,33 @@ export default function FinancesClient({
             <>
               {/* Summary Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-6 flex items-center gap-4 bg-gradient-to-br from-white/30 to-white/10">
+                <div className="bg-white dark:bg-[#1c1c1e] rounded-[2.5rem] border border-white/10 dark:border-white/10 shadow-2xl shadow-black/[0.03] p-6 flex items-center gap-4">
                   <div className="p-3 rounded-full bg-green-500/15">
                     <TrendingUp className="w-5 h-5 text-emerald-500" />
                   </div>
                   <div>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">Ingresos</p>
-                    <p className="text-xl font-bold tracking-tighter text-gray-900 dark:text-white">
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Ingresos</p>
+                    <p className="text-xl font-bold tracking-tighter text-slate-900 dark:text-white">
                       ${data.totalIncome.toFixed(2)}
                     </p>
-                    <p className="text-xs text-zinc-400 dark:text-zinc-500">{data.appointmentsCount} turnos</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{data.appointmentsCount} turnos</p>
                   </div>
                 </div>
 
-                <div className="bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-6 flex items-center gap-4 bg-gradient-to-br from-white/30 to-white/10">
+                <div className="bg-white dark:bg-[#1c1c1e] rounded-[2.5rem] border border-white/10 dark:border-white/10 shadow-2xl shadow-black/[0.03] p-6 flex items-center gap-4">
                   <div className="p-3 rounded-full bg-red-500/15">
                     <TrendingDown className="w-5 h-5 text-red-500" />
                   </div>
                   <div>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">Gastos</p>
-                    <p className="text-xl font-bold tracking-tighter text-gray-900 dark:text-white">
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Gastos</p>
+                    <p className="text-xl font-bold tracking-tighter text-slate-900 dark:text-white">
                       ${data.totalExpenses.toFixed(2)}
                     </p>
-                    <p className="text-xs text-zinc-400 dark:text-zinc-500">{data.expenses.length} registros</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{data.expenses.length} registros</p>
                   </div>
                 </div>
 
-                <div className={`bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2.5rem] border border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-6 flex items-center gap-4 bg-gradient-to-br from-white/30 to-white/10 ${
+                <div className={`bg-white/20 dark:bg-[#1c1c1e] backdrop-blur-3xl rounded-[2.5rem] border border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-6 flex items-center gap-4 bg-gradient-to-br from-white/30 to-white/10 ${
                   data.netBalance >= 0
                     ? "border-green-300/60 dark:border-green-500/20"
                     : "border-red-300/60 dark:border-red-500/20"
@@ -402,7 +402,7 @@ export default function FinancesClient({
               </div>
 
               {/* Movements (Apple-style list) */}
-              <div className="bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden">
+              <div className="bg-white/20 dark:bg-[#1c1c1e] backdrop-blur-3xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden">
                 <div className="px-6 py-4 border-b border-white/10">
                   <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Movimientos</h2>
                 </div>
@@ -411,8 +411,7 @@ export default function FinancesClient({
                     {data.recentMovements.map((movement) => (
                       <motion.div
                         key={`${movement.type}-${movement.id}`}
-                        whileHover={{ backgroundColor: "rgba(255,255,255,0.4)" }}
-                        className="flex items-center gap-4 px-6 py-4 transition-colors"
+                        className="flex items-center gap-4 px-6 py-4 transition-colors hover:bg-white/20 dark:hover:bg-white/10"
                       >
                         <div className={`p-2.5 rounded-full flex-shrink-0 ${
                           movement.type === "expense" ? "bg-red-500/15" : "bg-green-500/15"
@@ -459,7 +458,7 @@ export default function FinancesClient({
               </div>
 
               {/* Expenses section */}
-              <div className="bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden">
+              <div className="bg-white/20 dark:bg-[#1c1c1e] backdrop-blur-3xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
                   <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Gastos registrados</h2>
                   <button
@@ -482,8 +481,7 @@ export default function FinancesClient({
                     {expenses.map((exp) => (
                       <motion.div
                         key={exp.id}
-                        whileHover={{ backgroundColor: "rgba(255,255,255,0.4)" }}
-                        className="flex items-center gap-4 px-6 py-4 transition-colors"
+                        className="flex items-center gap-4 px-6 py-4 transition-colors hover:bg-white/20 dark:hover:bg-white/10"
                       >
                         <div className="p-2.5 rounded-full bg-red-500/15 flex-shrink-0">
                           <TrendingDown className="w-4 h-4 text-red-500" />
@@ -533,7 +531,7 @@ export default function FinancesClient({
                       exit={{ scale: 0.95, opacity: 0 }}
                       transition={{ duration: 0.2 }}
                       onClick={(e) => e.stopPropagation()}
-                      className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] w-full max-w-md mx-4 overflow-hidden"
+                      className="bg-white/20 dark:bg-[#1c1c1e] backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] w-full max-w-md mx-4 overflow-hidden"
                     >
                       <div className="flex items-center justify-between px-6 py-4 border-b border-white/20 dark:border-white/10">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Nuevo Gasto</h3>

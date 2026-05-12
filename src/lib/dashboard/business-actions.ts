@@ -235,6 +235,19 @@ export async function updateWhatsappTemplateAction(template: string): Promise<Ac
     const shopId = shopIdResult.data;
     const admin = await createAdminClient();
 
+    const { data: shopData, error: shopError } = await admin
+      .from("shops")
+      .select("address, nombre")
+      .eq("id", shopId)
+      .single();
+
+    if (shopError) return { success: false, error: shopError.message };
+
+    const place = String(shopData?.address || shopData?.nombre || "").trim();
+    if (!place) {
+      return { success: false, error: "La ubicación es indispensable para el cliente" };
+    }
+
     const { error } = await admin
       .from("shops")
       .update({ whatsapp_template: template })

@@ -1,1 +1,3 @@
-export const DEFAULT_WHATSAPP_TEMPLATE = "Hola {Nombre}! ✂️ Te recordamos tu turno en {Peluqueria} a las {Hora}. ¡Te esperamos!";
+export const DEFAULT_WHATSAPP_TEMPLATE = "Hola {Nombre}! Te esperamos a las {Hora} en {Lugar}.";
+
+export const REQUIRED_WHATSAPP_PLACEHOLDERS = ["{Hora}", "{Lugar}"] as const;

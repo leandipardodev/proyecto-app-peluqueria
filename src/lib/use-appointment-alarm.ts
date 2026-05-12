@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { playPing } from "./sound";
+import { playSound } from "./sound";
 
 const NOTIFIED_KEY = "klip_notified_appointments";
 
@@ -37,7 +37,7 @@ export function useAppointmentAlarm(
         const diff = start - now;
 
         if (diff > 0 && diff <= 3600000) {
-          playPing();
+          playSound("notification", 0.45);
           notified.add(apt.id);
           changed = true;
         }

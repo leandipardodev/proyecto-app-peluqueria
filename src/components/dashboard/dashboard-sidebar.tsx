@@ -7,25 +7,22 @@ import {
   Home,
   CalendarDays,
   Clock,
-  Scissors,
   Package,
-  Users,
   UserRound,
   LogOut,
   Wallet,
   Store,
 } from "lucide-react";
+import { useKlipSounds } from "@/lib/use-klip-sounds";
 
 const navItems = [
   { label: "Inicio", href: "/dashboard", icon: Home },
   { label: "Calendario", href: "/dashboard/calendar", icon: CalendarDays },
-  { label: "Mi Negocio", href: "/dashboard/business", icon: Store },
   { label: "Turnos", href: "/dashboard/appointments", icon: Clock },
-  { label: "Servicios", href: "/dashboard/services", icon: Scissors },
   { label: "Clientes", href: "/dashboard/customers", icon: UserRound },
-  { label: "Finanzas", href: "/dashboard/finances", icon: Wallet },
   { label: "Inventario", href: "/dashboard/inventory", icon: Package },
-  { label: "Personal", href: "/dashboard/staff", icon: Users },
+  { label: "Finanzas", href: "/dashboard/finances", icon: Wallet },
+  { label: "Mi Negocio", href: "/dashboard/business", icon: Store },
 ];
 
 const containerVariants = {
@@ -45,6 +42,7 @@ interface DashboardSidebarProps {
   onLogout: () => void;
   className?: string;
   notifications?: { urgentAppointments?: boolean; lowStock?: boolean };
+  showBrand?: boolean;
 }
 
 export default function DashboardSidebar({
@@ -52,8 +50,10 @@ export default function DashboardSidebar({
   onLogout,
   className = "",
   notifications,
+  showBrand = true,
 }: DashboardSidebarProps) {
   const pathname = usePathname();
+  const { playClick } = useKlipSounds();
 
   return (
     <AnimatePresence mode="wait">
@@ -65,9 +65,14 @@ export default function DashboardSidebar({
         exit={{ x: -300, opacity: 0, transition: { duration: 0.2, ease: "easeIn" } }}
         transition={{ type: "spring", damping: 25, stiffness: 200 }}
       >
-      <div className="px-6 pt-8 pb-6">
-        <h1 className="text-2xl font-bold text-violet-700 dark:text-white tracking-tight">Klip</h1>
-      </div>
+      {showBrand && (
+        <div className="px-6 pt-9 pb-7">
+          <motion.div whileHover={{ scale: 1.02 }} transition={{ type: "spring", stiffness: 360, damping: 22 }} className="inline-flex items-center gap-2">
+            <span className="text-2xl font-bold tracking-tight text-[#0071E3]">Klip</span>
+          </motion.div>
+          <div className="mt-5 h-px bg-black/5 dark:bg-white/10" />
+        </div>
+      )}
 
       <LayoutGroup>
         <motion.nav
@@ -94,6 +99,7 @@ export default function DashboardSidebar({
               >
                 <Link
                   href={href}
+                  onMouseDown={playClick}
                   className={`relative flex items-center gap-3 px-3 py-3 rounded-2xl text-sm font-medium transition-colors cursor-pointer select-none ${
                     isActive
                       ? "text-violet-700 dark:text-white"
@@ -134,6 +140,7 @@ export default function DashboardSidebar({
             transition={{ type: "spring", stiffness: 400, damping: 15 }}
           >
             <button
+              onMouseDown={playClick}
               onClick={onLogout}
               className="p-1.5 rounded-xl text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-white/60 dark:hover:bg-white/5 transition-all cursor-pointer"
               title="Cerrar Sesión"

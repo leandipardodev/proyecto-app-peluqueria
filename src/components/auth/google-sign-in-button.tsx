@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { LogIn, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useKlipSounds } from "@/lib/use-klip-sounds";
 
 type GoogleSignInButtonProps = {
   shopSlug: string;
@@ -11,12 +12,11 @@ type GoogleSignInButtonProps = {
 
 export default function GoogleSignInButton({ shopSlug, className }: GoogleSignInButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const { playClick } = useKlipSounds();
 
   async function handleSignIn() {
     try {
-      if (typeof window !== "undefined") {
-        void new Audio("/sounds/click-soft.mp3").play().catch(() => {});
-      }
+      playClick();
       setIsLoading(true);
       const redirectTo = `${window.location.origin}/auth/callback?next=/book/${shopSlug}`;
 

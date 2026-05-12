@@ -4,23 +4,11 @@ import { createServiceRoleClient, requireShopId } from "@/lib/dashboard/auth-ser
 import type { ActionResult } from "@/lib/types";
 import "server-only";
 
-type GlobalCustomerResult = {
-  type: "customer";
-  id: string;
-  nombre: string | null;
-  email: string | null;
-  telefono: string | null;
-};
-
-type GlobalAppointmentResult = {
-  type: "appointment";
-  id: string;
-  start_time: string;
-  customer_id: string;
-  customer_name: string | null;
-};
-
-export type GlobalSearchResult = GlobalCustomerResult | GlobalAppointmentResult;
+export type OmniSearchResult =
+  | { type: "stock"; id: string; nombre_producto: string; quantity: number }
+  | { type: "service"; id: string; name: string; duration_minutes: number }
+  | { type: "customer"; id: string; nombre: string | null; telefono: string | null }
+  | { type: "staff"; id: string; name: string | null; email: string | null; role: string };
 
 function scoreTextMatch(value: string | null | undefined, query: string) {
   if (!value) return 0;
@@ -31,82 +19,85 @@ function scoreTextMatch(value: string | null | undefined, query: string) {
   return 0;
 }
 
-export async function globalSearch(query: string): Promise<ActionResult<GlobalSearchResult[]>> {
+export async function globalSearch(query: string): Promise<ActionResult<OmniSearchResult[]>> {
   try {
     const q = query.trim();
-    if (q.length < 2) return { success: true, data: [] };
-    const qLower = q.toLowerCase();
+    if (q.length < 3) return { success: true, data: [] };
 
+    const qLower = q.toLowerCase();
     const shopIdResult = await requireShopId();
     if (!shopIdResult.success) return shopIdResult;
     const shopId = shopIdResult.data;
 
     const admin = await createServiceRoleClient();
 
-    const { data: customersRaw, error: customersError } = await admin
-      .from("customers")
-      .select("id, nombre, email, telefono")
-      .eq("shop_id", shopId)
-      .or(`nombre.ilike.%${q}%,email.ilike.%${q}%,telefono.ilike.%${q}%`)
-      .order("nombre", { ascending: true })
-      .limit(6);
+    const [stockRes, servicesRes, customersRes, staffRes] = await Promise.all([
+      admin
+        .from("stock")
+        .select("id, nombre_producto, quantity")
+        .eq("shop_id", shopId)
+        .ilike("nombre_producto", `%${q}%`)
+        .order("nombre_producto", { ascending: true })
+        .limit(8),
+      admin
+        .from("services")
+        .select("id, name, duration_minutes")
+        .eq("shop_id", shopId)
+        .ilike("name", `%${q}%`)
+        .order("name", { ascending: true })
+        .limit(8),
+      admin
+        .from("customers")
+        .select("id, nombre, telefono")
+        .eq("shop_id", shopId)
+        .or(`nombre.ilike.%${q}%,telefono.ilike.%${q}%`)
+        .order("nombre", { ascending: true })
+        .limit(8),
+      admin
+        .from("user_profiles")
+        .select("user_id, name, email, role")
+        .eq("shop_id", shopId)
+        .in("role", ["owner", "staff"])
+        .or(`name.ilike.%${q}%,email.ilike.%${q}%`)
+        .order("name", { ascending: true })
+        .limit(8),
+    ]);
 
-    if (customersError) return { success: false, error: customersError.message };
+    if (stockRes.error) return { success: false, error: stockRes.error.message };
+    if (servicesRes.error) return { success: false, error: servicesRes.error.message };
+    if (customersRes.error) return { success: false, error: customersRes.error.message };
+    if (staffRes.error) return { success: false, error: staffRes.error.message };
 
-    const customers = (customersRaw || []) as Array<{ id: string; nombre: string | null; email: string | null; telefono: string | null }>;
-    const customerResults: GlobalCustomerResult[] = customers
-      .map((c) => ({
-        item: {
-          type: "customer" as const,
-          id: c.id,
-          nombre: c.nombre,
-          email: c.email,
-          telefono: c.telefono,
-        },
-        score:
-          scoreTextMatch(c.nombre, qLower) * 3 +
-          scoreTextMatch(c.email, qLower) * 2 +
-          scoreTextMatch(c.telefono, qLower),
+    const stock = ((stockRes.data || []) as Array<{ id: string; nombre_producto: string; quantity: number }>)
+      .map((item) => ({ item: { type: "stock" as const, ...item }, score: scoreTextMatch(item.nombre_producto, qLower) }))
+      .sort((a, b) => b.score - a.score)
+      .map((r) => r.item);
+
+    const services = ((servicesRes.data || []) as Array<{ id: string; name: string; duration_minutes: number }>)
+      .map((item) => ({ item: { type: "service" as const, ...item }, score: scoreTextMatch(item.name, qLower) }))
+      .sort((a, b) => b.score - a.score)
+      .map((r) => r.item);
+
+    const customers = ((customersRes.data || []) as Array<{ id: string; nombre: string | null; telefono: string | null }>)
+      .map((item) => ({
+        item: { type: "customer" as const, ...item },
+        score: scoreTextMatch(item.nombre, qLower) * 2 + scoreTextMatch(item.telefono, qLower),
       }))
       .sort((a, b) => b.score - a.score)
-      .map((entry) => entry.item);
+      .map((r) => r.item);
 
-    const matchedCustomerIds = customers.map((c) => c.id);
-    if (matchedCustomerIds.length === 0) return { success: true, data: customerResults };
+    const staff = ((staffRes.data || []) as Array<{ user_id: string; name: string | null; email: string | null; role: string }>)
+      .map((item) => ({
+        item: { type: "staff" as const, id: item.user_id, name: item.name, email: item.email, role: item.role },
+        score: scoreTextMatch(item.name, qLower) * 2 + scoreTextMatch(item.email, qLower),
+      }))
+      .sort((a, b) => b.score - a.score)
+      .map((r) => r.item);
 
-    const { data: appointmentsRaw, error: appointmentsError } = await admin
-      .from("appointments")
-      .select("id, start_time, customer_id, customers!inner(nombre)")
-      .eq("shop_id", shopId)
-      .in("customer_id", matchedCustomerIds)
-      .order("start_time", { ascending: false })
-      .limit(6);
-
-    if (appointmentsError) return { success: false, error: appointmentsError.message };
-
-    const appointments = (appointmentsRaw || []) as Array<{ id: string; start_time: string; customer_id: string; customers: { nombre: string | null } | { nombre: string | null }[] | null }>;
-    const appointmentResults: GlobalAppointmentResult[] = appointments
-      .map((apt) => {
-        const customer = Array.isArray(apt.customers) ? apt.customers[0] : apt.customers;
-        const score = scoreTextMatch(customer?.nombre ?? null, qLower);
-        return {
-          item: {
-            type: "appointment" as const,
-            id: apt.id,
-            start_time: apt.start_time,
-            customer_id: apt.customer_id,
-            customer_name: customer?.nombre ?? null,
-          },
-          score,
-        };
-      })
-      .sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score;
-        return new Date(b.item.start_time).getTime() - new Date(a.item.start_time).getTime();
-      })
-      .map((entry) => entry.item);
-
-    return { success: true, data: [...customerResults.slice(0, 6), ...appointmentResults.slice(0, 6)] };
+    return {
+      success: true,
+      data: [...stock, ...services, ...customers, ...staff],
+    };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error en búsqueda global" };
   }

@@ -109,6 +109,18 @@ function extractEmoji(name: string): { emoji: string; label: string } {
   return { emoji: "", label: name };
 }
 
+function hexToRgba(hex: string, alpha: number): string {
+  const clean = hex.replace("#", "");
+  const normalized = clean.length === 3
+    ? clean.split("").map((c) => c + c).join("")
+    : clean;
+  const int = Number.parseInt(normalized, 16);
+  const r = (int >> 16) & 255;
+  const g = (int >> 8) & 255;
+  const b = int & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 const statusLabels: Record<string, string> = {
   scheduled: "Programado",
   confirmed: "Confirmado",
@@ -123,52 +135,10 @@ const DAY_MAP: Record<number, string> = {
   4: "thursday", 5: "friday", 6: "saturday",
 };
 
-function computeOverlapLayout<T extends { id: string; start_time: string; end_time: string }>(
-  dayAppointments: T[]
-): Map<string, { width: number; left: number }> {
-  const layout = new Map<string, { width: number; left: number }>();
-
-  if (dayAppointments.length <= 1) {
-    for (const apt of dayAppointments) {
-      layout.set(apt.id, { width: 100, left: 0 });
-    }
-    return layout;
-  }
-
-  const sorted = [...dayAppointments].sort(
-    (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
-  );
-
-  for (let i = 0; i < sorted.length; i++) {
-    if (layout.has(sorted[i].id)) continue;
-
-    const group: T[] = [sorted[i]];
-    for (let j = i + 1; j < sorted.length; j++) {
-      const overlapsWithGroup = group.some((g) => {
-        const gStart = new Date(g.start_time).getTime();
-        const gEnd = new Date(g.end_time).getTime();
-        const jStart = new Date(sorted[j].start_time).getTime();
-        const jEnd = new Date(sorted[j].end_time).getTime();
-        return gStart < jEnd && gEnd > jStart;
-      });
-      if (overlapsWithGroup) group.push(sorted[j]);
-    }
-
-    for (let k = 0; k < group.length; k++) {
-      layout.set(group[k].id, {
-        width: 100 / group.length,
-        left: (k / group.length) * 100,
-      });
-    }
-  }
-
-  return layout;
-}
-
-function getTopOffset(timeStr: string): number {
+function getGridRow(timeStr: string): number {
   const [h, m] = timeStr.split(":").map(Number);
-  const totalHours = h + m / 60;
-  return (totalHours - GRID_START_HOUR) * HOUR_HEIGHT;
+  const totalMinutes = (h - GRID_START_HOUR) * 60 + m;
+  return 1 + totalMinutes / 60;
 }
 
 export default memo(function CalendarView({
@@ -186,8 +156,12 @@ export default memo(function CalendarView({
   shopName,
 }: CalendarViewProps) {
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+  const weekEnd = addDays(weekStart, 6);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const [viewMode, setViewMode] = useState<"week" | "day">("week");
+  const [focusedDayKey, setFocusedDayKey] = useState(() => getArgentinaDateKey(new Date()));
   const [mounted, setMounted] = useState(false);
+  const [isCoarsePointer, setIsCoarsePointer] = useState(false);
   const [hoverTooltip, setHoverTooltip] = useState<HoverTooltipState | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
@@ -254,19 +228,93 @@ export default memo(function CalendarView({
     return map;
   }, [normalizedAppointments, weekDays]);
 
-  const dayLayouts = useMemo(() => {
-    const layouts = new Map<string, Map<string, { width: number; left: number }>>();
+  const appointmentsByDayHour = useMemo(() => {
+    const map = new Map<string, NormalizedAppointment[]>();
     for (const day of weekDays) {
       const dayStr = getArgentinaDateKey(day);
-      const dayAppts = appointmentsByDay.get(dayStr) || [];
-      layouts.set(dayStr, computeOverlapLayout(dayAppts));
+      for (const hour of hours) {
+        map.set(`${dayStr}-${hour}`, []);
+      }
     }
-    return layouts;
-  }, [appointmentsByDay, weekDays]);
+
+    for (const appt of normalizedAppointments) {
+      const startHour = Number.parseInt(appt.start_hhmm.slice(0, 2), 10);
+      const startHourInGrid = startHour === 24 ? 0 : startHour;
+      const key = `${appt.date_key_ar}-${startHourInGrid}`;
+      const bucket = map.get(key);
+      if (bucket) {
+        bucket.push(appt);
+      }
+    }
+
+    for (const [, value] of map) {
+      value.sort((a, b) => a.start_hhmm.localeCompare(b.start_hhmm));
+    }
+
+    return map;
+  }, [normalizedAppointments, weekDays]);
+
+  const displayedDays = useMemo(() => {
+    if (viewMode === "week") return weekDays;
+    const focus = weekDays.find((d) => getArgentinaDateKey(d) === focusedDayKey);
+    return focus ? [focus] : [weekDays[0]];
+  }, [focusedDayKey, viewMode, weekDays]);
+
+  function handleBackToWeek() {
+    setViewMode("week");
+    setFocusedDayKey(getArgentinaDateKey(currentDate));
+  }
+
+  function handlePrevPeriod() {
+    if (viewMode === "week") {
+      onPrevWeek();
+      return;
+    }
+
+    const baseFocused = new Date(`${focusedDayKey}T12:00:00`);
+    const nextFocused = addDays(baseFocused, -1);
+    setFocusedDayKey(getArgentinaDateKey(nextFocused));
+
+    if (nextFocused < weekStart) {
+      onPrevWeek();
+    }
+  }
+
+  function handleNextPeriod() {
+    if (viewMode === "week") {
+      onNextWeek();
+      return;
+    }
+
+    const baseFocused = new Date(`${focusedDayKey}T12:00:00`);
+    const nextFocused = addDays(baseFocused, 1);
+    setFocusedDayKey(getArgentinaDateKey(nextFocused));
+
+    if (nextFocused > weekEnd) {
+      onNextWeek();
+    }
+  }
+
+  const slotHeight = HOUR_HEIGHT;
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const media = window.matchMedia("(pointer: coarse)");
+    const update = () => setIsCoarsePointer(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    if (isCoarsePointer) {
+      setHoverTooltip(null);
+    }
+  }, [isCoarsePointer]);
 
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -348,17 +396,17 @@ export default memo(function CalendarView({
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="calendar-shell flex flex-col h-full">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <button
-            onClick={onPrevWeek}
+            onClick={handlePrevPeriod}
             className="p-2 rounded-2xl border border-white/50 dark:border-white/10 bg-white/40 dark:bg-black/30 hover:bg-white/70 dark:hover:bg-white/10 backdrop-blur-md shadow-sm transition-all cursor-pointer select-none"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
           <button
-            onClick={onNextWeek}
+            onClick={handleNextPeriod}
             className="p-2 rounded-2xl border border-white/50 dark:border-white/10 bg-white/40 dark:bg-black/30 hover:bg-white/70 dark:hover:bg-white/10 backdrop-blur-md shadow-sm transition-all cursor-pointer select-none"
           >
             <ChevronRight className="w-4 h-4" />
@@ -371,14 +419,14 @@ export default memo(function CalendarView({
           </button>
         </div>
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white hidden sm:block">
-          {format(weekStart, "d 'de' MMMM", { locale: es })} —{" "}
-          {format(addDays(weekStart, 6), "d 'de' MMMM 'de' yyyy", {
+          {format(displayedDays[0], "d 'de' MMMM", { locale: es })} —{" "}
+          {format(displayedDays[displayedDays.length - 1], "d 'de' MMMM 'de' yyyy", {
             locale: es,
           })}
         </h2>
         <h2 className="text-sm font-semibold text-gray-900 dark:text-white sm:hidden">
-          {format(weekStart, "d MMM", { locale: es })} -{" "}
-          {format(addDays(weekStart, 6), "d MMM", { locale: es })}
+          {format(displayedDays[0], "d MMM", { locale: es })} -{" "}
+          {format(displayedDays[displayedDays.length - 1], "d MMM", { locale: es })}
         </h2>
       </div>
 
@@ -386,14 +434,27 @@ export default memo(function CalendarView({
         ref={scrollContainerRef}
         className="flex-1 min-h-0 overflow-auto"
       >
-        <div className="grid grid-cols-8 min-w-[700px] border border-white/10 dark:border-white/5 border-t border-l border-white/40 dark:border-t-white/20 dark:border-l-white/20 border-b border-r border-black/5 dark:border-b-white/5 dark:border-r-white/5 rounded-[2.5rem] overflow-hidden bg-white/20 dark:bg-black/10 backdrop-blur-3xl shadow-[0_20px_50px_rgba(0,0,0,0.03)] dark:shadow-none relative">
+        <motion.div
+          key={viewMode}
+          initial={{ opacity: 0, y: 8, scale: 0.995 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ type: "spring", stiffness: 320, damping: 28 }}
+          className="grid border border-white/10 dark:border-white/5 border-t border-l border-white/40 dark:border-t-white/20 dark:border-l-white/20 border-b border-r border-black/5 dark:border-b-white/5 dark:border-r-white/5 rounded-[2.5rem] overflow-hidden bg-white/20 dark:bg-black/10 backdrop-blur-3xl shadow-[0_20px_50px_rgba(0,0,0,0.03)] dark:shadow-none relative"
+          style={{
+            gridTemplateColumns:
+              viewMode === "day"
+                ? "80px minmax(380px, 1fr)"
+                : "80px repeat(7, minmax(0, 1fr))",
+            minWidth: viewMode === "day" ? "520px" : "0px",
+          }}
+        >
           <div className="col-span-1 border-r border-zinc-200/30 dark:border-white/10">
-            <div className="h-12 border-b border-zinc-200/30 dark:border-white/10" />
+            <div className="border-b border-zinc-200/30 dark:border-white/10" style={{ height: `${slotHeight}px` }} />
             {hours.map((hour) => (
               <div
                 key={hour}
                 className="flex items-start justify-end pr-2 pt-1"
-                style={{ height: `${HOUR_HEIGHT}px` }}
+                style={{ height: `${slotHeight}px` }}
               >
                 <span className="text-xs text-gray-500 dark:text-gray-400">
                   {`${String(hour).padStart(2, "0")}:00`}
@@ -402,11 +463,9 @@ export default memo(function CalendarView({
             ))}
           </div>
 
-          {weekDays.map((day) => {
+          {displayedDays.map((day) => {
             const dayStr = getArgentinaDateKey(day);
             const dayAppointments = appointmentsByDay.get(dayStr) || [];
-            const dayLayout = dayLayouts.get(dayStr) || new Map();
-
             const dayKey = DAY_MAP[day.getDay()];
             const dayHours = businessHours?.[dayKey];
             const dayFullyClosed = dayHours && !dayHours.open;
@@ -414,24 +473,39 @@ export default memo(function CalendarView({
             return (
               <div
                 key={dayStr}
-                className={`col-span-1 border-r border-zinc-200/30 dark:border-white/10 last:border-r-0 flex flex-col ${dayFullyClosed ? "opacity-60" : ""}`}
+                className={`col-span-1 border-r border-zinc-200/30 dark:border-white/10 border-l-2 border-l-[#e2e8f0] last:border-r-0 flex flex-col ${dayFullyClosed ? "opacity-60" : ""}`}
               >
                 <div
-                  className={`h-12 border-b border-zinc-200/30 dark:border-white/10 flex flex-col items-center justify-center shrink-0 ${
-                    isToday(day) ? "bg-violet-200/40 dark:bg-violet-800/30" : ""
+                  className={`group border-b border-zinc-200/30 dark:border-white/10 flex flex-col items-center justify-center shrink-0 transition-all ${
+                    isToday(day)
+                      ? "bg-sky-100/50 dark:bg-slate-800/40 cursor-pointer hover:bg-sky-100/70 dark:hover:bg-slate-800/55"
+                      : ""
                   }`}
-                  style={{ height: `${HOUR_HEIGHT}px` }}
+                  style={{ height: `${slotHeight}px` }}
+                  onClick={() => {
+                    if (isToday(day)) {
+                      if (viewMode === "day" && focusedDayKey === dayStr) {
+                        handleBackToWeek();
+                      } else {
+                        setFocusedDayKey(dayStr);
+                        setViewMode("day");
+                      }
+                    }
+                  }}
                 >
                   <span className="text-[11px] text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                     {format(day, "EEE", { locale: es })}
                   </span>
-                  <span
+                  <motion.span
                     className={`text-sm font-semibold ${
-                      isToday(day) ? "text-violet-700 dark:text-violet-300" : "text-gray-900 dark:text-gray-100"
+                      isToday(day)
+                        ? "text-sky-700 dark:text-sky-300 group-hover:scale-110"
+                        : "text-gray-900 dark:text-gray-100"
                     }`}
+                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
                   >
                     {format(day, "d")}
-                  </span>
+                  </motion.span>
                   {isToday(day) && (
                     <span className="inline-flex items-center gap-1 mt-0.5">
                       <span className="relative flex w-1.5 h-1.5">
@@ -447,173 +521,197 @@ export default memo(function CalendarView({
                 </div>
 
                 {(() => {
-                  const gridAppts = dayAppointments.filter(
-                    a => parseInt(a.start_hhmm) >= GRID_START_HOUR
-                  );
-                  const earlyAppts = dayAppointments.filter(
-                    a => parseInt(a.start_hhmm) < GRID_START_HOUR
-                  );
-
                   return (
                     <>
-                      {earlyAppts.length > 0 && (
-                        <div className="sticky top-0 z-20 bg-amber-100/40 dark:bg-amber-950/40 backdrop-blur-xl border-b border-amber-200/30 dark:border-amber-800/30 px-2 py-1.5 space-y-1">
-                          <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-300 uppercase tracking-wide">
-                            ⏰ Fuera de hora
-                          </span>
-                          {earlyAppts.map((ea) => (
-                            <div
-                              key={ea.id}
-                              className="flex items-center gap-1.5 text-[11px] text-amber-800 dark:text-amber-200 truncate cursor-pointer"
-                              onClick={() => onAppointmentClick(ea)}
-                            >
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
-                              <span className="font-medium truncate">
-                                {ea.customers?.nombre || "Sin cliente"}
-                              </span>
-                              <span className="shrink-0 opacity-70">
-                                {ea.start_hhmm}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
                       <div
-                        className="relative flex-1"
-                        style={{ minHeight: `${hours.length * HOUR_HEIGHT}px` }}
+                        className="grid flex-1"
+                        style={{
+                          gridTemplateRows: `repeat(${hours.length}, ${slotHeight}px)`,
+                        }}
                       >
                         {hours.map((hour) => {
-                          const hourNum = hour === 0 && GRID_START_HOUR > 0 ? 24 : hour; // el 0 extra al final
+                          const hourNum = hour === 0 && GRID_START_HOUR > 0 ? 24 : hour;
                           const dayH = dayHours;
                           const isOpenSlot = dayH?.open && hourNum >= parseInt(dayH.start) && hourNum < parseInt(dayH.end);
+                          const slotAppointments = appointmentsByDayHour.get(`${dayStr}-${hour}`) || [];
+                          const slotCount = slotAppointments.length;
+                          const slotGridCols = slotCount <= 2 ? Math.max(slotCount, 1) : slotCount <= 4 ? 2 : 3;
                           return (
                           <div
                             key={hour}
-                            className={`border-b border-zinc-200/30 dark:border-white/[0.03] last:border-b-0 transition-colors ${
-                              isOpenSlot ? "hover:bg-white/30 dark:hover:bg-white/5 cursor-pointer" : ""
+                            className={`relative overflow-visible border-b border-zinc-200/30 dark:border-slate-800/40 last:border-b-0 transition-colors p-1.5 ${
+                              isOpenSlot
+                                ? "hover:bg-white/30 dark:hover:bg-white/5 cursor-pointer"
+                                : "bg-slate-200 dark:bg-zinc-950 border-y border-y-black/[0.08] dark:border-y-white/[0.03]"
                             }`}
-                            style={{
-                              height: `${HOUR_HEIGHT}px`,
-                              ...(!isOpenSlot ? {
-                                background: `rgba(9,9,11,0.03) repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(9,9,11,0.04) 4px, rgba(9,9,11,0.04) 8px)`,
-                              } : {}),
-                            }}
+                            style={
+                              isOpenSlot
+                                ? undefined
+                                : {
+                                    backgroundImage:
+                                      "repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,0.05) 10px, rgba(0,0,0,0.05) 20px)",
+                                  }
+                            }
                             onClick={isOpenSlot ? () => onSlotClick(day, hour) : undefined}
-                          />
+                          >
+                            <div className="relative w-full h-full overflow-hidden">
+                              <div
+                                className="grid w-full h-full gap-1"
+                                style={{
+                                  gridTemplateColumns: `repeat(${slotGridCols}, minmax(0, 1fr))`,
+                                }}
+                              >
+                              {slotAppointments.map((appt) => {
+                                const isDenseOverlap = slotCount > 1;
+                                const isCompact = slotCount >= 3;
+                                const isWeekMode = viewMode === "week";
+
+                                const staffColor = appt.staff
+                                  ? staffColorMap.get(appt.staff_id || "") || STAFF_COLORS[0]
+                                  : STAFF_COLORS[0];
+
+                                const svc = appt.services?.name
+                                  ? extractEmoji(appt.services.name)
+                                  : { emoji: "", label: "" };
+
+                                const statusStyle = STATUS_STYLES[appt.status] || STATUS_STYLES.scheduled;
+                                const isFinalStatus = STATUS_FINAL.has(appt.status);
+                                const diffMs = new Date(appt.start_time).getTime() - Date.now();
+                                const isUrgent = appt.status === "scheduled" && diffMs > 0 && diffMs <= 3600000;
+
+                                return (
+                                  <motion.div
+                                    key={appt.id}
+                                    className={`relative w-full min-w-0 max-w-full rounded-xl text-xs cursor-pointer bg-white/90 dark:bg-white/10 backdrop-blur-md border border-white/45 dark:border-white/20 shadow-sm group h-full overflow-hidden ${isFinalStatus ? "opacity-50" : ""} ${isUrgent ? "animate-pulse-border" : ""}`}
+                                    style={{
+                                      fontFamily: "Inter, sans-serif",
+                                      boxShadow: `inset 2px 0 0 ${hexToRgba(staffColor.border, 0.32)}`,
+                                    }}
+                                    initial={{ opacity: 0, scale: 0.96 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ type: "spring", ...MOTION_PRESET.pill }}
+                                    whileHover={{ y: -1, boxShadow: "0 12px 24px rgba(15, 23, 42, 0.12)" }}
+                                    whileTap={{ scale: 0.985 }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onAppointmentClick(appt);
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      if (isCoarsePointer) return;
+                                      const pos = { x: e.clientX, y: e.clientY };
+                                      const adjusted = getTooltipPosition(pos.x, pos.y);
+                                      tooltipTargetX.set(adjusted.left);
+                                      tooltipTargetY.set(adjusted.top);
+                                      setHoverTooltip({ appointment: appt });
+                                    }}
+                                    onMouseMove={(e) => {
+                                      if (isCoarsePointer) return;
+                                      const adjusted = getTooltipPosition(e.clientX, e.clientY);
+                                      tooltipTargetX.set(adjusted.left);
+                                      tooltipTargetY.set(adjusted.top);
+                                    }}
+                                    onMouseLeave={() => {
+                                      setHoverTooltip(null);
+                                    }}
+                                  >
+                                    <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent rounded-2xl pointer-events-none" />
+                                    <div
+                                      className="absolute inset-y-0 left-0 w-[3px] pointer-events-none"
+                                      style={{
+                                        background: `linear-gradient(180deg, ${hexToRgba(staffColor.border, 0.85)} 0%, ${hexToRgba(staffColor.border, 0.45)} 100%)`,
+                                      }}
+                                    />
+                                    <div
+                                      className="absolute -inset-x-10 top-0 h-full -translate-x-[120%] group-hover:translate-x-[120%] transition-transform duration-700 ease-out pointer-events-none"
+                                      style={{
+                                        background: "linear-gradient(100deg, transparent 35%, rgba(255,255,255,0.35) 50%, transparent 65%)",
+                                      }}
+                                    />
+                                    <div className={`relative z-10 flex h-full ${isWeekMode ? "flex-col justify-around p-1.5 gap-1" : "flex-col justify-between p-1.5 gap-0.5"}`}>
+                                      <div className="min-w-0 space-y-0.5">
+                                        <div className="flex items-center justify-between gap-1">
+                                          <span className={`font-bold text-gray-900 dark:text-gray-100 leading-tight truncate ${isWeekMode ? "text-[10px]" : isCompact ? "text-[11px]" : "text-xs"}`}>
+                                            {appt.customers?.nombre || "Sin cliente"}
+                                          </span>
+                                          <div className="flex items-center gap-1 shrink-0">
+                                            {!isWeekMode && svc.emoji && (
+                                              <span className="text-sm leading-none">{svc.emoji}</span>
+                                            )}
+                                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isUrgent ? "animate-pulse" : ""}`} style={{ backgroundColor: isUrgent ? "#ef4444" : statusStyle.dot }} />
+                                          </div>
+                                        </div>
+                                        <span className={`text-gray-700 dark:text-gray-300 leading-tight truncate ${isWeekMode ? "text-[9px]" : isCompact ? "text-[10px]" : "text-[11px]"}`}>
+                                          {appt.start_hhmm} - {appt.end_hhmm}
+                                        </span>
+                                      </div>
+                                      <div className={`flex ${isWeekMode ? "justify-end pt-0.5" : "justify-end"}`}>
+                                        {(() => {
+                                          const waUrl = buildWhatsAppUrl({
+                                            phone: appt.customers?.telefono ?? null,
+                                            customerName: appt.customers?.nombre || "Cliente",
+                                            serviceName: appt.services?.name,
+                                            time: appt.start_hhmm,
+                                            template: whatsappTemplate,
+                                            shopName,
+                                          });
+                                          if (waUrl) {
+                                            return (
+                                              <a
+                                                href={waUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className={`group/wa inline-flex items-center rounded-full border border-white/45 dark:border-white/20 bg-white/60 dark:bg-white/10 text-emerald-600 dark:text-emerald-300 hover:bg-white/80 dark:hover:bg-white/20 transition-all duration-200 select-none ${isWeekMode ? "gap-0 px-1 py-1" : "gap-1 px-1.5 py-1"}`}
+                                                onClick={(e) => e.stopPropagation()}
+                                                data-cursor="enviar"
+                                                title="Enviar Recordatorio"
+                                              >
+                                                <MessageCircle className="w-3.5 h-3.5 shrink-0" />
+                                                {!isWeekMode && (
+                                                  <span className="max-w-0 group-hover/wa:max-w-[120px] overflow-hidden text-[10px] font-medium leading-none transition-all duration-200 whitespace-nowrap">Enviar Recordatorio</span>
+                                                )}
+                                              </a>
+                                            );
+                                          }
+
+                                          return (
+                                            <span
+                                              className="inline-flex items-center gap-1 rounded-full border border-white/45 dark:border-white/20 bg-white/45 dark:bg-white/5 px-1.5 py-1 text-zinc-400 dark:text-zinc-500"
+                                              title="WhatsApp no disponible: falta teléfono o plantilla inválida"
+                                            >
+                                              <MessageCircle className="w-3.5 h-3.5 shrink-0" />
+                                            </span>
+                                          );
+                                        })()}
+                                      </div>
+                                    </div>
+                                  </motion.div>
+                                );
+                              })}
+                              </div>
+                            </div>
+                          </div>
                         );})}
 
-                        {gridAppts.map((appt) => {
-                    const durationMinutes = appt.duration_minutes_ar;
-                    const topOffset = getTopOffset(appt.start_hhmm);
-                    const height = Math.max(
-                      (durationMinutes / 60) * HOUR_HEIGHT,
-                      28
-                    );
+                        {(() => {
+                          const now = new Date();
+                          const isCurrentDay = getArgentinaDateKey(day) === getArgentinaDateKey(now);
+                          const nowHour = Number(now.toLocaleTimeString("en-GB", { hour: "2-digit", hour12: false }));
+                          const nowMin = Number(now.toLocaleTimeString("en-GB", { minute: "2-digit", hour12: false }));
+                          const nowDecimal = nowHour + nowMin / 60;
+                          const minHour = GRID_START_HOUR;
+                          const maxHour = GRID_END_HOUR + 1;
+                          const visible = isCurrentDay && nowDecimal >= minHour && nowDecimal <= maxHour;
+                          if (!visible) return null;
+                          const nowRow = getGridRow(nowHour.toString().padStart(2, "0") + ":" + nowMin.toString().padStart(2, "0"));
+                          return (
+                            <div className="pointer-events-none z-20" style={{ gridRow: `${nowRow} / ${nowRow + 1}`, gridColumn: "1 / -1" }}>
+                              <div className="relative h-px bg-sky-500/80 shadow-[0_0_6px_rgba(56,189,248,0.45)]">
+                                <span className="absolute left-0 -top-1.5 w-3 h-3 -translate-x-1/2 rounded-full bg-sky-500/90 shadow-[0_0_0_3px_rgba(56,189,248,0.18),0_0_8px_rgba(56,189,248,0.45)]" />
+                              </div>
+                            </div>
+                          );
+                        })()}
 
-                    const pos = dayLayout.get(appt.id) || {
-                      width: 100,
-                      left: 0,
-                    };
-
-                    const staffColor = appt.staff
-                      ? staffColorMap.get(appt.staff_id || "") || STAFF_COLORS[0]
-                      : STAFF_COLORS[0];
-
-                    const svc = appt.services?.name
-                      ? extractEmoji(appt.services.name)
-                      : { emoji: "", label: "" };
-
-                    const statusStyle = STATUS_STYLES[appt.status] || STATUS_STYLES.scheduled;
-                    const isFinalStatus = STATUS_FINAL.has(appt.status);
-                    const diffMs = new Date(appt.start_time).getTime() - Date.now();
-                    const isUrgent = appt.status === "scheduled" && diffMs > 0 && diffMs <= 3600000;
-
-                    return (
-                      <motion.div
-                        key={appt.id}
-                        className={`absolute rounded-2xl px-2.5 py-2 text-xs cursor-pointer overflow-hidden flex flex-col font-sans bg-white/30 dark:bg-white/10 backdrop-blur-md border border-white/40 shadow-sm border-l-4 ${isFinalStatus ? "opacity-50" : ""} ${isUrgent ? "animate-pulse-border" : ""}`}
-                        style={{
-                          top: `${topOffset}px`,
-                          height: `${height}px`,
-                          width: `calc(${pos.width}% - 4px)`,
-                          left: `calc(${pos.left}% + 2px)`,
-                          borderLeftColor: staffColor.border,
-                          zIndex: 10,
-                        }}
-                        initial={{ opacity: 0, scale: 0.96 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ type: "spring", ...MOTION_PRESET.pill }}
-                        whileHover={{ y: -2, scale: 1.02, boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)" }}
-                        whileTap={{ scale: 0.985 }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onAppointmentClick(appt);
-                        }}
-                        onMouseEnter={(e) => {
-                          const pos = { x: e.clientX, y: e.clientY };
-                          const adjusted = getTooltipPosition(pos.x, pos.y);
-                          tooltipTargetX.set(adjusted.left);
-                          tooltipTargetY.set(adjusted.top);
-                          setHoverTooltip({ appointment: appt });
-                        }}
-                        onMouseMove={(e) => {
-                          const adjusted = getTooltipPosition(e.clientX, e.clientY);
-                          tooltipTargetX.set(adjusted.left);
-                          tooltipTargetY.set(adjusted.top);
-                        }}
-                        onMouseLeave={() => {
-                          setHoverTooltip(null);
-                        }}
-                      >
-                        <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent rounded-2xl pointer-events-none" />
-                        <div className="flex items-center justify-between gap-1">
-                          <span className="font-semibold text-gray-900 dark:text-gray-100 leading-tight min-w-0 truncate">
-                            {appt.customers?.nombre || "Sin cliente"}
-                          </span>
-                          <div className="flex items-center gap-1 shrink-0">
-                            {svc.emoji && (
-                              <span className="text-sm leading-none">{svc.emoji}</span>
-                            )}
-                            <span
-                              className={`w-1.5 h-1.5 rounded-full shrink-0 ${isUrgent ? "animate-pulse" : ""}`}
-                              style={{ backgroundColor: isUrgent ? "#ef4444" : statusStyle.dot }}
-                            />
-                          </div>
-                        </div>
-                        <span className="text-[11px] text-gray-700 dark:text-gray-300 truncate leading-tight mt-0.5">
-                          {appt.start_hhmm} - {appt.end_hhmm}
-                        </span>
-                        {appt.staff?.name && !appt.customers?.nombre && (
-                          <span className="text-[10px] text-gray-500 dark:text-gray-400 truncate leading-tight mt-0.5">
-                            {appt.staff.name}
-                          </span>
-                        )}
-                        <div className="flex gap-1 mt-auto pt-1" onClick={(e) => e.stopPropagation()}>
-                          {(() => {
-                            const waUrl = buildWhatsAppUrl({
-                              phone: appt.customers?.telefono ?? null,
-                              customerName: appt.customers?.nombre || "Cliente",
-                              serviceName: appt.services?.name,
-                              time: appt.start_hhmm,
-                              template: whatsappTemplate,
-                              shopName,
-                            });
-                            return waUrl ? (
-                              <a
-                                href={waUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-1 rounded-full text-green-600 dark:text-green-400 hover:bg-green-500/20 transition-colors"
-                                title="Enviar WhatsApp"
-                              >
-                                <MessageCircle className="w-3.5 h-3.5" />
-                              </a>
-                            ) : null;
-                          })()}
-                        </div>
-                      </motion.div>
-                    );
-                  })}
                 </div>
               </>
             );
@@ -621,17 +719,17 @@ export default memo(function CalendarView({
               </div>
             );
           })}
-        </div>
+        </motion.div>
       </div>
 
       <AnimatePresence>
-        {hoverTooltip && (() => {
+        {!isCoarsePointer && hoverTooltip && (() => {
           const tipAppt = hoverTooltip.appointment;
           const humanDate = format(new Date(tipAppt.start_local_iso), "EEEE d MMMM", { locale: es });
           return (
             <motion.div
               key={tipAppt.id}
-              className="fixed left-0 top-0 pointer-events-none z-[60] w-[300px] rounded-3xl border border-white/40 bg-white/70 dark:bg-black/50 shadow-2xl shadow-black/10 backdrop-blur-2xl px-4 py-3 text-gray-900 dark:text-white"
+              className="fixed left-0 top-0 pointer-events-none z-[60] w-[300px] rounded-xl border border-black/5 dark:border-white/10 bg-white/90 dark:bg-black/80 shadow-[0_10px_30px_rgba(0,0,0,0.12)] backdrop-blur-[10px] px-4 py-3 text-gray-900 dark:text-white"
               style={{ x: tooltipX, y: tooltipY }}
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -670,37 +768,12 @@ export default memo(function CalendarView({
         })()}
       </AnimatePresence>
 
-      <div className="mt-4 flex flex-wrap gap-3 text-xs bg-white/30 dark:bg-black/20 backdrop-blur-2xl rounded-2xl px-4 py-3 border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-sm">
-        {staffList && staffList.length > 0 && (
-          <div className="flex items-center gap-3 mr-4 flex-wrap">
-            {staffList.map((s, i) => {
-              const color = STAFF_COLORS[i % STAFF_COLORS.length];
-              return (
-                <div key={s.id} className="flex items-center gap-1.5">
-                  <div
-                    className="w-3 h-3 rounded-sm"
-                    style={{ backgroundColor: color.border }}
-                  />
-                  <span className="text-gray-600 dark:text-gray-400">{s.name}</span>
-                </div>
-              );
-            })}
-            <span className="text-gray-300 dark:text-gray-600 mx-1">|</span>
-          </div>
-        )}
-        {Object.entries(statusLabels).map(([key, label]) => (
-          <div key={key} className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-gray-300 dark:bg-gray-600" />
-            <span className="text-gray-600 dark:text-gray-400">{label}</span>
-          </div>
-        ))}
-        {businessHours && (
-          <div className="flex items-center gap-1.5 ml-2 pl-2 border-l border-white/10 dark:border-white/5">
-            <div className="w-3 h-3 rounded-sm" style={{ backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px)` }} />
-            <span className="text-gray-600 dark:text-gray-400">Cerrado</span>
-          </div>
-        )}
-      </div>
+      {businessHours && (
+        <div className="mt-4 inline-flex items-center gap-1.5 text-xs bg-white/30 dark:bg-black/20 backdrop-blur-2xl rounded-2xl px-4 py-2.5 border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-sm text-gray-600 dark:text-gray-400">
+          <div className="w-3 h-3 rounded-sm" style={{ backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px)" }} />
+          <span>Cerrado</span>
+        </div>
+      )}
     </div>
   );
 })

@@ -4,6 +4,9 @@
 @layer base {
   html {
     cursor: default;
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
   input:where(:not([type="checkbox"], [type="radio"], [type="submit"], [type="button"], [type="reset"])),
   textarea {

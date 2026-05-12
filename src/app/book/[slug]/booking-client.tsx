@@ -12,7 +12,6 @@ import {
   MapPin,
   Phone,
   RefreshCw,
-  Scissors,
   Sparkles,
   UserRound,
 } from "lucide-react";
@@ -261,7 +260,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
               <div className="pb-6 border-b border-[#E5E5EA]">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-[#0071E3]/10 border border-[#0071E3]/20 flex items-center justify-center shrink-0">
-                    <Scissors className="w-5 h-5 text-[#0071E3]" />
+                    <span className="text-sm font-semibold tracking-tight text-[#0071E3]">Klip</span>
                   </div>
                   <div className="min-w-0">
                     <h1 className="text-xl font-semibold tracking-tight text-[#1D1D1F] truncate">{shop.name}</h1>

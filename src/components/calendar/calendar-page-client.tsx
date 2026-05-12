@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { addWeeks, subWeeks } from "date-fns";
+import { motion } from "framer-motion";
 import CalendarView from "./calendar-view";
 import AppointmentFormModal from "./appointment-form-modal";
 import AppointmentDetailModal from "./appointment-detail-modal";
@@ -176,16 +177,23 @@ export default function CalendarPageClient({
       )}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Calendario</h1>
-        <div className="inline-flex items-center rounded-full bg-white/30 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 p-0.5 shadow-sm">
+        <div className="inline-flex items-center rounded-full bg-white/30 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 p-0.5 shadow-sm relative overflow-hidden">
           <button
             onClick={() => setStaffFilter(null)}
-            className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-all cursor-pointer select-none ${
+            className={`relative z-10 px-3.5 py-1.5 rounded-full text-sm font-medium transition-all cursor-pointer select-none ${
               staffFilter === null
-                ? "bg-white/60 dark:bg-white/20 text-gray-900 dark:text-white shadow-sm"
+                ? "text-[#0071E3] dark:text-[#5da8ff]"
                 : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
             }`}
           >
-            Todos
+            {staffFilter === null && (
+              <motion.span
+                layoutId="activeTab"
+                className="absolute inset-0 rounded-full bg-[#0071E3]/20 dark:bg-[#0071E3]/30 border border-[#0071E3]/30 dark:border-[#0071E3]/40 shadow-sm"
+                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+              />
+            )}
+            <span className="relative z-10">Todos</span>
           </button>
           {staff.map((s) => {
             const isActive = staffFilter === s.id;
@@ -193,14 +201,21 @@ export default function CalendarPageClient({
               <button
                 key={s.id}
                 onClick={() => setStaffFilter(isActive ? null : s.id)}
-                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium transition-all cursor-pointer select-none ${
+                className={`relative z-10 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium transition-all cursor-pointer select-none ${
                   isActive
-                    ? "bg-white/60 dark:bg-white/20 text-gray-900 dark:text-white shadow-sm"
+                    ? "text-[#0071E3] dark:text-[#5da8ff]"
                     : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
                 }`}
               >
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: STAFF_SEGMENTED_COLORS[staff.indexOf(s) % STAFF_SEGMENTED_COLORS.length] }} />
-                {s.name || s.email}
+                {isActive && (
+                  <motion.span
+                    layoutId="activeTab"
+                    className="absolute inset-0 rounded-full bg-[#0071E3]/20 dark:bg-[#0071E3]/30 border border-[#0071E3]/30 dark:border-[#0071E3]/40 shadow-sm"
+                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                  />
+                )}
+                <span className="relative z-10 w-2 h-2 rounded-full" style={{ backgroundColor: STAFF_SEGMENTED_COLORS[staff.indexOf(s) % STAFF_SEGMENTED_COLORS.length] }} />
+                <span className="relative z-10">{s.name || s.email}</span>
               </button>
             );
           })}

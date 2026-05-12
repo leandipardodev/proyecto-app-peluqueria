@@ -3,7 +3,8 @@
 import { useState, useTransition, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Store, Eye, EyeOff, Save, CreditCard, MessageSquareText, Smartphone, Link2, MapPin, Phone, Clock } from "lucide-react";
-import { playPop } from "@/lib/sound";
+import Link from "next/link";
+import { useKlipSounds } from "@/lib/use-klip-sounds";
 import {
   fetchBusinessData,
   updateBusinessInfo,
@@ -20,10 +21,25 @@ type MessageType = { type: "success" | "error"; text: string } | null;
 export default function BusinessClient({
   initialData,
   initialError,
+  summaryStats,
+  metricStats,
 }: {
   initialData: BusinessData | null;
   initialError: string | null;
+  summaryStats: {
+    appointmentsCount: number;
+    revenue: number;
+    lowStockCount: number;
+  } | null;
+  metricStats: {
+    totalClients: number;
+    growth: number;
+    topServicesCount: number;
+    income: number;
+    expenses: number;
+  } | null;
 }) {
+  const { playSuccess, playError, playClick } = useKlipSounds();
   const [data, setData] = useState(initialData);
   const [error] = useState(initialError);
   const [pending, startTransition] = useTransition();
@@ -43,6 +59,7 @@ export default function BusinessClient({
   const [businessHours, setBusinessHours] = useState<BusinessHoursData | null>(null);
   const [hoursLoading, setHoursLoading] = useState(true);
   const [savedSection, setSavedSection] = useState<string | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   const DAYS = [
     { key: "monday", label: "Lunes" },
@@ -53,6 +70,12 @@ export default function BusinessClient({
     { key: "saturday", label: "Sábado" },
     { key: "sunday", label: "Domingo" },
   ];
+
+  const incomeValue = metricStats?.income ?? summaryStats?.revenue ?? 0;
+  const expenseValue = metricStats?.expenses ?? 0;
+  const flowTotal = Math.max(incomeValue + expenseValue, 1);
+  const incomePct = Math.max(8, Math.round((incomeValue / flowTotal) * 100));
+  const expensePct = Math.max(8, Math.round((expenseValue / flowTotal) * 100));
 
   useEffect(() => {
     fetchBusinessHours()
@@ -89,9 +112,10 @@ export default function BusinessClient({
     startTransition(async () => {
       const result = await updateBusinessInfo(formData);
       if (!result.success) {
+        playError();
         showError(result.error);
       } else {
-        playPop();
+        playSuccess();
         showSuccess("Información pública guardada");
         setSavedSection("info");
         setTimeout(() => setSavedSection(null), 1500);
@@ -107,9 +131,10 @@ export default function BusinessClient({
     startTransition(async () => {
       const result = await updateMercadoPagoKeysAction(mpPublicKey, mpAccessToken);
       if (!result.success) {
+        playError();
         showError(result.error);
       } else {
-        playPop();
+        playSuccess();
         showSuccess("Claves de Mercado Pago guardadas");
         const fresh = await fetchBusinessData();
         if (fresh.success) {
@@ -120,12 +145,19 @@ export default function BusinessClient({
   }
 
   function handleSaveWhatsapp() {
+    if (!whatsappTemplate.match(/\{ubicacion\}/)) {
+      setLocationError("Debés incluir {ubicacion} en el mensaje antes de guardar.");
+      playError();
+      return;
+    }
+    setLocationError(null);
     startTransition(async () => {
       const result = await updateWhatsappTemplateAction(whatsappTemplate);
       if (!result.success) {
+        playError();
         showError(result.error);
       } else {
-        playPop();
+        playSuccess();
         showSuccess("Plantilla de WhatsApp guardada");
         const fresh = await fetchBusinessData();
         if (fresh.success) {
@@ -146,7 +178,148 @@ export default function BusinessClient({
       <div>
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Mi Negocio</h1>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Información pública y configuración técnica de tu local</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Link
+            href="/dashboard/services"
+            className="inline-flex items-center rounded-full border border-sky-300/60 dark:border-sky-500/30 bg-sky-100/80 dark:bg-sky-500/15 px-4 py-2 text-sm font-semibold text-sky-800 dark:text-sky-200 hover:bg-sky-100 dark:hover:bg-sky-500/25 shadow-sm transition-all"
+          >
+            Gestionar servicios
+          </Link>
+          <Link
+            href="/dashboard/staff"
+            className="inline-flex items-center rounded-full border border-emerald-300/60 dark:border-emerald-500/30 bg-emerald-100/80 dark:bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-800 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-500/25 shadow-sm transition-all"
+          >
+            Gestionar personal
+          </Link>
+        </div>
       </div>
+
+      <section id="estadisticas" className="bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden transition-colors">
+        <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Estadísticas del Negocio</h2>
+            <p className="text-xs text-zinc-400 dark:text-zinc-500">Indicadores clave para tomar decisiones rápidas</p>
+          </div>
+          <span className="text-[11px] uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Live</span>
+        </div>
+
+        <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="sm:col-span-2 lg:col-span-3 rounded-2xl bg-white/40 dark:bg-white/[0.03] border border-white/30 dark:border-white/10 p-4">
+            <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 mb-3">
+              <span>Flujo financiero</span>
+              <span>Ingresos vs Gastos</span>
+            </div>
+
+            <div className="group/flow space-y-3">
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1.5">
+                  <span className="text-emerald-700 dark:text-emerald-300 font-medium">Ingresos</span>
+                  <span className="text-zinc-600 dark:text-zinc-300">${incomeValue.toFixed(2)}</span>
+                </div>
+                <div className="h-3 rounded-full bg-emerald-100/55 dark:bg-emerald-900/20 overflow-hidden">
+                  <div
+                    className="h-full rounded-full flow-bar flow-bar-emerald opacity-70 group-hover/flow:opacity-95 transition-opacity duration-300"
+                    style={{ width: `${incomePct}%` }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1.5">
+                  <span className="text-rose-700 dark:text-rose-300 font-medium">Gastos</span>
+                  <span className="text-zinc-600 dark:text-zinc-300">${expenseValue.toFixed(2)}</span>
+                </div>
+                <div className="h-3 rounded-full bg-rose-100/55 dark:bg-rose-900/20 overflow-hidden">
+                  <div
+                    className="h-full rounded-full flow-bar flow-bar-rose opacity-70 group-hover/flow:opacity-95 transition-opacity duration-300"
+                    style={{ width: `${expensePct}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">Turnos de hoy</p>
+            <p className="mt-1 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{summaryStats?.appointmentsCount ?? "-"}</p>
+            <div className="mt-3 h-1.5 rounded-full bg-sky-100 dark:bg-sky-900/30 overflow-hidden">
+              <div className="h-full w-3/4 bg-gradient-to-r from-sky-400 to-sky-300 dark:from-sky-500 dark:to-sky-400" />
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">Ingresos de hoy</p>
+            <p className="mt-1 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">${(summaryStats?.revenue ?? 0).toFixed(2)}</p>
+            <div className="mt-3 h-1.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 overflow-hidden">
+              <div className="h-full w-4/5 bg-gradient-to-r from-emerald-400 to-emerald-300 dark:from-emerald-500 dark:to-emerald-400" />
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">Clientes totales</p>
+            <p className="mt-1 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{metricStats?.totalClients ?? "-"}</p>
+            <div className="mt-3 h-1.5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 overflow-hidden">
+              <div className="h-full w-2/3 bg-gradient-to-r from-indigo-400 to-indigo-300 dark:from-indigo-500 dark:to-indigo-400" />
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">Crecimiento mensual</p>
+            <p className={`mt-1 text-2xl font-bold tracking-tight ${(metricStats?.growth ?? 0) >= 0 ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300"}`}>
+              {(metricStats?.growth ?? 0) >= 0 ? "+" : ""}{metricStats?.growth ?? 0}%
+            </p>
+            <div className="mt-3 h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
+              <div className={`h-full ${(metricStats?.growth ?? 0) >= 0 ? "bg-gradient-to-r from-emerald-400 to-emerald-300 dark:from-emerald-500 dark:to-emerald-400" : "bg-gradient-to-r from-rose-400 to-rose-300 dark:from-rose-500 dark:to-rose-400"}`} style={{ width: `${Math.min(Math.max(Math.abs(metricStats?.growth ?? 0), 10), 100)}%` }} />
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">Alertas de stock</p>
+            <p className="mt-1 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{summaryStats?.lowStockCount ?? "-"}</p>
+            <div className="mt-3 h-1.5 rounded-full bg-amber-100 dark:bg-amber-900/30 overflow-hidden">
+              <div className="h-full w-1/2 bg-gradient-to-r from-amber-400 to-amber-300 dark:from-amber-500 dark:to-amber-400" />
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">Servicios activos</p>
+            <p className="mt-1 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{metricStats?.topServicesCount ?? "-"}</p>
+            <div className="mt-3 h-1.5 rounded-full bg-cyan-100 dark:bg-cyan-900/30 overflow-hidden">
+              <div className="h-full w-3/5 bg-gradient-to-r from-cyan-400 to-cyan-300 dark:from-cyan-500 dark:to-cyan-400" />
+            </div>
+          </div>
+        </div>
+      </section>
+      <style>{`
+        .flow-bar {
+          position: relative;
+          overflow: hidden;
+        }
+        .flow-bar::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background: repeating-linear-gradient(
+            120deg,
+            rgba(255,255,255,0.16) 0,
+            rgba(255,255,255,0.16) 14px,
+            rgba(255,255,255,0.03) 14px,
+            rgba(255,255,255,0.03) 28px
+          );
+          animation: flowMove 2.2s linear infinite;
+          mix-blend-mode: screen;
+        }
+        .flow-bar-emerald {
+          background: linear-gradient(90deg, rgba(52,211,153,0.7) 0%, rgba(16,185,129,0.82) 100%);
+        }
+        .flow-bar-rose {
+          background: linear-gradient(90deg, rgba(251,146,160,0.7) 0%, rgba(244,114,182,0.8) 100%);
+        }
+        @keyframes flowMove {
+          0% { transform: translateX(-32px); }
+          100% { transform: translateX(32px); }
+        }
+      `}</style>
 
       {error && (
         <div className="bg-red-50/80 backdrop-blur-md text-red-700 dark:text-red-300 text-sm px-5 py-3 rounded-full border border-red-200/30 dark:border-red-500/20">
@@ -212,10 +385,14 @@ export default function BusinessClient({
                 </label>
                 <input
                   value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
+                  onChange={(e) => {
+                    setAddress(e.target.value);
+                    if (e.target.value.trim()) setLocationError(null);
+                  }}
+                  className={`w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 transition-all ${locationError ? "border-red-400 focus:ring-red-400/50" : "border-white/20 dark:border-white/10 focus:ring-violet-500/50"}`}
                   placeholder="Av. Siempre Viva 123"
                 />
+                {locationError && <p className="mt-1 text-xs text-red-500">{locationError}</p>}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 cursor-pointer flex items-center gap-1.5">
@@ -350,6 +527,7 @@ export default function BusinessClient({
               <div className="flex justify-end">
                 <button
                   type="button"
+                  onMouseDown={playClick}
                   onClick={handleSaveMpKeys}
                   disabled={pending}
                   className="inline-flex items-center gap-2 bg-violet-600 text-white px-6 py-2.5 rounded-full text-sm font-medium shadow-sm hover:bg-violet-700 disabled:opacity-50 transition-all cursor-pointer select-none"
@@ -373,26 +551,44 @@ export default function BusinessClient({
             <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-3">
               Usá <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{Nombre}'}</code>,{" "}
               <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{Peluqueria}'}</code> y{" "}
-              <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{Hora}'}</code> como placeholders.
+              <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{Hora}'}</code>. La etiqueta <code className="bg-red-50 dark:bg-red-900/30 px-1.5 py-0.5 rounded text-[11px] text-red-700 dark:text-red-300">{'{ubicacion}'}</code> es obligatoria.
             </p>
             <textarea
               value={whatsappTemplate}
-              onChange={(e) => setWhatsappTemplate(e.target.value)}
+              onChange={(e) => {
+                setWhatsappTemplate(e.target.value);
+                if (locationError && e.target.value.match(/\{ubicacion\}/)) {
+                  setLocationError(null);
+                }
+              }}
               rows={3}
-              className="w-full rounded-2xl bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all resize-none"
+              className={`w-full rounded-2xl bg-white/40 dark:bg-black/30 backdrop-blur-md border px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 transition-all resize-none ${locationError ? "border-red-500 focus:ring-red-500/50" : "border-white/20 dark:border-white/10 focus:ring-violet-500/50"}`}
             />
+            {locationError && (
+              <p className="mt-2 text-xs text-red-600 dark:text-red-400 font-medium">{locationError}</p>
+            )}
             <div className="flex items-center justify-between mt-3">
-              <p className="text-xs text-zinc-400 dark:text-zinc-500">
-                {whatsappTemplate.includes("{Hora}") ? (
-                  <span className="text-green-600 dark:text-green-400">✓ Incluye {`{Hora}`}</span>
-                ) : (
-                  <span className="text-amber-600 dark:text-amber-400">⚠ No incluye {`{Hora}`} — no se mostrará el horario</span>
-                )}
-              </p>
+              <div className="flex flex-col gap-1">
+                <p className="text-xs text-zinc-400 dark:text-zinc-500">
+                  {whatsappTemplate.match(/\{Hora\}/) ? (
+                    <span className="text-green-600 dark:text-green-400">✓ Incluye {`{Hora}`}</span>
+                  ) : (
+                    <span className="text-amber-600 dark:text-amber-400">⚠ No incluye {`{Hora}`} — no se mostrará el horario</span>
+                  )}
+                </p>
+                <p className="text-xs">
+                  {whatsappTemplate.match(/\{ubicacion\}/) ? (
+                    <span className="text-green-600 dark:text-green-400">✓ Incluye {`{ubicacion}`}</span>
+                  ) : (
+                    <span className="text-red-600 dark:text-red-400">⚠ Falta {`{ubicacion}`} (obligatorio)</span>
+                  )}
+                </p>
+              </div>
               <button
                 type="button"
+                onMouseDown={playSuccess}
                 onClick={handleSaveWhatsapp}
-                disabled={pending}
+                disabled={pending || !whatsappTemplate.match(/\{ubicacion\}/)}
                 className="inline-flex items-center gap-2 bg-violet-600 text-white px-6 py-2.5 rounded-full text-sm font-medium shadow-sm hover:bg-violet-700 disabled:opacity-50 transition-all cursor-pointer select-none"
               >
                 <Save className="w-4 h-4" />
@@ -422,10 +618,11 @@ export default function BusinessClient({
                 startTransition(async () => {
                   const result = await updateBusinessHours(businessHours);
                   if (!result.success) {
+                    playError();
                     showError(result.error);
                   } else {
                     showSuccess("Horarios guardados");
-                    playPop();
+                    playSuccess();
                     setSavedSection("hours");
                     setTimeout(() => setSavedSection(null), 1500);
                   }

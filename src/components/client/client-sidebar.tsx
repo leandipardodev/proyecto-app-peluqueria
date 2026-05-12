@@ -40,7 +40,9 @@ export default function ClientSidebar({
   return (
     <div className="flex flex-col h-full bg-white/30 dark:bg-black/30 backdrop-blur-3xl border-r border-white/20 dark:border-white/10 border-t border-l border-white/50 dark:border-t-white/20 dark:border-l-white/20 text-gray-700 dark:text-zinc-400">
       <div className="p-6 border-b border-white/20 dark:border-white/10">
-        <h2 className="text-xl font-bold tracking-tight text-violet-700 dark:text-white">Klip</h2>
+        <div className="inline-flex items-center">
+          <span className="text-lg font-bold tracking-tight text-[#0071E3]">Klip</span>
+        </div>
         <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">{shopName}</p>
       </div>
 

@@ -11,7 +11,7 @@ type NextAppointment = {
   start_time: string;
   end_time: string;
   status: string;
-  customers: { nombre: string } | null;
+  customers: { nombre: string; telefono: string | null } | null;
   services: { name: string; price: number } | null;
 };
 
@@ -74,7 +74,7 @@ export async function fetchDashboardSummary(): Promise<ActionResult<DashboardSum
 
     const nextResult = await supabase
       .from("appointments")
-      .select("*, customers(nombre), services(name, price)")
+      .select("*, customers(nombre, telefono), services(name, price)")
       .eq("shop_id", shopId)
       .gte("start_time", todayStartIso)
       .lte("start_time", todayEndIso)
@@ -90,8 +90,8 @@ export async function fetchDashboardSummary(): Promise<ActionResult<DashboardSum
       end_time: a.end_time as string,
       status: a.status as string,
       customers: Array.isArray(a.customers)
-        ? (a.customers as { nombre: string }[])[0] ?? null
-        : (a.customers as { nombre: string } | null),
+        ? (a.customers as { nombre: string; telefono: string | null }[])[0] ?? null
+        : (a.customers as { nombre: string; telefono: string | null } | null),
       services: Array.isArray(a.services)
         ? (a.services as { name: string; price: number }[])[0] ?? null
         : (a.services as { name: string; price: number } | null),
