@@ -17,6 +17,14 @@ function generateShopSlug(name: string): string {
     .substring(0, 50);
 }
 
+function mapAuthError(message: string): string {
+  const normalized = message.toLowerCase();
+  if (normalized.includes("rate limit") || normalized.includes("too many requests") || normalized.includes("too many")) {
+    return "Superaste el límite de correos por ahora. Esperá 1 minuto y volvé a intentar.";
+  }
+  return message;
+}
+
 export async function login(formData: FormData): Promise<never> {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
@@ -89,7 +97,7 @@ export async function registerShop(
 
     const { error: signUpError } = await supabase.auth.signUp({ email, password });
     if (signUpError) {
-      return { success: false, error: signUpError.message };
+      return { success: false, error: mapAuthError(signUpError.message) };
     }
 
     const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });

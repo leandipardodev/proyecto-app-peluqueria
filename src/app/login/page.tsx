@@ -6,13 +6,33 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/toast";
 
+const RESET_COOLDOWN_MS = 60_000;
+const RESET_COOLDOWN_KEY = "klip_reset_cooldown_until";
+
+function isRateLimitError(message: string | null | undefined): boolean {
+  if (!message) return false;
+  const normalized = message.toLowerCase();
+  return normalized.includes("rate limit") || normalized.includes("too many requests") || normalized.includes("too many");
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [resetMode, setResetMode] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const [resetCooldownUntil, setResetCooldownUntil] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
   const { addToast } = useToast();
+
+  useEffect(() => {
+    const stored = Number(window.localStorage.getItem(RESET_COOLDOWN_KEY) || "0");
+    if (stored > Date.now()) setResetCooldownUntil(stored);
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const resetCooldownSeconds = Math.max(0, Math.ceil((resetCooldownUntil - now) / 1000));
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -53,6 +73,10 @@ export default function LoginPage() {
 
   const handleResetPassword = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (resetCooldownSeconds > 0) {
+      setError(`Esperá ${resetCooldownSeconds}s antes de volver a enviar el email.`);
+      return;
+    }
     setError("");
     setLoading(true);
 
@@ -64,6 +88,11 @@ export default function LoginPage() {
     });
 
     if (error) {
+      if (isRateLimitError(error.message)) {
+        const until = Date.now() + RESET_COOLDOWN_MS;
+        setResetCooldownUntil(until);
+        window.localStorage.setItem(RESET_COOLDOWN_KEY, String(until));
+      }
       setError(error.message);
       setLoading(false);
       return;
@@ -124,10 +153,10 @@ export default function LoginPage() {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || resetCooldownSeconds > 0}
                 className="w-full bg-violet-600 text-white py-2.5 px-4 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 transition-colors disabled:opacity-50 cursor-pointer select-none"
               >
-                {loading ? "Enviando..." : "Enviar instrucciones"}
+                {loading ? "Enviando..." : resetCooldownSeconds > 0 ? `Reintentá en ${resetCooldownSeconds}s` : "Enviar instrucciones"}
               </button>
 
               <button

@@ -2,24 +2,53 @@
 
 import { registerShop } from "@/lib/dashboard/auth-actions";
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
+
+const REGISTER_COOLDOWN_MS = 60_000;
+const REGISTER_COOLDOWN_KEY = "klip_register_cooldown_until";
+
+function isRateLimitError(message: string | null | undefined): boolean {
+  if (!message) return false;
+  const normalized = message.toLowerCase();
+  return normalized.includes("rate limit") || normalized.includes("too many requests") || normalized.includes("too many");
+}
 
 export default function RegisterPage() {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const [cooldownUntil, setCooldownUntil] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
   const router = useRouter();
   const { addToast } = useToast();
 
+  useEffect(() => {
+    const stored = Number(window.localStorage.getItem(REGISTER_COOLDOWN_KEY) || "0");
+    if (stored > Date.now()) setCooldownUntil(stored);
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const cooldownSeconds = Math.max(0, Math.ceil((cooldownUntil - now) / 1000));
+
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (cooldownSeconds > 0) {
+      setError(`Esperá ${cooldownSeconds}s antes de volver a solicitar el correo de confirmación.`);
+      return;
+    }
     setError(null);
     const formData = new FormData(e.currentTarget);
     startTransition(async () => {
       const result = await registerShop(formData);
       if (!result.success) {
+        if (isRateLimitError(result.error)) {
+          const until = Date.now() + REGISTER_COOLDOWN_MS;
+          setCooldownUntil(until);
+          window.localStorage.setItem(REGISTER_COOLDOWN_KEY, String(until));
+        }
         setError(result.error);
       } else {
         const payload = result.data as { redirectToDashboard?: boolean; requiresEmailConfirmation?: boolean; message?: string } | undefined;
@@ -124,10 +153,10 @@ export default function RegisterPage() {
 
               <button
                 type="submit"
-                disabled={pending}
+                disabled={pending || cooldownSeconds > 0}
                  className="w-full bg-violet-600 text-white py-2.5 px-4 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
               >
-                {pending ? "Creando cuenta..." : "Crear Cuenta"}
+                {pending ? "Creando cuenta..." : cooldownSeconds > 0 ? `Reintentá en ${cooldownSeconds}s` : "Crear Cuenta"}
               </button>
             </form>
           )}
