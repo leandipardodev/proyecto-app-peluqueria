@@ -412,6 +412,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
                   <span className="text-sm leading-none">K</span>
                 </span>
               )}
+
             </div>
 
             <AnimatePresence>

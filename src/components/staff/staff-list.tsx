@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,7 +72,7 @@ export default function StaffList({
       alert(result.error);
       return;
     }
-    router.refresh();
+    setStaff((prev) => prev.map((member) => (member.id === id ? { ...member, role: newRole } : member)));
   }
 
   async function handleRemove(id: string) {
@@ -83,7 +82,7 @@ export default function StaffList({
       alert(result.error);
       return;
     }
-    router.refresh();
+    setStaff((prev) => prev.filter((member) => member.id !== id));
   }
 
   return (

@@ -2,6 +2,7 @@
 
 import { Pencil, Trash2, Plus } from "lucide-react";
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import ServiceModal from "./service-modal";
 import ServiceForm from "./service-form";
 import { deleteService } from "@/lib/dashboard/service-actions";
@@ -18,6 +19,7 @@ interface ServicesListProps {
 }
 
 export default function ServicesList({ initialServices }: ServicesListProps) {
+  const router = useRouter();
   const [services, setServices] = useState(initialServices);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
@@ -41,7 +43,7 @@ export default function ServicesList({ initialServices }: ServicesListProps) {
   function handleSuccess() {
     setModalOpen(false);
     setEditingService(null);
-    window.location.reload();
+    router.refresh();
   }
 
   function handleDelete(id: string) {

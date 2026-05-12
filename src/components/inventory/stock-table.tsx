@@ -10,7 +10,6 @@ import {
   Search,
 } from "lucide-react";
 import { useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { deleteProduct, updateStock } from "@/lib/dashboard/inventory-actions";
 
 type StockItem = {
@@ -25,16 +24,16 @@ interface StockTableProps {
 }
 
 export default function StockTable({ items }: StockTableProps) {
-  const router = useRouter();
+  const [stockItems, setStockItems] = useState(items);
   const [search, setSearch] = useState("");
   const [pending, startTransition] = useTransition();
 
   const filtered = useMemo(
     () =>
-      items.filter((item) =>
+      stockItems.filter((item) =>
         item.nombre_producto.toLowerCase().includes(search.toLowerCase())
       ),
-    [items, search]
+    [stockItems, search]
   );
 
   function handleDelta(id: string, delta: number) {
@@ -44,7 +43,13 @@ export default function StockTable({ items }: StockTableProps) {
         alert(result.error);
         return;
       }
-      router.refresh();
+      setStockItems((prev) =>
+        prev.map((item) =>
+          item.id === id
+            ? { ...item, quantity: Math.max(0, item.quantity + delta) }
+            : item
+        )
+      );
     });
   }
 
@@ -56,7 +61,7 @@ export default function StockTable({ items }: StockTableProps) {
         alert(result.error);
         return;
       }
-      router.refresh();
+      setStockItems((prev) => prev.filter((item) => item.id !== id));
     });
   }
 

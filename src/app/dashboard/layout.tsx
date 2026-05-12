@@ -2,6 +2,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import DashboardSidebar from "@/components/dashboard/dashboard-sidebar";
 import DashboardHeader from "@/components/dashboard/dashboard-header";
+import DashboardPageTransition from "@/components/dashboard/dashboard-page-transition";
 import { getTenantAndUser } from "@/lib/dashboard/get-tenant-and-user";
 import { logout } from "@/lib/dashboard/logout-action";
 import { getTodayArgentinaBounds } from "@/lib/argentina-time";
@@ -95,7 +96,9 @@ export default async function DashboardLayout({
           onLogout={logout}
         />
 
-        <main className="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8">{children}</main>
+        <main className="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8">
+          <DashboardPageTransition>{children}</DashboardPageTransition>
+        </main>
       </div>
     </div>
   );
