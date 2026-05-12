@@ -6,7 +6,9 @@ import TopServices from "@/components/dashboard/top-services";
 import HoverScale from "@/components/ui/hover-scale";
 import { fetchWhatsappTemplate } from "@/lib/dashboard/whatsapp-actions";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
-import { buildWhatsAppUrl } from "@/lib/dashboard/whatsapp-utils";
+import { buildWhatsAppContactUrl, buildWhatsAppUrl } from "@/lib/dashboard/whatsapp-utils";
+import { createServerClient } from "@/lib/supabase/server";
+import { getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -48,6 +50,7 @@ export default async function DashboardPage() {
     fetchDashboardMetrics(),
     fetchWhatsappTemplate(),
   ]);
+  const shopPhone = await fetchShopPhone();
 
   const whatsappTemplate = whatsappTemplateResult.success ? (whatsappTemplateResult.data ?? DEFAULT_WHATSAPP_TEMPLATE) : DEFAULT_WHATSAPP_TEMPLATE;
 
@@ -114,6 +117,10 @@ export default async function DashboardPage() {
     month: "long",
     year: "numeric",
   });
+  const whatsappHref = buildWhatsAppContactUrl(
+    shopPhone,
+    `Hola! Quiero consultar sobre turnos en ${summary.shopName}.`
+  );
 
   return (
     <div className="space-y-6">
@@ -124,6 +131,19 @@ export default async function DashboardPage() {
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
           Resumen de tu peluquería
         </p>
+        <a
+          href={whatsappHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium text-white"
+          style={{
+            background: "linear-gradient(135deg, #7bcfa3 0%, #69bb93 100%)",
+            boxShadow: "0 8px 18px rgba(105,187,147,0.22), inset 0 1px 0 rgba(255,255,255,0.35)",
+          }}
+        >
+          <MessageCircle className="h-3.5 w-3.5" />
+          WhatsApp
+        </a>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -310,4 +330,18 @@ export default async function DashboardPage() {
       `}</style>
     </div>
   );
+}
+
+async function fetchShopPhone(): Promise<string | null> {
+  const session = await getAuthSession();
+  if (!session) return null;
+  const shopId = await getShopId(session);
+  if (!shopId) return null;
+  const supabase = await createServerClient();
+  const { data } = await supabase
+    .from("shops")
+    .select("phone")
+    .eq("id", shopId)
+    .single();
+  return data?.phone || null;
 }

@@ -236,27 +236,27 @@ export default function FinancesClient({
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
           </button>
         </div>
-        <span className="text-zinc-300 dark:text-zinc-600 select-none">|</span>
+        <span className="hidden sm:inline text-zinc-300 dark:text-zinc-600 select-none">|</span>
         <input
           type="date"
           value={from}
           onChange={(e) => setFrom(e.target.value)}
-          className="rounded-full bg-white/40 dark:bg-[#1c1c1e] backdrop-blur-md border border-white/20 dark:border-zinc-700 px-4 py-2 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-50 [color-scheme:light] dark:[color-scheme:dark] cursor-pointer"
+          className="w-full sm:w-auto rounded-full bg-white/40 dark:bg-[#1c1c1e] backdrop-blur-md border border-white/20 dark:border-zinc-700 px-4 py-2 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-50 [color-scheme:light] dark:[color-scheme:dark] cursor-pointer"
         />
-        <span className="text-zinc-400 text-xs select-none">→</span>
+        <span className="hidden sm:inline text-zinc-400 text-xs select-none">→</span>
         <input
           type="date"
           value={to}
           onChange={(e) => setTo(e.target.value)}
-          className="rounded-full bg-white/40 dark:bg-[#1c1c1e] backdrop-blur-md border border-white/20 dark:border-zinc-700 px-4 py-2 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-50 [color-scheme:light] dark:[color-scheme:dark] cursor-pointer"
+          className="w-full sm:w-auto rounded-full bg-white/40 dark:bg-[#1c1c1e] backdrop-blur-md border border-white/20 dark:border-zinc-700 px-4 py-2 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-50 [color-scheme:light] dark:[color-scheme:dark] cursor-pointer"
         />
         <button
           onClick={applyCustomRange}
-          className="px-4 py-2 rounded-full bg-violet-600/15 border border-violet-500/30 text-violet-700 dark:text-violet-300 text-sm font-medium hover:bg-violet-600/25 transition-colors cursor-pointer select-none"
+          className="w-full sm:w-auto px-4 py-2 rounded-full bg-violet-600/15 border border-violet-500/30 text-violet-700 dark:text-violet-300 text-sm font-medium hover:bg-violet-600/25 transition-colors cursor-pointer select-none"
         >
           Filtrar
         </button>
-        <div className="ml-auto">
+        <div className="sm:ml-auto">
           <button
             onClick={handleExport}
             className="p-3 rounded-full bg-white/20 dark:bg-[#1c1c1e]/60 backdrop-blur-md border border-white/20 dark:border-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-white/30 dark:hover:bg-white/10 transition-all cursor-pointer select-none"

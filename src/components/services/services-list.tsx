@@ -59,11 +59,11 @@ export default function ServicesList({ initialServices }: ServicesListProps) {
 
   return (
     <>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Servicios</h1>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 transition-colors cursor-pointer select-none"
+          className="inline-flex items-center justify-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 transition-colors cursor-pointer select-none"
         >
           <Plus className="w-4 h-4" />
           Nuevo Servicio
@@ -84,7 +84,40 @@ export default function ServicesList({ initialServices }: ServicesListProps) {
           </button>
         </div>
       ) : (
-        <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden">
+        <>
+          <div className="md:hidden space-y-3">
+            {services.map((service) => (
+              <div key={service.id} className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[1.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-4">
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{service.name}</p>
+                <div className="mt-2 flex items-center justify-between text-sm">
+                  <span className="text-gray-500 dark:text-gray-400">Precio</span>
+                  <span className="font-medium text-gray-900 dark:text-gray-100">${service.price.toFixed(2)}</span>
+                </div>
+                <div className="mt-1 flex items-center justify-between text-sm">
+                  <span className="text-gray-500 dark:text-gray-400">Duración</span>
+                  <span className="font-medium text-gray-900 dark:text-gray-100">{service.duration_minutes} min</span>
+                </div>
+                <div className="mt-3 flex items-center justify-end gap-1">
+                  <button
+                    onClick={() => openEdit(service)}
+                    className="p-1.5 rounded-md text-gray-500 hover:text-violet-600 hover:bg-violet-50 transition-colors cursor-pointer select-none"
+                    title="Editar"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(service.id)}
+                    className="p-1.5 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer select-none"
+                    title="Eliminar"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden md:block bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -138,7 +171,8 @@ export default function ServicesList({ initialServices }: ServicesListProps) {
               </tbody>
             </table>
           </div>
-        </div>
+          </div>
+        </>
       )}
 
       <ServiceModal

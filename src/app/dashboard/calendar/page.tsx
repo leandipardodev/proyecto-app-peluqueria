@@ -32,6 +32,7 @@ export default async function CalendarPage({
   let businessHours: any = null;
   let whatsappTemplate = DEFAULT_WHATSAPP_TEMPLATE;
   let shopName = "";
+  let shopPhone: string | null = null;
   let error: string | null = null;
 
   try {
@@ -43,6 +44,7 @@ export default async function CalendarPage({
       fetchBusinessHours(),
       fetchWhatsappTemplate(),
       fetchShopName(),
+      fetchShopPhone(),
     ]);
 
     if (results[0].status === "fulfilled" && results[0].value.success) appointments = (results[0].value as any).data ?? [];
@@ -63,6 +65,7 @@ export default async function CalendarPage({
     if (results[5].status === "fulfilled" && (results[5].value as any).success) whatsappTemplate = (results[5].value as any).data ?? DEFAULT_WHATSAPP_TEMPLATE;
 
     if (results[6].status === "fulfilled") shopName = results[6].value;
+    if (results[7].status === "fulfilled") shopPhone = results[7].value;
 
     const hasError = results.some(r => r.status === "rejected");
     if (hasError) {
@@ -82,6 +85,7 @@ export default async function CalendarPage({
       businessHours={businessHours ?? undefined}
       whatsappTemplate={whatsappTemplate}
       shopName={shopName}
+      shopPhone={shopPhone}
       initialDateParam={searchParams?.date}
       initialAppointmentId={searchParams?.appointmentId}
     />
@@ -117,4 +121,18 @@ async function fetchShopName(): Promise<string> {
     .eq("id", shopId)
     .single();
   return data?.nombre || "";
+}
+
+async function fetchShopPhone(): Promise<string | null> {
+  const session = await getAuthSession();
+  if (!session) return null;
+  const shopId = await getShopId(session);
+  if (!shopId) return null;
+  const supabase = await createServerClient();
+  const { data } = await supabase
+    .from("shops")
+    .select("phone")
+    .eq("id", shopId)
+    .single();
+  return data?.phone || null;
 }

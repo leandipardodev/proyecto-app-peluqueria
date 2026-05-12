@@ -72,13 +72,15 @@ export async function fetchDashboardSummary(): Promise<ActionResult<DashboardSum
       return sum + (Number(price) || 0);
     }, 0);
 
+    const nowIso = new Date().toISOString();
+
     const nextResult = await supabase
       .from("appointments")
       .select("*, customers(nombre, telefono), services(name, price)")
       .eq("shop_id", shopId)
-      .gte("start_time", todayStartIso)
+      .gte("start_time", nowIso)
       .lte("start_time", todayEndIso)
-      .in("status", ["scheduled", "confirmed", "completed"])
+      .in("status", ["scheduled", "confirmed"])
       .order("start_time", { ascending: true })
       .limit(5);
 

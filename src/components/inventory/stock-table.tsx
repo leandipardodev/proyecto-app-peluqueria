@@ -90,7 +90,74 @@ export default function StockTable({ items }: StockTableProps) {
         )}
       </div>
 
-      <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden">
+      <div className="md:hidden space-y-3">
+        {filtered.length === 0 ? (
+          <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[1.75rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-4 text-sm text-center text-gray-500 dark:text-gray-400">
+            {search ? "No se encontraron productos" : "No hay productos en el inventario"}
+          </div>
+        ) : (
+          filtered.map((item) => {
+            const isLow = item.quantity < 5;
+            const total = item.quantity * item.unit_cost;
+            return (
+              <div key={item.id} className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[1.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{item.nombre_producto}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Costo: ${item.unit_cost.toFixed(2)}</p>
+                  </div>
+                  {isLow && <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />}
+                </div>
+
+                <div className="mt-3 flex items-center justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Cantidad</span>
+                  <span className={`font-semibold ${isLow ? "text-red-600" : "text-gray-900 dark:text-gray-100"}`}>{item.quantity}</span>
+                </div>
+                <div className="mt-1 flex items-center justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Valor total</span>
+                  <span className="font-semibold text-gray-900 dark:text-gray-100">${total.toFixed(2)}</span>
+                </div>
+
+                <div className="mt-3 flex items-center justify-end gap-1">
+                  <button
+                    onClick={() => handleDelta(item.id, -1)}
+                    disabled={pending || item.quantity <= 0}
+                    className="p-1.5 rounded-md text-gray-500 hover:text-violet-600 hover:bg-violet-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
+                    title="Restar unidad"
+                  >
+                    <Minus className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelta(item.id, 1)}
+                    disabled={pending}
+                    className="p-1.5 rounded-md text-gray-500 hover:text-violet-600 hover:bg-violet-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
+                    title="Sumar unidad"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(item.id)}
+                    disabled={pending}
+                    className="p-1.5 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
+                    title="Eliminar"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        )}
+
+        {filtered.length > 0 && (
+          <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[1.25rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 px-4 py-3 text-xs text-gray-600 dark:text-gray-400 flex items-center justify-between">
+            <span>{filtered.length} producto{filtered.length !== 1 ? "s" : ""}</span>
+            <span className="font-semibold text-gray-900 dark:text-gray-100">${totalValue.toFixed(2)}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="hidden md:block bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>

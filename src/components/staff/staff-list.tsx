@@ -88,7 +88,7 @@ export default function StaffList({
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-6">
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white tracking-tight">Personal</h2>
         <Button onClick={() => setShowForm(true)}>Agregar Peluquero</Button>
       </div>
@@ -100,7 +100,7 @@ export default function StaffList({
       )}
 
       {showForm && (
-        <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-6 mb-6">
+        <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-4 sm:p-6 mb-6">
           <h3 className="text-lg font-medium dark:text-gray-100 mb-4 tracking-tight">Nuevo Peluquero</h3>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -136,7 +136,7 @@ export default function StaffList({
                 <option value="owner">Administrador</option>
               </select>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <Button type="submit" disabled={saving}>
                 {saving ? "Guardando..." : "Guardar"}
               </Button>
@@ -182,7 +182,56 @@ export default function StaffList({
         </div>
       )}
 
-        <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden">
+      <div className="md:hidden space-y-3">
+        {staff.length === 0 ? (
+          <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[1.75rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-4 text-sm text-center text-gray-500 dark:text-gray-400">
+            No hay personal registrado
+          </div>
+        ) : (
+          staff.map((member) => {
+            const isCurrentOwnerSelf = member.id === currentUserId && member.role === "owner";
+            const selfOwnerTooltip = "No podés editar tu propio rol de administrador";
+            return (
+              <div key={member.id} className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[1.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-4">
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{member.name || "-"}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{member.email || "-"}</p>
+                <div className="mt-3 flex items-center justify-between text-sm">
+                  <span className="text-gray-500 dark:text-gray-400">Rol</span>
+                  <select
+                    value={member.role}
+                    onChange={(e) => handleRoleChange(member.id, e.target.value as "staff" | "owner")}
+                    disabled={isCurrentOwnerSelf}
+                    title={isCurrentOwnerSelf ? selfOwnerTooltip : undefined}
+                    className="text-sm rounded border border-gray-300 dark:border-gray-600 py-1 px-2 bg-white dark:bg-gray-950 dark:text-gray-100 cursor-pointer"
+                  >
+                    <option value="staff">Peluquero</option>
+                    <option value="owner">Admin</option>
+                  </select>
+                </div>
+                <div className="mt-2 flex items-center justify-between text-sm">
+                  <span className="text-gray-500 dark:text-gray-400">Facturación</span>
+                  <span className="font-medium text-gray-900 dark:text-gray-100">${member.revenue.toFixed(2)}</span>
+                </div>
+                <div className="mt-3 flex justify-end">
+                  {isCurrentOwnerSelf ? (
+                    <span className="text-xs text-gray-400 cursor-not-allowed select-none" title={selfOwnerTooltip}>-</span>
+                  ) : (
+                    <button
+                      onClick={() => handleRemove(member.id)}
+                      className="text-sm text-red-600 hover:text-red-800 cursor-pointer select-none"
+                    >
+                      Eliminar
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      <div className="hidden md:block bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden">
+        <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
           <thead className="bg-white/40 dark:bg-black/20">
             <tr>
@@ -259,6 +308,7 @@ export default function StaffList({
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

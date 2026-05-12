@@ -435,7 +435,7 @@ export default function BusinessClient({
               <button
                 type="submit"
                 disabled={pending}
-                className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-medium shadow-sm transition-all duration-200 cursor-pointer select-none ${
+                className={`inline-flex w-full sm:w-auto justify-center items-center gap-2 px-6 py-2.5 rounded-full text-sm font-medium shadow-sm transition-all duration-200 cursor-pointer select-none ${
                   savedSection === "info"
                     ? "bg-green-500 text-white scale-105"
                     : "bg-violet-600 text-white hover:bg-violet-700"
@@ -530,7 +530,7 @@ export default function BusinessClient({
                   onMouseDown={playClick}
                   onClick={handleSaveMpKeys}
                   disabled={pending}
-                  className="inline-flex items-center gap-2 bg-violet-600 text-white px-6 py-2.5 rounded-full text-sm font-medium shadow-sm hover:bg-violet-700 disabled:opacity-50 transition-all cursor-pointer select-none"
+                  className="inline-flex w-full sm:w-auto justify-center items-center gap-2 bg-violet-600 text-white px-6 py-2.5 rounded-full text-sm font-medium shadow-sm hover:bg-violet-700 disabled:opacity-50 transition-all cursor-pointer select-none"
                 >
                   <Save className="w-4 h-4" />
                   {pending ? "Guardando..." : "Guardar Claves"}
@@ -567,7 +567,7 @@ export default function BusinessClient({
             {locationError && (
               <p className="mt-2 text-xs text-red-600 dark:text-red-400 font-medium">{locationError}</p>
             )}
-            <div className="flex items-center justify-between mt-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-3">
               <div className="flex flex-col gap-1">
                 <p className="text-xs text-zinc-400 dark:text-zinc-500">
                   {whatsappTemplate.match(/\{Hora\}/) ? (
@@ -589,7 +589,7 @@ export default function BusinessClient({
                 onMouseDown={playSuccess}
                 onClick={handleSaveWhatsapp}
                 disabled={pending || !whatsappTemplate.match(/\{ubicacion\}/)}
-                className="inline-flex items-center gap-2 bg-violet-600 text-white px-6 py-2.5 rounded-full text-sm font-medium shadow-sm hover:bg-violet-700 disabled:opacity-50 transition-all cursor-pointer select-none"
+                className="inline-flex w-full sm:w-auto justify-center items-center gap-2 bg-violet-600 text-white px-6 py-2.5 rounded-full text-sm font-medium shadow-sm hover:bg-violet-700 disabled:opacity-50 transition-all cursor-pointer select-none"
               >
                 <Save className="w-4 h-4" />
                 {pending ? "Guardando..." : "Guardar Plantilla"}
@@ -629,7 +629,7 @@ export default function BusinessClient({
                 });
               }}
               disabled={pending}
-              className={`inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-medium shadow-sm transition-all duration-200 cursor-pointer select-none ${
+              className={`inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-medium shadow-sm transition-all duration-200 cursor-pointer select-none shrink-0 ${
                 savedSection === "hours"
                   ? "bg-green-500 text-white scale-105"
                   : "bg-violet-600 text-white hover:bg-violet-700"
@@ -664,8 +664,8 @@ export default function BusinessClient({
                 const h = businessHours[day.key];
                 if (!h) return null;
                 return (
-                  <div key={day.key} className="flex items-center gap-3 py-3 px-3 rounded-2xl hover:bg-white/20 dark:hover:bg-white/5 transition-colors">
-                    <p className={`text-sm font-medium min-w-[72px] ${h.open ? "text-gray-900 dark:text-white" : "text-zinc-400 dark:text-zinc-500"}`}>
+                  <div key={day.key} className="flex flex-wrap items-center gap-3 py-3 px-3 rounded-2xl hover:bg-white/20 dark:hover:bg-white/5 transition-colors">
+                    <p className={`text-sm font-medium min-w-[64px] ${h.open ? "text-gray-900 dark:text-white" : "text-zinc-400 dark:text-zinc-500"}`}>
                       {day.label}
                     </p>
                     <button
@@ -677,22 +677,22 @@ export default function BusinessClient({
                         className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${h.open ? "translate-x-5" : "translate-x-0"}`}
                       />
                     </button>
-                    <span className="w-px h-6 bg-white/10 shrink-0" />
-                    <div className={`flex items-center gap-2 transition-all duration-200 ${h.open ? "opacity-100" : "opacity-25"}`}>
+                    <span className="hidden sm:block w-px h-6 bg-white/10 shrink-0" />
+                    <div className={`flex flex-wrap items-center gap-2 transition-all duration-200 ${h.open ? "opacity-100" : "opacity-25"}`}>
                       <input
                         type="time"
                         value={h.start}
                         disabled={!h.open}
                         onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, start: e.target.value } })}
-                        className="rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[110px] disabled:cursor-not-allowed cursor-pointer"
+                        className="rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
                       />
-                      <span className="text-xs text-zinc-400">→</span>
+                      <span className="hidden sm:inline text-xs text-zinc-400">→</span>
                       <input
                         type="time"
                         value={h.end}
                         disabled={!h.open}
                         onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, end: e.target.value } })}
-                        className="rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[110px] disabled:cursor-not-allowed cursor-pointer"
+                        className="rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
                       />
                     </div>
                   </div>

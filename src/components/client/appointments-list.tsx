@@ -30,15 +30,6 @@ const statusColors: Record<string, string> = {
   no_show: "bg-gray-100 text-gray-800",
 };
 
-const statusLabels: Record<string, string> = {
-  scheduled: "Programado",
-  confirmed: "Confirmado",
-  in_progress: "En progreso",
-  completed: "Completado",
-  cancelled: "Cancelado",
-  no_show: "No asistió",
-};
-
 export default function ClientAppointmentsList({
   appointments,
   onCancel,
@@ -51,8 +42,14 @@ export default function ClientAppointmentsList({
     null
   );
 
-  function formatStatus(status: string) {
-    return statusLabels[status] || status;
+  function formatStatus(status: string, isPaid: boolean) {
+    if (status === "pending_payment") return "Pago pendiente";
+    if (status === "scheduled" && !isPaid) return "A confirmar";
+    if (status === "scheduled" && isPaid) return "Señado";
+    if (status === "confirmed" || status === "in_progress") return "Confirmado";
+    if (status === "completed") return "Completado";
+    if (status === "cancelled" || status === "no_show") return "Cancelado";
+    return status;
   }
 
   function formatDateTime(dateStr: string) {
@@ -130,7 +127,7 @@ export default function ClientAppointmentsList({
                           statusColors[apt.status]
                         }`}
                       >
-                        {formatStatus(apt.status)}
+                        {formatStatus(apt.status, apt.is_paid)}
                       </span>
                       {apt.service && (
                         <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
@@ -210,7 +207,7 @@ export default function ClientAppointmentsList({
                         statusColors[apt.status]
                       }`}
                     >
-                      {formatStatus(apt.status)}
+                      {formatStatus(apt.status, apt.is_paid)}
                     </span>
                   </div>
                 </div>

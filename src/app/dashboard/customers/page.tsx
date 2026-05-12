@@ -317,8 +317,8 @@ export default function CustomersPage() {
   return (
     <div className="space-y-6 relative">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Clientes</h1>
-        <p className="mt-1 text-sm text-slate-500">Gestión de fichas técnicas y datos de contacto.</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-zinc-100">Clientes</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-zinc-400">Gestión de fichas técnicas y datos de contacto.</p>
       </div>
 
       <div>
@@ -337,15 +337,46 @@ export default function CustomersPage() {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Buscar por nombre u observaciones..."
-          className="w-full rounded-full bg-white border border-slate-200 pl-9 pr-4 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all"
+          className="w-full rounded-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 pl-9 pr-4 py-2 text-sm text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all"
         />
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.03)]">
+      <div className="md:hidden space-y-3">
+        {filteredCustomers.length === 0 ? (
+          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-2xl px-4 py-8 text-center text-sm text-slate-500 dark:text-zinc-400 shadow-[0_8px_30px_rgb(0,0,0,0.03)]">
+            No se encontraron clientes
+          </div>
+        ) : (
+          filteredCustomers.map((customer) => (
+            <button
+              key={customer.id}
+              onClick={() => openEditor(customer)}
+              className="w-full text-left bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-2xl p-4 shadow-[0_8px_30px_rgb(0,0,0,0.03)] active:scale-[0.99] transition"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-medium text-slate-900 dark:text-zinc-100 truncate">{customer.nombre || "Sin nombre"}</p>
+                  <p className="text-xs text-slate-500 dark:text-zinc-400 truncate">{customer.telefono || "Sin telefono"}</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {isBirthdayThisWeek(customer.cumpleaños) && <Gift className="w-4 h-4 text-rose-500" />}
+                  {customer.es_vip && (
+                    <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-700">VIP</span>
+                  )}
+                </div>
+              </div>
+              <p className="mt-2 text-xs text-slate-500 dark:text-zinc-400">Cumple: {formatDate(customer.cumpleaños)}</p>
+              <p className="mt-2 text-sm text-slate-700 dark:text-zinc-300 line-clamp-2">{customer.observaciones_tecnicas || "Sin observaciones"}</p>
+            </button>
+          ))
+        )}
+      </div>
+
+      <div className="hidden md:block bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-3xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.03)]">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-sm">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-left text-slate-500">
+              <tr className="bg-slate-50 dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700 text-left text-slate-500 dark:text-zinc-400">
                 <th className="px-6 py-3 font-medium">Cliente</th>
                 <th className="px-6 py-3 font-medium">Email</th>
                 <th className="px-6 py-3 font-medium">Teléfono</th>
@@ -357,7 +388,7 @@ export default function CustomersPage() {
             <tbody>
               {filteredCustomers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={6} className="px-6 py-12 text-center text-slate-500 dark:text-zinc-400">
                     No se encontraron clientes
                   </td>
                 </tr>
@@ -366,21 +397,21 @@ export default function CustomersPage() {
                   <tr
                     key={customer.id}
                     onClick={() => openEditor(customer)}
-                    className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70 cursor-pointer"
+                    className="border-b border-slate-100 dark:border-zinc-800 last:border-0 hover:bg-slate-50/70 dark:hover:bg-zinc-800/60 cursor-pointer"
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-slate-900">{customer.nombre || "Sin nombre"}</span>
+                        <span className="font-medium text-slate-900 dark:text-zinc-100">{customer.nombre || "Sin nombre"}</span>
                         {isBirthdayThisWeek(customer.cumpleaños) && <Gift className="w-4 h-4 text-rose-500" />}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-slate-600">{customer.email || "Sin email"}</td>
-                    <td className="px-6 py-4 text-slate-600">{customer.telefono || "Sin teléfono"}</td>
-                    <td className="px-6 py-4 text-slate-700">{formatDate(customer.cumpleaños)}</td>
-                    <td className="px-6 py-4 text-slate-700 max-w-[280px]">
+                    <td className="px-6 py-4 text-slate-600 dark:text-zinc-300">{customer.email || "Sin email"}</td>
+                    <td className="px-6 py-4 text-slate-600 dark:text-zinc-300">{customer.telefono || "Sin teléfono"}</td>
+                    <td className="px-6 py-4 text-slate-700 dark:text-zinc-200">{formatDate(customer.cumpleaños)}</td>
+                    <td className="px-6 py-4 text-slate-700 dark:text-zinc-200 max-w-[280px]">
                       <p className="line-clamp-2">{customer.observaciones_tecnicas || "Sin observaciones"}</p>
                     </td>
-                    <td className="px-6 py-4 text-slate-700">{customer.es_vip ? "Sí" : "No"}</td>
+                    <td className="px-6 py-4 text-slate-700 dark:text-zinc-200">{customer.es_vip ? "Sí" : "No"}</td>
                   </tr>
                 ))
               )}
@@ -392,14 +423,14 @@ export default function CustomersPage() {
       {(selectedCustomer || isCreating) && (
         <>
           <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40" onClick={closeEditor} />
-          <div className="fixed right-0 top-0 h-full w-full max-w-xl z-50 bg-white/90 backdrop-blur-xl border-l border-slate-200 shadow-2xl">
+          <div className="fixed right-0 top-0 h-full w-full max-w-xl z-50 bg-white/90 dark:bg-zinc-900/95 backdrop-blur-xl border-l border-slate-200 dark:border-zinc-700 shadow-2xl">
             <div className="h-full flex flex-col">
-              <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+              <div className="px-6 py-4 border-b border-slate-200 dark:border-zinc-700 flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">{isCreating ? "Nuevo cliente" : "Ficha de cliente"}</h2>
-                  {!isCreating && <p className="text-sm text-slate-500">{selectedCustomer?.nombre || "Sin nombre"}</p>}
+                  <h2 className="text-lg font-semibold text-slate-900 dark:text-zinc-100">{isCreating ? "Nuevo cliente" : "Ficha de cliente"}</h2>
+                  {!isCreating && <p className="text-sm text-slate-500 dark:text-zinc-400">{selectedCustomer?.nombre || "Sin nombre"}</p>}
                 </div>
-                <button onClick={closeEditor} className="p-2 rounded-full hover:bg-slate-100 text-slate-500">
+                <button onClick={closeEditor} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500 dark:text-zinc-400">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -407,64 +438,64 @@ export default function CustomersPage() {
               <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-900 mb-1.5">Nombre</label>
+                    <label className="block text-sm font-medium text-slate-900 dark:text-zinc-100 mb-1.5">Nombre</label>
                     <input
                       value={draftNombre}
                       onChange={(e) => setDraftNombre(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                      className="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-900 mb-1.5">Email</label>
+                    <label className="block text-sm font-medium text-slate-900 dark:text-zinc-100 mb-1.5">Email</label>
                     <input
                       value={draftEmail}
                       onChange={(e) => setDraftEmail(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                      className="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-900 mb-1.5">Teléfono</label>
+                    <label className="block text-sm font-medium text-slate-900 dark:text-zinc-100 mb-1.5">Teléfono</label>
                     <input
                       value={draftTelefono}
                       onChange={(e) => setDraftTelefono(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                      className="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-900 mb-1.5">Cumpleaños</label>
+                    <label className="block text-sm font-medium text-slate-900 dark:text-zinc-100 mb-1.5">Cumpleaños</label>
                     <input
                       type="date"
                       value={draftCumple}
                       onChange={(e) => setDraftCumple(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                      className="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-900 mb-1.5">Observaciones Técnicas</label>
+                  <label className="block text-sm font-medium text-slate-900 dark:text-zinc-100 mb-1.5">Observaciones Técnicas</label>
                   <textarea
                     value={draftObs}
                     onChange={(e) => setDraftObs(e.target.value)}
                     rows={8}
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                    className="w-full rounded-2xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 py-3 text-sm text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                     placeholder="Notas de colorimetría, sensibilidades, tipo de cabello..."
                   />
                 </div>
 
                 <div>
-                  <p className="text-sm font-medium text-slate-900 mb-2">Preferencias</p>
-                  <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <p className="text-sm font-medium text-slate-900 dark:text-zinc-100 mb-2">Preferencias</p>
+                  <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-zinc-300">
                     <input type="checkbox" checked={draftVip} onChange={(e) => setDraftVip(e.target.checked)} />
                     VIP
                   </label>
                 </div>
               </div>
 
-              <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between">
+              <div className="px-6 py-4 border-t border-slate-200 dark:border-zinc-700 flex items-center justify-between">
                 {saveMessage ? (
                   <span className={`text-sm ${saveMessage.includes("Error") ? "text-red-600" : "text-emerald-600"}`}>{saveMessage}</span>
                 ) : (

@@ -47,11 +47,8 @@ export default function LoginPage() {
     }
 
     console.log("LOGIN EXITOSO:", data);
-    console.log("Login exitoso, sincronizando...");
-    await router.refresh();
-    setTimeout(() => {
-      window.location.href = "/dashboard";
-    }, 100);
+    router.push("/dashboard");
+    router.refresh();
   };
 
   const handleResetPassword = async (e: React.FormEvent<HTMLFormElement>) => {

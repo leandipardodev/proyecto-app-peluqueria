@@ -99,26 +99,26 @@ export default function Home() {
       </nav>
 
       <div className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <Section className="py-32">
-          <Card className="p-10 md:p-14">
+        <Section className="py-16 sm:py-24 md:py-32">
+          <Card className="p-6 sm:p-8 md:p-14">
             <p className="mb-5 inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-[#86868B]">
               <Sparkles className="h-4 w-4 text-[#0071E3]" />
               Booking + Gestion + Cobros
             </p>
 
             <div className="max-w-3xl">
-              <h1 className="text-7xl font-extrabold tracking-tight text-[#1D1D1F] md:text-9xl">
+              <h1 className="text-4xl font-extrabold tracking-tight leading-tight text-[#1D1D1F] sm:text-6xl md:text-9xl">
                 Gestion premium para peluquerias modernas.
               </h1>
 
-              <p className="mt-7 text-lg leading-relaxed text-[#86868B]">
+              <p className="mt-5 text-base leading-relaxed text-[#86868B] sm:mt-7 sm:text-lg">
                 Klip centraliza agenda, equipo e ingresos en una experiencia clara, elegante y enfocada en crecimiento.
               </p>
 
               <div className="mt-10">
                 <Link
                   href="/register"
-                  className="inline-flex rounded-full bg-[#0071E3] px-10 py-4 font-semibold text-white transition hover:bg-[#0064cc]"
+                  className="inline-flex rounded-full bg-[#0071E3] px-7 py-3 text-sm font-semibold text-white transition hover:bg-[#0064cc] sm:px-10 sm:py-4 sm:text-base"
                 >
                   Reserve Now
                 </Link>

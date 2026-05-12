@@ -3,11 +3,13 @@
 import { useState, useEffect } from "react";
 import { addWeeks, subWeeks } from "date-fns";
 import { motion } from "framer-motion";
+import { MessageCircle } from "lucide-react";
 import CalendarView from "./calendar-view";
 import AppointmentFormModal from "./appointment-form-modal";
 import AppointmentDetailModal from "./appointment-detail-modal";
 import { useAppointmentAlarm } from "@/lib/use-appointment-alarm";
 import { getArgentinaDateKey } from "@/lib/argentina-time";
+import { buildWhatsAppContactUrl } from "@/lib/dashboard/whatsapp-utils";
 
 function CalendarSkeleton() {
   return (
@@ -93,6 +95,7 @@ interface CalendarPageClientProps {
   businessHours?: BusinessHoursMap;
   whatsappTemplate?: string;
   shopName?: string;
+  shopPhone?: string | null;
   initialDateParam?: string;
   initialAppointmentId?: string;
 }
@@ -106,6 +109,7 @@ export default function CalendarPageClient({
   businessHours,
   whatsappTemplate,
   shopName,
+  shopPhone,
   initialDateParam,
   initialAppointmentId,
 }: CalendarPageClientProps) {
@@ -158,6 +162,11 @@ export default function CalendarPageClient({
     setCurrentDate(new Date());
   }
 
+  const whatsappHref = buildWhatsAppContactUrl(
+    shopPhone,
+    `Hola! Quiero consultar sobre turnos en ${shopName || "la peluqueria"}.`
+  );
+
   return (
     <div className="h-full flex flex-col">
       {error && (
@@ -176,11 +185,26 @@ export default function CalendarPageClient({
         </div>
       )}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Calendario</h1>
-        <div className="inline-flex items-center rounded-full bg-white/30 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 p-0.5 shadow-sm relative overflow-hidden">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Calendario</h1>
+          <a
+            href={whatsappHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium text-white"
+            style={{
+              background: "linear-gradient(135deg, #7bcfa3 0%, #69bb93 100%)",
+              boxShadow: "0 8px 18px rgba(105,187,147,0.22), inset 0 1px 0 rgba(255,255,255,0.35)",
+            }}
+          >
+            <MessageCircle className="h-3.5 w-3.5" />
+            WhatsApp
+          </a>
+        </div>
+        <div className="flex flex-wrap items-center rounded-2xl sm:rounded-full bg-white/30 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 p-0.5 shadow-sm relative gap-1">
           <button
             onClick={() => setStaffFilter(null)}
-            className={`relative z-10 px-3.5 py-1.5 rounded-full text-sm font-medium transition-all cursor-pointer select-none ${
+            className={`relative z-10 px-2.5 sm:px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all cursor-pointer select-none ${
               staffFilter === null
                 ? "text-[#0071E3] dark:text-[#5da8ff]"
                 : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
@@ -201,7 +225,7 @@ export default function CalendarPageClient({
               <button
                 key={s.id}
                 onClick={() => setStaffFilter(isActive ? null : s.id)}
-                className={`relative z-10 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium transition-all cursor-pointer select-none ${
+                className={`relative z-10 inline-flex max-w-full items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all cursor-pointer select-none ${
                   isActive
                     ? "text-[#0071E3] dark:text-[#5da8ff]"
                     : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
@@ -214,8 +238,8 @@ export default function CalendarPageClient({
                     transition={{ type: "spring", stiffness: 500, damping: 30 }}
                   />
                 )}
-                <span className="relative z-10 w-2 h-2 rounded-full" style={{ backgroundColor: STAFF_SEGMENTED_COLORS[staff.indexOf(s) % STAFF_SEGMENTED_COLORS.length] }} />
-                <span className="relative z-10">{s.name || s.email}</span>
+                <span className="relative z-10 w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: STAFF_SEGMENTED_COLORS[staff.indexOf(s) % STAFF_SEGMENTED_COLORS.length] }} />
+                <span className="relative z-10 max-w-[92px] sm:max-w-none truncate">{s.name || s.email}</span>
               </button>
             );
           })}

@@ -46,3 +46,10 @@ export function buildWhatsAppUrl(params: {
 
   return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
 }
+
+export function buildWhatsAppContactUrl(phone: string | null | undefined, text: string): string {
+  if (!phone) return "https://web.whatsapp.com/";
+  const cleanPhone = phone.replace(/[^\d]/g, "").replace(/^00/, "");
+  if (!cleanPhone) return "https://web.whatsapp.com/";
+  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
+}

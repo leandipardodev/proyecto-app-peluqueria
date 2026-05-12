@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/toast";
 export default function RegisterPage() {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const router = useRouter();
   const { addToast } = useToast();
 
@@ -29,7 +30,7 @@ export default function RegisterPage() {
         }
 
         addToast(payload?.message || "Cuenta creada con éxito. Revisá tu email para confirmar.", "success");
-        setTimeout(() => router.push("/login?registered=true"), 1500);
+        setRegistrationSuccess(true);
       }
     });
   }
@@ -51,67 +52,85 @@ export default function RegisterPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label
-                htmlFor="shop_name"
-                className="block text-sm font-medium text-gray-700 mb-1"
+          {registrationSuccess ? (
+            <div className="rounded-2xl border border-blue-200 bg-blue-50 px-5 py-6 text-center">
+              <div className="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-2xl" style={{ color: "#0071E3" }}>
+                ✉️
+              </div>
+              <p className="text-sm font-medium text-blue-900">
+                ¡Casi listo! Te enviamos un correo de confirmación. Por favor, revisá tu bandeja de entrada (y la carpeta de spam) para activar tu cuenta de Klip.
+              </p>
+              <button
+                type="button"
+                onClick={() => router.push("/login")}
+                className="mt-5 inline-flex rounded-xl bg-[#0071E3] px-4 py-2 text-sm font-medium text-white hover:bg-[#005bb8] transition-colors"
               >
-                Nombre de la Peluquería
-              </label>
-              <input
-                type="text"
-                id="shop_name"
-                name="shop_name"
-                required
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                placeholder="Ej: Jazba Peluquería"
-              />
+                Ir a iniciar sesión
+              </button>
             </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div>
+                <label
+                  htmlFor="shop_name"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Nombre de la Peluquería
+                </label>
+                <input
+                  type="text"
+                  id="shop_name"
+                  name="shop_name"
+                  required
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                  placeholder="Ej: Jazba Peluquería"
+                />
+              </div>
 
-            <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-gray-700 mb-1"
+              <div>
+                <label
+                  htmlFor="email"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Email
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  required
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                  placeholder="tu@email.com"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Contraseña
+                </label>
+                <input
+                  type="password"
+                  id="password"
+                  name="password"
+                  required
+                  minLength={6}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                  placeholder="Mínimo 6 caracteres"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={pending}
+                 className="w-full bg-violet-600 text-white py-2.5 px-4 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
               >
-                Email
-              </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                required
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                placeholder="tu@email.com"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Contraseña
-              </label>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                required
-                minLength={6}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                placeholder="Mínimo 6 caracteres"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={pending}
-               className="w-full bg-violet-600 text-white py-2.5 px-4 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
-            >
-              {pending ? "Creando cuenta..." : "Crear Cuenta"}
-            </button>
-          </form>
+                {pending ? "Creando cuenta..." : "Crear Cuenta"}
+              </button>
+            </form>
+          )}
 
           <p className="text-xs text-gray-500 text-center">
             Al registrarte aceptás nuestros términos y comenzás un trial de 30
@@ -119,15 +138,17 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        <p className="mt-6 text-center text-sm text-gray-600">
-          ¿Ya tenés cuenta?{" "}
-          <Link
-            href="/login"
-            className="font-medium text-violet-600 hover:text-violet-700"
-          >
-            Iniciá sesión
-          </Link>
-        </p>
+        {!registrationSuccess && (
+          <p className="mt-6 text-center text-sm text-gray-600">
+            ¿Ya tenés cuenta?{" "}
+            <Link
+              href="/login"
+              className="font-medium text-violet-600 hover:text-violet-700"
+            >
+              Iniciá sesión
+            </Link>
+          </p>
+        )}
       </div>
     </div>
   );

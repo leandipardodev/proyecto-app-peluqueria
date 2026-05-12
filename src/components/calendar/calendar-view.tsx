@@ -86,12 +86,12 @@ const STAFF_COLORS = [
 ];
 
 const STATUS_STYLES: Record<string, { bg: string; border: string; dot: string; label: string }> = {
-  scheduled:    { bg: "#eff6ff", border: "#3b82f6", dot: "#3b82f6", label: "Programado" },
-  confirmed:    { bg: "#f0fdf4", border: "#22c55e", dot: "#22c55e", label: "Confirmado" },
-  in_progress:  { bg: "#fffbeb", border: "#f59e0b", dot: "#f59e0b", label: "En curso" },
-  completed:    { bg: "#f9fafb", border: "#9ca3af", dot: "#9ca3af", label: "Completado" },
+  scheduled:    { bg: "#fef3c7", border: "#f59e0b", dot: "#f59e0b", label: "A confirmar" },
+  confirmed:    { bg: "#dcfce7", border: "#22c55e", dot: "#22c55e", label: "Confirmado" },
+  in_progress:  { bg: "#dcfce7", border: "#22c55e", dot: "#22c55e", label: "Confirmado" },
+  completed:    { bg: "#f0fdf4", border: "#16a34a", dot: "#16a34a", label: "Completado" },
   cancelled:    { bg: "#fef2f2", border: "#ef4444", dot: "#ef4444", label: "Cancelado" },
-  no_show:      { bg: "#fff7ed", border: "#f97316", dot: "#f97316", label: "No asistió" },
+  no_show:      { bg: "#fef2f2", border: "#ef4444", dot: "#ef4444", label: "Cancelado" },
 };
 
 const STATUS_FINAL = new Set(["completed", "cancelled", "no_show"]);
@@ -121,14 +121,15 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-const statusLabels: Record<string, string> = {
-  scheduled: "Programado",
-  confirmed: "Confirmado",
-  in_progress: "En curso",
-  completed: "Completado",
-  cancelled: "Cancelado",
-  no_show: "No asistió",
-};
+function getTurnoStatusLabel(status: string, isPaid: boolean): string {
+  if (status === "pending_payment") return "Pago pendiente";
+  if (status === "scheduled" && !isPaid) return "A confirmar";
+  if (status === "scheduled" && isPaid) return "Señado";
+  if (status === "confirmed" || status === "in_progress") return "Confirmado";
+  if (status === "completed") return "Completado";
+  if (status === "cancelled" || status === "no_show") return "Cancelado";
+  return status;
+}
 
 const DAY_MAP: Record<number, string> = {
   0: "sunday", 1: "monday", 2: "tuesday", 3: "wednesday",
@@ -162,6 +163,7 @@ export default memo(function CalendarView({
   const [focusedDayKey, setFocusedDayKey] = useState(() => getArgentinaDateKey(new Date()));
   const [mounted, setMounted] = useState(false);
   const [isCoarsePointer, setIsCoarsePointer] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [hoverTooltip, setHoverTooltip] = useState<HoverTooltipState | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
@@ -255,10 +257,23 @@ export default memo(function CalendarView({
   }, [normalizedAppointments, weekDays]);
 
   const displayedDays = useMemo(() => {
-    if (viewMode === "week") return weekDays;
-    const focus = weekDays.find((d) => getArgentinaDateKey(d) === focusedDayKey);
-    return focus ? [focus] : [weekDays[0]];
-  }, [focusedDayKey, viewMode, weekDays]);
+    const baseDays = (() => {
+      if (viewMode === "week") return weekDays;
+      const focus = weekDays.find((d) => getArgentinaDateKey(d) === focusedDayKey);
+      return focus ? [focus] : [weekDays[0]];
+    })();
+
+    if (!(isMobileViewport && viewMode === "week")) return baseDays;
+
+    const filteredDays = baseDays.filter((day) => {
+      const dayKey = DAY_MAP[day.getDay()];
+      const dayHours = businessHours?.[dayKey];
+      if (!dayHours) return true;
+      return dayHours.open;
+    });
+
+    return filteredDays.length > 0 ? filteredDays : baseDays;
+  }, [focusedDayKey, viewMode, weekDays, isMobileViewport, businessHours]);
 
   function handleBackToWeek() {
     setViewMode("week");
@@ -309,6 +324,23 @@ export default memo(function CalendarView({
     media.addEventListener("change", update);
     return () => media.removeEventListener("change", update);
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const media = window.matchMedia("(max-width: 767px)");
+    const update = () => setIsMobileViewport(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted || typeof window === "undefined") return;
+    const isMobileViewport = window.matchMedia("(max-width: 767px)").matches;
+    if (!isMobileViewport) return;
+    setFocusedDayKey(getArgentinaDateKey(new Date()));
+    setViewMode("day");
+  }, [mounted]);
 
   useEffect(() => {
     if (isCoarsePointer) {
@@ -371,6 +403,10 @@ export default memo(function CalendarView({
     );
   }
 
+  const isMobileDayMode = isMobileViewport && viewMode === "day";
+  const hideHourColumnOnMobile = isMobileViewport;
+  const hourColumnWidth = isMobileViewport ? 40 : 80;
+
   function getTooltipPosition(x: number, y: number): { left: number; top: number } {
     const offset = 15;
     const tooltipWidth = 300;
@@ -397,8 +433,8 @@ export default memo(function CalendarView({
 
   return (
     <div className="calendar-shell flex flex-col h-full">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={handlePrevPeriod}
             className="p-2 rounded-2xl border border-white/50 dark:border-white/10 bg-white/40 dark:bg-black/30 hover:bg-white/70 dark:hover:bg-white/10 backdrop-blur-md shadow-sm transition-all cursor-pointer select-none"
@@ -413,7 +449,7 @@ export default memo(function CalendarView({
           </button>
           <button
             onClick={onToday}
-            className="ml-2 px-3 py-1.5 text-sm font-medium border border-white/50 dark:border-white/10 bg-white/40 dark:bg-black/30 hover:bg-white/70 dark:hover:bg-white/10 backdrop-blur-md rounded-2xl shadow-sm transition-all cursor-pointer select-none"
+            className="px-3 py-1.5 text-sm font-medium border border-white/50 dark:border-white/10 bg-white/40 dark:bg-black/30 hover:bg-white/70 dark:hover:bg-white/10 backdrop-blur-md rounded-2xl shadow-sm transition-all cursor-pointer select-none"
           >
             Hoy
           </button>
@@ -443,27 +479,33 @@ export default memo(function CalendarView({
           style={{
             gridTemplateColumns:
               viewMode === "day"
-                ? "80px minmax(380px, 1fr)"
-                : "80px repeat(7, minmax(0, 1fr))",
-            minWidth: viewMode === "day" ? "520px" : "0px",
+                ? isMobileDayMode
+                  ? "minmax(0, 1fr)"
+                  : `${hourColumnWidth}px minmax(0, 1fr)`
+                : hideHourColumnOnMobile
+                  ? `repeat(${Math.max(displayedDays.length, 1)}, minmax(0, 1fr))`
+                  : `${hourColumnWidth}px repeat(7, minmax(0, 1fr))`,
+            minWidth: "0px",
           }}
         >
-          <div className="col-span-1 border-r border-zinc-200/30 dark:border-white/10">
-            <div className="border-b border-zinc-200/30 dark:border-white/10" style={{ height: `${slotHeight}px` }} />
-            {hours.map((hour) => (
-              <div
-                key={hour}
-                className="flex items-start justify-end pr-2 pt-1"
-                style={{ height: `${slotHeight}px` }}
-              >
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                  {`${String(hour).padStart(2, "0")}:00`}
-                </span>
-              </div>
-            ))}
-          </div>
+          {!hideHourColumnOnMobile && (
+            <div className="col-span-1 border-r border-zinc-200/30 dark:border-white/10">
+              <div className="border-b border-zinc-200/30 dark:border-white/10" style={{ height: `${slotHeight}px` }} />
+              {hours.map((hour) => (
+                <div
+                  key={hour}
+                  className="flex items-start justify-end pr-1 sm:pr-2 pt-1"
+                  style={{ height: `${slotHeight}px` }}
+                >
+                  <span className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">
+                    {`${String(hour).padStart(2, "0")}:00`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
 
-          {displayedDays.map((day) => {
+          {displayedDays.map((day, dayIndex) => {
             const dayStr = getArgentinaDateKey(day);
             const dayAppointments = appointmentsByDay.get(dayStr) || [];
             const dayKey = DAY_MAP[day.getDay()];
@@ -539,7 +581,7 @@ export default memo(function CalendarView({
                           return (
                           <div
                             key={hour}
-                            className={`relative overflow-visible border-b border-zinc-200/30 dark:border-slate-800/40 last:border-b-0 transition-colors p-1.5 ${
+                            className={`relative overflow-visible border-b border-zinc-200/30 dark:border-slate-800/40 last:border-b-0 transition-colors ${(isMobileDayMode || (isMobileViewport && viewMode === "week" && dayIndex === 0)) ? "pl-7 pr-1 py-1.5" : "p-1.5"} ${
                               isOpenSlot
                                 ? "hover:bg-white/30 dark:hover:bg-white/5 cursor-pointer"
                                 : "bg-slate-200 dark:bg-zinc-950 border-y border-y-black/[0.08] dark:border-y-white/[0.03]"
@@ -554,6 +596,11 @@ export default memo(function CalendarView({
                             }
                             onClick={isOpenSlot ? () => onSlotClick(day, hour) : undefined}
                           >
+                            {(isMobileDayMode || (isMobileViewport && viewMode === "week" && dayIndex === 0)) && (
+                              <span className="absolute left-1 top-1 text-[8px] font-medium text-gray-500 dark:text-gray-400 select-none pointer-events-none">
+                                {`${String(hour).padStart(2, "0")}:00`}
+                              </span>
+                            )}
                             <div className="relative w-full h-full overflow-hidden">
                               <div
                                 className="grid w-full h-full gap-1"
@@ -576,13 +623,13 @@ export default memo(function CalendarView({
 
                                 const statusStyle = STATUS_STYLES[appt.status] || STATUS_STYLES.scheduled;
                                 const isFinalStatus = STATUS_FINAL.has(appt.status);
-                                const diffMs = new Date(appt.start_time).getTime() - Date.now();
-                                const isUrgent = appt.status === "scheduled" && diffMs > 0 && diffMs <= 3600000;
+                                const needsAttention = appt.status === "scheduled";
+                                const displayLabel = getTurnoStatusLabel(appt.status, appt.is_paid);
 
                                 return (
                                   <motion.div
                                     key={appt.id}
-                                    className={`relative w-full min-w-0 max-w-full rounded-xl text-xs cursor-pointer bg-white/90 dark:bg-white/10 backdrop-blur-md border border-white/45 dark:border-white/20 shadow-sm group h-full overflow-hidden ${isFinalStatus ? "opacity-50" : ""} ${isUrgent ? "animate-pulse-border" : ""}`}
+                                    className={`relative w-full min-w-0 max-w-full rounded-xl text-xs cursor-pointer bg-white/90 dark:bg-white/10 backdrop-blur-md border border-white/45 dark:border-white/20 shadow-sm group h-full overflow-hidden ${isFinalStatus ? "opacity-50" : ""} ${needsAttention ? "animate-pulse-border" : ""}`}
                                     style={{
                                       fontFamily: "Inter, sans-serif",
                                       boxShadow: `inset 2px 0 0 ${hexToRgba(staffColor.border, 0.32)}`,
@@ -637,12 +684,17 @@ export default memo(function CalendarView({
                                             {!isWeekMode && svc.emoji && (
                                               <span className="text-sm leading-none">{svc.emoji}</span>
                                             )}
-                                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isUrgent ? "animate-pulse" : ""}`} style={{ backgroundColor: isUrgent ? "#ef4444" : statusStyle.dot }} />
+                                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${needsAttention ? "animate-pulse" : ""}`} style={{ backgroundColor: needsAttention ? "#ef4444" : statusStyle.dot }} />
                                           </div>
                                         </div>
                                         <span className={`text-gray-700 dark:text-gray-300 leading-tight truncate ${isWeekMode ? "text-[9px]" : isCompact ? "text-[10px]" : "text-[11px]"}`}>
                                           {appt.start_hhmm} - {appt.end_hhmm}
                                         </span>
+                                        {!isWeekMode && (
+                                          <span className="text-[9px] font-semibold text-gray-600 dark:text-gray-300 leading-tight truncate">
+                                            {displayLabel}
+                                          </span>
+                                        )}
                                       </div>
                                       <div className={`flex ${isWeekMode ? "justify-end pt-0.5" : "justify-end"}`}>
                                         {(() => {

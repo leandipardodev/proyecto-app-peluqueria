@@ -30,7 +30,7 @@ const statusFlow: Record<string, { label: string; nextStatus: string }[]> = {
     { label: "Cancelar", nextStatus: "cancelled" },
   ],
   confirmed: [
-    { label: "Iniciar", nextStatus: "in_progress" },
+    { label: "Completar", nextStatus: "completed" },
     { label: "Cancelar", nextStatus: "cancelled" },
   ],
   in_progress: [{ label: "Completar", nextStatus: "completed" }],
@@ -38,6 +38,16 @@ const statusFlow: Record<string, { label: string; nextStatus: string }[]> = {
   cancelled: [],
   "no_show": [],
 };
+
+function getTurnoStatusLabel(status: string, isPaid: boolean): string {
+  if (status === "pending_payment") return "Pago pendiente";
+  if (status === "scheduled" && !isPaid) return "A confirmar";
+  if (status === "scheduled" && isPaid) return "Señado";
+  if (status === "confirmed" || status === "in_progress") return "Confirmado";
+  if (status === "completed") return "Completado";
+  if (status === "cancelled" || status === "no_show") return "Cancelado";
+  return status;
+}
 
 export default function AppointmentDetailModal({
   appointment,
@@ -228,13 +238,8 @@ export default function AppointmentDetailModal({
           <div className="border-t border-gray-200 dark:border-gray-800 pt-5 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-700 dark:text-gray-300">Estado</span>
-              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-violet-100 dark:bg-violet-950 text-violet-800 dark:text-violet-200">
-                {localStatus === "scheduled" && "Programado"}
-                {localStatus === "confirmed" && "Confirmado"}
-                {localStatus === "in_progress" && "En curso"}
-                {localStatus === "completed" && "Completado"}
-                {localStatus === "cancelled" && "Cancelado"}
-                {localStatus === "no_show" && "No asistió"}
+              <span className="inline-flex items-center justify-center whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium bg-violet-100 dark:bg-violet-950 text-violet-800 dark:text-violet-200">
+                {getTurnoStatusLabel(localStatus, localPaid)}
               </span>
             </div>
 
