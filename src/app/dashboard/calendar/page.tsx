@@ -13,7 +13,11 @@ import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
 
 export const dynamic = "force-dynamic";
 
-export default async function CalendarPage() {
+export default async function CalendarPage({
+  searchParams,
+}: {
+  searchParams?: { date?: string; appointmentId?: string };
+}) {
   const weekStart = getArgentinaWeekStart();
   const rangeStart = new Date(weekStart);
   rangeStart.setUTCDate(weekStart.getUTCDate() - 7);
@@ -78,6 +82,8 @@ export default async function CalendarPage() {
       businessHours={businessHours ?? undefined}
       whatsappTemplate={whatsappTemplate}
       shopName={shopName}
+      initialDateParam={searchParams?.date}
+      initialAppointmentId={searchParams?.appointmentId}
     />
   );
 }

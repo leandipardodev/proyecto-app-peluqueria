@@ -92,6 +92,8 @@ interface CalendarPageClientProps {
   businessHours?: BusinessHoursMap;
   whatsappTemplate?: string;
   shopName?: string;
+  initialDateParam?: string;
+  initialAppointmentId?: string;
 }
 
 export default function CalendarPageClient({
@@ -103,8 +105,14 @@ export default function CalendarPageClient({
   businessHours,
   whatsappTemplate,
   shopName,
+  initialDateParam,
+  initialAppointmentId,
 }: CalendarPageClientProps) {
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(() => {
+    if (!initialDateParam) return new Date();
+    const parsed = new Date(initialDateParam);
+    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  });
   const [formModalOpen, setFormModalOpen] = useState(false);
   const [formInitialDate, setFormInitialDate] = useState<string | undefined>();
   const [formInitialHour, setFormInitialHour] = useState<number | undefined>();
@@ -116,6 +124,14 @@ export default function CalendarPageClient({
   useEffect(() => {
     setHydrated(true);
   }, []);
+
+  useEffect(() => {
+    if (!initialAppointmentId) return;
+    const found = initialAppointments.find((a) => a.id === initialAppointmentId);
+    if (found) {
+      setSelectedAppointment(found);
+    }
+  }, [initialAppointmentId, initialAppointments]);
 
   useAppointmentAlarm(initialAppointments);
 

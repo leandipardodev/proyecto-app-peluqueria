@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Gift, Loader2, Search, X } from "lucide-react";
 import { playPop } from "@/lib/sound";
 import { supabase } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type Customer = {
   id: string;
@@ -55,6 +55,7 @@ function isBirthdayThisWeek(date: string | null): boolean {
 
 export default function CustomersPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
@@ -170,6 +171,18 @@ export default function CustomersPage() {
       subscription.unsubscribe();
     };
   }, [router]);
+
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q) setSearchQuery(q);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const customerId = searchParams.get("customerId");
+    if (!customerId || customers.length === 0) return;
+    const target = customers.find((c) => c.id === customerId);
+    if (target) openEditor(target);
+  }, [searchParams, customers]);
 
   const filteredCustomers = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();

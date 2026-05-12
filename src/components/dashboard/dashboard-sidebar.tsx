@@ -9,7 +9,6 @@ import {
   Clock,
   Scissors,
   Package,
-  Settings,
   Users,
   UserRound,
   LogOut,
@@ -27,7 +26,6 @@ const navItems = [
   { label: "Finanzas", href: "/dashboard/finances", icon: Wallet },
   { label: "Inventario", href: "/dashboard/inventory", icon: Package },
   { label: "Personal", href: "/dashboard/staff", icon: Users },
-  { label: "Configuración", href: "/dashboard/settings", icon: Settings },
 ];
 
 const containerVariants = {

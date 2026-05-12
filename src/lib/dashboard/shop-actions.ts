@@ -36,7 +36,7 @@ export async function updateShopInfo(data: {
 
     if (error) return { success: false, error: error.message };
 
-    revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/profile");
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al actualizar" };

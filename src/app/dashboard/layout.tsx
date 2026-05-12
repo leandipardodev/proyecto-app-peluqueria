@@ -91,6 +91,7 @@ export default async function DashboardLayout({
         <DashboardHeader
           shopName={shopName}
           userName={userName}
+          userEmail={user.email ?? ""}
           onLogout={logout}
         />
 
