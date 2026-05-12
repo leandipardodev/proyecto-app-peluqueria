@@ -143,10 +143,11 @@ export async function GET(request: NextRequest) {
       .from("customers")
       .upsert({
         id: user.id,
+        user_id: user.id,
         shop_id: shopId,
-        name: user.user_metadata?.full_name || user.email || "Cliente",
+        nombre: user.user_metadata?.full_name || user.email || "Cliente",
         email: user.email || "",
-        phone: null,
+        telefono: null,
       });
 
     if (customerError) {
@@ -159,10 +160,11 @@ export async function GET(request: NextRequest) {
     const adminClient = createAdminClient();
     await adminClient.from("customers").upsert({
       id: user.id,
+      user_id: user.id,
       shop_id: existingProfile.shop_id,
-      name: user.user_metadata?.full_name || user.email || "Cliente",
+      nombre: user.user_metadata?.full_name || user.email || "Cliente",
       email: user.email || "",
-      phone: null,
+      telefono: null,
     });
   }
 

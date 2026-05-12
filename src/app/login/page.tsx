@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/toast";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [resetMode, setResetMode] = useState(false);
@@ -30,20 +32,26 @@ export default function LoginPage() {
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
 
-    const supabase = createClient();
-
-    const { error } = await supabase.auth.signInWithPassword({
+    console.log("Intentando login con:", email);
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     if (error) {
+      console.error("ERROR DE SUPABASE:", error.message);
+      alert("Error de Login: " + error.message);
       setError(error.message);
       setLoading(false);
       return;
     }
 
-    window.location.href = "/dashboard";
+    console.log("LOGIN EXITOSO:", data);
+    console.log("Login exitoso, sincronizando...");
+    await router.refresh();
+    setTimeout(() => {
+      window.location.href = "/dashboard";
+    }, 100);
   };
 
   const handleResetPassword = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -53,8 +61,6 @@ export default function LoginPage() {
 
     const formData = new FormData(e.currentTarget);
     const email = formData.get("email") as string;
-
-    const supabase = createClient();
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/login`,

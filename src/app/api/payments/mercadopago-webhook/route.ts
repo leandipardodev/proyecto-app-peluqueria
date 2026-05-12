@@ -1,20 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient as createSsrClient } from "@supabase/ssr";
+import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
 import { MercadoPagoConfig, Payment } from "mercadopago";
 
-function createAdminClient() {
-  return createSsrClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return [];
-        },
-        setAll() {},
-      },
-    }
-  );
+async function createAdminClient() {
+  return createServiceRoleClient();
 }
 
 function resolveStatusFromPaymentStatus(paymentStatus: string | undefined): "confirmed" | "pending_payment" | "cancelled" {
@@ -53,16 +42,30 @@ export async function POST(request: NextRequest) {
     }
 
     const status = resolveStatusFromPaymentStatus(paymentResult.status);
-    const admin = createAdminClient();
+    const admin = await createAdminClient();
+
+    const preferenceId = (paymentResult.order?.id as string | undefined) || (paymentResult.metadata?.preference_id as string | undefined) || undefined;
 
     await admin
       .from("appointments")
       .update({
         status,
         is_paid: paymentResult.status === "approved",
+        mp_preference_id: preferenceId,
         updated_at: new Date().toISOString(),
       })
       .eq("id", appointmentId);
+
+    await admin.from("mercadopago_logs").insert({
+      appointment_id: appointmentId,
+      mp_preference_id: preferenceId,
+      event_type: "payment_webhook",
+      payload: {
+        payment_id: paymentId,
+        status: paymentResult.status,
+        external_reference: paymentResult.external_reference,
+      },
+    });
 
     return NextResponse.json({ ok: true });
   } catch (error) {

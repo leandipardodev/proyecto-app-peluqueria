@@ -2,7 +2,7 @@
 
 import { useActionState, useState, useEffect } from "react";
 import { updateClientProfile } from "@/lib/dashboard/client-actions";
-import { createClient } from "@/lib/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,7 +18,6 @@ export default function ClientProfilePage() {
   const [userEmail, setUserEmail] = useState("");
 
   useEffect(() => {
-    const supabase = createClient();
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user?.email) setUserEmail(user.email);
     });

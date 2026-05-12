@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { supabase } from "@/lib/supabase";
 
 export type UserInfo = {
   id: string;
@@ -38,8 +38,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({ user: null, shop: null, isLoading: true });
 
   useEffect(() => {
-    const supabase = createClient();
-
     async function fetchSession() {
       const {
         data: { user },
@@ -78,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const { data: shop } = await supabase
         .from("shops")
-        .select("id, name, slug")
+        .select("id, nombre, slug")
         .eq("id", profile.shop_id)
         .single();
 
@@ -91,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           phone: metaPhone,
           role: profile.role,
         },
-        shop: shop ? { id: shop.id, name: shop.name, slug: shop.slug } : null,
+        shop: shop ? { id: shop.id, name: shop.nombre, slug: shop.slug } : null,
         isLoading: false,
       });
     }

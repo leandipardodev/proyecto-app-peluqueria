@@ -1,23 +1,13 @@
 "use server";
 
-import { createServerClient as createSsrClient } from "@supabase/ssr";
 import { createServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { requireShopId } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient, requireShopId } from "@/lib/dashboard/auth-server";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
 
-function createAdminClient() {
-  return createSsrClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: {
-        getAll() { return []; },
-        setAll() {},
-      },
-    }
-  );
+async function createAdminClient() {
+  return createServiceRoleClient();
 }
 
 type ServiceRow = {
@@ -36,7 +26,7 @@ export async function fetchServices(): Promise<ActionResult<ServiceRow[]>> {
     if (!shopIdResult.success) return shopIdResult;
     const shopId = shopIdResult.data;
 
-    const admin = createAdminClient();
+    const admin = await createAdminClient();
 
     const { data, error } = await admin
       .from("services")
@@ -72,7 +62,7 @@ export async function createService(formData: FormData): Promise<ActionResult> {
       return { success: false, error: "El precio no puede ser negativo" };
     }
 
-    const admin = createAdminClient();
+    const admin = await createAdminClient();
 
     const { error } = await admin.from("services").insert({
       shop_id: shopId,
@@ -107,7 +97,7 @@ export async function updateService(id: string, formData: FormData): Promise<Act
       return { success: false, error: "Todos los campos son obligatorios" };
     }
 
-    const admin = createAdminClient();
+    const admin = await createAdminClient();
 
     const { error } = await admin
       .from("services")
@@ -133,7 +123,7 @@ export async function deleteService(id: string): Promise<ActionResult> {
     if (!shopIdResult.success) return shopIdResult;
     const shopId = shopIdResult.data;
 
-    const admin = createAdminClient();
+    const admin = await createAdminClient();
 
     const { error } = await admin
       .from("services")

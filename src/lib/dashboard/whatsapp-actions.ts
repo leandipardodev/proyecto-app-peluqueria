@@ -1,23 +1,13 @@
 "use server";
 
 import { createServerClient } from "@/lib/supabase/server";
-import { createServerClient as createSsrClient } from "@supabase/ssr";
-import { requireShopId } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient, requireShopId } from "@/lib/dashboard/auth-server";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "./whatsapp-constants";
 
-function createAdminClient() {
-  return createSsrClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: {
-        getAll() { return []; },
-        setAll() {},
-      },
-    }
-  );
+async function createAdminClient() {
+  return createServiceRoleClient();
 }
 
 export async function fetchWhatsappTemplate(): Promise<ActionResult<string>> {
@@ -25,7 +15,7 @@ export async function fetchWhatsappTemplate(): Promise<ActionResult<string>> {
     const shopIdResult = await requireShopId();
     if (!shopIdResult.success) return shopIdResult;
     const shopId = shopIdResult.data;
-    const admin = createAdminClient();
+    const admin = await createAdminClient();
 
     const { data, error } = await admin
       .from("shops")
@@ -48,7 +38,7 @@ export async function updateWhatsappTemplate(template: string): Promise<ActionRe
     const shopIdResult = await requireShopId();
     if (!shopIdResult.success) return shopIdResult;
     const shopId = shopIdResult.data;
-    const admin = createAdminClient();
+    const admin = await createAdminClient();
 
     const { error } = await admin
       .from("shops")

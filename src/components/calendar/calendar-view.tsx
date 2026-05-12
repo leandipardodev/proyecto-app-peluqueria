@@ -24,7 +24,7 @@ type Appointment = {
   status: string;
   is_paid: boolean;
   notes: string | null;
-  customers: { name: string; email: string; phone: string | null } | null;
+  customers: { nombre: string | null; email: string; telefono: string | null } | null;
   staff: { name: string; email: string } | null;
   services: { name: string; price: number; duration_minutes: number } | null;
 };
@@ -469,7 +469,7 @@ export default memo(function CalendarView({
                             >
                               <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
                               <span className="font-medium truncate">
-                                {ea.customers?.name || "Sin cliente"}
+                                {ea.customers?.nombre || "Sin cliente"}
                               </span>
                               <span className="shrink-0 opacity-70">
                                 {ea.start_hhmm}
@@ -568,7 +568,7 @@ export default memo(function CalendarView({
                         <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent rounded-2xl pointer-events-none" />
                         <div className="flex items-center justify-between gap-1">
                           <span className="font-semibold text-gray-900 dark:text-gray-100 leading-tight min-w-0 truncate">
-                            {appt.customers?.name || "Sin cliente"}
+                            {appt.customers?.nombre || "Sin cliente"}
                           </span>
                           <div className="flex items-center gap-1 shrink-0">
                             {svc.emoji && (
@@ -583,7 +583,7 @@ export default memo(function CalendarView({
                         <span className="text-[11px] text-gray-700 dark:text-gray-300 truncate leading-tight mt-0.5">
                           {appt.start_hhmm} - {appt.end_hhmm}
                         </span>
-                        {appt.staff?.name && !appt.customers?.name && (
+                        {appt.staff?.name && !appt.customers?.nombre && (
                           <span className="text-[10px] text-gray-500 dark:text-gray-400 truncate leading-tight mt-0.5">
                             {appt.staff.name}
                           </span>
@@ -591,8 +591,8 @@ export default memo(function CalendarView({
                         <div className="flex gap-1 mt-auto pt-1" onClick={(e) => e.stopPropagation()}>
                           {(() => {
                             const waUrl = buildWhatsAppUrl({
-                              phone: appt.customers?.phone ?? null,
-                              customerName: appt.customers?.name || "Cliente",
+                              phone: appt.customers?.telefono ?? null,
+                              customerName: appt.customers?.nombre || "Cliente",
                               serviceName: appt.services?.name,
                               time: appt.start_hhmm,
                               template: whatsappTemplate,
@@ -639,7 +639,7 @@ export default memo(function CalendarView({
               transition={{ type: "spring", ...MOTION_PRESET.tooltipInOut }}
             >
               <div className="text-base font-semibold leading-tight">
-                👤 {tipAppt.customers?.name || "Sin cliente"}
+                👤 {tipAppt.customers?.nombre || "Sin cliente"}
               </div>
               <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">
                 📅 {humanDate.charAt(0).toUpperCase() + humanDate.slice(1)}

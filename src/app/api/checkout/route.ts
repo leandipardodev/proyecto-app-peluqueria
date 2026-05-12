@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
 import { MercadoPagoConfig, Preference } from "mercadopago";
 
 export async function POST(request: NextRequest) {
@@ -7,11 +7,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { serviceId, items: rawItems, shopId } = body;
 
-    const admin = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { cookies: { getAll() { return []; }, setAll() {} } }
-    );
+    const admin = await createServiceRoleClient();
 
     let mpAccessToken = "";
     let shopSlug = "";
@@ -29,7 +25,7 @@ export async function POST(request: NextRequest) {
       }
       const { data: shop } = await admin
         .from("shops")
-        .select("mp_access_token, name, slug")
+        .select("mp_access_token, nombre, slug")
         .eq("id", firstService.shop_id)
         .single();
 
@@ -38,7 +34,7 @@ export async function POST(request: NextRequest) {
       }
 
       mpAccessToken = shop.mp_access_token as string;
-      shopName = shop.name as string;
+      shopName = shop.nombre as string;
       shopSlug = (shop.slug as string) || "local";
       mpItems = rawItems.map((item: { title: string; unit_price: number }, i: number) => ({
         id: `item-${i}`,
@@ -60,7 +56,7 @@ export async function POST(request: NextRequest) {
 
       const { data: shop, error: shopError } = await admin
         .from("shops")
-        .select("mp_access_token, name, slug")
+        .select("mp_access_token, nombre, slug")
         .eq("id", service.shop_id)
         .single();
 
@@ -73,7 +69,7 @@ export async function POST(request: NextRequest) {
       }
 
       mpAccessToken = shop.mp_access_token as string;
-      shopName = shop.name as string;
+      shopName = shop.nombre as string;
       shopSlug = (shop.slug as string) || "local";
       mpItems = [{
         id: service.id,

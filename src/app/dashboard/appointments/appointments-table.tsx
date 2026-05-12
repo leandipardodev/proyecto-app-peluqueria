@@ -14,14 +14,14 @@ type Appointment = {
   end_time: string;
   status: string;
   is_paid: boolean;
-  customers: { id: string; name: string; email: string; phone: string | null } | null;
+  customers: { id: string; nombre: string | null; email: string; telefono: string | null } | null;
   staff: { user_id: string; name: string } | null;
   services: { id: string; name: string; price: number } | null;
 };
 
 type Service = { id: string; name: string; duration_minutes: number; price: number };
 type StaffMember = { id: string; role: string; name: string | null; email: string | null };
-type Customer = { id: string; name: string; email: string | null; phone: string | null };
+type Customer = { id: string; nombre: string | null; email: string | null; telefono: string | null };
 
 function extractEmoji(name: string): { emoji: string; label: string } {
   const parts = name.split(/\s+/);
@@ -143,7 +143,7 @@ export default function AppointmentsTable({ initialAppointments, services, staff
                       {new Date(apt.end_time).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                      {apt.customers?.name || "N/A"}
+                      {apt.customers?.nombre || "N/A"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                       {svc ? `${svc.emoji} ${svc.label}` : apt.services?.name || "N/A"}
@@ -163,8 +163,8 @@ export default function AppointmentsTable({ initialAppointments, services, staff
                       <div className="flex items-center gap-2">
                         {(() => {
                           const urgent = isUrgent(apt.start_time, apt.status);
-                          const phone = apt.customers?.phone || null;
-                          const whatsappUrl = buildWhatsAppUrl(phone, apt.customers?.name || "Cliente", apt.start_time);
+                          const phone = apt.customers?.telefono || null;
+                          const whatsappUrl = buildWhatsAppUrl(phone, apt.customers?.nombre || "Cliente", apt.start_time);
                           const link = paymentLinks[apt.id];
                           const generating = generatingId === apt.id;
                           return (

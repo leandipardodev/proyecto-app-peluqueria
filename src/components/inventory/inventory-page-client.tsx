@@ -7,7 +7,7 @@ import AddProductModal from "./add-product-modal";
 
 type StockItem = {
   id: string;
-  name: string;
+  nombre_producto: string;
   quantity: number;
   unit_cost: number;
 };

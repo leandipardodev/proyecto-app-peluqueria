@@ -1,8 +1,7 @@
 "use server";
 
-import { createServerClient as createSsrClient } from "@supabase/ssr";
 import { createServerClient } from "@/lib/supabase/server";
-import { requireShopId } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient, requireShopId } from "@/lib/dashboard/auth-server";
 import { getArgentinaDateString, getArgentinaDayBounds } from "@/lib/argentina-time";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
@@ -12,8 +11,8 @@ type NextAppointment = {
   start_time: string;
   end_time: string;
   status: string;
-  customers: { name: string; phone: string | null } | null;
-  services: { name: string } | null;
+  customers: { nombre: string } | null;
+  services: { name: string; price: number } | null;
 };
 
 type DashboardSummary = {
@@ -50,7 +49,7 @@ export async function fetchDashboardSummary(): Promise<ActionResult<DashboardSum
 
       supabase
         .from("appointments")
-        .select("id, status, is_paid, services!appointments_service_id_fkey(price)")
+        .select("id, status, is_paid, services(price)")
         .eq("shop_id", shopId)
         .gte("start_time", todayStartIso)
         .lte("start_time", todayEndIso)
@@ -58,7 +57,7 @@ export async function fetchDashboardSummary(): Promise<ActionResult<DashboardSum
 
       supabase
         .from("stock")
-        .select("id, name, quantity")
+        .select("id")
         .eq("shop_id", shopId)
         .lt("quantity", 5),
     ]);
@@ -68,13 +67,14 @@ export async function fetchDashboardSummary(): Promise<ActionResult<DashboardSum
     if (lowStock.error) return { success: false, error: lowStock.error.message };
 
     const revenue = (revenueToday.data ?? []).reduce((sum, a) => {
-      const svc = Array.isArray(a.services) ? a.services[0] : a.services;
-      return sum + (svc?.price ?? 0);
+      const serviceData = a.services as { price?: number } | Array<{ price?: number }> | null;
+      const price = serviceData ? (Array.isArray(serviceData) ? serviceData[0]?.price : serviceData.price) : 0;
+      return sum + (Number(price) || 0);
     }, 0);
 
     const nextResult = await supabase
       .from("appointments")
-      .select("id, start_time, end_time, status, customers!appointments_customer_id_fkey(name, phone), services!appointments_service_id_fkey(name)")
+      .select("*, customers(nombre), services(name, price)")
       .eq("shop_id", shopId)
       .gte("start_time", todayStartIso)
       .lte("start_time", todayEndIso)
@@ -89,13 +89,17 @@ export async function fetchDashboardSummary(): Promise<ActionResult<DashboardSum
       start_time: a.start_time as string,
       end_time: a.end_time as string,
       status: a.status as string,
-      customers: Array.isArray(a.customers) ? (a.customers as { name: string; phone: string | null }[])[0] ?? null : (a.customers as { name: string; phone: string | null } | null),
-      services: Array.isArray(a.services) ? (a.services as { name: string }[])[0] ?? null : (a.services as { name: string } | null),
+      customers: Array.isArray(a.customers)
+        ? (a.customers as { nombre: string }[])[0] ?? null
+        : (a.customers as { nombre: string } | null),
+      services: Array.isArray(a.services)
+        ? (a.services as { name: string; price: number }[])[0] ?? null
+        : (a.services as { name: string; price: number } | null),
     }));
 
     const { data: shop } = await supabase
       .from("shops")
-      .select("name, slug")
+      .select("nombre, slug")
       .eq("id", shopId)
       .single();
 
@@ -106,7 +110,7 @@ export async function fetchDashboardSummary(): Promise<ActionResult<DashboardSum
         revenue,
         lowStockCount: (lowStock.data ?? []).length,
         nextAppointments,
-        shopName: shop?.name || "",
+        shopName: shop?.nombre || "",
         shopSlug: shop?.slug || "",
       },
     };
@@ -115,14 +119,8 @@ export async function fetchDashboardSummary(): Promise<ActionResult<DashboardSum
   }
 }
 
-function createAdminClient() {
-  return createSsrClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: { getAll() { return []; }, setAll() {} },
-    }
-  );
+async function createAdminClient() {
+  return createServiceRoleClient();
 }
 
 export type DashboardMetrics = {
@@ -136,7 +134,7 @@ export async function fetchDashboardMetrics(): Promise<ActionResult<DashboardMet
     const shopIdResult = await requireShopId();
     if (!shopIdResult.success) return shopIdResult;
     const shopId = shopIdResult.data;
-    const admin = createAdminClient();
+    const admin = await createAdminClient();
 
     const [apptsRes, financesRes, clientsRes] = await Promise.all([
       admin

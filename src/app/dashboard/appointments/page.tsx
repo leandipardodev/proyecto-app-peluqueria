@@ -4,20 +4,16 @@ import AppointmentsTable from "./appointments-table";
 export const dynamic = "force-dynamic";
 
 async function fetchCustomers(shopId: string) {
-  const { createServerClient: createSsrClient } = await import("@supabase/ssr");
-  const admin = createSsrClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { cookies: { getAll() { return []; }, setAll() {} } }
-  );
+  const { createServiceRoleClient } = await import("@/lib/dashboard/auth-server");
+  const admin = await createServiceRoleClient();
 
   const { data } = await admin
     .from("customers")
-    .select("id, name, email, phone")
+    .select("id, nombre, email, telefono")
     .eq("shop_id", shopId)
-    .order("name", { ascending: true });
+    .order("nombre", { ascending: true });
 
-  return (data || []).map(c => ({ id: c.id, name: c.name, email: c.email, phone: c.phone }));
+  return (data || []).map(c => ({ id: c.id, nombre: c.nombre, email: c.email, telefono: c.telefono }));
 }
 
 async function fetchShopName(shopId: string) {
@@ -25,10 +21,10 @@ async function fetchShopName(shopId: string) {
   const supabase = await createServerClient();
   const { data } = await supabase
     .from("shops")
-    .select("name")
+    .select("nombre")
     .eq("id", shopId)
     .single();
-  return data?.name || "Mi Peluquería";
+  return data?.nombre || "Mi Peluquería";
 }
 
 async function fetchShopAddress(shopId: string) {
@@ -43,12 +39,8 @@ async function fetchShopAddress(shopId: string) {
 }
 
 async function fetchWhatsappTemplate(shopId: string) {
-  const { createServerClient: createSsrClient } = await import("@supabase/ssr");
-  const admin = createSsrClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { cookies: { getAll() { return []; }, setAll() {} } }
-  );
+  const { createServiceRoleClient } = await import("@/lib/dashboard/auth-server");
+  const admin = await createServiceRoleClient();
   const { data, error } = await admin
     .from("shops")
     .select("whatsapp_template")

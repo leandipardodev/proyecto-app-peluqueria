@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { Bell, BellOff, Moon, Sun } from "lucide-react";
 import { useDarkMode } from "@/lib/use-dark-mode";
@@ -21,8 +21,6 @@ export default function SettingsPage() {
   useEffect(() => {
     setSoundEnabled(!isMuted());
   }, []);
-
-  const supabase = createClient();
 
   useEffect(() => {
     async function loadProfile() {

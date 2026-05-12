@@ -157,7 +157,7 @@ export default async function DashboardPage() {
             {summary.nextAppointments.map((appt) => {
               const start = new Date(appt.start_time);
               const end = new Date(appt.end_time);
-              const clientName = appt.customers?.name || "Sin cliente";
+              const clientName = appt.customers?.nombre || "Sin nombre";
               const initials = getInitials(clientName);
               const colorClass = stringToColor(clientName);
 
@@ -176,7 +176,7 @@ export default async function DashboardPage() {
                       {clientName}
                     </p>
                     <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
-                      {appt.services?.name || "Sin servicio"}
+                      {(appt.services?.name || "Sin servicio") + (appt.services?.price ? ` · $${Number(appt.services.price).toFixed(2)}` : "")}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -196,7 +196,7 @@ export default async function DashboardPage() {
                     </div>
                     {(() => {
                       const waUrl = buildWhatsAppUrl({
-                        phone: appt.customers?.phone ?? null,
+                        phone: null,
                         customerName: clientName,
                         serviceName: appt.services?.name,
                         time: start.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }),

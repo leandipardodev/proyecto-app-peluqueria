@@ -14,7 +14,7 @@ type Appointment = {
   status: string;
   is_paid: boolean;
   notes: string | null;
-  customers: { name: string; email: string; phone: string | null } | null;
+  customers: { nombre: string | null; email: string; telefono: string | null } | null;
   staff: { name: string; email: string } | null;
   services: { name: string; price: number; duration_minutes: number } | null;
 };
@@ -163,7 +163,7 @@ export default function AppointmentDetailModal({
             <div>
               <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">Cliente</span>
               <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mt-0.5">
-                {appointment.customers?.name || "—"}
+                {appointment.customers?.nombre || "—"}
               </p>
               {appointment.customers?.email && (
                 <p className="text-xs text-gray-500 dark:text-gray-400">

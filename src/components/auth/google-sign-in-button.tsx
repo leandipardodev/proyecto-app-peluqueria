@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { LogIn, Loader2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { supabase } from "@/lib/supabase";
 
 type GoogleSignInButtonProps = {
   shopSlug: string;
@@ -18,7 +18,6 @@ export default function GoogleSignInButton({ shopSlug, className }: GoogleSignIn
         void new Audio("/sounds/click-soft.mp3").play().catch(() => {});
       }
       setIsLoading(true);
-      const supabase = createClient();
       const redirectTo = `${window.location.origin}/auth/callback?next=/book/${shopSlug}`;
 
       const { error } = await supabase.auth.signInWithOAuth({

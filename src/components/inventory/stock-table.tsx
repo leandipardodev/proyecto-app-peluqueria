@@ -15,7 +15,7 @@ import { deleteProduct, updateStock } from "@/lib/dashboard/inventory-actions";
 
 type StockItem = {
   id: string;
-  name: string;
+  nombre_producto: string;
   quantity: number;
   unit_cost: number;
 };
@@ -32,7 +32,7 @@ export default function StockTable({ items }: StockTableProps) {
   const filtered = useMemo(
     () =>
       items.filter((item) =>
-        item.name.toLowerCase().includes(search.toLowerCase())
+        item.nombre_producto.toLowerCase().includes(search.toLowerCase())
       ),
     [items, search]
   );
@@ -138,7 +138,7 @@ export default function StockTable({ items }: StockTableProps) {
                         <div className="flex items-center gap-2">
                           <Package className="w-4 h-4 text-gray-400" />
                           <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                            {item.name}
+                            {item.nombre_producto}
                           </span>
                           {isLow && (
                             <AlertTriangle className="w-4 h-4 text-red-500" />

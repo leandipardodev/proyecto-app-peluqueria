@@ -32,9 +32,9 @@ type StaffMember = {
 
 type Customer = {
   id: string;
-  name: string;
+  nombre: string | null;
   email: string | null;
-  phone: string | null;
+  telefono: string | null;
 };
 
 interface AppointmentFormModalProps {
@@ -192,7 +192,7 @@ export default function AppointmentFormModal({
                 {!showNewCustomer ? (
                   <div className="flex gap-2">
                     <GlassSelect
-                      options={customers.map((c) => ({ value: c.id, label: c.name }))}
+                      options={customers.map((c) => ({ value: c.id, label: c.nombre || "Sin nombre" }))}
                       value={selectedCustomerId}
                       onChange={setSelectedCustomerId}
                       placeholder="Seleccionar cliente..."

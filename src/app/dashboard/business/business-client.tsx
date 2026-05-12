@@ -28,7 +28,7 @@ export default function BusinessClient({
   const [error] = useState(initialError);
   const [pending, startTransition] = useTransition();
 
-  const [name, setName] = useState(data?.name || "");
+  const [name, setName] = useState(data?.nombre || "");
   const [description, setDescription] = useState(data?.description || "");
   const [address, setAddress] = useState(data?.address || "");
   const [localidad, setLocalidad] = useState(data?.localidad || "");
@@ -79,7 +79,7 @@ export default function BusinessClient({
   function handleSavePublicInfo(e: React.FormEvent) {
     e.preventDefault();
     const formData = new FormData();
-    formData.set("name", name);
+    formData.set("nombre", name);
     formData.set("description", description);
     formData.set("address", address);
     formData.set("localidad", localidad);

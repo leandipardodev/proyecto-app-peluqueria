@@ -1,23 +1,13 @@
 "use server";
 
-import { createServerClient as createSsrClient } from "@supabase/ssr";
 import { createServerClient } from "@/lib/supabase/server";
-import { requireShopId } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient, requireShopId } from "@/lib/dashboard/auth-server";
 import { MercadoPagoConfig, Preference } from "mercadopago";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
 
-function createAdminClient() {
-  return createSsrClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: {
-        getAll() { return []; },
-        setAll() {},
-      },
-    }
-  );
+async function createAdminClient() {
+  return createServiceRoleClient();
 }
 
 type MercadoPagoKeys = { mp_public_key: string; mp_access_token: string };
@@ -27,7 +17,7 @@ export async function fetchMercadoPagoKeys(): Promise<ActionResult<MercadoPagoKe
     const shopIdResult = await requireShopId();
     if (!shopIdResult.success) return shopIdResult;
     const shopId = shopIdResult.data;
-    const admin = createAdminClient();
+    const admin = await createAdminClient();
 
     const { data, error } = await admin
       .from("shops")
@@ -56,7 +46,7 @@ export async function updateMercadoPagoKeys(publicKey: string, accessToken: stri
     const shopIdResult = await requireShopId();
     if (!shopIdResult.success) return shopIdResult;
     const shopId = shopIdResult.data;
-    const admin = createAdminClient();
+    const admin = await createAdminClient();
 
     const { error } = await admin
       .from("shops")
@@ -84,11 +74,11 @@ export async function createPaymentLink(appointmentId: string): Promise<ActionRe
     if (!shopIdResult.success) return shopIdResult;
     const shopId = shopIdResult.data;
     const supabase = await createServerClient();
-    const admin = createAdminClient();
+    const admin = await createAdminClient();
 
     const { data: mpKeys } = await admin
       .from("shops")
-      .select("mp_access_token, name")
+      .select("mp_access_token, nombre")
       .eq("id", shopId)
       .single();
 
@@ -97,11 +87,11 @@ export async function createPaymentLink(appointmentId: string): Promise<ActionRe
     }
 
     const accessToken = mpKeys.mp_access_token as string;
-    const shopName = (mpKeys.name as string) || "Mi Peluquería";
+    const shopName = (mpKeys.nombre as string) || "Mi Peluquería";
 
     const { data: appointment } = await supabase
       .from("appointments")
-      .select("id, service_id, start_time, customers:customer_id ( id, name, email )")
+      .select("id, service_id, start_time, customers:customer_id ( id, nombre, email )")
       .eq("id", appointmentId)
       .single();
 
@@ -119,7 +109,7 @@ export async function createPaymentLink(appointmentId: string): Promise<ActionRe
       return { success: false, error: "Servicio no encontrado" };
     }
 
-    const customerName = (appointment.customers as unknown as { id: string; name: string; email?: string })?.name || "Cliente";
+    const customerName = (appointment.customers as unknown as { id: string; nombre: string; email?: string })?.nombre || "Cliente";
     const price = Number(service.price);
     const title = `${shopName} - ${service.name}`;
 
@@ -141,7 +131,29 @@ export async function createPaymentLink(appointmentId: string): Promise<ActionRe
       },
     });
 
-    return { success: true, data: { init_point: result.init_point ?? "", preference_id: result.id ?? "" } };
+    const preferenceId = result.id ?? "";
+
+    if (preferenceId) {
+      await admin
+        .from("appointments")
+        .update({ mp_preference_id: preferenceId, updated_at: new Date().toISOString() })
+        .eq("id", appointmentId)
+        .eq("shop_id", shopId);
+
+      await admin.from("mercadopago_logs").insert({
+        shop_id: shopId,
+        appointment_id: appointmentId,
+        mp_preference_id: preferenceId,
+        event_type: "preference_created",
+        payload: {
+          init_point: result.init_point ?? "",
+          title,
+          amount: price,
+        },
+      });
+    }
+
+    return { success: true, data: { init_point: result.init_point ?? "", preference_id: preferenceId } };
   } catch (e) {
     console.error("[createPaymentLink] error:", e);
     const message = e instanceof Error ? e.message : "Error al crear el link de pago";

@@ -1,23 +1,13 @@
 "use server";
 
 import { createServerClient } from "@/lib/supabase/server";
-import { createServerClient as createSsrClient } from "@supabase/ssr";
 import { revalidatePath } from "next/cache";
-import { requireShopId, getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient, requireShopId, getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
 
-function createAdminClient() {
-  return createSsrClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: {
-        getAll() { return []; },
-        setAll() {},
-      },
-    }
-  );
+async function createAdminClient() {
+  return createServiceRoleClient();
 }
 
 type ShopInfo = { id: string; name: string; address: string | null; phone: string | null; business_hours: unknown; google_maps_url: string | null; slug: string };
@@ -28,12 +18,23 @@ export async function fetchShopBySlug(slug: string): Promise<ActionResult<ShopIn
 
     const { data, error } = await supabase
       .from("shops")
-      .select("id, name, address, phone, business_hours, google_maps_url, slug")
+      .select("id, nombre, address, phone, business_hours, google_maps_url, slug")
       .eq("slug", slug)
       .single();
 
     if (error) return { success: false, error: error.message };
-    return { success: true, data };
+    return {
+      success: true,
+      data: {
+        id: data.id,
+        name: data.nombre,
+        address: data.address,
+        phone: data.phone,
+        business_hours: data.business_hours,
+        google_maps_url: data.google_maps_url,
+        slug: data.slug,
+      },
+    };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al obtener local" };
   }
@@ -73,6 +74,8 @@ export async function fetchClientAppointments(): Promise<ActionResult<ClientAppo
   try {
     const session = await getAuthSession();
     if (!session) return { success: false, error: "SESION_EXPIRADA" };
+    const shopId = await getShopId(session);
+    if (!shopId) return { success: false, error: "SESION_EXPIRADA" };
 
     const supabase = await createServerClient();
 
@@ -109,6 +112,8 @@ export async function cancelClientAppointment(id: string): Promise<ActionResult>
   try {
     const session = await getAuthSession();
     if (!session) return { success: false, error: "SESION_EXPIRADA" };
+    const shopId = await getShopId(session);
+    if (!shopId) return { success: false, error: "SESION_EXPIRADA" };
 
     const supabase = await createServerClient();
 
@@ -141,19 +146,22 @@ export async function cancelClientAppointment(id: string): Promise<ActionResult>
   }
 }
 
-type ClientProfile = { name: string | null; email: string | null; phone: string | null };
+type ClientProfile = { nombre: string | null; email: string | null; telefono: string | null };
 
 export async function fetchClientProfile(): Promise<ActionResult<ClientProfile>> {
   try {
     const session = await getAuthSession();
     if (!session) return { success: false, error: "SESION_EXPIRADA" };
+    const shopId = await getShopId(session);
+    if (!shopId) return { success: false, error: "SESION_EXPIRADA" };
 
     const supabase = await createServerClient();
 
     const { data, error } = await supabase
       .from("customers")
-      .select("name, email, phone")
+      .select("nombre, email, telefono")
       .eq("id", session.user.id)
+      .eq("shop_id", shopId)
       .maybeSingle();
 
     if (error) return { success: false, error: error.message };
@@ -167,7 +175,7 @@ export async function fetchClientProfile(): Promise<ActionResult<ClientProfile>>
       .single();
 
     if (fallbackError) return { success: false, error: fallbackError.message };
-    return { success: true, data: { name: fallback.name, email: fallback.email, phone: null } };
+    return { success: true, data: { nombre: fallback.name, email: fallback.email, telefono: null } };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al obtener perfil" };
   }
@@ -191,15 +199,16 @@ export async function updateClientProfile(formData: FormData): Promise<ActionRes
       return { success: false, error: "El teléfono es obligatorio para recibir recordatorios" };
     }
 
-    const admin = createAdminClient();
+    const admin = await createAdminClient();
 
     const { error } = await admin
       .from("customers")
       .upsert({
         id: session.user.id,
+        user_id: session.user.id,
         shop_id: shopId,
-        name,
-        phone,
+        nombre: name,
+        telefono: phone,
         updated_at: new Date().toISOString(),
       });
 
@@ -237,7 +246,7 @@ export async function createClientAppointment(formData: FormData): Promise<Actio
     const startDate = new Date(startTime);
     const endDate = new Date(endTime);
 
-    const admin = createAdminClient();
+    const admin = await createAdminClient();
 
     const { data: profile } = await supabase
       .from("user_profiles")
@@ -247,9 +256,10 @@ export async function createClientAppointment(formData: FormData): Promise<Actio
 
     const { error: customerError } = await admin.from("customers").upsert({
       id: session.user.id,
+      user_id: session.user.id,
       shop_id: shopId,
-      name: profile?.name || "Cliente",
-      phone: phone || null,
+      nombre: profile?.name || "Cliente",
+      telefono: phone || null,
       updated_at: startDate.toISOString(),
     });
 

@@ -1,8 +1,7 @@
 "use server";
 
-import { createServerClient as createSsrClient } from "@supabase/ssr";
 import { revalidatePath } from "next/cache";
-import { requireShopId } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient, requireShopId } from "@/lib/dashboard/auth-server";
 import { getArgentinaDateString, getArgentinaDayBounds } from "@/lib/argentina-time";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
@@ -31,14 +30,8 @@ export type FinanceData = {
   }>;
 };
 
-function createAdminClient() {
-  return createSsrClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: { getAll() { return []; }, setAll() {} },
-    }
-  );
+async function createAdminClient() {
+  return createServiceRoleClient();
 }
 
 export async function fetchFinanceData(fromDate?: string, toDate?: string): Promise<ActionResult<FinanceData>> {
@@ -49,7 +42,7 @@ export async function fetchFinanceData(fromDate?: string, toDate?: string): Prom
 
     console.log("[fetchFinanceData] fromDate:", fromDate, "toDate:", toDate, "shopId:", shopId);
 
-    const admin = createAdminClient();
+    const admin = await createAdminClient();
 
     const today = getArgentinaDateString();
     const from = (fromDate || today).trim();
@@ -152,7 +145,7 @@ export async function createExpense(formData: FormData): Promise<ActionResult> {
       return { success: false, error: "La categoría es obligatoria" };
     }
 
-    const admin = createAdminClient();
+    const admin = await createAdminClient();
 
     const { error } = await admin.from("finances").insert({
       shop_id: shopId,
@@ -180,7 +173,7 @@ export async function deleteExpense(id: string): Promise<ActionResult> {
     if (!shopIdResult.success) return shopIdResult;
     const shopId = shopIdResult.data;
 
-    const admin = createAdminClient();
+    const admin = await createAdminClient();
 
     const { error } = await admin
       .from("finances")

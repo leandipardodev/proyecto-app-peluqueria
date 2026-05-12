@@ -73,15 +73,15 @@ export default function AddProductModal({ open, onClose }: AddProductModalProps)
 
           <div>
             <label
-              htmlFor="name"
+              htmlFor="nombre_producto"
               className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 cursor-pointer"
             >
               Nombre del producto
             </label>
             <input
               type="text"
-              id="name"
-              name="name"
+              id="nombre_producto"
+              name="nombre_producto"
               required
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-950 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
               placeholder="Ej: Tinte rubio cenizo"

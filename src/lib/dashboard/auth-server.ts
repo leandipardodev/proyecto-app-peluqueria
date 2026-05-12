@@ -1,4 +1,6 @@
 import { createServerClient } from "@/lib/supabase/server";
+import { createClient } from "@supabase/supabase-js";
+import { redirect } from "next/navigation";
 import type { ActionResult } from "@/lib/types";
 
 export async function getAuthSession(): Promise<{ user: { id: string } } | null> {
@@ -27,4 +29,29 @@ export async function requireShopId(): Promise<ActionResult<string>> {
   const shopId = await getShopId(session);
   if (!shopId) return { success: false, error: "SESION_EXPIRADA" };
   return { success: true, data: shopId };
+}
+
+export async function requireShopContext(): Promise<{ userId: string; shopId: string }> {
+  const session = await getAuthSession();
+  if (!session) {
+    redirect("/login");
+  }
+  const shopId = await getShopId(session);
+  if (!shopId) {
+    throw new Error("SHOP_CONTEXT_MISSING");
+  }
+  return { userId: session.user.id, shopId };
+}
+
+export async function createServiceRoleClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  );
 }

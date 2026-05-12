@@ -21,7 +21,14 @@ export default function RegisterPage() {
       if (!result.success) {
         setError(result.error);
       } else {
-        addToast("Cuenta creada con éxito. Revisá tu email para confirmar.", "success");
+        const payload = result.data as { redirectToDashboard?: boolean; requiresEmailConfirmation?: boolean; message?: string } | undefined;
+        if (payload?.redirectToDashboard) {
+          addToast("Negocio inicializado. Redirigiendo al dashboard...", "success");
+          setTimeout(() => router.push("/dashboard"), 800);
+          return;
+        }
+
+        addToast(payload?.message || "Cuenta creada con éxito. Revisá tu email para confirmar.", "success");
         setTimeout(() => router.push("/login?registered=true"), 1500);
       }
     });

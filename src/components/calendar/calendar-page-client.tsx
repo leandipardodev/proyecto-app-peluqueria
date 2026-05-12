@@ -43,7 +43,7 @@ type Appointment = {
   status: string;
   is_paid: boolean;
   notes: string | null;
-  customers: { name: string; email: string; phone: string | null } | null;
+  customers: { nombre: string | null; email: string; telefono: string | null } | null;
   staff: { name: string; email: string } | null;
   services: { name: string; price: number; duration_minutes: number } | null;
 };
@@ -64,9 +64,9 @@ type StaffMember = {
 
 type Customer = {
   id: string;
-  name: string;
+  nombre: string | null;
   email: string | null;
-  phone: string | null;
+  telefono: string | null;
 };
 
 type BusinessHourEntry = { open: boolean; start: string; end: string };

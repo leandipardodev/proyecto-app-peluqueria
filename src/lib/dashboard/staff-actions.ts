@@ -1,20 +1,13 @@
 "use server";
 
-import { createServerClient as createSsrClient } from "@supabase/ssr";
 import { createServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { requireShopId } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient, requireShopId } from "@/lib/dashboard/auth-server";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
 
-function createAdminClient() {
-  return createSsrClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: { getAll() { return []; }, setAll() {} },
-    }
-  );
+async function createAdminClient() {
+  return createServiceRoleClient();
 }
 
 type StaffMember = {
@@ -25,25 +18,47 @@ type StaffMember = {
   revenue: number;
 };
 
+type StaffRpcRow = {
+  user_id: string;
+  role: string;
+  name: string | null;
+  nombre: string | null;
+  email: string | null;
+};
+
 export async function fetchStaffMembers(): Promise<ActionResult<StaffMember[]>> {
   try {
-    const shopIdResult = await requireShopId();
-    if (!shopIdResult.success) return shopIdResult;
-    const shopId = shopIdResult.data;
-
     const supabase = await createServerClient();
 
-    const { data, error } = await supabase
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      return { success: false, error: "SESION_EXPIRADA" };
+    }
+
+    const { data: profile, error: profileError } = await supabase
       .from("user_profiles")
-      .select("user_id, name, email, role")
-      .eq("shop_id", shopId)
-      .in("role", ["owner", "staff"])
-      .order("created_at", { ascending: false });
+      .select("shop_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (profileError || !profile?.shop_id) {
+      return { success: false, error: "SESION_EXPIRADA" };
+    }
+
+    const shopId = profile.shop_id;
+
+    const { data, error } = await supabase.rpc("get_staff_for_my_shop");
 
     if (error) return { success: false, error: error.message };
 
+    const staffRows = ((data || []) as StaffRpcRow[]).filter((member) => member.role === "owner" || member.role === "staff");
+
     const staffWithRevenue = await Promise.all(
-      (data || []).map(async (member) => {
+      staffRows.map(async (member) => {
         const { data: revenueData } = await supabase
           .from("appointments")
           .select("is_paid, status, services!appointments_service_id_fkey(price)")
@@ -58,7 +73,7 @@ export async function fetchStaffMembers(): Promise<ActionResult<StaffMember[]>> 
 
         return {
           id: member.user_id,
-          name: member.name,
+          name: member.name ?? member.nombre,
           email: member.email,
           role: member.role,
           revenue,
@@ -87,8 +102,9 @@ export async function addStaffMember(formData: FormData): Promise<ActionResult<{
     }
 
     const supabase = await createServerClient();
+    const admin = await createAdminClient();
 
-    const { data: existingUser } = await supabase
+    const { data: existingUser } = await admin
       .from("user_profiles")
       .select("user_id")
       .eq("email", email)
@@ -98,7 +114,6 @@ export async function addStaffMember(formData: FormData): Promise<ActionResult<{
       return { success: false, error: "Este email ya está registrado" };
     }
 
-    const admin = createAdminClient();
     const password = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
 
     const { data: adminData, error: adminError } = await admin.auth.admin.createUser({
@@ -114,12 +129,13 @@ export async function addStaffMember(formData: FormData): Promise<ActionResult<{
       return { success: false, error: "Error al crear el usuario" };
     }
 
-    const { error } = await supabase.from("user_profiles").insert({
+    const { error } = await admin.from("user_profiles").insert({
       user_id: adminData.user.id,
       shop_id: shopId,
       name,
       email,
       role,
+      is_active: true,
     });
 
     if (error) {
@@ -141,6 +157,13 @@ export async function updateStaffRole(id: string, role: "staff" | "owner"): Prom
     const shopId = shopIdResult.data;
 
     const supabase = await createServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user?.id === id) {
+      return { success: false, error: "No podés editar tu propio rol de administrador" };
+    }
 
     const { error } = await supabase
       .from("user_profiles")
@@ -164,6 +187,13 @@ export async function removeStaff(id: string): Promise<ActionResult> {
     const shopId = shopIdResult.data;
 
     const supabase = await createServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user?.id === id) {
+      return { success: false, error: "No podés editar tu propio rol de administrador" };
+    }
 
     const { error } = await supabase
       .from("user_profiles")

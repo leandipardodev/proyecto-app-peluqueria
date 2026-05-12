@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,17 +14,20 @@ import {
 
 type StaffMember = {
   id: string;
-  name: string;
-  email: string;
+  name: string | null;
+  email: string | null;
   role: string;
   revenue: number;
 };
 
 export default function StaffList({
   initialStaff,
+  currentUserId,
 }: {
   initialStaff: StaffMember[];
+  currentUserId: string;
 }) {
+  const router = useRouter();
   const [staff, setStaff] = useState<StaffMember[]>(initialStaff);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -60,6 +64,7 @@ export default function StaffList({
     setName("");
     setEmail("");
     setRole("staff");
+    router.refresh();
   }
 
   async function handleRoleChange(id: string, newRole: "staff" | "owner") {
@@ -68,7 +73,7 @@ export default function StaffList({
       alert(result.error);
       return;
     }
-    window.location.reload();
+    router.refresh();
   }
 
   async function handleRemove(id: string) {
@@ -78,7 +83,7 @@ export default function StaffList({
       alert(result.error);
       return;
     }
-    window.location.reload();
+    router.refresh();
   }
 
   return (
@@ -207,17 +212,23 @@ export default function StaffList({
               </tr>
             ) : (
               staff.map((member) => (
+                (() => {
+                  const isCurrentOwnerSelf = member.id === currentUserId && member.role === "owner";
+                  const selfOwnerTooltip = "No podés editar tu propio rol de administrador";
+                  return (
                 <tr key={member.id} className="hover:bg-white/40 dark:hover:bg-white/5 cursor-pointer">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {member.name}
+                    {member.name || "-"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
-                    {member.email}
+                    {member.email || "-"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <select
                       value={member.role}
                       onChange={(e) => handleRoleChange(member.id, e.target.value as "staff" | "owner")}
+                      disabled={isCurrentOwnerSelf}
+                      title={isCurrentOwnerSelf ? selfOwnerTooltip : undefined}
                       className="text-sm rounded border border-gray-300 dark:border-gray-600 py-1 px-2 bg-white dark:bg-gray-950 dark:text-gray-100 cursor-pointer"
                     >
                       <option value="staff">Peluquero</option>
@@ -228,14 +239,22 @@ export default function StaffList({
                     ${member.revenue.toFixed(2)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <button
-                      onClick={() => handleRemove(member.id)}
-                      className="text-red-600 hover:text-red-800 cursor-pointer select-none"
-                    >
-                      Eliminar
-                    </button>
+                    {isCurrentOwnerSelf ? (
+                      <span className="text-gray-400 cursor-not-allowed select-none" title={selfOwnerTooltip}>
+                        -
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => handleRemove(member.id)}
+                        className="text-red-600 hover:text-red-800 cursor-pointer select-none"
+                      >
+                        Eliminar
+                      </button>
+                    )}
                   </td>
                 </tr>
+                  );
+                })()
               ))
             )}
           </tbody>

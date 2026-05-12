@@ -1,11 +1,11 @@
 import { createServerClient } from "@/lib/supabase/server";
-import { createServerClient as createSsrClient } from "@supabase/ssr";
 import { redirect } from "next/navigation";
 import DashboardSidebar from "@/components/dashboard/dashboard-sidebar";
 import DashboardHeader from "@/components/dashboard/dashboard-header";
 import { getTenantAndUser } from "@/lib/dashboard/get-tenant-and-user";
 import { logout } from "@/lib/dashboard/logout-action";
 import { getTodayArgentinaBounds } from "@/lib/argentina-time";
+import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
 
 export const dynamic = "force-dynamic";
 
@@ -34,11 +34,7 @@ async function getNotifications() {
 
     if (!profile?.shop_id) return { urgentAppointments: false, lowStock: false };
 
-    const admin = createSsrClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { cookies: { getAll() { return []; }, setAll() {} } }
-    );
+    const admin = await createServiceRoleClient();
 
     const { start: dayStart } = getTodayArgentinaBounds();
     const tomorrow = new Date(dayStart);

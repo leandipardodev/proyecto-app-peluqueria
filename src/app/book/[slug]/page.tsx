@@ -1,14 +1,8 @@
-import { createServerClient as createSsrClient } from "@supabase/ssr";
+import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
 import BookingClient from "./booking-client";
 
-function createAdminClient() {
-  return createSsrClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: { getAll() { return []; }, setAll() {} },
-    }
-  );
+async function createAdminClient() {
+  return createServiceRoleClient();
 }
 
 interface BookPageProps {
@@ -19,11 +13,11 @@ export const dynamic = "force-dynamic";
 
 export default async function BookPage({ params }: BookPageProps) {
   const { slug } = await params;
-  const admin = createAdminClient();
+  const admin = await createAdminClient();
 
   const { data: shop, error: shopError } = await admin
     .from("shops")
-    .select("id, name, description, address, phone, instagram_url, business_hours, slug")
+    .select("id, nombre, description, address, phone, instagram_url, business_hours, slug")
     .eq("slug", slug)
     .single();
 
@@ -66,7 +60,7 @@ export default async function BookPage({ params }: BookPageProps) {
     <BookingClient
       shop={{
         id: shop.id,
-        name: shop.name,
+        name: shop.nombre,
         description: shop.description || "",
         address: shop.address || "",
         phone: shop.phone || "",

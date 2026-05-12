@@ -8,7 +8,7 @@ import "server-only";
 
 type StockItem = {
   id: string;
-  name: string;
+  nombre_producto: string;
   quantity: number;
   unit_cost: number;
   created_at: string;
@@ -26,9 +26,9 @@ export async function fetchStockItems(): Promise<ActionResult<StockItem[]>> {
 
     const { data, error } = await supabase
       .from("stock")
-      .select("*")
+      .select("id, nombre_producto, quantity, unit_cost, created_at, updated_at, shop_id")
       .eq("shop_id", shopId)
-      .order("name", { ascending: true });
+      .order("nombre_producto", { ascending: true });
 
     if (error) return { success: false, error: error.message };
     return { success: true, data: data || [] };
@@ -43,11 +43,11 @@ export async function addProduct(formData: FormData): Promise<ActionResult> {
     if (!shopIdResult.success) return shopIdResult;
     const shopId = shopIdResult.data;
 
-    const name = formData.get("name") as string;
+    const nombreProducto = (formData.get("nombre_producto") as string) || (formData.get("name") as string);
     const quantity = parseInt(formData.get("quantity") as string);
     const unitCost = parseFloat(formData.get("unit_cost") as string);
 
-    if (!name || isNaN(quantity) || isNaN(unitCost)) {
+    if (!nombreProducto || isNaN(quantity) || isNaN(unitCost)) {
       return { success: false, error: "Todos los campos son obligatorios" };
     }
 
@@ -59,7 +59,7 @@ export async function addProduct(formData: FormData): Promise<ActionResult> {
 
     const { error } = await supabase.from("stock").insert({
       shop_id: shopId,
-      name,
+      nombre_producto: nombreProducto,
       quantity,
       unit_cost: unitCost,
     });

@@ -23,12 +23,12 @@ export async function getTenantAndUser() {
 
   const { data: shop } = await supabase
     .from("shops")
-    .select("name")
+    .select("nombre")
     .eq("id", userProfile.shop_id)
     .single();
 
   return {
-    shopName: shop?.name || "Mi Peluquería",
+    shopName: shop?.nombre || "Mi Peluquería",
     userName: user.email || "Usuario",
   };
 }

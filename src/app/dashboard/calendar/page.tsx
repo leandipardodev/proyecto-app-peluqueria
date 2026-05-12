@@ -85,19 +85,18 @@ export default async function CalendarPage() {
 async function fetchCustomers() {
   const session = await getAuthSession();
   if (!session) return [];
-  const shopId = await getShopId(session);
 
   const supabase = await createServerClient();
 
   const { data, error } = await supabase
     .from("customers")
-    .select("id, name, email, phone")
-    .eq("shop_id", shopId)
-    .order("name", { ascending: true })
-    .returns<{ id: string; name: string; email: string | null; phone: string | null }[]>();
+    .select("id, nombre, email, telefono")
+    .eq("user_id", session.user.id)
+    .order("nombre", { ascending: true })
+    .returns<{ id: string; nombre: string | null; email: string | null; telefono: string | null }[]>();
 
   if (error) throw error;
-  return data.map(c => ({ id: c.id, name: c.name, email: c.email, phone: c.phone }));
+  return data.map(c => ({ id: c.id, nombre: c.nombre, email: c.email, telefono: c.telefono }));
 }
 
 async function fetchShopName(): Promise<string> {
@@ -108,8 +107,8 @@ async function fetchShopName(): Promise<string> {
   const supabase = await createServerClient();
   const { data } = await supabase
     .from("shops")
-    .select("name")
+    .select("nombre")
     .eq("id", shopId)
     .single();
-  return data?.name || "";
+  return data?.nombre || "";
 }

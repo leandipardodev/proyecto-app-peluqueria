@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { createServerClient } from "@supabase/ssr";
+import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
 
 interface BookLayoutProps {
   children: React.ReactNode;
@@ -10,22 +10,16 @@ export async function generateMetadata({
   params,
 }: BookLayoutProps): Promise<Metadata> {
   const { slug } = await params;
-  const adminClient = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: { getAll() { return []; }, setAll() {} },
-    }
-  );
+  const adminClient = await createServiceRoleClient();
 
   const { data: shop } = await adminClient
     .from("shops")
-    .select("name")
+    .select("nombre")
     .eq("slug", slug)
     .single();
 
   return {
-    title: shop ? `${shop.name} - Reservar Turno` : "Reservar Turno",
+    title: shop ? `${shop.nombre} - Reservar Turno` : "Reservar Turno",
     description: "Reservá tu turno online",
   };
 }

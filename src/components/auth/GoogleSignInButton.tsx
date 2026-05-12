@@ -1,6 +1,6 @@
 "use client";
 
-import { createClient } from "@/lib/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { useState } from "react";
 
 interface GoogleSignInButtonProps {
@@ -10,7 +10,6 @@ interface GoogleSignInButtonProps {
 
 export default function GoogleSignInButton({ shopSlug, className = "" }: GoogleSignInButtonProps) {
   const [loading, setLoading] = useState(false);
-  const supabase = createClient();
 
   async function handleSignIn() {
     setLoading(true);

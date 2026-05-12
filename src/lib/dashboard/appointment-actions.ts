@@ -1,24 +1,14 @@
 "use server";
 
-import { createServerClient as createSsrClient } from "@supabase/ssr";
 import { createServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { requireShopId } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient, requireShopId } from "@/lib/dashboard/auth-server";
 import { createArgentinaDate } from "@/lib/argentina-time";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
 
-function createAdminClient() {
-  return createSsrClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: {
-        getAll() { return []; },
-        setAll() {},
-      },
-    }
-  );
+async function createAdminClient() {
+  return createServiceRoleClient();
 }
 
 type AppointmentEnriched = {
@@ -31,8 +21,8 @@ type AppointmentEnriched = {
   status: string;
   is_paid: boolean;
   notes: string | null;
-  customers: { id: string; name: string; email: string; phone: string | null } | null;
-  staff: { user_id: string; name: string; email: string } | null;
+  customers: { id: string; nombre: string | null; email: string; telefono: string | null } | null;
+  staff: { user_id: string; name: string | null; email: string | null } | null;
   services: { id: string; name: string; price: number; duration_minutes: number } | null;
 };
 
@@ -60,14 +50,14 @@ export async function fetchAppointments(startDate: string, endDate: string): Pro
     const staffIds = [...new Set(appointments.map(a => a.staff_id))];
     const serviceIds = [...new Set(appointments.map(a => a.service_id))];
 
-    const [customersData, staffData, servicesData] = await Promise.all([
-      supabase.from("customers").select("id, name, email, phone").in("id", customerIds),
-      supabase.from("user_profiles").select("user_id, name, email").in("user_id", staffIds),
+    const [customersData, staffRpcData, servicesData] = await Promise.all([
+      supabase.from("customers").select("id, nombre, email, telefono").eq("shop_id", shopId).in("id", customerIds),
+      supabase.rpc("get_staff_for_my_shop"),
       supabase.from("services").select("id, name, price, duration_minutes").in("id", serviceIds),
     ]);
 
     const customersMap = new Map((customersData.data || []).map(c => [c.id, c]));
-    const staffMap = new Map((staffData.data || []).map(s => [s.user_id, s]));
+    const staffMap = buildStaffMapFromRpc((staffRpcData.data || []) as StaffRpcRow[], staffIds);
     const servicesMap = new Map((servicesData.data || []).map(s => [s.id, s]));
 
     const enriched = appointments.map(apt => ({
@@ -115,26 +105,40 @@ function toArgentinaStartEnd(dateStr: string, timeStr: string, durationMinutes: 
 }
 
 type StaffMemberInfo = { id: string; role: string; name: string | null; email: string | null };
+type StaffRpcRow = {
+  user_id: string;
+  role: string;
+  name: string | null;
+  nombre: string | null;
+  email: string | null;
+};
+
+function buildStaffMapFromRpc(rows: StaffRpcRow[], staffIds: string[]) {
+  const allowedIds = new Set(staffIds.filter(Boolean));
+  return new Map(
+    rows
+      .filter((row) => (row.role === "owner" || row.role === "staff") && allowedIds.has(row.user_id))
+      .map((row) => [
+        row.user_id,
+        { user_id: row.user_id, name: row.name ?? row.nombre ?? null, email: row.email ?? null },
+      ])
+  );
+}
 
 export async function fetchStaffMembers(): Promise<ActionResult<StaffMemberInfo[]>> {
   try {
-    const shopIdResult = await requireShopId();
-    if (!shopIdResult.success) return shopIdResult;
-    const shopId = shopIdResult.data;
-
     const supabase = await createServerClient();
 
-    const { data, error } = await supabase
-      .from("user_profiles")
-      .select("user_id, role, name, email")
-      .eq("shop_id", shopId)
-      .in("role", ["owner", "staff"])
-      .order("created_at", { ascending: true });
+    const { data, error } = await supabase.rpc("get_staff_for_my_shop");
 
     if (error) return { success: false, error: error.message };
+
+    const rows = (data || []) as StaffRpcRow[];
     return {
       success: true,
-      data: (data || []).map(s => ({ id: s.user_id, role: s.role, name: s.name, email: s.email })),
+      data: rows
+        .filter((s) => s.role === "owner" || s.role === "staff")
+        .map((s) => ({ id: s.user_id, role: s.role, name: s.name ?? s.nombre ?? null, email: s.email })),
     };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al obtener personal" };
@@ -225,37 +229,23 @@ export async function createCustomerAndAppointment(formData: FormData): Promise<
       return { success: false, error: "Nombre, email, servicio, fecha y hora son obligatorios" };
     }
 
-    const admin = createAdminClient();
-    const { data: authData, error: authError } = await admin.auth.admin.createUser({
-      email: customerEmail,
-      password: crypto.randomUUID(),
-      email_confirm: true,
-      user_metadata: { full_name: customerName },
-    });
-
-    if (authError) return { success: false, error: authError.message };
-    if (!authData.user) return { success: false, error: "No se pudo crear el usuario" };
-
-    const { error: customerInsertError } = await admin
-      .from("customers")
-      .insert({ id: authData.user.id, shop_id: shopId, name: customerName, email: customerEmail, phone: customerPhone || null });
-
-    if (customerInsertError) {
-      try { await admin.auth.admin.deleteUser(authData.user.id); } catch {}
-      return { success: false, error: customerInsertError.message };
-    }
-
-    const { error: profileError } = await admin
-      .from("user_profiles")
-      .insert({ user_id: authData.user.id, shop_id: shopId, name: customerName, email: customerEmail, role: "customer" });
-
-    if (profileError) {
-      try { await admin.from("customers").delete().eq("id", authData.user.id); } catch {}
-      try { await admin.auth.admin.deleteUser(authData.user.id); } catch {}
-      return { success: false, error: profileError.message };
-    }
-
     const supabase = await createServerClient();
+
+    const { data: customerRow, error: customerInsertError } = await supabase
+      .from("customers")
+      .insert({
+        shop_id: shopId,
+        nombre: customerName,
+        email: customerEmail,
+        telefono: customerPhone || null,
+      })
+      .select("id")
+      .single();
+
+    if (customerInsertError || !customerRow?.id) {
+      return { success: false, error: customerInsertError?.message || "No se pudo crear el cliente" };
+    }
+
     const { data: service } = await supabase
       .from("services")
       .select("duration_minutes")
@@ -284,7 +274,7 @@ export async function createCustomerAndAppointment(formData: FormData): Promise<
 
     const { error: aptError } = await supabase.from("appointments").insert({
       shop_id: shopId,
-      customer_id: authData.user.id,
+      customer_id: customerRow.id,
       staff_id: staffId || null,
       service_id: serviceId,
       start_time: startIso,
@@ -294,12 +284,7 @@ export async function createCustomerAndAppointment(formData: FormData): Promise<
       notes: notes || null,
     });
 
-    if (aptError) {
-      try { await admin.from("customers").delete().eq("id", authData.user.id); } catch {}
-      try { await admin.from("user_profiles").delete().eq("user_id", authData.user.id); } catch {}
-      try { await admin.auth.admin.deleteUser(authData.user.id); } catch {}
-      return { success: false, error: aptError.message };
-    }
+    if (aptError) return { success: false, error: aptError.message };
 
     revalidatePath("/dashboard/calendar");
     revalidatePath("/dashboard");
@@ -315,8 +300,8 @@ type AppointmentTableRow = {
   end_time: string;
   status: string;
   is_paid: boolean;
-  customers: { id: string; name: string; email: string; phone: string | null } | null;
-  staff: { user_id: string; name: string } | null;
+  customers: { id: string; nombre: string | null; email: string; telefono: string | null } | null;
+  staff: { user_id: string; name: string | null } | null;
   services: { id: string; name: string; price: number } | null;
 };
 
@@ -326,7 +311,8 @@ export async function fetchAllAppointmentsForTable(): Promise<ActionResult<Appoi
     if (!shopIdResult.success) return shopIdResult;
     const shopId = shopIdResult.data;
 
-    const admin = createAdminClient();
+    const admin = await createAdminClient();
+    const supabase = await createServerClient();
 
     const { data: appointments, error: aptError } = await admin
       .from("appointments")
@@ -343,21 +329,26 @@ export async function fetchAllAppointmentsForTable(): Promise<ActionResult<Appoi
     const staffIds = [...new Set((appointments || []).map(a => a.staff_id).filter(Boolean))];
     const serviceIds = [...new Set((appointments || []).map(a => a.service_id).filter(Boolean))];
 
-    const [customersRes, staffRes, servicesRes] = await Promise.all([
+    const [customersRes, staffRpcRes, servicesRes] = await Promise.all([
       customerIds.length > 0
-        ? admin.from("customers").select("id, name, email, phone").in("id", customerIds)
+        ? admin.from("customers").select("id, nombre, email, telefono").eq("shop_id", shopId).in("id", customerIds)
         : { data: [], error: null },
-      staffIds.length > 0
-        ? admin.from("user_profiles").select("user_id, name").in("user_id", staffIds)
-        : { data: [], error: null },
+      staffIds.length > 0 ? supabase.rpc("get_staff_for_my_shop") : { data: [], error: null },
       serviceIds.length > 0
         ? admin.from("services").select("id, name, price").in("id", serviceIds)
         : { data: [], error: null },
     ]);
 
-    const customerMap = new Map((customersRes.data || []).map(c => [c.id, c]));
-    const staffMap = new Map((staffRes.data || []).map(s => [s.user_id, s]));
-    const serviceMap = new Map((servicesRes.data || []).map(s => [s.id, s]));
+    const customerRows = (customersRes.data || []) as Array<{ id: string; nombre: string | null; email: string; telefono: string | null }>;
+    const customerMap = new Map(customerRows.map((c) => [c.id, c]));
+    const staffMap = new Map(
+      Array.from(buildStaffMapFromRpc((staffRpcRes.data || []) as StaffRpcRow[], staffIds)).map(([userId, row]) => [
+        userId,
+        { user_id: row.user_id, name: row.name },
+      ])
+    );
+    const serviceRows = (servicesRes.data || []) as Array<{ id: string; name: string; price: number }>;
+    const serviceMap = new Map(serviceRows.map((s) => [s.id, s]));
 
     const rows = (appointments || []).map(apt => ({
       id: apt.id,

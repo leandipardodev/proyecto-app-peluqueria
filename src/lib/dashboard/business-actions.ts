@@ -1,20 +1,13 @@
 "use server";
 
-import { createServerClient as createSsrClient } from "@supabase/ssr";
-import { requireShopId } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient, requireShopId } from "@/lib/dashboard/auth-server";
 import { revalidatePath } from "next/cache";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
 
-function createAdminClient() {
-  return createSsrClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: { getAll() { return []; }, setAll() {} },
-    }
-  );
+async function createAdminClient() {
+  return createServiceRoleClient();
 }
 
 async function withRetry<T>(fn: () => Promise<T>, retries = 2): Promise<T> {
@@ -30,7 +23,7 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 2): Promise<T> {
 }
 
 export type BusinessData = {
-  name: string;
+  nombre: string;
   description: string | null;
   address: string | null;
   localidad: string | null;
@@ -48,10 +41,10 @@ export async function fetchBusinessData(): Promise<ActionResult<BusinessData>> {
     const shopId = shopIdResult.data;
 
     const { data, error } = await withRetry(async () => {
-      const admin = createAdminClient();
+      const admin = await createAdminClient();
       return admin
         .from("shops")
-        .select("name, description, address, localidad, phone, instagram_url, mp_public_key, mp_access_token, whatsapp_template")
+        .select("nombre, description, address, localidad, phone, instagram_url, mp_public_key, mp_access_token, whatsapp_template")
         .eq("id", shopId)
         .single();
     });
@@ -61,7 +54,7 @@ export async function fetchBusinessData(): Promise<ActionResult<BusinessData>> {
     return {
       success: true,
       data: {
-        name: data.name,
+        nombre: data.nombre,
         description: data.description || null,
         address: data.address || null,
         localidad: data.localidad || null,
@@ -82,9 +75,9 @@ export async function updateBusinessInfo(formData: FormData): Promise<ActionResu
     const shopIdResult = await requireShopId();
     if (!shopIdResult.success) return shopIdResult;
     const shopId = shopIdResult.data;
-    const admin = createAdminClient();
+    const admin = await createAdminClient();
 
-    const name = formData.get("name") as string;
+    const nombre = formData.get("nombre") as string;
     const description = formData.get("description") as string || null;
     const address = formData.get("address") as string || null;
     const localidad = formData.get("localidad") as string || null;
@@ -93,7 +86,7 @@ export async function updateBusinessInfo(formData: FormData): Promise<ActionResu
 
     const { error } = await admin
       .from("shops")
-      .update({ name, description, address, localidad, phone, instagram_url, updated_at: new Date().toISOString() })
+      .update({ nombre, description, address, localidad, phone, instagram_url, updated_at: new Date().toISOString() })
       .eq("id", shopId);
 
     if (error) return { success: false, error: error.message };
@@ -109,7 +102,7 @@ export async function updateMercadoPagoKeysAction(publicKey: string, accessToken
     const shopIdResult = await requireShopId();
     if (!shopIdResult.success) return shopIdResult;
     const shopId = shopIdResult.data;
-    const admin = createAdminClient();
+    const admin = await createAdminClient();
 
     const { error } = await admin
       .from("shops")
@@ -149,7 +142,7 @@ export async function fetchBusinessHours(): Promise<ActionResult<BusinessHoursDa
     const shopId = shopIdResult.data;
 
     const { data, error } = await withRetry(async () => {
-      const admin = createAdminClient();
+      const admin = await createAdminClient();
       return admin
         .from("shops")
         .select("business_hours")
@@ -194,7 +187,7 @@ export async function updateBusinessHours(hours: BusinessHoursData): Promise<Act
     const shopIdResult = await requireShopId();
     if (!shopIdResult.success) return shopIdResult;
     const shopId = shopIdResult.data;
-    const admin = createAdminClient();
+    const admin = await createAdminClient();
 
     // Blindaje: si llegó como string (JSON.stringify), lo parseamos
     let clean: Record<string, unknown> =
@@ -240,7 +233,7 @@ export async function updateWhatsappTemplateAction(template: string): Promise<Ac
     const shopIdResult = await requireShopId();
     if (!shopIdResult.success) return shopIdResult;
     const shopId = shopIdResult.data;
-    const admin = createAdminClient();
+    const admin = await createAdminClient();
 
     const { error } = await admin
       .from("shops")

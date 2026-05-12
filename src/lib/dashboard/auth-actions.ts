@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { redirect } from "next/navigation";
 import type { ActionResult } from "@/lib/types";
+import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
 import "server-only";
 
 function generateShopSlug(name: string): string {
@@ -50,7 +51,9 @@ export async function login(formData: FormData): Promise<never> {
   redirect("/dashboard");
 }
 
-export async function registerShop(formData: FormData): Promise<ActionResult> {
+export async function registerShop(
+  formData: FormData
+): Promise<ActionResult<{ requiresEmailConfirmation?: boolean; message?: string; redirectToDashboard?: boolean }>> {
   try {
     const shopName = formData.get("shop_name") as string;
     const email = formData.get("email") as string;
@@ -64,52 +67,57 @@ export async function registerShop(formData: FormData): Promise<ActionResult> {
       return { success: false, error: "La contraseña debe tener al menos 6 caracteres" };
     }
 
-    const supabaseAdmin = createServerClient(
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
-        cookies: { getAll() { return []; }, setAll() {} },
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
+            } catch {}
+          },
+        },
       }
     );
 
-    const { data: shop, error: shopError } = await supabaseAdmin
-      .from("shops")
-      .insert({
-        name: shopName,
-        active: true,
-        plan_expiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        slug: generateShopSlug(shopName),
-      })
-      .select()
-      .single();
+    const slug = generateShopSlug(shopName);
 
-    if (shopError) {
-      if (shopError.code === "23505") {
-        return { success: false, error: "Ya existe una peluquería con ese nombre" };
-      }
-      return { success: false, error: shopError.message };
+    const { error: signUpError } = await supabase.auth.signUp({ email, password });
+    if (signUpError) {
+      return { success: false, error: signUpError.message };
     }
 
-    const { data: authData, error: authError } = await supabaseAdmin.auth.signUp({ email, password });
-
-    if (authError) {
-      await supabaseAdmin.from("shops").delete().eq("id", shop.id);
-      return { success: false, error: authError.message };
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    if (signInError) {
+      return {
+        success: true,
+        data: {
+          requiresEmailConfirmation: true,
+          message: "Cuenta creada. Confirmá tu email para terminar de configurar tu negocio.",
+        },
+      };
     }
 
-    if (authData.user) {
-      const { error: profileError } = await supabaseAdmin
-        .from("user_profiles")
-        .insert({ user_id: authData.user.id, shop_id: shop.id, name: email, email, role: "owner" });
+    const { error: initError } = await supabase.rpc("initialize_new_shop", {
+      p_nombre: shopName,
+      p_slug: slug,
+    });
 
-      if (profileError) {
-        await supabaseAdmin.from("shops").delete().eq("id", shop.id);
-        try { await supabaseAdmin.auth.admin.deleteUser(authData.user.id); } catch {}
-        return { success: false, error: profileError.message };
-      }
+    if (initError) {
+      const message = initError.message.toLowerCase().includes("slug") || initError.code === "23505"
+        ? "El nombre del negocio genera un slug en uso. Probá con otro nombre."
+        : initError.message;
+      return { success: false, error: message };
     }
 
-    return { success: true };
+    await supabase.auth.refreshSession();
+
+    return { success: true, data: { redirectToDashboard: true } };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al registrar" };
   }
@@ -151,23 +159,17 @@ export async function getGoogleAuthUrl(): Promise<ActionResult<{ url: string }>>
 export async function updateShopName(formData: FormData): Promise<ActionResult> {
   try {
     const shopId = formData.get("shop_id") as string;
-    const name = formData.get("name") as string;
+    const nombre = formData.get("nombre") as string;
 
-    if (!shopId || !name) {
+    if (!shopId || !nombre) {
       return { success: false, error: "Faltan datos" };
     }
 
-    const supabaseAdmin = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        cookies: { getAll() { return []; }, setAll() {} },
-      }
-    );
+    const supabaseAdmin = await createServiceRoleClient();
 
     const { error } = await supabaseAdmin
       .from("shops")
-      .update({ name, updated_at: new Date().toISOString() })
+      .update({ nombre, updated_at: new Date().toISOString() })
       .eq("id", shopId);
 
     if (error) return { success: false, error: error.message };

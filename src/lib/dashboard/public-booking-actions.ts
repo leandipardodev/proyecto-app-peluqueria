@@ -1,6 +1,6 @@
 "use server";
 
-import { createServerClient as createSsrClient } from "@supabase/ssr";
+import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
 import {
   createArgentinaDate,
   formatArgentinaTime,
@@ -12,14 +12,8 @@ import { MercadoPagoConfig, Preference } from "mercadopago";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
 
-function createAdminClient() {
-  return createSsrClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: { getAll() { return []; }, setAll() {} },
-    }
-  );
+async function createAdminClient() {
+  return createServiceRoleClient();
 }
 
 const DAY_KEYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
@@ -90,7 +84,7 @@ export async function fetchPublicAvailableSlots(
   staffId?: string
 ): Promise<ActionResult<Slot[]>> {
   try {
-    const admin = createAdminClient();
+    const admin = await createAdminClient();
 
     const safeDuration = (!serviceDuration || serviceDuration <= 0) ? 60 : serviceDuration;
 
@@ -245,7 +239,7 @@ export async function createPublicAppointment(data: {
   endTime: string;
 }): Promise<ActionResult<{ customerId: string; appointmentId: string }>> {
   try {
-    const admin = createAdminClient();
+    const admin = await createAdminClient();
 
     let customerId: string;
 
@@ -255,10 +249,11 @@ export async function createPublicAppointment(data: {
         .from("customers")
         .upsert({
           id: customerId,
+          user_id: customerId,
           shop_id: data.shopId,
-          name: data.customerName,
+          nombre: data.customerName,
           email: data.customerEmail ?? null,
-          phone: data.customerPhone,
+          telefono: data.customerPhone,
           updated_at: new Date().toISOString(),
         });
 
@@ -267,8 +262,8 @@ export async function createPublicAppointment(data: {
       const { data: existingCustomer } = await admin
         .from("customers")
         .select("id")
-        .eq("phone", data.customerPhone)
         .eq("shop_id", data.shopId)
+        .eq("telefono", data.customerPhone)
         .maybeSingle();
 
       if (existingCustomer) {
@@ -276,7 +271,7 @@ export async function createPublicAppointment(data: {
         await admin
           .from("customers")
           .update({
-            name: data.customerName,
+            nombre: data.customerName,
             email: data.customerEmail ?? null,
             updated_at: new Date().toISOString(),
           })
@@ -285,9 +280,10 @@ export async function createPublicAppointment(data: {
         const { data: newCustomer, error: custError } = await admin
         .from("customers")
         .insert({
+          user_id: data.authenticatedUserId ?? null,
           shop_id: data.shopId,
-          name: data.customerName,
-          phone: data.customerPhone,
+          nombre: data.customerName,
+          telefono: data.customerPhone,
           email: data.customerEmail ?? null,
         })
         .select("id")
@@ -362,7 +358,7 @@ export async function createPaymentPreference(
       return { success: false, error: "MP_ACCESS_TOKEN no configurado" };
     }
 
-    const admin = createAdminClient();
+    const admin = await createAdminClient();
     const { data: appointment, error: appointmentError } = await admin
       .from("appointments")
       .select("id, shop_id, service_id")
