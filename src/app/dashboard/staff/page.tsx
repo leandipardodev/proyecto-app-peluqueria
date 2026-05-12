@@ -4,12 +4,13 @@ import StaffList from "@/components/staff/staff-list";
 export const dynamic = "force-dynamic";
 
 export default async function StaffPage() {
-  let staff: Awaited<ReturnType<typeof fetchStaffMembers>> = [];
+  let staff: any[] = [];
 
-  try {
-    staff = await fetchStaffMembers();
-  } catch {
-    staff = [];
+  const result = await fetchStaffMembers();
+  if (result.success) {
+    staff = result.data ?? [];
+  } else {
+    console.error("[StaffPage] Error:", result.error);
   }
 
   return <StaffList initialStaff={staff} />;

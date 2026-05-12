@@ -18,7 +18,7 @@ export default function RegisterPage() {
     const formData = new FormData(e.currentTarget);
     startTransition(async () => {
       const result = await registerShop(formData);
-      if (result.error) {
+      if (!result.success) {
         setError(result.error);
       } else {
         addToast("Cuenta creada con éxito. Revisá tu email para confirmar.", "success");

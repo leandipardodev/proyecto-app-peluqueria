@@ -6,12 +6,13 @@ import InventoryPageClient from "@/components/inventory/inventory-page-client";
 export const dynamic = "force-dynamic";
 
 export default async function InventoryPage() {
-  let items: Awaited<ReturnType<typeof fetchStockItems>> = [];
+  let items: any[] = [];
 
-  try {
-    items = await fetchStockItems();
-  } catch {
-    items = [];
+  const result = await fetchStockItems();
+  if (result.success) {
+    items = result.data ?? [];
+  } else {
+    console.error("[InventoryPage] Error:", result.error);
   }
 
   return <InventoryPageClient initialItems={items} />;

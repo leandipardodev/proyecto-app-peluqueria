@@ -1,8 +1,9 @@
 "use server";
 
 import { createServerClient as createSsrClient } from "@supabase/ssr";
-import { getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
+import { requireShopId } from "@/lib/dashboard/auth-server";
 import { revalidatePath } from "next/cache";
+import type { ActionResult } from "@/lib/types";
 import "server-only";
 
 function createAdminClient() {
@@ -24,27 +25,30 @@ export async function updateShopInfo(data: {
   address: string;
   phone: string;
   instagram_url: string;
-}) {
-  const session = await getAuthSession();
-  const shopId = await getShopId(session);
-  const admin = createAdminClient();
+}): Promise<ActionResult> {
+  try {
+    const shopIdResult = await requireShopId();
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
+    const admin = createAdminClient();
 
-  const { error } = await admin
-    .from("shops")
-    .update({
-      name: data.name,
-      description: data.description || null,
-      address: data.address || null,
-      phone: data.phone || null,
-      instagram_url: data.instagram_url || null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", shopId);
+    const { error } = await admin
+      .from("shops")
+      .update({
+        name: data.name,
+        description: data.description || null,
+        address: data.address || null,
+        phone: data.phone || null,
+        instagram_url: data.instagram_url || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", shopId);
 
-  if (error) {
-    return { error: error.message };
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath("/dashboard/settings");
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al actualizar" };
   }
-
-  revalidatePath("/dashboard/settings");
-  return { success: true };
 }

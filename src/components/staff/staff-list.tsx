@@ -48,13 +48,13 @@ export default function StaffList({
 
     setSaving(false);
 
-    if (result.error) {
+    if (!result.success) {
       setError(result.error);
       return;
     }
 
-    if (result.password) {
-      setGeneratedPassword(result.password);
+    if (result.data?.password) {
+      setGeneratedPassword(result.data.password);
     }
 
     setName("");
@@ -64,8 +64,8 @@ export default function StaffList({
 
   async function handleRoleChange(id: string, newRole: "staff" | "owner") {
     const result = await updateStaffRole(id, newRole);
-    if (result.error) {
-      alert(result.error as string);
+    if (!result.success) {
+      alert(result.error);
       return;
     }
     window.location.reload();
@@ -74,8 +74,8 @@ export default function StaffList({
   async function handleRemove(id: string) {
     if (!confirm("¿Estás seguro de eliminar este miembro?")) return;
     const result = await removeStaff(id);
-    if (result.error) {
-      alert(result.error as string);
+    if (!result.success) {
+      alert(result.error);
       return;
     }
     window.location.reload();

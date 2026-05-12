@@ -75,7 +75,7 @@ export default function AppointmentDetailModal({
       );
       if (result.success) {
         setLocalStatus(newStatus);
-      } else if (result.error) {
+      } else {
         setError(result.error);
       }
     });
@@ -93,7 +93,7 @@ export default function AppointmentDetailModal({
       );
       if (result.success) {
         setLocalPaid(newPaid);
-      } else if (result.error) {
+      } else {
         setError(result.error);
       }
     });
@@ -109,7 +109,7 @@ export default function AppointmentDetailModal({
       const result = await deleteAppointment(appointment.id);
       if (result.success) {
         onClose();
-      } else if (result.error) {
+      } else {
         setError(result.error);
       }
     });

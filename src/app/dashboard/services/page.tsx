@@ -4,13 +4,13 @@ import ServicesList from "@/components/services/services-list";
 export const dynamic = "force-dynamic";
 
 export default async function ServicesPage() {
-  let services: Awaited<ReturnType<typeof fetchServices>> = [];
+  let services: any[] = [];
 
-  try {
-    services = await fetchServices();
-  } catch (e) {
-    console.error("[ServicesPage] Error al cargar servicios:", e);
-    services = [];
+  const result = await fetchServices();
+  if (result.success) {
+    services = result.data ?? [];
+  } else {
+    console.error("[ServicesPage] Error al cargar servicios:", result.error);
   }
 
   return <ServicesList initialServices={services} />;

@@ -8,6 +8,12 @@ import { getArgentinaDateString } from "@/lib/argentina-time";
 import { AnimatePresence, motion } from "framer-motion";
 import GlassSelect from "@/components/ui/glass-select";
 
+const STAFF_COLORS = ["#c084fc", "#34d399", "#fbbf24", "#fb7185", "#22d3ee", "#fb923c", "#818cf8", "#f472b6"];
+
+function getInitials(name: string): string {
+  return name.split(" ").map((w) => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+}
+
 const IOS_MODAL_SPRING = { stiffness: 460, damping: 34, mass: 0.65 };
 
 type Service = {
@@ -119,7 +125,7 @@ export default function AppointmentFormModal({
         ? await createCustomerAndAppointment(formData)
         : await createAppointment(formData);
 
-      if (result.error) {
+      if (!result.success) {
         setError(result.error);
       } else {
         playPop();
@@ -162,7 +168,17 @@ export default function AppointmentFormModal({
 
         <div className="p-6 overflow-y-auto flex-1">
           <form id="appointment-form" onSubmit={handleSubmit}>
-            {error && (
+            {error === "slot_taken" ? (
+              <div className="mb-4 bg-amber-100/40 dark:bg-amber-950/40 backdrop-blur-md border border-amber-200/30 dark:border-amber-800/30 text-amber-800 dark:text-amber-200 text-sm px-4 py-3 rounded-2xl flex items-start gap-3">
+                <div className="p-1.5 rounded-full bg-amber-200/50 dark:bg-amber-800/30 shrink-0">
+                  <X className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <p>
+                  <span className="font-semibold block">Horario ocupado</span>
+                  Este horario ya está ocupado. Si necesitás un sobre-turno, verificá la agenda primero.
+                </p>
+              </div>
+            ) : error && (
               <div className="mb-4 bg-red-100/40 dark:bg-red-950/40 backdrop-blur-md border border-red-200/30 dark:border-red-800/30 text-red-700 dark:text-red-300 text-sm px-4 py-2 rounded-2xl">
                 {error}
               </div>
@@ -241,7 +257,23 @@ export default function AppointmentFormModal({
                 </label>
                 <GlassSelect
                   options={staff && staff.length > 0
-                    ? staff.map((s) => ({ value: s.id, label: s.name || s.email || s.id }))
+                    ? staff.map((s, i) => {
+                        const name = s.name || s.email || s.id;
+                        const initials = getInitials(name);
+                        const color = STAFF_COLORS[i % STAFF_COLORS.length];
+                        return {
+                          value: s.id,
+                          label: name,
+                          prefix: (
+                            <span
+                              className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-semibold text-white shrink-0"
+                              style={{ backgroundColor: color }}
+                            >
+                              {initials}
+                            </span>
+                          ),
+                        };
+                      })
                     : [{ value: "", label: "No hay personal registrado" }]
                   }
                   value={selectedStaffId}

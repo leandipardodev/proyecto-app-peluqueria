@@ -1,11 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createMiddlewareClient } from "@/lib/supabase/middleware";
 
-const DASHBOARD_PREFIX = "/dashboard";
 const LOGIN_PATH = "/login";
 const BILLING_REQUIRED_PATH = "/billing-required";
 
-const PROTECTED_PATHS = ["/dashboard", "/client"];
+const PROTECTED_PATHS = ["/dashboard", "/admin", "/client"];
 const PUBLIC_PATHS = ["/login", "/register", "/api/health", "/billing-required", "/book"];
 
 function isPublicPath(pathname: string): boolean {
@@ -34,10 +33,10 @@ export async function middleware(request: NextRequest) {
   const supabase = createMiddlewareClient(request, response);
 
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = LOGIN_PATH;
     loginUrl.searchParams.set("redirect", pathname);
@@ -47,7 +46,7 @@ export async function middleware(request: NextRequest) {
   const { data: userProfile, error: profileError } = await supabase
     .from("user_profiles")
     .select("shop_id, role")
-    .eq("user_id", session.user.id)
+    .eq("user_id", user.id)
     .single();
 
   if (profileError || !userProfile) {

@@ -13,11 +13,13 @@ import {
   Users,
   LogOut,
   Wallet,
+  Store,
 } from "lucide-react";
 
 const navItems = [
   { label: "Inicio", href: "/dashboard", icon: Home },
   { label: "Calendario", href: "/dashboard/calendar", icon: CalendarDays },
+  { label: "Mi Negocio", href: "/dashboard/business", icon: Store },
   { label: "Turnos", href: "/dashboard/appointments", icon: Clock },
   { label: "Servicios", href: "/dashboard/services", icon: Scissors },
   { label: "Finanzas", href: "/dashboard/finances", icon: Wallet },

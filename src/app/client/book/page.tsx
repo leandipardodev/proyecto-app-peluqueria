@@ -1,5 +1,6 @@
 import { createServerClient } from "@/lib/supabase/server";
 import { getAuthSession } from "@/lib/dashboard/auth-server";
+import { redirect } from "next/navigation";
 import BookingFlow from "@/components/client/booking-flow";
 import { fetchPublicStaff } from "@/lib/dashboard/client-actions";
 
@@ -12,6 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function ClientBookPage({ searchParams }: ClientBookPageProps) {
   const { serviceId, staffId } = await searchParams;
   const session = await getAuthSession();
+  if (!session) redirect("/login");
 
   const supabase = await createServerClient();
 
@@ -41,7 +43,8 @@ export default async function ClientBookPage({ searchParams }: ClientBookPagePro
     .order("name", { ascending: true });
 
   // Fetch staff members
-  const staffMembers = await fetchPublicStaff(profile.shop_id);
+  const staffResult = await fetchPublicStaff(profile.shop_id);
+  const staffMembers = staffResult.success ? (staffResult.data ?? []) : [];
 
   // Find pre-selected service and staff if provided
   const selectedService = serviceId
@@ -61,7 +64,7 @@ export default async function ClientBookPage({ searchParams }: ClientBookPagePro
       <BookingFlow
         shopId={profile.shop_id}
         services={services || []}
-        staffMembers={staffMembers}
+        staffMembers={staffMembers as any}
         selectedServiceId={serviceId}
         selectedStaffId={staffId}
       />

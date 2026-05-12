@@ -1,68 +1,29 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { updateShopName } from "@/lib/dashboard/auth-actions";
 import { Bell, BellOff, Moon, Sun } from "lucide-react";
 import { useDarkMode } from "@/lib/use-dark-mode";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { isMuted, setMuted, playPop } from "@/lib/sound";
-import { fetchWhatsappTemplate, updateWhatsappTemplate } from "@/lib/dashboard/whatsapp-actions";
-import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
-import { fetchMercadoPagoKeys, updateMercadoPagoKeys } from "@/lib/payments/mercadopago-actions";
-import { updateShopInfo } from "@/lib/dashboard/shop-actions";
-
-interface ShopProfile {
-  id: string;
-  name: string;
-  description?: string | null;
-  address?: string | null;
-  phone?: string | null;
-  instagram_url?: string | null;
-  plan_expiry: string;
-  active: boolean;
-  mp_public_key?: string;
-  mp_access_token?: string;
-}
 
 export default function SettingsPage() {
   const router = useRouter();
-  const [profile, setProfile] = useState<ShopProfile | null>(null);
+  const [profile, setProfile] = useState<{
+    plan_expiry: string;
+    active: boolean;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [shopAddress, setShopAddress] = useState("");
-  const [shopPhone, setShopPhone] = useState("");
-  const [instagramUrl, setInstagramUrl] = useState("");
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const { dark, toggle: toggleDark } = useDarkMode();
-  const [whatsappTemplate, setWhatsappTemplate] = useState(DEFAULT_WHATSAPP_TEMPLATE);
-  const [templateSaving, setTemplateSaving] = useState(false);
-  const [mpPublicKey, setMpPublicKey] = useState("");
-  const [mpAccessToken, setMpAccessToken] = useState("");
-  const [mpSaving, setMpSaving] = useState(false);
-  const [pending, startTransition] = useTransition();
 
   useEffect(() => {
     setSoundEnabled(!isMuted());
   }, []);
 
-  useEffect(() => {
-    if (!profile?.id) return;
-    fetchWhatsappTemplate().then(setWhatsappTemplate);
-    fetchMercadoPagoKeys().then((keys) => {
-      setMpPublicKey(keys.mp_public_key);
-      setMpAccessToken(keys.mp_access_token);
-    });
-  }, [profile?.id]);
   const supabase = createClient();
 
-  // Load shop profile
   useEffect(() => {
     async function loadProfile() {
       const { data: { user } } = await supabase.auth.getUser();
@@ -82,43 +43,19 @@ export default function SettingsPage() {
         return;
       }
 
-      const { data: shopData, error: shopError } = await supabase
+      const { data: shopData } = await supabase
         .from("shops")
-        .select("*")
+        .select("plan_expiry, active")
         .eq("id", data.shop_id)
         .single();
 
-      if (!shopError && shopData) {
-        setProfile(shopData as unknown as ShopProfile);
-        setName(shopData.name);
-        setDescription(shopData.description || "");
-        setShopAddress(shopData.address || "");
-        setShopPhone(shopData.phone || "");
-        setInstagramUrl(shopData.instagram_url || "");
+      if (shopData) {
+        setProfile(shopData as { plan_expiry: string; active: boolean });
       }
       setLoading(false);
     }
     loadProfile();
   }, []);
-
-  const handleSave = () => {
-    if (!profile) return;
-
-    const formData = new FormData();
-    formData.set("shop_id", profile.id);
-    formData.set("name", name);
-
-    startTransition(async () => {
-      setMessage(null);
-      const result = await updateShopName(formData);
-      if (result.error) {
-        setMessage({ type: 'error', text: result.error });
-      } else {
-        setMessage({ type: 'success', text: "Configuración guardada exitosamente" });
-        setProfile({ ...profile, name });
-      }
-    });
-  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -127,140 +64,40 @@ export default function SettingsPage() {
 
   if (loading) return <div className="p-6">Cargando...</div>;
 
-  if (!profile) return <div className="p-6 text-red-600">Error al cargar el perfil</div>;
-
-  const expiryDate = new Date(profile.plan_expiry).toLocaleDateString("es-AR");
+  const expiryDate = profile?.plan_expiry
+    ? new Date(profile.plan_expiry).toLocaleDateString("es-AR")
+    : "—";
 
   return (
-    <div className="max-w-4xl mx-auto p-8">
-      <h1 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6 tracking-tight">Configuración</h1>
-
-      {message && (
-        <div className={`p-4 rounded-lg mb-6 ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
-          {message.text}
-        </div>
-      )}
-
-      <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-8 mb-6 transition-colors">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 tracking-tight">Información de la Peluquería</h2>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="shop-name">Nombre</Label>
-            <Input
-              id="shop-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="mt-1"
-            />
-          </div>
-          <Button onClick={handleSave} disabled={pending}>
-            {pending ? "Guardando..." : "Guardar Cambios"}
-          </Button>
-        </div>
+    <div className="max-w-4xl mx-auto p-8 space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Configuración</h1>
+        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Preferencias de cuenta y aplicación</p>
       </div>
 
-      <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-8 mb-6 transition-colors">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 tracking-tight">Información del Local</h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-          Estos datos se muestran en la página pública de reservas.
-        </p>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="shop-name">Nombre del Local</Label>
-            <Input
-              id="shop-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="mt-1"
-            />
-          </div>
-          <div>
-            <Label htmlFor="shop-description">Descripción</Label>
-            <textarea
-              id="shop-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-950 px-3 py-2 text-sm dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"
-              placeholder="Contanos brevemente sobre tu local..."
-            />
-          </div>
-          <div>
-            <Label htmlFor="shop-address">Dirección</Label>
-            <Input
-              id="shop-address"
-              value={shopAddress}
-              onChange={(e) => setShopAddress(e.target.value)}
-              className="mt-1"
-              placeholder="Ej: Av. Siempre Viva 123"
-            />
-          </div>
-          <div>
-            <Label htmlFor="shop-phone">Teléfono</Label>
-            <Input
-              id="shop-phone"
-              value={shopPhone}
-              onChange={(e) => setShopPhone(e.target.value)}
-              className="mt-1"
-              placeholder="Ej: 11 1234-5678"
-            />
-          </div>
-          <div>
-            <Label htmlFor="shop-instagram">Instagram</Label>
-            <Input
-              id="shop-instagram"
-              value={instagramUrl}
-              onChange={(e) => setInstagramUrl(e.target.value)}
-              className="mt-1"
-              placeholder="https://instagram.com/tu-local"
-            />
-          </div>
-          <Button
-            onClick={async () => {
-              setMessage(null);
-              const result = await updateShopInfo({
-                name,
-                description,
-                address: shopAddress,
-                phone: shopPhone,
-                instagram_url: instagramUrl,
-              });
-              if (result.error) {
-                setMessage({ type: "error", text: result.error });
-              } else {
-                setMessage({ type: "success", text: "Información guardada exitosamente" });
-              }
-            }}
-            disabled={pending}
-          >
-            Guardar Cambios
-          </Button>
-        </div>
-      </div>
-
-      <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-8 mb-6 transition-colors">
+      {/* Plan y Facturación */}
+      <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-8 transition-colors">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 tracking-tight">Plan y Facturación</h2>
         <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Estado</dt>
             <dd className="mt-1 text-sm text-gray-900 dark:text-gray-100">
-              {profile.active ? (
+              {profile?.active ? (
                 <span className="text-green-600">Activo</span>
               ) : (
                 <span className="text-red-600">Inactivo</span>
               )}
             </dd>
           </div>
-
           <div>
             <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Vencimiento del Plan</dt>
             <dd suppressHydrationWarning className="mt-1 text-sm text-gray-900 dark:text-gray-100">{expiryDate}</dd>
           </div>
         </dl>
-
       </div>
 
-      <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-8 mb-6 transition-colors">
+      {/* Apariencia */}
+      <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-8 transition-colors">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 tracking-tight">Apariencia</h2>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -288,7 +125,8 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-8 mb-6 transition-colors">
+      {/* Notificaciones Sonoras */}
+      <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-8 transition-colors">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 tracking-tight">Notificaciones Sonoras</h2>
         <p className="text-sm text-gray-500 mb-4">
           Sonido sutil al crear un turno o cuando un turno programado entra en la ventana de 1 hora.
@@ -324,98 +162,11 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-8 mb-6 transition-colors">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 tracking-tight">Pagos y Cobros</h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-          Configurá tus claves de Mercado Pago para generar links de pago desde los turnos.
-        </p>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="mp_public_key">MP_PUBLIC_KEY</Label>
-            <Input
-              id="mp_public_key"
-              value={mpPublicKey}
-              onChange={(e) => setMpPublicKey(e.target.value)}
-              className="mt-1 font-mono text-sm"
-              placeholder="APP_USR-xxxx-xxxxxxx"
-            />
-          </div>
-          <div>
-            <Label htmlFor="mp_access_token">MP_ACCESS_TOKEN</Label>
-            <Input
-              id="mp_access_token"
-              value={mpAccessToken}
-              onChange={(e) => setMpAccessToken(e.target.value)}
-              className="mt-1 font-mono text-sm"
-              type="password"
-              placeholder="APP_USR-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-xxxxxxx"
-            />
-          </div>
-          <Button
-            onClick={async () => {
-              setMpSaving(true);
-              setMessage(null);
-              const result = await updateMercadoPagoKeys(mpPublicKey, mpAccessToken);
-              if (result.error) {
-                setMessage({ type: "error", text: result.error });
-              } else {
-                setMessage({ type: "success", text: "Claves de Mercado Pago guardadas" });
-              }
-              setMpSaving(false);
-            }}
-            disabled={mpSaving}
-          >
-            {mpSaving ? "Guardando..." : "Guardar Claves"}
-          </Button>
-        </div>
-      </div>
-
-      <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-8 mb-6 transition-colors">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 tracking-tight">Mensaje de WhatsApp</h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-          Personalizá el texto que se envía desde el botón WhatsApp en la tabla de turnos.
-          Usá <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded text-xs">{'{Nombre}'}</code>, <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded text-xs">{'{Peluqueria}'}</code> y <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded text-xs">{'{Hora}'}</code> como placeholders.
-        </p>
-        <div className="space-y-3">
-          <textarea
-            value={whatsappTemplate}
-            onChange={(e) => setWhatsappTemplate(e.target.value)}
-            rows={3}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"
-          />
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-gray-400 dark:text-gray-500">
-              {whatsappTemplate.includes("{Hora}") ? (
-                <span className="text-green-600">✓ Contiene {`{Hora}`}</span>
-              ) : (
-                <span className="text-amber-600">⚠ No contiene {`{Hora}`} — el horario no se va a mostrar</span>
-              )}
-            </p>
-            <Button
-              onClick={async () => {
-                setTemplateSaving(true);
-                setMessage(null);
-                const result = await updateWhatsappTemplate(whatsappTemplate);
-                if (result.error) {
-                  setMessage({ type: 'error', text: result.error });
-                } else {
-                  setMessage({ type: 'success', text: "Plantilla de WhatsApp guardada" });
-                }
-                setTemplateSaving(false);
-              }}
-              disabled={templateSaving}
-              size="sm"
-            >
-              {templateSaving ? "Guardando..." : "Guardar Plantilla"}
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-6 transition-colors">
+      {/* Cuenta */}
+      <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-8 transition-colors">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 tracking-tight">Cuenta</h2>
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           onClick={handleLogout}
           className="text-red-600 border-red-300 hover:bg-red-50"
         >

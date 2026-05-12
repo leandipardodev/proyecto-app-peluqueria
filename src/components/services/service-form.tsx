@@ -62,7 +62,7 @@ export default function ServiceForm({ service, onSuccess }: ServiceFormProps) {
 
     startTransition(async () => {
       const result = await action();
-      if (result.error) {
+      if (!result.success) {
         setError(result.error);
       } else {
         onSuccess();

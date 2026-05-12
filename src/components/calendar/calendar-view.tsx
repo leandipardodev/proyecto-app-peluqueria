@@ -2,8 +2,8 @@
 
 import { format, startOfWeek, addDays, isToday } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useRef, useState, useEffect, useMemo } from "react";
+import { ChevronLeft, ChevronRight, MessageCircle } from "lucide-react";
+import { useRef, useState, useEffect, useMemo, memo } from "react";
 import { AnimatePresence, motion, useMotionValue, useSpring } from "framer-motion";
 import { GRID_END_HOUR, GRID_START_HOUR, HOUR_HEIGHT } from "@/lib/calendar-constants";
 import {
@@ -12,6 +12,7 @@ import {
   minutesFromHHmm,
   toArgentinaLocalIsoString,
 } from "@/lib/argentina-time";
+import { buildWhatsAppUrl } from "@/lib/dashboard/whatsapp-utils";
 
 type Appointment = {
   id: string;
@@ -48,6 +49,9 @@ type StaffMember = {
   email: string | null;
 };
 
+type BusinessHourEntry = { open: boolean; start: string; end: string };
+type BusinessHoursMap = Record<string, BusinessHourEntry>;
+
 interface CalendarViewProps {
   appointments: Appointment[];
   currentDate: Date;
@@ -58,6 +62,9 @@ interface CalendarViewProps {
   onAppointmentClick: (appointment: Appointment | null) => void;
   staffList?: StaffMember[];
   staffFilter?: string | null;
+  businessHours?: BusinessHoursMap;
+  whatsappTemplate?: string;
+  shopName?: string;
 }
 
 const hours = (() => {
@@ -111,6 +118,11 @@ const statusLabels: Record<string, string> = {
   no_show: "No asistió",
 };
 
+const DAY_MAP: Record<number, string> = {
+  0: "sunday", 1: "monday", 2: "tuesday", 3: "wednesday",
+  4: "thursday", 5: "friday", 6: "saturday",
+};
+
 function computeOverlapLayout<T extends { id: string; start_time: string; end_time: string }>(
   dayAppointments: T[]
 ): Map<string, { width: number; left: number }> {
@@ -159,7 +171,7 @@ function getTopOffset(timeStr: string): number {
   return (totalHours - GRID_START_HOUR) * HOUR_HEIGHT;
 }
 
-export default function CalendarView({
+export default memo(function CalendarView({
   appointments,
   currentDate,
   onPrevWeek,
@@ -169,6 +181,9 @@ export default function CalendarView({
   onAppointmentClick,
   staffList,
   staffFilter,
+  businessHours,
+  whatsappTemplate,
+  shopName,
 }: CalendarViewProps) {
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -392,10 +407,14 @@ export default function CalendarView({
             const dayAppointments = appointmentsByDay.get(dayStr) || [];
             const dayLayout = dayLayouts.get(dayStr) || new Map();
 
+            const dayKey = DAY_MAP[day.getDay()];
+            const dayHours = businessHours?.[dayKey];
+            const dayFullyClosed = dayHours && !dayHours.open;
+
             return (
               <div
                 key={dayStr}
-                className="col-span-1 border-r border-zinc-200/30 dark:border-white/10 last:border-r-0 flex flex-col"
+                className={`col-span-1 border-r border-zinc-200/30 dark:border-white/10 last:border-r-0 flex flex-col ${dayFullyClosed ? "opacity-60" : ""}`}
               >
                 <div
                   className={`h-12 border-b border-zinc-200/30 dark:border-white/10 flex flex-col items-center justify-center shrink-0 ${
@@ -413,6 +432,18 @@ export default function CalendarView({
                   >
                     {format(day, "d")}
                   </span>
+                  {isToday(day) && (
+                    <span className="inline-flex items-center gap-1 mt-0.5">
+                      <span className="relative flex w-1.5 h-1.5">
+                        <span className="absolute inline-flex w-full h-full rounded-full bg-red-500 opacity-75 animate-ping" />
+                        <span className="relative inline-flex w-1.5 h-1.5 rounded-full bg-red-500" />
+                      </span>
+                      <span className="text-[9px] font-semibold text-red-500 uppercase tracking-wider">Hoy</span>
+                    </span>
+                  )}
+                  {dayFullyClosed && (
+                    <span className="text-[9px] text-zinc-400 dark:text-zinc-600 uppercase tracking-wider mt-0.5">Cerrado</span>
+                  )}
                 </div>
 
                 {(() => {
@@ -451,14 +482,25 @@ export default function CalendarView({
                         className="relative flex-1"
                         style={{ minHeight: `${hours.length * HOUR_HEIGHT}px` }}
                       >
-                        {hours.map((hour) => (
+                        {hours.map((hour) => {
+                          const hourNum = hour === 0 && GRID_START_HOUR > 0 ? 24 : hour; // el 0 extra al final
+                          const dayH = dayHours;
+                          const isOpenSlot = dayH?.open && hourNum >= parseInt(dayH.start) && hourNum < parseInt(dayH.end);
+                          return (
                           <div
                             key={hour}
-                            className="border-b border-zinc-200/30 dark:border-white/[0.03] last:border-b-0 hover:bg-white/30 dark:hover:bg-white/5 cursor-pointer transition-colors"
-                            style={{ height: `${HOUR_HEIGHT}px` }}
-                            onClick={() => onSlotClick(day, hour)}
+                            className={`border-b border-zinc-200/30 dark:border-white/[0.03] last:border-b-0 transition-colors ${
+                              isOpenSlot ? "hover:bg-white/30 dark:hover:bg-white/5 cursor-pointer" : ""
+                            }`}
+                            style={{
+                              height: `${HOUR_HEIGHT}px`,
+                              ...(!isOpenSlot ? {
+                                background: `rgba(9,9,11,0.03) repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(9,9,11,0.04) 4px, rgba(9,9,11,0.04) 8px)`,
+                              } : {}),
+                            }}
+                            onClick={isOpenSlot ? () => onSlotClick(day, hour) : undefined}
                           />
-                        ))}
+                        );})}
 
                         {gridAppts.map((appt) => {
                     const durationMinutes = appt.duration_minutes_ar;
@@ -489,13 +531,13 @@ export default function CalendarView({
                     return (
                       <motion.div
                         key={appt.id}
-                        className={`absolute rounded-2xl px-2.5 py-2 text-xs cursor-pointer overflow-hidden flex flex-col font-sans bg-white/30 dark:bg-white/10 backdrop-blur-md border border-white/40 shadow-sm ${isFinalStatus ? "opacity-50" : ""} ${isUrgent ? "animate-pulse-border" : ""}`}
+                        className={`absolute rounded-2xl px-2.5 py-2 text-xs cursor-pointer overflow-hidden flex flex-col font-sans bg-white/30 dark:bg-white/10 backdrop-blur-md border border-white/40 shadow-sm border-l-4 ${isFinalStatus ? "opacity-50" : ""} ${isUrgent ? "animate-pulse-border" : ""}`}
                         style={{
                           top: `${topOffset}px`,
                           height: `${height}px`,
                           width: `calc(${pos.width}% - 4px)`,
                           left: `calc(${pos.left}% + 2px)`,
-                          borderLeft: `3px solid ${staffColor.border}`,
+                          borderLeftColor: staffColor.border,
                           zIndex: 10,
                         }}
                         initial={{ opacity: 0, scale: 0.96 }}
@@ -546,6 +588,29 @@ export default function CalendarView({
                             {appt.staff.name}
                           </span>
                         )}
+                        <div className="flex gap-1 mt-auto pt-1" onClick={(e) => e.stopPropagation()}>
+                          {(() => {
+                            const waUrl = buildWhatsAppUrl({
+                              phone: appt.customers?.phone ?? null,
+                              customerName: appt.customers?.name || "Cliente",
+                              serviceName: appt.services?.name,
+                              time: appt.start_hhmm,
+                              template: whatsappTemplate,
+                              shopName,
+                            });
+                            return waUrl ? (
+                              <a
+                                href={waUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-1 rounded-full text-green-600 dark:text-green-400 hover:bg-green-500/20 transition-colors"
+                                title="Enviar WhatsApp"
+                              >
+                                <MessageCircle className="w-3.5 h-3.5" />
+                              </a>
+                            ) : null;
+                          })()}
+                        </div>
                       </motion.div>
                     );
                   })}
@@ -629,7 +694,13 @@ export default function CalendarView({
             <span className="text-gray-600 dark:text-gray-400">{label}</span>
           </div>
         ))}
+        {businessHours && (
+          <div className="flex items-center gap-1.5 ml-2 pl-2 border-l border-white/10 dark:border-white/5">
+            <div className="w-3 h-3 rounded-sm" style={{ backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px)` }} />
+            <span className="text-gray-600 dark:text-gray-400">Cerrado</span>
+          </div>
+        )}
       </div>
     </div>
   );
-}
+})

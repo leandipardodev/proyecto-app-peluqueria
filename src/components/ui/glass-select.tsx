@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 interface GlassSelectOption {
   value: string;
   label: string;
+  prefix?: React.ReactNode;
 }
 
 interface GlassSelectProps {
@@ -59,7 +60,10 @@ export default function GlassSelect({
           selected ? "text-gray-900 dark:text-gray-100" : "text-zinc-400 dark:text-zinc-500"
         }`}
       >
-        <span>{selected ? selected.label : placeholder}</span>
+        <span className="flex items-center gap-2 min-w-0">
+          {selected?.prefix && <span className="shrink-0">{selected.prefix}</span>}
+          <span className="truncate">{selected ? selected.label : placeholder}</span>
+        </span>
         <ChevronDown className={`w-4 h-4 text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
@@ -85,13 +89,14 @@ export default function GlassSelect({
                       onChange(opt.value);
                       setOpen(false);
                     }}
-                    className={`w-full text-left px-3 py-2 text-sm transition-colors cursor-pointer select-none ${
+                    className={`w-full text-left px-3 py-2 text-sm transition-colors cursor-pointer select-none flex items-center gap-2 ${
                       isActive
                         ? "text-violet-700 dark:text-violet-300 bg-violet-500/10"
                         : "text-gray-700 dark:text-gray-300 hover:bg-violet-500/10"
                     }`}
                   >
-                    {opt.label}
+                    {opt.prefix && <span className="shrink-0">{opt.prefix}</span>}
+                    <span className="truncate">{opt.label}</span>
                   </button>
                 );
               })

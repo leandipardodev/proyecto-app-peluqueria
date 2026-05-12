@@ -3,7 +3,8 @@
 import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { fetchAvailableSlots, createClientAppointment } from "@/lib/dashboard/client-actions";
+import { fetchPublicAvailableSlots } from "@/lib/dashboard/public-booking-actions";
+import { createClientAppointment } from "@/lib/dashboard/client-actions";
 import {
   Check, ShoppingCart, CreditCard, Landmark, Smartphone,
 } from "lucide-react";
@@ -114,9 +115,13 @@ export default function BookingFlow({ shopId, services, staffMembers, selectedSe
     if (date && selectedServices.length > 0) {
       setLoading(true);
       const staffFilter = selectedStaff?.user_id || undefined;
-      fetchAvailableSlots(selectedServices[0].id, date, staffFilter, totalDuration)
+      fetchPublicAvailableSlots(shopId, totalDuration, date, staffFilter)
         .then((result) => {
-          setSlots(result as unknown as Slot[]);
+          if (result.success) {
+            setSlots(result.data ?? []);
+          } else {
+            setError(result.error);
+          }
         })
         .catch(() => {
           setError("Error al cargar horarios disponibles");
@@ -182,7 +187,7 @@ export default function BookingFlow({ shopId, services, staffMembers, selectedSe
         formData.set("staff_id", selectedStaff.user_id);
       }
       const result = await createClientAppointment(formData);
-      if (result.error) {
+      if (!result.success) {
         setError(result.error);
       } else {
         router.push("/client/appointments?success=true");
@@ -206,7 +211,7 @@ export default function BookingFlow({ shopId, services, staffMembers, selectedSe
         formData.set("staff_id", selectedStaff.user_id);
       }
       const result = await createClientAppointment(formData);
-      if (result.error) {
+      if (!result.success) {
         setError(result.error);
       } else {
         router.push("/client/appointments?success=true");

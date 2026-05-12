@@ -20,6 +20,7 @@
     "tailwindcss": "^4.2.4"
   },
   "dependencies": {
+    "@mercadopago/sdk-react": "^1.0.7",
     "@radix-ui/react-label": "^2.1.8",
     "@radix-ui/react-slot": "^1.2.4",
     "@supabase/ssr": "^0.10.2",
@@ -35,6 +36,7 @@
     "next": "^16.2.4",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
+    "recharts": "^3.8.1",
     "server-only": "^0.0.1",
     "tailwind-merge": "^3.5.0",
     "typescript": "^6.0.3"

@@ -48,7 +48,11 @@ export default function ServicesList({ initialServices }: ServicesListProps) {
     if (!confirm("¿Estás seguro de eliminar este servicio?")) return;
 
     startTransition(async () => {
-      await deleteService(id);
+      const result = await deleteService(id);
+      if (!result.success) {
+        alert(result.error);
+        return;
+      }
       setServices((prev) => prev.filter((s) => s.id !== id));
     });
   }

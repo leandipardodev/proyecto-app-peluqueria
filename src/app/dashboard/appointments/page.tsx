@@ -59,9 +59,9 @@ async function fetchWhatsappTemplate(shopId: string) {
 }
 
 export default async function AppointmentsPage() {
-  let appointments: Awaited<ReturnType<typeof fetchAllAppointmentsForTable>> = [];
-  let services: Awaited<ReturnType<typeof fetchActiveServices>> = [];
-  let staff: Awaited<ReturnType<typeof fetchStaffMembers>> = [];
+  let appointments: any[] = [];
+  let services: any[] = [];
+  let staff: any[] = [];
   let customers: Awaited<ReturnType<typeof fetchCustomers>> = [];
   let shopName = "Mi Peluquería";
   let shopAddress: string | null = null;
@@ -90,14 +90,14 @@ export default async function AppointmentsPage() {
       fetchShopAddress(shopId),
     ]);
 
-    if (results[0].status === "fulfilled") appointments = results[0].value;
-    else { console.error("[AppointmentsPage] appointments error:", results[0].reason); error = "Error al cargar turnos"; }
+    if (results[0].status === "fulfilled" && (results[0].value as any).success) appointments = (results[0].value as any).data ?? [];
+    else { console.error("[AppointmentsPage] appointments error:", results[0].status === "fulfilled" ? (results[0].value as any).error : results[0].reason); error = "Error al cargar turnos"; }
 
-    if (results[1].status === "fulfilled") services = results[1].value;
-    else console.error("[AppointmentsPage] services error:", results[1].reason);
+    if (results[1].status === "fulfilled" && (results[1].value as any).success) services = (results[1].value as any).data ?? [];
+    else console.error("[AppointmentsPage] services error:", results[1].status === "fulfilled" ? (results[1].value as any).error : results[1].reason);
 
-    if (results[2].status === "fulfilled") staff = results[2].value;
-    else console.error("[AppointmentsPage] staff error:", results[2].reason);
+    if (results[2].status === "fulfilled" && (results[2].value as any).success) staff = (results[2].value as any).data ?? [];
+    else console.error("[AppointmentsPage] staff error:", results[2].status === "fulfilled" ? (results[2].value as any).error : results[2].reason);
 
     if (results[3].status === "fulfilled") customers = results[3].value;
     else console.error("[AppointmentsPage] customers error:", results[3].reason);

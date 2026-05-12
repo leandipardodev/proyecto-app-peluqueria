@@ -7,6 +7,9 @@ import CalendarPageClient from "@/components/calendar/calendar-page-client";
 import { createServerClient } from "@/lib/supabase/server";
 import { getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
 import { getArgentinaWeekStart } from "@/lib/argentina-time";
+import { fetchBusinessHours } from "@/lib/dashboard/business-actions";
+import { fetchWhatsappTemplate } from "@/lib/dashboard/whatsapp-actions";
+import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
 
 export const dynamic = "force-dynamic";
 
@@ -18,10 +21,13 @@ export default async function CalendarPage() {
   rangeEnd.setUTCDate(weekStart.getUTCDate() + 14);
   rangeEnd.setUTCHours(23, 59, 59, 999);
 
-  let appointments: Awaited<ReturnType<typeof fetchAppointments>> = [];
-  let services: Awaited<ReturnType<typeof fetchActiveServices>> = [];
-  let staff: Awaited<ReturnType<typeof fetchStaffMembers>> = [];
+  let appointments: any[] = [];
+  let services: any[] = [];
+  let staff: any[] = [];
   let customers: Awaited<ReturnType<typeof fetchCustomers>> = [];
+  let businessHours: any = null;
+  let whatsappTemplate = DEFAULT_WHATSAPP_TEMPLATE;
+  let shopName = "";
   let error: string | null = null;
 
   try {
@@ -30,19 +36,29 @@ export default async function CalendarPage() {
       fetchActiveServices(),
       fetchStaffMembers(),
       fetchCustomers(),
+      fetchBusinessHours(),
+      fetchWhatsappTemplate(),
+      fetchShopName(),
     ]);
 
-    if (results[0].status === "fulfilled") appointments = results[0].value;
-    else console.error("Error fetching appointments:", results[0].reason);
+    if (results[0].status === "fulfilled" && results[0].value.success) appointments = (results[0].value as any).data ?? [];
+    else console.error("Error fetching appointments:", results[0].status === "fulfilled" ? (results[0].value as any).error : results[0].reason);
 
-    if (results[1].status === "fulfilled") services = results[1].value;
-    else console.error("Error fetching services:", results[1].reason);
+    if (results[1].status === "fulfilled" && results[1].value.success) services = (results[1].value as any).data ?? [];
+    else console.error("Error fetching services:", results[1].status === "fulfilled" ? (results[1].value as any).error : results[1].reason);
 
-    if (results[2].status === "fulfilled") staff = results[2].value;
-    else console.error("Error fetching staff:", results[2].reason);
+    if (results[2].status === "fulfilled" && results[2].value.success) staff = (results[2].value as any).data ?? [];
+    else console.error("Error fetching staff:", results[2].status === "fulfilled" ? (results[2].value as any).error : results[2].reason);
 
     if (results[3].status === "fulfilled") customers = results[3].value;
     else console.error("Error fetching customers:", results[3].reason);
+
+    if (results[4].status === "fulfilled" && results[4].value.success) businessHours = (results[4].value as any).data ?? null;
+    else console.error("Error fetching business hours:", results[4].status === "fulfilled" ? (results[4].value as any).error : results[4].reason);
+
+    if (results[5].status === "fulfilled" && (results[5].value as any).success) whatsappTemplate = (results[5].value as any).data ?? DEFAULT_WHATSAPP_TEMPLATE;
+
+    if (results[6].status === "fulfilled") shopName = results[6].value;
 
     const hasError = results.some(r => r.status === "rejected");
     if (hasError) {
@@ -59,6 +75,9 @@ export default async function CalendarPage() {
       staff={staff}
       customers={customers}
       error={error}
+      businessHours={businessHours ?? undefined}
+      whatsappTemplate={whatsappTemplate}
+      shopName={shopName}
     />
   );
 }
@@ -79,4 +98,18 @@ async function fetchCustomers() {
 
   if (error) throw error;
   return data.map(c => ({ id: c.id, name: c.name, email: c.email, phone: c.phone }));
+}
+
+async function fetchShopName(): Promise<string> {
+  const session = await getAuthSession();
+  if (!session) return "";
+  const shopId = await getShopId(session);
+  if (!shopId) return "";
+  const supabase = await createServerClient();
+  const { data } = await supabase
+    .from("shops")
+    .select("name")
+    .eq("id", shopId)
+    .single();
+  return data?.name || "";
 }

@@ -236,10 +236,10 @@ export default function AppointmentsTable({ initialAppointments, services, staff
                                       return next;
                                     });
                                     const result = await createPaymentLink(apt.id);
-                                    if (result.init_point) {
-                                      setPaymentLinks((prev) => ({ ...prev, [apt.id]: result.init_point as string }));
+                                    if (result.success && result.data?.init_point) {
+                                      setPaymentLinks((prev) => ({ ...prev, [apt.id]: result.data!.init_point }));
                                     } else {
-                                      alert(result.error || "Error al generar el link");
+                                      alert("Error al generar el link");
                                     }
                                     setGeneratingId(null);
                                   }}

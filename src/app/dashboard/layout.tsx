@@ -9,18 +9,18 @@ import { getTodayArgentinaBounds } from "@/lib/argentina-time";
 
 export const dynamic = "force-dynamic";
 
-async function getSessionOrRedirect() {
+async function getUserOrRedirect() {
   const supabase = await createServerClient();
 
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     redirect("/login");
   }
 
-  return session;
+  return user;
 }
 
 async function getNotifications() {
@@ -76,17 +76,22 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getSessionOrRedirect();
+  const user = await getUserOrRedirect();
   const { shopName, userName } = await getTenantAndUser();
   const notifications = await getNotifications();
 
   return (
-    <div className="flex h-screen bg-transparent transition-colors">
-      <div className="hidden lg:flex lg:w-64 lg:flex-shrink-0 overflow-hidden">
+    <div className="flex h-screen bg-transparent transition-colors relative overflow-hidden">
+      {/* Persistent background orbs — never re-render on page navigation */}
+      <div className="fixed top-[-15%] left-[-8%] w-[600px] h-[600px] rounded-full bg-violet-500/10 blur-3xl pointer-events-none" />
+      <div className="fixed bottom-[-15%] right-[-8%] w-[500px] h-[500px] rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
+      <div className="fixed top-[40%] right-[-5%] w-[300px] h-[300px] rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+
+      <div className="hidden lg:flex lg:w-64 lg:flex-shrink-0 overflow-hidden relative z-10">
         <DashboardSidebar userName={userName} onLogout={logout} notifications={notifications} />
       </div>
 
-      <div className="flex flex-col flex-1 min-w-0">
+      <div className="flex flex-col flex-1 min-w-0 relative z-10">
         <DashboardHeader
           shopName={shopName}
           userName={userName}

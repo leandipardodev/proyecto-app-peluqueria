@@ -40,7 +40,7 @@ export default function ClientProfilePage() {
           </div>
         )}
 
-        {state?.error && (
+        {state && !state.success && (
           <div className="mb-4 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-sm px-4 py-3 rounded-lg">
             {state.error}
           </div>

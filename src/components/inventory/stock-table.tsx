@@ -39,7 +39,11 @@ export default function StockTable({ items }: StockTableProps) {
 
   function handleDelta(id: string, delta: number) {
     startTransition(async () => {
-      await updateStock(id, delta);
+      const result = await updateStock(id, delta);
+      if (!result.success) {
+        alert(result.error);
+        return;
+      }
       router.refresh();
     });
   }
@@ -47,7 +51,11 @@ export default function StockTable({ items }: StockTableProps) {
   function handleDelete(id: string) {
     if (!confirm("¿Eliminar este producto del inventario?")) return;
     startTransition(async () => {
-      await deleteProduct(id);
+      const result = await deleteProduct(id);
+      if (!result.success) {
+        alert(result.error);
+        return;
+      }
       router.refresh();
     });
   }

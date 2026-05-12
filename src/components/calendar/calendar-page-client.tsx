@@ -1,12 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { addWeeks, subWeeks } from "date-fns";
 import CalendarView from "./calendar-view";
 import AppointmentFormModal from "./appointment-form-modal";
 import AppointmentDetailModal from "./appointment-detail-modal";
 import { useAppointmentAlarm } from "@/lib/use-appointment-alarm";
 import { getArgentinaDateKey } from "@/lib/argentina-time";
+
+function CalendarSkeleton() {
+  return (
+    <div className="space-y-4 animate-pulse">
+      <div className="flex items-center justify-between mb-6">
+        <div className="h-8 w-32 rounded-full bg-white/20 dark:bg-white/10" />
+        <div className="flex items-center gap-3">
+          <div className="h-5 w-20 rounded-full bg-white/20 dark:bg-white/10" />
+          <div className="h-8 w-36 rounded-full bg-white/20 dark:bg-white/10" />
+        </div>
+      </div>
+      <div className="bg-white/20 dark:bg-black/20 rounded-[2rem] border border-white/10 overflow-hidden p-4">
+        <div className="grid grid-cols-7 gap-px">
+          {Array.from({ length: 7 }).map((_, i) => (
+            <div key={i} className="flex flex-col items-center gap-2 py-4">
+              <div className="h-3 w-8 rounded-full bg-white/20 dark:bg-white/10" />
+              <div className="h-5 w-5 rounded-full bg-white/20 dark:bg-white/10" />
+            </div>
+          ))}
+        </div>
+        <div className="h-[600px] bg-white/10 dark:bg-white/[0.02] rounded-2xl mt-2" />
+      </div>
+    </div>
+  );
+}
 
 type Appointment = {
   id: string;
@@ -44,12 +69,29 @@ type Customer = {
   phone: string | null;
 };
 
+type BusinessHourEntry = { open: boolean; start: string; end: string };
+type BusinessHoursMap = Record<string, BusinessHourEntry>;
+
+const STAFF_SEGMENTED_COLORS = [
+  "#c084fc",
+  "#34d399",
+  "#fbbf24",
+  "#fb7185",
+  "#22d3ee",
+  "#fb923c",
+  "#818cf8",
+  "#f472b6",
+];
+
 interface CalendarPageClientProps {
   initialAppointments: Appointment[];
   services: Service[];
   staff: StaffMember[];
   customers: Customer[];
   error?: string | null;
+  businessHours?: BusinessHoursMap;
+  whatsappTemplate?: string;
+  shopName?: string;
 }
 
 export default function CalendarPageClient({
@@ -58,6 +100,9 @@ export default function CalendarPageClient({
   staff,
   customers,
   error,
+  businessHours,
+  whatsappTemplate,
+  shopName,
 }: CalendarPageClientProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [formModalOpen, setFormModalOpen] = useState(false);
@@ -66,8 +111,17 @@ export default function CalendarPageClient({
   const [selectedAppointment, setSelectedAppointment] =
     useState<Appointment | null>(null);
   const [staffFilter, setStaffFilter] = useState<string | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   useAppointmentAlarm(initialAppointments);
+
+  if (!hydrated) {
+    return <CalendarSkeleton />;
+  }
 
   function handleSlotClick(date: Date, hour: number) {
     setFormInitialDate(getArgentinaDateKey(date));
@@ -104,22 +158,36 @@ export default function CalendarPageClient({
           No hay personal registrado. Agregá personal en la sección Personal.
         </div>
       )}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Calendario</h1>
-        <div className="flex items-center gap-3">
-          <label className="text-sm text-zinc-500 dark:text-zinc-400 font-medium">Filtrar por:</label>
-          <select
-            value={staffFilter || ""}
-            onChange={(e) => setStaffFilter(e.target.value || null)}
-            className="px-3 py-1.5 border border-white/10 dark:border-white/5 bg-white/40 dark:bg-black/30 backdrop-blur-md rounded-2xl text-sm focus:outline-none focus:ring-1 focus:ring-violet-500/20 transition-all cursor-pointer shadow-sm"
+        <div className="inline-flex items-center rounded-full bg-white/30 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 p-0.5 shadow-sm">
+          <button
+            onClick={() => setStaffFilter(null)}
+            className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-all cursor-pointer select-none ${
+              staffFilter === null
+                ? "bg-white/60 dark:bg-white/20 text-gray-900 dark:text-white shadow-sm"
+                : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
+            }`}
           >
-            <option value="">Todos los peluqueros</option>
-            {staff.map((s) => (
-              <option key={s.id} value={s.id}>
+            Todos
+          </button>
+          {staff.map((s) => {
+            const isActive = staffFilter === s.id;
+            return (
+              <button
+                key={s.id}
+                onClick={() => setStaffFilter(isActive ? null : s.id)}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium transition-all cursor-pointer select-none ${
+                  isActive
+                    ? "bg-white/60 dark:bg-white/20 text-gray-900 dark:text-white shadow-sm"
+                    : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: STAFF_SEGMENTED_COLORS[staff.indexOf(s) % STAFF_SEGMENTED_COLORS.length] }} />
                 {s.name || s.email}
-              </option>
-            ))}
-          </select>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -134,6 +202,9 @@ export default function CalendarPageClient({
           onAppointmentClick={setSelectedAppointment}
           staffList={staff}
           staffFilter={staffFilter}
+          businessHours={businessHours}
+          whatsappTemplate={whatsappTemplate}
+          shopName={shopName}
         />
       </div>
 

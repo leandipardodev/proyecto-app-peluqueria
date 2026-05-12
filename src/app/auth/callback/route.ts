@@ -61,6 +61,7 @@ export async function GET(request: NextRequest) {
   let shopSlug: string | null = null;
   let serviceId: string | null = null;
   let staffId: string | null = null;
+  const nextPath = requestUrl.searchParams.get("next");
 
   if (stateParam) {
     try {
@@ -72,9 +73,13 @@ export async function GET(request: NextRequest) {
   }
 
   const response = NextResponse.redirect(
-    serviceId
+    nextPath && nextPath.startsWith("/")
+      ? new URL(nextPath, request.url)
+      : serviceId
       ? new URL(`/client/book?serviceId=${serviceId}${staffId ? `&staffId=${staffId}` : ""}`, request.url)
-      : new URL("/client/appointments", request.url)
+      : shopSlug
+        ? new URL(`/book/${shopSlug}`, request.url)
+        : new URL("/client/appointments", request.url)
   );
 
   const supabase = createSupabaseClient(request, response);

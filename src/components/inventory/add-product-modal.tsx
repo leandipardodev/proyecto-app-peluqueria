@@ -34,7 +34,7 @@ export default function AddProductModal({ open, onClose }: AddProductModalProps)
     const formData = new FormData(e.currentTarget);
     startTransition(async () => {
       const result = await addProduct(formData);
-      if (result.error) {
+      if (!result.success) {
         setError(result.error);
       } else {
         onClose();

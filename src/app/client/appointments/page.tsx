@@ -12,21 +12,23 @@ interface ClientAppointmentsPageProps {
 export default async function ClientAppointmentsPage({ searchParams }: ClientAppointmentsPageProps) {
   const { success } = await searchParams;
 
-  let appointments: Awaited<
-    ReturnType<typeof fetchClientAppointments>
-  > = [];
+  let appointments: any[] = [];
   let error: string | null = null;
 
-  try {
-    appointments = await fetchClientAppointments();
-  } catch (e) {
-    error = e instanceof Error ? e.message : "Error al cargar turnos";
+  const result = await fetchClientAppointments();
+  if (result.success) {
+    appointments = result.data ?? [];
+  } else {
+    error = result.error;
   }
 
   async function handleCancel(formData: FormData) {
     "use server";
     const id = formData.get("appointment_id") as string;
-    await cancelClientAppointment(id);
+    const result = await cancelClientAppointment(id);
+    if (!result.success) {
+      console.error("Error al cancelar:", result.error);
+    }
     revalidatePath("/client/appointments");
   }
 
