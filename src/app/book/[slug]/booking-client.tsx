@@ -492,6 +492,9 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
                                 <div className="relative">
                                   <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
                                   <input
+                                    type="tel"
+                                    inputMode="numeric"
+                                    autoComplete="tel"
                                     value={customerPhone}
                                     onChange={(e) => setCustomerPhone(e.target.value)}
                                     className="w-full rounded-full bg-white border border-[#D2D2D7] pl-10 pr-4 py-2.5 text-sm text-[#1D1D1F] placeholder-[#86868B] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/40 transition-all"
@@ -543,6 +546,9 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
                               <div className="relative">
                                 <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
                                 <input
+                                  type="tel"
+                                  inputMode="numeric"
+                                  autoComplete="tel"
                                   value={customerPhone}
                                   onChange={(e) => setCustomerPhone(e.target.value)}
                                   className="w-full rounded-full bg-white border border-[#D2D2D7] pl-10 pr-4 py-2.5 text-sm text-[#1D1D1F] placeholder-[#86868B] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/40 transition-all"
@@ -659,7 +665,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
         )}
       </div>
 
-      {!done && (
+      {!done && step === 3 && (
         <div className="fixed bottom-0 left-0 right-0 z-40">
           <div className="mx-2 mb-2 rounded-2xl bg-white/95 backdrop-blur-2xl border border-white shadow-[0_12px_30px_rgba(0,0,0,0.12)] px-4 py-3">
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
