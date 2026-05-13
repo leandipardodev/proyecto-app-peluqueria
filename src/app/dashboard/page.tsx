@@ -127,45 +127,52 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white capitalize tracking-tight">
-          {today}
-        </h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Resumen de tu peluquería
-        </p>
-        <div className="mt-3 flex items-center gap-2">
-          <a
-            href={whatsappHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center rounded-full w-9 h-9 text-white"
-            aria-label="Abrir WhatsApp"
-            title="WhatsApp"
-            style={{
-              background: "linear-gradient(135deg, #7bcfa3 0%, #69bb93 100%)",
-              boxShadow: "0 8px 18px rgba(105,187,147,0.22), inset 0 1px 0 rgba(255,255,255,0.35)",
-            }}
-          >
-            <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-current" aria-hidden="true">
-              <path d="M12.04 2C6.53 2 2.06 6.47 2.06 11.98c0 1.94.55 3.83 1.6 5.46L2 22l4.72-1.63a9.93 9.93 0 0 0 5.32 1.54h.01c5.51 0 9.98-4.47 9.98-9.98A9.98 9.98 0 0 0 12.04 2Zm5.82 14.25c-.24.68-1.39 1.3-1.92 1.38-.49.07-1.12.1-1.81-.12-.42-.13-.95-.31-1.64-.61-2.88-1.25-4.76-4.16-4.91-4.36-.15-.2-1.17-1.56-1.17-2.97 0-1.41.74-2.1 1-2.39.26-.29.58-.36.77-.36.19 0 .39 0 .56.01.18.01.42-.07.66.5.24.58.83 2.01.9 2.16.07.14.12.31.02.5-.1.19-.14.31-.29.47-.14.17-.3.37-.43.49-.14.14-.29.3-.12.59.17.29.77 1.27 1.64 2.05 1.13 1.01 2.08 1.32 2.37 1.47.29.14.46.12.63-.07.17-.19.73-.85.92-1.14.19-.29.39-.24.66-.14.27.1 1.72.81 2.01.96.29.14.48.22.55.34.07.12.07.68-.17 1.36Z" />
-            </svg>
-          </a>
-          {instagramHref && (
-            <a href={instagramHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-full w-9 h-9 text-white bg-gradient-to-br from-fuchsia-500 via-rose-500 to-orange-400 shadow-sm" aria-label="Abrir Instagram" title="Instagram">
-              <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-current" aria-hidden="true"><path d="M7.75 2h8.5A5.75 5.75 0 0 1 22 7.75v8.5A5.75 5.75 0 0 1 16.25 22h-8.5A5.75 5.75 0 0 1 2 16.25v-8.5A5.75 5.75 0 0 1 7.75 2Zm0 1.8A3.95 3.95 0 0 0 3.8 7.75v8.5a3.95 3.95 0 0 0 3.95 3.95h8.5a3.95 3.95 0 0 0 3.95-3.95v-8.5a3.95 3.95 0 0 0-3.95-3.95h-8.5Zm9.15 1.35a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4ZM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 1.8a3.2 3.2 0 1 0 0 6.4 3.2 3.2 0 0 0 0-6.4Z" /></svg>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white capitalize tracking-tight">
+            {today}
+          </h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Resumen de tu peluquería
+          </p>
+          <div className="mt-3 flex items-center gap-2">
+            <a
+              href={whatsappHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center rounded-full w-9 h-9 text-white"
+              aria-label="Abrir WhatsApp"
+              title="WhatsApp"
+              style={{
+                background: "linear-gradient(135deg, #7bcfa3 0%, #69bb93 100%)",
+                boxShadow: "0 8px 18px rgba(105,187,147,0.22), inset 0 1px 0 rgba(255,255,255,0.35)",
+              }}
+            >
+              <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-current" aria-hidden="true">
+                <path d="M12.04 2C6.53 2 2.06 6.47 2.06 11.98c0 1.94.55 3.83 1.6 5.46L2 22l4.72-1.63a9.93 9.93 0 0 0 5.32 1.54h.01c5.51 0 9.98-4.47 9.98-9.98A9.98 9.98 0 0 0 12.04 2Zm5.82 14.25c-.24.68-1.39 1.3-1.92 1.38-.49.07-1.12.1-1.81-.12-.42-.13-.95-.31-1.64-.61-2.88-1.25-4.76-4.16-4.91-4.36-.15-.2-1.17-1.56-1.17-2.97 0-1.41.74-2.1 1-2.39.26-.29.58-.36.77-.36.19 0 .39 0 .56.01.18.01.42-.07.66.5.24.58.83 2.01.9 2.16.07.14.12.31.02.5-.1.19-.14.31-.29.47-.14.17-.3.37-.43.49-.14.14-.29.3-.12.59.17.29.77 1.27 1.64 2.05 1.13 1.01 2.08 1.32 2.37 1.47.29.14.46.12.63-.07.17-.19.73-.85.92-1.14.19-.29.39-.24.66-.14.27.1 1.72.81 2.01.96.29.14.48.22.55.34.07.12.07.68-.17 1.36Z" />
+              </svg>
             </a>
-          )}
-          {facebookHref && (
-            <a href={facebookHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-full w-9 h-9 text-white bg-[#1877F2] shadow-sm" aria-label="Abrir Facebook" title="Facebook">
-              <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-current" aria-hidden="true"><path d="M13.5 22v-8h2.7l.4-3h-3.1V9.1c0-.9.3-1.6 1.6-1.6h1.7V4.8c-.3 0-1.3-.1-2.5-.1-2.5 0-4.2 1.5-4.2 4.4V11H8v3h2.6v8h2.9Z" /></svg>
-            </a>
-          )}
-          {tiktokHref && (
-            <a href={tiktokHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-full w-9 h-9 text-white bg-black shadow-sm" aria-label="Abrir TikTok" title="TikTok">
-              <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-current" aria-hidden="true"><path d="M14.5 3c.2 1.9 1.3 3.5 3.1 4.2.8.3 1.6.5 2.4.5v2.6c-1.8 0-3.7-.5-5.2-1.5v6.1c0 3.1-2.5 5.6-5.6 5.6S3.6 18 3.6 14.9s2.5-5.6 5.6-5.6c.3 0 .6 0 .9.1V12c-.3-.1-.6-.2-.9-.2-1.7 0-3.1 1.4-3.1 3.1S7.5 18 9.2 18s3.1-1.4 3.1-3.1V3h2.2Z" /></svg>
-            </a>
-          )}
+            {instagramHref && (
+              <a href={instagramHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-full w-9 h-9 text-white bg-gradient-to-br from-fuchsia-500 via-rose-500 to-orange-400 shadow-sm" aria-label="Abrir Instagram" title="Instagram">
+                <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-current" aria-hidden="true"><path d="M7.75 2h8.5A5.75 5.75 0 0 1 22 7.75v8.5A5.75 5.75 0 0 1 16.25 22h-8.5A5.75 5.75 0 0 1 2 16.25v-8.5A5.75 5.75 0 0 1 7.75 2Zm0 1.8A3.95 3.95 0 0 0 3.8 7.75v8.5a3.95 3.95 0 0 0 3.95 3.95h8.5a3.95 3.95 0 0 0 3.95-3.95v-8.5a3.95 3.95 0 0 0-3.95-3.95h-8.5Zm9.15 1.35a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4ZM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 1.8a3.2 3.2 0 1 0 0 6.4 3.2 3.2 0 0 0 0-6.4Z" /></svg>
+              </a>
+            )}
+            {facebookHref && (
+              <a href={facebookHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-full w-9 h-9 text-white bg-[#1877F2] shadow-sm" aria-label="Abrir Facebook" title="Facebook">
+                <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-current" aria-hidden="true"><path d="M13.5 22v-8h2.7l.4-3h-3.1V9.1c0-.9.3-1.6 1.6-1.6h1.7V4.8c-.3 0-1.3-.1-2.5-.1-2.5 0-4.2 1.5-4.2 4.4V11H8v3h2.6v8h2.9Z" /></svg>
+              </a>
+            )}
+            {tiktokHref && (
+              <a href={tiktokHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-full w-9 h-9 text-white bg-black shadow-sm" aria-label="Abrir TikTok" title="TikTok">
+                <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-current" aria-hidden="true"><path d="M14.5 3c.2 1.9 1.3 3.5 3.1 4.2.8.3 1.6.5 2.4.5v2.6c-1.8 0-3.7-.5-5.2-1.5v6.1c0 3.1-2.5 5.6-5.6 5.6S3.6 18 3.6 14.9s2.5-5.6 5.6-5.6c.3 0 .6 0 .9.1V12c-.3-.1-.6-.2-.9-.2-1.7 0-3.1 1.4-3.1 3.1S7.5 18 9.2 18s3.1-1.4 3.1-3.1V3h2.2Z" /></svg>
+              </a>
+            )}
+          </div>
+        </div>
+        <div className="hidden lg:block pt-0.5">
+          <p className="dashboard-shopname-hero text-4xl xl:text-5xl font-black tracking-[-0.04em] text-gray-900/80 dark:text-white/85 max-w-[34rem] truncate text-right">
+            {summary.shopName}
+          </p>
         </div>
       </div>
 
@@ -386,6 +393,13 @@ export default async function DashboardPage() {
         @keyframes analyticsCardWave {
           0% { background-position: 0% 100%, 100% 0%; }
           100% { background-position: 100% 100%, 0% 0%; }
+        }
+        .dashboard-shopname-hero {
+          animation: shopNameSlideIn 180ms cubic-bezier(0.2, 0.9, 0.25, 1) both;
+        }
+        @keyframes shopNameSlideIn {
+          from { opacity: 0; transform: translate3d(16px, -8px, 0) scale(0.985); }
+          to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
         }
       `}</style>
     </div>

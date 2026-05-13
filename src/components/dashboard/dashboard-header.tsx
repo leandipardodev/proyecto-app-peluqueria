@@ -7,6 +7,7 @@ import DashboardSidebar from "./dashboard-sidebar";
 import { isMuted, setMuted } from "@/lib/sound";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { globalSearch, type OmniSearchResult } from "@/lib/dashboard/global-search-actions";
 import { useDarkMode } from "@/lib/use-dark-mode";
 import { usePerformanceMode } from "@/lib/use-performance-mode";
@@ -71,6 +72,7 @@ function formatDataHint(item: OmniSearchResult) {
 
 export default function DashboardHeader({ shopName, userName, userEmail, onLogout }: DashboardHeaderProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { dark, toggle: toggleDark } = useDarkMode();
   const { performanceMode, togglePerformanceMode } = usePerformanceMode();
   const { playClick, playSearchExpand } = useKlipSounds();
@@ -332,7 +334,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
           <Menu className="w-5 h-5" strokeWidth={1.5} />
         </button>
 
-        <h2 className="text-base lg:text-lg font-semibold text-gray-800 dark:text-white tracking-tight shrink-0">
+        <h2 className={`text-base lg:text-lg font-semibold text-gray-800 dark:text-white tracking-tight shrink-0 ${pathname === "/dashboard" ? "hidden" : ""}`}>
           {shopName}
         </h2>
 
