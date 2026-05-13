@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, X, Search, Bell, BellOff, Moon, Sun } from "lucide-react";
+import { Menu, X, Search, Bell, BellOff, Moon, Sun, Gauge } from "lucide-react";
 import { useState, useRef, useEffect, useTransition, useMemo, type KeyboardEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import DashboardSidebar from "./dashboard-sidebar";
@@ -9,6 +9,7 @@ import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { useRouter } from "next/navigation";
 import { globalSearch, type OmniSearchResult } from "@/lib/dashboard/global-search-actions";
 import { useDarkMode } from "@/lib/use-dark-mode";
+import { usePerformanceMode } from "@/lib/use-performance-mode";
 
 interface DashboardHeaderProps {
   shopName: string;
@@ -18,7 +19,7 @@ interface DashboardHeaderProps {
 }
 
 type CommandNav = { id: string; kind: "nav"; label: string; hint: string; to: string };
-type CommandAction = { id: string; kind: "action"; label: string; hint: string; action: "toggleTheme" | "logout" };
+type CommandAction = { id: string; kind: "action"; label: string; hint: string; action: "toggleTheme" | "togglePerformance" | "logout" };
 type CommandData = { id: string; kind: "data"; value: OmniSearchResult };
 type CommandItem = CommandNav | CommandAction | CommandData;
 
@@ -31,6 +32,7 @@ const NAV_COMMANDS: CommandNav[] = [
 
 const ACTION_COMMANDS: CommandAction[] = [
   { id: "act-theme", kind: "action", label: "Cambiar tema", hint: "oscuro o claro", action: "toggleTheme" },
+  { id: "act-performance", kind: "action", label: "Modo rendimiento", hint: "menos animaciones", action: "togglePerformance" },
   { id: "act-logout", kind: "action", label: "Cerrar sesion", hint: "salir", action: "logout" },
 ];
 
@@ -70,6 +72,7 @@ function formatDataHint(item: OmniSearchResult) {
 export default function DashboardHeader({ shopName, userName, userEmail, onLogout }: DashboardHeaderProps) {
   const router = useRouter();
   const { dark, toggle: toggleDark } = useDarkMode();
+  const { performanceMode, togglePerformanceMode } = usePerformanceMode();
   const { playClick, playSearchExpand } = useKlipSounds();
 
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -105,10 +108,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
 
   useEffect(() => {
     function onKeyDown(e: globalThis.KeyboardEvent) {
-      const isModifier = e.ctrlKey || e.metaKey;
-      if (!isModifier) return;
-
-      if (e.key.toLowerCase() === "k") {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setSearchOpen(true);
       }
@@ -193,6 +193,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
     const action = ACTION_COMMANDS.filter((c) => {
       if (!q) return true;
       if (c.action === "toggleTheme") return matchesQuery(q, ["oscuro", "claro", c.label, c.hint]);
+      if (c.action === "togglePerformance") return matchesQuery(q, ["rendimiento", "performance", "animaciones", c.label, c.hint]);
       return matchesQuery(q, ["cerrar", "salir", c.label, c.hint]);
     });
 
@@ -266,6 +267,12 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
 
     if (item.action === "toggleTheme") {
       toggleDark();
+      closeSearch(true);
+      return;
+    }
+
+    if (item.action === "togglePerformance") {
+      togglePerformanceMode();
       closeSearch(true);
       return;
     }
@@ -622,6 +629,21 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
                       className={`relative w-10 h-5 rounded-full transition-colors ${dark ? "bg-violet-600" : "bg-gray-300"}`}
                     >
                       <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${dark ? "translate-x-5" : "translate-x-0"}`} />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-xl border border-white/20 dark:border-white/10 px-3 py-2">
+                    <div className="flex items-center gap-2 text-sm text-gray-800 dark:text-gray-100">
+                      <Gauge className={`w-4 h-4 ${performanceMode ? "text-emerald-500" : "text-zinc-400"}`} />
+                      {performanceMode ? "Modo rendimiento activo" : "Modo rendimiento"}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={togglePerformanceMode}
+                      className={`relative w-10 h-5 rounded-full transition-colors ${performanceMode ? "bg-emerald-600" : "bg-gray-300"}`}
+                      title="Atajo: tecla L"
+                    >
+                      <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${performanceMode ? "translate-x-5" : "translate-x-0"}`} />
                     </button>
                   </div>
 

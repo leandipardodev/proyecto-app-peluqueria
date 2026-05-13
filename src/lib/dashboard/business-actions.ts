@@ -29,6 +29,8 @@ export type BusinessData = {
   localidad: string | null;
   phone: string | null;
   instagram_url: string | null;
+  facebook_url: string | null;
+  tiktok_url: string | null;
   mp_public_key: string;
   mp_access_token: string;
   whatsapp_template: string;
@@ -44,7 +46,7 @@ export async function fetchBusinessData(): Promise<ActionResult<BusinessData>> {
       const admin = await createAdminClient();
       return admin
         .from("shops")
-        .select("nombre, description, address, localidad, phone, instagram_url, mp_public_key, mp_access_token, whatsapp_template")
+        .select("nombre, description, address, localidad, phone, instagram_url, facebook_url, tiktok_url, mp_public_key, mp_access_token, whatsapp_template")
         .eq("id", shopId)
         .single();
     });
@@ -60,6 +62,8 @@ export async function fetchBusinessData(): Promise<ActionResult<BusinessData>> {
         localidad: data.localidad || null,
         phone: data.phone || null,
         instagram_url: data.instagram_url || null,
+        facebook_url: (data as { facebook_url?: string | null }).facebook_url || null,
+        tiktok_url: (data as { tiktok_url?: string | null }).tiktok_url || null,
         mp_public_key: (data.mp_public_key as string) || "",
         mp_access_token: (data.mp_access_token as string) || "",
         whatsapp_template: (data.whatsapp_template as string) || DEFAULT_WHATSAPP_TEMPLATE,
@@ -83,10 +87,12 @@ export async function updateBusinessInfo(formData: FormData): Promise<ActionResu
     const localidad = formData.get("localidad") as string || null;
     const phone = formData.get("phone") as string || null;
     const instagram_url = formData.get("instagram_url") as string || null;
+    const facebook_url = formData.get("facebook_url") as string || null;
+    const tiktok_url = formData.get("tiktok_url") as string || null;
 
     const { error } = await admin
       .from("shops")
-      .update({ nombre, description, address, localidad, phone, instagram_url, updated_at: new Date().toISOString() })
+      .update({ nombre, description, address, localidad, phone, instagram_url, facebook_url, tiktok_url, updated_at: new Date().toISOString() })
       .eq("id", shopId);
 
     if (error) return { success: false, error: error.message };

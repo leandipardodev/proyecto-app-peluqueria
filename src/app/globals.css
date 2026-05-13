@@ -58,3 +58,89 @@
 .animate-slide-up {
   animation: slide-up 0.25s ease-out;
 }
+
+@keyframes glass-sheen-sweep {
+  0% { transform: translateX(-170%) skewX(-16deg); opacity: 0; }
+  3% { opacity: 0.1; }
+  8% { opacity: 0.22; }
+  14% { transform: translateX(175%) skewX(-16deg); opacity: 0; }
+  100% { transform: translateX(175%) skewX(-16deg); opacity: 0; }
+}
+
+.glass-sheen-card {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.glass-sheen-card::before {
+  content: "";
+  position: absolute;
+  inset: -34% auto -34% -42%;
+  width: 42%;
+  background: linear-gradient(
+    98deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.08) 30%,
+    rgba(255, 255, 255, 0.28) 50%,
+    rgba(255, 255, 255, 0.1) 70%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  filter: blur(0.4px);
+  pointer-events: none;
+  opacity: 0;
+  animation: glass-sheen-sweep var(--sheen-duration, 14s) cubic-bezier(0.28, 0.16, 0.2, 1) infinite;
+  animation-delay: var(--sheen-delay, 0s);
+  will-change: transform, opacity;
+}
+
+.glass-sheen-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.03) 36%, rgba(255, 255, 255, 0) 62%);
+}
+
+@media (max-width: 768px) {
+  .glass-sheen-card::before {
+    animation-duration: 13s;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass-sheen-card::before {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+.glass-sheen-stagger > .glass-sheen-card:nth-child(1) { --sheen-delay: -0.3s; }
+.glass-sheen-stagger > .glass-sheen-card:nth-child(2) { --sheen-delay: -1.9s; }
+.glass-sheen-stagger > .glass-sheen-card:nth-child(3) { --sheen-delay: -3.5s; }
+.glass-sheen-stagger > .glass-sheen-card:nth-child(4) { --sheen-delay: -5.1s; }
+.glass-sheen-stagger > .glass-sheen-card:nth-child(5) { --sheen-delay: -6.7s; }
+.glass-sheen-stagger > .glass-sheen-card:nth-child(6) { --sheen-delay: -8.3s; }
+.glass-sheen-stagger > .glass-sheen-card:nth-child(7) { --sheen-delay: -9.9s; }
+.glass-sheen-stagger > .glass-sheen-card:nth-child(8) { --sheen-delay: -11.5s; }
+
+html.perf-mode .glass-sheen-card::before,
+html.perf-mode .analytics-wave-layer,
+html.perf-mode .analytics-card-bg::after,
+html.perf-mode .flow-mini::before,
+html.perf-mode .flow-bar::before,
+html.perf-mode .analytics-chart-wave::before,
+html.perf-mode .analytics-chart-wave::after,
+html.perf-mode .analytics-metric-wave-svg,
+html.perf-mode .recharts-rectangle,
+html.perf-mode .animate-pulse-border {
+  animation: none !important;
+}
+
+html.perf-mode .glass-sheen-card::before,
+html.perf-mode .analytics-wave-layer,
+html.perf-mode .analytics-card-bg::after {
+  opacity: 0 !important;
+}

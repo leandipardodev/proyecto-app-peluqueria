@@ -161,7 +161,6 @@ export default function AppointmentsTable({ initialAppointments, services, staff
                 <p className="text-sm text-gray-700 dark:text-gray-300">{svc ? `${svc.emoji} ${svc.label}` : apt.services?.name || "N/A"}</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Staff: {apt.staff?.name || "N/A"}</p>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                  {urgent && <Bell className="w-4 h-4 text-red-500 animate-pulse shrink-0" />}
                   <a
                     href={whatsappUrl}
                     target={phone ? "_blank" : undefined}
@@ -237,6 +236,7 @@ export default function AppointmentsTable({ initialAppointments, services, staff
                       {generating ? "Generando..." : "Cobrar"}
                     </button>
                   )}
+                  {urgent && <Bell className="w-4 h-4 text-red-500 animate-pulse shrink-0" />}
                 </div>
               </div>
             );
@@ -304,11 +304,6 @@ export default function AppointmentsTable({ initialAppointments, services, staff
                           const generating = generatingId === apt.id;
                           return (
                             <>
-                              {urgent && (
-                                <span title="Próximo turno en menos de 1 hora">
-                                  <Bell className="w-4 h-4 text-red-500 animate-pulse shrink-0" />
-                                </span>
-                              )}
                               <a
                                 href={whatsappUrl}
                                 target={phone ? "_blank" : undefined}
@@ -401,6 +396,11 @@ export default function AppointmentsTable({ initialAppointments, services, staff
                                   <CreditCard className="w-4 h-4" />
                                   {generating ? "Generando..." : "Cobrar"}
                                 </button>
+                              )}
+                              {urgent && (
+                                <span title="Próximo turno en menos de 1 hora">
+                                  <Bell className="w-4 h-4 text-red-500 animate-pulse shrink-0" />
+                                </span>
                               )}
                             </>
                           );

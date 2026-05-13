@@ -98,7 +98,7 @@ export default function RevenueChart({ data }: RevenueChartProps) {
       </div>
 
       <div
-        className="h-72 rounded-3xl px-2 pt-2 pb-1"
+        className="analytics-chart-wave h-72 rounded-3xl px-2 pt-2 pb-1"
         style={{
           background: "transparent",
           backdropFilter: "blur(40px)",
@@ -107,6 +107,14 @@ export default function RevenueChart({ data }: RevenueChartProps) {
           boxShadow: "none",
         }}
       >
+        <div className="analytics-metric-waves" aria-hidden="true">
+          <svg viewBox="0 0 1000 260" preserveAspectRatio="none" className="analytics-metric-wave-svg analytics-metric-wave-svg-a">
+            <path d="M0,170 C90,152 180,184 270,166 C360,148 450,188 540,170 C630,152 720,190 810,168 C890,150 950,176 1000,164" />
+          </svg>
+          <svg viewBox="0 0 1000 260" preserveAspectRatio="none" className="analytics-metric-wave-svg analytics-metric-wave-svg-b">
+            <path d="M0,194 C100,176 200,208 300,190 C400,172 500,212 600,194 C700,176 800,214 900,192 C950,182 980,188 1000,186" />
+          </svg>
+        </div>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 20, right: 8, left: -8, bottom: 0 }} barGap={8} barCategoryGap="20%">
             <defs>
@@ -202,10 +210,95 @@ export default function RevenueChart({ data }: RevenueChartProps) {
         </ResponsiveContainer>
       </div>
       <style>{`
+        .analytics-chart-wave {
+          position: relative;
+          overflow: hidden;
+          isolation: isolate;
+        }
+        .analytics-metric-waves {
+          position: absolute;
+          inset: 14px 8px 8px;
+          border-radius: 1.1rem;
+          pointer-events: none;
+          z-index: 0;
+          opacity: 0.62;
+        }
+        .analytics-metric-wave-svg {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          fill: none;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+          transform: translate3d(0, 0, 0);
+          will-change: transform, opacity;
+        }
+        .analytics-metric-wave-svg-a {
+          stroke: rgba(16,185,129,0.2);
+          stroke-width: 2.1;
+          filter: drop-shadow(0 0 4px rgba(16,185,129,0.08));
+          animation: metricWaveFloatA 12.8s ease-in-out infinite;
+        }
+        .analytics-metric-wave-svg-b {
+          stroke: rgba(244,114,182,0.18);
+          stroke-width: 1.9;
+          filter: drop-shadow(0 0 4px rgba(244,114,182,0.07));
+          animation: metricWaveFloatB 14.4s ease-in-out infinite;
+        }
+        .analytics-chart-wave::before {
+          content: "";
+          position: absolute;
+          inset: -10% -12%;
+          pointer-events: none;
+          border-radius: inherit;
+          background:
+            radial-gradient(90% 55% at 8% 100%, rgba(16,185,129,0.14) 0%, rgba(16,185,129,0.03) 48%, transparent 72%),
+            radial-gradient(92% 56% at 92% 0%, rgba(244,114,182,0.14) 0%, rgba(244,114,182,0.03) 48%, transparent 72%);
+          background-size: 160% 120%, 160% 120%;
+          background-position: 0% 100%, 100% 0%;
+          animation: chartWaveDrift 14s linear infinite;
+          opacity: 0.42;
+          z-index: 0;
+        }
+        .analytics-chart-wave::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          border-radius: inherit;
+          background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.12) 48%, transparent 100%);
+          background-size: 220% 100%;
+          animation: chartSheenPass 17s linear infinite;
+          opacity: 0.16;
+          z-index: 0;
+        }
+        .analytics-chart-wave :global(.recharts-wrapper) {
+          position: relative;
+          z-index: 1;
+        }
         @keyframes premiumFlow {
           0% { filter: brightness(0.96) saturate(0.96); }
           50% { filter: brightness(1.08) saturate(1.02); }
           100% { filter: brightness(0.96) saturate(0.96); }
+        }
+        @keyframes chartWaveDrift {
+          0% { background-position: 0% 100%, 100% 0%; }
+          100% { background-position: 100% 100%, 0% 0%; }
+        }
+        @keyframes chartSheenPass {
+          0% { background-position: 150% 0; }
+          100% { background-position: -130% 0; }
+        }
+        @keyframes metricWaveFloatA {
+          0% { transform: translateY(1px); opacity: 0.5; }
+          50% { transform: translateY(-2px); opacity: 0.72; }
+          100% { transform: translateY(1px); opacity: 0.5; }
+        }
+        @keyframes metricWaveFloatB {
+          0% { transform: translateY(-1px); opacity: 0.42; }
+          50% { transform: translateY(2px); opacity: 0.62; }
+          100% { transform: translateY(-1px); opacity: 0.42; }
         }
       `}</style>
     </div>

@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Store, Eye, EyeOff, Save, CreditCard, MessageSquareText, Smartphone, Link2, MapPin, Phone, Clock } from "lucide-react";
+import { Store, Eye, EyeOff, Save, CreditCard, MessageSquareText, Smartphone, Link2, MapPin, Phone, Clock, Share2 } from "lucide-react";
 import Link from "next/link";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import {
@@ -50,6 +50,8 @@ export default function BusinessClient({
   const [localidad, setLocalidad] = useState(data?.localidad || "");
   const [phone, setPhone] = useState(data?.phone || "");
   const [instagramUrl, setInstagramUrl] = useState(data?.instagram_url || "");
+  const [facebookUrl, setFacebookUrl] = useState(data?.facebook_url || "");
+  const [tiktokUrl, setTiktokUrl] = useState(data?.tiktok_url || "");
   const [mpPublicKey, setMpPublicKey] = useState(data?.mp_public_key || "");
   const [mpAccessToken, setMpAccessToken] = useState(data?.mp_access_token || "");
   const [whatsappTemplate, setWhatsappTemplate] = useState(data?.whatsapp_template || "");
@@ -108,6 +110,8 @@ export default function BusinessClient({
     formData.set("localidad", localidad);
     formData.set("phone", phone);
     formData.set("instagram_url", instagramUrl);
+    formData.set("facebook_url", facebookUrl);
+    formData.set("tiktok_url", tiktokUrl);
 
     startTransition(async () => {
       const result = await updateBusinessInfo(formData);
@@ -194,7 +198,7 @@ export default function BusinessClient({
         </div>
       </div>
 
-      <section id="estadisticas" className="bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden transition-colors">
+      <section id="estadisticas" className="glass-sheen-card bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden transition-colors">
         <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Estadísticas del Negocio</h2>
@@ -203,8 +207,8 @@ export default function BusinessClient({
           <span className="text-[11px] uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Live</span>
         </div>
 
-        <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="sm:col-span-2 lg:col-span-3 rounded-2xl bg-white/40 dark:bg-white/[0.03] border border-white/30 dark:border-white/10 p-4">
+        <div className="glass-sheen-stagger p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="glass-sheen-card sm:col-span-2 lg:col-span-3 rounded-2xl bg-white/40 dark:bg-white/[0.03] border border-white/30 dark:border-white/10 p-4">
             <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 mb-3">
               <span>Flujo financiero</span>
               <span>Ingresos vs Gastos</span>
@@ -239,52 +243,52 @@ export default function BusinessClient({
             </div>
           </div>
 
-          <div className="rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4">
+          <div className="glass-sheen-card h-full min-h-[118px] md:min-h-[124px] rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4 flex flex-col">
             <p className="text-xs text-zinc-500 dark:text-zinc-400">Turnos de hoy</p>
             <p className="mt-1 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{summaryStats?.appointmentsCount ?? "-"}</p>
-            <div className="mt-3 h-1.5 rounded-full bg-sky-100 dark:bg-sky-900/30 overflow-hidden">
+            <div className="mt-auto pt-3 h-1.5 rounded-full bg-sky-100 dark:bg-sky-900/30 overflow-hidden">
               <div className="h-full w-3/4 bg-gradient-to-r from-sky-400 to-sky-300 dark:from-sky-500 dark:to-sky-400" />
             </div>
           </div>
 
-          <div className="rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4">
+          <div className="glass-sheen-card h-full min-h-[118px] md:min-h-[124px] rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4 flex flex-col">
             <p className="text-xs text-zinc-500 dark:text-zinc-400">Ingresos de hoy</p>
             <p className="mt-1 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">${(summaryStats?.revenue ?? 0).toFixed(2)}</p>
-            <div className="mt-3 h-1.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 overflow-hidden">
+            <div className="mt-auto pt-3 h-1.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 overflow-hidden">
               <div className="h-full w-4/5 bg-gradient-to-r from-emerald-400 to-emerald-300 dark:from-emerald-500 dark:to-emerald-400" />
             </div>
           </div>
 
-          <div className="rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4">
+          <div className="glass-sheen-card h-full min-h-[118px] md:min-h-[124px] rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4 flex flex-col">
             <p className="text-xs text-zinc-500 dark:text-zinc-400">Clientes totales</p>
             <p className="mt-1 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{metricStats?.totalClients ?? "-"}</p>
-            <div className="mt-3 h-1.5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 overflow-hidden">
+            <div className="mt-auto pt-3 h-1.5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 overflow-hidden">
               <div className="h-full w-2/3 bg-gradient-to-r from-indigo-400 to-indigo-300 dark:from-indigo-500 dark:to-indigo-400" />
             </div>
           </div>
 
-          <div className="rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4">
+          <div className="glass-sheen-card h-full min-h-[118px] md:min-h-[124px] rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4 flex flex-col">
             <p className="text-xs text-zinc-500 dark:text-zinc-400">Crecimiento mensual</p>
             <p className={`mt-1 text-2xl font-bold tracking-tight ${(metricStats?.growth ?? 0) >= 0 ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300"}`}>
               {(metricStats?.growth ?? 0) >= 0 ? "+" : ""}{metricStats?.growth ?? 0}%
             </p>
-            <div className="mt-3 h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
+            <div className="mt-auto pt-3 h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
               <div className={`h-full ${(metricStats?.growth ?? 0) >= 0 ? "bg-gradient-to-r from-emerald-400 to-emerald-300 dark:from-emerald-500 dark:to-emerald-400" : "bg-gradient-to-r from-rose-400 to-rose-300 dark:from-rose-500 dark:to-rose-400"}`} style={{ width: `${Math.min(Math.max(Math.abs(metricStats?.growth ?? 0), 10), 100)}%` }} />
             </div>
           </div>
 
-          <div className="rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4">
+          <div className="glass-sheen-card h-full min-h-[118px] md:min-h-[124px] rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4 flex flex-col">
             <p className="text-xs text-zinc-500 dark:text-zinc-400">Alertas de stock</p>
             <p className="mt-1 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{summaryStats?.lowStockCount ?? "-"}</p>
-            <div className="mt-3 h-1.5 rounded-full bg-amber-100 dark:bg-amber-900/30 overflow-hidden">
+            <div className="mt-auto pt-3 h-1.5 rounded-full bg-amber-100 dark:bg-amber-900/30 overflow-hidden">
               <div className="h-full w-1/2 bg-gradient-to-r from-amber-400 to-amber-300 dark:from-amber-500 dark:to-amber-400" />
             </div>
           </div>
 
-          <div className="rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4">
+          <div className="glass-sheen-card h-full min-h-[118px] md:min-h-[124px] rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4 flex flex-col">
             <p className="text-xs text-zinc-500 dark:text-zinc-400">Servicios activos</p>
             <p className="mt-1 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{metricStats?.topServicesCount ?? "-"}</p>
-            <div className="mt-3 h-1.5 rounded-full bg-cyan-100 dark:bg-cyan-900/30 overflow-hidden">
+            <div className="mt-auto pt-3 h-1.5 rounded-full bg-cyan-100 dark:bg-cyan-900/30 overflow-hidden">
               <div className="h-full w-3/5 bg-gradient-to-r from-cyan-400 to-cyan-300 dark:from-cyan-500 dark:to-cyan-400" />
             </div>
           </div>
@@ -294,20 +298,29 @@ export default function BusinessClient({
         .flow-bar {
           position: relative;
           overflow: hidden;
+          isolation: isolate;
         }
         .flow-bar::before {
           content: "";
           position: absolute;
-          inset: 0;
-          background: repeating-linear-gradient(
-            120deg,
-            rgba(255,255,255,0.16) 0,
-            rgba(255,255,255,0.16) 14px,
-            rgba(255,255,255,0.03) 14px,
-            rgba(255,255,255,0.03) 28px
-          );
-          animation: flowMove 2.2s linear infinite;
+          inset: -35%;
+          border-radius: inherit;
+          background:
+            linear-gradient(112deg, transparent 24%, rgba(255,255,255,0.3) 50%, transparent 76%),
+            linear-gradient(180deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.02) 52%, rgba(0,0,0,0.12) 100%);
+          background-size: 220% 100%, 100% 100%;
+          animation: flowBarSheen 5.6s cubic-bezier(0.28, 0.16, 0.2, 1) infinite;
           mix-blend-mode: screen;
+          pointer-events: none;
+        }
+        .flow-bar::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          background: linear-gradient(90deg, rgba(255,255,255,0.12), rgba(255,255,255,0));
+          opacity: 0.38;
+          pointer-events: none;
         }
         .flow-bar-emerald {
           background: linear-gradient(90deg, rgba(52,211,153,0.7) 0%, rgba(16,185,129,0.82) 100%);
@@ -315,9 +328,10 @@ export default function BusinessClient({
         .flow-bar-rose {
           background: linear-gradient(90deg, rgba(251,146,160,0.7) 0%, rgba(244,114,182,0.8) 100%);
         }
-        @keyframes flowMove {
-          0% { transform: translateX(-32px); }
-          100% { transform: translateX(32px); }
+        @keyframes flowBarSheen {
+          0% { background-position: 170% 0, 0 0; }
+          55% { background-position: 18% 0, 0 0; }
+          100% { background-position: -90% 0, 0 0; }
         }
       `}</style>
 
@@ -418,17 +432,51 @@ export default function BusinessClient({
                   placeholder="11 1234-5678"
                 />
               </div>
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 cursor-pointer flex items-center gap-1.5">
-                  <Link2 className="w-3.5 h-3.5 text-zinc-400" />
-                  Instagram
-                </label>
-                <input
-                  value={instagramUrl}
-                  onChange={(e) => setInstagramUrl(e.target.value)}
-                  className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
-                  placeholder="https://instagram.com/tu-local"
-                />
+            </div>
+
+            <div className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/25 dark:bg-black/20 p-4">
+              <p className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2 tracking-tight">
+                <Share2 className="w-4 h-4 text-zinc-500" />
+                Redes sociales
+              </p>
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Mostramos estos enlaces en el inicio cuando estén configurados.</p>
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1.5 cursor-pointer flex items-center gap-1.5">
+                    <Link2 className="w-3.5 h-3.5 text-zinc-400" />
+                    Instagram
+                  </label>
+                  <input
+                    value={instagramUrl}
+                    onChange={(e) => setInstagramUrl(e.target.value)}
+                    className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-4 py-2 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
+                    placeholder="https://instagram.com/tu-local"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1.5 cursor-pointer flex items-center gap-1.5">
+                    <Link2 className="w-3.5 h-3.5 text-zinc-400" />
+                    Facebook
+                  </label>
+                  <input
+                    value={facebookUrl}
+                    onChange={(e) => setFacebookUrl(e.target.value)}
+                    className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-4 py-2 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
+                    placeholder="https://facebook.com/tu-local"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1.5 cursor-pointer flex items-center gap-1.5">
+                    <Link2 className="w-3.5 h-3.5 text-zinc-400" />
+                    TikTok
+                  </label>
+                  <input
+                    value={tiktokUrl}
+                    onChange={(e) => setTiktokUrl(e.target.value)}
+                    className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-4 py-2 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
+                    placeholder="https://tiktok.com/@tu-local"
+                  />
+                </div>
               </div>
             </div>
             <div className="flex justify-end pt-2">

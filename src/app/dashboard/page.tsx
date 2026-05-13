@@ -50,7 +50,7 @@ export default async function DashboardPage() {
     fetchDashboardMetrics(),
     fetchWhatsappTemplate(),
   ]);
-  const shopPhone = await fetchShopPhone();
+  const socialLinks = await fetchShopLinks();
 
   const whatsappTemplate = whatsappTemplateResult.success ? (whatsappTemplateResult.data ?? DEFAULT_WHATSAPP_TEMPLATE) : DEFAULT_WHATSAPP_TEMPLATE;
 
@@ -118,9 +118,12 @@ export default async function DashboardPage() {
     year: "numeric",
   });
   const whatsappHref = buildWhatsAppContactUrl(
-    shopPhone,
-    `Hola! Quiero consultar sobre turnos en ${summary.shopName}.`
+    socialLinks.phone,
+    ""
   );
+  const instagramHref = normalizeSocialUrl(socialLinks.instagramUrl);
+  const facebookHref = normalizeSocialUrl(socialLinks.facebookUrl);
+  const tiktokHref = normalizeSocialUrl(socialLinks.tiktokUrl);
 
   return (
     <div className="space-y-6">
@@ -131,54 +134,84 @@ export default async function DashboardPage() {
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
           Resumen de tu peluquería
         </p>
-        <a
-          href={whatsappHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-3 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium text-white"
-          style={{
-            background: "linear-gradient(135deg, #7bcfa3 0%, #69bb93 100%)",
-            boxShadow: "0 8px 18px rgba(105,187,147,0.22), inset 0 1px 0 rgba(255,255,255,0.35)",
-          }}
-        >
-          <MessageCircle className="h-3.5 w-3.5" />
-          WhatsApp
-        </a>
+        <div className="mt-3 flex items-center gap-2">
+          <a
+            href={whatsappHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center rounded-full w-9 h-9 text-white"
+            aria-label="Abrir WhatsApp"
+            title="WhatsApp"
+            style={{
+              background: "linear-gradient(135deg, #7bcfa3 0%, #69bb93 100%)",
+              boxShadow: "0 8px 18px rgba(105,187,147,0.22), inset 0 1px 0 rgba(255,255,255,0.35)",
+            }}
+          >
+            <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-current" aria-hidden="true">
+              <path d="M12.04 2C6.53 2 2.06 6.47 2.06 11.98c0 1.94.55 3.83 1.6 5.46L2 22l4.72-1.63a9.93 9.93 0 0 0 5.32 1.54h.01c5.51 0 9.98-4.47 9.98-9.98A9.98 9.98 0 0 0 12.04 2Zm5.82 14.25c-.24.68-1.39 1.3-1.92 1.38-.49.07-1.12.1-1.81-.12-.42-.13-.95-.31-1.64-.61-2.88-1.25-4.76-4.16-4.91-4.36-.15-.2-1.17-1.56-1.17-2.97 0-1.41.74-2.1 1-2.39.26-.29.58-.36.77-.36.19 0 .39 0 .56.01.18.01.42-.07.66.5.24.58.83 2.01.9 2.16.07.14.12.31.02.5-.1.19-.14.31-.29.47-.14.17-.3.37-.43.49-.14.14-.29.3-.12.59.17.29.77 1.27 1.64 2.05 1.13 1.01 2.08 1.32 2.37 1.47.29.14.46.12.63-.07.17-.19.73-.85.92-1.14.19-.29.39-.24.66-.14.27.1 1.72.81 2.01.96.29.14.48.22.55.34.07.12.07.68-.17 1.36Z" />
+            </svg>
+          </a>
+          {instagramHref && (
+            <a href={instagramHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-full w-9 h-9 text-white bg-gradient-to-br from-fuchsia-500 via-rose-500 to-orange-400 shadow-sm" aria-label="Abrir Instagram" title="Instagram">
+              <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-current" aria-hidden="true"><path d="M7.75 2h8.5A5.75 5.75 0 0 1 22 7.75v8.5A5.75 5.75 0 0 1 16.25 22h-8.5A5.75 5.75 0 0 1 2 16.25v-8.5A5.75 5.75 0 0 1 7.75 2Zm0 1.8A3.95 3.95 0 0 0 3.8 7.75v8.5a3.95 3.95 0 0 0 3.95 3.95h8.5a3.95 3.95 0 0 0 3.95-3.95v-8.5a3.95 3.95 0 0 0-3.95-3.95h-8.5Zm9.15 1.35a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4ZM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 1.8a3.2 3.2 0 1 0 0 6.4 3.2 3.2 0 0 0 0-6.4Z" /></svg>
+            </a>
+          )}
+          {facebookHref && (
+            <a href={facebookHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-full w-9 h-9 text-white bg-[#1877F2] shadow-sm" aria-label="Abrir Facebook" title="Facebook">
+              <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-current" aria-hidden="true"><path d="M13.5 22v-8h2.7l.4-3h-3.1V9.1c0-.9.3-1.6 1.6-1.6h1.7V4.8c-.3 0-1.3-.1-2.5-.1-2.5 0-4.2 1.5-4.2 4.4V11H8v3h2.6v8h2.9Z" /></svg>
+            </a>
+          )}
+          {tiktokHref && (
+            <a href={tiktokHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-full w-9 h-9 text-white bg-black shadow-sm" aria-label="Abrir TikTok" title="TikTok">
+              <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-current" aria-hidden="true"><path d="M14.5 3c.2 1.9 1.3 3.5 3.1 4.2.8.3 1.6.5 2.4.5v2.6c-1.8 0-3.7-.5-5.2-1.5v6.1c0 3.1-2.5 5.6-5.6 5.6S3.6 18 3.6 14.9s2.5-5.6 5.6-5.6c.3 0 .6 0 .9.1V12c-.3-.1-.6-.2-.9-.2-1.7 0-3.1 1.4-3.1 3.1S7.5 18 9.2 18s3.1-1.4 3.1-3.1V3h2.2Z" /></svg>
+            </a>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {cards.map(({ label, value, icon: Icon, color, bg }) => {
+        {cards.map(({ label, value, icon: Icon, color, bg }, idx) => {
           const isGrowthCard = label === "Crecimiento";
           const isIncomeCard = label === "Ingresos hoy";
           const growthFill = Math.min(Math.max(Math.abs(growthValue), 8), 100);
+          const hasProgress = isIncomeCard || isGrowthCard;
           return (
           <HoverScale key={label}>
-            <Link href={cardHrefByLabel[label] || "/dashboard"} className="block">
-              <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-6 flex items-center gap-4 transition-colors hover:bg-white/30 dark:hover:bg-white/5 cursor-pointer">
+            <Link href={cardHrefByLabel[label] || "/dashboard"} className="block h-full">
+              <div
+                className={`glass-sheen-card h-full min-h-[124px] lg:min-h-[132px] bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-6 flex items-center gap-4 transition-colors hover:bg-white/30 dark:hover:bg-white/5 cursor-pointer ${isIncomeCard ? "analytics-card-bg" : ""}`}
+                style={{
+                  ["--sheen-delay" as any]: `${-0.5 - idx * 2.1}s`,
+                  ["--sheen-duration" as any]: `${13.6 + (idx % 3) * 0.8}s`,
+                }}
+              >
                 <div className={`p-3 rounded-xl ${bg}`}>
                   <Icon className={`w-5 h-5 ${color}`} />
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="relative z-10 flex-1 min-w-0 flex flex-col">
                   <p className="text-sm text-gray-500 dark:text-zinc-400">{label}</p>
                   <p className="text-xl font-bold tracking-tighter text-gray-900 dark:text-white">{value}</p>
                   {isIncomeCard && (
-                    <div className="mt-2.5 space-y-1.5">
-                      <div className="h-2.5 rounded-full bg-emerald-100/45 dark:bg-emerald-900/20 overflow-hidden">
-                        <div className="h-full rounded-full flow-mini flow-mini-pos opacity-75" style={{ width: `${incomeVsPct}%` }} />
+                    <div className="mt-2.5 space-y-2">
+                      <div className="h-2.5 rounded-full bg-emerald-100/55 dark:bg-emerald-900/25 overflow-hidden shadow-inner shadow-emerald-950/10">
+                        <div className="h-full rounded-full flow-mini flow-mini-pos" style={{ width: `${incomeVsPct}%` }} />
                       </div>
-                      <div className="h-2.5 rounded-full bg-rose-100/45 dark:bg-rose-900/20 overflow-hidden">
-                        <div className="h-full rounded-full flow-mini flow-mini-neg opacity-75" style={{ width: `${expensesVsPct}%` }} />
+                      <div className="h-2.5 rounded-full bg-rose-100/55 dark:bg-rose-900/25 overflow-hidden shadow-inner shadow-rose-950/10">
+                        <div className="h-full rounded-full flow-mini flow-mini-neg" style={{ width: `${expensesVsPct}%` }} />
                       </div>
                     </div>
                   )}
                   {isGrowthCard && (
-                    <div className="mt-2 h-2 rounded-full bg-zinc-200/70 dark:bg-zinc-700/60 overflow-hidden">
-                      <div
-                        className={`h-full rounded-full flow-mini ${growthValue >= 0 ? "flow-mini-pos" : "flow-mini-neg"}`}
-                        style={{ width: `${growthFill}%` }}
-                      />
+                    <div className="mt-2.5">
+                      <div className="h-2 w-full rounded-full bg-zinc-200/70 dark:bg-zinc-700/60 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full flow-mini ${growthValue >= 0 ? "flow-mini-pos" : "flow-mini-neg"}`}
+                          style={{ width: `${growthFill}%` }}
+                        />
+                      </div>
                     </div>
                   )}
+                  {!hasProgress && <div className="mt-2.5 h-2" aria-hidden="true" />}
                 </div>
               </div>
             </Link>
@@ -198,7 +231,7 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden transition-colors">
+      <div className="glass-sheen-card bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden transition-colors">
         <div className="px-6 py-4 border-b border-white/20 dark:border-white/10">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2 tracking-tight">
             <Clock className="w-5 h-5 text-zinc-400 dark:text-zinc-500" />
@@ -303,19 +336,41 @@ export default async function DashboardPage() {
         .flow-mini {
           position: relative;
           overflow: hidden;
+          isolation: isolate;
+        }
+        .analytics-card-bg::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          pointer-events: none;
+          background:
+            radial-gradient(120% 60% at 0% 100%, rgba(16,185,129,0.1) 0%, transparent 60%),
+            radial-gradient(120% 60% at 100% 0%, rgba(244,114,182,0.1) 0%, transparent 62%);
+          background-size: 160% 120%, 160% 120%;
+          animation: analyticsCardWave 18s linear infinite;
+          opacity: 0.65;
         }
         .flow-mini::before {
           content: "";
           position: absolute;
+          inset: -35%;
+          border-radius: inherit;
+          background:
+            linear-gradient(112deg, transparent 22%, rgba(255,255,255,0.34) 48%, transparent 74%),
+            linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.02) 52%, rgba(0,0,0,0.1) 100%);
+          background-size: 220% 100%, 100% 100%;
+          animation: flowMiniSheen 5.2s cubic-bezier(0.28, 0.16, 0.2, 1) infinite;
+          pointer-events: none;
+        }
+        .flow-mini::after {
+          content: "";
+          position: absolute;
           inset: 0;
-          background: repeating-linear-gradient(
-            120deg,
-            rgba(255,255,255,0.22) 0,
-            rgba(255,255,255,0.22) 10px,
-            rgba(255,255,255,0.05) 10px,
-            rgba(255,255,255,0.05) 20px
-          );
-          animation: flowMiniMove 2.2s linear infinite;
+          border-radius: inherit;
+          background: linear-gradient(90deg, rgba(255,255,255,0.12), rgba(255,255,255,0));
+          opacity: 0.4;
+          pointer-events: none;
         }
         .flow-mini-pos {
           background: linear-gradient(90deg, rgba(52,211,153,0.7) 0%, rgba(16,185,129,0.86) 100%);
@@ -323,25 +378,43 @@ export default async function DashboardPage() {
         .flow-mini-neg {
           background: linear-gradient(90deg, rgba(251,146,160,0.7) 0%, rgba(244,114,182,0.86) 100%);
         }
-        @keyframes flowMiniMove {
-          0% { transform: translateX(-24px); }
-          100% { transform: translateX(24px); }
+        @keyframes flowMiniSheen {
+          0% { background-position: 170% 0, 0 0; }
+          58% { background-position: 20% 0, 0 0; }
+          100% { background-position: -90% 0, 0 0; }
+        }
+        @keyframes analyticsCardWave {
+          0% { background-position: 0% 100%, 100% 0%; }
+          100% { background-position: 100% 100%, 0% 0%; }
         }
       `}</style>
     </div>
   );
 }
 
-async function fetchShopPhone(): Promise<string | null> {
+function normalizeSocialUrl(value: string | null): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
+
+async function fetchShopLinks(): Promise<{ phone: string | null; instagramUrl: string | null; facebookUrl: string | null; tiktokUrl: string | null }> {
   const session = await getAuthSession();
-  if (!session) return null;
+  if (!session) return { phone: null, instagramUrl: null, facebookUrl: null, tiktokUrl: null };
   const shopId = await getShopId(session);
-  if (!shopId) return null;
+  if (!shopId) return { phone: null, instagramUrl: null, facebookUrl: null, tiktokUrl: null };
   const supabase = await createServerClient();
   const { data } = await supabase
     .from("shops")
-    .select("phone")
+    .select("phone, instagram_url, facebook_url, tiktok_url")
     .eq("id", shopId)
     .single();
-  return data?.phone || null;
+  return {
+    phone: data?.phone || null,
+    instagramUrl: data?.instagram_url || null,
+    facebookUrl: (data as { facebook_url?: string | null } | null)?.facebook_url || null,
+    tiktokUrl: (data as { tiktok_url?: string | null } | null)?.tiktok_url || null,
+  };
 }
