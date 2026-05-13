@@ -5,7 +5,7 @@ import { Providers } from "@/components/providers";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Jazba Peluqueria - SaaS",
+  title: "Klip - Sistema de gestion para peluquerias",
   description: "Sistema de gestion para peluquerias",
 };
 
