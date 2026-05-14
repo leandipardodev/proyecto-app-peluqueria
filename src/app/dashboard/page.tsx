@@ -3,6 +3,7 @@ import { CalendarDays, DollarSign, AlertTriangle, TrendingUp, Clock, MessageCirc
 import ShareLinkCard from "@/components/dashboard/share-link-card";
 import RevenueChart from "@/components/dashboard/revenue-chart";
 import TopServices from "@/components/dashboard/top-services";
+import PwaInstallButton from "@/components/dashboard/pwa-install-button";
 import HoverScale from "@/components/ui/hover-scale";
 import { fetchWhatsappTemplate } from "@/lib/dashboard/whatsapp-actions";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
@@ -387,6 +388,8 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
           </div>
         )}
       </div>
+
+      <PwaInstallButton />
       <style>{`
         .flow-mini {
           position: relative;
