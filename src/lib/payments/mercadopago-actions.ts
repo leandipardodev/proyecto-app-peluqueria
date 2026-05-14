@@ -1,7 +1,7 @@
 "use server";
 
 import { createServerClient } from "@/lib/supabase/server";
-import { createServiceRoleClient, requireShopId } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient, requireOwnerShopId } from "@/lib/dashboard/auth-server";
 import { MercadoPagoConfig, Preference } from "mercadopago";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
@@ -14,7 +14,10 @@ type MercadoPagoKeys = { mp_public_key: string; mp_access_token: string };
 
 export async function fetchMercadoPagoKeys(): Promise<ActionResult<MercadoPagoKeys>> {
   try {
-    const shopIdResult = await requireShopId();
+    const {
+      data: { user },
+    } = await (await createServerClient()).auth.getUser();
+    const shopIdResult = await requireOwnerShopId();
     if (!shopIdResult.success) return shopIdResult;
     const shopId = shopIdResult.data;
     const admin = await createAdminClient();
@@ -43,7 +46,11 @@ export async function fetchMercadoPagoKeys(): Promise<ActionResult<MercadoPagoKe
 
 export async function updateMercadoPagoKeys(publicKey: string, accessToken: string): Promise<ActionResult> {
   try {
-    const shopIdResult = await requireShopId();
+    const supabase = await createServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const shopIdResult = await requireOwnerShopId();
     if (!shopIdResult.success) return shopIdResult;
     const shopId = shopIdResult.data;
     const admin = await createAdminClient();
@@ -60,6 +67,16 @@ export async function updateMercadoPagoKeys(publicKey: string, accessToken: stri
       return { success: false, error: error.message };
     }
 
+    await admin.from("shop_billing_events").insert({
+      shop_id: shopId,
+      actor_user_id: user?.id || null,
+      event_type: "mercadopago_keys_updated",
+      payload: {
+        has_public_key: Boolean(publicKey),
+        has_access_token: Boolean(accessToken),
+      },
+    });
+
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al guardar claves de Mercado Pago" };
@@ -70,10 +87,13 @@ type PaymentLinkResult = { init_point: string; preference_id: string };
 
 export async function createPaymentLink(appointmentId: string): Promise<ActionResult<PaymentLinkResult>> {
   try {
-    const shopIdResult = await requireShopId();
+    const shopIdResult = await requireOwnerShopId();
     if (!shopIdResult.success) return shopIdResult;
     const shopId = shopIdResult.data;
     const supabase = await createServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     const admin = await createAdminClient();
 
     const { data: mpKeys } = await admin
@@ -91,7 +111,7 @@ export async function createPaymentLink(appointmentId: string): Promise<ActionRe
 
     const { data: appointment } = await supabase
       .from("appointments")
-      .select("id, service_id, start_time, customers:customer_id ( id, nombre, email )")
+      .select("id, service_id, start_time, loyalty_discount_percent_applied, customers:customer_id ( id, nombre, email )")
       .eq("id", appointmentId)
       .single();
 
@@ -110,7 +130,19 @@ export async function createPaymentLink(appointmentId: string): Promise<ActionRe
     }
 
     const customerName = (appointment.customers as unknown as { id: string; nombre: string; email?: string })?.nombre || "Cliente";
-    const price = Number(service.price);
+    const basePrice = Number(service.price);
+    const discountPercent = Math.max(0, Math.min(100, Number(appointment.loyalty_discount_percent_applied || 0)));
+    const price = Math.max(0, Number((basePrice * (1 - discountPercent / 100)).toFixed(2)));
+
+    if (price === 0) {
+      await admin
+        .from("appointments")
+        .update({ is_paid: true, updated_at: new Date().toISOString() })
+        .eq("id", appointmentId)
+        .eq("shop_id", shopId);
+
+      return { success: false, error: "Este turno quedo bonificado al 100%. Ya figura como pagado." };
+    }
     const title = `${shopName} - ${service.name}`;
 
     const client = new MercadoPagoConfig({ accessToken });
@@ -127,7 +159,7 @@ export async function createPaymentLink(appointmentId: string): Promise<ActionRe
         },
         auto_return: "approved",
         external_reference: appointmentId,
-        notification_url: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/payments/mercadopago-webhook`,
+        notification_url: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/payments/mercadopago-webhook?shop_id=${shopId}`,
       },
     });
 
@@ -148,6 +180,17 @@ export async function createPaymentLink(appointmentId: string): Promise<ActionRe
         payload: {
           init_point: result.init_point ?? "",
           title,
+          amount: price,
+        },
+      });
+
+      await admin.from("shop_billing_events").insert({
+        shop_id: shopId,
+        actor_user_id: user?.id || null,
+        event_type: "payment_link_created",
+        payload: {
+          appointment_id: appointmentId,
+          mp_preference_id: preferenceId,
           amount: price,
         },
       });

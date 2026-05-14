@@ -2,19 +2,23 @@
 
 import { useState, useTransition, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Store, Eye, EyeOff, Save, CreditCard, MessageSquareText, Smartphone, Link2, MapPin, Phone, Clock, Share2 } from "lucide-react";
+import { Store, Eye, EyeOff, Save, CreditCard, MessageSquareText, Smartphone, Link2, MapPin, Phone, Clock, Share2, AlertTriangle, Trash2, Gift } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
+import { createAdditionalShop } from "@/lib/dashboard/auth-actions";
 import {
   fetchBusinessData,
   updateBusinessInfo,
   updateMercadoPagoKeysAction,
+  updateLoyaltyProgramAction,
   updateWhatsappTemplateAction,
   fetchBusinessHours,
   updateBusinessHours,
   type BusinessData,
   type BusinessHoursData,
 } from "@/lib/dashboard/business-actions";
+import { deleteCurrentShop } from "@/lib/dashboard/shop-actions";
 
 type MessageType = { type: "success" | "error"; text: string } | null;
 
@@ -23,6 +27,8 @@ export default function BusinessClient({
   initialError,
   summaryStats,
   metricStats,
+  canManageBilling,
+  shopSlug,
 }: {
   initialData: BusinessData | null;
   initialError: string | null;
@@ -38,11 +44,15 @@ export default function BusinessClient({
     income: number;
     expenses: number;
   } | null;
+  canManageBilling: boolean;
+  shopSlug: string | null;
 }) {
   const { playSuccess, playError, playClick } = useKlipSounds();
+  const router = useRouter();
   const [data, setData] = useState(initialData);
   const [error] = useState(initialError);
   const [pending, startTransition] = useTransition();
+  const [creatingShop, startCreateShopTransition] = useTransition();
 
   const [name, setName] = useState(data?.nombre || "");
   const [description, setDescription] = useState(data?.description || "");
@@ -55,6 +65,9 @@ export default function BusinessClient({
   const [mpPublicKey, setMpPublicKey] = useState(data?.mp_public_key || "");
   const [mpAccessToken, setMpAccessToken] = useState(data?.mp_access_token || "");
   const [whatsappTemplate, setWhatsappTemplate] = useState(data?.whatsapp_template || "");
+  const [loyaltyEnabled, setLoyaltyEnabled] = useState(data?.loyalty_enabled ?? true);
+  const [loyaltyCutsRequired, setLoyaltyCutsRequired] = useState(String(data?.loyalty_cuts_required ?? 10));
+  const [loyaltyDiscountPercent, setLoyaltyDiscountPercent] = useState(String(data?.loyalty_discount_percent ?? 10));
   const [showMpKey, setShowMpKey] = useState(false);
   const [showMpToken, setShowMpToken] = useState(false);
   const [message, setMessage] = useState<MessageType>(null);
@@ -62,6 +75,10 @@ export default function BusinessClient({
   const [hoursLoading, setHoursLoading] = useState(true);
   const [savedSection, setSavedSection] = useState<string | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [closeConfirm, setCloseConfirm] = useState("");
+  const [showCloseModal, setShowCloseModal] = useState(false);
+  const [newShopName, setNewShopName] = useState("");
+  const [showCreateShopModal, setShowCreateShopModal] = useState(false);
 
   const DAYS = [
     { key: "monday", label: "Lunes" },
@@ -78,6 +95,13 @@ export default function BusinessClient({
   const flowTotal = Math.max(incomeValue + expenseValue, 1);
   const incomePct = Math.max(8, Math.round((incomeValue / flowTotal) * 100));
   const expensePct = Math.max(8, Math.round((expenseValue / flowTotal) * 100));
+  const dashboardBasePath = shopSlug ? `/dashboard/${shopSlug}` : "/dashboard";
+
+  const withDashboardBase = (href: string) => {
+    if (!href.startsWith("/dashboard")) return href;
+    const tail = href.slice("/dashboard".length);
+    return `${dashboardBasePath}${tail}`;
+  };
 
   useEffect(() => {
     fetchBusinessHours()
@@ -149,12 +173,6 @@ export default function BusinessClient({
   }
 
   function handleSaveWhatsapp() {
-    if (!whatsappTemplate.match(/\{ubicacion\}/)) {
-      setLocationError("Debés incluir {ubicacion} en el mensaje antes de guardar.");
-      playError();
-      return;
-    }
-    setLocationError(null);
     startTransition(async () => {
       const result = await updateWhatsappTemplateAction(whatsappTemplate);
       if (!result.success) {
@@ -171,6 +189,68 @@ export default function BusinessClient({
     });
   }
 
+  function handleSaveLoyaltyProgram() {
+    startTransition(async () => {
+      const cutsRequired = Math.max(1, Number(loyaltyCutsRequired) || 1);
+      const discountPercent = Math.max(0, Math.min(100, Number(loyaltyDiscountPercent) || 0));
+      const result = await updateLoyaltyProgramAction(loyaltyEnabled, cutsRequired, discountPercent);
+      if (!result.success) {
+        playError();
+        showError(result.error);
+      } else {
+        playSuccess();
+        showSuccess("Fidelizacion guardada");
+        const fresh = await fetchBusinessData();
+        if (fresh.success && fresh.data) {
+          setData(fresh.data);
+          setLoyaltyEnabled(fresh.data.loyalty_enabled);
+          setLoyaltyCutsRequired(String(fresh.data.loyalty_cuts_required));
+          setLoyaltyDiscountPercent(String(fresh.data.loyalty_discount_percent));
+        }
+      }
+    });
+  }
+
+  function handleCloseShop() {
+    if (!canManageBilling) return;
+    if (closeConfirm.trim().toUpperCase() !== "CERRAR") {
+      showError("Escribí CERRAR para confirmar el cierre del local.");
+      playError();
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await deleteCurrentShop();
+      if (!result.success) {
+        playError();
+        showError(result.error);
+        return;
+      }
+      playSuccess();
+      router.push("/landing");
+      router.refresh();
+    });
+  }
+
+  function handleCreateNewShop() {
+    const trimmed = newShopName.trim();
+    if (!trimmed) return;
+
+    startCreateShopTransition(async () => {
+      const result = await createAdditionalShop(trimmed);
+      if (!result.success || !result.data?.slug) {
+        showError(result.success ? "No se pudo crear el local" : result.error);
+        playError();
+        return;
+      }
+      playSuccess();
+      setShowCreateShopModal(false);
+      setNewShopName("");
+      router.push(`/dashboard/${result.data.slug}/business`);
+      router.refresh();
+    });
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -184,17 +264,25 @@ export default function BusinessClient({
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Información pública y configuración técnica de tu local</p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Link
-            href="/dashboard/services"
+            href={withDashboardBase("/dashboard/services")}
             className="inline-flex items-center rounded-full border border-sky-300/60 dark:border-sky-500/30 bg-sky-100/80 dark:bg-sky-500/15 px-4 py-2 text-sm font-semibold text-sky-800 dark:text-sky-200 hover:bg-sky-100 dark:hover:bg-sky-500/25 shadow-sm transition-all"
           >
             Gestionar servicios
           </Link>
           <Link
-            href="/dashboard/staff"
+            href={withDashboardBase("/dashboard/staff")}
             className="inline-flex items-center rounded-full border border-emerald-300/60 dark:border-emerald-500/30 bg-emerald-100/80 dark:bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-800 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-500/25 shadow-sm transition-all"
           >
             Gestionar personal
           </Link>
+          <button
+            type="button"
+            onClick={() => setShowCreateShopModal(true)}
+            disabled={creatingShop}
+            className="inline-flex items-center rounded-full border border-violet-300/60 dark:border-violet-500/30 bg-violet-100/80 dark:bg-violet-500/15 px-4 py-2 text-sm font-semibold text-violet-800 dark:text-violet-200 hover:bg-violet-100 dark:hover:bg-violet-500/25 shadow-sm transition-all disabled:opacity-60"
+          >
+            {creatingShop ? "Creando..." : "+ Crear nuevo local"}
+          </button>
         </div>
       </div>
 
@@ -526,6 +614,7 @@ export default function BusinessClient({
         <div className="p-6 space-y-8">
 
           {/* MP Keys */}
+          {canManageBilling ? (
           <div>
             <div className="flex items-center gap-2 mb-4">
               <CreditCard className="w-4 h-4 text-zinc-400" />
@@ -586,6 +675,64 @@ export default function BusinessClient({
               </div>
             </div>
           </div>
+          ) : (
+            <div className="rounded-2xl border border-amber-200/60 bg-amber-50/70 dark:bg-amber-900/20 px-4 py-3 text-xs text-amber-800 dark:text-amber-200">
+              Solo el owner del local puede gestionar claves de Mercado Pago y acciones de facturacion.
+            </div>
+          )}
+
+          {/* Divider */}
+          <div className="border-t border-white/10" />
+
+          <div>
+            <div className="flex items-center gap-2 mb-4">
+              <Gift className="w-4 h-4 text-zinc-400" />
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white tracking-tight">Fidelizacion</h3>
+            </div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
+              Defini cada cuantos cortes se habilita un beneficio y su descuento (0% a 100%).
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <label className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/35 dark:bg-black/25 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={loyaltyEnabled}
+                  onChange={(e) => setLoyaltyEnabled(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                Activar programa
+              </label>
+              <input
+                type="number"
+                min={1}
+                value={loyaltyCutsRequired}
+                onChange={(e) => setLoyaltyCutsRequired(e.target.value)}
+                className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
+                placeholder="Cortes requeridos"
+              />
+              <input
+                type="number"
+                min={0}
+                max={100}
+                value={loyaltyDiscountPercent}
+                onChange={(e) => setLoyaltyDiscountPercent(e.target.value)}
+                className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
+                placeholder="% descuento"
+              />
+            </div>
+            <div className="flex justify-end mt-3">
+              <button
+                type="button"
+                onMouseDown={playClick}
+                onClick={handleSaveLoyaltyProgram}
+                disabled={pending}
+                className="inline-flex w-full sm:w-auto justify-center items-center gap-2 bg-violet-600 text-white px-6 py-2.5 rounded-full text-sm font-medium shadow-sm hover:bg-violet-700 disabled:opacity-50 transition-all cursor-pointer select-none"
+              >
+                <Save className="w-4 h-4" />
+                {pending ? "Guardando..." : "Guardar fidelizacion"}
+              </button>
+            </div>
+          </div>
 
           {/* Divider */}
           <div className="border-t border-white/10" />
@@ -599,22 +746,16 @@ export default function BusinessClient({
             <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-3">
               Usá <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{Nombre}'}</code>,{" "}
               <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{Peluqueria}'}</code> y{" "}
-              <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{Hora}'}</code>. La etiqueta <code className="bg-red-50 dark:bg-red-900/30 px-1.5 py-0.5 rounded text-[11px] text-red-700 dark:text-red-300">{'{ubicacion}'}</code> es obligatoria.
+              <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{Hora}'}</code> y, si querés, <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{Lugar}'}</code> o <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{ubicacion}'}</code>.
             </p>
             <textarea
               value={whatsappTemplate}
               onChange={(e) => {
                 setWhatsappTemplate(e.target.value);
-                if (locationError && e.target.value.match(/\{ubicacion\}/)) {
-                  setLocationError(null);
-                }
               }}
               rows={3}
-              className={`w-full rounded-2xl bg-white/40 dark:bg-black/30 backdrop-blur-md border px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 transition-all resize-none ${locationError ? "border-red-500 focus:ring-red-500/50" : "border-white/20 dark:border-white/10 focus:ring-violet-500/50"}`}
+              className="w-full rounded-2xl bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all resize-none"
             />
-            {locationError && (
-              <p className="mt-2 text-xs text-red-600 dark:text-red-400 font-medium">{locationError}</p>
-            )}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-3">
               <div className="flex flex-col gap-1">
                 <p className="text-xs text-zinc-400 dark:text-zinc-500">
@@ -624,19 +765,13 @@ export default function BusinessClient({
                     <span className="text-amber-600 dark:text-amber-400">⚠ No incluye {`{Hora}`} — no se mostrará el horario</span>
                   )}
                 </p>
-                <p className="text-xs">
-                  {whatsappTemplate.match(/\{ubicacion\}/) ? (
-                    <span className="text-green-600 dark:text-green-400">✓ Incluye {`{ubicacion}`}</span>
-                  ) : (
-                    <span className="text-red-600 dark:text-red-400">⚠ Falta {`{ubicacion}`} (obligatorio)</span>
-                  )}
-                </p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">Tip: usá {`{Lugar}`} o {`{ubicacion}`} si querés mostrar dirección.</p>
               </div>
               <button
                 type="button"
                 onMouseDown={playSuccess}
                 onClick={handleSaveWhatsapp}
-                disabled={pending || !whatsappTemplate.match(/\{ubicacion\}/)}
+                disabled={pending}
                 className="inline-flex w-full sm:w-auto justify-center items-center gap-2 bg-violet-600 text-white px-6 py-2.5 rounded-full text-sm font-medium shadow-sm hover:bg-violet-700 disabled:opacity-50 transition-all cursor-pointer select-none"
               >
                 <Save className="w-4 h-4" />
@@ -754,6 +889,152 @@ export default function BusinessClient({
       </div>
 
       {/* Footer hint */}
+      {canManageBilling && (
+        <div className="rounded-[2rem] border border-red-200/70 dark:border-red-600/30 bg-red-50/70 dark:bg-red-950/20 p-6">
+          <div className="flex items-center gap-2 text-red-700 dark:text-red-300">
+            <AlertTriangle className="w-4 h-4" />
+            <h3 className="text-sm font-semibold">Zona de riesgo (solo owner)</h3>
+          </div>
+          <p className="mt-2 text-xs text-red-700/90 dark:text-red-300/90">
+            Esta accion elimina el local actual y sus datos asociados. Es irreversible.
+          </p>
+          <div className="mt-4 flex flex-col sm:flex-row gap-3 sm:items-center">
+            <input
+              value={closeConfirm}
+              onChange={(e) => setCloseConfirm(e.target.value)}
+              placeholder="Escribi CERRAR para confirmar"
+              className="w-full sm:max-w-xs rounded-full border border-red-200 dark:border-red-700 bg-white/70 dark:bg-black/30 px-4 py-2 text-sm text-red-800 dark:text-red-200 outline-none"
+            />
+            <button
+              type="button"
+              onMouseDown={playClick}
+              onClick={() => setShowCloseModal(true)}
+              disabled={pending}
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-red-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              <Trash2 className="w-4 h-4" />
+              {pending ? "Cerrando local..." : "Continuar cierre"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <AnimatePresence>
+        {showCreateShopModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[80] bg-black/45 backdrop-blur-[2px] flex items-center justify-center p-4"
+            onClick={() => {
+              if (creatingShop) return;
+              setShowCreateShopModal(false);
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 16, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.98 }}
+              transition={{ duration: 0.18 }}
+              className="w-full max-w-md rounded-3xl border border-violet-200/80 dark:border-violet-700/40 bg-white dark:bg-zinc-950 p-6 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h4 className="text-base font-semibold text-violet-700 dark:text-violet-300">Crear nuevo local</h4>
+              <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
+                Elegi un nombre para el local. Luego podras editarlo desde configuracion.
+              </p>
+              <div className="mt-4">
+                <input
+                  value={newShopName}
+                  onChange={(e) => setNewShopName(e.target.value)}
+                  placeholder="Nombre del nuevo local"
+                  className="w-full rounded-xl border border-violet-200 dark:border-violet-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm outline-none"
+                  autoFocus
+                />
+              </div>
+              <div className="mt-5 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  className="rounded-full px-4 py-2 text-sm text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                  onClick={() => setShowCreateShopModal(false)}
+                  disabled={creatingShop}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreateNewShop}
+                  disabled={creatingShop || !newShopName.trim()}
+                  className="inline-flex items-center gap-2 rounded-full bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+                >
+                  {creatingShop ? "Creando..." : "Crear local"}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showCloseModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[80] bg-black/45 backdrop-blur-[2px] flex items-center justify-center p-4"
+            onClick={() => setShowCloseModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 16, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.98 }}
+              transition={{ duration: 0.18 }}
+              className="w-full max-w-md rounded-3xl border border-red-200/80 dark:border-red-700/40 bg-white dark:bg-zinc-950 p-6 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h4 className="text-base font-semibold text-red-700 dark:text-red-300">Confirmar cierre definitivo</h4>
+              <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
+                Vas a eliminar el local y datos asociados. Esta accion no se puede deshacer.
+              </p>
+              <p className="mt-3 text-xs text-zinc-500">Para confirmar, escribi <strong>CERRAR</strong> y luego presiona el boton rojo.</p>
+
+              <div className="mt-4 flex flex-col gap-2">
+                <input
+                  value={closeConfirm}
+                  onChange={(e) => setCloseConfirm(e.target.value)}
+                  placeholder="CERRAR"
+                  className="rounded-xl border border-red-200 dark:border-red-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm outline-none"
+                />
+              </div>
+
+              <div className="mt-5 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  className="rounded-full px-4 py-2 text-sm text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                  onClick={() => setShowCloseModal(false)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await handleCloseShop();
+                    if (closeConfirm.trim().toUpperCase() === "CERRAR") {
+                      setShowCloseModal(false);
+                    }
+                  }}
+                  disabled={pending || closeConfirm.trim().toUpperCase() !== "CERRAR"}
+                  className="inline-flex items-center gap-2 rounded-full bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Confirmar cierre
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <p className="text-xs text-center text-zinc-400 dark:text-zinc-600 pt-2">
         Los tokens de Mercado Pago se almacenan de forma segura en la base de datos.
       </p>

@@ -1,9 +1,9 @@
 "use server";
 
-import { createServiceRoleClient, requireShopId } from "@/lib/dashboard/auth-server";
-import { revalidatePath } from "next/cache";
+import { createServiceRoleClient, requireOwnerShopId, requireShopId } from "@/lib/dashboard/auth-server";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
 import type { ActionResult } from "@/lib/types";
+import { revalidateDashboardSegments } from "@/lib/dashboard/revalidate-dashboard";
 import "server-only";
 
 async function createAdminClient() {
@@ -34,19 +34,26 @@ export type BusinessData = {
   mp_public_key: string;
   mp_access_token: string;
   whatsapp_template: string;
+  loyalty_enabled: boolean;
+  loyalty_cuts_required: number;
+  loyalty_discount_percent: number;
 };
 
-export async function fetchBusinessData(): Promise<ActionResult<BusinessData>> {
+export async function fetchBusinessData(shopIdOverride?: string): Promise<ActionResult<BusinessData>> {
   try {
-    const shopIdResult = await requireShopId();
-    if (!shopIdResult.success) return shopIdResult;
-    const shopId = shopIdResult.data;
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    }
 
     const { data, error } = await withRetry(async () => {
       const admin = await createAdminClient();
       return admin
         .from("shops")
-        .select("nombre, description, address, localidad, phone, instagram_url, facebook_url, tiktok_url, mp_public_key, mp_access_token, whatsapp_template")
+        .select("nombre, description, address, localidad, phone, instagram_url, facebook_url, tiktok_url, mp_public_key, mp_access_token, whatsapp_template, loyalty_enabled, loyalty_cuts_required, loyalty_discount_percent")
         .eq("id", shopId)
         .single();
     });
@@ -67,6 +74,9 @@ export async function fetchBusinessData(): Promise<ActionResult<BusinessData>> {
         mp_public_key: (data.mp_public_key as string) || "",
         mp_access_token: (data.mp_access_token as string) || "",
         whatsapp_template: (data.whatsapp_template as string) || DEFAULT_WHATSAPP_TEMPLATE,
+        loyalty_enabled: data.loyalty_enabled !== false,
+        loyalty_cuts_required: Number(data.loyalty_cuts_required || 10),
+        loyalty_discount_percent: Number(data.loyalty_discount_percent || 10),
       },
     };
   } catch (e) {
@@ -96,7 +106,7 @@ export async function updateBusinessInfo(formData: FormData): Promise<ActionResu
       .eq("id", shopId);
 
     if (error) return { success: false, error: error.message };
-    revalidatePath("/dashboard/business");
+    await revalidateDashboardSegments(shopId, ["/business"]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al actualizar negocio" };
@@ -105,7 +115,7 @@ export async function updateBusinessInfo(formData: FormData): Promise<ActionResu
 
 export async function updateMercadoPagoKeysAction(publicKey: string, accessToken: string): Promise<ActionResult> {
   try {
-    const shopIdResult = await requireShopId();
+    const shopIdResult = await requireOwnerShopId();
     if (!shopIdResult.success) return shopIdResult;
     const shopId = shopIdResult.data;
     const admin = await createAdminClient();
@@ -116,7 +126,7 @@ export async function updateMercadoPagoKeysAction(publicKey: string, accessToken
       .eq("id", shopId);
 
     if (error) return { success: false, error: error.message };
-    revalidatePath("/dashboard/business");
+    await revalidateDashboardSegments(shopId, ["/business"]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al guardar claves de Mercado Pago" };
@@ -141,11 +151,15 @@ const DEFAULT_BUSINESS_HOURS: BusinessHoursData = {
   sunday:    { open: false, start: "09:00", end: "20:00" },
 };
 
-export async function fetchBusinessHours(): Promise<ActionResult<BusinessHoursData>> {
+export async function fetchBusinessHours(shopIdOverride?: string): Promise<ActionResult<BusinessHoursData>> {
   try {
-    const shopIdResult = await requireShopId();
-    if (!shopIdResult.success) return shopIdResult;
-    const shopId = shopIdResult.data;
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    }
 
     const { data, error } = await withRetry(async () => {
       const admin = await createAdminClient();
@@ -227,7 +241,7 @@ export async function updateBusinessHours(hours: BusinessHoursData): Promise<Act
       .eq("id", shopId);
 
     if (error) return { success: false, error: error.message };
-    revalidatePath("/dashboard/business");
+    await revalidateDashboardSegments(shopId, ["/business"]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al guardar horarios" };
@@ -260,9 +274,36 @@ export async function updateWhatsappTemplateAction(template: string): Promise<Ac
       .eq("id", shopId);
 
     if (error) return { success: false, error: error.message };
-    revalidatePath("/dashboard/business");
+    await revalidateDashboardSegments(shopId, ["/business"]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al guardar plantilla de WhatsApp" };
+  }
+}
+
+export async function updateLoyaltyProgramAction(enabled: boolean, cutsRequired: number, discountPercent: number): Promise<ActionResult> {
+  try {
+    const shopIdResult = await requireShopId();
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
+    const admin = await createAdminClient();
+
+    const safeCutsRequired = Math.max(1, Math.floor(Number(cutsRequired) || 1));
+    const safeDiscountPercent = Math.max(0, Math.min(100, Math.floor(Number(discountPercent) || 0)));
+
+    const { error } = await admin
+      .from("shops")
+      .update({
+        loyalty_enabled: Boolean(enabled),
+        loyalty_cuts_required: safeCutsRequired,
+        loyalty_discount_percent: safeDiscountPercent,
+      })
+      .eq("id", shopId);
+
+    if (error) return { success: false, error: error.message };
+    await revalidateDashboardSegments(shopId, ["/business", "/customers"]);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al guardar fidelizacion" };
   }
 }

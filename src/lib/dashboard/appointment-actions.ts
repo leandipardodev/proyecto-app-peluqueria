@@ -1,8 +1,8 @@
 "use server";
 
 import { createServerClient } from "@/lib/supabase/server";
-import { revalidatePath } from "next/cache";
-import { createServiceRoleClient, requireShopId } from "@/lib/dashboard/auth-server";
+import { canAccessShopId, createServiceRoleClient, requireShopId } from "@/lib/dashboard/auth-server";
+import { revalidateDashboardSegments } from "@/lib/dashboard/revalidate-dashboard";
 import { createArgentinaDate } from "@/lib/argentina-time";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
@@ -20,23 +20,30 @@ type AppointmentEnriched = {
   end_time: string;
   status: string;
   is_paid: boolean;
+  deposit_amount: number | null;
+  loyalty_reward_applied?: boolean;
+  loyalty_discount_percent_applied?: number;
   notes: string | null;
-  customers: { id: string; nombre: string | null; email: string; telefono: string | null } | null;
+  customers: { id: string; nombre: string | null; email: string; telefono: string | null; loyalty_rewards_available?: number | null } | null;
   staff: { user_id: string; name: string | null; email: string | null } | null;
   services: { id: string; name: string; price: number; duration_minutes: number } | null;
 };
 
-export async function fetchAppointments(startDate: string, endDate: string): Promise<ActionResult<AppointmentEnriched[]>> {
+export async function fetchAppointments(startDate: string, endDate: string, shopIdOverride?: string): Promise<ActionResult<AppointmentEnriched[]>> {
   try {
-    const shopIdResult = await requireShopId();
-    if (!shopIdResult.success) return shopIdResult;
-    const shopId = shopIdResult.data;
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    }
 
     const supabase = await createServerClient();
 
     const { data, error } = await supabase
       .from("appointments")
-      .select("id, customer_id, staff_id, service_id, start_time, end_time, status, is_paid, notes")
+      .select("id, customer_id, staff_id, service_id, start_time, end_time, status, is_paid, deposit_amount, loyalty_reward_applied, loyalty_discount_percent_applied, notes")
       .eq("shop_id", shopId)
       .gte("start_time", startDate)
       .lte("start_time", endDate)
@@ -50,14 +57,14 @@ export async function fetchAppointments(startDate: string, endDate: string): Pro
     const staffIds = [...new Set(appointments.map(a => a.staff_id))];
     const serviceIds = [...new Set(appointments.map(a => a.service_id))];
 
-    const [customersData, staffRpcData, servicesData] = await Promise.all([
-      supabase.from("customers").select("id, nombre, email, telefono").eq("shop_id", shopId).in("id", customerIds),
-      supabase.rpc("get_staff_for_my_shop"),
+    const [customersData, staffRows, servicesData] = await Promise.all([
+      supabase.from("customers").select("id, nombre, email, telefono, loyalty_rewards_available").eq("shop_id", shopId).in("id", customerIds),
+      fetchOperationalStaffByShopId(shopId),
       supabase.from("services").select("id, name, price, duration_minutes").in("id", serviceIds),
     ]);
 
     const customersMap = new Map((customersData.data || []).map(c => [c.id, c]));
-    const staffMap = buildStaffMapFromRpc((staffRpcData.data || []) as StaffRpcRow[], staffIds);
+    const staffMap = buildStaffMapFromRpc(staffRows as StaffRpcRow[], staffIds);
     const servicesMap = new Map((servicesData.data || []).map(s => [s.id, s]));
 
     const enriched = appointments.map(apt => ({
@@ -75,11 +82,15 @@ export async function fetchAppointments(startDate: string, endDate: string): Pro
 
 type ServiceInfo = { id: string; name: string; price: number; duration_minutes: number };
 
-export async function fetchActiveServices(): Promise<ActionResult<ServiceInfo[]>> {
+export async function fetchActiveServices(shopIdOverride?: string): Promise<ActionResult<ServiceInfo[]>> {
   try {
-    const shopIdResult = await requireShopId();
-    if (!shopIdResult.success) return shopIdResult;
-    const shopId = shopIdResult.data;
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    }
 
     const supabase = await createServerClient();
 
@@ -125,19 +136,56 @@ function buildStaffMapFromRpc(rows: StaffRpcRow[], staffIds: string[]) {
   );
 }
 
-export async function fetchStaffMembers(): Promise<ActionResult<StaffMemberInfo[]>> {
+async function fetchOperationalStaffByShopId(shopId: string): Promise<StaffRpcRow[]> {
+  const admin = await createAdminClient();
+  const { data: memberships, error: membershipsError } = await admin
+    .from("shop_memberships")
+    .select("user_id, role")
+    .eq("shop_id", shopId)
+    .eq("is_active", true)
+    .in("role", ["owner", "staff", "admin"]);
+
+  if (membershipsError) throw new Error(membershipsError.message);
+
+  const userIds = (memberships || []).map((m) => m.user_id).filter(Boolean);
+  if (userIds.length === 0) return [];
+
+  const { data: profiles, error: profilesError } = await admin
+    .from("user_profiles")
+    .select("user_id, name, email")
+    .in("user_id", userIds);
+
+  if (profilesError) throw new Error(profilesError.message);
+
+  const profileMap = new Map((profiles || []).map((p) => [p.user_id, p]));
+
+  return (memberships || []).map((m) => {
+    const profile = profileMap.get(m.user_id);
+    return {
+      user_id: m.user_id,
+      role: m.role,
+      name: profile?.name || null,
+      nombre: profile?.name || null,
+      email: profile?.email || null,
+    };
+  });
+}
+
+export async function fetchStaffMembers(shopIdOverride?: string): Promise<ActionResult<StaffMemberInfo[]>> {
   try {
-    const supabase = await createServerClient();
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    }
+    const rows = await fetchOperationalStaffByShopId(shopId);
 
-    const { data, error } = await supabase.rpc("get_staff_for_my_shop");
-
-    if (error) return { success: false, error: error.message };
-
-    const rows = (data || []) as StaffRpcRow[];
     return {
       success: true,
       data: rows
-        .filter((s) => s.role === "owner" || s.role === "staff")
+        .filter((s) => s.role === "owner" || s.role === "staff" || s.role === "admin")
         .map((s) => ({ id: s.user_id, role: s.role, name: s.name ?? s.nombre ?? null, email: s.email })),
     };
   } catch (e) {
@@ -145,11 +193,18 @@ export async function fetchStaffMembers(): Promise<ActionResult<StaffMemberInfo[
   }
 }
 
-export async function createAppointment(formData: FormData): Promise<ActionResult> {
+export async function createAppointment(formData: FormData, shopId: string): Promise<ActionResult> {
   try {
-    const shopIdResult = await requireShopId();
-    if (!shopIdResult.success) return shopIdResult;
-    const shopId = shopIdResult.data;
+    if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+
+    const auth = await createServerClient();
+    const {
+      data: { user },
+    } = await auth.auth.getUser();
+    if (!user) return { success: false, error: "SESION_EXPIRADA" };
+
+    const allowed = await canAccessShopId(user.id, shopId);
+    if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
 
     const customerId = formData.get("customer_id") as string;
     const staffId = formData.get("staff_id") as string;
@@ -157,9 +212,14 @@ export async function createAppointment(formData: FormData): Promise<ActionResul
     const startDate = formData.get("start_date") as string;
     const startTime = formData.get("start_time") as string;
     const notes = formData.get("notes") as string;
+    const depositAmountRaw = (formData.get("deposit_amount") as string) || "";
+    const depositAmount = depositAmountRaw ? Number(depositAmountRaw) : null;
 
     if (!customerId || !staffId || !serviceId || !startDate || !startTime) {
       return { success: false, error: "Todos los campos obligatorios deben completarse" };
+    }
+    if (depositAmount !== null && (Number.isNaN(depositAmount) || depositAmount < 0)) {
+      return { success: false, error: "La seña debe ser un monto válido" };
     }
 
     const supabase = await createServerClient();
@@ -197,24 +257,32 @@ export async function createAppointment(formData: FormData): Promise<ActionResul
       end_time: endIso,
       date_key_ar: startDate.slice(0, 7),
       status: "scheduled",
+      deposit_amount: depositAmount,
+      is_paid: depositAmount !== null && depositAmount > 0,
       notes: notes || null,
     });
 
     if (error) return { success: false, error: error.message };
 
-    revalidatePath("/dashboard/calendar");
-    revalidatePath("/dashboard");
+    await revalidateDashboardSegments(shopId, ["/calendar", ""]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al crear turno" };
   }
 }
 
-export async function createCustomerAndAppointment(formData: FormData): Promise<ActionResult> {
+export async function createCustomerAndAppointment(formData: FormData, shopId: string): Promise<ActionResult> {
   try {
-    const shopIdResult = await requireShopId();
-    if (!shopIdResult.success) return shopIdResult;
-    const shopId = shopIdResult.data;
+    if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+
+    const auth = await createServerClient();
+    const {
+      data: { user },
+    } = await auth.auth.getUser();
+    if (!user) return { success: false, error: "SESION_EXPIRADA" };
+
+    const allowed = await canAccessShopId(user.id, shopId);
+    if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
 
     const customerName = formData.get("customer_name") as string;
     const customerEmail = formData.get("customer_email") as string;
@@ -224,9 +292,14 @@ export async function createCustomerAndAppointment(formData: FormData): Promise<
     const startDate = formData.get("start_date") as string;
     const startTime = formData.get("start_time") as string;
     const notes = formData.get("notes") as string;
+    const depositAmountRaw = (formData.get("deposit_amount") as string) || "";
+    const depositAmount = depositAmountRaw ? Number(depositAmountRaw) : null;
 
     if (!customerName || !customerEmail || !serviceId || !startDate || !startTime) {
       return { success: false, error: "Nombre, email, servicio, fecha y hora son obligatorios" };
+    }
+    if (depositAmount !== null && (Number.isNaN(depositAmount) || depositAmount < 0)) {
+      return { success: false, error: "La seña debe ser un monto válido" };
     }
 
     const supabase = await createServerClient();
@@ -281,13 +354,14 @@ export async function createCustomerAndAppointment(formData: FormData): Promise<
       end_time: endIso,
       date_key_ar: startDate.slice(0, 7),
       status: "scheduled",
+      deposit_amount: depositAmount,
+      is_paid: depositAmount !== null && depositAmount > 0,
       notes: notes || null,
     });
 
     if (aptError) return { success: false, error: aptError.message };
 
-    revalidatePath("/dashboard/calendar");
-    revalidatePath("/dashboard");
+    await revalidateDashboardSegments(shopId, ["/calendar", ""]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al crear turno y cliente" };
@@ -300,23 +374,29 @@ type AppointmentTableRow = {
   end_time: string;
   status: string;
   is_paid: boolean;
-  customers: { id: string; nombre: string | null; email: string; telefono: string | null } | null;
+  deposit_amount: number | null;
+  loyalty_reward_applied?: boolean;
+  loyalty_discount_percent_applied?: number;
+  customers: { id: string; nombre: string | null; email: string; telefono: string | null; loyalty_rewards_available?: number | null } | null;
   staff: { user_id: string; name: string | null } | null;
   services: { id: string; name: string; price: number } | null;
 };
 
-export async function fetchAllAppointmentsForTable(): Promise<ActionResult<AppointmentTableRow[]>> {
+export async function fetchAllAppointmentsForTable(shopIdOverride?: string): Promise<ActionResult<AppointmentTableRow[]>> {
   try {
-    const shopIdResult = await requireShopId();
-    if (!shopIdResult.success) return shopIdResult;
-    const shopId = shopIdResult.data;
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    }
 
     const admin = await createAdminClient();
-    const supabase = await createServerClient();
 
     const { data: appointments, error: aptError } = await admin
       .from("appointments")
-      .select("id, start_time, end_time, status, is_paid, customer_id, staff_id, service_id")
+      .select("id, start_time, end_time, status, is_paid, deposit_amount, loyalty_reward_applied, loyalty_discount_percent_applied, customer_id, staff_id, service_id")
       .eq("shop_id", shopId)
       .order("start_time", { ascending: true });
 
@@ -329,20 +409,20 @@ export async function fetchAllAppointmentsForTable(): Promise<ActionResult<Appoi
     const staffIds = [...new Set((appointments || []).map(a => a.staff_id).filter(Boolean))];
     const serviceIds = [...new Set((appointments || []).map(a => a.service_id).filter(Boolean))];
 
-    const [customersRes, staffRpcRes, servicesRes] = await Promise.all([
+    const [customersRes, staffRows, servicesRes] = await Promise.all([
       customerIds.length > 0
-        ? admin.from("customers").select("id, nombre, email, telefono").eq("shop_id", shopId).in("id", customerIds)
+        ? admin.from("customers").select("id, nombre, email, telefono, loyalty_rewards_available").eq("shop_id", shopId).in("id", customerIds)
         : { data: [], error: null },
-      staffIds.length > 0 ? supabase.rpc("get_staff_for_my_shop") : { data: [], error: null },
+      staffIds.length > 0 ? fetchOperationalStaffByShopId(shopId) : Promise.resolve([] as StaffRpcRow[]),
       serviceIds.length > 0
         ? admin.from("services").select("id, name, price").in("id", serviceIds)
         : { data: [], error: null },
     ]);
 
-    const customerRows = (customersRes.data || []) as Array<{ id: string; nombre: string | null; email: string; telefono: string | null }>;
+    const customerRows = (customersRes.data || []) as Array<{ id: string; nombre: string | null; email: string; telefono: string | null; loyalty_rewards_available?: number | null }>;
     const customerMap = new Map(customerRows.map((c) => [c.id, c]));
     const staffMap = new Map(
-      Array.from(buildStaffMapFromRpc((staffRpcRes.data || []) as StaffRpcRow[], staffIds)).map(([userId, row]) => [
+      Array.from(buildStaffMapFromRpc(staffRows as StaffRpcRow[], staffIds)).map(([userId, row]) => [
         userId,
         { user_id: row.user_id, name: row.name },
       ])
@@ -356,6 +436,9 @@ export async function fetchAllAppointmentsForTable(): Promise<ActionResult<Appoi
       end_time: apt.end_time,
       status: apt.status,
       is_paid: apt.is_paid,
+      deposit_amount: apt.deposit_amount,
+      loyalty_reward_applied: apt.loyalty_reward_applied,
+      loyalty_discount_percent_applied: apt.loyalty_discount_percent_applied,
       customers: customerMap.get(apt.customer_id) || null,
       staff: staffMap.get(apt.staff_id) || null,
       services: serviceMap.get(apt.service_id) || null,
@@ -370,18 +453,46 @@ export async function fetchAllAppointmentsForTable(): Promise<ActionResult<Appoi
 export async function updateAppointmentStatus(
   id: string,
   status: string,
-  isPaid?: boolean
+  isPaid?: boolean,
+  shopId?: string,
+  depositAmount?: number | null
 ): Promise<ActionResult> {
   try {
-    const shopIdResult = await requireShopId();
-    if (!shopIdResult.success) return shopIdResult;
-    const shopId = shopIdResult.data;
+    if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+
+    const auth = await createServerClient();
+    const {
+      data: { user },
+    } = await auth.auth.getUser();
+    if (!user) return { success: false, error: "SESION_EXPIRADA" };
+
+    const allowed = await canAccessShopId(user.id, shopId);
+    if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
 
     const supabase = await createServerClient();
+
+    const { data: currentAppointment, error: currentAppointmentError } = await supabase
+      .from("appointments")
+      .select("status, customer_id")
+      .eq("id", id)
+      .eq("shop_id", shopId)
+      .maybeSingle();
+
+    if (currentAppointmentError) return { success: false, error: currentAppointmentError.message };
+    if (!currentAppointment) return { success: false, error: "Turno no encontrado" };
 
     const updates: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
     if (isPaid !== undefined) {
       updates.is_paid = isPaid;
+    }
+    if (depositAmount !== undefined) {
+      if (depositAmount !== null && (Number.isNaN(depositAmount) || depositAmount < 0)) {
+        return { success: false, error: "La seña debe ser un monto válido" };
+      }
+      updates.deposit_amount = depositAmount;
+      if (isPaid === undefined && depositAmount !== null) {
+        updates.is_paid = depositAmount > 0;
+      }
     }
 
     const { error } = await supabase
@@ -392,19 +503,80 @@ export async function updateAppointmentStatus(
 
     if (error) return { success: false, error: error.message };
 
-    revalidatePath("/dashboard/calendar");
-    revalidatePath("/dashboard");
+    const shouldRegisterLoyaltyCut =
+      status === "completed" &&
+      currentAppointment.status !== "completed" &&
+      typeof currentAppointment.customer_id === "string" &&
+      currentAppointment.customer_id.length > 0;
+
+    if (shouldRegisterLoyaltyCut) {
+      const loyaltyResult = await registerLoyaltyCut(shopId, currentAppointment.customer_id as string);
+      if (!loyaltyResult.success) {
+        return loyaltyResult;
+      }
+    }
+
+    await revalidateDashboardSegments(shopId, ["/calendar", ""]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al actualizar turno" };
   }
 }
 
-export async function deleteAppointment(id: string): Promise<ActionResult> {
+async function registerLoyaltyCut(shopId: string, customerId: string): Promise<ActionResult> {
+  const admin = await createAdminClient();
+
+  const { data: shopData, error: shopError } = await admin
+    .from("shops")
+    .select("loyalty_enabled, loyalty_cuts_required")
+    .eq("id", shopId)
+    .single();
+
+  if (shopError) return { success: false, error: shopError.message };
+
+  if (!shopData?.loyalty_enabled) {
+    return { success: true };
+  }
+
+  const requiredCuts = Math.max(1, Number(shopData.loyalty_cuts_required || 1));
+
+  const { data: customerData, error: customerError } = await admin
+    .from("customers")
+    .select("loyalty_cuts_count, loyalty_rewards_available")
+    .eq("id", customerId)
+    .eq("shop_id", shopId)
+    .single();
+
+  if (customerError) return { success: false, error: customerError.message };
+
+  const currentCuts = Math.max(0, Number(customerData?.loyalty_cuts_count || 0));
+  const currentRewards = Math.max(0, Number(customerData?.loyalty_rewards_available || 0));
+  const nextCutsRaw = currentCuts + 1;
+  const rewardsToAdd = Math.floor(nextCutsRaw / requiredCuts);
+  const nextCuts = nextCutsRaw % requiredCuts;
+
+  const { error: updateCustomerError } = await admin
+    .from("customers")
+    .update({
+      loyalty_cuts_count: nextCuts,
+      loyalty_rewards_available: currentRewards + rewardsToAdd,
+    })
+    .eq("id", customerId)
+    .eq("shop_id", shopId);
+
+  if (updateCustomerError) return { success: false, error: updateCustomerError.message };
+  return { success: true };
+}
+
+export async function deleteAppointment(id: string, shopIdOverride?: string): Promise<ActionResult> {
   try {
-    const shopIdResult = await requireShopId();
-    if (!shopIdResult.success) return shopIdResult;
-    const shopId = shopIdResult.data;
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    }
 
     const supabase = await createServerClient();
 
@@ -416,11 +588,96 @@ export async function deleteAppointment(id: string): Promise<ActionResult> {
 
     if (error) return { success: false, error: error.message };
 
-    revalidatePath("/dashboard/calendar");
-    revalidatePath("/dashboard/appointments");
-    revalidatePath("/dashboard");
+    await revalidateDashboardSegments(shopId, ["/calendar", "/appointments", ""]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al eliminar turno" };
+  }
+}
+
+export async function redeemLoyaltyReward(appointmentId: string, shopIdOverride?: string): Promise<ActionResult<{ discountPercent: number }>> {
+  try {
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    }
+
+    const auth = await createServerClient();
+    const {
+      data: { user },
+    } = await auth.auth.getUser();
+    if (!user) return { success: false, error: "SESION_EXPIRADA" };
+
+    const allowed = await canAccessShopId(user.id, shopId);
+    if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
+
+    const admin = await createAdminClient();
+
+    const { data: appointment, error: appointmentError } = await admin
+      .from("appointments")
+      .select("id, customer_id, service_id, is_paid, loyalty_reward_applied")
+      .eq("id", appointmentId)
+      .eq("shop_id", shopId)
+      .single();
+
+    if (appointmentError) return { success: false, error: appointmentError.message };
+    if (!appointment?.customer_id) return { success: false, error: "El turno no tiene cliente asignado" };
+    if (appointment.loyalty_reward_applied) return { success: false, error: "Este turno ya tiene un canje aplicado" };
+
+    const { data: shopData, error: shopError } = await admin
+      .from("shops")
+      .select("loyalty_enabled, loyalty_discount_percent")
+      .eq("id", shopId)
+      .single();
+
+    if (shopError) return { success: false, error: shopError.message };
+    if (!shopData?.loyalty_enabled) return { success: false, error: "La fidelizacion esta desactivada" };
+
+    const discountPercent = Math.max(0, Math.min(100, Number(shopData.loyalty_discount_percent || 0)));
+
+    const { data: customer, error: customerError } = await admin
+      .from("customers")
+      .select("loyalty_rewards_available")
+      .eq("id", appointment.customer_id)
+      .eq("shop_id", shopId)
+      .single();
+
+    if (customerError) return { success: false, error: customerError.message };
+
+    const rewardsAvailable = Math.max(0, Number(customer?.loyalty_rewards_available || 0));
+    if (rewardsAvailable <= 0) return { success: false, error: "El cliente no tiene canjes disponibles" };
+
+    const { error: updateCustomerError } = await admin
+      .from("customers")
+      .update({ loyalty_rewards_available: rewardsAvailable - 1 })
+      .eq("id", appointment.customer_id)
+      .eq("shop_id", shopId);
+
+    if (updateCustomerError) return { success: false, error: updateCustomerError.message };
+
+    const appointmentUpdates: Record<string, unknown> = {
+      loyalty_reward_applied: true,
+      loyalty_discount_percent_applied: discountPercent,
+      updated_at: new Date().toISOString(),
+    };
+    if (discountPercent === 100) {
+      appointmentUpdates.is_paid = true;
+    }
+
+    const { error: updateAppointmentError } = await admin
+      .from("appointments")
+      .update(appointmentUpdates)
+      .eq("id", appointmentId)
+      .eq("shop_id", shopId);
+
+    if (updateAppointmentError) return { success: false, error: updateAppointmentError.message };
+
+    await revalidateDashboardSegments(shopId, ["/calendar", "/appointments", "/customers", ""]);
+    return { success: true, data: { discountPercent } };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al canjear fidelizacion" };
   }
 }

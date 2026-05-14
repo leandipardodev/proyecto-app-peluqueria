@@ -2,8 +2,10 @@
 
 import { X, Check, XCircle, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { deleteAppointment, updateAppointmentStatus } from "@/lib/dashboard/appointment-actions";
+import { deleteAppointment, redeemLoyaltyReward, updateAppointmentStatus } from "@/lib/dashboard/appointment-actions";
 import { AnimatePresence, motion } from "framer-motion";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
+import { useToast } from "@/components/ui/toast";
 
 const IOS_MODAL_SPRING = { stiffness: 460, damping: 34, mass: 0.65 };
 
@@ -13,13 +15,17 @@ type Appointment = {
   end_time: string;
   status: string;
   is_paid: boolean;
+  deposit_amount?: number | null;
+  loyalty_reward_applied?: boolean;
+  loyalty_discount_percent_applied?: number;
   notes: string | null;
-  customers: { nombre: string | null; email: string; telefono: string | null } | null;
+  customers: { nombre: string | null; email: string; telefono: string | null; loyalty_rewards_available?: number | null } | null;
   staff: { name: string; email: string } | null;
   services: { name: string; price: number; duration_minutes: number } | null;
 };
 
 interface AppointmentDetailModalProps {
+  shopId: string;
   appointment: Appointment | null;
   onClose: () => void;
 }
@@ -50,6 +56,7 @@ function getTurnoStatusLabel(status: string, isPaid: boolean): string {
 }
 
 export default function AppointmentDetailModal({
+  shopId,
   appointment,
   onClose,
 }: AppointmentDetailModalProps) {
@@ -58,6 +65,8 @@ export default function AppointmentDetailModal({
   const [localStatus, setLocalStatus] = useState(appointment?.status || "");
   const [localPaid, setLocalPaid] = useState(appointment?.is_paid || false);
   const [error, setError] = useState<string | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const { addToast } = useToast();
 
   useEffect(() => {
     if (!appointment) return;
@@ -81,7 +90,9 @@ export default function AppointmentDetailModal({
     startTransition(async () => {
       const result = await updateAppointmentStatus(
         appointment.id,
-        newStatus
+        newStatus,
+        undefined,
+        shopId
       );
       if (result.success) {
         setLocalStatus(newStatus);
@@ -99,7 +110,8 @@ export default function AppointmentDetailModal({
       const result = await updateAppointmentStatus(
         appointment.id,
         localStatus,
-        newPaid
+        newPaid,
+        shopId
       );
       if (result.success) {
         setLocalPaid(newPaid);
@@ -111,17 +123,35 @@ export default function AppointmentDetailModal({
 
   function handleDeleteAppointment() {
     if (!appointment) return;
-    const confirmed = window.confirm("Esta accion elimina el turno definitivamente. No se puede deshacer. Continuar?");
-    if (!confirmed) return;
+    setDeleteConfirmOpen(true);
+  }
+
+  function confirmDeleteAppointment() {
+    if (!appointment) return;
 
     setError(null);
     startTransition(async () => {
-      const result = await deleteAppointment(appointment.id);
+      const result = await deleteAppointment(appointment.id, shopId);
       if (result.success) {
+        setDeleteConfirmOpen(false);
         onClose();
       } else {
         setError(result.error);
       }
+    });
+  }
+
+  function handleRedeemLoyaltyReward() {
+    if (!appointment) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await redeemLoyaltyReward(appointment.id, shopId);
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+      addToast(`Canje aplicado (${result.data?.discountPercent ?? 0}% de descuento).`, "success");
+      onClose();
     });
   }
 
@@ -202,6 +232,13 @@ export default function AppointmentDetailModal({
                 ${appointment.services?.price.toFixed(2) || "—"}
               </p>
             </div>
+          </div>
+
+          <div>
+            <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">Seña</span>
+            <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mt-0.5">
+              {appointment.deposit_amount ? `$${appointment.deposit_amount.toFixed(2)}` : "Sin seña"}
+            </p>
           </div>
 
           <div>
@@ -297,9 +334,42 @@ export default function AppointmentDetailModal({
                 Eliminar definitivamente
               </button>
             </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-700 dark:text-gray-300">Fidelizacion</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                Canjes: {Math.max(0, Number(appointment.customers?.loyalty_rewards_available || 0))}
+              </span>
+            </div>
+
+            {!appointment.loyalty_reward_applied && (
+              <button
+                onClick={handleRedeemLoyaltyReward}
+                disabled={pending || Math.max(0, Number(appointment.customers?.loyalty_rewards_available || 0)) <= 0}
+                className="w-full flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950 hover:bg-violet-100 dark:hover:bg-violet-900 transition-colors cursor-pointer select-none disabled:opacity-50"
+              >
+                Aplicar canje de fidelizacion
+              </button>
+            )}
+
+            {appointment.loyalty_reward_applied && (
+              <p className="text-xs text-emerald-700 dark:text-emerald-300">
+                Canje aplicado: {appointment.loyalty_discount_percent_applied || 0}% de descuento.
+              </p>
+            )}
           </div>
-        </div>
+            </div>
           </motion.div>
+
+          <ConfirmDialog
+            open={deleteConfirmOpen}
+            title="Eliminar turno"
+            message="Esta accion elimina el turno definitivamente y no se puede deshacer."
+            confirmLabel="Eliminar"
+            danger
+            onCancel={() => setDeleteConfirmOpen(false)}
+            onConfirm={confirmDeleteAppointment}
+          />
         </motion.div>
       )}
     </AnimatePresence>
