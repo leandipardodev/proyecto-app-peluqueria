@@ -18,9 +18,15 @@ function isRunningStandalone(): boolean {
 export default function PwaInstallButton() {
   const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(true);
+  const [isIosFallbackVisible, setIsIosFallbackVisible] = useState(false);
 
   useEffect(() => {
     setIsInstalled(isRunningStandalone());
+
+    const ua = typeof window !== "undefined" ? window.navigator.userAgent : "";
+    const isIOS = /iPad|iPhone|iPod/.test(ua) || (window.navigator.platform === "MacIntel" && window.navigator.maxTouchPoints > 1);
+    const isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
+    setIsIosFallbackVisible(isIOS && isSafari && !isRunningStandalone());
 
     function handleBeforeInstallPrompt(e: Event) {
       e.preventDefault();
@@ -31,6 +37,7 @@ export default function PwaInstallButton() {
     function handleInstalled() {
       setIsInstalled(true);
       setInstallPromptEvent(null);
+      setIsIosFallbackVisible(false);
     }
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
@@ -50,6 +57,16 @@ export default function PwaInstallButton() {
       setIsInstalled(true);
       setInstallPromptEvent(null);
     }
+  }
+
+  if (isIosFallbackVisible && !isInstalled) {
+    return (
+      <div className="pt-2">
+        <div className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/35 dark:bg-white/[0.06] backdrop-blur-xl px-4 py-3 text-sm text-zinc-800 dark:text-zinc-100">
+          Para instalar Klip en iPhone: toca <strong>Compartir</strong> en Safari y luego <strong>Agregar a pantalla de inicio</strong>.
+        </div>
+      </div>
+    );
   }
 
   if (isInstalled || !installPromptEvent) return null;

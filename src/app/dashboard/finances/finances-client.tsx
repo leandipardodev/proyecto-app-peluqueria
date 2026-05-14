@@ -524,7 +524,7 @@ export default function FinancesClient({
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-black/10"
+                    className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-y-contain backdrop-blur-sm bg-black/10 p-3 sm:p-4"
                     onClick={() => setShowExpenseForm(false)}
                   >
                     <motion.div
@@ -533,7 +533,7 @@ export default function FinancesClient({
                       exit={{ scale: 0.95, opacity: 0 }}
                       transition={{ duration: 0.2 }}
                       onClick={(e) => e.stopPropagation()}
-                      className="bg-white/20 dark:bg-[#1c1c1e] backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] w-full max-w-md mx-4 overflow-hidden"
+                      className="bg-white/20 dark:bg-[#1c1c1e] backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] w-full max-w-md overflow-hidden max-h-[88dvh] flex flex-col"
                     >
                       <div className="flex items-center justify-between px-6 py-4 border-b border-white/20 dark:border-white/10">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Nuevo Gasto</h3>
@@ -544,7 +544,7 @@ export default function FinancesClient({
                           <X className="w-5 h-5" />
                         </button>
                       </div>
-                      <form onSubmit={handleExpenseSubmit} className="p-6 space-y-4">
+                      <form onSubmit={handleExpenseSubmit} className="p-6 space-y-4 overflow-y-auto overscroll-y-contain">
                         {expenseError && (
                           <div className="bg-red-50/80 backdrop-blur-md text-red-700 dark:text-red-300 text-sm px-4 py-2 rounded-full border border-red-200/30 dark:border-red-500/20">
                             {expenseError}

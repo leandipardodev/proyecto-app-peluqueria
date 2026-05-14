@@ -161,12 +161,12 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
       {(shopSlugOverride || summary.shopSlug) && voucherAlertsResult.success && (voucherAlertsResult.data?.length || 0) > 0 && (
         <VoucherBirthdayAlert shopSlug={shopSlugOverride || summary.shopSlug} items={voucherAlertsResult.data || []} />
       )}
-      <div className="flex items-start justify-between gap-4">
-        <div>
+      <div className="flex min-w-0 items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white capitalize tracking-tight">
             {today}
           </h1>
-          <div className="mt-3 flex items-center gap-2">
+          <div className="mt-3 flex min-w-0 items-center gap-2 overflow-hidden">
             <a
               href={whatsappHref}
               target="_blank"
@@ -199,7 +199,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
               </a>
             )}
             <span
-              className="social-tag-hero ml-3 text-[2rem] sm:text-[2.15rem] leading-none font-medium tracking-[-0.02em] select-none"
+              className="social-tag-hero ml-2 sm:ml-3 min-w-0 max-w-[34vw] sm:max-w-[260px] truncate text-[1rem] sm:text-[2rem] leading-none font-medium tracking-[-0.02em] select-none"
               style={{
                 backgroundImage:
                   "linear-gradient(112deg, rgba(15,23,42,0.9) 0%, rgba(71,85,105,0.82) 32%, rgba(59,130,246,0.74) 62%, rgba(125,211,252,0.8) 78%, rgba(14,165,233,0.68) 100%)",

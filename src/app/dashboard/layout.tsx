@@ -80,7 +80,7 @@ export default async function DashboardLayout({
   const managedShops = await getManagedShops(user.id);
 
   return (
-    <div className="flex h-screen bg-transparent transition-colors relative overflow-hidden">
+    <div className="flex min-h-[100dvh] bg-transparent transition-colors relative overflow-hidden">
       {/* Persistent background orbs — never re-render on page navigation */}
       <div className="fixed top-[-15%] left-[-8%] w-[600px] h-[600px] rounded-full bg-violet-500/10 blur-3xl pointer-events-none" />
       <div className="fixed bottom-[-15%] right-[-8%] w-[500px] h-[500px] rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
@@ -100,7 +100,7 @@ export default async function DashboardLayout({
           managedShops={managedShops}
         />
 
-        <main className="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8">
+        <main className="flex-1 overflow-y-auto overscroll-y-contain p-3 sm:p-6 lg:p-8">
           <DashboardPageTransition>{children}</DashboardPageTransition>
         </main>
       </div>

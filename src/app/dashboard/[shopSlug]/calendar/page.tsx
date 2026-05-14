@@ -60,7 +60,7 @@ export default async function CalendarByShopSlugPage({
       fetchWhatsappTemplate(shopId),
       fetchShopNameById(shopId),
       fetchShopPhoneById(shopId),
-      fetchAllAppointmentsForTable(shopId),
+      fetchAllAppointmentsForTable(shopId, { upcomingOnly: true, limit: 10 }),
       fetchShopAddressById(shopId),
       fetchCanManageBilling(shopId, session.user.id),
     ]);

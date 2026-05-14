@@ -136,7 +136,7 @@ export default function AppointmentsTable({ shopId, initialAppointments, service
   return (
     <div className="p-3 sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Turnos</h1>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Proximos 10 turnos</h1>
         <Button onClick={() => setShowForm(true)}>Nuevo Turno</Button>
       </div>
 

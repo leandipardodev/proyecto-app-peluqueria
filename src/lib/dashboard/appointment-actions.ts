@@ -382,7 +382,10 @@ type AppointmentTableRow = {
   services: { id: string; name: string; price: number } | null;
 };
 
-export async function fetchAllAppointmentsForTable(shopIdOverride?: string): Promise<ActionResult<AppointmentTableRow[]>> {
+export async function fetchAllAppointmentsForTable(
+  shopIdOverride?: string,
+  options?: { limit?: number; upcomingOnly?: boolean }
+): Promise<ActionResult<AppointmentTableRow[]>> {
   try {
     let shopId: string | undefined = shopIdOverride;
     if (!shopId) {
@@ -394,11 +397,23 @@ export async function fetchAllAppointmentsForTable(shopIdOverride?: string): Pro
 
     const admin = await createAdminClient();
 
-    const { data: appointments, error: aptError } = await admin
+    const limit = options?.limit;
+    const upcomingOnly = options?.upcomingOnly === true;
+    let appointmentsQuery = admin
       .from("appointments")
       .select("id, start_time, end_time, status, is_paid, deposit_amount, loyalty_reward_applied, loyalty_discount_percent_applied, customer_id, staff_id, service_id")
       .eq("shop_id", shopId)
       .order("start_time", { ascending: true });
+
+    if (upcomingOnly) {
+      appointmentsQuery = appointmentsQuery.gte("start_time", new Date().toISOString());
+    }
+
+    if (typeof limit === "number" && Number.isFinite(limit) && limit > 0) {
+      appointmentsQuery = appointmentsQuery.limit(Math.floor(limit));
+    }
+
+    const { data: appointments, error: aptError } = await appointmentsQuery;
 
     if (aptError) {
       console.error("[fetchAllAppointmentsForTable] appointments error:", aptError);

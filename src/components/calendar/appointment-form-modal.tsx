@@ -142,7 +142,7 @@ export default function AppointmentFormModal({
       {open && (
         <motion.div
           ref={backdropRef}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-white/40 dark:bg-black/40 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-y-contain bg-white/40 p-3 dark:bg-black/40 backdrop-blur-sm sm:p-4"
           onClick={(e) => {
             if (e.target === backdropRef.current) onClose();
           }}
@@ -152,7 +152,7 @@ export default function AppointmentFormModal({
           transition={{ duration: 0.22 }}
         >
           <motion.div
-             className="bg-white/60 dark:bg-black/60 backdrop-blur-3xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] w-full max-w-lg mx-4 overflow-hidden max-h-[90vh] flex flex-col transition-colors"
+             className="bg-white/60 dark:bg-black/60 backdrop-blur-3xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] w-full max-w-lg overflow-hidden max-h-[88dvh] flex flex-col transition-colors"
             initial={{ opacity: 0, y: 56, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 40, scale: 0.985 }}
@@ -168,7 +168,7 @@ export default function AppointmentFormModal({
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto flex-1">
+        <div className="p-6 overflow-y-auto overscroll-y-contain flex-1">
           <form id="appointment-form" onSubmit={handleSubmit}>
             {error === "slot_taken" ? (
               <div className="mb-4 bg-amber-100/40 dark:bg-amber-950/40 backdrop-blur-md border border-amber-200/30 dark:border-amber-800/30 text-amber-800 dark:text-amber-200 text-sm px-4 py-3 rounded-2xl flex items-start gap-3">
