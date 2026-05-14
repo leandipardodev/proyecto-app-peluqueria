@@ -806,17 +806,6 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
         </div>
       </header>
 
-      {!mobileOpen && (
-        <button
-          onClick={handleMobileOpen}
-          className="fixed bottom-4 right-4 z-40 lg:hidden inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/30 dark:border-white/10 bg-white/70 dark:bg-black/55 backdrop-blur-xl text-gray-700 dark:text-gray-100 shadow-lg shadow-black/10"
-          aria-label="Abrir menu de navegacion"
-          title="Menu"
-        >
-          <Menu className="w-5 h-5" strokeWidth={1.5} />
-        </button>
-      )}
-
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
