@@ -392,7 +392,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
 
   return (
     <>
-      <header className="relative z-40 flex items-center gap-4 bg-white/10 dark:bg-black/10 backdrop-blur-xl border-b border-white/20 dark:border-white/10 px-4 py-2.5 lg:px-6 transition-colors">
+      <header className="sticky top-0 z-40 flex items-center gap-4 bg-white/10 dark:bg-black/10 backdrop-blur-xl border-b border-white/20 dark:border-white/10 px-4 py-2.5 lg:px-6 transition-colors">
         <button
           onClick={handleMobileOpen}
           className="lg:hidden p-2 rounded-xl text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/5 transition-all cursor-pointer select-none"
@@ -805,6 +805,17 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
           </div>
         </div>
       </header>
+
+      {!mobileOpen && (
+        <button
+          onClick={handleMobileOpen}
+          className="fixed bottom-4 right-4 z-40 lg:hidden inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/30 dark:border-white/10 bg-white/70 dark:bg-black/55 backdrop-blur-xl text-gray-700 dark:text-gray-100 shadow-lg shadow-black/10"
+          aria-label="Abrir menu de navegacion"
+          title="Menu"
+        >
+          <Menu className="w-5 h-5" strokeWidth={1.5} />
+        </button>
+      )}
 
       <AnimatePresence>
         {mobileOpen && (
