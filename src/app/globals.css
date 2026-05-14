@@ -19,11 +19,11 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     -webkit-text-size-adjust: 100%;
-    overflow-x: clip;
+    overflow-x: hidden;
     min-height: 100dvh;
   }
   body {
-    overflow-x: clip;
+    overflow-x: hidden;
     min-height: 100dvh;
   }
   input:where(:not([type="checkbox"], [type="radio"], [type="submit"], [type="button"], [type="reset"])),

@@ -8,6 +8,11 @@ const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "700", "900"] }
 
 type RevenueChartProps = {
   data: Array<{ month: string; income: number; expenses: number }>;
+  flowByPeriod?: {
+    today: { income: number; expenses: number };
+    week: { income: number; expenses: number };
+    month: { income: number; expenses: number };
+  };
 };
 
 function formatMoney(value: number): string {
@@ -49,16 +54,26 @@ function CompactLabel(props: any) {
   );
 }
 
-export default function RevenueChart({ data }: RevenueChartProps) {
+export default function RevenueChart({ data, flowByPeriod }: RevenueChartProps) {
   const [hoveredBar, setHoveredBar] = useState<string | null>(null);
+  const [period, setPeriod] = useState<"today" | "week" | "month">("today");
 
   const totals = useMemo(() => {
     const lastMonth = data[data.length - 1];
-    return {
-      income: lastMonth?.income ?? 0,
-      expenses: lastMonth?.expenses ?? 0,
+    const fallback = {
+      today: { income: lastMonth?.income ?? 0, expenses: lastMonth?.expenses ?? 0 },
+      week: { income: lastMonth?.income ?? 0, expenses: lastMonth?.expenses ?? 0 },
+      month: { income: lastMonth?.income ?? 0, expenses: lastMonth?.expenses ?? 0 },
     };
-  }, [data]);
+    const source = flowByPeriod ?? fallback;
+
+    return {
+      income: source[period].income,
+      expenses: source[period].expenses,
+    };
+  }, [data, flowByPeriod, period]);
+
+  const netResult = totals.income - totals.expenses;
 
   if (data.length === 0) {
     return (
@@ -77,9 +92,31 @@ export default function RevenueChart({ data }: RevenueChartProps) {
       style={{ fontFamily: "Inter, sans-serif" }}
     >
       <h3 className="mb-1 text-sm font-medium text-slate-900 dark:text-white">Ingresos vs Gastos</h3>
-      <p className="mb-8 text-xs text-slate-500">Evolucion mensual</p>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-slate-500">Resultado neto por periodo</p>
+        <div className="inline-flex rounded-full border border-white/20 bg-white/50 p-1 dark:border-slate-700/40 dark:bg-slate-900/45">
+          {([
+            ["today", "Hoy"],
+            ["week", "Semana"],
+            ["month", "Mes"],
+          ] as const).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setPeriod(key)}
+              className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                period === key
+                  ? "bg-[#0071E3] text-white"
+                  : "text-slate-600 hover:bg-white/70 dark:text-slate-300 dark:hover:bg-slate-800/70"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
 
-      <div className="mb-14 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6">
+      <div className="mb-14 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6">
         <div className="rounded-3xl border border-white/20 bg-white/40 px-4 py-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3),0_20px_40px_rgba(0,0,0,0.2)] backdrop-blur-2xl dark:border-slate-700/30 dark:bg-slate-800/40 dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_20px_40px_rgba(0,0,0,0.4)]">
           <p className="text-[10px] font-bold tracking-[0.1em] text-slate-500 dark:text-slate-300">INGRESOS</p>
           <p className="mt-1 text-4xl font-black text-emerald-500" style={{ fontWeight: 900, letterSpacing: "-0.05em", fontVariantNumeric: "tabular-nums" }}>
@@ -94,6 +131,15 @@ export default function RevenueChart({ data }: RevenueChartProps) {
             <span className="mr-0.5 align-top text-[60%] opacity-40">$</span>
             {formatMoney(totals.expenses).replace("ARS", "").replace("$", "").trim()}
           </p>
+        </div>
+
+        <div className="rounded-3xl border border-white/20 bg-white/40 px-4 py-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3),0_20px_40px_rgba(0,0,0,0.2)] backdrop-blur-2xl dark:border-slate-700/30 dark:bg-slate-800/40 dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_20px_40px_rgba(0,0,0,0.4)]">
+          <p className="text-[10px] font-bold tracking-[0.1em] text-slate-500 dark:text-slate-300">RESULTADO</p>
+          <p className={`mt-1 text-4xl font-black ${netResult >= 0 ? "text-emerald-500" : "text-rose-500"}`} style={{ fontWeight: 900, letterSpacing: "-0.05em", fontVariantNumeric: "tabular-nums" }}>
+            <span className="mr-0.5 align-top text-[60%] opacity-40">$</span>
+            {formatMoney(Math.abs(netResult)).replace("ARS", "").replace("$", "").trim()}
+          </p>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{netResult >= 0 ? "Superavit" : "Deficit"}</p>
         </div>
       </div>
 

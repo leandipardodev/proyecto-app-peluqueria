@@ -1,5 +1,5 @@
 import { fetchDashboardSummary, fetchDashboardMetrics } from "@/lib/dashboard/dashboard-summary";
-import { CalendarDays, DollarSign, AlertTriangle, TrendingUp, Clock, MessageCircle } from "lucide-react";
+import { CalendarDays, Bell, AlertTriangle, TrendingUp, Clock, MessageCircle } from "lucide-react";
 import ShareLinkCard from "@/components/dashboard/share-link-card";
 import RevenueChart from "@/components/dashboard/revenue-chart";
 import TopServices from "@/components/dashboard/top-services";
@@ -97,12 +97,33 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
   const growthValue = metrics?.stats.growth ?? 0;
   const growthColor = growthValue >= 0 ? "text-green-600" : "text-red-600";
   const growthBg = growthValue >= 0 ? "bg-green-500/10" : "bg-red-500/10";
-  const latestFlowPoint = metrics?.revenueChart?.[metrics.revenueChart.length - 1];
-  const incomeTodayVs = latestFlowPoint?.income ?? summary.revenue;
-  const expensesTodayVs = latestFlowPoint?.expenses ?? 0;
-  const flowTotal = Math.max(incomeTodayVs + expensesTodayVs, 1);
-  const incomeVsPct = Math.max(8, Math.round((incomeTodayVs / flowTotal) * 100));
-  const expensesVsPct = Math.max(8, Math.round((expensesTodayVs / flowTotal) * 100));
+  const nextAppointment = summary.nextAppointments[0];
+  const minutesToNextAppointment = nextAppointment
+    ? Math.round((new Date(nextAppointment.start_time).getTime() - Date.now()) / 60000)
+    : null;
+  const todayVouchersCount = voucherAlertsResult.success ? voucherAlertsResult.data?.length || 0 : 0;
+  const loyaltyRewardsCount = summary.loyaltyRewardsReadyCount || 0;
+  const notificationCard =
+    typeof minutesToNextAppointment === "number" && minutesToNextAppointment >= 0 && minutesToNextAppointment <= 60
+      ? {
+          value: `Turno en ${Math.max(1, minutesToNextAppointment)} min`,
+          hint: nextAppointment?.customers?.nombre ? `Cliente: ${nextAppointment.customers.nombre}` : "Proximo turno confirmado",
+        }
+      : todayVouchersCount > 0
+        ? {
+            value: `${todayVouchersCount} cumpleanos hoy`,
+            hint: "Hay vouchers para enviar hoy",
+          }
+        : loyaltyRewardsCount > 0
+          ? {
+              value: `${loyaltyRewardsCount} canje(s) listo(s)`,
+              hint: "Clientes alcanzaron meta de cortes",
+            }
+          : {
+              value: "Sin alertas urgentes",
+              hint: "Todo bajo control por ahora",
+            };
+
   const cards = [
     {
       label: "Turnos hoy",
@@ -112,11 +133,12 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
       bg: "bg-blue-500/10",
     },
     {
-      label: "Ingresos hoy",
-      value: `$${summary.revenue.toFixed(2)}`,
-      icon: DollarSign,
-      color: "text-green-600",
-      bg: "bg-green-500/10",
+      label: "Notificaciones",
+      value: notificationCard.value,
+      hint: notificationCard.hint,
+      icon: Bell,
+      color: "text-indigo-600",
+      bg: "bg-indigo-500/10",
     },
     {
       label: "Alertas de stock",
@@ -136,7 +158,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
 
   const cardHrefByLabel: Record<string, string> = {
     "Turnos hoy": withDashboardBase("/dashboard/calendar"),
-    "Ingresos hoy": withDashboardBase("/dashboard/finances"),
+    Notificaciones: withDashboardBase("/dashboard/calendar"),
     "Alertas de stock": withDashboardBase("/dashboard/inventory"),
     "Crecimiento": withDashboardBase("/dashboard/business#estadisticas"),
   };
@@ -228,16 +250,15 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
       <ShareLinkCard slug={shopSlugOverride || summary.shopSlug} shopName={summary.shopName} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {cards.map(({ label, value, icon: Icon, color, bg }, idx) => {
+        {cards.map(({ label, value, hint, icon: Icon, color, bg }, idx) => {
           const isGrowthCard = label === "Crecimiento";
-          const isIncomeCard = label === "Ingresos hoy";
           const growthFill = Math.min(Math.max(Math.abs(growthValue), 8), 100);
-          const hasProgress = isIncomeCard || isGrowthCard;
+          const hasProgress = isGrowthCard;
           return (
           <HoverScale key={label}>
             <Link href={cardHrefByLabel[label] || dashboardBasePath} className="block h-full">
               <div
-                className={`glass-sheen-card h-full min-h-[124px] lg:min-h-[132px] bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-6 flex items-center gap-4 transition-colors hover:bg-white/30 dark:hover:bg-white/5 cursor-pointer ${isIncomeCard ? "analytics-card-bg" : ""}`}
+                className="glass-sheen-card h-full min-h-[124px] lg:min-h-[132px] bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-6 flex items-center gap-4 transition-colors hover:bg-white/30 dark:hover:bg-white/5 cursor-pointer"
                 style={{
                   ["--sheen-delay" as any]: `${-0.5 - idx * 2.1}s`,
                   ["--sheen-duration" as any]: `${13.6 + (idx % 3) * 0.8}s`,
@@ -249,16 +270,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
                 <div className="relative z-10 flex-1 min-w-0 flex flex-col">
                   <p className="text-sm text-gray-500 dark:text-zinc-400">{label}</p>
                   <p className="text-xl font-bold tracking-tighter text-gray-900 dark:text-white">{value}</p>
-                  {isIncomeCard && (
-                    <div className="mt-2.5 space-y-2">
-                      <div className="h-2.5 rounded-full bg-emerald-100/55 dark:bg-emerald-900/25 overflow-hidden shadow-inner shadow-emerald-950/10">
-                        <div className="h-full rounded-full flow-mini flow-mini-pos" style={{ width: `${incomeVsPct}%` }} />
-                      </div>
-                      <div className="h-2.5 rounded-full bg-rose-100/55 dark:bg-rose-900/25 overflow-hidden shadow-inner shadow-rose-950/10">
-                        <div className="h-full rounded-full flow-mini flow-mini-neg" style={{ width: `${expensesVsPct}%` }} />
-                      </div>
-                    </div>
-                  )}
+                  {hint && <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400 truncate">{hint}</p>}
                   {isGrowthCard && (
                     <div className="mt-2.5">
                       <div className="h-2 w-full rounded-full bg-zinc-200/70 dark:bg-zinc-700/60 overflow-hidden">
@@ -280,7 +292,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2">
-          <RevenueChart data={metrics?.revenueChart ?? []} />
+          <RevenueChart data={metrics?.revenueChart ?? []} flowByPeriod={metrics?.flowByPeriod} />
         </div>
         <div className="lg:col-span-1">
           <TopServices data={metrics?.topServices ?? []} />
