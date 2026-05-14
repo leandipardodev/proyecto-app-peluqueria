@@ -1,5 +1,6 @@
 import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
 import BookingClient from "./booking-client";
+import { absoluteUrl } from "@/lib/seo";
 
 async function createAdminClient() {
   return createServiceRoleClient();
@@ -66,20 +67,53 @@ export default async function BookPage({ params }: BookPageProps) {
     .map((id) => ({ id, name: profileMap.get(id) || "Sin nombre" }))
     .sort((a, b) => a.name.localeCompare(b.name, "es"));
 
+  const localBusinessJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "HairSalon",
+    name: shop.nombre,
+    description: shop.description || `Reserva de turnos online en ${shop.nombre}`,
+    url: absoluteUrl(`/book/${shop.slug}`),
+    image: absoluteUrl("/hero.png"),
+    telephone: shop.phone || undefined,
+    address: shop.address
+      ? {
+          "@type": "PostalAddress",
+          streetAddress: shop.address,
+          addressCountry: "AR",
+        }
+      : undefined,
+    sameAs: shop.instagram_url ? [shop.instagram_url] : undefined,
+    makesOffer: services.map((service) => ({
+      "@type": "Offer",
+      itemOffered: {
+        "@type": "Service",
+        name: service.name,
+      },
+      price: service.price,
+      priceCurrency: "ARS",
+    })),
+  };
+
   return (
-    <BookingClient
-      shop={{
-        id: shop.id,
-        name: shop.nombre,
-        description: shop.description || "",
-        address: shop.address || "",
-        phone: shop.phone || "",
-        instagramUrl: shop.instagram_url || "",
-        slug: shop.slug || "",
-        mpPublicKey: shop.mp_public_key || "",
-      }}
-      services={services}
-      staffMembers={staffMembers}
-    />
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessJsonLd) }}
+      />
+      <BookingClient
+        shop={{
+          id: shop.id,
+          name: shop.nombre,
+          description: shop.description || "",
+          address: shop.address || "",
+          phone: shop.phone || "",
+          instagramUrl: shop.instagram_url || "",
+          slug: shop.slug || "",
+          mpPublicKey: shop.mp_public_key || "",
+        }}
+        services={services}
+        staffMembers={staffMembers}
+      />
+    </>
   );
 }

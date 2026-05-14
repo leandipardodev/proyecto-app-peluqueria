@@ -1,6 +1,7 @@
 import { createServerClient } from "@/lib/supabase/server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
 import DashboardSidebar from "@/components/dashboard/dashboard-sidebar";
 import DashboardHeader from "@/components/dashboard/dashboard-header";
 import DashboardPageTransition from "@/components/dashboard/dashboard-page-transition";
@@ -10,6 +11,13 @@ import { getTodayArgentinaBounds } from "@/lib/argentina-time";
 import { createServiceRoleClient, getShopId } from "@/lib/dashboard/auth-server";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 async function getUserOrRedirect() {
   const supabase = await createServerClient();
