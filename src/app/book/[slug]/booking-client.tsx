@@ -19,6 +19,7 @@ import { initMercadoPago, Wallet } from "@mercadopago/sdk-react";
 import {
   createPaymentPreference,
   createPublicAppointment,
+  deletePublicAppointment,
   fetchPublicAvailableSlots,
 } from "@/lib/dashboard/public-booking-actions";
 import GoogleSignInButton from "@/components/auth/google-sign-in-button";
@@ -37,6 +38,7 @@ interface BookingClientProps {
     phone: string;
     instagramUrl: string;
     slug: string;
+    mpPublicKey: string;
   };
   services: Service[];
   staffMembers: StaffMember[];
@@ -103,6 +105,8 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
   const [creatingPreference, setCreatingPreference] = useState(false);
   const [paymentPreferenceId, setPaymentPreferenceId] = useState<string | null>(null);
   const [paymentInitPoint, setPaymentInitPoint] = useState<string | null>(null);
+  const [chargedAmount, setChargedAmount] = useState<number | null>(null);
+  const [isDepositPayment, setIsDepositPayment] = useState(false);
 
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -113,10 +117,10 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
   const requiresManualPhone = !isLoggedIn || !hasPhoneFromSession;
 
   useEffect(() => {
-    const publicKey = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY || process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY;
+    const publicKey = shop.mpPublicKey || process.env.NEXT_PUBLIC_MP_PUBLIC_KEY || process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY;
     if (!publicKey) return;
     initMercadoPago(publicKey, { locale: "es-AR" });
-  }, []);
+  }, [shop.mpPublicKey]);
 
   useEffect(() => {
     if (!selectedService || !selectedDate || fetchedDates.has(formatDate(selectedDate))) return;
@@ -159,7 +163,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
     const selectedIsToday = selectedDate.toDateString() === now.toDateString();
     if (!selectedIsToday) return availableSlots;
 
-    const minMinutes = 21 * 60;
+    const minMinutes = now.getHours() * 60 + now.getMinutes();
     return availableSlots.filter((slot) => parseHHmmToMinutes(slot.time) >= minMinutes);
   }, [availableSlots, selectedDate]);
 
@@ -218,12 +222,18 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
     setCreatingPreference(false);
 
     if (!preferenceResult.success || !preferenceResult.data) {
+      await deletePublicAppointment({
+        appointmentId: appointmentResult.data.appointmentId,
+        shopId: shop.id,
+      });
       setError(preferenceResult.success ? "No se pudo iniciar el pago" : preferenceResult.error || "No se pudo iniciar el pago");
       return;
     }
 
     setPaymentPreferenceId(preferenceResult.data.preferenceId);
     setPaymentInitPoint(preferenceResult.data.initPoint);
+    setChargedAmount(preferenceResult.data.chargedAmount ?? null);
+    setIsDepositPayment(Boolean(preferenceResult.data.isDeposit));
   }
 
   function handleReset() {
@@ -240,6 +250,8 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
     setCreatingPreference(false);
     setPaymentPreferenceId(null);
     setPaymentInitPoint(null);
+    setChargedAmount(null);
+    setIsDepositPayment(false);
     setDone(false);
     setError(null);
     setFetchedDates(new Set());
@@ -561,10 +573,21 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
 
                         {paymentPreferenceId && (
                           <div className="rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 p-4 space-y-3">
-                            <p className="text-sm font-medium text-white">Pago listo para completar</p>
-                            <div className="rounded-xl overflow-hidden bg-white p-2">
-                              <Wallet initialization={{ preferenceId: paymentPreferenceId }} />
-                            </div>
+                            <p className="text-sm font-medium text-white">{isDepositPayment ? "Seña lista para completar" : "Pago listo para completar"}</p>
+                            {chargedAmount !== null && (
+                              <p className="text-xs text-zinc-300">
+                                {isDepositPayment ? "Seña online" : "Monto online"}: <span className="font-semibold text-white">${chargedAmount.toFixed(2)}</span>
+                              </p>
+                            )}
+                            {shop.mpPublicKey ? (
+                              <div className="rounded-xl overflow-hidden bg-white p-2">
+                                <Wallet initialization={{ preferenceId: paymentPreferenceId }} />
+                              </div>
+                            ) : (
+                              <div className="rounded-xl border border-amber-300/40 bg-amber-50/70 px-3 py-2 text-xs text-amber-800">
+                                Falta MP_PUBLIC_KEY en este local. Cargala en Mi Negocio para mostrar el checkout embebido.
+                              </div>
+                            )}
                             {paymentInitPoint && (
                               <a
                                 href={paymentInitPoint}
@@ -672,7 +695,10 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
               <div className="text-xs sm:text-sm text-[#1D1D1F] min-w-0 flex-1">
                 <p className="truncate"><span className="text-[#86868B]">Servicio:</span> {summaryService}</p>
                 <p className="truncate"><span className="text-[#86868B]">Fecha:</span> {summaryDate}</p>
-                <p className="truncate"><span className="text-[#86868B]">Hora:</span> {summaryTime}</p>
+               <p className="truncate"><span className="text-[#86868B]">Hora:</span> {summaryTime}</p>
+                {chargedAmount !== null && (
+                  <p className="truncate"><span className="text-[#86868B]">{isDepositPayment ? "Seña online:" : "Pago online:"}</span> ${chargedAmount.toFixed(2)}</p>
+                )}
               </div>
 
               <button

@@ -1,138 +1,16 @@
-import {
-  fetchAppointments,
-  fetchActiveServices,
-  fetchStaffMembers,
-} from "@/lib/dashboard/appointment-actions";
-import CalendarPageClient from "@/components/calendar/calendar-page-client";
-import { createServerClient } from "@/lib/supabase/server";
-import { getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
-import { getArgentinaWeekStart } from "@/lib/argentina-time";
-import { fetchBusinessHours } from "@/lib/dashboard/business-actions";
-import { fetchWhatsappTemplate } from "@/lib/dashboard/whatsapp-actions";
-import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
+import { redirectLegacyDashboardRoute } from "@/lib/dashboard/canonical-dashboard-route";
 
 export const dynamic = "force-dynamic";
 
-export default async function CalendarPage({
+export default async function CalendarLegacyRedirectPage({
   searchParams,
 }: {
-  searchParams?: { date?: string; appointmentId?: string };
+  searchParams?: Promise<{ date?: string; appointmentId?: string }>;
 }) {
-  const weekStart = getArgentinaWeekStart();
-  const rangeStart = new Date(weekStart);
-  rangeStart.setUTCDate(weekStart.getUTCDate() - 7);
-  const rangeEnd = new Date(weekStart);
-  rangeEnd.setUTCDate(weekStart.getUTCDate() + 14);
-  rangeEnd.setUTCHours(23, 59, 59, 999);
-
-  let appointments: any[] = [];
-  let services: any[] = [];
-  let staff: any[] = [];
-  let customers: Awaited<ReturnType<typeof fetchCustomers>> = [];
-  let businessHours: any = null;
-  let whatsappTemplate = DEFAULT_WHATSAPP_TEMPLATE;
-  let shopName = "";
-  let shopPhone: string | null = null;
-  let error: string | null = null;
-
-  try {
-    const results = await Promise.allSettled([
-      fetchAppointments(rangeStart.toISOString(), rangeEnd.toISOString()),
-      fetchActiveServices(),
-      fetchStaffMembers(),
-      fetchCustomers(),
-      fetchBusinessHours(),
-      fetchWhatsappTemplate(),
-      fetchShopName(),
-      fetchShopPhone(),
-    ]);
-
-    if (results[0].status === "fulfilled" && results[0].value.success) appointments = (results[0].value as any).data ?? [];
-    else console.error("Error fetching appointments:", results[0].status === "fulfilled" ? (results[0].value as any).error : results[0].reason);
-
-    if (results[1].status === "fulfilled" && results[1].value.success) services = (results[1].value as any).data ?? [];
-    else console.error("Error fetching services:", results[1].status === "fulfilled" ? (results[1].value as any).error : results[1].reason);
-
-    if (results[2].status === "fulfilled" && results[2].value.success) staff = (results[2].value as any).data ?? [];
-    else console.error("Error fetching staff:", results[2].status === "fulfilled" ? (results[2].value as any).error : results[2].reason);
-
-    if (results[3].status === "fulfilled") customers = results[3].value;
-    else console.error("Error fetching customers:", results[3].reason);
-
-    if (results[4].status === "fulfilled" && results[4].value.success) businessHours = (results[4].value as any).data ?? null;
-    else console.error("Error fetching business hours:", results[4].status === "fulfilled" ? (results[4].value as any).error : results[4].reason);
-
-    if (results[5].status === "fulfilled" && (results[5].value as any).success) whatsappTemplate = (results[5].value as any).data ?? DEFAULT_WHATSAPP_TEMPLATE;
-
-    if (results[6].status === "fulfilled") shopName = results[6].value;
-    if (results[7].status === "fulfilled") shopPhone = results[7].value;
-
-    const hasError = results.some(r => r.status === "rejected");
-    if (hasError) {
-      error = "Error al cargar algunos datos. Verifica la consola.";
-    }
-  } catch (e) {
-    error = e instanceof Error ? e.message : "Error al cargar datos";
-  }
-
-  return (
-    <CalendarPageClient
-      initialAppointments={appointments}
-      services={services}
-      staff={staff}
-      customers={customers}
-      error={error}
-      businessHours={businessHours ?? undefined}
-      whatsappTemplate={whatsappTemplate}
-      shopName={shopName}
-      shopPhone={shopPhone}
-      initialDateParam={searchParams?.date}
-      initialAppointmentId={searchParams?.appointmentId}
-    />
-  );
-}
-
-async function fetchCustomers() {
-  const session = await getAuthSession();
-  if (!session) return [];
-
-  const supabase = await createServerClient();
-
-  const { data, error } = await supabase
-    .from("customers")
-    .select("id, nombre, email, telefono")
-    .eq("user_id", session.user.id)
-    .order("nombre", { ascending: true })
-    .returns<{ id: string; nombre: string | null; email: string | null; telefono: string | null }[]>();
-
-  if (error) throw error;
-  return data.map(c => ({ id: c.id, nombre: c.nombre, email: c.email, telefono: c.telefono }));
-}
-
-async function fetchShopName(): Promise<string> {
-  const session = await getAuthSession();
-  if (!session) return "";
-  const shopId = await getShopId(session);
-  if (!shopId) return "";
-  const supabase = await createServerClient();
-  const { data } = await supabase
-    .from("shops")
-    .select("nombre")
-    .eq("id", shopId)
-    .single();
-  return data?.nombre || "";
-}
-
-async function fetchShopPhone(): Promise<string | null> {
-  const session = await getAuthSession();
-  if (!session) return null;
-  const shopId = await getShopId(session);
-  if (!shopId) return null;
-  const supabase = await createServerClient();
-  const { data } = await supabase
-    .from("shops")
-    .select("phone")
-    .eq("id", shopId)
-    .single();
-  return data?.phone || null;
+  const params = (await searchParams) || {};
+  const query = new URLSearchParams();
+  if (params.date) query.set("date", params.date);
+  if (params.appointmentId) query.set("appointmentId", params.appointmentId);
+  await redirectLegacyDashboardRoute("/calendar", query);
+  return null;
 }

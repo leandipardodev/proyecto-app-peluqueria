@@ -1,4 +1,5 @@
 import { createServerClient } from "@/lib/supabase/server";
+import { getShopId } from "@/lib/dashboard/auth-server";
 
 export async function getTenantAndUser() {
   const supabase = await createServerClient();
@@ -11,20 +12,16 @@ export async function getTenantAndUser() {
     return { shopName: "Mi Peluquería", userName: "Usuario" };
   }
 
-  const { data: userProfile, error: profileError } = await supabase
-    .from("user_profiles")
-    .select("shop_id, role")
-    .eq("user_id", user.id)
-    .single();
+  const shopId = await getShopId({ user: { id: user.id } });
 
-  if (profileError || !userProfile) {
+  if (!shopId) {
     return { shopName: "Mi Peluquería", userName: user.email || "Usuario" };
   }
 
   const { data: shop } = await supabase
     .from("shops")
     .select("nombre")
-    .eq("id", userProfile.shop_id)
+    .eq("id", shopId)
     .single();
 
   return {

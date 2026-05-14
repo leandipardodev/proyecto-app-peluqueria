@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -24,6 +23,7 @@ export default function LoginPage() {
   const [resetCooldownUntil, setResetCooldownUntil] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const { addToast } = useToast();
+  const [redirectPath, setRedirectPath] = useState("/dashboard");
 
   useEffect(() => {
     const stored = Number(window.localStorage.getItem(RESET_COOLDOWN_KEY) || "0");
@@ -38,6 +38,10 @@ export default function LoginPage() {
     const params = new URLSearchParams(window.location.search);
     const err = params.get("error");
     if (err) setError(decodeURIComponent(err));
+    const redirectQuery = params.get("redirect");
+    if (redirectQuery && redirectQuery.startsWith("/")) {
+      setRedirectPath(redirectQuery);
+    }
     if (params.get("registered") === "true") {
       addToast("Cuenta creada con éxito. Revisá tu email para confirmar.", "success");
     }
@@ -60,14 +64,14 @@ export default function LoginPage() {
 
     if (error) {
       console.error("ERROR DE SUPABASE:", error.message);
-      alert("Error de Login: " + error.message);
+      addToast(`Error de login: ${error.message}`, "error");
       setError(error.message);
       setLoading(false);
       return;
     }
 
     console.log("LOGIN EXITOSO:", data);
-    router.push("/dashboard");
+    router.push(redirectPath);
     router.refresh();
   };
 
@@ -100,6 +104,20 @@ export default function LoginPage() {
 
     setResetSent(true);
     setLoading(false);
+  };
+
+  const handleGoogleAdmin = async () => {
+    setError("");
+    setLoading(true);
+    const redirectTo = `${window.location.origin}/auth/callback?flow=admin&next=${encodeURIComponent(redirectPath)}`;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo },
+    });
+    if (error) {
+      setError(error.message);
+      setLoading(false);
+    }
   };
 
   return (
@@ -204,6 +222,15 @@ export default function LoginPage() {
               >
                 {loading ? "Iniciando..." : "Iniciar Sesión"}
               </button>
+
+              <button
+                type="button"
+                disabled={loading}
+                onClick={handleGoogleAdmin}
+                className="w-full bg-white text-gray-900 py-2.5 px-4 rounded-2xl text-sm font-medium shadow-sm border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50 cursor-pointer select-none"
+              >
+                Continuar con Google (Admin)
+              </button>
             </form>
           )}
         </div>
@@ -222,10 +249,7 @@ export default function LoginPage() {
               </button>
             </p>
             <p className="mt-2 text-center text-sm text-gray-600">
-              ¿No tenés cuenta?{" "}
-              <Link href="/register" className="font-medium text-violet-600 hover:text-violet-700">
-                Registrate
-              </Link>
+              Acceso administrativo solo por allowlist. Si necesitás acceso, pedí que carguen tu email autorizado.
             </p>
           </>
         )}

@@ -38,15 +38,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({ user: null, shop: null, isLoading: true });
 
   useEffect(() => {
-    async function fetchSession() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+    let isMounted = true;
+    let isFetching = false;
 
-      if (!user) {
-        setState({ user: null, shop: null, isLoading: false });
-        return;
-      }
+    async function fetchSession(userOverride?: { id: string; email?: string | null; user_metadata?: Record<string, unknown> }) {
+      if (isFetching) return;
+      isFetching = true;
+
+      try {
+        let user = userOverride ?? null;
+        if (!user) {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          user = session?.user ?? null;
+        }
+
+        if (!user) {
+          if (isMounted) setState({ user: null, shop: null, isLoading: false });
+          return;
+        }
 
       const { data: profile } = await supabase
         .from("user_profiles")
@@ -58,21 +69,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const metaAvatar: string | null = typeof user.user_metadata?.avatar_url === "string" ? user.user_metadata.avatar_url : null;
       const metaPhone: string | null = typeof user.user_metadata?.phone === "string" ? user.user_metadata.phone : null;
 
-      if (!profile) {
-        setState({
-          user: {
-            id: user.id,
-            email: user.email ?? null,
-            name: metaName,
-            avatarUrl: metaAvatar,
-            phone: metaPhone,
-            role: null,
-          },
-          shop: null,
-          isLoading: false,
-        });
-        return;
-      }
+        if (!profile) {
+          if (isMounted) setState({
+            user: {
+              id: user.id,
+              email: user.email ?? null,
+              name: metaName,
+              avatarUrl: metaAvatar,
+              phone: metaPhone,
+              role: null,
+            },
+            shop: null,
+            isLoading: false,
+          });
+          return;
+        }
 
       const { data: shop } = await supabase
         .from("shops")
@@ -80,33 +91,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq("id", profile.shop_id)
         .single();
 
-      setState({
-        user: {
-          id: user.id,
-          email: user.email ?? null,
-          name: profile.name ?? metaName,
-          avatarUrl: metaAvatar,
-          phone: metaPhone,
-          role: profile.role,
-        },
-        shop: shop ? { id: shop.id, name: shop.nombre, slug: shop.slug } : null,
-        isLoading: false,
-      });
+        if (isMounted) setState({
+          user: {
+            id: user.id,
+            email: user.email ?? null,
+            name: profile.name ?? metaName,
+            avatarUrl: metaAvatar,
+            phone: metaPhone,
+            role: profile.role,
+          },
+          shop: shop ? { id: shop.id, name: shop.nombre, slug: shop.slug } : null,
+          isLoading: false,
+        });
+      } finally {
+        isFetching = false;
+      }
     }
 
     fetchSession();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_OUT" || event === "TOKEN_REFRESHED" && !supabase.auth.getUser()) {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT" || !session?.user) {
         setState({ user: null, shop: null, isLoading: false });
       } else if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-        fetchSession();
+        fetchSession(session.user);
       }
     });
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
     };
   }, []);

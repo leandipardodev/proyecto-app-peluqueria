@@ -1,8 +1,8 @@
 "use server";
 
 import { createServerClient } from "@/lib/supabase/server";
-import { revalidatePath } from "next/cache";
 import { createServiceRoleClient, requireShopId } from "@/lib/dashboard/auth-server";
+import { revalidateDashboardSegments } from "@/lib/dashboard/revalidate-dashboard";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
 
@@ -20,11 +20,15 @@ type ServiceRow = {
   shop_id: string;
 };
 
-export async function fetchServices(): Promise<ActionResult<ServiceRow[]>> {
+export async function fetchServices(shopIdOverride?: string): Promise<ActionResult<ServiceRow[]>> {
   try {
-    const shopIdResult = await requireShopId();
-    if (!shopIdResult.success) return shopIdResult;
-    const shopId = shopIdResult.data;
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    }
 
     const admin = await createAdminClient();
 
@@ -44,11 +48,15 @@ export async function fetchServices(): Promise<ActionResult<ServiceRow[]>> {
   }
 }
 
-export async function createService(formData: FormData): Promise<ActionResult> {
+export async function createService(formData: FormData, shopIdOverride?: string): Promise<ActionResult> {
   try {
-    const shopIdResult = await requireShopId();
-    if (!shopIdResult.success) return shopIdResult;
-    const shopId = shopIdResult.data;
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    }
 
     const name = formData.get("name") as string;
     const price = parseFloat(formData.get("price") as string);
@@ -76,18 +84,22 @@ export async function createService(formData: FormData): Promise<ActionResult> {
       return { success: false, error: error.message };
     }
 
-    revalidatePath("/dashboard/services");
+    await revalidateDashboardSegments(shopId, ["/services"]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al crear servicio" };
   }
 }
 
-export async function updateService(id: string, formData: FormData): Promise<ActionResult> {
+export async function updateService(id: string, formData: FormData, shopIdOverride?: string): Promise<ActionResult> {
   try {
-    const shopIdResult = await requireShopId();
-    if (!shopIdResult.success) return shopIdResult;
-    const shopId = shopIdResult.data;
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    }
 
     const name = formData.get("name") as string;
     const price = parseFloat(formData.get("price") as string);
@@ -110,18 +122,22 @@ export async function updateService(id: string, formData: FormData): Promise<Act
       return { success: false, error: error.message };
     }
 
-    revalidatePath("/dashboard/services");
+    await revalidateDashboardSegments(shopId, ["/services"]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al actualizar servicio" };
   }
 }
 
-export async function deleteService(id: string): Promise<ActionResult> {
+export async function deleteService(id: string, shopIdOverride?: string): Promise<ActionResult> {
   try {
-    const shopIdResult = await requireShopId();
-    if (!shopIdResult.success) return shopIdResult;
-    const shopId = shopIdResult.data;
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    }
 
     const admin = await createAdminClient();
 
@@ -136,7 +152,7 @@ export async function deleteService(id: string): Promise<ActionResult> {
       return { success: false, error: error.message };
     }
 
-    revalidatePath("/dashboard/services");
+    await revalidateDashboardSegments(shopId, ["/services"]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al eliminar servicio" };

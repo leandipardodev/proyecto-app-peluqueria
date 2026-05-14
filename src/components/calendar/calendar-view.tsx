@@ -2,7 +2,7 @@
 
 import { format, startOfWeek, addDays, isToday } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, MessageCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useRef, useState, useEffect, useMemo, memo } from "react";
 import { AnimatePresence, motion, useMotionValue, useSpring } from "framer-motion";
 import { GRID_END_HOUR, GRID_START_HOUR, HOUR_HEIGHT } from "@/lib/calendar-constants";
@@ -12,7 +12,6 @@ import {
   minutesFromHHmm,
   toArgentinaLocalIsoString,
 } from "@/lib/argentina-time";
-import { buildWhatsAppUrl } from "@/lib/dashboard/whatsapp-utils";
 
 type Appointment = {
   id: string;
@@ -23,6 +22,7 @@ type Appointment = {
   end_time: string;
   status: string;
   is_paid: boolean;
+  deposit_amount?: number | null;
   notes: string | null;
   customers: { nombre: string | null; email: string; telefono: string | null } | null;
   staff: { name: string; email: string } | null;
@@ -49,7 +49,7 @@ type StaffMember = {
   email: string | null;
 };
 
-type BusinessHourEntry = { open: boolean; start: string; end: string };
+type BusinessHourEntry = { open: boolean; start: string; end: string; break_start?: string | null; break_end?: string | null };
 type BusinessHoursMap = Record<string, BusinessHourEntry>;
 
 interface CalendarViewProps {
@@ -574,7 +574,25 @@ export default memo(function CalendarView({
                         {hours.map((hour) => {
                           const hourNum = hour === 0 && GRID_START_HOUR > 0 ? 24 : hour;
                           const dayH = dayHours;
-                          const isOpenSlot = dayH?.open && hourNum >= parseInt(dayH.start) && hourNum < parseInt(dayH.end);
+                          const isOpenSlot = (() => {
+                            if (!dayH?.open) return false;
+                            const [sh, sm] = dayH.start.split(":").map(Number);
+                            const [eh, em] = dayH.end.split(":").map(Number);
+                            const slotStart = hourNum * 60;
+                            const slotEnd = slotStart + 60;
+
+                            const blocks: Array<{ start: number; end: number }> = [];
+                            if (dayH.break_start && dayH.break_end) {
+                              const [bsh, bsm] = dayH.break_start.split(":").map(Number);
+                              const [beh, bem] = dayH.break_end.split(":").map(Number);
+                              blocks.push({ start: sh * 60 + sm, end: bsh * 60 + bsm });
+                              blocks.push({ start: beh * 60 + bem, end: eh * 60 + em });
+                            } else {
+                              blocks.push({ start: sh * 60 + sm, end: eh * 60 + em });
+                            }
+
+                            return blocks.some((b) => slotStart < b.end && slotEnd > b.start);
+                          })();
                           const slotAppointments = appointmentsByDayHour.get(`${dayStr}-${hour}`) || [];
                           const slotCount = slotAppointments.length;
                           const slotGridCols = slotCount <= 2 ? Math.max(slotCount, 1) : slotCount <= 4 ? 2 : 3;
@@ -695,46 +713,13 @@ export default memo(function CalendarView({
                                             {displayLabel}
                                           </span>
                                         )}
+                                        {!isWeekMode && appt.deposit_amount && appt.deposit_amount > 0 && (
+                                          <span className="inline-flex items-center rounded-full bg-sky-100/80 text-sky-700 px-1.5 py-0.5 text-[9px] font-semibold w-fit">
+                                            Seña ${appt.deposit_amount.toFixed(0)}
+                                          </span>
+                                        )}
                                       </div>
-                                      <div className={`flex ${isWeekMode ? "justify-end pt-0.5" : "justify-end"}`}>
-                                        {(() => {
-                                          const waUrl = buildWhatsAppUrl({
-                                            phone: appt.customers?.telefono ?? null,
-                                            customerName: appt.customers?.nombre || "Cliente",
-                                            serviceName: appt.services?.name,
-                                            time: appt.start_hhmm,
-                                            template: whatsappTemplate,
-                                            shopName,
-                                          });
-                                          if (waUrl) {
-                                            return (
-                                              <a
-                                                href={waUrl}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className={`group/wa inline-flex items-center rounded-full border border-white/45 dark:border-white/20 bg-white/60 dark:bg-white/10 text-emerald-600 dark:text-emerald-300 hover:bg-white/80 dark:hover:bg-white/20 transition-all duration-200 select-none ${isWeekMode ? "gap-0 px-1 py-1" : "gap-1 px-1.5 py-1"}`}
-                                                onClick={(e) => e.stopPropagation()}
-                                                data-cursor="enviar"
-                                                title="Enviar Recordatorio"
-                                              >
-                                                <MessageCircle className="w-3.5 h-3.5 shrink-0" />
-                                                {!isWeekMode && (
-                                                  <span className="max-w-0 group-hover/wa:max-w-[120px] overflow-hidden text-[10px] font-medium leading-none transition-all duration-200 whitespace-nowrap">Enviar Recordatorio</span>
-                                                )}
-                                              </a>
-                                            );
-                                          }
-
-                                          return (
-                                            <span
-                                              className="inline-flex items-center gap-1 rounded-full border border-white/45 dark:border-white/20 bg-white/45 dark:bg-white/5 px-1.5 py-1 text-zinc-400 dark:text-zinc-500"
-                                              title="WhatsApp no disponible: falta teléfono o plantilla inválida"
-                                            >
-                                              <MessageCircle className="w-3.5 h-3.5 shrink-0" />
-                                            </span>
-                                          );
-                                        })()}
-                                      </div>
+                                      <div className="h-1" aria-hidden="true" />
                                     </div>
                                   </motion.div>
                                 );
@@ -815,6 +800,11 @@ export default memo(function CalendarView({
               <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">
                 💈 {tipAppt.staff?.name || "Sin asignar"}
               </div>
+              {tipAppt.deposit_amount && tipAppt.deposit_amount > 0 && (
+                <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">
+                  💵 Seña: ${tipAppt.deposit_amount.toFixed(2)}
+                </div>
+              )}
             </motion.div>
           );
         })()}

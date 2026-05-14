@@ -18,7 +18,7 @@ export default function GoogleSignInButton({ shopSlug, className }: GoogleSignIn
     try {
       playClick();
       setIsLoading(true);
-      const redirectTo = `${window.location.origin}/auth/callback?next=/book/${shopSlug}`;
+      const redirectTo = `${window.location.origin}/auth/callback?flow=client&next=/book/${shopSlug}`;
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",

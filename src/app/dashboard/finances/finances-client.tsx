@@ -61,11 +61,13 @@ function getMonthBounds(dateStr: string) {
 }
 
 export default function FinancesClient({
+  shopId,
   initialData,
   initialFrom,
   initialTo,
   initialError,
 }: {
+  shopId: string;
   initialData: FinanceData | null;
   initialFrom: string;
   initialTo: string;
@@ -91,7 +93,7 @@ export default function FinancesClient({
     setTo(newTo);
     startTransition(async () => {
       try {
-        const result = await fetchFinanceData(newFrom, newTo);
+        const result = await fetchFinanceData(newFrom, newTo, shopId || undefined);
         if (result.success && result.data) {
           setData(result.data);
           setError(null);
@@ -152,7 +154,7 @@ export default function FinancesClient({
     setExpenses((prev) => [optimistic, ...prev]);
     setShowExpenseForm(false);
 
-    const result = await createExpense(formData);
+    const result = await createExpense(formData, shopId || undefined);
     if (!result.success) {
       setExpenses((prev) => prev.filter((e) => e.id !== tempId));
       setExpenseError(result.error ?? "Error al crear gasto");
@@ -163,7 +165,7 @@ export default function FinancesClient({
 
   async function handleExpenseDelete(id: string) {
     setExpenses((prev) => prev.filter((e) => e.id !== id));
-    const result = await deleteExpense(id);
+    const result = await deleteExpense(id, shopId || undefined);
     if (!result.success) {
       setExpenseError(result.error ?? "Error al eliminar gasto");
     } else {

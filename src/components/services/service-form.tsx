@@ -5,6 +5,7 @@ import { useState, useTransition, useRef, useEffect } from "react";
 import EmojiPicker from "emoji-picker-react";
 
 interface ServiceFormProps {
+  shopId: string;
   service?: {
     id: string;
     name: string;
@@ -16,7 +17,7 @@ interface ServiceFormProps {
 
 const durationOptions = [15, 30, 45, 60, 90, 120];
 
-export default function ServiceForm({ service, onSuccess }: ServiceFormProps) {
+export default function ServiceForm({ shopId, service, onSuccess }: ServiceFormProps) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [showEmojis, setShowEmojis] = useState(false);
@@ -57,8 +58,8 @@ export default function ServiceForm({ service, onSuccess }: ServiceFormProps) {
     formData.set("name", nameValue);
 
     const action = service
-      ? () => updateService(service.id, formData)
-      : () => createService(formData);
+      ? () => updateService(service.id, formData, shopId)
+      : () => createService(formData, shopId);
 
     startTransition(async () => {
       const result = await action();

@@ -1,17 +1,8 @@
-import { fetchServices } from "@/lib/dashboard/service-actions";
-import ServicesList from "@/components/services/services-list";
+import { redirectLegacyDashboardRoute } from "@/lib/dashboard/canonical-dashboard-route";
 
 export const dynamic = "force-dynamic";
 
-export default async function ServicesPage() {
-  let services: any[] = [];
-
-  const result = await fetchServices();
-  if (result.success) {
-    services = result.data ?? [];
-  } else {
-    console.error("[ServicesPage] Error al cargar servicios:", result.error);
-  }
-
-  return <ServicesList initialServices={services} />;
+export default async function ServicesLegacyRedirectPage() {
+  await redirectLegacyDashboardRoute("/services");
+  return null;
 }

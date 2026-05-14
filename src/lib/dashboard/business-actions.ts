@@ -37,6 +37,8 @@ export type BusinessData = {
   loyalty_enabled: boolean;
   loyalty_cuts_required: number;
   loyalty_discount_percent: number;
+  booking_deposit_enabled: boolean;
+  booking_deposit_amount: number;
 };
 
 export async function fetchBusinessData(shopIdOverride?: string): Promise<ActionResult<BusinessData>> {
@@ -53,7 +55,7 @@ export async function fetchBusinessData(shopIdOverride?: string): Promise<Action
       const admin = await createAdminClient();
       return admin
         .from("shops")
-        .select("nombre, description, address, localidad, phone, instagram_url, facebook_url, tiktok_url, mp_public_key, mp_access_token, whatsapp_template, loyalty_enabled, loyalty_cuts_required, loyalty_discount_percent")
+        .select("nombre, description, address, localidad, phone, instagram_url, facebook_url, tiktok_url, mp_public_key, mp_access_token, whatsapp_template, loyalty_enabled, loyalty_cuts_required, loyalty_discount_percent, booking_deposit_enabled, booking_deposit_amount")
         .eq("id", shopId)
         .single();
     });
@@ -77,6 +79,8 @@ export async function fetchBusinessData(shopIdOverride?: string): Promise<Action
         loyalty_enabled: data.loyalty_enabled !== false,
         loyalty_cuts_required: Number(data.loyalty_cuts_required || 10),
         loyalty_discount_percent: Number(data.loyalty_discount_percent || 10),
+        booking_deposit_enabled: data.booking_deposit_enabled !== false,
+        booking_deposit_amount: Number(data.booking_deposit_amount || 0),
       },
     };
   } catch (e) {
@@ -137,6 +141,8 @@ export type DayHours = {
   open: boolean;
   start: string;
   end: string;
+  break_start?: string | null;
+  break_end?: string | null;
 };
 
 export type BusinessHoursData = Record<string, DayHours>;
@@ -191,6 +197,8 @@ export async function fetchBusinessHours(shopIdOverride?: string): Promise<Actio
           open: entry.open as boolean,
           start: typeof entry.start === "string" ? entry.start : def.start,
           end: typeof entry.end === "string" ? entry.end : def.end,
+          break_start: typeof entry.break_start === "string" ? entry.break_start : null,
+          break_end: typeof entry.break_end === "string" ? entry.break_end : null,
         };
       } else {
         merged[day] = { ...def };
@@ -214,7 +222,7 @@ export async function updateBusinessHours(hours: BusinessHoursData): Promise<Act
       typeof hours === "string" ? JSON.parse(hours as unknown as string) : { ...hours };
 
     // Normalizar claves a minúsculas
-    const normalized: Record<string, { open: boolean; start: string; end: string }> = {};
+    const normalized: Record<string, { open: boolean; start: string; end: string; break_start?: string | null; break_end?: string | null }> = {};
     for (const [k, v] of Object.entries(clean)) {
       const entry = v as Record<string, unknown>;
       if (entry && typeof entry === "object") {
@@ -222,6 +230,8 @@ export async function updateBusinessHours(hours: BusinessHoursData): Promise<Act
           open: entry.open === true,
           start: typeof entry.start === "string" ? entry.start : "09:00",
           end: typeof entry.end === "string" ? entry.end : "20:00",
+          break_start: typeof entry.break_start === "string" ? entry.break_start : null,
+          break_end: typeof entry.break_end === "string" ? entry.break_end : null,
         };
       }
     }
@@ -232,6 +242,20 @@ export async function updateBusinessHours(hours: BusinessHoursData): Promise<Act
       const d = normalized[day];
       if (d.open && startMinutes(d.end) <= startMinutes(d.start)) {
         return { success: false, error: `La hora de cierre debe ser posterior a la apertura (${day})` };
+      }
+      const hasBreakStart = Boolean(d.break_start);
+      const hasBreakEnd = Boolean(d.break_end);
+      if (hasBreakStart !== hasBreakEnd) {
+        return { success: false, error: `Debes completar inicio y fin del corte horario (${day})` };
+      }
+      if (d.open && d.break_start && d.break_end) {
+        const bs = startMinutes(d.break_start);
+        const be = startMinutes(d.break_end);
+        const st = startMinutes(d.start);
+        const en = startMinutes(d.end);
+        if (!(st < bs && bs < be && be < en)) {
+          return { success: false, error: `El corte horario debe quedar entre apertura y cierre (${day})` };
+        }
       }
     }
 
@@ -266,6 +290,12 @@ export async function updateWhatsappTemplateAction(template: string): Promise<Ac
     const place = String(shopData?.address || shopData?.nombre || "").trim();
     if (!place) {
       return { success: false, error: "La ubicación es indispensable para el cliente" };
+    }
+
+    const hasHour = template.includes("{Hora}");
+    const hasLocation = template.includes("{ubicacion}") || template.includes("{Lugar}");
+    if (!hasHour || !hasLocation) {
+      return { success: false, error: "La plantilla debe incluir {Hora} y {ubicacion} (o {Lugar})." };
     }
 
     const { error } = await admin
@@ -305,5 +335,30 @@ export async function updateLoyaltyProgramAction(enabled: boolean, cutsRequired:
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al guardar fidelizacion" };
+  }
+}
+
+export async function updateBookingDepositPolicyAction(enabled: boolean, depositAmount: number): Promise<ActionResult> {
+  try {
+    const shopIdResult = await requireOwnerShopId();
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
+    const admin = await createAdminClient();
+
+    const safeAmount = Math.max(0, Number(depositAmount || 0));
+
+    const { error } = await admin
+      .from("shops")
+      .update({
+        booking_deposit_enabled: Boolean(enabled),
+        booking_deposit_amount: safeAmount,
+      })
+      .eq("id", shopId);
+
+    if (error) return { success: false, error: error.message };
+    await revalidateDashboardSegments(shopId, ["/business", "/book"]);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al guardar politica de cobro" };
   }
 }

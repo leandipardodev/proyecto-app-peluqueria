@@ -8,10 +8,31 @@ import { fetchWhatsappTemplate } from "@/lib/dashboard/whatsapp-actions";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
 import { buildWhatsAppContactUrl, buildWhatsAppUrl } from "@/lib/dashboard/whatsapp-utils";
 import { createServerClient } from "@/lib/supabase/server";
-import { getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient, getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { fetchTodayVoucherAlerts } from "@/lib/dashboard/voucher-actions";
+import VoucherBirthdayAlert from "@/components/dashboard/voucher-birthday-alert";
 
 export const dynamic = "force-dynamic";
+
+const SOCIAL_TAGS = [
+  "#conecta",
+  "#presencia",
+  "#tuMarca",
+  "#identidad",
+  "#comunidad",
+  "#visibilidad",
+  "#difusion",
+  "#conexion",
+  "#vinculo",
+  "#marcaViva",
+  "#huellaDigital",
+  "#vozDeMarca",
+  "#alcance",
+  "#contactoDirecto",
+  "#canalesDigitales",
+];
 
 function getInitials(name: string): string {
   return name
@@ -44,13 +65,14 @@ function formatGrowth(value: number): string {
   return `${sign}${value}%`;
 }
 
-export default async function DashboardPage() {
-  const [summaryResult, metricsResult, whatsappTemplateResult] = await Promise.all([
-    fetchDashboardSummary(),
-    fetchDashboardMetrics(),
-    fetchWhatsappTemplate(),
+export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOverride?: string) {
+  const [summaryResult, metricsResult, whatsappTemplateResult, voucherAlertsResult] = await Promise.all([
+    fetchDashboardSummary(shopIdOverride),
+    fetchDashboardMetrics(shopIdOverride),
+    fetchWhatsappTemplate(shopIdOverride),
+    fetchTodayVoucherAlerts(shopIdOverride),
   ]);
-  const socialLinks = await fetchShopLinks();
+  const socialLinks = await fetchShopLinks(shopIdOverride);
 
   const whatsappTemplate = whatsappTemplateResult.success ? (whatsappTemplateResult.data ?? DEFAULT_WHATSAPP_TEMPLATE) : DEFAULT_WHATSAPP_TEMPLATE;
 
@@ -63,6 +85,13 @@ export default async function DashboardPage() {
   }
   const summary = summaryResult.data;
   const metrics = metricsResult.success && metricsResult.data ? metricsResult.data : null;
+  const dashboardBasePath = summary.shopSlug ? `/dashboard/${summary.shopSlug}` : "/dashboard";
+
+  const withDashboardBase = (href: string) => {
+    if (!href.startsWith("/dashboard")) return href;
+    const tail = href.slice("/dashboard".length);
+    return `${dashboardBasePath}${tail}`;
+  };
 
   const growthValue = metrics?.stats.growth ?? 0;
   const growthColor = growthValue >= 0 ? "text-green-600" : "text-red-600";
@@ -105,10 +134,10 @@ export default async function DashboardPage() {
   ];
 
   const cardHrefByLabel: Record<string, string> = {
-    "Turnos hoy": "/dashboard/calendar",
-    "Ingresos hoy": "/dashboard/finances",
-    "Alertas de stock": "/dashboard/inventory",
-    "Crecimiento": "/dashboard/business#estadisticas",
+    "Turnos hoy": withDashboardBase("/dashboard/calendar"),
+    "Ingresos hoy": withDashboardBase("/dashboard/finances"),
+    "Alertas de stock": withDashboardBase("/dashboard/inventory"),
+    "Crecimiento": withDashboardBase("/dashboard/business#estadisticas"),
   };
 
   const today = new Date().toLocaleDateString("es-AR", {
@@ -121,20 +150,21 @@ export default async function DashboardPage() {
     socialLinks.phone,
     ""
   );
-  const instagramHref = normalizeSocialUrl(socialLinks.instagramUrl);
-  const facebookHref = normalizeSocialUrl(socialLinks.facebookUrl);
-  const tiktokHref = normalizeSocialUrl(socialLinks.tiktokUrl);
+  const instagramHref = normalizeSocialUrl(socialLinks.instagramUrl, "instagram");
+  const facebookHref = normalizeSocialUrl(socialLinks.facebookUrl, "facebook");
+  const tiktokHref = normalizeSocialUrl(socialLinks.tiktokUrl, "tiktok");
+  const randomSocialTag = SOCIAL_TAGS[Math.floor(Math.random() * SOCIAL_TAGS.length)];
 
   return (
     <div className="space-y-6">
+      {(shopSlugOverride || summary.shopSlug) && voucherAlertsResult.success && (voucherAlertsResult.data?.length || 0) > 0 && (
+        <VoucherBirthdayAlert shopSlug={shopSlugOverride || summary.shopSlug} items={voucherAlertsResult.data || []} />
+      )}
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white capitalize tracking-tight">
             {today}
           </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Resumen de tu peluquería
-          </p>
           <div className="mt-3 flex items-center gap-2">
             <a
               href={whatsappHref}
@@ -167,7 +197,25 @@ export default async function DashboardPage() {
                 <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-current" aria-hidden="true"><path d="M14.5 3c.2 1.9 1.3 3.5 3.1 4.2.8.3 1.6.5 2.4.5v2.6c-1.8 0-3.7-.5-5.2-1.5v6.1c0 3.1-2.5 5.6-5.6 5.6S3.6 18 3.6 14.9s2.5-5.6 5.6-5.6c.3 0 .6 0 .9.1V12c-.3-.1-.6-.2-.9-.2-1.7 0-3.1 1.4-3.1 3.1S7.5 18 9.2 18s3.1-1.4 3.1-3.1V3h2.2Z" /></svg>
               </a>
             )}
+            <span
+              className="social-tag-hero ml-3 text-[2rem] sm:text-[2.15rem] leading-none font-medium tracking-[-0.02em] select-none"
+              style={{
+                backgroundImage:
+                  "linear-gradient(112deg, rgba(15,23,42,0.9) 0%, rgba(71,85,105,0.82) 32%, rgba(59,130,246,0.74) 62%, rgba(125,211,252,0.8) 78%, rgba(14,165,233,0.68) 100%)",
+                backgroundSize: "180% 100%",
+                WebkitBackgroundClip: "text",
+                backgroundClip: "text",
+                color: "transparent",
+                textShadow: "0 10px 28px rgba(15,23,42,0.12)",
+                transition: "transform 260ms cubic-bezier(0.22, 1, 0.36, 1), filter 260ms cubic-bezier(0.22, 1, 0.36, 1), background-position 520ms cubic-bezier(0.22, 1, 0.36, 1)",
+              }}
+            >
+              {randomSocialTag}
+            </span>
           </div>
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+            Resumen de tu peluquería
+          </p>
         </div>
         <div className="hidden lg:block pt-0.5">
           <p className="dashboard-shopname-hero text-4xl xl:text-5xl font-black tracking-[-0.04em] text-gray-900/80 dark:text-white/85 max-w-[34rem] truncate text-right">
@@ -175,6 +223,8 @@ export default async function DashboardPage() {
           </p>
         </div>
       </div>
+
+      <ShareLinkCard slug={shopSlugOverride || summary.shopSlug} shopName={summary.shopName} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map(({ label, value, icon: Icon, color, bg }, idx) => {
@@ -184,7 +234,7 @@ export default async function DashboardPage() {
           const hasProgress = isIncomeCard || isGrowthCard;
           return (
           <HoverScale key={label}>
-            <Link href={cardHrefByLabel[label] || "/dashboard"} className="block h-full">
+            <Link href={cardHrefByLabel[label] || dashboardBasePath} className="block h-full">
               <div
                 className={`glass-sheen-card h-full min-h-[124px] lg:min-h-[132px] bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-6 flex items-center gap-4 transition-colors hover:bg-white/30 dark:hover:bg-white/5 cursor-pointer ${isIncomeCard ? "analytics-card-bg" : ""}`}
                 style={{
@@ -226,8 +276,6 @@ export default async function DashboardPage() {
           );
         })}
       </div>
-
-      <ShareLinkCard slug={summary.shopSlug} shopName={summary.shopName} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2">
@@ -401,30 +449,96 @@ export default async function DashboardPage() {
           from { opacity: 0; transform: translate3d(16px, -8px, 0) scale(0.985); }
           to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
         }
+        .social-tag-hero {
+          animation: socialTagReveal 680ms cubic-bezier(0.22, 1, 0.36, 1) both;
+          will-change: transform, filter, background-position;
+        }
+        .social-tag-hero:hover {
+          transform: translateY(-1px) scale(1.01);
+          filter: saturate(1.06);
+          background-position: 82% 0;
+        }
+        @keyframes socialTagReveal {
+          from { opacity: 0; transform: translate3d(10px, 0, 0); }
+          to { opacity: 1; transform: translate3d(0, 0, 0); }
+        }
       `}</style>
     </div>
   );
 }
 
-function normalizeSocialUrl(value: string | null): string | null {
+export default async function DashboardPage() {
+  const session = await getAuthSession();
+  if (!session) {
+    redirect("/login");
+  }
+
+  const admin = await createServiceRoleClient();
+  const { data: memberships } = await admin
+    .from("shop_memberships")
+    .select("shop_id")
+    .eq("user_id", session.user.id)
+    .eq("is_active", true)
+    .in("role", ["owner", "admin", "staff"])
+    .limit(1);
+
+  const firstShopId = memberships?.[0]?.shop_id;
+  if (!firstShopId) {
+    redirect("/landing");
+  }
+
+  const { data: shop } = await admin
+    .from("shops")
+    .select("slug")
+    .eq("id", firstShopId)
+    .maybeSingle();
+
+  if (!shop?.slug) {
+    redirect("/landing");
+  }
+
+  redirect(`/dashboard/${shop.slug}`);
+}
+
+function normalizeSocialUrl(value: string | null, platform?: "instagram" | "facebook" | "tiktok"): string | null {
   if (!value) return null;
   const trimmed = value.trim();
   if (!trimmed) return null;
+  if (trimmed.startsWith("@")) {
+    const handle = trimmed.slice(1);
+    if (!handle) return null;
+    if (platform === "instagram") return `https://instagram.com/${handle}`;
+    if (platform === "tiktok") return `https://tiktok.com/@${handle}`;
+    return `https://facebook.com/${handle}`;
+  }
   if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^(www\.)?(instagram|facebook|tiktok)\.com\//i.test(trimmed)) {
+    return `https://${trimmed.replace(/^www\./i, "")}`;
+  }
+  if (platform === "instagram") return `https://instagram.com/${trimmed}`;
+  if (platform === "tiktok") return `https://tiktok.com/@${trimmed}`;
+  if (platform === "facebook") return `https://facebook.com/${trimmed}`;
   return `https://${trimmed}`;
 }
 
-async function fetchShopLinks(): Promise<{ phone: string | null; instagramUrl: string | null; facebookUrl: string | null; tiktokUrl: string | null }> {
-  const session = await getAuthSession();
-  if (!session) return { phone: null, instagramUrl: null, facebookUrl: null, tiktokUrl: null };
-  const shopId = await getShopId(session);
+async function fetchShopLinks(shopIdOverride?: string): Promise<{ phone: string | null; instagramUrl: string | null; facebookUrl: string | null; tiktokUrl: string | null }> {
+  let shopId = shopIdOverride || null;
+  if (!shopId) {
+    const session = await getAuthSession();
+    if (!session) return { phone: null, instagramUrl: null, facebookUrl: null, tiktokUrl: null };
+    shopId = await getShopId(session);
+  }
   if (!shopId) return { phone: null, instagramUrl: null, facebookUrl: null, tiktokUrl: null };
-  const supabase = await createServerClient();
-  const { data } = await supabase
+  const admin = await createServiceRoleClient();
+  const { data, error } = await admin
     .from("shops")
     .select("phone, instagram_url, facebook_url, tiktok_url")
     .eq("id", shopId)
     .single();
+  if (error) {
+    console.error("[fetchShopLinks] error:", error.message);
+    return { phone: null, instagramUrl: null, facebookUrl: null, tiktokUrl: null };
+  }
   return {
     phone: data?.phone || null,
     instagramUrl: data?.instagram_url || null,

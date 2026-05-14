@@ -3,13 +3,14 @@
 import { useState, useEffect } from "react";
 import { addWeeks, subWeeks } from "date-fns";
 import { motion } from "framer-motion";
-import { MessageCircle } from "lucide-react";
+import { Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
 import CalendarView from "./calendar-view";
 import AppointmentFormModal from "./appointment-form-modal";
 import AppointmentDetailModal from "./appointment-detail-modal";
 import { useAppointmentAlarm } from "@/lib/use-appointment-alarm";
 import { getArgentinaDateKey } from "@/lib/argentina-time";
-import { buildWhatsAppContactUrl } from "@/lib/dashboard/whatsapp-utils";
+import { supabase } from "@/lib/supabase";
 
 function CalendarSkeleton() {
   return (
@@ -45,6 +46,7 @@ type Appointment = {
   end_time: string;
   status: string;
   is_paid: boolean;
+  deposit_amount?: number | null;
   notes: string | null;
   customers: { nombre: string | null; email: string; telefono: string | null } | null;
   staff: { name: string; email: string } | null;
@@ -72,7 +74,7 @@ type Customer = {
   telefono: string | null;
 };
 
-type BusinessHourEntry = { open: boolean; start: string; end: string };
+type BusinessHourEntry = { open: boolean; start: string; end: string; break_start?: string | null; break_end?: string | null };
 type BusinessHoursMap = Record<string, BusinessHourEntry>;
 
 const STAFF_SEGMENTED_COLORS = [
@@ -87,6 +89,7 @@ const STAFF_SEGMENTED_COLORS = [
 ];
 
 interface CalendarPageClientProps {
+  shopId: string;
   initialAppointments: Appointment[];
   services: Service[];
   staff: StaffMember[];
@@ -101,6 +104,7 @@ interface CalendarPageClientProps {
 }
 
 export default function CalendarPageClient({
+  shopId,
   initialAppointments,
   services,
   staff,
@@ -113,6 +117,7 @@ export default function CalendarPageClient({
   initialDateParam,
   initialAppointmentId,
 }: CalendarPageClientProps) {
+  const router = useRouter();
   const [currentDate, setCurrentDate] = useState(() => {
     if (!initialDateParam) return new Date();
     const parsed = new Date(initialDateParam);
@@ -140,6 +145,20 @@ export default function CalendarPageClient({
 
   useAppointmentAlarm(initialAppointments);
 
+  useEffect(() => {
+    const channel = supabase
+      .channel(`calendar-${shopId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "appointments", filter: `shop_id=eq.${shopId}` }, () => router.refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "customers", filter: `shop_id=eq.${shopId}` }, () => router.refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "services", filter: `shop_id=eq.${shopId}` }, () => router.refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "shop_memberships", filter: `shop_id=eq.${shopId}` }, () => router.refresh())
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [shopId, router]);
+
   if (!hydrated) {
     return <CalendarSkeleton />;
   }
@@ -162,11 +181,6 @@ export default function CalendarPageClient({
     setCurrentDate(new Date());
   }
 
-  const whatsappHref = buildWhatsAppContactUrl(
-    shopPhone,
-    `Hola! Quiero consultar sobre turnos en ${shopName || "la peluqueria"}.`
-  );
-
   return (
     <div className="h-full flex flex-col">
       {error && (
@@ -187,21 +201,21 @@ export default function CalendarPageClient({
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Calendario</h1>
-          <a
-            href={whatsappHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-2 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium text-white"
-            style={{
-              background: "linear-gradient(135deg, #7bcfa3 0%, #69bb93 100%)",
-              boxShadow: "0 8px 18px rgba(105,187,147,0.22), inset 0 1px 0 rgba(255,255,255,0.35)",
-            }}
-          >
-            <MessageCircle className="h-3.5 w-3.5" />
-            WhatsApp
-          </a>
         </div>
-        <div className="flex flex-wrap items-center rounded-2xl sm:rounded-full bg-white/30 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 p-0.5 shadow-sm relative gap-1">
+        <div className="flex w-full sm:w-auto flex-col sm:flex-row sm:items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setFormInitialDate(undefined);
+              setFormInitialHour(undefined);
+              setFormModalOpen(true);
+            }}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 transition-colors cursor-pointer select-none"
+          >
+            <Plus className="h-4 w-4" />
+            Agregar turno
+          </button>
+          <div className="flex flex-wrap items-center rounded-2xl sm:rounded-full bg-white/30 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 p-0.5 shadow-sm relative gap-1">
           <button
             onClick={() => setStaffFilter(null)}
             className={`relative z-10 px-2.5 sm:px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all cursor-pointer select-none ${
@@ -243,6 +257,7 @@ export default function CalendarPageClient({
               </button>
             );
           })}
+          </div>
         </div>
       </div>
 
@@ -271,10 +286,12 @@ export default function CalendarPageClient({
         services={services}
         staff={staff}
         customers={customers}
+        shopId={shopId}
       />
 
       <AppointmentDetailModal
         appointment={selectedAppointment}
+        shopId={shopId}
         onClose={() => setSelectedAppointment(null)}
       />
     </div>

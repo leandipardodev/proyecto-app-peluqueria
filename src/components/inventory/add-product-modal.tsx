@@ -6,11 +6,12 @@ import { useRouter } from "next/navigation";
 import { addProduct } from "@/lib/dashboard/inventory-actions";
 
 interface AddProductModalProps {
+  shopId: string;
   open: boolean;
   onClose: () => void;
 }
 
-export default function AddProductModal({ open, onClose }: AddProductModalProps) {
+export default function AddProductModal({ shopId, open, onClose }: AddProductModalProps) {
   const router = useRouter();
   const backdropRef = useRef<HTMLDivElement>(null);
   const [pending, startTransition] = useTransition();
@@ -33,7 +34,7 @@ export default function AddProductModal({ open, onClose }: AddProductModalProps)
     setError(null);
     const formData = new FormData(e.currentTarget);
     startTransition(async () => {
-      const result = await addProduct(formData);
+      const result = await addProduct(formData, shopId);
       if (!result.success) {
         setError(result.error);
       } else {

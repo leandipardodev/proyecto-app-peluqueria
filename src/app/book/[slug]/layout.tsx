@@ -16,7 +16,7 @@ export async function generateMetadata({
     .from("shops")
     .select("nombre")
     .eq("slug", slug)
-    .single();
+    .maybeSingle();
 
   return {
     title: shop ? `${shop.nombre} - Reservar Turno` : "Reservar Turno",

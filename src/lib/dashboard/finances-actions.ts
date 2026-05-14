@@ -1,7 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { createServiceRoleClient, requireShopId } from "@/lib/dashboard/auth-server";
+import { revalidateDashboardSegments } from "@/lib/dashboard/revalidate-dashboard";
 import { getArgentinaDateString, getArgentinaDayBounds } from "@/lib/argentina-time";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
@@ -34,11 +34,15 @@ async function createAdminClient() {
   return createServiceRoleClient();
 }
 
-export async function fetchFinanceData(fromDate?: string, toDate?: string): Promise<ActionResult<FinanceData>> {
+export async function fetchFinanceData(fromDate?: string, toDate?: string, shopIdOverride?: string): Promise<ActionResult<FinanceData>> {
   try {
-    const shopIdResult = await requireShopId();
-    if (!shopIdResult.success) return shopIdResult;
-    const shopId = shopIdResult.data;
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    }
 
     console.log("[fetchFinanceData] fromDate:", fromDate, "toDate:", toDate, "shopId:", shopId);
 
@@ -127,11 +131,15 @@ export async function fetchFinanceData(fromDate?: string, toDate?: string): Prom
   }
 }
 
-export async function createExpense(formData: FormData): Promise<ActionResult> {
+export async function createExpense(formData: FormData, shopIdOverride?: string): Promise<ActionResult> {
   try {
-    const shopIdResult = await requireShopId();
-    if (!shopIdResult.success) return shopIdResult;
-    const shopId = shopIdResult.data;
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    }
 
     const amount = parseFloat(formData.get("amount") as string);
     const category = formData.get("category") as string;
@@ -160,18 +168,22 @@ export async function createExpense(formData: FormData): Promise<ActionResult> {
       return { success: false, error: error.message };
     }
 
-    revalidatePath("/dashboard/finances");
+    await revalidateDashboardSegments(shopId, ["/finances"]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al crear gasto" };
   }
 }
 
-export async function deleteExpense(id: string): Promise<ActionResult> {
+export async function deleteExpense(id: string, shopIdOverride?: string): Promise<ActionResult> {
   try {
-    const shopIdResult = await requireShopId();
-    if (!shopIdResult.success) return shopIdResult;
-    const shopId = shopIdResult.data;
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    }
 
     const admin = await createAdminClient();
 
@@ -186,7 +198,7 @@ export async function deleteExpense(id: string): Promise<ActionResult> {
       return { success: false, error: error.message };
     }
 
-    revalidatePath("/dashboard/finances");
+    await revalidateDashboardSegments(shopId, ["/finances"]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al eliminar gasto" };

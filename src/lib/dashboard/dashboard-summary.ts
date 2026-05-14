@@ -24,11 +24,15 @@ type DashboardSummary = {
   shopSlug: string;
 };
 
-export async function fetchDashboardSummary(): Promise<ActionResult<DashboardSummary>> {
+export async function fetchDashboardSummary(shopIdOverride?: string): Promise<ActionResult<DashboardSummary>> {
   try {
-    const shopIdResult = await requireShopId();
-    if (!shopIdResult.success) return shopIdResult;
-    const shopId = shopIdResult.data;
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    }
 
     const supabase = await createServerClient();
 
@@ -131,11 +135,15 @@ export type DashboardMetrics = {
   stats: { totalClients: number; growth: number };
 };
 
-export async function fetchDashboardMetrics(): Promise<ActionResult<DashboardMetrics>> {
+export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<ActionResult<DashboardMetrics>> {
   try {
-    const shopIdResult = await requireShopId();
-    if (!shopIdResult.success) return shopIdResult;
-    const shopId = shopIdResult.data;
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    }
     const admin = await createAdminClient();
 
     const [apptsRes, financesRes, clientsRes] = await Promise.all([
@@ -143,7 +151,7 @@ export async function fetchDashboardMetrics(): Promise<ActionResult<DashboardMet
         .from("appointments")
         .select("date_key_ar, service_id, services!appointments_service_id_fkey(price)")
         .eq("shop_id", shopId)
-        .eq("status", "completed"),
+        .in("status", ["scheduled", "confirmed", "completed"]),
       admin
         .from("finances")
         .select("amount, type, created_at")

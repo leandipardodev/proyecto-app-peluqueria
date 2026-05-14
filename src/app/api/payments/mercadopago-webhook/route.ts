@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
 import { MercadoPagoConfig, Payment } from "mercadopago";
+import { cycleMonths, type BillingCycle } from "@/lib/billing/plans";
 
 async function createAdminClient() {
   return createServiceRoleClient();
@@ -14,9 +15,27 @@ function resolveStatusFromPaymentStatus(paymentStatus: string | undefined): "con
 
 export async function POST(request: NextRequest) {
   try {
-    const accessToken = process.env.MP_ACCESS_TOKEN;
+    const admin = await createAdminClient();
+    const shopId = request.nextUrl.searchParams.get("shop_id");
+    const scope = request.nextUrl.searchParams.get("scope");
+    let accessToken = process.env.MP_ACCESS_TOKEN || "";
+
+    if (shopId && scope !== "billing") {
+      const { data: shop } = await admin
+        .from("shops")
+        .select("id, mp_access_token")
+        .eq("id", shopId)
+        .single();
+
+      if (!shop?.mp_access_token) {
+        return NextResponse.json({ ok: false, error: "Shop Mercado Pago token missing" }, { status: 400 });
+      }
+
+      accessToken = shop.mp_access_token as string;
+    }
+
     if (!accessToken) {
-      return NextResponse.json({ ok: false, error: "MP_ACCESS_TOKEN missing" }, { status: 500 });
+      return NextResponse.json({ ok: false, error: "Mercado Pago token missing" }, { status: 500 });
     }
 
     const payload = await request.json().catch(() => null);
@@ -33,6 +52,50 @@ export async function POST(request: NextRequest) {
     const payment = new Payment(client);
     const paymentResult = await payment.get({ id: paymentId });
 
+    const externalReference = (paymentResult.external_reference as string | undefined) || "";
+    if (externalReference.startsWith("shop_sub:")) {
+      const [, extShopId, cycleRaw] = externalReference.split(":");
+      const cycle = cycleRaw as BillingCycle;
+      if (extShopId && (cycle === "monthly" || cycle === "semiannual" || cycle === "annual")) {
+        const { data: shop } = await admin
+          .from("shops")
+          .select("id, plan_expiry")
+          .eq("id", extShopId)
+          .maybeSingle();
+
+        if (shop && paymentResult.status === "approved") {
+          const now = new Date();
+          const currentExpiry = shop.plan_expiry ? new Date(shop.plan_expiry) : null;
+          const base = currentExpiry && currentExpiry > now ? currentExpiry : now;
+          const nextExpiry = new Date(base);
+          nextExpiry.setMonth(nextExpiry.getMonth() + cycleMonths(cycle));
+
+          await admin
+            .from("shops")
+            .update({
+              active: true,
+              plan_expiry: nextExpiry.toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", extShopId);
+        }
+
+        await admin.from("shop_billing_events").insert({
+          shop_id: extShopId,
+          actor_user_id: null,
+          event_type: "subscription_payment_webhook",
+          payload: {
+            payment_id: paymentId,
+            status: paymentResult.status,
+            cycle,
+            external_reference: externalReference,
+          },
+        });
+      }
+
+      return NextResponse.json({ ok: true });
+    }
+
     const appointmentId =
       (paymentResult.metadata?.appointment_id as string | undefined) ||
       (paymentResult.external_reference as string | undefined);
@@ -42,7 +105,21 @@ export async function POST(request: NextRequest) {
     }
 
     const status = resolveStatusFromPaymentStatus(paymentResult.status);
-    const admin = await createAdminClient();
+
+    let appointmentQuery = admin
+      .from("appointments")
+      .select("id, shop_id")
+      .eq("id", appointmentId);
+
+    if (shopId) {
+      appointmentQuery = appointmentQuery.eq("shop_id", shopId);
+    }
+
+    const { data: appointment } = await appointmentQuery.maybeSingle();
+
+    if (!appointment) {
+      return NextResponse.json({ ok: true });
+    }
 
     const preferenceId = (paymentResult.order?.id as string | undefined) || (paymentResult.metadata?.preference_id as string | undefined) || undefined;
 
@@ -54,10 +131,12 @@ export async function POST(request: NextRequest) {
         mp_preference_id: preferenceId,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", appointmentId);
+      .eq("id", appointment.id)
+      .eq("shop_id", appointment.shop_id);
 
     await admin.from("mercadopago_logs").insert({
-      appointment_id: appointmentId,
+      shop_id: appointment.shop_id,
+      appointment_id: appointment.id,
       mp_preference_id: preferenceId,
       event_type: "payment_webhook",
       payload: {

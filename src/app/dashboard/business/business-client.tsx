@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Store, Eye, EyeOff, Save, CreditCard, MessageSquareText, Smartphone, Link2, MapPin, Phone, Clock, Share2, AlertTriangle, Trash2, Gift } from "lucide-react";
+import { Store, Eye, EyeOff, Save, CreditCard, MessageSquareText, Smartphone, Link2, MapPin, Phone, Clock, Share2, AlertTriangle, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
@@ -11,7 +11,7 @@ import {
   fetchBusinessData,
   updateBusinessInfo,
   updateMercadoPagoKeysAction,
-  updateLoyaltyProgramAction,
+  updateBookingDepositPolicyAction,
   updateWhatsappTemplateAction,
   fetchBusinessHours,
   updateBusinessHours,
@@ -65,11 +65,10 @@ export default function BusinessClient({
   const [mpPublicKey, setMpPublicKey] = useState(data?.mp_public_key || "");
   const [mpAccessToken, setMpAccessToken] = useState(data?.mp_access_token || "");
   const [whatsappTemplate, setWhatsappTemplate] = useState(data?.whatsapp_template || "");
-  const [loyaltyEnabled, setLoyaltyEnabled] = useState(data?.loyalty_enabled ?? true);
-  const [loyaltyCutsRequired, setLoyaltyCutsRequired] = useState(String(data?.loyalty_cuts_required ?? 10));
-  const [loyaltyDiscountPercent, setLoyaltyDiscountPercent] = useState(String(data?.loyalty_discount_percent ?? 10));
   const [showMpKey, setShowMpKey] = useState(false);
   const [showMpToken, setShowMpToken] = useState(false);
+  const [bookingDepositEnabled, setBookingDepositEnabled] = useState(data?.booking_deposit_enabled ?? true);
+  const [bookingDepositAmount, setBookingDepositAmount] = useState(String(data?.booking_deposit_amount ?? 5000));
   const [message, setMessage] = useState<MessageType>(null);
   const [businessHours, setBusinessHours] = useState<BusinessHoursData | null>(null);
   const [hoursLoading, setHoursLoading] = useState(true);
@@ -172,6 +171,26 @@ export default function BusinessClient({
     });
   }
 
+  function handleSaveBookingDepositPolicy() {
+    startTransition(async () => {
+      const amount = Math.max(0, Number(bookingDepositAmount) || 0);
+      const result = await updateBookingDepositPolicyAction(bookingDepositEnabled, amount);
+      if (!result.success) {
+        playError();
+        showError(result.error);
+        return;
+      }
+      playSuccess();
+      showSuccess("Politica de cobro online guardada");
+      const fresh = await fetchBusinessData();
+      if (fresh.success && fresh.data) {
+        setData(fresh.data);
+        setBookingDepositEnabled(fresh.data.booking_deposit_enabled);
+        setBookingDepositAmount(String(fresh.data.booking_deposit_amount));
+      }
+    });
+  }
+
   function handleSaveWhatsapp() {
     startTransition(async () => {
       const result = await updateWhatsappTemplateAction(whatsappTemplate);
@@ -189,27 +208,6 @@ export default function BusinessClient({
     });
   }
 
-  function handleSaveLoyaltyProgram() {
-    startTransition(async () => {
-      const cutsRequired = Math.max(1, Number(loyaltyCutsRequired) || 1);
-      const discountPercent = Math.max(0, Math.min(100, Number(loyaltyDiscountPercent) || 0));
-      const result = await updateLoyaltyProgramAction(loyaltyEnabled, cutsRequired, discountPercent);
-      if (!result.success) {
-        playError();
-        showError(result.error);
-      } else {
-        playSuccess();
-        showSuccess("Fidelizacion guardada");
-        const fresh = await fetchBusinessData();
-        if (fresh.success && fresh.data) {
-          setData(fresh.data);
-          setLoyaltyEnabled(fresh.data.loyalty_enabled);
-          setLoyaltyCutsRequired(String(fresh.data.loyalty_cuts_required));
-          setLoyaltyDiscountPercent(String(fresh.data.loyalty_discount_percent));
-        }
-      }
-    });
-  }
 
   function handleCloseShop() {
     if (!canManageBilling) return;
@@ -673,6 +671,47 @@ export default function BusinessClient({
                   {pending ? "Guardando..." : "Guardar Claves"}
                 </button>
               </div>
+
+              <div className="rounded-2xl border border-rose-200/70 dark:border-rose-700/40 bg-rose-50/80 dark:bg-rose-900/20 p-4 space-y-3">
+                <p className="text-sm font-semibold text-rose-800 dark:text-rose-200">Recomendacion fuerte de cobro</p>
+                <p className="text-xs text-rose-700/90 dark:text-rose-200/90">
+                  Mercado Pago descuenta aproximadamente un 7% por transaccion. Si cobras el servicio completo desde /book, perdes margen en cada turno.
+                  Te conviene cobrar solo una seña online y finalizar el resto en el local.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setBookingDepositEnabled((prev) => !prev)}
+                    className={`inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-medium border transition-colors ${
+                      bookingDepositEnabled
+                        ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                        : "bg-zinc-100 text-zinc-700 border-zinc-300"
+                    }`}
+                  >
+                    {bookingDepositEnabled ? "Cobrando seña online" : "Cobro total online"}
+                  </button>
+                  <input
+                    type="number"
+                    min={0}
+                    value={bookingDepositAmount}
+                    onChange={(e) => setBookingDepositAmount(e.target.value)}
+                    className="w-full rounded-full bg-white/70 dark:bg-black/30 border border-rose-200/80 dark:border-rose-700/50 px-4 py-2.5 text-sm text-gray-900 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    placeholder="Monto de seña (ARS)"
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onMouseDown={playClick}
+                    onClick={handleSaveBookingDepositPolicy}
+                    disabled={pending}
+                    className="inline-flex items-center gap-2 rounded-full bg-rose-600 px-5 py-2 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-50"
+                  >
+                    <Save className="w-4 h-4" />
+                    {pending ? "Guardando..." : "Guardar politica de cobro"}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
           ) : (
@@ -684,59 +723,6 @@ export default function BusinessClient({
           {/* Divider */}
           <div className="border-t border-white/10" />
 
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <Gift className="w-4 h-4 text-zinc-400" />
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white tracking-tight">Fidelizacion</h3>
-            </div>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
-              Defini cada cuantos cortes se habilita un beneficio y su descuento (0% a 100%).
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <label className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/35 dark:bg-black/25 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={loyaltyEnabled}
-                  onChange={(e) => setLoyaltyEnabled(e.target.checked)}
-                  className="h-4 w-4"
-                />
-                Activar programa
-              </label>
-              <input
-                type="number"
-                min={1}
-                value={loyaltyCutsRequired}
-                onChange={(e) => setLoyaltyCutsRequired(e.target.value)}
-                className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
-                placeholder="Cortes requeridos"
-              />
-              <input
-                type="number"
-                min={0}
-                max={100}
-                value={loyaltyDiscountPercent}
-                onChange={(e) => setLoyaltyDiscountPercent(e.target.value)}
-                className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
-                placeholder="% descuento"
-              />
-            </div>
-            <div className="flex justify-end mt-3">
-              <button
-                type="button"
-                onMouseDown={playClick}
-                onClick={handleSaveLoyaltyProgram}
-                disabled={pending}
-                className="inline-flex w-full sm:w-auto justify-center items-center gap-2 bg-violet-600 text-white px-6 py-2.5 rounded-full text-sm font-medium shadow-sm hover:bg-violet-700 disabled:opacity-50 transition-all cursor-pointer select-none"
-              >
-                <Save className="w-4 h-4" />
-                {pending ? "Guardando..." : "Guardar fidelizacion"}
-              </button>
-            </div>
-          </div>
-
-          {/* Divider */}
-          <div className="border-t border-white/10" />
-
           {/* WhatsApp Template */}
           <div>
             <div className="flex items-center gap-2 mb-4">
@@ -744,9 +730,7 @@ export default function BusinessClient({
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white tracking-tight">Mensaje de WhatsApp</h3>
             </div>
             <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-3">
-              Usá <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{Nombre}'}</code>,{" "}
-              <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{Peluqueria}'}</code> y{" "}
-              <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{Hora}'}</code> y, si querés, <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{Lugar}'}</code> o <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{ubicacion}'}</code>.
+              Podes usar <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{Nombre}'}</code> y <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{Peluqueria}'}</code> y se autocompletara con los datos del turno. Es obligatorio incluir <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{Hora}'}</code> y <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{ubicacion}'}</code> (o <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{Lugar}'}</code>).
             </p>
             <textarea
               value={whatsappTemplate}
@@ -762,10 +746,16 @@ export default function BusinessClient({
                   {whatsappTemplate.match(/\{Hora\}/) ? (
                     <span className="text-green-600 dark:text-green-400">✓ Incluye {`{Hora}`}</span>
                   ) : (
-                    <span className="text-amber-600 dark:text-amber-400">⚠ No incluye {`{Hora}`} — no se mostrará el horario</span>
+                    <span className="text-rose-600 dark:text-rose-400">✕ No incluye {`{Hora}`}</span>
                   )}
                 </p>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">Tip: usá {`{Lugar}`} o {`{ubicacion}`} si querés mostrar dirección.</p>
+                <p className="text-xs text-zinc-400 dark:text-zinc-500">
+                  {whatsappTemplate.match(/\{ubicacion\}|\{Lugar\}/) ? (
+                    <span className="text-green-600 dark:text-green-400">✓ Incluye {`{ubicacion}`} / {`{Lugar}`}</span>
+                  ) : (
+                    <span className="text-rose-600 dark:text-rose-400">✕ No incluye {`{ubicacion}`} ni {`{Lugar}`}</span>
+                  )}
+                </p>
               </div>
               <button
                 type="button"
@@ -877,6 +867,46 @@ export default function BusinessClient({
                         onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, end: e.target.value } })}
                         className="rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
                       />
+
+                      <button
+                        type="button"
+                        disabled={!h.open}
+                        onClick={() => {
+                          const hasBreak = Boolean(h.break_start && h.break_end);
+                          setBusinessHours({
+                            ...businessHours,
+                            [day.key]: {
+                              ...h,
+                              break_start: hasBreak ? null : "13:00",
+                              break_end: hasBreak ? null : "16:00",
+                            },
+                          });
+                        }}
+                        className="rounded-full border border-white/30 dark:border-white/15 px-3 py-1 text-xs text-zinc-600 dark:text-zinc-300 disabled:opacity-50"
+                      >
+                        {h.break_start && h.break_end ? "Quitar corte" : "Agregar horario cortado"}
+                      </button>
+
+                      {h.break_start && h.break_end && (
+                        <>
+                          <span className="hidden sm:inline text-xs text-zinc-400">Corte</span>
+                          <input
+                            type="time"
+                            value={h.break_start}
+                            disabled={!h.open}
+                            onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, break_start: e.target.value } })}
+                            className="rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
+                          />
+                          <span className="hidden sm:inline text-xs text-zinc-400">→</span>
+                          <input
+                            type="time"
+                            value={h.break_end}
+                            disabled={!h.open}
+                            onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, break_end: e.target.value } })}
+                            className="rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
+                          />
+                        </>
+                      )}
                     </div>
                   </div>
                 );

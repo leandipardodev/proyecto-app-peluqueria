@@ -1,8 +1,8 @@
 "use server";
 
 import { createServerClient } from "@/lib/supabase/server";
-import { revalidatePath } from "next/cache";
 import { requireShopId } from "@/lib/dashboard/auth-server";
+import { revalidateDashboardSegments } from "@/lib/dashboard/revalidate-dashboard";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
 
@@ -16,11 +16,15 @@ type StockItem = {
   shop_id: string;
 };
 
-export async function fetchStockItems(): Promise<ActionResult<StockItem[]>> {
+export async function fetchStockItems(shopIdOverride?: string): Promise<ActionResult<StockItem[]>> {
   try {
-    const shopIdResult = await requireShopId();
-    if (!shopIdResult.success) return shopIdResult;
-    const shopId = shopIdResult.data;
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    }
 
     const supabase = await createServerClient();
 
@@ -37,11 +41,15 @@ export async function fetchStockItems(): Promise<ActionResult<StockItem[]>> {
   }
 }
 
-export async function addProduct(formData: FormData): Promise<ActionResult> {
+export async function addProduct(formData: FormData, shopIdOverride?: string): Promise<ActionResult> {
   try {
-    const shopIdResult = await requireShopId();
-    if (!shopIdResult.success) return shopIdResult;
-    const shopId = shopIdResult.data;
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    }
 
     const nombreProducto = (formData.get("nombre_producto") as string) || (formData.get("name") as string);
     const quantity = parseInt(formData.get("quantity") as string);
@@ -66,18 +74,22 @@ export async function addProduct(formData: FormData): Promise<ActionResult> {
 
     if (error) return { success: false, error: error.message };
 
-    revalidatePath("/dashboard/inventory");
+    await revalidateDashboardSegments(shopId, ["/inventory"]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al agregar producto" };
   }
 }
 
-export async function updateStock(id: string, delta: number): Promise<ActionResult> {
+export async function updateStock(id: string, delta: number, shopIdOverride?: string): Promise<ActionResult> {
   try {
-    const shopIdResult = await requireShopId();
-    if (!shopIdResult.success) return shopIdResult;
-    const shopId = shopIdResult.data;
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    }
 
     const supabase = await createServerClient();
 
@@ -105,18 +117,22 @@ export async function updateStock(id: string, delta: number): Promise<ActionResu
 
     if (error) return { success: false, error: error.message };
 
-    revalidatePath("/dashboard/inventory");
+    await revalidateDashboardSegments(shopId, ["/inventory"]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al actualizar stock" };
   }
 }
 
-export async function deleteProduct(id: string): Promise<ActionResult> {
+export async function deleteProduct(id: string, shopIdOverride?: string): Promise<ActionResult> {
   try {
-    const shopIdResult = await requireShopId();
-    if (!shopIdResult.success) return shopIdResult;
-    const shopId = shopIdResult.data;
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    }
 
     const supabase = await createServerClient();
 
@@ -128,7 +144,7 @@ export async function deleteProduct(id: string): Promise<ActionResult> {
 
     if (error) return { success: false, error: error.message };
 
-    revalidatePath("/dashboard/inventory");
+    await revalidateDashboardSegments(shopId, ["/inventory"]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al eliminar producto" };

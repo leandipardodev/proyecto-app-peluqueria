@@ -6,24 +6,48 @@ import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import {
   Home,
   CalendarDays,
-  Clock,
   Package,
   UserRound,
   LogOut,
   Wallet,
   Store,
+  Gift,
 } from "lucide-react";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 
 const navItems = [
   { label: "Inicio", href: "/dashboard", icon: Home },
   { label: "Calendario", href: "/dashboard/calendar", icon: CalendarDays },
-  { label: "Turnos", href: "/dashboard/appointments", icon: Clock },
-  { label: "Clientes", href: "/dashboard/customers", icon: UserRound },
   { label: "Inventario", href: "/dashboard/inventory", icon: Package },
+  { label: "Fidelizacion", href: "/dashboard/fidelizacion", icon: Gift },
+  { label: "Clientes", href: "/dashboard/customers", icon: UserRound },
   { label: "Finanzas", href: "/dashboard/finances", icon: Wallet },
   { label: "Mi Negocio", href: "/dashboard/business", icon: Store },
 ];
+
+const DASHBOARD_LEGACY_SEGMENTS = new Set([
+  "appointments",
+  "business",
+  "calendar",
+  "customers",
+  "finances",
+  "fidelizacion",
+  "inventory",
+  "profile",
+  "services",
+  "settings",
+  "staff",
+  "vouchers",
+]);
+
+function getDashboardBasePath(pathname: string): string {
+  const parts = pathname.split("/").filter(Boolean);
+  const slug = parts[1];
+  if (parts[0] === "dashboard" && slug && !DASHBOARD_LEGACY_SEGMENTS.has(slug)) {
+    return `/dashboard/${slug}`;
+  }
+  return "/dashboard";
+}
 
 const containerVariants = {
   hidden: {},
@@ -53,6 +77,7 @@ export default function DashboardSidebar({
   showBrand = true,
 }: DashboardSidebarProps) {
   const pathname = usePathname();
+  const dashboardBasePath = getDashboardBasePath(pathname);
   const { playClick } = useKlipSounds();
 
   return (
@@ -82,12 +107,13 @@ export default function DashboardSidebar({
           animate="show"
         >
           {navItems.map(({ label, href, icon: Icon }) => {
+            const targetHref = href === "/dashboard" ? dashboardBasePath : `${dashboardBasePath}${href.replace("/dashboard", "")}`;
             const isActive =
-              pathname === href ||
-              (href !== "/dashboard" && pathname.startsWith(href));
+              pathname === targetHref ||
+              (href !== "/dashboard" && pathname.startsWith(targetHref));
 
             const showAlert =
-              (href === "/dashboard/appointments" && notifications?.urgentAppointments) ||
+              (href === "/dashboard/calendar" && notifications?.urgentAppointments) ||
               (href === "/dashboard/inventory" && notifications?.lowStock);
 
             return (
@@ -97,8 +123,8 @@ export default function DashboardSidebar({
                 whileHover={{ x: 5 }}
                 whileTap={{ scale: 0.97 }}
               >
-                <Link
-                  href={href}
+                 <Link
+                  href={targetHref}
                   onMouseDown={playClick}
                   className={`relative flex items-center gap-3 px-3 py-3 rounded-2xl text-sm font-medium transition-colors cursor-pointer select-none ${
                     isActive
@@ -121,7 +147,7 @@ export default function DashboardSidebar({
                   />
                   <span className="flex-1 relative z-10">{label}</span>
                   {showAlert && (
-                    <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 relative z-10" title={href === "/dashboard/appointments" ? "Turnos próximos urgentes" : "Stock bajo"} />
+                    <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 relative z-10" title={href === "/dashboard/calendar" ? "Turnos próximos urgentes" : "Stock bajo"} />
                   )}
                 </Link>
               </motion.div>

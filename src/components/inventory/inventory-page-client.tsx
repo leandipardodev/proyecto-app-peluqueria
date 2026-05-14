@@ -13,10 +13,12 @@ type StockItem = {
 };
 
 interface InventoryPageClientProps {
+  shopId: string;
   initialItems: StockItem[];
 }
 
 export default function InventoryPageClient({
+  shopId,
   initialItems,
 }: InventoryPageClientProps) {
   const [modalOpen, setModalOpen] = useState(false);
@@ -34,9 +36,9 @@ export default function InventoryPageClient({
         </button>
       </div>
 
-      <StockTable items={initialItems} />
+      <StockTable shopId={shopId} items={initialItems} />
 
-      <AddProductModal open={modalOpen} onClose={() => setModalOpen(false)} />
+      <AddProductModal shopId={shopId} open={modalOpen} onClose={() => setModalOpen(false)} />
     </div>
   );
 }

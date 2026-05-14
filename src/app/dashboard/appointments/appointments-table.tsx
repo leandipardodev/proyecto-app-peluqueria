@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MessageCircle, Bell, CreditCard, Copy, Check } from "lucide-react";
 import AppointmentFormModal from "@/components/calendar/appointment-form-modal";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,9 @@ import { useAppointmentAlarm } from "@/lib/use-appointment-alarm";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
 import { createPaymentLink } from "@/lib/payments/mercadopago-actions";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import { useToast } from "@/components/ui/toast";
 
 type Appointment = {
   id: string;
@@ -15,6 +18,7 @@ type Appointment = {
   end_time: string;
   status: string;
   is_paid: boolean;
+  deposit_amount: number | null;
   customers: { id: string; nombre: string | null; email: string; telefono: string | null } | null;
   staff: { user_id: string; name: string } | null;
   services: { id: string; name: string; price: number } | null;
@@ -60,6 +64,7 @@ function needsStatusAttention(status: string): boolean {
 }
 
 interface Props {
+  shopId: string;
   initialAppointments: Appointment[];
   services: Service[];
   staff: StaffMember[];
@@ -67,18 +72,35 @@ interface Props {
   shopName: string;
   shopAddress?: string | null;
   whatsappTemplate?: string | null;
+  canManageBilling?: boolean;
   error?: string | null;
 }
 
-export default function AppointmentsTable({ initialAppointments, services, staff, customers, shopName, shopAddress, whatsappTemplate, error }: Props) {
+export default function AppointmentsTable({ shopId, initialAppointments, services, staff, customers, shopName, shopAddress, whatsappTemplate, canManageBilling = false, error }: Props) {
+  const router = useRouter();
   const { playSuccess, playError, playClick } = useKlipSounds();
   const [appointments, setAppointments] = useState(initialAppointments);
   const [showForm, setShowForm] = useState(false);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [paymentLinks, setPaymentLinks] = useState<Record<string, string>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const { addToast } = useToast();
 
   useAppointmentAlarm(appointments);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`appointments-${shopId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "appointments", filter: `shop_id=eq.${shopId}` }, () => router.refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "customers", filter: `shop_id=eq.${shopId}` }, () => router.refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "services", filter: `shop_id=eq.${shopId}` }, () => router.refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "shop_memberships", filter: `shop_id=eq.${shopId}` }, () => router.refresh())
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [shopId, router]);
 
   function handleSuccess() {
     setShowForm(false);
@@ -120,6 +142,7 @@ export default function AppointmentsTable({ initialAppointments, services, staff
 
       {showForm && (
         <AppointmentFormModal
+          shopId={shopId}
           open={showForm}
           onClose={() => setShowForm(false)}
           onSuccess={handleSuccess}
@@ -184,7 +207,7 @@ export default function AppointmentsTable({ initialAppointments, services, staff
                       }
                       if (!hasRequiredWhatsappTemplate || !hasLocation) {
                         e.preventDefault();
-                        alert("Para enviar WhatsApp, asegurate de incluir {Hora} y dirección del local.");
+                        addToast("Para enviar WhatsApp, asegúrate de incluir {Hora} y direccion del local.", "error");
                       }
                     }}
                   >
@@ -212,7 +235,7 @@ export default function AppointmentsTable({ initialAppointments, services, staff
                         {copiedId === apt.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                       </button>
                     </>
-                  ) : (
+                  ) : canManageBilling ? (
                     <button
                       onClick={async () => {
                         setGeneratingId(apt.id);
@@ -225,7 +248,7 @@ export default function AppointmentsTable({ initialAppointments, services, staff
                         if (result.success && result.data?.init_point) {
                           setPaymentLinks((prev) => ({ ...prev, [apt.id]: result.data!.init_point }));
                         } else {
-                          alert("Error al generar el link");
+                          addToast("Error al generar el link", "error");
                         }
                         setGeneratingId(null);
                       }}
@@ -235,6 +258,8 @@ export default function AppointmentsTable({ initialAppointments, services, staff
                       <CreditCard className="w-4 h-4" />
                       {generating ? "Generando..." : "Cobrar"}
                     </button>
+                  ) : (
+                    <span className="text-xs text-zinc-500">Solo owner</span>
                   )}
                   {urgent && <Bell className="w-4 h-4 text-red-500 animate-pulse shrink-0" />}
                 </div>
@@ -256,13 +281,14 @@ export default function AppointmentsTable({ initialAppointments, services, staff
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Staff</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Estado</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Pago</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Seña</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Acciones</th>
             </tr>
           </thead>
           <tbody className="bg-transparent dark:bg-transparent divide-y divide-white/20 dark:divide-white/10">
             {appointments.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No hay turnos registrados</td>
+                <td colSpan={9} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No hay turnos registrados</td>
               </tr>
             ) : (
               appointments.map((apt) => {
@@ -293,6 +319,9 @@ export default function AppointmentsTable({ initialAppointments, services, staff
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       {apt.is_paid ? <span className="text-emerald-600">Pagado</span> : <span className="text-rose-500">Pendiente</span>}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                      {apt.deposit_amount ? `$${apt.deposit_amount.toFixed(2)}` : "—"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex items-center gap-2">
@@ -328,7 +357,7 @@ export default function AppointmentsTable({ initialAppointments, services, staff
                                   }
                                   if (!hasRequiredWhatsappTemplate || !hasLocation) {
                                     e.preventDefault();
-                                    alert("Para enviar WhatsApp, asegurate de incluir {Hora} y dirección del local.");
+                                    addToast("Para enviar WhatsApp, asegúrate de incluir {Hora} y direccion del local.", "error");
                                   }
                                 }}
                               >
@@ -373,7 +402,7 @@ export default function AppointmentsTable({ initialAppointments, services, staff
                                     </a>
                                   )}
                                 </div>
-                              ) : (
+                              ) : canManageBilling ? (
                                 <button
                                   onClick={async () => {
                                     setGeneratingId(apt.id);
@@ -386,7 +415,7 @@ export default function AppointmentsTable({ initialAppointments, services, staff
                                     if (result.success && result.data?.init_point) {
                                       setPaymentLinks((prev) => ({ ...prev, [apt.id]: result.data!.init_point }));
                                     } else {
-                                      alert("Error al generar el link");
+                                      addToast("Error al generar el link", "error");
                                     }
                                     setGeneratingId(null);
                                   }}
@@ -396,6 +425,8 @@ export default function AppointmentsTable({ initialAppointments, services, staff
                                   <CreditCard className="w-4 h-4" />
                                   {generating ? "Generando..." : "Cobrar"}
                                 </button>
+                              ) : (
+                                <span className="text-xs text-zinc-500">Solo owner</span>
                               )}
                               {urgent && (
                                 <span title="Próximo turno en menos de 1 hora">

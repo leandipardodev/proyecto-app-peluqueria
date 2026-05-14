@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   Package,
   AlertTriangle,
@@ -11,6 +11,9 @@ import {
 } from "lucide-react";
 import { useTransition } from "react";
 import { deleteProduct, updateStock } from "@/lib/dashboard/inventory-actions";
+import { supabase } from "@/lib/supabase";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
+import { useToast } from "@/components/ui/toast";
 
 type StockItem = {
   id: string;
@@ -20,13 +23,41 @@ type StockItem = {
 };
 
 interface StockTableProps {
+  shopId: string;
   items: StockItem[];
 }
 
-export default function StockTable({ items }: StockTableProps) {
+export default function StockTable({ shopId, items }: StockTableProps) {
   const [stockItems, setStockItems] = useState(items);
   const [search, setSearch] = useState("");
+  const [bulkAmountById, setBulkAmountById] = useState<Record<string, number>>({});
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const { addToast } = useToast();
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`stock-${shopId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "stock", filter: `shop_id=eq.${shopId}` },
+        async () => {
+          const { data } = await supabase
+            .from("stock")
+            .select("id, nombre_producto, quantity, unit_cost")
+            .eq("shop_id", shopId)
+            .order("nombre_producto", { ascending: true });
+          if (data) {
+            setStockItems(data as StockItem[]);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [shopId]);
 
   const filtered = useMemo(
     () =>
@@ -38,9 +69,9 @@ export default function StockTable({ items }: StockTableProps) {
 
   function handleDelta(id: string, delta: number) {
     startTransition(async () => {
-      const result = await updateStock(id, delta);
+      const result = await updateStock(id, delta, shopId);
       if (!result.success) {
-        alert(result.error);
+        addToast(result.error, "error");
         return;
       }
       setStockItems((prev) =>
@@ -54,15 +85,27 @@ export default function StockTable({ items }: StockTableProps) {
   }
 
   function handleDelete(id: string) {
-    if (!confirm("¿Eliminar este producto del inventario?")) return;
+    setDeleteTargetId(id);
+  }
+
+  function confirmDeleteProduct() {
+    const id = deleteTargetId;
+    if (!id) return;
     startTransition(async () => {
-      const result = await deleteProduct(id);
+      const result = await deleteProduct(id, shopId);
       if (!result.success) {
-        alert(result.error);
+        addToast(result.error, "error");
         return;
       }
       setStockItems((prev) => prev.filter((item) => item.id !== id));
+      setDeleteTargetId(null);
     });
+  }
+
+  function handleBulkAdjust(id: string, sign: 1 | -1) {
+    const amount = Math.max(0, Number(bulkAmountById[id] || 0));
+    if (!Number.isFinite(amount) || amount <= 0) return;
+    handleDelta(id, sign * amount);
   }
 
   const totalValue = filtered.reduce(
@@ -73,6 +116,7 @@ export default function StockTable({ items }: StockTableProps) {
   const lowStockCount = filtered.filter((i) => i.quantity < 5).length;
 
   return (
+    <>
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
         <div className="relative flex-1 max-w-sm">
@@ -147,6 +191,29 @@ export default function StockTable({ items }: StockTableProps) {
                     title="Eliminar"
                   >
                     <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    value={bulkAmountById[item.id] ?? 1}
+                    onChange={(e) => setBulkAmountById((prev) => ({ ...prev, [item.id]: Number(e.target.value) }))}
+                    className="w-20 px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm"
+                  />
+                  <button
+                    onClick={() => handleBulkAdjust(item.id, 1)}
+                    disabled={pending}
+                    className="px-2 py-1 rounded-md text-xs bg-emerald-600 text-white disabled:opacity-40"
+                  >
+                    + cantidad
+                  </button>
+                  <button
+                    onClick={() => handleBulkAdjust(item.id, -1)}
+                    disabled={pending}
+                    className="px-2 py-1 rounded-md text-xs bg-amber-600 text-white disabled:opacity-40"
+                  >
+                    - cantidad
                   </button>
                 </div>
               </div>
@@ -233,7 +300,7 @@ export default function StockTable({ items }: StockTableProps) {
                         ${total.toFixed(2)}
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center justify-center gap-1">
+                        <div className="flex items-center justify-center gap-1 mb-2">
                           <button
                             onClick={() => handleDelta(item.id, -1)}
                             disabled={pending || item.quantity <= 0}
@@ -259,6 +326,29 @@ export default function StockTable({ items }: StockTableProps) {
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <input
+                            type="number"
+                            min="1"
+                            value={bulkAmountById[item.id] ?? 1}
+                            onChange={(e) => setBulkAmountById((prev) => ({ ...prev, [item.id]: Number(e.target.value) }))}
+                            className="w-16 px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-xs"
+                          />
+                          <button
+                            onClick={() => handleBulkAdjust(item.id, 1)}
+                            disabled={pending}
+                            className="px-2 py-1 rounded-md text-[11px] bg-emerald-600 text-white disabled:opacity-40"
+                          >
+                            +
+                          </button>
+                          <button
+                            onClick={() => handleBulkAdjust(item.id, -1)}
+                            disabled={pending}
+                            className="px-2 py-1 rounded-md text-[11px] bg-amber-600 text-white disabled:opacity-40"
+                          >
+                            -
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -280,5 +370,15 @@ export default function StockTable({ items }: StockTableProps) {
         )}
       </div>
     </div>
+      <ConfirmDialog
+        open={Boolean(deleteTargetId)}
+        title="Eliminar producto"
+        message="Esta accion eliminara el producto del inventario."
+        confirmLabel="Eliminar"
+        danger
+        onCancel={() => setDeleteTargetId(null)}
+        onConfirm={confirmDeleteProduct}
+      />
+    </>
   );
 }

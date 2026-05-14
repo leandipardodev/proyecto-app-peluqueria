@@ -38,6 +38,7 @@ type Customer = {
 };
 
 interface AppointmentFormModalProps {
+  shopId: string;
   open: boolean;
   onClose: () => void;
   onSuccess?: () => void;
@@ -50,6 +51,7 @@ interface AppointmentFormModalProps {
 }
 
 export default function AppointmentFormModal({
+  shopId,
   open,
   onClose,
   onSuccess,
@@ -122,8 +124,8 @@ export default function AppointmentFormModal({
 
     startTransition(async () => {
       const result = showNewCustomer
-        ? await createCustomerAndAppointment(formData)
-        : await createAppointment(formData);
+        ? await createCustomerAndAppointment(formData, shopId)
+        : await createAppointment(formData, shopId);
 
       if (!result.success) {
         setError(result.error);
@@ -345,6 +347,33 @@ export default function AppointmentFormModal({
                   </div>
                 </div>
               )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 cursor-pointer">
+                    Seña (opcional)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    name="deposit_amount"
+                    placeholder="Ej: 5000"
+                    className="w-full px-3 py-2 rounded-2xl text-sm border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 backdrop-blur-md text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-violet-500/20 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 cursor-pointer">
+                    Notas (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    name="notes"
+                    placeholder="Aclaraciones del turno"
+                    className="w-full px-3 py-2 rounded-2xl text-sm border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 backdrop-blur-md text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-violet-500/20 transition-all"
+                  />
+                </div>
+              </div>
             </div>
           </form>
         </div>

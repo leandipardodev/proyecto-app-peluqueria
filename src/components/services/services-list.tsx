@@ -1,11 +1,14 @@
 "use client";
 
 import { Pencil, Trash2, Plus } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import ServiceModal from "./service-modal";
 import ServiceForm from "./service-form";
 import { deleteService } from "@/lib/dashboard/service-actions";
+import { supabase } from "@/lib/supabase";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
+import { useToast } from "@/components/ui/toast";
 
 type Service = {
   id: string;
@@ -15,15 +18,42 @@ type Service = {
 };
 
 interface ServicesListProps {
+  shopId: string;
   initialServices: Service[];
 }
 
-export default function ServicesList({ initialServices }: ServicesListProps) {
+export default function ServicesList({ shopId, initialServices }: ServicesListProps) {
   const router = useRouter();
   const [services, setServices] = useState(initialServices);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const { addToast } = useToast();
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`services-${shopId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "services", filter: `shop_id=eq.${shopId}` },
+        async () => {
+          const { data } = await supabase
+            .from("services")
+            .select("id, name, price, duration_minutes")
+            .eq("shop_id", shopId)
+            .order("created_at", { ascending: false });
+          if (data) {
+            setServices(data as Service[]);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [shopId]);
 
   function openCreate() {
     setEditingService(null);
@@ -47,15 +77,20 @@ export default function ServicesList({ initialServices }: ServicesListProps) {
   }
 
   function handleDelete(id: string) {
-    if (!confirm("¿Estás seguro de eliminar este servicio?")) return;
+    setDeleteTargetId(id);
+  }
 
+  function confirmDeleteService() {
+    const id = deleteTargetId;
+    if (!id) return;
     startTransition(async () => {
-      const result = await deleteService(id);
+      const result = await deleteService(id, shopId);
       if (!result.success) {
-        alert(result.error);
+        addToast(result.error, "error");
         return;
       }
       setServices((prev) => prev.filter((s) => s.id !== id));
+      setDeleteTargetId(null);
     });
   }
 
@@ -183,10 +218,21 @@ export default function ServicesList({ initialServices }: ServicesListProps) {
         title={editingService ? "Editar Servicio" : "Nuevo Servicio"}
       >
         <ServiceForm
+          shopId={shopId}
           service={editingService ?? undefined}
           onSuccess={handleSuccess}
         />
       </ServiceModal>
+
+      <ConfirmDialog
+        open={Boolean(deleteTargetId)}
+        title="Eliminar servicio"
+        message="Esta accion eliminara el servicio del catalogo."
+        confirmLabel="Eliminar"
+        danger
+        onCancel={() => setDeleteTargetId(null)}
+        onConfirm={confirmDeleteService}
+      />
     </>
   );
 }

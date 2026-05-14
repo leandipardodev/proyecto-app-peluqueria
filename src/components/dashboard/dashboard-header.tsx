@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, X, Search, Bell, BellOff, Moon, Sun, Gauge } from "lucide-react";
+import { Menu, X, Search, Bell, BellOff, Moon, Sun, Gauge, Repeat2, Check } from "lucide-react";
 import { useState, useRef, useEffect, useTransition, useMemo, type KeyboardEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import DashboardSidebar from "./dashboard-sidebar";
@@ -17,6 +17,8 @@ interface DashboardHeaderProps {
   userName: string;
   userEmail: string;
   onLogout: () => Promise<void>;
+  activeShopSlug: string | null;
+  managedShops: Array<{ slug: string; nombre: string }>;
 }
 
 type CommandNav = { id: string; kind: "nav"; label: string; hint: string; to: string };
@@ -29,7 +31,38 @@ const NAV_COMMANDS: CommandNav[] = [
   { id: "nav-services", kind: "nav", label: "Ir a Servicios", hint: "Catalogo", to: "/dashboard/services" },
   { id: "nav-settings", kind: "nav", label: "Ir a Configuracion", hint: "Perfil y preferencias", to: "/dashboard" },
   { id: "nav-calendar", kind: "nav", label: "Ver Agenda", hint: "Calendario", to: "/dashboard/calendar" },
+  { id: "nav-fidelizacion", kind: "nav", label: "Ver Fidelizacion", hint: "Canjes y vouchers", to: "/dashboard/fidelizacion" },
 ];
+
+const DASHBOARD_LEGACY_SEGMENTS = new Set([
+  "appointments",
+  "business",
+  "calendar",
+  "customers",
+  "finances",
+  "fidelizacion",
+  "inventory",
+  "profile",
+  "services",
+  "settings",
+  "staff",
+  "vouchers",
+]);
+
+function getDashboardBasePath(pathname: string): string {
+  const parts = pathname.split("/").filter(Boolean);
+  const slug = parts[1];
+  if (parts[0] === "dashboard" && slug && !DASHBOARD_LEGACY_SEGMENTS.has(slug)) {
+    return `/dashboard/${slug}`;
+  }
+  return "/dashboard";
+}
+
+function withDashboardBase(basePath: string, to: string): string {
+  if (!to.startsWith("/dashboard")) return to;
+  if (to === "/dashboard") return basePath;
+  return `${basePath}${to.replace("/dashboard", "")}`;
+}
 
 const ACTION_COMMANDS: CommandAction[] = [
   { id: "act-theme", kind: "action", label: "Cambiar tema", hint: "oscuro o claro", action: "toggleTheme" },
@@ -70,15 +103,24 @@ function formatDataHint(item: OmniSearchResult) {
   return `${item.role === "owner" ? "Administrador" : "Staff"} - ${item.email || "Sin email"}`;
 }
 
-export default function DashboardHeader({ shopName, userName, userEmail, onLogout }: DashboardHeaderProps) {
+export default function DashboardHeader({ shopName, userName, userEmail, onLogout, activeShopSlug, managedShops }: DashboardHeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const dashboardBasePath = getDashboardBasePath(pathname);
+  const pathnameShopSlug = useMemo(() => {
+    const parts = pathname.split("/").filter(Boolean);
+    const slug = parts[1];
+    if (parts[0] === "dashboard" && slug && !DASHBOARD_LEGACY_SEGMENTS.has(slug)) return slug;
+    return null;
+  }, [pathname]);
+  const selectedShopSlug = pathnameShopSlug || activeShopSlug || managedShops[0]?.slug || "";
   const { dark, toggle: toggleDark } = useDarkMode();
   const { performanceMode, togglePerformanceMode } = usePerformanceMode();
   const { playClick, playSearchExpand } = useKlipSounds();
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [shopMenuOpen, setShopMenuOpen] = useState(false);
   const [logoutPending, startLogoutTransition] = useTransition();
   const [soundEnabled, setSoundEnabled] = useState(false);
 
@@ -94,6 +136,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
   const [isPending, startTransition] = useTransition();
 
   const avatarMenuRef = useRef<HTMLDivElement>(null);
+  const shopMenuRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
 
@@ -165,6 +208,18 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
   }, [menuOpen]);
 
   useEffect(() => {
+    if (!shopMenuOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (!shopMenuRef.current) return;
+      if (!shopMenuRef.current.contains(e.target as Node)) {
+        setShopMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [shopMenuOpen]);
+
+  useEffect(() => {
     const q = query.trim();
     if (!searchOpen || q.length < 3) {
       setDbResults([]);
@@ -190,7 +245,9 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
 
   const commandItems = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const nav = NAV_COMMANDS.filter((c) => matchesQuery(q, [c.label, c.hint]));
+    const nav = NAV_COMMANDS
+      .map((c) => ({ ...c, to: withDashboardBase(dashboardBasePath, c.to) }))
+      .filter((c) => matchesQuery(q, [c.label, c.hint]));
 
     const action = ACTION_COMMANDS.filter((c) => {
       if (!q) return true;
@@ -212,7 +269,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
       people,
       flat: [...action, ...nav, ...stock, ...services, ...people] as CommandItem[],
     };
-  }, [query, dbResults]);
+  }, [query, dbResults, dashboardBasePath]);
 
   useEffect(() => {
     setActiveIndex(0);
@@ -246,18 +303,18 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
       const result = item.value;
       closeSearch(true);
       if (result.type === "customer") {
-        router.push(`/dashboard/customers?q=${encodeURIComponent(result.nombre || result.telefono || "")}&customerId=${result.id}`);
+        router.push(`${withDashboardBase(dashboardBasePath, "/dashboard/customers")}?q=${encodeURIComponent(result.nombre || result.telefono || "")}&customerId=${result.id}`);
         return;
       }
       if (result.type === "stock") {
-        router.push("/dashboard/inventory");
+        router.push(withDashboardBase(dashboardBasePath, "/dashboard/inventory"));
         return;
       }
       if (result.type === "service") {
-        router.push("/dashboard/services");
+        router.push(withDashboardBase(dashboardBasePath, "/dashboard/services"));
         return;
       }
-      router.push("/dashboard/staff");
+      router.push(withDashboardBase(dashboardBasePath, "/dashboard/staff"));
       return;
     }
 
@@ -324,6 +381,15 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
     });
   }
 
+  function handleShopSwitch(nextSlug: string) {
+    if (!nextSlug) return;
+    if (nextSlug === selectedShopSlug) return;
+    const parts = pathname.split("/").filter(Boolean);
+    const tail = parts[0] === "dashboard" ? parts.slice(2).join("/") : "";
+    const nextPath = tail ? `/dashboard/${nextSlug}/${tail}` : `/dashboard/${nextSlug}`;
+    router.push(nextPath);
+  }
+
   return (
     <>
       <header className="sticky top-0 z-40 flex items-center gap-4 bg-white/10 dark:bg-black/10 backdrop-blur-xl border-b border-white/20 dark:border-white/10 px-4 py-2.5 lg:px-6 transition-colors">
@@ -334,9 +400,66 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
           <Menu className="w-5 h-5" strokeWidth={1.5} />
         </button>
 
-        <h2 className={`text-base lg:text-lg font-semibold text-gray-800 dark:text-white tracking-tight shrink-0 ${pathname === "/dashboard" ? "hidden" : ""}`}>
-          {shopName}
-        </h2>
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="relative group" ref={shopMenuRef}>
+            <button
+              type="button"
+              onClick={() => managedShops.length > 1 && setShopMenuOpen((v) => !v)}
+              className={`inline-flex items-center gap-2 rounded-xl px-2 py-1 transition ${pathname === dashboardBasePath ? "" : ""} ${managedShops.length > 1 ? "hover:bg-white/35 dark:hover:bg-white/10" : "cursor-default"}`}
+              aria-haspopup={managedShops.length > 1 ? "menu" : undefined}
+              aria-expanded={managedShops.length > 1 ? shopMenuOpen : undefined}
+              aria-label="Local actual"
+            >
+              <h2 className="text-base lg:text-lg font-semibold text-gray-800 dark:text-white tracking-tight">
+                {managedShops.find((shop) => shop.slug === selectedShopSlug)?.nombre || shopName}
+              </h2>
+              {managedShops.length > 1 && (
+                <Repeat2 className={`h-4 w-4 text-gray-500 dark:text-zinc-400 transition-all ${shopMenuOpen ? "opacity-100 rotate-180" : "opacity-0 group-hover:opacity-100"}`} />
+              )}
+            </button>
+
+            <AnimatePresence>
+              {managedShops.length > 1 && shopMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4, scale: 0.985 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -4, scale: 0.985 }}
+                  transition={{ duration: 0.08, ease: "easeOut" }}
+                  className="absolute left-0 z-50 mt-2 w-60 overflow-hidden rounded-xl border border-white/30 bg-white/72 p-1 shadow-xl shadow-black/10 backdrop-blur-lg dark:border-white/10 dark:bg-zinc-950/78"
+                  role="menu"
+                >
+                  {managedShops.map((shop) => {
+                    const isActive = shop.slug === selectedShopSlug;
+                    return (
+                      <button
+                        key={shop.slug}
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setShopMenuOpen(false);
+                          handleShopSwitch(shop.slug);
+                        }}
+                        className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-sm transition ${
+                          isActive
+                            ? "bg-violet-500/10 text-violet-700 dark:bg-violet-500/18 dark:text-violet-200"
+                            : "text-gray-700 hover:bg-white/60 dark:text-zinc-200 dark:hover:bg-white/8"
+                        }`}
+                      >
+                        <span className="truncate">{shop.nombre}</span>
+                        {isActive && (
+                          <span className="inline-flex items-center gap-1 text-[11px] text-violet-700/90 dark:text-violet-200/90">
+                            Actual
+                            <Check className="h-3.5 w-3.5" />
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
 
         <div className="hidden sm:flex flex-1 justify-center">
           <motion.div

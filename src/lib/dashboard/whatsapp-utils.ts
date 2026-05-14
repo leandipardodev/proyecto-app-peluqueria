@@ -1,7 +1,7 @@
 import { DEFAULT_WHATSAPP_TEMPLATE } from "./whatsapp-constants";
 
 export function hasRequiredWhatsAppPlaceholders(template: string): boolean {
-  return /\{hora\}/i.test(template) && (/\{lugar\}/i.test(template) || /\{ubicacion\}/i.test(template));
+  return /\{hora\}/i.test(template);
 }
 
 export function to24hTime(value: string | Date): string {
@@ -29,7 +29,7 @@ export function buildWhatsAppUrl(params: {
 
   const formattedTime = params.time || "";
   const place = (params.place || params.shopName || "").trim();
-  if (!formattedTime || !place) return null;
+  if (!formattedTime) return null;
 
   const text = template
     .replace(/\{Nombre\}/g, params.customerName)

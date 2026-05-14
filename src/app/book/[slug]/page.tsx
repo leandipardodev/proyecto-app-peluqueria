@@ -17,9 +17,9 @@ export default async function BookPage({ params }: BookPageProps) {
 
   const { data: shop, error: shopError } = await admin
     .from("shops")
-    .select("id, nombre, description, address, phone, instagram_url, business_hours, slug")
+    .select("id, nombre, description, address, phone, instagram_url, business_hours, slug, mp_public_key")
     .eq("slug", slug)
-    .single();
+    .maybeSingle();
 
   if (shopError || !shop) {
     return (
@@ -36,25 +36,35 @@ export default async function BookPage({ params }: BookPageProps) {
     );
   }
 
-  const [servicesRes, staffRes] = await Promise.all([
+  const [servicesRes, membershipsRes] = await Promise.all([
     admin
       .from("services")
       .select("id, name, price, duration_minutes")
       .eq("shop_id", shop.id)
       .order("name", { ascending: true }),
     admin
-      .from("user_profiles")
-      .select("user_id, name")
+      .from("shop_memberships")
+      .select("user_id, role")
       .eq("shop_id", shop.id)
+      .eq("is_active", true)
       .in("role", ["owner", "staff"])
-      .order("name", { ascending: true }),
+      .order("created_at", { ascending: true }),
   ]);
 
+  const memberIds = (membershipsRes.data || []).map((m) => m.user_id).filter(Boolean);
+  const staffProfilesRes = memberIds.length
+    ? await admin
+        .from("user_profiles")
+        .select("user_id, name")
+        .in("user_id", memberIds)
+    : { data: [], error: null };
+
+  const profileMap = new Map((staffProfilesRes.data || []).map((p) => [p.user_id, p.name || "Sin nombre"]));
+
   const services = servicesRes.data || [];
-  const staffMembers = (staffRes.data || []).map((s) => ({
-    id: s.user_id,
-    name: s.name || "Sin nombre",
-  }));
+  const staffMembers = memberIds
+    .map((id) => ({ id, name: profileMap.get(id) || "Sin nombre" }))
+    .sort((a, b) => a.name.localeCompare(b.name, "es"));
 
   return (
     <BookingClient
@@ -66,6 +76,7 @@ export default async function BookPage({ params }: BookPageProps) {
         phone: shop.phone || "",
         instagramUrl: shop.instagram_url || "",
         slug: shop.slug || "",
+        mpPublicKey: shop.mp_public_key || "",
       }}
       services={services}
       staffMembers={staffMembers}

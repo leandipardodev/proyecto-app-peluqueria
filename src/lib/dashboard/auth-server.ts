@@ -2,6 +2,10 @@ import { createServerClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import type { ActionResult } from "@/lib/types";
+import { headers } from "next/headers";
+import { cookies } from "next/headers";
+
+const ACTIVE_SHOP_ID_COOKIE = "klip_active_shop_id";
 
 export async function getAuthSession(): Promise<{ user: { id: string } } | null> {
   const supabase = await createServerClient();
@@ -14,13 +18,104 @@ export async function getAuthSession(): Promise<{ user: { id: string } } | null>
 
 export async function getShopId(session: { user: { id: string } }): Promise<string | null> {
   const supabase = await createServerClient();
-  const { data: profile } = await supabase
-    .from("user_profiles")
+  const requestHeaders = await headers();
+  const shopIdFromHeader = requestHeaders.get("x-shop-id");
+  if (shopIdFromHeader) {
+    return shopIdFromHeader;
+  }
+
+  const shopSlugFromHeader = requestHeaders.get("x-shop-slug");
+  if (shopSlugFromHeader) {
+    const normalizedSlug = shopSlugFromHeader.trim().toLowerCase();
+    if (normalizedSlug) {
+      const admin = await createServiceRoleClient();
+      const { data: shop } = await admin
+        .from("shops")
+        .select("id")
+        .eq("slug", normalizedSlug)
+        .maybeSingle();
+
+      if (shop?.id) {
+        const { data: membership } = await admin
+          .from("shop_memberships")
+          .select("shop_id")
+          .eq("user_id", session.user.id)
+          .eq("shop_id", shop.id)
+          .eq("is_active", true)
+          .in("role", ["owner", "admin", "staff"])
+          .maybeSingle();
+
+        if (membership?.shop_id) return membership.shop_id;
+      }
+    }
+  }
+
+  const cookieStore = await cookies();
+  const shopIdFromCookie = cookieStore.get(ACTIVE_SHOP_ID_COOKIE)?.value || null;
+  if (shopIdFromCookie) {
+    const { data: cookieMembership } = await supabase
+      .from("shop_memberships")
+      .select("shop_id")
+      .eq("user_id", session.user.id)
+      .eq("shop_id", shopIdFromCookie)
+      .eq("is_active", true)
+      .in("role", ["owner", "admin", "staff"])
+      .maybeSingle();
+
+    if (cookieMembership?.shop_id) return cookieMembership.shop_id;
+  }
+
+  const { data: membership } = await supabase
+    .from("shop_memberships")
     .select("shop_id")
     .eq("user_id", session.user.id)
-    .single();
-  if (!profile) return null;
-  return profile.shop_id;
+    .eq("is_active", true)
+    .in("role", ["owner", "admin", "staff"])
+    .limit(1)
+    .maybeSingle();
+
+  if (membership?.shop_id) return membership.shop_id;
+  return null;
+}
+
+export async function getShopIdBySlug(slug: string, userId: string): Promise<string | null> {
+  const normalizedSlug = slug.trim().toLowerCase();
+  if (!normalizedSlug || !userId) return null;
+
+  const admin = await createServiceRoleClient();
+  const { data: shop } = await admin
+    .from("shops")
+    .select("id, slug")
+    .eq("slug", normalizedSlug)
+    .maybeSingle();
+
+  if (!shop?.id) return null;
+
+  const { data: membership } = await admin
+    .from("shop_memberships")
+    .select("shop_id")
+    .eq("user_id", userId)
+    .eq("shop_id", shop.id)
+    .eq("is_active", true)
+    .in("role", ["owner", "admin", "staff"])
+    .maybeSingle();
+
+  return membership?.shop_id || null;
+}
+
+export async function canAccessShopId(userId: string, shopId: string): Promise<boolean> {
+  if (!userId || !shopId) return false;
+  const admin = await createServiceRoleClient();
+  const { data: membership } = await admin
+    .from("shop_memberships")
+    .select("shop_id")
+    .eq("user_id", userId)
+    .eq("shop_id", shopId)
+    .eq("is_active", true)
+    .in("role", ["owner", "admin", "staff"])
+    .maybeSingle();
+
+  return Boolean(membership?.shop_id);
 }
 
 export async function requireShopId(): Promise<ActionResult<string>> {
@@ -41,6 +136,28 @@ export async function requireShopContext(): Promise<{ userId: string; shopId: st
     throw new Error("SHOP_CONTEXT_MISSING");
   }
   return { userId: session.user.id, shopId };
+}
+
+export async function requireOwnerShopId(): Promise<ActionResult<string>> {
+  const session = await getAuthSession();
+  if (!session) return { success: false, error: "SESION_EXPIRADA" };
+
+  const shopId = await getShopId(session);
+  if (!shopId) return { success: false, error: "SESION_EXPIRADA" };
+
+  const supabase = await createServerClient();
+  const { data: membership } = await supabase
+    .from("shop_memberships")
+    .select("role, is_active")
+    .eq("user_id", session.user.id)
+    .eq("shop_id", shopId)
+    .maybeSingle();
+
+  if (membership?.is_active && membership.role === "owner") {
+    return { success: true, data: shopId };
+  }
+
+  return { success: false, error: "Solo el owner del local puede realizar esta accion" };
 }
 
 export async function createServiceRoleClient() {

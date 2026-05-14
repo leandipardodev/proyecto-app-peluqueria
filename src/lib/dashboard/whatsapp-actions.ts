@@ -10,11 +10,15 @@ async function createAdminClient() {
   return createServiceRoleClient();
 }
 
-export async function fetchWhatsappTemplate(): Promise<ActionResult<string>> {
+export async function fetchWhatsappTemplate(shopIdOverride?: string): Promise<ActionResult<string>> {
   try {
-    const shopIdResult = await requireShopId();
-    if (!shopIdResult.success) return shopIdResult;
-    const shopId = shopIdResult.data;
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: true, data: DEFAULT_WHATSAPP_TEMPLATE };
+    }
     const admin = await createAdminClient();
 
     const { data, error } = await admin

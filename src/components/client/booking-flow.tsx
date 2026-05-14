@@ -147,10 +147,11 @@ export default function BookingFlow({ shopId, services, staffMembers, selectedSe
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          shopId,
           items: selectedServices.map((s) => ({
+            id: s.id,
             title: s.name,
             quantity: 1,
-            unit_price: s.price,
           })),
         }),
       });

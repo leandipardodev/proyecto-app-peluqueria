@@ -1,5 +1,8 @@
-import { redirect } from "next/navigation";
+import { redirectLegacyDashboardRoute } from "@/lib/dashboard/canonical-dashboard-route";
 
-export default function SettingsRedirectPage() {
-  redirect("/dashboard");
+export const dynamic = "force-dynamic";
+
+export default async function SettingsLegacyRedirectPage() {
+  await redirectLegacyDashboardRoute("/settings");
+  return null;
 }

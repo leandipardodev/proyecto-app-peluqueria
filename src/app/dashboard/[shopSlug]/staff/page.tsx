@@ -1,0 +1,27 @@
+import { fetchStaffMembers } from "@/lib/dashboard/staff-actions";
+import StaffList from "@/components/staff/staff-list";
+import { getAuthSession, getShopIdBySlug } from "@/lib/dashboard/auth-server";
+import { createServerClient } from "@/lib/supabase/server";
+import { notFound } from "next/navigation";
+
+export const dynamic = "force-dynamic";
+
+export default async function DashboardShopStaffPage({ params }: { params: Promise<{ shopSlug: string }> }) {
+  const session = await getAuthSession();
+  if (!session) notFound();
+  const { shopSlug } = await params;
+  const shopId = await getShopIdBySlug(shopSlug, session.user.id);
+  if (!shopId) notFound();
+
+  const supabase = await createServerClient();
+  const { data: membership } = await supabase
+    .from("shop_memberships")
+    .select("role, is_active")
+    .eq("user_id", session.user.id)
+    .eq("shop_id", shopId)
+    .maybeSingle();
+  const canManageStaff = Boolean(membership?.is_active && membership.role === "owner");
+
+  const result = await fetchStaffMembers(shopId);
+  return <StaffList shopId={shopId} initialStaff={result.success ? result.data ?? [] : []} currentUserId={session.user.id} canManageStaff={canManageStaff} />;
+}
