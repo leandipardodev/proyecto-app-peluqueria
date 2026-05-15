@@ -14,6 +14,7 @@ import {
   Gift,
 } from "lucide-react";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
+import { APP_VERSION } from "@/lib/app-version";
 
 const navItems = [
   { label: "Inicio", href: "/dashboard", icon: Home },
@@ -175,6 +176,7 @@ export default function DashboardSidebar({
             </button>
           </motion.div>
         </div>
+        <p className="mt-3 text-[11px] text-zinc-400 dark:text-zinc-500">Version actual: v{APP_VERSION}</p>
       </div>
     </motion.aside>
     </AnimatePresence>

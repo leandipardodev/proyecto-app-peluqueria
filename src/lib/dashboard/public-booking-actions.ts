@@ -91,7 +91,7 @@ async function scheduleAppointmentReminderEmail(params: {
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(params.shopAddress)}`
     : null;
   const locationLine = params.shopAddress
-    ? `<p style="font-size:14px;line-height:1.6;margin:4px 0 14px;"><strong>Dirección:</strong> ${params.shopAddress}</p>`
+    ? `<p style="font-size:14px;line-height:1.6;margin:4px 0 14px;"><strong>Direccion:</strong> ${params.shopAddress}</p>`
     : "";
   const mapsButton = mapsUrl
     ? `<a href="${mapsUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#0071E3;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:999px;font-size:13px;font-weight:600;">Ver ubicacion en Google Maps</a>`
@@ -99,7 +99,7 @@ async function scheduleAppointmentReminderEmail(params: {
 
   await sendEmailWithResend({
     to: params.to,
-    subject: `⏰ Recordatorio: Tenés un turno en ${params.shopName}`,
+    subject: `⏰ Recordatorio: Tenes un turno en ${params.shopName}`,
     scheduledAt: reminderDate.toISOString(),
     replyTo: params.replyTo,
     html: `
@@ -113,7 +113,7 @@ async function scheduleAppointmentReminderEmail(params: {
           ${locationLine}
           ${mapsButton}
         </div>
-        <p style="font-size:12px;line-height:1.6;color:#6b7280;margin-top:14px;">Este es un aviso automático. No respondas a este mail. Si necesitás cancelar, contactá a la peluquería directamente.</p>
+        <p style="font-size:12px;line-height:1.6;color:#6b7280;margin-top:14px;">Este es un aviso automatico. No respondas a este mail. Si necesitas cancelar, contacta a la peluqueria directamente.</p>
         <p style="font-size:12px;color:#9ca3af;margin-top:8px;">Klip Turnos - no-reply@send.klip.com.ar</p>
       </div>
     `,

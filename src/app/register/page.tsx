@@ -23,6 +23,8 @@ export default function RegisterPage() {
   const [cooldownUntil, setCooldownUntil] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const [shopName, setShopName] = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
   const router = useRouter();
   const { addToast } = useToast();
 
@@ -71,6 +73,10 @@ export default function RegisterPage() {
     const trimmedShopName = shopName.trim();
     if (!trimmedShopName) {
       setError("Debes indicar el nombre del local antes de continuar con Google.");
+      return;
+    }
+    if (!termsAccepted) {
+      setError("Debes aceptar los Terminos y Condiciones para continuar.");
       return;
     }
 
@@ -132,14 +138,36 @@ export default function RegisterPage() {
                 <input type="password" id="password" name="password" required minLength={6} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent" placeholder="Minimo 6 caracteres" />
               </div>
 
-              <button type="submit" disabled={pending || cooldownSeconds > 0} className="w-full bg-violet-600 text-white py-2.5 px-4 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer select-none">
+              <div className="rounded-xl border border-gray-200 bg-white/60 px-3 py-2.5">
+                <label className="flex items-start gap-2.5 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    name="terms_accepted"
+                    checked={termsAccepted}
+                    onChange={(e) => setTermsAccepted(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                  />
+                  <span>
+                    Acepto los Terminos y Condiciones y las Politicas de Privacidad de Klip. {" "}
+                    <button
+                      type="button"
+                      onClick={() => setTermsOpen(true)}
+                      className="font-medium text-violet-700 hover:text-violet-800 underline"
+                    >
+                      Leer Terminos y Condiciones
+                    </button>
+                  </span>
+                </label>
+              </div>
+
+              <button type="submit" disabled={pending || cooldownSeconds > 0 || !termsAccepted} className="w-full bg-violet-600 text-white py-2.5 px-4 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer select-none">
                 {pending ? "Creando cuenta..." : cooldownSeconds > 0 ? `Reintenta en ${cooldownSeconds}s` : "Crear cuenta y local"}
               </button>
 
               <button
                 type="button"
                 onClick={handleGoogleOwnerSignup}
-                disabled={pending}
+                disabled={pending || !termsAccepted}
                 className="w-full bg-white text-gray-900 py-2.5 px-4 rounded-2xl text-sm font-medium shadow-sm border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50 cursor-pointer select-none"
               >
                 Continuar con Google (crear local)
@@ -154,6 +182,44 @@ export default function RegisterPage() {
           </p>
         )}
       </div>
+
+      {termsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="w-full max-w-2xl max-h-[88dvh] overflow-y-auto rounded-3xl border border-white/20 bg-white p-6 shadow-2xl">
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="text-xl font-semibold text-gray-900">Terminos y Condiciones de Uso - Klip</h2>
+              <button
+                type="button"
+                onClick={() => setTermsOpen(false)}
+                className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-4 text-sm text-gray-700 leading-6">
+              <p>
+                Al crear una cuenta en Klip, aceptas expresamente los siguientes terminos:
+              </p>
+              <p>
+                <strong>Naturaleza del Servicio:</strong> Klip es una plataforma SaaS de gestion de turnos. El Proveedor no presta servicios de peluqueria ni estetica; la relacion comercial es exclusivamente entre el local y sus clientes finales.
+              </p>
+              <p>
+                <strong>Exencion de Responsabilidad:</strong> El Proveedor no se hace responsable por perdidas economicas, lucro cesante o perdida de turnos derivados de caidas del sistema, fallas en la base de datos o errores en el envio de notificaciones (Resend/Amazon). El software se entrega "tal cual es".
+              </p>
+              <p>
+                <strong>Responsabilidad del Comercio:</strong> El local es el unico responsable de los precios, horarios y servicios publicados, asi como del cumplimiento de la Ley de Proteccion de Datos Personales respecto a sus clientes.
+              </p>
+              <p>
+                <strong>Limitacion de Indemnidad:</strong> Ante cualquier eventual reclamo judicial, la responsabilidad maxima del Proveedor no superara el equivalente a un (1) mes del abono pagado por el Cliente.
+              </p>
+              <p>
+                <strong>Jurisdiccion:</strong> Para cualquier controversia, las partes se someten a los Tribunales Ordinarios de la Ciudad de La Plata, renunciando a cualquier otro fuero.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -98,9 +98,15 @@ export async function registerShop(
     const shopName = formData.get("shop_name") as string;
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
+    const termsAccepted = formData.get("terms_accepted");
 
     if (!shopName || !email || !password) {
       return { success: false, error: "Todos los campos son obligatorios" };
+    }
+
+    const accepted = termsAccepted === "on" || termsAccepted === "true" || termsAccepted === "1";
+    if (!accepted) {
+      return { success: false, error: "Debes aceptar los Terminos y Condiciones para crear la cuenta" };
     }
 
     if (password.length < 6) {

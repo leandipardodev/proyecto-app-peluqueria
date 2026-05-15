@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import DashboardSidebar from "@/components/dashboard/dashboard-sidebar";
 import DashboardHeader from "@/components/dashboard/dashboard-header";
 import DashboardPageTransition from "@/components/dashboard/dashboard-page-transition";
+import ReleaseNotesModal from "@/components/dashboard/release-notes-modal";
 import { getTenantAndUser } from "@/lib/dashboard/get-tenant-and-user";
 import { logout } from "@/lib/dashboard/logout-action";
 import { getTodayArgentinaBounds } from "@/lib/argentina-time";
@@ -99,6 +100,7 @@ export default async function DashboardLayout({
       </div>
 
       <div className="flex flex-col flex-1 min-w-0 min-h-0 relative z-10">
+        <ReleaseNotesModal />
         <DashboardHeader
           shopName={shopName}
           userName={userName}
