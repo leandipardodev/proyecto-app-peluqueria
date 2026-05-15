@@ -61,7 +61,10 @@ async function sendAppointmentConfirmationEmail(params: {
 
 async function scheduleAppointmentReminderEmail(params: {
   to: string;
+  customerName: string;
   shopName: string;
+  serviceName: string;
+  shopAddress?: string;
   startTime: string;
   replyTo?: string;
 }): Promise<void> {
@@ -84,16 +87,34 @@ async function scheduleAppointmentReminderEmail(params: {
     timeZone: "America/Argentina/Buenos_Aires",
   });
 
+  const mapsUrl = params.shopAddress
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(params.shopAddress)}`
+    : null;
+  const locationLine = params.shopAddress
+    ? `<p style="font-size:14px;line-height:1.6;margin:4px 0 14px;"><strong>Dirección:</strong> ${params.shopAddress}</p>`
+    : "";
+  const mapsButton = mapsUrl
+    ? `<a href="${mapsUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#0071E3;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:999px;font-size:13px;font-weight:600;">Ver ubicacion en Google Maps</a>`
+    : "";
+
   await sendEmailWithResend({
     to: params.to,
-    subject: `⏰ Recordatorio: tu turno es hoy a las ${timeLabel}`,
+    subject: `⏰ Recordatorio: Tenés un turno en ${params.shopName}`,
     scheduledAt: reminderDate.toISOString(),
     replyTo: params.replyTo,
     html: `
-      <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#111827;">
+      <div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#111827;background:#f8fafc;border:1px solid #e5e7eb;border-radius:16px;">
         <h1 style="font-size:22px;margin:0 0 12px;">Recordatorio de turno</h1>
-        <p style="font-size:15px;line-height:1.6;margin:0;">Hola! Te recordamos que tenes un turno en 3 horas en ${params.shopName} (${dateLabel} a las ${timeLabel}).</p>
-        <p style="font-size:12px;color:#6b7280;margin-top:18px;">Klip - no-reply@send.klip.com.ar</p>
+        <p style="font-size:15px;line-height:1.65;margin:0 0 16px;">Hola ${params.customerName}, este es un recordatorio de tu turno para hoy.</p>
+        <div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;margin-bottom:14px;">
+          <p style="font-size:14px;line-height:1.6;margin:0 0 4px;"><strong>Peluqueria:</strong> ${params.shopName}</p>
+          <p style="font-size:14px;line-height:1.6;margin:4px 0;"><strong>Servicio:</strong> ${params.serviceName}</p>
+          <p style="font-size:14px;line-height:1.6;margin:4px 0;"><strong>Hora:</strong> ${dateLabel} a las ${timeLabel}</p>
+          ${locationLine}
+          ${mapsButton}
+        </div>
+        <p style="font-size:12px;line-height:1.6;color:#6b7280;margin-top:14px;">Este es un aviso automático. No respondas a este mail. Si necesitás cancelar, contactá a la peluquería directamente.</p>
+        <p style="font-size:12px;color:#9ca3af;margin-top:8px;">Klip Turnos - no-reply@send.klip.com.ar</p>
       </div>
     `,
   });
@@ -503,21 +524,25 @@ export async function createPublicAppointment(data: {
           admin.from("services").select("name").eq("id", data.serviceId).maybeSingle(),
         ]);
 
-        const shopData = (shop as { nombre?: string | null; email?: string | null } | null) || null;
+        const shopData = (shop as { nombre?: string | null; email?: string | null; address?: string | null } | null) || null;
+        const serviceName = (service as { name?: string | null } | null)?.name || "Servicio";
         const replyTo = shopData?.email && shopData.email.includes("@") ? shopData.email : undefined;
 
         await sendAppointmentConfirmationEmail({
           to: data.customerEmail,
           customerName: data.customerName,
           shopName: shopData?.nombre || "Klip",
-          serviceName: (service as { name?: string | null } | null)?.name || "Servicio",
+          serviceName,
           startTime: data.startTime,
           replyTo,
         });
 
         await scheduleAppointmentReminderEmail({
           to: data.customerEmail,
+          customerName: data.customerName,
           shopName: shopData?.nombre || "Klip",
+          serviceName,
+          shopAddress: shopData?.address || undefined,
           startTime: data.startTime,
           replyTo,
         });

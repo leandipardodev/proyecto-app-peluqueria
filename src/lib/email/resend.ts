@@ -7,7 +7,7 @@ type SendEmailParams = {
 };
 
 const RESEND_API_URL = "https://api.resend.com/emails";
-const DEFAULT_FROM = "Klip <no-reply@send.klip.com.ar>";
+const DEFAULT_FROM = "Klip Turnos <no-reply@send.klip.com.ar>";
 
 export async function sendEmailWithResend({ to, subject, html, scheduledAt, replyTo }: SendEmailParams): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
