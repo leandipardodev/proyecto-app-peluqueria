@@ -3,7 +3,7 @@
 import { createServerClient } from "@/lib/supabase/server";
 import { canAccessShopId, createServiceRoleClient, requireShopId } from "@/lib/dashboard/auth-server";
 import { revalidateDashboardSegments } from "@/lib/dashboard/revalidate-dashboard";
-import { createArgentinaDate } from "@/lib/argentina-time";
+import { createArgentinaDate, getArgentinaDateKey, getArgentinaNow } from "@/lib/argentina-time";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
 
@@ -57,10 +57,12 @@ export async function fetchAppointments(startDate: string, endDate: string, shop
     const staffIds = [...new Set(appointments.map(a => a.staff_id))];
     const serviceIds = [...new Set(appointments.map(a => a.service_id))];
 
+    const admin = await createAdminClient();
+
     const [customersData, staffRows, servicesData] = await Promise.all([
       supabase.from("customers").select("id, nombre, email, telefono, loyalty_rewards_available").eq("shop_id", shopId).in("id", customerIds),
       fetchOperationalStaffByShopId(shopId),
-      supabase.from("services").select("id, name, price, duration_minutes").in("id", serviceIds),
+      admin.from("services").select("id, name, price, duration_minutes").eq("shop_id", shopId).in("id", serviceIds),
     ]);
 
     const customersMap = new Map((customersData.data || []).map(c => [c.id, c]));
@@ -242,8 +244,8 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
       .eq("shop_id", shopId)
       .eq("staff_id", staffId)
       .not("status", "eq", "cancelled")
-      .gte("end_time", startIso)
-      .lte("start_time", endIso)
+      .gt("end_time", startIso)
+      .lt("start_time", endIso)
       .maybeSingle();
 
     if (conflict) return { success: false, error: "slot_taken" };
@@ -255,7 +257,7 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
       service_id: serviceId,
       start_time: startIso,
       end_time: endIso,
-      date_key_ar: startDate.slice(0, 7),
+      date_key_ar: getArgentinaDateKey(startIso),
       status: "scheduled",
       deposit_amount: depositAmount,
       is_paid: depositAmount !== null && depositAmount > 0,
@@ -338,8 +340,8 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
         .eq("shop_id", shopId)
         .eq("staff_id", staffId)
         .not("status", "eq", "cancelled")
-        .gte("end_time", startIso)
-        .lte("start_time", endIso)
+        .gt("end_time", startIso)
+        .lt("start_time", endIso)
         .maybeSingle();
 
       if (conflict) return { success: false, error: "slot_taken" };
@@ -352,7 +354,7 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
       service_id: serviceId,
       start_time: startIso,
       end_time: endIso,
-      date_key_ar: startDate.slice(0, 7),
+      date_key_ar: getArgentinaDateKey(startIso),
       status: "scheduled",
       deposit_amount: depositAmount,
       is_paid: depositAmount !== null && depositAmount > 0,
@@ -406,7 +408,7 @@ export async function fetchAllAppointmentsForTable(
       .order("start_time", { ascending: true });
 
     if (upcomingOnly) {
-      appointmentsQuery = appointmentsQuery.gte("start_time", new Date().toISOString());
+      appointmentsQuery = appointmentsQuery.gte("start_time", getArgentinaNow().toISOString());
     }
 
     if (typeof limit === "number" && Number.isFinite(limit) && limit > 0) {

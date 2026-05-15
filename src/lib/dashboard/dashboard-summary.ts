@@ -2,7 +2,17 @@
 
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient, requireShopId } from "@/lib/dashboard/auth-server";
-import { getArgentinaDateString, getArgentinaDayBounds } from "@/lib/argentina-time";
+import {
+  getArgentinaDateString,
+  getArgentinaDayBounds,
+  getArgentinaDateKey,
+  getArgentinaNow,
+} from "@/lib/argentina-time";
+import {
+  APPOINTMENT_STATUS_BILLABLE,
+  APPOINTMENT_STATUS_TODAY_SUMMARY,
+  APPOINTMENT_STATUS_UPCOMING,
+} from "@/lib/dashboard/appointment-status";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
 
@@ -49,7 +59,7 @@ export async function fetchDashboardSummary(shopIdOverride?: string): Promise<Ac
         .eq("shop_id", shopId)
         .gte("start_time", todayStartIso)
         .lte("start_time", todayEndIso)
-        .in("status", ["scheduled", "confirmed", "completed"])
+        .in("status", APPOINTMENT_STATUS_TODAY_SUMMARY as unknown as string[])
         .order("start_time", { ascending: true }),
 
       supabase
@@ -58,7 +68,7 @@ export async function fetchDashboardSummary(shopIdOverride?: string): Promise<Ac
         .eq("shop_id", shopId)
         .gte("start_time", todayStartIso)
         .lte("start_time", todayEndIso)
-        .in("status", ["scheduled", "confirmed", "completed"]),
+        .in("status", APPOINTMENT_STATUS_BILLABLE as unknown as string[]),
 
       supabase
         .from("stock")
@@ -84,7 +94,7 @@ export async function fetchDashboardSummary(shopIdOverride?: string): Promise<Ac
       return sum + (Number(price) || 0);
     }, 0);
 
-    const nowIso = new Date().toISOString();
+    const nowIso = getArgentinaNow().toISOString();
 
     const nextResult = await supabase
       .from("appointments")
@@ -92,24 +102,24 @@ export async function fetchDashboardSummary(shopIdOverride?: string): Promise<Ac
       .eq("shop_id", shopId)
       .gte("start_time", nowIso)
       .lte("start_time", todayEndIso)
-      .in("status", ["scheduled", "confirmed"])
+      .in("status", APPOINTMENT_STATUS_UPCOMING as unknown as string[])
       .order("start_time", { ascending: true })
       .limit(5);
 
     if (nextResult.error) return { success: false, error: nextResult.error.message };
 
     const nextAppointments: NextAppointment[] = (nextResult.data ?? []).map((a: Record<string, unknown>) => ({
-      id: a.id as string,
-      start_time: a.start_time as string,
-      end_time: a.end_time as string,
-      status: a.status as string,
-      customers: Array.isArray(a.customers)
-        ? (a.customers as { nombre: string; telefono: string | null }[])[0] ?? null
-        : (a.customers as { nombre: string; telefono: string | null } | null),
-      services: Array.isArray(a.services)
-        ? (a.services as { name: string; price: number }[])[0] ?? null
-        : (a.services as { name: string; price: number } | null),
-    }));
+        id: a.id as string,
+        start_time: a.start_time as string,
+        end_time: a.end_time as string,
+        status: a.status as string,
+        customers: Array.isArray(a.customers)
+          ? (a.customers as { nombre: string; telefono: string | null }[])[0] ?? null
+          : (a.customers as { nombre: string; telefono: string | null } | null),
+        services: Array.isArray(a.services)
+          ? (a.services as { name: string; price: number }[])[0] ?? null
+          : (a.services as { name: string; price: number } | null),
+      }));
 
     const { data: shop } = await supabase
       .from("shops")
@@ -162,7 +172,7 @@ async function fetchFlowRange(
       .eq("shop_id", shopId)
       .gte("start_time", startIso)
       .lte("start_time", endIso)
-      .in("status", ["scheduled", "confirmed", "completed"]),
+      .in("status", APPOINTMENT_STATUS_BILLABLE as unknown as string[]),
     admin
       .from("finances")
       .select("amount, type")
@@ -201,23 +211,19 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
     }
     const admin = await createAdminClient();
 
-    const now = new Date();
-    const dayStart = new Date(now);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(now);
-    dayEnd.setHours(23, 59, 59, 999);
+    const nowAr = getArgentinaNow();
+    const todayArKey = getArgentinaDateKey(nowAr);
+    const { start: dayStart, end: dayEnd } = getArgentinaDayBounds(todayArKey);
 
-    const weekStart = new Date(dayStart);
-    weekStart.setDate(weekStart.getDate() - 6);
-    const monthStart = new Date(dayStart);
-    monthStart.setDate(monthStart.getDate() - 29);
+    const weekStart = new Date(dayStart.getTime() - 6 * 24 * 60 * 60 * 1000);
+    const monthStart = new Date(dayStart.getTime() - 29 * 24 * 60 * 60 * 1000);
 
     const [apptsRes, financesRes, clientsRes, flowToday, flowWeek, flowMonth] = await Promise.all([
       admin
         .from("appointments")
         .select("date_key_ar, service_id, services!appointments_service_id_fkey(price)")
         .eq("shop_id", shopId)
-        .in("status", ["scheduled", "confirmed", "completed"]),
+        .in("status", APPOINTMENT_STATUS_BILLABLE as unknown as string[]),
       admin
         .from("finances")
         .select("amount, type, created_at")
@@ -239,7 +245,7 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
     const expensesByMonth = new Map<string, number>();
 
     for (const apt of apptsRes.data ?? []) {
-      const month = apt.date_key_ar;
+      const month = typeof apt.date_key_ar === "string" ? apt.date_key_ar.slice(0, 7) : null;
       if (!month) continue;
       const svc = Array.isArray(apt.services) ? apt.services[0] : apt.services;
       incomeByMonth.set(month, (incomeByMonth.get(month) ?? 0) + (svc?.price ?? 0));
@@ -286,15 +292,20 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
 
     const totalClients = clientsRes.data?.length ?? 0;
 
-    const growthNow = new Date();
-    const currentMonth = `${growthNow.getFullYear()}-${String(growthNow.getMonth() + 1).padStart(2, "0")}`;
-    const prevDate = new Date(growthNow.getFullYear(), growthNow.getMonth() - 1, 1);
-    const prevMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}`;
+    const currentMonth = todayArKey.slice(0, 7);
+    const prevMonthDate = new Date(`${currentMonth}-01T00:00:00-03:00`);
+    prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
+    const prevMonth = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, "0")}`;
+
+    const toMonthKey = (value: string | null | undefined) => {
+      if (!value) return "";
+      return getArgentinaDateKey(value).slice(0, 7);
+    };
 
     const currentMonthClients =
-      clientsRes.data?.filter((c) => (c.created_at ?? "").startsWith(currentMonth)).length ?? 0;
+      clientsRes.data?.filter((c) => toMonthKey(c.created_at) === currentMonth).length ?? 0;
     const prevMonthClients =
-      clientsRes.data?.filter((c) => (c.created_at ?? "").startsWith(prevMonth)).length ?? 0;
+      clientsRes.data?.filter((c) => toMonthKey(c.created_at) === prevMonth).length ?? 0;
 
     const growth =
       prevMonthClients > 0

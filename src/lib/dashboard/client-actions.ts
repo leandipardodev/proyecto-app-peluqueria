@@ -3,6 +3,7 @@
 import { createServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient, requireShopId, getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
+import { getArgentinaDateKey } from "@/lib/argentina-time";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
 
@@ -295,7 +296,7 @@ export async function createClientAppointment(formData: FormData): Promise<Actio
         service_id: id,
         start_time: currentStart.toISOString(),
         end_time: currentEnd.toISOString(),
-        date_key_ar: currentStart.toISOString().slice(0, 7),
+        date_key_ar: getArgentinaDateKey(currentStart.toISOString()),
         status: "scheduled",
         is_paid: isPaid,
         notes: index === 0 ? notes || null : null,

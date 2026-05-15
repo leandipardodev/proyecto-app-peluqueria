@@ -12,7 +12,7 @@ import { getArgentinaWeekStart } from "@/lib/argentina-time";
 import { fetchBusinessHours } from "@/lib/dashboard/business-actions";
 import { fetchWhatsappTemplate } from "@/lib/dashboard/whatsapp-actions";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -24,11 +24,11 @@ export default async function CalendarByShopSlugPage({
   searchParams?: { date?: string; appointmentId?: string };
 }) {
   const session = await getAuthSession();
-  if (!session) notFound();
+  if (!session) redirect("/login");
 
   const { shopSlug } = await params;
   const shopId = await getShopIdBySlug(shopSlug, session.user.id);
-  if (!shopId) notFound();
+  if (!shopId) redirect("/dashboard");
 
   const weekStart = getArgentinaWeekStart();
   const rangeStart = new Date(weekStart);

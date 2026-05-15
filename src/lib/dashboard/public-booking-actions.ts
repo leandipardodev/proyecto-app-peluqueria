@@ -4,6 +4,7 @@ import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
 import {
   createArgentinaDate,
   formatArgentinaTime,
+  getArgentinaDateKey,
   getArgentinaDateString,
   getArgentinaDayBounds,
   getArgentinaMinutesSinceMidnight,
@@ -382,7 +383,7 @@ export async function createPublicAppointment(data: {
       return { success: false, error: "Horario invalido" };
     }
 
-    const bookingDate = startDate.toISOString().slice(0, 10);
+    const bookingDate = getArgentinaDateKey(data.startTime);
     const { data: shopHoursData } = await admin
       .from("shops")
       .select("business_hours")
@@ -390,7 +391,7 @@ export async function createPublicAppointment(data: {
       .maybeSingle();
 
     const normalizedHours = normalizeHours(shopHoursData?.business_hours);
-    const dayIndex = new Date(`${bookingDate}T12:00:00`).getDay();
+    const dayIndex = new Date(`${bookingDate}T12:00:00-03:00`).getDay();
     const dayName = DAY_KEYS[dayIndex];
     const resolved = resolveDayHours(normalizedHours, dayIndex);
     const dayConfig = resolved || DEFAULT_WEEK_HOURS[dayName] || { open: false, start: "09:00", end: "20:00" };
@@ -401,8 +402,8 @@ export async function createPublicAppointment(data: {
 
     const [sh, sm] = dayConfig.start.split(":").map(Number);
     const [eh, em] = dayConfig.end.split(":").map(Number);
-    const startMinutes = startDate.getHours() * 60 + startDate.getMinutes();
-    const endMinutes = endDate.getHours() * 60 + endDate.getMinutes();
+    const startMinutes = getArgentinaMinutesSinceMidnight(data.startTime);
+    const endMinutes = getArgentinaMinutesSinceMidnight(data.endTime);
     const openMinutes = sh * 60 + sm;
     const closeMinutes = eh * 60 + em;
 
@@ -480,7 +481,7 @@ export async function createPublicAppointment(data: {
       .select("id, status, created_at")
       .eq("shop_id", data.shopId)
       .lt("start_time", data.endTime)
-      .gte("end_time", data.startTime)
+      .gt("end_time", data.startTime)
       .not("status", "eq", "cancelled");
 
     if (data.staffId) {
@@ -508,7 +509,7 @@ export async function createPublicAppointment(data: {
         service_id: data.serviceId,
         start_time: data.startTime,
         end_time: data.endTime,
-        date_key_ar: data.startTime.slice(0, 7),
+        date_key_ar: getArgentinaDateKey(data.startTime),
         status: data.status ?? "scheduled",
         is_paid: false,
       })

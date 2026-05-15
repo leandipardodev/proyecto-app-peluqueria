@@ -21,8 +21,11 @@ function getDatePartsInTimezone(tz: string): { year: number; month: number; day:
 }
 
 export function getArgentinaNow(): Date {
-  const ds = getArgentinaDateString();
-  return new Date(`${ds}T00:00:00-03:00`);
+  const { year, month, day, hours, minutes } = getDatePartsInTimezone(AR_TZ);
+  const ds = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const hh = String(hours).padStart(2, "0");
+  const mm = String(minutes).padStart(2, "0");
+  return new Date(`${ds}T${hh}:${mm}:00-03:00`);
 }
 
 export function getArgentinaWeekStart(): Date {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { addWeeks, subWeeks } from "date-fns";
 import { motion } from "framer-motion";
 import { Plus } from "lucide-react";
@@ -118,6 +118,27 @@ export default function CalendarPageClient({
   initialAppointmentId,
 }: CalendarPageClientProps) {
   const router = useRouter();
+  const resolvedAppointments = useMemo(() => {
+    if (!Array.isArray(initialAppointments) || initialAppointments.length === 0) return [];
+
+    const servicesById = new Map(services.map((service) => [service.id, service]));
+
+    return initialAppointments.map((appointment) => {
+      if (appointment.services?.name) return appointment;
+      const fallbackService = servicesById.get(appointment.service_id);
+      if (!fallbackService) return appointment;
+
+      return {
+        ...appointment,
+        services: {
+          name: fallbackService.name,
+          price: fallbackService.price,
+          duration_minutes: fallbackService.duration_minutes,
+        },
+      };
+    });
+  }, [initialAppointments, services]);
+
   const [currentDate, setCurrentDate] = useState(() => {
     if (!initialDateParam) return new Date();
     const parsed = new Date(initialDateParam);
@@ -137,13 +158,13 @@ export default function CalendarPageClient({
 
   useEffect(() => {
     if (!initialAppointmentId) return;
-    const found = initialAppointments.find((a) => a.id === initialAppointmentId);
+    const found = resolvedAppointments.find((a) => a.id === initialAppointmentId);
     if (found) {
       setSelectedAppointment(found);
     }
-  }, [initialAppointmentId, initialAppointments]);
+  }, [initialAppointmentId, resolvedAppointments]);
 
-  useAppointmentAlarm(initialAppointments);
+  useAppointmentAlarm(resolvedAppointments);
 
   useEffect(() => {
     const channel = supabase
@@ -263,7 +284,7 @@ export default function CalendarPageClient({
 
       <div className="flex-1 min-h-0">
         <CalendarView
-          appointments={initialAppointments}
+          appointments={resolvedAppointments}
           currentDate={currentDate}
           onPrevWeek={handlePrevWeek}
           onNextWeek={handleNextWeek}

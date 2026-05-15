@@ -8,8 +8,9 @@ import DashboardPageTransition from "@/components/dashboard/dashboard-page-trans
 import ReleaseNotesModal from "@/components/dashboard/release-notes-modal";
 import { getTenantAndUser } from "@/lib/dashboard/get-tenant-and-user";
 import { logout } from "@/lib/dashboard/logout-action";
-import { getTodayArgentinaBounds } from "@/lib/argentina-time";
+import { getArgentinaNow } from "@/lib/argentina-time";
 import { createServiceRoleClient, getShopId } from "@/lib/dashboard/auth-server";
+import { APPOINTMENT_STATUS_UPCOMING } from "@/lib/dashboard/appointment-status";
 
 export const dynamic = "force-dynamic";
 
@@ -45,20 +46,16 @@ async function getNotifications() {
 
     const admin = await createServiceRoleClient();
 
-    const { start: dayStart } = getTodayArgentinaBounds();
-    const tomorrow = new Date(dayStart);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const dayEnd = tomorrow.toISOString();
-
-    const oneHourFromNow = new Date(getTodayArgentinaBounds().start.getTime() + 60 * 60 * 1000).toISOString();
+    const nowAr = getArgentinaNow();
+    const oneHourFromNow = new Date(nowAr.getTime() + 60 * 60 * 1000).toISOString();
 
     const [urgentRes, stockRes] = await Promise.all([
       admin
         .from("appointments")
         .select("id", { count: "exact", head: true })
         .eq("shop_id", shopId)
-        .eq("status", "scheduled")
-        .gte("start_time", dayStart.toISOString())
+        .in("status", APPOINTMENT_STATUS_UPCOMING as unknown as string[])
+        .gte("start_time", nowAr.toISOString())
         .lte("start_time", oneHourFromNow),
       admin
         .from("stock")

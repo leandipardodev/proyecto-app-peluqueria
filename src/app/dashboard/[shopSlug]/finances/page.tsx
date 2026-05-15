@@ -2,7 +2,7 @@ import { fetchFinanceData } from "@/lib/dashboard/finances-actions";
 import FinancesClient from "@/app/dashboard/finances/finances-client";
 import { getArgentinaDateString } from "@/lib/argentina-time";
 import { getAuthSession, getShopIdBySlug } from "@/lib/dashboard/auth-server";
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -14,10 +14,10 @@ export default async function DashboardShopFinancesPage({
   searchParams?: Promise<{ from?: string; to?: string }>;
 }) {
   const session = await getAuthSession();
-  if (!session) notFound();
+  if (!session) redirect("/login");
   const { shopSlug } = await params;
   const shopId = await getShopIdBySlug(shopSlug, session.user.id);
-  if (!shopId) notFound();
+  if (!shopId) redirect("/dashboard");
 
   const query = await searchParams;
   const today = getArgentinaDateString();

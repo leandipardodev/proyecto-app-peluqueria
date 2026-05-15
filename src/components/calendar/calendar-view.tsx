@@ -708,6 +708,11 @@ export default memo(function CalendarView({
                                         <span className={`text-gray-700 dark:text-gray-300 leading-tight truncate ${isWeekMode ? "text-[9px]" : isCompact ? "text-[10px]" : "text-[11px]"}`}>
                                           {appt.start_hhmm} - {appt.end_hhmm}
                                         </span>
+                                        {appt.services?.name && (
+                                          <span className={`text-gray-700/90 dark:text-gray-300/90 leading-tight truncate ${isWeekMode ? "text-[9px]" : isCompact ? "text-[10px]" : "text-[11px]"}`}>
+                                            {svc.emoji ? `${svc.emoji} ` : ""}{svc.label || appt.services.name}
+                                          </span>
+                                        )}
                                         {!isWeekMode && (
                                           <span className="text-[9px] font-semibold text-gray-600 dark:text-gray-300 leading-tight truncate">
                                             {displayLabel}
