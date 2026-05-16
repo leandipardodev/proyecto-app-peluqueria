@@ -29,8 +29,13 @@ function formatMonthLabel(value: string): string {
   return `${months[parseInt(m, 10) - 1]} ${y.slice(2)}`;
 }
 
-function CompactLabel(props: any) {
-  const { x, y, value } = props;
+type CompactLabelProps = {
+  x?: number;
+  y?: number;
+  value?: number | string;
+};
+
+function CompactLabel({ x, y, value }: CompactLabelProps) {
   if (typeof x !== "number" || typeof y !== "number") return null;
   const txt = new Intl.NumberFormat("es-AR", {
     notation: "compact",

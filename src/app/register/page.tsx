@@ -205,7 +205,7 @@ export default function RegisterPage() {
                 <strong>Naturaleza del Servicio:</strong> Klip es una plataforma SaaS de gestion de turnos. El Proveedor no presta servicios de peluqueria ni estetica; la relacion comercial es exclusivamente entre el local y sus clientes finales.
               </p>
               <p>
-                <strong>Exencion de Responsabilidad:</strong> El Proveedor no se hace responsable por perdidas economicas, lucro cesante o perdida de turnos derivados de caidas del sistema, fallas en la base de datos o errores en el envio de notificaciones (Resend/Amazon). El software se entrega "tal cual es".
+                <strong>Exencion de Responsabilidad:</strong> El Proveedor no se hace responsable por perdidas economicas, lucro cesante o perdida de turnos derivados de caidas del sistema, fallas en la base de datos o errores en el envio de notificaciones (Resend/Amazon). El software se entrega &quot;tal cual es&quot;.
               </p>
               <p>
                 <strong>Responsabilidad del Comercio:</strong> El local es el unico responsable de los precios, horarios y servicios publicados, asi como del cumplimiento de la Ley de Proteccion de Datos Personales respecto a sus clientes.

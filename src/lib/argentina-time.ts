@@ -29,7 +29,7 @@ export function getArgentinaNow(): Date {
 }
 
 export function getArgentinaWeekStart(): Date {
-  const { year, month, day, weekday } = getDatePartsInTimezone(AR_TZ);
+  const { weekday } = getDatePartsInTimezone(AR_TZ);
   const todayAr = getArgentinaNow();
   const weekStart = new Date(todayAr);
   weekStart.setUTCDate(todayAr.getUTCDate() - ((weekday + 6) % 7));

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { CalendarDays, Clock, DollarSign, XCircle } from "lucide-react";
+import { CalendarDays, DollarSign, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -34,7 +34,7 @@ export default function ClientAppointmentsList({
   appointments,
   onCancel,
 }: ClientAppointmentsListProps) {
-  const [cancelState, cancelAction] = useActionState(
+  const [, cancelAction] = useActionState(
     async (_prevState: void | null, formData: FormData) => {
       await onCancel(formData);
       return _prevState;

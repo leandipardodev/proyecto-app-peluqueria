@@ -1,6 +1,5 @@
 "use server";
 
-import { createServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient, requireShopId } from "@/lib/dashboard/auth-server";
 import { revalidateDashboardSegments } from "@/lib/dashboard/revalidate-dashboard";
 import type { ActionResult } from "@/lib/types";

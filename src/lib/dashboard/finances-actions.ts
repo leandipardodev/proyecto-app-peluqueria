@@ -15,6 +15,21 @@ type Movement = {
   status: string | null;
 };
 
+type AppointmentIncomeRow = {
+  id: string;
+  start_time: string;
+  status: string;
+  services: { price: number | null; name: string | null } | Array<{ price: number | null; name: string | null }> | null;
+};
+
+type ExpenseRow = {
+  id: string;
+  amount: number;
+  category: string;
+  description: string | null;
+  created_at: string;
+};
+
 export type FinanceData = {
   totalIncome: number;
   totalExpenses: number;
@@ -82,7 +97,10 @@ export async function fetchFinanceData(fromDate?: string, toDate?: string, shopI
       return { success: false, error: expensesResult.error.message || "Error al consultar gastos" };
     }
 
-    const incomeMovements: Movement[] = ((incomeAppts.data || []) as any[]).map((a) => {
+    const incomeRows: AppointmentIncomeRow[] = (incomeAppts.data || []) as AppointmentIncomeRow[];
+    const expenseRows: ExpenseRow[] = (expensesResult.data || []) as ExpenseRow[];
+
+    const incomeMovements: Movement[] = incomeRows.map((a) => {
       const svc = Array.isArray(a.services) ? a.services[0] : a.services;
       return {
         id: a.id,
@@ -94,7 +112,7 @@ export async function fetchFinanceData(fromDate?: string, toDate?: string, shopI
       };
     });
 
-    const expenseMovements: Movement[] = ((expensesResult.data || []) as any[]).map((e) => ({
+    const expenseMovements: Movement[] = expenseRows.map((e) => ({
       id: e.id,
       amount: e.amount,
       description: e.description || e.category || "Gasto",
@@ -117,7 +135,7 @@ export async function fetchFinanceData(fromDate?: string, toDate?: string, shopI
         netBalance: totalIncome - totalExpenses,
         appointmentsCount: incomeMovements.length,
         recentMovements: allMovements,
-        expenses: ((expensesResult.data || []) as any[]).map((e) => ({
+        expenses: expenseRows.map((e) => ({
           id: e.id,
           amount: e.amount,
           category: e.category,

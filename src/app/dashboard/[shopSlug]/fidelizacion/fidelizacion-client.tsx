@@ -92,15 +92,18 @@ export default function FidelizacionClient({
               <p className="px-1 text-xs text-zinc-500 dark:text-zinc-400">Cortes necesarios para la recompensa.</p>
             </div>
             <div className="space-y-1.5">
-              <input
-                type="number"
-                min={0}
-                max={100}
-                value={discountPercent}
-                onChange={(e) => setDiscountPercent(e.target.value)}
-                className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-4 py-2.5 text-sm text-gray-900 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                placeholder="Descuento %"
-              />
+              <div className="relative">
+                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-medium text-zinc-500 dark:text-zinc-300">%</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={discountPercent}
+                  onChange={(e) => setDiscountPercent(e.target.value)}
+                  className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 pl-8 pr-4 py-2.5 text-sm text-gray-900 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  placeholder="Descuento"
+                />
+              </div>
               <p className="px-1 text-xs text-zinc-500 dark:text-zinc-400">Descuento aplicado cuando se usa la recompensa.</p>
             </div>
           </div>

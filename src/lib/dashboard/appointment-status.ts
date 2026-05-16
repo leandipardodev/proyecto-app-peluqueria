@@ -11,6 +11,11 @@ export const APPOINTMENT_STATUS_UPCOMING = [
   "pending_payment",
 ] as const;
 
+export const APPOINTMENT_STATUS_NEEDS_CONFIRMATION = [
+  "scheduled",
+  "pending_payment",
+] as const;
+
 export const APPOINTMENT_STATUS_BILLABLE = [
   "scheduled",
   "confirmed",

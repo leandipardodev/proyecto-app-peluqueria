@@ -37,7 +37,6 @@ export default function StaffList({
   const router = useRouter();
   const [staff, setStaff] = useState<StaffMember[]>(initialStaff);
   const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");

@@ -2,7 +2,7 @@
 
 import { createServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { createServiceRoleClient, requireShopId, getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient, getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
 import { getArgentinaDateKey } from "@/lib/argentina-time";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
@@ -245,7 +245,6 @@ export async function createClientAppointment(formData: FormData): Promise<Actio
     }
 
     const startDate = new Date(startTime);
-    const endDate = new Date(endTime);
 
     const admin = await createAdminClient();
 

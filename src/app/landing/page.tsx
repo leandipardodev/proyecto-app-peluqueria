@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { motion, useMotionValue, useScroll, useSpring, useTransform } from "framer-motion";
-import { CalendarDays, Scissors, Boxes, Wallet, Users, Sparkles, Check, TriangleAlert } from "lucide-react";
+import { CalendarDays, Scissors, Boxes, Wallet, Users, Check, TriangleAlert } from "lucide-react";
 
 const EASE: [number, number, number, number] = [0.43, 0.13, 0.23, 0.96];
 
@@ -263,8 +263,22 @@ export default function LandingPage() {
   const glowX = useTransform(smoothHoverX, (v) => 280 + v * 20);
   const glowY = useTransform(smoothHoverY, (v) => 120 - v * 20);
   const mesh = useMotionValue(0);
+  const [isCoarsePointer, setIsCoarsePointer] = useState(false);
 
   useEffect(() => {
+    const media = window.matchMedia("(pointer: coarse)");
+    const update = () => setIsCoarsePointer(media.matches);
+    update();
+    if (typeof media.addEventListener === "function") {
+      media.addEventListener("change", update);
+      return () => media.removeEventListener("change", update);
+    }
+    media.addListener(update);
+    return () => media.removeListener(update);
+  }, []);
+
+  useEffect(() => {
+    if (isCoarsePointer) return;
     let raf = 0;
     let start = 0;
     function tick(ts: number) {
@@ -274,7 +288,7 @@ export default function LandingPage() {
     }
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [mesh]);
+  }, [isCoarsePointer, mesh]);
 
   const meshX = useTransform(mesh, (v) => `${Math.sin(v * 0.05) * 14}%`);
   const meshY = useTransform(mesh, (v) => `${Math.cos(v * 0.04) * 10}%`);
@@ -335,8 +349,8 @@ export default function LandingPage() {
         style={{
           background:
             "radial-gradient(40% 38% at 20% 24%, rgba(180,207,255,0.28), transparent 70%), radial-gradient(42% 40% at 78% 30%, rgba(211,233,255,0.25), transparent 70%), radial-gradient(45% 44% at 50% 88%, rgba(255,221,238,0.2), transparent 72%), #F5F5F7",
-          backgroundPositionX: meshX,
-          backgroundPositionY: meshY,
+          backgroundPositionX: isCoarsePointer ? "0%" : meshX,
+          backgroundPositionY: isCoarsePointer ? "0%" : meshY,
         }}
       />
 
@@ -387,9 +401,9 @@ export default function LandingPage() {
           onMouseLeave={onMockLeave}
           className="mt-16 rounded-[2.5rem] border border-white/35 bg-white/30 p-5 backdrop-blur-[50px]"
           style={{
-            y,
-            rotateX: mockRotateX,
-            rotateY: mockRotateY,
+            y: isCoarsePointer ? 0 : y,
+            rotateX: isCoarsePointer ? 0 : mockRotateX,
+            rotateY: isCoarsePointer ? 0 : mockRotateY,
             transformPerspective: 1000,
             boxShadow: "inset 0 1px 0 rgba(255,255,255,0.72), 0 40px 90px rgba(0,0,0,0.14)",
           }}
@@ -469,7 +483,7 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
-      <motion.section id="features" className="mx-auto max-w-7xl px-6 py-40" style={{ y: oppositeParallax }}>
+      <motion.section id="features" className="mx-auto max-w-7xl px-6 py-40" style={{ y: isCoarsePointer ? 0 : oppositeParallax }}>
         <motion.div variants={container} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }}>
           <motion.h2 variants={item} className="text-4xl font-black tracking-[-0.04em] md:text-6xl">Bento de capacidades</motion.h2>
           <motion.p variants={item} className="mt-5 max-w-2xl text-lg font-thin text-black/60">Cada bloque esta calibrado para velocidad operativa y claridad ejecutiva.</motion.p>

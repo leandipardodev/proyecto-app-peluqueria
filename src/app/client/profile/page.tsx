@@ -6,10 +6,13 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { ActionResult } from "@/lib/types";
+
+type ProfileActionState = ActionResult | null;
 
 export default function ClientProfilePage() {
   const [state, action, pending] = useActionState(
-    async (prevState: any, formData: FormData) => {
+    async (_prevState: ProfileActionState, formData: FormData): Promise<ProfileActionState> => {
       const result = await updateClientProfile(formData);
       return result;
     },

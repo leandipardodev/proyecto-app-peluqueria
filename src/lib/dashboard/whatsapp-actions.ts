@@ -1,6 +1,5 @@
 "use server";
 
-import { createServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient, requireShopId } from "@/lib/dashboard/auth-server";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
@@ -32,7 +31,7 @@ export async function fetchWhatsappTemplate(shopIdOverride?: string): Promise<Ac
     }
 
     return { success: true, data: data.whatsapp_template as string };
-  } catch (e) {
+  } catch {
     return { success: true, data: DEFAULT_WHATSAPP_TEMPLATE };
   }
 }

@@ -20,7 +20,7 @@ type Appointment = {
   is_paid: boolean;
   deposit_amount: number | null;
   customers: { id: string; nombre: string | null; email: string; telefono: string | null } | null;
-  staff: { user_id: string; name: string } | null;
+  staff: { user_id: string; name: string | null } | null;
   services: { id: string; name: string; price: number } | null;
 };
 
@@ -79,7 +79,7 @@ interface Props {
 export default function AppointmentsTable({ shopId, initialAppointments, services, staff, customers, shopName, shopAddress, whatsappTemplate, canManageBilling = false, error }: Props) {
   const router = useRouter();
   const { playSuccess, playError, playClick } = useKlipSounds();
-  const [appointments, setAppointments] = useState(initialAppointments);
+  const [appointments] = useState(initialAppointments);
   const [showForm, setShowForm] = useState(false);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [paymentLinks, setPaymentLinks] = useState<Record<string, string>>({});

@@ -12,7 +12,7 @@ export default function TerminosPage() {
         <div className="space-y-4 text-sm leading-6 text-slate-700">
           <p>Al crear una cuenta en Klip, aceptas expresamente los siguientes terminos:</p>
           <p><strong>Naturaleza del Servicio:</strong> Klip es una plataforma SaaS de gestion de turnos. El Proveedor no presta servicios de peluqueria ni estetica; la relacion comercial es exclusivamente entre el local y sus clientes finales.</p>
-          <p><strong>Exencion de Responsabilidad:</strong> El Proveedor no se hace responsable por perdidas economicas, lucro cesante o perdida de turnos derivados de caidas del sistema, fallas en la base de datos o errores en el envio de notificaciones (Resend/Amazon). El software se entrega "tal cual es".</p>
+          <p><strong>Exencion de Responsabilidad:</strong> El Proveedor no se hace responsable por perdidas economicas, lucro cesante o perdida de turnos derivados de caidas del sistema, fallas en la base de datos o errores en el envio de notificaciones (Resend/Amazon). El software se entrega &quot;tal cual es&quot;.</p>
           <p><strong>Responsabilidad del Comercio:</strong> El local es el unico responsable de los precios, horarios y servicios publicados, asi como del cumplimiento de la Ley de Proteccion de Datos Personales respecto a sus clientes.</p>
           <p><strong>Limitacion de Indemnidad:</strong> Ante cualquier eventual reclamo judicial, la responsabilidad maxima del Proveedor no superara el equivalente a un (1) mes del abono pagado por el Cliente.</p>
           <p><strong>Jurisdiccion:</strong> Para cualquier controversia, las partes se someten a los Tribunales Ordinarios de la Ciudad de La Plata, renunciando a cualquier otro fuero.</p>

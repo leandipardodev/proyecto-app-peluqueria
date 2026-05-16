@@ -8,12 +8,12 @@ import HoverScale from "@/components/ui/hover-scale";
 import { fetchWhatsappTemplate } from "@/lib/dashboard/whatsapp-actions";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
 import { buildWhatsAppContactUrl, buildWhatsAppUrl } from "@/lib/dashboard/whatsapp-utils";
-import { createServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient, getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { fetchTodayVoucherAlerts } from "@/lib/dashboard/voucher-actions";
 import VoucherBirthdayAlert from "@/components/dashboard/voucher-birthday-alert";
+import type { CSSProperties } from "react";
 
 export const dynamic = "force-dynamic";
 
@@ -247,22 +247,23 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
         </div>
       </div>
 
-      <ShareLinkCard slug={shopSlugOverride || summary.shopSlug} shopName={summary.shopName} />
+      <ShareLinkCard slug={shopSlugOverride || summary.shopSlug} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map(({ label, value, hint, icon: Icon, color, bg }, idx) => {
           const isGrowthCard = label === "Crecimiento";
           const growthFill = Math.min(Math.max(Math.abs(growthValue), 8), 100);
           const hasProgress = isGrowthCard;
+          const sheenStyle: CSSProperties & Record<"--sheen-delay" | "--sheen-duration", string> = {
+            "--sheen-delay": `${-0.5 - idx * 2.1}s`,
+            "--sheen-duration": `${13.6 + (idx % 3) * 0.8}s`,
+          };
           return (
           <HoverScale key={label}>
             <Link href={cardHrefByLabel[label] || dashboardBasePath} className="block h-full">
               <div
                 className="glass-sheen-card h-full min-h-[124px] lg:min-h-[132px] bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-6 flex items-center gap-4 transition-colors hover:bg-white/30 dark:hover:bg-white/5 cursor-pointer"
-                style={{
-                  ["--sheen-delay" as any]: `${-0.5 - idx * 2.1}s`,
-                  ["--sheen-duration" as any]: `${13.6 + (idx % 3) * 0.8}s`,
-                }}
+                style={sheenStyle}
               >
                 <div className={`p-3 rounded-xl ${bg}`}>
                   <Icon className={`w-5 h-5 ${color}`} />

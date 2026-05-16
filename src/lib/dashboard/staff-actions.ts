@@ -169,7 +169,6 @@ export async function addStaffMember(formData: FormData, shopIdOverride?: string
       return { success: false, error: "Todos los campos son obligatorios" };
     }
 
-    const supabase = await createServerClient();
     const admin = await createAdminClient();
 
     const normalizedEmail = email.trim().toLowerCase();

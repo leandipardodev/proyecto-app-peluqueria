@@ -42,10 +42,11 @@ export default async function DashboardShopBusinessPage({ params }: { params: Pr
     metricsResult.success && metricsResult.data
       ? {
           totalClients: metricsResult.data.stats.totalClients,
+          totalAppointments: metricsResult.data.stats.totalAppointments,
           growth: metricsResult.data.stats.growth,
           topServicesCount: metricsResult.data.topServices.length,
-          income: metricsResult.data.revenueChart[metricsResult.data.revenueChart.length - 1]?.income ?? 0,
-          expenses: metricsResult.data.revenueChart[metricsResult.data.revenueChart.length - 1]?.expenses ?? 0,
+          income: metricsResult.data.revenueChart.reduce((sum, point) => sum + point.income, 0),
+          expenses: metricsResult.data.revenueChart.reduce((sum, point) => sum + point.expenses, 0),
         }
       : null;
 

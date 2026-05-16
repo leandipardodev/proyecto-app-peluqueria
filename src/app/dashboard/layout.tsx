@@ -10,7 +10,7 @@ import { getTenantAndUser } from "@/lib/dashboard/get-tenant-and-user";
 import { logout } from "@/lib/dashboard/logout-action";
 import { getArgentinaNow } from "@/lib/argentina-time";
 import { createServiceRoleClient, getShopId } from "@/lib/dashboard/auth-server";
-import { APPOINTMENT_STATUS_UPCOMING } from "@/lib/dashboard/appointment-status";
+import { APPOINTMENT_STATUS_NEEDS_CONFIRMATION } from "@/lib/dashboard/appointment-status";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +54,7 @@ async function getNotifications() {
         .from("appointments")
         .select("id", { count: "exact", head: true })
         .eq("shop_id", shopId)
-        .in("status", APPOINTMENT_STATUS_UPCOMING as unknown as string[])
+        .in("status", APPOINTMENT_STATUS_NEEDS_CONFIRMATION as unknown as string[])
         .gte("start_time", nowAr.toISOString())
         .lte("start_time", oneHourFromNow),
       admin

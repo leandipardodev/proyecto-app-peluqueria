@@ -47,7 +47,6 @@ interface AppointmentFormModalProps {
   services: Service[];
   staff: StaffMember[];
   customers: Customer[];
-  onCustomerCreated?: (customer: Customer) => void;
 }
 
 export default function AppointmentFormModal({
@@ -60,7 +59,6 @@ export default function AppointmentFormModal({
   services,
   staff,
   customers,
-  onCustomerCreated,
 }: AppointmentFormModalProps) {
   const backdropRef = useRef<HTMLDivElement>(null);
   const [pending, startTransition] = useTransition();

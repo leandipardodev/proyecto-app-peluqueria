@@ -139,7 +139,7 @@ export default function BookingFlow({ shopId, services, staffMembers, selectedSe
     setStep("checkout");
   }
 
-  async function generateMpLink(total: number) {
+  async function generateMpLink() {
     setLoading(true);
     setError(null);
     try {
@@ -184,30 +184,6 @@ export default function BookingFlow({ shopId, services, staffMembers, selectedSe
       formData.set("phone", phone.trim());
       formData.set("is_paid", "false");
       formData.set("payment_method", "local");
-      if (selectedStaff) {
-        formData.set("staff_id", selectedStaff.user_id);
-      }
-      const result = await createClientAppointment(formData);
-      if (!result.success) {
-        setError(result.error);
-      } else {
-        router.push("/client/appointments?success=true");
-      }
-    });
-  }
-
-  function handlePaymentComplete() {
-    if (selectedServices.length === 0 || !selectedSlot) return;
-    setStep("confirm");
-    startTransition(async () => {
-      const formData = new FormData();
-      formData.set("service_id", selectedServices[0].id);
-      formData.set("service_ids", selectedServices.map((s) => s.id).join(","));
-      formData.set("start_time", selectedSlot.start);
-      formData.set("end_time", selectedSlot.end);
-      formData.set("phone", phone.trim());
-      formData.set("is_paid", "true");
-      formData.set("payment_method", "mercadopago");
       if (selectedStaff) {
         formData.set("staff_id", selectedStaff.user_id);
       }
@@ -529,7 +505,7 @@ export default function BookingFlow({ shopId, services, staffMembers, selectedSe
                         }
                         setError(null);
                         setPaymentMethod("mercadopago");
-                        generateMpLink(totalPrice);
+                        generateMpLink();
                       }}
                       disabled={loading}
                       className="relative group text-left bg-white/40 dark:bg-gray-800/40 backdrop-blur-xl rounded-xl border border-white/30 dark:border-gray-600/30 p-5 shadow-lg hover:shadow-violet-200/30 dark:hover:shadow-violet-900/30 transition-all disabled:opacity-50 cursor-pointer select-none"

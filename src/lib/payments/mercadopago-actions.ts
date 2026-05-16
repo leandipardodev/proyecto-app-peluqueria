@@ -14,9 +14,6 @@ type MercadoPagoKeys = { mp_public_key: string; mp_access_token: string };
 
 export async function fetchMercadoPagoKeys(): Promise<ActionResult<MercadoPagoKeys>> {
   try {
-    const {
-      data: { user },
-    } = await (await createServerClient()).auth.getUser();
     const shopIdResult = await requireOwnerShopId();
     if (!shopIdResult.success) return shopIdResult;
     const shopId = shopIdResult.data;
@@ -39,7 +36,7 @@ export async function fetchMercadoPagoKeys(): Promise<ActionResult<MercadoPagoKe
         mp_access_token: (data.mp_access_token as string) || "",
       },
     };
-  } catch (e) {
+  } catch {
     return { success: true, data: { mp_public_key: "", mp_access_token: "" } };
   }
 }

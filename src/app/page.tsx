@@ -579,8 +579,8 @@ export default function Home() {
                 ))}
               </div>
               <div className="mt-5 grid gap-4 md:grid-cols-2">
-                <Card className="bg-gradient-to-br from-white to-slate-50 p-6"><p className="text-sm font-semibold text-slate-700">"Ordenamos todo el salon en una semana. Hoy nadie se pisa horarios."</p><p className="mt-3 text-xs uppercase tracking-[0.16em] text-slate-500">Valentina - Studio Norte</p></Card>
-                <Card className="bg-gradient-to-br from-white to-slate-50 p-6"><p className="text-sm font-semibold text-slate-700">"La gente vuelve mas porque reservar y recordarles turno es facil."</p><p className="mt-3 text-xs uppercase tracking-[0.16em] text-slate-500">Bruno - Distrito Barber</p></Card>
+                <Card className="bg-gradient-to-br from-white to-slate-50 p-6"><p className="text-sm font-semibold text-slate-700">&quot;Ordenamos todo el salon en una semana. Hoy nadie se pisa horarios.&quot;</p><p className="mt-3 text-xs uppercase tracking-[0.16em] text-slate-500">Valentina - Studio Norte</p></Card>
+                <Card className="bg-gradient-to-br from-white to-slate-50 p-6"><p className="text-sm font-semibold text-slate-700">&quot;La gente vuelve mas porque reservar y recordarles turno es facil.&quot;</p><p className="mt-3 text-xs uppercase tracking-[0.16em] text-slate-500">Bruno - Distrito Barber</p></Card>
               </div>
             </Section>
           </SweepSection>

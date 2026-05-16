@@ -287,7 +287,7 @@ export default function StockTable({ shopId, items }: StockTableProps) {
                       <td className="px-6 py-4 text-center">
                         <span
                           className={`text-sm font-semibold ${
-                            isLow ? "text-red-600" : "text-gray-900"
+                            isLow ? "text-red-600 dark:text-red-400" : "text-gray-900 dark:text-gray-100"
                           }`}
                         >
                           {item.quantity}

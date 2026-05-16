@@ -9,6 +9,7 @@ import { GRID_END_HOUR, GRID_START_HOUR, HOUR_HEIGHT } from "@/lib/calendar-cons
 import {
   extractArgentinaTimeHHmm,
   getArgentinaDateKey,
+  getArgentinaMinutesSinceMidnight,
   minutesFromHHmm,
   toArgentinaLocalIsoString,
 } from "@/lib/argentina-time";
@@ -25,7 +26,7 @@ type Appointment = {
   deposit_amount?: number | null;
   notes: string | null;
   customers: { nombre: string | null; email: string; telefono: string | null } | null;
-  staff: { name: string; email: string } | null;
+  staff: { name: string | null; email: string | null } | null;
   services: { name: string; price: number; duration_minutes: number } | null;
 };
 
@@ -63,8 +64,6 @@ interface CalendarViewProps {
   staffList?: StaffMember[];
   staffFilter?: string | null;
   businessHours?: BusinessHoursMap;
-  whatsappTemplate?: string;
-  shopName?: string;
 }
 
 const hours = (() => {
@@ -153,8 +152,6 @@ export default memo(function CalendarView({
   staffList,
   staffFilter,
   businessHours,
-  whatsappTemplate,
-  shopName,
 }: CalendarViewProps) {
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
   const weekEnd = addDays(weekStart, 6);
@@ -226,6 +223,9 @@ export default memo(function CalendarView({
     for (const appt of normalizedAppointments) {
       const dayAppointments = map.get(appt.date_key_ar);
       if (dayAppointments) dayAppointments.push(appt);
+    }
+    for (const [, value] of map) {
+      value.sort((a, b) => a.start_hhmm.localeCompare(b.start_hhmm));
     }
     return map;
   }, [normalizedAppointments, weekDays]);
@@ -507,10 +507,10 @@ export default memo(function CalendarView({
 
           {displayedDays.map((day, dayIndex) => {
             const dayStr = getArgentinaDateKey(day);
-            const dayAppointments = appointmentsByDay.get(dayStr) || [];
             const dayKey = DAY_MAP[day.getDay()];
             const dayHours = businessHours?.[dayKey];
             const dayFullyClosed = dayHours && !dayHours.open;
+            const dayAppointments = appointmentsByDay.get(dayStr) || [];
 
             return (
               <div
@@ -563,10 +563,48 @@ export default memo(function CalendarView({
                 </div>
 
                 {(() => {
+                  const dayEvents = dayAppointments
+                    .filter((appt) => {
+                      const startMin = minutesFromHHmm(appt.start_hhmm);
+                      const endMin = minutesFromHHmm(appt.end_hhmm);
+                      return endMin > GRID_START_HOUR * 60 && startMin < (GRID_END_HOUR + 1) * 60;
+                    })
+                    .map((appt) => {
+                      const startMin = Math.max(minutesFromHHmm(appt.start_hhmm), GRID_START_HOUR * 60);
+                      const endMin = Math.min(minutesFromHHmm(appt.end_hhmm), (GRID_END_HOUR + 1) * 60);
+                      const durationMin = Math.max(endMin - startMin, 15);
+                      return { appt, startMin, endMin, durationMin };
+                    });
+
+                  const eventLayout = dayEvents.map((event) => {
+                    const overlaps = dayEvents
+                      .filter((candidate) => candidate.appt.id !== event.appt.id)
+                      .filter((candidate) => candidate.startMin < event.endMin && candidate.endMin > event.startMin)
+                      .sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
+
+                    const cluster = [event, ...overlaps].sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
+                    const colById = new Map<string, number>();
+                    const activeCols: Array<{ endMin: number; col: number }> = [];
+
+                    for (const item of cluster) {
+                      for (let i = activeCols.length - 1; i >= 0; i--) {
+                        if (activeCols[i].endMin <= item.startMin) activeCols.splice(i, 1);
+                      }
+                      let col = 0;
+                      while (activeCols.some((a) => a.col === col)) col += 1;
+                      activeCols.push({ endMin: item.endMin, col });
+                      colById.set(item.appt.id, col);
+                    }
+
+                    const thisCol = colById.get(event.appt.id) || 0;
+                    const cols = Math.max(...Array.from(colById.values()), 0) + 1;
+                    return { ...event, col: thisCol, cols };
+                  });
+
                   return (
                     <>
                       <div
-                        className="grid flex-1"
+                        className="grid flex-1 relative"
                         style={{
                           gridTemplateRows: `repeat(${hours.length}, ${slotHeight}px)`,
                         }}
@@ -593,9 +631,6 @@ export default memo(function CalendarView({
 
                             return blocks.some((b) => slotStart < b.end && slotEnd > b.start);
                           })();
-                          const slotAppointments = appointmentsByDayHour.get(`${dayStr}-${hour}`) || [];
-                          const slotCount = slotAppointments.length;
-                          const slotGridCols = slotCount <= 2 ? Math.max(slotCount, 1) : slotCount <= 4 ? 2 : 3;
                           return (
                           <div
                             key={hour}
@@ -619,140 +654,132 @@ export default memo(function CalendarView({
                                 {`${String(hour).padStart(2, "0")}:00`}
                               </span>
                             )}
-                            <div className="relative w-full h-full overflow-hidden">
-                              <div
-                                className="grid w-full h-full gap-1"
-                                style={{
-                                  gridTemplateColumns: `repeat(${slotGridCols}, minmax(0, 1fr))`,
-                                }}
-                              >
-                              {slotAppointments.map((appt) => {
-                                const isDenseOverlap = slotCount > 1;
-                                const isCompact = slotCount >= 3;
-                                const isWeekMode = viewMode === "week";
-
-                                const staffColor = appt.staff
-                                  ? staffColorMap.get(appt.staff_id || "") || STAFF_COLORS[0]
-                                  : STAFF_COLORS[0];
-
-                                const svc = appt.services?.name
-                                  ? extractEmoji(appt.services.name)
-                                  : { emoji: "", label: "" };
-
-                                const statusStyle = STATUS_STYLES[appt.status] || STATUS_STYLES.scheduled;
-                                const isFinalStatus = STATUS_FINAL.has(appt.status);
-                                const needsAttention = appt.status === "scheduled";
-                                const displayLabel = getTurnoStatusLabel(appt.status, appt.is_paid);
-
-                                return (
-                                  <motion.div
-                                    key={appt.id}
-                                    className={`relative w-full min-w-0 max-w-full rounded-xl text-xs cursor-pointer bg-white/90 dark:bg-white/10 backdrop-blur-md border border-white/45 dark:border-white/20 shadow-sm group h-full overflow-hidden ${isFinalStatus ? "opacity-50" : ""} ${needsAttention ? "animate-pulse-border" : ""}`}
-                                    style={{
-                                      fontFamily: "Inter, sans-serif",
-                                      boxShadow: `inset 2px 0 0 ${hexToRgba(staffColor.border, 0.32)}`,
-                                    }}
-                                    initial={{ opacity: 0, scale: 0.96 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    transition={{ type: "spring", ...MOTION_PRESET.pill }}
-                                    whileHover={{ y: -1, boxShadow: "0 12px 24px rgba(15, 23, 42, 0.12)" }}
-                                    whileTap={{ scale: 0.985 }}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      onAppointmentClick(appt);
-                                    }}
-                                    onMouseEnter={(e) => {
-                                      if (isCoarsePointer) return;
-                                      const pos = { x: e.clientX, y: e.clientY };
-                                      const adjusted = getTooltipPosition(pos.x, pos.y);
-                                      tooltipTargetX.set(adjusted.left);
-                                      tooltipTargetY.set(adjusted.top);
-                                      setHoverTooltip({ appointment: appt });
-                                    }}
-                                    onMouseMove={(e) => {
-                                      if (isCoarsePointer) return;
-                                      const adjusted = getTooltipPosition(e.clientX, e.clientY);
-                                      tooltipTargetX.set(adjusted.left);
-                                      tooltipTargetY.set(adjusted.top);
-                                    }}
-                                    onMouseLeave={() => {
-                                      setHoverTooltip(null);
-                                    }}
-                                  >
-                                    <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent rounded-2xl pointer-events-none" />
-                                    <div
-                                      className="absolute inset-y-0 left-0 w-[3px] pointer-events-none"
-                                      style={{
-                                        background: `linear-gradient(180deg, ${hexToRgba(staffColor.border, 0.85)} 0%, ${hexToRgba(staffColor.border, 0.45)} 100%)`,
-                                      }}
-                                    />
-                                    <div
-                                      className="absolute -inset-x-10 top-0 h-full -translate-x-[120%] group-hover:translate-x-[120%] transition-transform duration-700 ease-out pointer-events-none"
-                                      style={{
-                                        background: "linear-gradient(100deg, transparent 35%, rgba(255,255,255,0.35) 50%, transparent 65%)",
-                                      }}
-                                    />
-                                    <div className={`relative z-10 flex h-full ${isWeekMode ? "flex-col justify-around p-1.5 gap-1" : "flex-col justify-between p-1.5 gap-0.5"}`}>
-                                      <div className="min-w-0 space-y-0.5">
-                                        <div className="flex items-center justify-between gap-1">
-                                          <span className={`font-bold text-gray-900 dark:text-gray-100 leading-tight truncate ${isWeekMode ? "text-[10px]" : isCompact ? "text-[11px]" : "text-xs"}`}>
-                                            {appt.customers?.nombre || "Sin cliente"}
-                                          </span>
-                                          <div className="flex items-center gap-1 shrink-0">
-                                            {!isWeekMode && svc.emoji && (
-                                              <span className="text-sm leading-none">{svc.emoji}</span>
-                                            )}
-                                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${needsAttention ? "animate-pulse" : ""}`} style={{ backgroundColor: needsAttention ? "#ef4444" : statusStyle.dot }} />
-                                          </div>
-                                        </div>
-                                        <span className={`text-gray-700 dark:text-gray-300 leading-tight truncate ${isWeekMode ? "text-[9px]" : isCompact ? "text-[10px]" : "text-[11px]"}`}>
-                                          {appt.start_hhmm} - {appt.end_hhmm}
-                                        </span>
-                                        {appt.services?.name && (
-                                          <span className={`text-gray-700/90 dark:text-gray-300/90 leading-tight truncate ${isWeekMode ? "text-[9px]" : isCompact ? "text-[10px]" : "text-[11px]"}`}>
-                                            {svc.emoji ? `${svc.emoji} ` : ""}{svc.label || appt.services.name}
-                                          </span>
-                                        )}
-                                        {!isWeekMode && (
-                                          <span className="text-[9px] font-semibold text-gray-600 dark:text-gray-300 leading-tight truncate">
-                                            {displayLabel}
-                                          </span>
-                                        )}
-                                        {!isWeekMode && appt.deposit_amount && appt.deposit_amount > 0 && (
-                                          <span className="inline-flex items-center rounded-full bg-sky-100/80 text-sky-700 px-1.5 py-0.5 text-[9px] font-semibold w-fit">
-                                            Seña ${appt.deposit_amount.toFixed(0)}
-                                          </span>
-                                        )}
-                                      </div>
-                                      <div className="h-1" aria-hidden="true" />
-                                    </div>
-                                  </motion.div>
-                                );
-                              })}
-                              </div>
-                            </div>
                           </div>
                         );})}
 
-                        {(() => {
-                          const now = new Date();
-                          const isCurrentDay = getArgentinaDateKey(day) === getArgentinaDateKey(now);
-                          const nowHour = Number(now.toLocaleTimeString("en-GB", { hour: "2-digit", hour12: false }));
-                          const nowMin = Number(now.toLocaleTimeString("en-GB", { minute: "2-digit", hour12: false }));
-                          const nowDecimal = nowHour + nowMin / 60;
-                          const minHour = GRID_START_HOUR;
-                          const maxHour = GRID_END_HOUR + 1;
-                          const visible = isCurrentDay && nowDecimal >= minHour && nowDecimal <= maxHour;
-                          if (!visible) return null;
-                          const nowRow = getGridRow(nowHour.toString().padStart(2, "0") + ":" + nowMin.toString().padStart(2, "0"));
-                          return (
-                            <div className="pointer-events-none z-20" style={{ gridRow: `${nowRow} / ${nowRow + 1}`, gridColumn: "1 / -1" }}>
-                              <div className="relative h-px bg-sky-500/80 shadow-[0_0_6px_rgba(56,189,248,0.45)]">
-                                <span className="absolute left-0 -top-1.5 w-3 h-3 -translate-x-1/2 rounded-full bg-sky-500/90 shadow-[0_0_0_3px_rgba(56,189,248,0.18),0_0_8px_rgba(56,189,248,0.45)]" />
+                        <div
+                          className="absolute inset-x-0 bottom-0 pointer-events-none z-10"
+                          style={{ top: 0 }}
+                        >
+                          {eventLayout.map(({ appt, startMin, durationMin, col, cols }) => {
+                            const isWeekMode = viewMode === "week";
+                            const isCompact = cols >= 3 || durationMin <= 45;
+                            const topPx = ((startMin - GRID_START_HOUR * 60) / 60) * HOUR_HEIGHT;
+                            const heightPx = (durationMin / 60) * HOUR_HEIGHT;
+                            const widthPct = 100 / cols;
+                            const leftPct = col * widthPct;
+
+                            const staffColor = appt.staff
+                              ? staffColorMap.get(appt.staff_id || "") || STAFF_COLORS[0]
+                              : STAFF_COLORS[0];
+
+                            const svc = appt.services?.name
+                              ? extractEmoji(appt.services.name)
+                              : { emoji: "", label: "" };
+
+                            const statusStyle = STATUS_STYLES[appt.status] || STATUS_STYLES.scheduled;
+                            const isFinalStatus = STATUS_FINAL.has(appt.status);
+                            const needsAttention = appt.status === "scheduled";
+                            const displayLabel = getTurnoStatusLabel(appt.status, appt.is_paid);
+
+                            return (
+                              <motion.div
+                                key={appt.id}
+                                className={`absolute pointer-events-auto min-w-0 rounded-xl text-xs cursor-pointer bg-white/90 dark:bg-white/10 backdrop-blur-md border border-white/45 dark:border-white/20 shadow-sm group overflow-hidden ${isFinalStatus ? "opacity-50" : ""} ${needsAttention ? "animate-pulse-border" : ""}`}
+                                style={{
+                                  top: `${topPx}px`,
+                                  height: `${Math.max(heightPx - 2, 18)}px`,
+                                  width: `calc(${widthPct}% - 6px)`,
+                                  left: `calc(${leftPct}% + 3px)`,
+                                  fontFamily: "Inter, sans-serif",
+                                  boxShadow: `inset 2px 0 0 ${hexToRgba(staffColor.border, 0.32)}`,
+                                }}
+                                initial={{ opacity: 0, scale: 0.96 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ type: "spring", ...MOTION_PRESET.pill }}
+                                whileHover={{ y: -1, boxShadow: "0 12px 24px rgba(15, 23, 42, 0.12)" }}
+                                whileTap={{ scale: 0.985 }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onAppointmentClick(appt);
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (isCoarsePointer) return;
+                                  const pos = { x: e.clientX, y: e.clientY };
+                                  const adjusted = getTooltipPosition(pos.x, pos.y);
+                                  tooltipTargetX.set(adjusted.left);
+                                  tooltipTargetY.set(adjusted.top);
+                                  setHoverTooltip({ appointment: appt });
+                                }}
+                                onMouseMove={(e) => {
+                                  if (isCoarsePointer) return;
+                                  const adjusted = getTooltipPosition(e.clientX, e.clientY);
+                                  tooltipTargetX.set(adjusted.left);
+                                  tooltipTargetY.set(adjusted.top);
+                                }}
+                                onMouseLeave={() => {
+                                  setHoverTooltip(null);
+                                }}
+                              >
+                                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent rounded-2xl pointer-events-none" />
+                                <div
+                                  className="absolute inset-y-0 left-0 w-[3px] pointer-events-none"
+                                  style={{
+                                    background: `linear-gradient(180deg, ${hexToRgba(staffColor.border, 0.85)} 0%, ${hexToRgba(staffColor.border, 0.45)} 100%)`,
+                                  }}
+                                />
+                                <div className={`relative z-10 flex h-full ${isWeekMode ? "flex-col justify-around p-1.5 gap-1" : "flex-col justify-between p-1.5 gap-0.5"}`}>
+                                  <div className="min-w-0 space-y-0.5">
+                                    <div className="flex items-center justify-between gap-1">
+                                      <span className={`font-bold text-gray-900 dark:text-gray-100 leading-tight truncate ${isWeekMode ? "text-[10px]" : isCompact ? "text-[11px]" : "text-xs"}`}>
+                                        {appt.customers?.nombre || "Sin cliente"}
+                                      </span>
+                                      <div className="flex items-center gap-1 shrink-0">
+                                        {!isWeekMode && svc.emoji && <span className="text-sm leading-none">{svc.emoji}</span>}
+                                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${needsAttention ? "animate-pulse" : ""}`} style={{ backgroundColor: needsAttention ? "#ef4444" : statusStyle.dot }} />
+                                      </div>
+                                    </div>
+                                    <span className={`text-gray-700 dark:text-gray-300 leading-tight truncate ${isWeekMode ? "text-[9px]" : isCompact ? "text-[10px]" : "text-[11px]"}`}>
+                                      {appt.start_hhmm} - {appt.end_hhmm}
+                                    </span>
+                                    {appt.services?.name && (
+                                      <span className={`text-gray-700/90 dark:text-gray-300/90 leading-tight truncate ${isWeekMode ? "text-[9px]" : isCompact ? "text-[10px]" : "text-[11px]"}`}>
+                                        {svc.emoji ? `${svc.emoji} ` : ""}
+                                        {svc.label || appt.services.name}
+                                      </span>
+                                    )}
+                                    {!isWeekMode && (
+                                      <span className="text-[9px] font-semibold text-gray-600 dark:text-gray-300 leading-tight truncate">
+                                        {displayLabel}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </motion.div>
+                            );
+                          })}
+
+                          {(() => {
+                            const now = new Date();
+                            const isCurrentDay = getArgentinaDateKey(day) === getArgentinaDateKey(now);
+                            const nowMinutes = getArgentinaMinutesSinceMidnight(now);
+                            const minMinutes = GRID_START_HOUR * 60;
+                            const maxMinutes = (GRID_END_HOUR + 1) * 60;
+                            const visible = isCurrentDay && nowMinutes >= minMinutes && nowMinutes <= maxMinutes;
+                            if (!visible) return null;
+                            const topPx = ((nowMinutes - minMinutes) / 60) * HOUR_HEIGHT;
+                            return (
+                              <div
+                                className="absolute pointer-events-none z-20 left-0 right-0"
+                                style={{ top: `${topPx}px` }}
+                              >
+                                <div className="relative h-px bg-sky-500/90 shadow-[0_0_6px_rgba(56,189,248,0.45)]">
+                                  <span className="absolute left-0 -top-1.5 w-3 h-3 -translate-x-1/2 rounded-full bg-sky-500/90 shadow-[0_0_0_3px_rgba(56,189,248,0.18),0_0_8px_rgba(56,189,248,0.45)]" />
+                                </div>
                               </div>
-                            </div>
-                          );
-                        })()}
+                            );
+                          })()}
+                        </div>
 
                 </div>
               </>

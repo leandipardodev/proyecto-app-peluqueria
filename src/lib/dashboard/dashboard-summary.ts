@@ -156,7 +156,7 @@ export type DashboardMetrics = {
     month: { income: number; expenses: number };
   };
   topServices: Array<{ name: string; count: number }>;
-  stats: { totalClients: number; growth: number };
+  stats: { totalClients: number; growth: number; totalAppointments: number };
 };
 
 async function fetchFlowRange(
@@ -291,6 +291,7 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
       .slice(0, 5);
 
     const totalClients = clientsRes.data?.length ?? 0;
+    const totalAppointments = apptsRes.data?.length ?? 0;
 
     const currentMonth = todayArKey.slice(0, 7);
     const prevMonthDate = new Date(`${currentMonth}-01T00:00:00-03:00`);
@@ -324,7 +325,7 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
           month: flowMonth,
         },
         topServices,
-        stats: { totalClients, growth },
+        stats: { totalClients, growth, totalAppointments },
       },
     };
   } catch (e) {

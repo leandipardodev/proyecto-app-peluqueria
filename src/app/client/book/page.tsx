@@ -8,6 +8,8 @@ interface ClientBookPageProps {
   searchParams: Promise<{ serviceId?: string; staffId?: string }>;
 }
 
+type BookingStaffMember = { user_id: string; name: string };
+
 export const dynamic = "force-dynamic";
 
 export default async function ClientBookPage({ searchParams }: ClientBookPageProps) {
@@ -44,13 +46,12 @@ export default async function ClientBookPage({ searchParams }: ClientBookPagePro
 
   // Fetch staff members
   const staffResult = await fetchPublicStaff(profile.shop_id);
-  const staffMembers = staffResult.success ? (staffResult.data ?? []) : [];
-
-  // Find pre-selected service and staff if provided
-  const selectedService = serviceId
-    ? services?.find(s => s.id === serviceId) || null
-    : null;
-  const selectedStaffId = staffId || null;
+  const staffMembers: BookingStaffMember[] = staffResult.success
+    ? (staffResult.data ?? []).map((member) => ({
+        user_id: member.user_id,
+        name: member.name || "Staff",
+      }))
+    : [];
 
   return (
     <div className="space-y-6">
@@ -64,7 +65,7 @@ export default async function ClientBookPage({ searchParams }: ClientBookPagePro
       <BookingFlow
         shopId={profile.shop_id}
         services={services || []}
-        staffMembers={staffMembers as any}
+        staffMembers={staffMembers}
         selectedServiceId={serviceId}
         selectedStaffId={staffId}
       />

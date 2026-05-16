@@ -20,7 +20,7 @@ type Appointment = {
   loyalty_discount_percent_applied?: number;
   notes: string | null;
   customers: { nombre: string | null; email: string; telefono: string | null; loyalty_rewards_available?: number | null } | null;
-  staff: { name: string; email: string } | null;
+  staff: { name: string | null; email: string | null } | null;
   services: { name: string; price: number; duration_minutes: number } | null;
 };
 

@@ -86,7 +86,6 @@ export default function CustomersPage() {
 
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [initialSessionLoaded, setInitialSessionLoaded] = useState(false);
   const initialSessionLoadedRef = useRef(false);
 
   function extractShopSlugFromPath(path: string): string | null {
@@ -173,7 +172,6 @@ export default function CustomersPage() {
 
       const userId = session?.user?.id ?? null;
       setAuthUserId(userId);
-      setInitialSessionLoaded(true);
       initialSessionLoadedRef.current = true;
 
       if (userId) {

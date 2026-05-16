@@ -9,7 +9,6 @@ const ACTIVE_SHOP_ID_COOKIE = "klip_active_shop_id";
 const ACTIVE_SHOP_SLUG_COOKIE = "klip_active_shop_slug";
 
 const PROTECTED_PATHS = ["/dashboard", "/admin", "/client"];
-const PUBLIC_PATHS = ["/login", "/register", "/api/health", "/billing-required", "/book"];
 const DASHBOARD_LEGACY_SEGMENTS = new Set([
   "appointments",
   "business",
@@ -23,15 +22,6 @@ const DASHBOARD_LEGACY_SEGMENTS = new Set([
   "staff",
   "vouchers",
 ]);
-
-function isPublicPath(pathname: string): boolean {
-  return (
-    PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/static") ||
-    pathname.includes(".")
-  );
-}
 
 function isProtectedPath(pathname: string): boolean {
   return PROTECTED_PATHS.some(

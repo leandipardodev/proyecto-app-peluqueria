@@ -6,10 +6,9 @@ import { Link, Copy, Check, ExternalLink } from "lucide-react";
 
 interface ShareLinkCardProps {
   slug: string;
-  shopName: string;
 }
 
-export default function ShareLinkCard({ slug, shopName }: ShareLinkCardProps) {
+export default function ShareLinkCard({ slug }: ShareLinkCardProps) {
   const [copied, setCopied] = useState(false);
 
   if (!slug) return null;

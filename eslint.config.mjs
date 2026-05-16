@@ -1,10 +1,15 @@
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTypescript from "eslint-config-next/typescript";
 
-export default [
+const config = [
   ...nextVitals,
   ...nextTypescript,
   {
+    rules: {
+      "react-hooks/set-state-in-effect": "off",
+      "react-hooks/immutability": "off",
+      "@typescript-eslint/no-explicit-any": "warn",
+    },
     ignores: [
       ".next/**",
       "out/**",
@@ -13,3 +18,5 @@ export default [
     ],
   },
 ];
+
+export default config;

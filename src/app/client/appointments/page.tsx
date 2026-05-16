@@ -9,10 +9,21 @@ interface ClientAppointmentsPageProps {
   searchParams: Promise<{ success?: string }>;
 }
 
+type ClientAppointment = {
+  id: string;
+  start_time: string;
+  end_time: string;
+  status: string;
+  is_paid: boolean;
+  notes: string | null;
+  service: { name: string; price: number; duration_minutes: number } | null;
+  staff: { name: string | null } | null;
+};
+
 export default async function ClientAppointmentsPage({ searchParams }: ClientAppointmentsPageProps) {
   const { success } = await searchParams;
 
-  let appointments: any[] = [];
+  let appointments: ClientAppointment[] = [];
   let error: string | null = null;
 
   const result = await fetchClientAppointments();

@@ -39,6 +39,7 @@ export default function BusinessClient({
   } | null;
   metricStats: {
     totalClients: number;
+    totalAppointments: number;
     growth: number;
     topServicesCount: number;
     income: number;
@@ -67,6 +68,7 @@ export default function BusinessClient({
   const [whatsappTemplate, setWhatsappTemplate] = useState(data?.whatsapp_template || "");
   const [showMpKey, setShowMpKey] = useState(false);
   const [showMpToken, setShowMpToken] = useState(false);
+  const [showStats, setShowStats] = useState(true);
   const [bookingDepositEnabled, setBookingDepositEnabled] = useState(data?.booking_deposit_enabled ?? true);
   const [bookingDepositAmount, setBookingDepositAmount] = useState(String(data?.booking_deposit_amount ?? 5000));
   const [message, setMessage] = useState<MessageType>(null);
@@ -95,6 +97,9 @@ export default function BusinessClient({
   const incomePct = Math.max(8, Math.round((incomeValue / flowTotal) * 100));
   const expensePct = Math.max(8, Math.round((expenseValue / flowTotal) * 100));
   const dashboardBasePath = shopSlug ? `/dashboard/${shopSlug}` : "/dashboard";
+  const netValue = incomeValue - expenseValue;
+
+  const maskValue = (value: string) => (showStats ? value : "••••");
 
   const withDashboardBase = (href: string) => {
     if (!href.startsWith("/dashboard")) return href;
@@ -288,12 +293,27 @@ export default function BusinessClient({
         <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Estadísticas del Negocio</h2>
-            <p className="text-xs text-zinc-400 dark:text-zinc-500">Indicadores clave para tomar decisiones rápidas</p>
+            <p className="text-xs text-zinc-400 dark:text-zinc-500">Indicadores acumulados desde el inicio del local</p>
           </div>
-          <span className="text-[11px] uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Live</span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowStats((prev) => !prev)}
+              className="inline-flex items-center gap-2 rounded-full border border-white/20 dark:border-white/10 bg-white/40 dark:bg-white/[0.06] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-300 transition hover:bg-white/60 dark:hover:bg-white/[0.11]"
+              aria-label={showStats ? "Ocultar estadísticas" : "Mostrar estadísticas"}
+            >
+              {showStats ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+              {showStats ? "Visible" : "Oculto"}
+            </button>
+            <span className="text-[11px] uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Histórico</span>
+          </div>
         </div>
 
-        <div className="glass-sheen-stagger p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <motion.div
+          animate={{ opacity: showStats ? 1 : 0.78, filter: showStats ? "blur(0px)" : "blur(1.6px)" }}
+          transition={{ duration: 0.28, ease: "easeOut" }}
+          className="glass-sheen-stagger p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+        >
           <div className="glass-sheen-card sm:col-span-2 lg:col-span-3 rounded-2xl bg-white/40 dark:bg-white/[0.03] border border-white/30 dark:border-white/10 p-4">
             <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 mb-3">
               <span>Flujo financiero</span>
@@ -304,7 +324,7 @@ export default function BusinessClient({
               <div>
                 <div className="flex items-center justify-between text-xs mb-1.5">
                   <span className="text-emerald-700 dark:text-emerald-300 font-medium">Ingresos</span>
-                  <span className="text-zinc-600 dark:text-zinc-300">${incomeValue.toFixed(2)}</span>
+                  <span className="text-zinc-600 dark:text-zinc-300">{maskValue(`$${incomeValue.toFixed(2)}`)}</span>
                 </div>
                 <div className="h-3 rounded-full bg-emerald-100/55 dark:bg-emerald-900/20 overflow-hidden">
                   <div
@@ -317,7 +337,7 @@ export default function BusinessClient({
               <div>
                 <div className="flex items-center justify-between text-xs mb-1.5">
                   <span className="text-rose-700 dark:text-rose-300 font-medium">Gastos</span>
-                  <span className="text-zinc-600 dark:text-zinc-300">${expenseValue.toFixed(2)}</span>
+                  <span className="text-zinc-600 dark:text-zinc-300">{maskValue(`$${expenseValue.toFixed(2)}`)}</span>
                 </div>
                 <div className="h-3 rounded-full bg-rose-100/55 dark:bg-rose-900/20 overflow-hidden">
                   <div
@@ -330,16 +350,16 @@ export default function BusinessClient({
           </div>
 
           <div className="glass-sheen-card h-full min-h-[118px] md:min-h-[124px] rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4 flex flex-col">
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Turnos de hoy</p>
-            <p className="mt-1 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{summaryStats?.appointmentsCount ?? "-"}</p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">Turnos totales</p>
+            <p className="mt-1 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{maskValue(String(metricStats?.totalAppointments ?? "-"))}</p>
             <div className="mt-auto pt-3 h-1.5 rounded-full bg-sky-100 dark:bg-sky-900/30 overflow-hidden">
               <div className="h-full w-3/4 bg-gradient-to-r from-sky-400 to-sky-300 dark:from-sky-500 dark:to-sky-400" />
             </div>
           </div>
 
           <div className="glass-sheen-card h-full min-h-[118px] md:min-h-[124px] rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4 flex flex-col">
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Ingresos de hoy</p>
-            <p className="mt-1 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">${(summaryStats?.revenue ?? 0).toFixed(2)}</p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">Ingresos totales</p>
+            <p className="mt-1 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{maskValue(`$${incomeValue.toFixed(2)}`)}</p>
             <div className="mt-auto pt-3 h-1.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 overflow-hidden">
               <div className="h-full w-4/5 bg-gradient-to-r from-emerald-400 to-emerald-300 dark:from-emerald-500 dark:to-emerald-400" />
             </div>
@@ -347,7 +367,7 @@ export default function BusinessClient({
 
           <div className="glass-sheen-card h-full min-h-[118px] md:min-h-[124px] rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4 flex flex-col">
             <p className="text-xs text-zinc-500 dark:text-zinc-400">Clientes totales</p>
-            <p className="mt-1 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{metricStats?.totalClients ?? "-"}</p>
+            <p className="mt-1 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{maskValue(String(metricStats?.totalClients ?? "-"))}</p>
             <div className="mt-auto pt-3 h-1.5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 overflow-hidden">
               <div className="h-full w-2/3 bg-gradient-to-r from-indigo-400 to-indigo-300 dark:from-indigo-500 dark:to-indigo-400" />
             </div>
@@ -356,7 +376,7 @@ export default function BusinessClient({
           <div className="glass-sheen-card h-full min-h-[118px] md:min-h-[124px] rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4 flex flex-col">
             <p className="text-xs text-zinc-500 dark:text-zinc-400">Crecimiento mensual</p>
             <p className={`mt-1 text-2xl font-bold tracking-tight ${(metricStats?.growth ?? 0) >= 0 ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300"}`}>
-              {(metricStats?.growth ?? 0) >= 0 ? "+" : ""}{metricStats?.growth ?? 0}%
+              {maskValue(`${(metricStats?.growth ?? 0) >= 0 ? "+" : ""}${metricStats?.growth ?? 0}%`)}
             </p>
             <div className="mt-auto pt-3 h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
               <div className={`h-full ${(metricStats?.growth ?? 0) >= 0 ? "bg-gradient-to-r from-emerald-400 to-emerald-300 dark:from-emerald-500 dark:to-emerald-400" : "bg-gradient-to-r from-rose-400 to-rose-300 dark:from-rose-500 dark:to-rose-400"}`} style={{ width: `${Math.min(Math.max(Math.abs(metricStats?.growth ?? 0), 10), 100)}%` }} />
@@ -365,7 +385,7 @@ export default function BusinessClient({
 
           <div className="glass-sheen-card h-full min-h-[118px] md:min-h-[124px] rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4 flex flex-col">
             <p className="text-xs text-zinc-500 dark:text-zinc-400">Alertas de stock</p>
-            <p className="mt-1 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{summaryStats?.lowStockCount ?? "-"}</p>
+            <p className="mt-1 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{maskValue(String(summaryStats?.lowStockCount ?? "-"))}</p>
             <div className="mt-auto pt-3 h-1.5 rounded-full bg-amber-100 dark:bg-amber-900/30 overflow-hidden">
               <div className="h-full w-1/2 bg-gradient-to-r from-amber-400 to-amber-300 dark:from-amber-500 dark:to-amber-400" />
             </div>
@@ -373,12 +393,20 @@ export default function BusinessClient({
 
           <div className="glass-sheen-card h-full min-h-[118px] md:min-h-[124px] rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4 flex flex-col">
             <p className="text-xs text-zinc-500 dark:text-zinc-400">Servicios activos</p>
-            <p className="mt-1 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{metricStats?.topServicesCount ?? "-"}</p>
+            <p className="mt-1 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{maskValue(String(metricStats?.topServicesCount ?? "-"))}</p>
             <div className="mt-auto pt-3 h-1.5 rounded-full bg-cyan-100 dark:bg-cyan-900/30 overflow-hidden">
               <div className="h-full w-3/5 bg-gradient-to-r from-cyan-400 to-cyan-300 dark:from-cyan-500 dark:to-cyan-400" />
             </div>
           </div>
-        </div>
+
+          <div className="glass-sheen-card h-full min-h-[118px] md:min-h-[124px] rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4 flex flex-col sm:col-span-2 lg:col-span-3">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">Balance neto histórico</p>
+            <p className={`mt-1 text-2xl font-bold tracking-tight ${netValue >= 0 ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300"}`}>
+              {maskValue(`${netValue >= 0 ? "+" : "-"}$${Math.abs(netValue).toFixed(2)}`)}
+            </p>
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Ingresos acumulados menos gastos acumulados.</p>
+          </div>
+        </motion.div>
       </section>
       <style>{`
         .flow-bar {

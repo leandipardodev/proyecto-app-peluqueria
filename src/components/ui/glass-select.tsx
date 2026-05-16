@@ -30,10 +30,10 @@ export default function GlassSelect({
   options,
   value,
   onChange,
-  placeholder = "Seleccionar...",
-  name,
-  required,
-  className = "",
+      placeholder = "Seleccionar...",
+      name,
+      required,
+      className = "",
 }: GlassSelectProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -52,7 +52,7 @@ export default function GlassSelect({
 
   return (
     <div ref={containerRef} className={`relative ${className}`}>
-      <input type="hidden" name={name} value={value} />
+      <input type="hidden" name={name} value={value} required={required} />
       <button
         type="button"
         onClick={() => setOpen(!open)}

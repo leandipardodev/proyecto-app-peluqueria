@@ -49,7 +49,7 @@ type Appointment = {
   deposit_amount?: number | null;
   notes: string | null;
   customers: { nombre: string | null; email: string; telefono: string | null } | null;
-  staff: { name: string; email: string } | null;
+  staff: { name: string | null; email: string | null } | null;
   services: { name: string; price: number; duration_minutes: number } | null;
 };
 
@@ -96,9 +96,6 @@ interface CalendarPageClientProps {
   customers: Customer[];
   error?: string | null;
   businessHours?: BusinessHoursMap;
-  whatsappTemplate?: string;
-  shopName?: string;
-  shopPhone?: string | null;
   initialDateParam?: string;
   initialAppointmentId?: string;
 }
@@ -111,9 +108,6 @@ export default function CalendarPageClient({
   customers,
   error,
   businessHours,
-  whatsappTemplate,
-  shopName,
-  shopPhone,
   initialDateParam,
   initialAppointmentId,
 }: CalendarPageClientProps) {
@@ -294,8 +288,6 @@ export default function CalendarPageClient({
           staffList={staff}
           staffFilter={staffFilter}
           businessHours={businessHours}
-          whatsappTemplate={whatsappTemplate}
-          shopName={shopName}
         />
       </div>
 

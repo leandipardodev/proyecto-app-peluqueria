@@ -218,7 +218,7 @@ export async function updateBusinessHours(hours: BusinessHoursData): Promise<Act
     const admin = await createAdminClient();
 
     // Blindaje: si llegó como string (JSON.stringify), lo parseamos
-    let clean: Record<string, unknown> =
+    const clean: Record<string, unknown> =
       typeof hours === "string" ? JSON.parse(hours as unknown as string) : { ...hours };
 
     // Normalizar claves a minúsculas
