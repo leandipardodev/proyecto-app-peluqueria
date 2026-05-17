@@ -305,6 +305,7 @@ export default function CalendarPageClient({
       <AppointmentDetailModal
         appointment={selectedAppointment}
         shopId={shopId}
+        staff={staff}
         onClose={() => setSelectedAppointment(null)}
       />
     </div>

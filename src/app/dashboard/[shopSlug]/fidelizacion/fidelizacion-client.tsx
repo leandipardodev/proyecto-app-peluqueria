@@ -1,10 +1,18 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Gift, Save } from "lucide-react";
-import { updateLoyaltyProgramAction } from "@/lib/dashboard/business-actions";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Gift, Save, Trophy, Users } from "lucide-react";
+import { runLoyaltyRaffleAction, updateLoyaltyProgramAction } from "@/lib/dashboard/business-actions";
+import { updateVoucherWhatsappTemplate } from "@/lib/dashboard/voucher-actions";
 import VouchersClient from "../vouchers/vouchers-client";
 import type { VoucherRow } from "@/lib/dashboard/voucher-actions";
+
+type LoyaltyRewardCustomer = {
+  id: string;
+  nombre: string | null;
+  loyalty_rewards_available: number | null;
+};
 
 type Props = {
   shopId: string;
@@ -13,6 +21,7 @@ type Props = {
   loyaltyEnabled: boolean;
   loyaltyCutsRequired: number;
   loyaltyDiscountPercent: number;
+  loyaltyRewardCustomers: LoyaltyRewardCustomer[];
 };
 
 export default function FidelizacionClient({
@@ -22,12 +31,39 @@ export default function FidelizacionClient({
   loyaltyEnabled,
   loyaltyCutsRequired,
   loyaltyDiscountPercent,
+  loyaltyRewardCustomers,
 }: Props) {
   const [enabled, setEnabled] = useState(loyaltyEnabled);
   const [cutsRequired, setCutsRequired] = useState(String(loyaltyCutsRequired));
   const [discountPercent, setDiscountPercent] = useState(String(loyaltyDiscountPercent));
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [showRafflePanel, setShowRafflePanel] = useState(false);
+  const [rafflePrizeName, setRafflePrizeName] = useState("Corte gratis");
+  const [raffleMessage, setRaffleMessage] = useState<string | null>(null);
+  const [raffleResult, setRaffleResult] = useState<{ prizeName: string; participants: number; winner: { id: string; nombre: string }; candidateNames: string[] } | null>(null);
+  const [raffleAnimating, setRaffleAnimating] = useState(false);
+  const [raffleDisplayName, setRaffleDisplayName] = useState<string>("-");
+  const [raffleSpinKey, setRaffleSpinKey] = useState(0);
+  const [winnerBurst, setWinnerBurst] = useState(false);
+  const [birthdayDiscount, setBirthdayDiscount] = useState("15");
+  const [birthdayMessage, setBirthdayMessage] = useState(
+    voucherTemplate || "Feliz cumple {Nombre}! Tenes un beneficio especial para tu proxima visita."
+  );
+  const [birthdayMessageStatus, setBirthdayMessageStatus] = useState<string | null>(null);
+  const raffleTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (raffleTimerRef.current) {
+        window.clearTimeout(raffleTimerRef.current);
+      }
+    };
+  }, []);
+  const totalRewardsAvailable = loyaltyRewardCustomers.reduce(
+    (sum, c) => sum + Math.max(0, Number(c.loyalty_rewards_available || 0)),
+    0
+  );
 
   function handleSave() {
     setMessage(null);
@@ -45,8 +81,286 @@ export default function FidelizacionClient({
     });
   }
 
+  function handleRunRaffle() {
+    setRaffleMessage(null);
+    startTransition(async () => {
+      const result = await runLoyaltyRaffleAction(
+        rafflePrizeName,
+        1
+      );
+      if (!result.success || !result.data) {
+        setRaffleResult(null);
+        setRaffleMessage(result.success ? "No se pudo ejecutar el sorteo." : result.error);
+        return;
+      }
+
+      if (raffleTimerRef.current) {
+        window.clearTimeout(raffleTimerRef.current);
+      }
+
+      const candidates = result.data.candidateNames.length > 0
+        ? result.data.candidateNames
+        : [result.data.winner.nombre];
+
+      setRaffleResult(result.data);
+      setRaffleAnimating(true);
+      setWinnerBurst(false);
+
+      let tick = 0;
+      const maxTicks = 26;
+
+      const spin = () => {
+        tick += 1;
+        const randomName = candidates[Math.floor(Math.random() * candidates.length)] || "Cliente";
+        setRaffleDisplayName(randomName);
+        setRaffleSpinKey((prev) => prev + 1);
+
+        if (tick >= maxTicks) {
+          setRaffleDisplayName(result.data.winner.nombre);
+          setRaffleSpinKey((prev) => prev + 1);
+          setRaffleAnimating(false);
+          setRaffleMessage("Sorteo realizado con exito.");
+          setWinnerBurst(true);
+          window.setTimeout(() => setWinnerBurst(false), 1400);
+          raffleTimerRef.current = null;
+          return;
+        }
+
+        const delay = Math.min(340, 60 + tick * 11);
+        raffleTimerRef.current = window.setTimeout(spin, delay);
+      };
+
+      spin();
+    });
+  }
+
+  function handleSaveBirthdayConfig() {
+    setBirthdayMessageStatus(null);
+    startTransition(async () => {
+      const safeDiscount = Math.max(0, Math.min(100, Number(birthdayDiscount) || 0));
+      const text = `${birthdayMessage.trim()}\n\nDescuento de cumple: ${safeDiscount}%`;
+      const result = await updateVoucherWhatsappTemplate(shopId, text);
+      if (!result.success) {
+        setBirthdayMessageStatus(result.error);
+        return;
+      }
+      setBirthdayMessageStatus("Configuracion de cumple guardada.");
+    });
+  }
+
   return (
     <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[1.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-xl shadow-black/[0.03] overflow-hidden transition-colors">
+          <div className="px-5 py-4 border-b border-white/10 flex items-center gap-2.5">
+            <div className="p-2 rounded-full bg-amber-500/15">
+              <Trophy className="w-4.5 h-4.5 text-amber-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white tracking-tight">Canjes listos para aplicar</h3>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Destacados por cantidad disponible</p>
+            </div>
+          </div>
+          <div className="p-5 space-y-3">
+            <div className="inline-flex items-center gap-2 rounded-full bg-amber-100/75 dark:bg-amber-900/25 border border-amber-200/70 dark:border-amber-700/40 px-3 py-1.5">
+              <span className="text-xs font-semibold text-amber-800 dark:text-amber-200">Total canjes: {totalRewardsAvailable}</span>
+            </div>
+            {loyaltyRewardCustomers.length === 0 ? (
+              <p className="text-sm text-zinc-600 dark:text-zinc-300">Todavia no hay clientes con canje disponible.</p>
+            ) : (
+              <div className="space-y-2">
+                {loyaltyRewardCustomers.slice(0, 5).map((customer) => (
+                  <div
+                    key={customer.id}
+                    className="flex items-center justify-between rounded-xl border border-amber-200/70 dark:border-amber-700/40 bg-amber-50/70 dark:bg-amber-900/20 px-3 py-2"
+                  >
+                    <span className="text-sm font-medium text-amber-900 dark:text-amber-100 truncate pr-2">
+                      {customer.nombre || "Cliente sin nombre"}
+                    </span>
+                    <span className="shrink-0 rounded-full bg-amber-500 text-white text-xs font-semibold px-2 py-0.5">
+                      {Math.max(0, Number(customer.loyalty_rewards_available || 0))} canje(s)
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[1.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-xl shadow-black/[0.03] overflow-hidden transition-colors">
+          <div className="px-5 py-4 border-b border-white/10 flex items-center gap-2.5">
+            <div className="p-2 rounded-full bg-cyan-500/15">
+              <Users className="w-4.5 h-4.5 text-cyan-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white tracking-tight">Realizar sorteo entre clientes</h3>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Tarjeta de acceso rapido</p>
+            </div>
+          </div>
+          <div className="p-5">
+            <p className="text-sm text-zinc-700 dark:text-zinc-300">
+              Usa este bloque para lanzar dinamicas con tus clientes frecuentes y aumentar recurrencia.
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowRafflePanel((prev) => !prev)}
+              className="mt-4 inline-flex items-center gap-2 rounded-full bg-cyan-600 text-white px-4 py-2 text-sm font-medium hover:bg-cyan-700 transition-colors"
+            >
+              <Gift className="w-4 h-4" />
+              {showRafflePanel ? "Ocultar sorteo" : "Realizar sorteo entre clientes"}
+            </button>
+
+            {showRafflePanel && (
+              <div className="mt-4 rounded-2xl border border-cyan-200/70 dark:border-cyan-700/40 bg-cyan-50/70 dark:bg-cyan-900/20 p-4 space-y-3">
+                <div className="grid grid-cols-1 gap-3">
+                  <div>
+                    <label className="px-1 text-xs text-cyan-900/80 dark:text-cyan-100/80">Premio</label>
+                    <input
+                      value={rafflePrizeName}
+                      onChange={(e) => setRafflePrizeName(e.target.value)}
+                      className="mt-1 w-full rounded-full bg-white/60 dark:bg-black/25 border border-cyan-200 dark:border-cyan-700/40 px-4 py-2 text-sm text-gray-900 dark:text-white"
+                      placeholder="Ej: Corte gratis"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs text-cyan-900/80 dark:text-cyan-100/80">El sorteo elige clientes al azar sin repetir.</p>
+                  <button
+                    type="button"
+                    onClick={handleRunRaffle}
+                    disabled={pending || raffleAnimating}
+                    className="inline-flex items-center gap-2 rounded-full bg-cyan-600 text-white px-4 py-2 text-sm font-medium hover:bg-cyan-700 disabled:opacity-50"
+                  >
+                    <Trophy className="w-4 h-4" />
+                    {pending || raffleAnimating ? "Sorteando..." : "Sortear ahora"}
+                  </button>
+                </div>
+
+                {raffleMessage && <p className="text-sm text-cyan-900 dark:text-cyan-100">{raffleMessage}</p>}
+
+                {raffleResult && (
+                  <div className="rounded-xl border border-cyan-200/70 dark:border-cyan-700/40 bg-white/65 dark:bg-black/20 p-3">
+                    <p className="text-sm font-semibold text-cyan-900 dark:text-cyan-100">Resultado: {raffleResult.prizeName}</p>
+                    <div className="mt-3 rounded-xl border border-cyan-200/70 dark:border-cyan-700/40 bg-cyan-100/60 dark:bg-cyan-800/20 p-3 min-h-[96px]">
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-cyan-800/75 dark:text-cyan-100/75">Sorteando...</p>
+                      <div className="mt-1 h-8 overflow-visible rounded-lg bg-white/55 dark:bg-black/25 border border-cyan-200/70 dark:border-cyan-700/40 px-2 relative">
+                        <AnimatePresence mode="popLayout" initial={false}>
+                          <motion.p
+                            key={`${raffleDisplayName}-${raffleSpinKey}`}
+                            className={`absolute inset-0 grid place-items-center text-base font-semibold tracking-tight ${raffleAnimating ? "text-cyan-900 dark:text-cyan-100" : "text-emerald-700 dark:text-emerald-300"}`}
+                            initial={{ y: -22, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            exit={{ y: 22, opacity: 0 }}
+                            transition={{ duration: raffleAnimating ? 0.24 : 0.34, ease: [0.22, 1, 0.36, 1] }}
+                          >
+                            {raffleDisplayName}
+                          </motion.p>
+                        </AnimatePresence>
+                        <AnimatePresence>
+                          {winnerBurst && (
+                            <>
+                              {["🎉", "✨", "🥳", "🎊", "⭐", "💥", "🏆", "🔥", "🌟", "🙌", "🎇", "🎆"].map((emoji, idx) => {
+                                const vectors = [
+                                  { x: -96, y: -44 },
+                                  { x: -72, y: 18 },
+                                  { x: -40, y: -62 },
+                                  { x: -20, y: 58 },
+                                  { x: 18, y: -70 },
+                                  { x: 42, y: 54 },
+                                  { x: 64, y: -22 },
+                                  { x: 92, y: 16 },
+                                  { x: -110, y: -8 },
+                                  { x: 108, y: -6 },
+                                  { x: -54, y: 70 },
+                                  { x: 56, y: 72 },
+                                ];
+                                const vector = vectors[idx % vectors.length];
+                                return (
+                                <motion.span
+                                  key={`${emoji}-${idx}`}
+                                  className="pointer-events-none absolute text-base"
+                                  style={{ left: "50%", top: "50%" }}
+                                  initial={{ x: 0, y: 0, opacity: 0, scale: 0.75 }}
+                                  animate={{
+                                    x: vector.x,
+                                    y: vector.y,
+                                    opacity: 1,
+                                    scale: 1.15,
+                                  }}
+                                  exit={{ opacity: 0, scale: 0.85 }}
+                                  transition={{ duration: 0.85, delay: idx * 0.025, ease: [0.22, 1, 0.36, 1] }}
+                                >
+                                  {emoji}
+                                </motion.span>
+                                );
+                              })}
+                            </>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[1.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-xl shadow-black/[0.03] overflow-hidden transition-colors lg:col-span-2">
+          <div className="px-5 py-4 border-b border-white/10 flex items-center gap-2.5">
+            <div className="p-2 rounded-full bg-pink-500/15">
+              <Gift className="w-4.5 h-4.5 text-pink-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white tracking-tight">Cumpleanos: descuento + WhatsApp</h3>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Define el beneficio y el mensaje automatico</p>
+            </div>
+          </div>
+          <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label className="px-1 text-xs text-zinc-600 dark:text-zinc-300">Descuento</label>
+              <div className="relative mt-1">
+                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-medium text-zinc-500 dark:text-zinc-300">%</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={birthdayDiscount}
+                  onChange={(e) => setBirthdayDiscount(e.target.value)}
+                  className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 pl-8 pr-4 py-2.5 text-sm text-gray-900 dark:text-white"
+                />
+              </div>
+            </div>
+            <div className="md:col-span-2">
+              <label className="px-1 text-xs text-zinc-600 dark:text-zinc-300">Mensaje WhatsApp</label>
+              <textarea
+                value={birthdayMessage}
+                onChange={(e) => setBirthdayMessage(e.target.value)}
+                rows={3}
+                className="mt-1 w-full rounded-2xl bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-4 py-2.5 text-sm text-gray-900 dark:text-white"
+                placeholder="Ej: Feliz cumple {Nombre}! Te esperamos para celebrar."
+              />
+            </div>
+            <div className="md:col-span-3 flex items-center justify-between gap-3">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">Tip: usa {"{Nombre}"} para personalizar el saludo.</p>
+              <button
+                type="button"
+                onClick={handleSaveBirthdayConfig}
+                disabled={pending}
+                className="inline-flex items-center gap-2 rounded-full bg-pink-600 text-white px-4 py-2 text-sm font-medium hover:bg-pink-700 disabled:opacity-50"
+              >
+                <Save className="w-4 h-4" />
+                {pending ? "Guardando..." : "Guardar cumple"}
+              </button>
+            </div>
+            {birthdayMessageStatus && (
+              <p className="md:col-span-3 text-sm text-zinc-700 dark:text-zinc-200">{birthdayMessageStatus}</p>
+            )}
+          </div>
+        </div>
+      </div>
+
       <div className="bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden transition-colors">
         <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
           <div className="p-2 rounded-full bg-violet-500/15">

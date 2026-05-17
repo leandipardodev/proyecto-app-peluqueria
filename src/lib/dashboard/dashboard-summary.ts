@@ -31,6 +31,7 @@ type DashboardSummary = {
   lowStockCount: number;
   nextAppointments: NextAppointment[];
   loyaltyRewardsReadyCount: number;
+  loyaltyRewardCustomerNames: string[];
   shopName: string;
   shopSlug: string;
 };
@@ -52,7 +53,7 @@ export async function fetchDashboardSummary(shopIdOverride?: string): Promise<Ac
     const todayStartIso = todayStart.toISOString();
     const todayEndIso = todayEnd.toISOString();
 
-    const [appointmentsToday, revenueToday, lowStock, loyaltyReady] = await Promise.all([
+    const [appointmentsToday, revenueToday, lowStock, loyaltyReady, loyaltyRewardCustomers] = await Promise.all([
       supabase
         .from("appointments")
         .select("id, start_time, status")
@@ -81,12 +82,26 @@ export async function fetchDashboardSummary(shopIdOverride?: string): Promise<Ac
         .select("id")
         .eq("shop_id", shopId)
         .gt("loyalty_rewards_available", 0),
+
+      supabase
+        .from("customers")
+        .select("nombre")
+        .eq("shop_id", shopId)
+        .gt("loyalty_rewards_available", 0)
+        .order("loyalty_rewards_available", { ascending: false })
+        .order("updated_at", { ascending: false })
+        .limit(3),
     ]);
 
     if (appointmentsToday.error) return { success: false, error: appointmentsToday.error.message };
     if (revenueToday.error) return { success: false, error: revenueToday.error.message };
     if (lowStock.error) return { success: false, error: lowStock.error.message };
     if (loyaltyReady.error) return { success: false, error: loyaltyReady.error.message };
+    if (loyaltyRewardCustomers.error) return { success: false, error: loyaltyRewardCustomers.error.message };
+
+    const loyaltyRewardCustomerNames = (loyaltyRewardCustomers.data ?? [])
+      .map((c) => (c.nombre || "").trim())
+      .filter(Boolean);
 
     const revenue = (revenueToday.data ?? []).reduce((sum, a) => {
       const serviceData = a.services as { price?: number } | Array<{ price?: number }> | null;
@@ -135,6 +150,7 @@ export async function fetchDashboardSummary(shopIdOverride?: string): Promise<Ac
         lowStockCount: (lowStock.data ?? []).length,
         nextAppointments,
         loyaltyRewardsReadyCount: (loyaltyReady.data ?? []).length,
+        loyaltyRewardCustomerNames,
         shopName: shop?.nombre || "",
         shopSlug: shop?.slug || "",
       },

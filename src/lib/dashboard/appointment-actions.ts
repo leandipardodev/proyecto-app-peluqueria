@@ -117,6 +117,38 @@ function toArgentinaStartEnd(dateStr: string, timeStr: string, durationMinutes: 
   return { start, end };
 }
 
+type RecurringFrequency = "none" | "weekly" | "biweekly" | "monthly";
+
+function addDays(base: Date, days: number): Date {
+  return new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
+}
+
+function addMonths(base: Date, months: number): Date {
+  const d = new Date(base);
+  d.setUTCMonth(d.getUTCMonth() + months);
+  return d;
+}
+
+function buildRecurringStarts(start: Date, frequency: RecurringFrequency, untilDate: string | null): Date[] {
+  if (frequency === "none" || !untilDate) return [start];
+  const until = new Date(`${untilDate}T23:59:59.999-03:00`);
+  if (Number.isNaN(until.getTime()) || until <= start) return [start];
+
+  const starts: Date[] = [start];
+  let current = start;
+  while (starts.length < 60) {
+    current =
+      frequency === "weekly"
+        ? addDays(current, 7)
+        : frequency === "biweekly"
+          ? addDays(current, 14)
+          : addMonths(current, 1);
+    if (current > until) break;
+    starts.push(current);
+  }
+  return starts;
+}
+
 type StaffMemberInfo = { id: string; role: string; name: string | null; email: string | null };
 type StaffRpcRow = {
   user_id: string;
@@ -209,15 +241,18 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
     if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
 
     const customerId = formData.get("customer_id") as string;
-    const staffId = formData.get("staff_id") as string;
+    const staffIdRaw = (formData.get("staff_id") as string) || "";
+    const staffId = staffIdRaw.trim();
     const serviceId = formData.get("service_id") as string;
     const startDate = formData.get("start_date") as string;
     const startTime = formData.get("start_time") as string;
+    const recurringFrequency = ((formData.get("recurring_frequency") as string) || "none") as RecurringFrequency;
+    const recurringUntil = ((formData.get("recurring_until") as string) || "").trim() || null;
     const notes = formData.get("notes") as string;
     const depositAmountRaw = (formData.get("deposit_amount") as string) || "";
     const depositAmount = depositAmountRaw ? Number(depositAmountRaw) : null;
 
-    if (!customerId || !staffId || !serviceId || !startDate || !startTime) {
+    if (!customerId || !serviceId || !startDate || !startTime) {
       return { success: false, error: "Todos los campos obligatorios deben completarse" };
     }
     if (depositAmount !== null && (Number.isNaN(depositAmount) || depositAmount < 0)) {
@@ -234,35 +269,43 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
 
     if (!service) return { success: false, error: "Servicio no encontrado" };
 
-    const { start, end } = toArgentinaStartEnd(startDate, startTime, service.duration_minutes);
-    const startIso = start.toISOString();
-    const endIso = end.toISOString();
+    const { start } = toArgentinaStartEnd(startDate, startTime, service.duration_minutes);
+    const recurringStarts = buildRecurringStarts(start, recurringFrequency, recurringUntil);
 
-    const { data: conflict } = await supabase
-      .from("appointments")
-      .select("id")
-      .eq("shop_id", shopId)
-      .eq("staff_id", staffId)
-      .not("status", "eq", "cancelled")
-      .gt("end_time", startIso)
-      .lt("start_time", endIso)
-      .maybeSingle();
-
-    if (conflict) return { success: false, error: "slot_taken" };
-
-    const { error } = await supabase.from("appointments").insert({
-      shop_id: shopId,
-      customer_id: customerId,
-      staff_id: staffId,
-      service_id: serviceId,
-      start_time: startIso,
-      end_time: endIso,
-      date_key_ar: getArgentinaDateKey(startIso),
-      status: "scheduled",
-      deposit_amount: depositAmount,
-      is_paid: depositAmount !== null && depositAmount > 0,
-      notes: notes || null,
+    const rowsToInsert = recurringStarts.map((startAt) => {
+      const endAt = new Date(startAt.getTime() + service.duration_minutes * 60000);
+      const startIso = startAt.toISOString();
+      return {
+        shop_id: shopId,
+        customer_id: customerId,
+        staff_id: staffId || null,
+        service_id: serviceId,
+        start_time: startIso,
+        end_time: endAt.toISOString(),
+        date_key_ar: getArgentinaDateKey(startIso),
+        status: "scheduled",
+        deposit_amount: depositAmount,
+        is_paid: depositAmount !== null && depositAmount > 0,
+        notes: notes || null,
+      };
     });
+
+    if (staffId) {
+      for (const row of rowsToInsert) {
+        const { data: conflict } = await supabase
+          .from("appointments")
+          .select("id")
+          .eq("shop_id", shopId)
+          .eq("staff_id", staffId)
+          .not("status", "eq", "cancelled")
+          .gt("end_time", row.start_time)
+          .lt("start_time", row.end_time)
+          .maybeSingle();
+        if (conflict) return { success: false, error: "slot_taken" };
+      }
+    }
+
+    const { error } = await supabase.from("appointments").insert(rowsToInsert);
 
     if (error) return { success: false, error: error.message };
 
@@ -289,10 +332,13 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
     const customerName = formData.get("customer_name") as string;
     const customerEmail = formData.get("customer_email") as string;
     const customerPhone = formData.get("customer_phone") as string;
-    const staffId = formData.get("staff_id") as string;
+    const staffIdRaw = (formData.get("staff_id") as string) || "";
+    const staffId = staffIdRaw.trim();
     const serviceId = formData.get("service_id") as string;
     const startDate = formData.get("start_date") as string;
     const startTime = formData.get("start_time") as string;
+    const recurringFrequency = ((formData.get("recurring_frequency") as string) || "none") as RecurringFrequency;
+    const recurringUntil = ((formData.get("recurring_until") as string) || "").trim() || null;
     const notes = formData.get("notes") as string;
     const depositAmountRaw = (formData.get("deposit_amount") as string) || "";
     const depositAmount = depositAmountRaw ? Number(depositAmountRaw) : null;
@@ -329,37 +375,44 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
 
     if (!service) return { success: false, error: "Servicio no encontrado" };
 
-    const { start, end } = toArgentinaStartEnd(startDate, startTime, service.duration_minutes);
-    const startIso = start.toISOString();
-    const endIso = end.toISOString();
+    const { start } = toArgentinaStartEnd(startDate, startTime, service.duration_minutes);
+    const recurringStarts = buildRecurringStarts(start, recurringFrequency, recurringUntil);
+
+    const rowsToInsert = recurringStarts.map((startAt) => {
+      const endAt = new Date(startAt.getTime() + service.duration_minutes * 60000);
+      const startIso = startAt.toISOString();
+      return {
+        shop_id: shopId,
+        customer_id: customerRow.id,
+        staff_id: staffId || null,
+        service_id: serviceId,
+        start_time: startIso,
+        end_time: endAt.toISOString(),
+        date_key_ar: getArgentinaDateKey(startIso),
+        status: "scheduled",
+        deposit_amount: depositAmount,
+        is_paid: depositAmount !== null && depositAmount > 0,
+        notes: notes || null,
+      };
+    });
 
     if (staffId) {
-      const { data: conflict } = await supabase
-        .from("appointments")
-        .select("id")
-        .eq("shop_id", shopId)
-        .eq("staff_id", staffId)
-        .not("status", "eq", "cancelled")
-        .gt("end_time", startIso)
-        .lt("start_time", endIso)
-        .maybeSingle();
+      for (const row of rowsToInsert) {
+        const { data: conflict } = await supabase
+          .from("appointments")
+          .select("id")
+          .eq("shop_id", shopId)
+          .eq("staff_id", staffId)
+          .not("status", "eq", "cancelled")
+          .gt("end_time", row.start_time)
+          .lt("start_time", row.end_time)
+          .maybeSingle();
 
-      if (conflict) return { success: false, error: "slot_taken" };
+        if (conflict) return { success: false, error: "slot_taken" };
+      }
     }
 
-    const { error: aptError } = await supabase.from("appointments").insert({
-      shop_id: shopId,
-      customer_id: customerRow.id,
-      staff_id: staffId || null,
-      service_id: serviceId,
-      start_time: startIso,
-      end_time: endIso,
-      date_key_ar: getArgentinaDateKey(startIso),
-      status: "scheduled",
-      deposit_amount: depositAmount,
-      is_paid: depositAmount !== null && depositAmount > 0,
-      notes: notes || null,
-    });
+    const { error: aptError } = await supabase.from("appointments").insert(rowsToInsert);
 
     if (aptError) return { success: false, error: aptError.message };
 
@@ -537,6 +590,66 @@ export async function updateAppointmentStatus(
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al actualizar turno" };
+  }
+}
+
+export async function updateAppointmentStaff(
+  id: string,
+  staffId: string | null,
+  shopId?: string
+): Promise<ActionResult> {
+  try {
+    if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+
+    const auth = await createServerClient();
+    const {
+      data: { user },
+    } = await auth.auth.getUser();
+    if (!user) return { success: false, error: "SESION_EXPIRADA" };
+
+    const allowed = await canAccessShopId(user.id, shopId);
+    if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
+
+    const supabase = await createServerClient();
+    const normalizedStaffId = staffId && staffId.trim().length > 0 ? staffId.trim() : null;
+
+    const { data: appointment, error: aptError } = await supabase
+      .from("appointments")
+      .select("id, start_time, end_time, status")
+      .eq("id", id)
+      .eq("shop_id", shopId)
+      .maybeSingle();
+
+    if (aptError) return { success: false, error: aptError.message };
+    if (!appointment) return { success: false, error: "Turno no encontrado" };
+
+    if (normalizedStaffId) {
+      const { data: conflict } = await supabase
+        .from("appointments")
+        .select("id")
+        .eq("shop_id", shopId)
+        .eq("staff_id", normalizedStaffId)
+        .not("status", "eq", "cancelled")
+        .gt("end_time", appointment.start_time)
+        .lt("start_time", appointment.end_time)
+        .neq("id", id)
+        .maybeSingle();
+
+      if (conflict) return { success: false, error: "slot_taken" };
+    }
+
+    const { error } = await supabase
+      .from("appointments")
+      .update({ staff_id: normalizedStaffId, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("shop_id", shopId);
+
+    if (error) return { success: false, error: error.message };
+
+    await revalidateDashboardSegments(shopId, ["/calendar", "/appointments", ""]);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al actualizar staff del turno" };
   }
 }
 

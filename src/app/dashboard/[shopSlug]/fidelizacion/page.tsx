@@ -1,8 +1,15 @@
 import { getAuthSession, getShopIdBySlug } from "@/lib/dashboard/auth-server";
+import { createServerClient } from "@/lib/supabase/server";
 import { fetchVouchers, fetchVoucherWhatsappTemplate } from "@/lib/dashboard/voucher-actions";
 import { fetchBusinessData } from "@/lib/dashboard/business-actions";
 import { redirect } from "next/navigation";
 import FidelizacionClient from "./fidelizacion-client";
+
+type LoyaltyRewardCustomer = {
+  id: string;
+  nombre: string | null;
+  loyalty_rewards_available: number | null;
+};
 
 export const dynamic = "force-dynamic";
 
@@ -13,11 +20,22 @@ export default async function DashboardShopFidelizacionPage({ params }: { params
   const shopId = await getShopIdBySlug(shopSlug, session.user.id);
   if (!shopId) redirect("/dashboard");
 
-  const [vouchersResult, templateResult, businessResult] = await Promise.all([
+  const supabase = await createServerClient();
+
+  const [vouchersResult, templateResult, businessResult, rewardsResult] = await Promise.all([
     fetchVouchers(shopId),
     fetchVoucherWhatsappTemplate(shopId),
     fetchBusinessData(shopId),
+    supabase
+      .from("customers")
+      .select("id, nombre, loyalty_rewards_available")
+      .eq("shop_id", shopId)
+      .gt("loyalty_rewards_available", 0)
+      .order("loyalty_rewards_available", { ascending: false })
+      .limit(8),
   ]);
+
+  const loyaltyRewardCustomers: LoyaltyRewardCustomer[] = (rewardsResult.data ?? []) as LoyaltyRewardCustomer[];
 
   return (
     <FidelizacionClient
@@ -27,6 +45,7 @@ export default async function DashboardShopFidelizacionPage({ params }: { params
       loyaltyEnabled={businessResult.success ? businessResult.data?.loyalty_enabled !== false : true}
       loyaltyCutsRequired={businessResult.success ? businessResult.data?.loyalty_cuts_required ?? 10 : 10}
       loyaltyDiscountPercent={businessResult.success ? businessResult.data?.loyalty_discount_percent ?? 10 : 10}
+      loyaltyRewardCustomers={loyaltyRewardCustomers}
     />
   );
 }

@@ -145,11 +145,11 @@ function PricingCard({
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.8, delay: idx * 0.1, ease: EASE }}
-      style={{ rotateX: rx, rotateY: ry, transformPerspective: 1000 }}
+      style={{ rotateX: rx, rotateY: ry, transformPerspective: 1000, willChange: "transform" }}
       onMouseMove={onMove}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={onLeave}
-      className="relative rounded-[2rem] border p-8 backdrop-blur-[50px]"
+      className="relative rounded-[2rem] border p-8 backdrop-blur-[50px] transform-gpu [backface-visibility:hidden] [contain:paint]"
     >
       {featured ? (
         <div
@@ -229,9 +229,10 @@ function SpotlightCard({ className, children }: { className?: string; children: 
       ref={ref}
       data-cursor="card"
       onMouseMove={onMove}
-      className={`relative overflow-hidden rounded-[2rem] border border-white/30 bg-white/40 p-8 backdrop-blur-[40px] ${className || ""}`}
+      className={`relative overflow-hidden rounded-[2rem] border border-white/30 bg-white/40 p-8 backdrop-blur-[40px] transform-gpu [backface-visibility:hidden] [contain:paint] ${className || ""}`}
       style={{
         boxShadow: "inset 0 1px 0 rgba(255,255,255,0.65), 0 24px 60px rgba(0,0,0,0.08)",
+        willChange: "transform",
       }}
     >
       <div
@@ -249,10 +250,11 @@ export default function LandingPage() {
   const heroRef = useRef<HTMLDivElement>(null);
   const mockRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
-  const rotateX = useTransform(scrollYProgress, [0, 1], [0, 18]);
-  const y = useTransform(scrollYProgress, [0, 1], [0, -120]);
-  const heroTiltY = useTransform(scrollYProgress, [0, 1], [0, 10]);
-  const oppositeParallax = useTransform(scrollYProgress, [0, 1], [0, 90]);
+  const smoothScrollProgress = useSpring(scrollYProgress, { stiffness: 120, damping: 28, mass: 0.35 });
+  const rotateX = useTransform(smoothScrollProgress, [0, 1], [0, 18]);
+  const y = useTransform(smoothScrollProgress, [0, 1], [0, -120]);
+  const heroTiltY = useTransform(smoothScrollProgress, [0, 1], [0, 10]);
+  const oppositeParallax = useTransform(smoothScrollProgress, [0, 1], [0, 90]);
   const hoverX = useMotionValue(0);
   const hoverY = useMotionValue(0);
   const smoothHoverX = useSpring(hoverX, { stiffness: 220, damping: 24, mass: 0.6 });
@@ -345,7 +347,7 @@ export default function LandingPage() {
 
       <motion.div
         aria-hidden
-        className="pointer-events-none fixed inset-0 -z-10"
+        className="pointer-events-none fixed inset-0 -z-10 transform-gpu [backface-visibility:hidden]"
         style={{
           background:
             "radial-gradient(40% 38% at 20% 24%, rgba(180,207,255,0.28), transparent 70%), radial-gradient(42% 40% at 78% 30%, rgba(211,233,255,0.25), transparent 70%), radial-gradient(45% 44% at 50% 88%, rgba(255,221,238,0.2), transparent 72%), #F5F5F7",
@@ -399,23 +401,22 @@ export default function LandingPage() {
           onMouseMove={onMockMove}
           onMouseEnter={() => setMockHover(true)}
           onMouseLeave={onMockLeave}
-          className="mt-16 rounded-[2.5rem] border border-white/35 bg-white/30 p-5 backdrop-blur-[50px]"
+          className="mt-16 rounded-[2.5rem] border border-white/35 bg-white/30 p-5 backdrop-blur-[50px] transform-gpu [backface-visibility:hidden] [contain:paint] [isolation:isolate]"
           style={{
             y: isCoarsePointer ? 0 : y,
             rotateX: isCoarsePointer ? 0 : mockRotateX,
             rotateY: isCoarsePointer ? 0 : mockRotateY,
             transformPerspective: 1000,
             boxShadow: "inset 0 1px 0 rgba(255,255,255,0.72), 0 40px 90px rgba(0,0,0,0.14)",
+            willChange: "transform",
           }}
         >
           <div className="relative overflow-hidden rounded-[2rem] p-7">
             <motion.div
               aria-hidden
-              className="pointer-events-none absolute inset-0"
-              animate={{
-                backgroundPosition: ["0% 0%", "100% 100%", "0% 0%"],
-              }}
-              transition={{ duration: 18, repeat: Infinity, ease: EASE }}
+              className="pointer-events-none absolute inset-0 transform-gpu [backface-visibility:hidden]"
+              animate={isCoarsePointer ? undefined : { backgroundPosition: ["0% 0%", "100% 100%", "0% 0%"] }}
+              transition={isCoarsePointer ? undefined : { duration: 18, repeat: Infinity, ease: EASE }}
               style={{
                 background:
                   "radial-gradient(60% 50% at 20% 20%, rgba(56,189,248,0.16), transparent 70%), radial-gradient(52% 44% at 78% 35%, rgba(16,185,129,0.12), transparent 70%), radial-gradient(56% 52% at 55% 88%, rgba(244,63,94,0.12), transparent 72%), linear-gradient(140deg,#0b1220,#111827,#1f2937)",
@@ -437,14 +438,14 @@ export default function LandingPage() {
               </div>
 
               <div className="grid grid-cols-12 gap-4">
-                <motion.div animate={{ y: [0, -4, 0] }} transition={{ duration: 5.6, repeat: Infinity, ease: EASE }} className="col-span-6 rounded-2xl border border-white/20 bg-white/20 p-4 backdrop-blur-[30px]">
+                <motion.div animate={isCoarsePointer ? undefined : { y: [0, -4, 0] }} transition={isCoarsePointer ? undefined : { duration: 5.6, repeat: Infinity, ease: EASE }} className="col-span-6 rounded-2xl border border-white/20 bg-white/20 p-4 backdrop-blur-[30px]">
                   <p className="text-[11px] uppercase tracking-[0.18em] text-white/70">Proximo Turno</p>
                   <p className="mt-2 text-sm font-semibold text-white">Julian - Corte & Barba</p>
                   <p className="mt-1 text-xs text-white/75">10:30hs</p>
                   <span className="mt-3 inline-flex rounded-full bg-emerald-500/25 px-2 py-1 text-[10px] font-medium text-emerald-200">Confirmado</span>
                 </motion.div>
 
-                <motion.div animate={{ y: [0, -6, 0] }} transition={{ duration: 6.8, repeat: Infinity, ease: EASE, delay: 0.25 }} className="col-span-6 rounded-2xl border border-white/20 bg-white/20 p-4 backdrop-blur-[30px]">
+                <motion.div animate={isCoarsePointer ? undefined : { y: [0, -6, 0] }} transition={isCoarsePointer ? undefined : { duration: 6.8, repeat: Infinity, ease: EASE, delay: 0.25 }} className="col-span-6 rounded-2xl border border-white/20 bg-white/20 p-4 backdrop-blur-[30px]">
                   <p className="text-[11px] uppercase tracking-[0.18em] text-white/70">Finanzas</p>
                   <div className="mt-4 flex items-end gap-3">
                     <div className="flex w-1/2 flex-col items-center gap-2">
@@ -458,7 +459,7 @@ export default function LandingPage() {
                   </div>
                 </motion.div>
 
-                <motion.div animate={{ y: [0, -5, 0] }} transition={{ duration: 7.2, repeat: Infinity, ease: EASE, delay: 0.4 }} className="col-span-12 rounded-2xl border border-white/20 bg-white/20 p-4 backdrop-blur-[30px]">
+                <motion.div animate={isCoarsePointer ? undefined : { y: [0, -5, 0] }} transition={isCoarsePointer ? undefined : { duration: 7.2, repeat: Infinity, ease: EASE, delay: 0.4 }} className="col-span-12 rounded-2xl border border-white/20 bg-white/20 p-4 backdrop-blur-[30px]">
                   <div className="flex items-center gap-2">
                     <TriangleAlert strokeWidth={1.2} className="h-4 w-4 text-amber-300" />
                     <p className="text-sm text-white">Poca cera mate en stock</p>
@@ -470,7 +471,7 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
-      <section id="pricing" className="mx-auto max-w-7xl px-6 py-40">
+      <section id="pricing" className="mx-auto max-w-7xl px-6 py-40 [contain:layout_paint]">
         <motion.div variants={container} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }}>
           <motion.h2 variants={item} className="text-4xl font-black tracking-[-0.04em] md:text-6xl">Planes en ARS</motion.h2>
           <motion.p variants={item} className="mt-5 max-w-2xl text-lg font-thin text-black/60">Simple, claro y listo para crecer.</motion.p>
@@ -483,7 +484,7 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
-      <motion.section id="features" className="mx-auto max-w-7xl px-6 py-40" style={{ y: isCoarsePointer ? 0 : oppositeParallax }}>
+      <motion.section id="features" className="mx-auto max-w-7xl px-6 py-40 transform-gpu [backface-visibility:hidden] [contain:layout_paint]" style={{ y: isCoarsePointer ? 0 : oppositeParallax, willChange: "transform" }}>
         <motion.div variants={container} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }}>
           <motion.h2 variants={item} className="text-4xl font-black tracking-[-0.04em] md:text-6xl">Bento de capacidades</motion.h2>
           <motion.p variants={item} className="mt-5 max-w-2xl text-lg font-thin text-black/60">Cada bloque esta calibrado para velocidad operativa y claridad ejecutiva.</motion.p>

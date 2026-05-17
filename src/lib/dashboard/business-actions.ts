@@ -338,6 +338,72 @@ export async function updateLoyaltyProgramAction(enabled: boolean, cutsRequired:
   }
 }
 
+export type LoyaltyRaffleWinner = {
+  id: string;
+  nombre: string;
+};
+
+export type LoyaltyRaffleResult = {
+  prizeName: string;
+  participants: number;
+  winner: LoyaltyRaffleWinner;
+  candidateNames: string[];
+};
+
+export async function runLoyaltyRaffleAction(prizeName: string, winnersCount: number): Promise<ActionResult<LoyaltyRaffleResult>> {
+  try {
+    const shopIdResult = await requireShopId();
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
+    const admin = await createAdminClient();
+
+    const safePrizeName = (prizeName || "Sorteo de fidelizacion").trim().slice(0, 80);
+    const safeWinnersCount = Math.max(1, Math.min(20, Math.floor(Number(winnersCount) || 1)));
+
+    const { data, error } = await admin
+      .from("customers")
+      .select("id, nombre")
+      .eq("shop_id", shopId)
+      .order("created_at", { ascending: true });
+
+    if (error) return { success: false, error: error.message };
+
+    const participants = (data ?? [])
+      .map((row) => ({ id: String(row.id), nombre: String(row.nombre || "").trim() }))
+      .filter((row) => row.id && row.nombre.length > 0);
+
+    if (participants.length === 0) {
+      return { success: false, error: "No hay clientes disponibles para sortear." };
+    }
+
+    const pool = [...participants];
+    for (let i = pool.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = pool[i];
+      pool[i] = pool[j];
+      pool[j] = tmp;
+    }
+
+    const winners = pool.slice(0, Math.min(safeWinnersCount, pool.length));
+    const winner = winners[0];
+    if (!winner) {
+      return { success: false, error: "No se pudo definir un ganador." };
+    }
+
+    return {
+      success: true,
+      data: {
+        prizeName: safePrizeName,
+        participants: participants.length,
+        winner,
+        candidateNames: participants.map((p) => p.nombre),
+      },
+    };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al ejecutar el sorteo" };
+  }
+}
+
 export async function updateBookingDepositPolicyAction(enabled: boolean, depositAmount: number): Promise<ActionResult> {
   try {
     const shopIdResult = await requireOwnerShopId();

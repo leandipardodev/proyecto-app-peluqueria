@@ -70,7 +70,7 @@ export default function BusinessClient({
   const [showMpToken, setShowMpToken] = useState(false);
   const [showStats, setShowStats] = useState(true);
   const [bookingDepositEnabled, setBookingDepositEnabled] = useState(data?.booking_deposit_enabled ?? true);
-  const [bookingDepositAmount, setBookingDepositAmount] = useState(String(data?.booking_deposit_amount ?? 5000));
+  const [bookingDepositAmount, setBookingDepositAmount] = useState(String(data?.booking_deposit_amount ?? 3000));
   const [message, setMessage] = useState<MessageType>(null);
   const [businessHours, setBusinessHours] = useState<BusinessHoursData | null>(null);
   const [hoursLoading, setHoursLoading] = useState(true);

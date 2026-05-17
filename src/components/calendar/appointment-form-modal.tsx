@@ -66,6 +66,8 @@ export default function AppointmentFormModal({
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [selectedStaffId, setSelectedStaffId] = useState("");
   const [selectedServiceId, setSelectedServiceId] = useState("");
+  const [recurringFrequency, setRecurringFrequency] = useState("none");
+  const [recurringUntil, setRecurringUntil] = useState("");
   const [showNewCustomer, setShowNewCustomer] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerEmail, setNewCustomerEmail] = useState("");
@@ -85,6 +87,8 @@ export default function AppointmentFormModal({
       setSelectedCustomerId("");
       setSelectedStaffId("");
       setSelectedServiceId("");
+      setRecurringFrequency("none");
+      setRecurringUntil("");
       setShowNewCustomer(false);
       setNewCustomerName("");
       setNewCustomerEmail("");
@@ -257,7 +261,9 @@ export default function AppointmentFormModal({
                 </label>
                 <GlassSelect
                   options={staff && staff.length > 0
-                    ? staff.map((s, i) => {
+                    ? [
+                        { value: "", label: "Sin peluquero asignado (toma el disponible)" },
+                        ...staff.map((s, i) => {
                         const name = s.name || s.email || s.id;
                         const initials = getInitials(name);
                         const color = STAFF_COLORS[i % STAFF_COLORS.length];
@@ -274,13 +280,13 @@ export default function AppointmentFormModal({
                           ),
                         };
                       })
+                      ]
                     : [{ value: "", label: "No hay personal registrado" }]
                   }
                   value={selectedStaffId}
                   onChange={setSelectedStaffId}
-                  placeholder="Seleccionar staff..."
+                  placeholder="Asignar staff (opcional)"
                   name="staff_id"
-                  required
                 />
               </div>
 
@@ -356,7 +362,7 @@ export default function AppointmentFormModal({
                     step="0.01"
                     min="0"
                     name="deposit_amount"
-                    placeholder="Ej: 5000"
+                    placeholder="Ej: 3000"
                     className="w-full px-3 py-2 rounded-2xl text-sm border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 backdrop-blur-md text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-violet-500/20 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
@@ -369,6 +375,39 @@ export default function AppointmentFormModal({
                     name="notes"
                     placeholder="Aclaraciones del turno"
                     className="w-full px-3 py-2 rounded-2xl text-sm border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 backdrop-blur-md text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-violet-500/20 transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 cursor-pointer">
+                    Repeticion
+                  </label>
+                  <GlassSelect
+                    options={[
+                      { value: "none", label: "No repetir" },
+                      { value: "weekly", label: "Semanal" },
+                      { value: "biweekly", label: "Cada 2 semanas" },
+                      { value: "monthly", label: "Mensual" },
+                    ]}
+                    value={recurringFrequency}
+                    onChange={setRecurringFrequency}
+                    placeholder="No repetir"
+                    name="recurring_frequency"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 cursor-pointer">
+                    Repetir hasta
+                  </label>
+                  <input
+                    type="date"
+                    name="recurring_until"
+                    value={recurringUntil}
+                    onChange={(e) => setRecurringUntil(e.target.value)}
+                    disabled={recurringFrequency === "none"}
+                    className="w-full px-3 py-2 rounded-2xl text-sm border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 backdrop-blur-md text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-violet-500/20 transition-all disabled:opacity-60"
                   />
                 </div>
               </div>

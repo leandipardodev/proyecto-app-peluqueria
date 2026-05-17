@@ -23,9 +23,10 @@ type Appointment = {
   end_time: string;
   status: string;
   is_paid: boolean;
+  loyalty_reward_applied?: boolean;
   deposit_amount?: number | null;
   notes: string | null;
-  customers: { nombre: string | null; email: string; telefono: string | null } | null;
+  customers: { nombre: string | null; email: string; telefono: string | null; loyalty_rewards_available?: number | null } | null;
   staff: { name: string | null; email: string | null } | null;
   services: { name: string; price: number; duration_minutes: number } | null;
 };
@@ -571,35 +572,63 @@ export default memo(function CalendarView({
                     })
                     .map((appt) => {
                       const startMin = Math.max(minutesFromHHmm(appt.start_hhmm), GRID_START_HOUR * 60);
-                      const endMin = Math.min(minutesFromHHmm(appt.end_hhmm), (GRID_END_HOUR + 1) * 60);
-                      const durationMin = Math.max(endMin - startMin, 15);
+                      const rawEndMin = Math.min(minutesFromHHmm(appt.end_hhmm), (GRID_END_HOUR + 1) * 60);
+                      const endMin = Math.max(rawEndMin, startMin + 15);
+                      const durationMin = endMin - startMin;
                       return { appt, startMin, endMin, durationMin };
                     });
 
-                  const eventLayout = dayEvents.map((event) => {
-                    const overlaps = dayEvents
-                      .filter((candidate) => candidate.appt.id !== event.appt.id)
-                      .filter((candidate) => candidate.startMin < event.endMin && candidate.endMin > event.startMin)
-                      .sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
+                  const sortedEvents = [...dayEvents].sort(
+                    (a, b) => a.startMin - b.startMin || a.endMin - b.endMin || a.appt.id.localeCompare(b.appt.id)
+                  );
+                  const eventLayout: Array<{
+                    appt: Appointment;
+                    startMin: number;
+                    endMin: number;
+                    durationMin: number;
+                    col: number;
+                    cols: number;
+                  }> = [];
 
-                    const cluster = [event, ...overlaps].sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
-                    const colById = new Map<string, number>();
-                    const activeCols: Array<{ endMin: number; col: number }> = [];
+                  let i = 0;
+                  while (i < sortedEvents.length) {
+                    const group: typeof sortedEvents = [sortedEvents[i]];
+                    let groupEnd = sortedEvents[i].endMin;
+                    i += 1;
 
-                    for (const item of cluster) {
-                      for (let i = activeCols.length - 1; i >= 0; i--) {
-                        if (activeCols[i].endMin <= item.startMin) activeCols.splice(i, 1);
-                      }
-                      let col = 0;
-                      while (activeCols.some((a) => a.col === col)) col += 1;
-                      activeCols.push({ endMin: item.endMin, col });
-                      colById.set(item.appt.id, col);
+                    while (i < sortedEvents.length && sortedEvents[i].startMin < groupEnd) {
+                      group.push(sortedEvents[i]);
+                      groupEnd = Math.max(groupEnd, sortedEvents[i].endMin);
+                      i += 1;
                     }
 
-                    const thisCol = colById.get(event.appt.id) || 0;
-                    const cols = Math.max(...Array.from(colById.values()), 0) + 1;
-                    return { ...event, col: thisCol, cols };
-                  });
+                    const activeCols: Array<{ endMin: number; col: number }> = [];
+                    const placed: Array<{
+                      appt: Appointment;
+                      startMin: number;
+                      endMin: number;
+                      durationMin: number;
+                      col: number;
+                    }> = [];
+                    let maxCols = 1;
+
+                    for (const event of group) {
+                      for (let idx = activeCols.length - 1; idx >= 0; idx -= 1) {
+                        if (activeCols[idx].endMin <= event.startMin) activeCols.splice(idx, 1);
+                      }
+
+                      let col = 0;
+                      while (activeCols.some((slot) => slot.col === col)) col += 1;
+                      activeCols.push({ endMin: event.endMin, col });
+                      maxCols = Math.max(maxCols, activeCols.length);
+
+                      placed.push({ ...event, col });
+                    }
+
+                    for (const event of placed) {
+                      eventLayout.push({ ...event, cols: maxCols });
+                    }
+                  }
 
                   return (
                     <>
@@ -751,6 +780,11 @@ export default memo(function CalendarView({
                                     {!isWeekMode && (
                                       <span className="text-[9px] font-semibold text-gray-600 dark:text-gray-300 leading-tight truncate">
                                         {displayLabel}
+                                      </span>
+                                    )}
+                                    {!isWeekMode && !appt.loyalty_reward_applied && Math.max(0, Number(appt.customers?.loyalty_rewards_available || 0)) > 0 && (
+                                      <span className="inline-flex items-center rounded-full bg-amber-100/90 text-amber-800 px-1.5 py-0.5 text-[9px] font-semibold w-fit">
+                                        Canje disponible
                                       </span>
                                     )}
                                   </div>

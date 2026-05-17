@@ -2,15 +2,17 @@
 
 import { X, Check, XCircle, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { deleteAppointment, redeemLoyaltyReward, updateAppointmentStatus } from "@/lib/dashboard/appointment-actions";
+import { deleteAppointment, redeemLoyaltyReward, updateAppointmentStaff, updateAppointmentStatus } from "@/lib/dashboard/appointment-actions";
 import { AnimatePresence, motion } from "framer-motion";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
+import GlassSelect from "@/components/ui/glass-select";
 
 const IOS_MODAL_SPRING = { stiffness: 460, damping: 34, mass: 0.65 };
 
 type Appointment = {
   id: string;
+  staff_id?: string | null;
   start_time: string;
   end_time: string;
   status: string;
@@ -24,9 +26,16 @@ type Appointment = {
   services: { name: string; price: number; duration_minutes: number } | null;
 };
 
+type StaffMember = {
+  id: string;
+  name: string | null;
+  email: string | null;
+};
+
 interface AppointmentDetailModalProps {
   shopId: string;
   appointment: Appointment | null;
+  staff: StaffMember[];
   onClose: () => void;
 }
 
@@ -58,6 +67,7 @@ function getTurnoStatusLabel(status: string, isPaid: boolean): string {
 export default function AppointmentDetailModal({
   shopId,
   appointment,
+  staff,
   onClose,
 }: AppointmentDetailModalProps) {
   const backdropRef = useRef<HTMLDivElement>(null);
@@ -66,12 +76,20 @@ export default function AppointmentDetailModal({
   const [localPaid, setLocalPaid] = useState(appointment?.is_paid || false);
   const [error, setError] = useState<string | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [selectedStaffId, setSelectedStaffId] = useState(appointment?.staff_id || "");
+  const [localRewardsAvailable, setLocalRewardsAvailable] = useState(
+    Math.max(0, Number(appointment?.customers?.loyalty_rewards_available || 0))
+  );
+  const [localRewardApplied, setLocalRewardApplied] = useState(Boolean(appointment?.loyalty_reward_applied));
   const { addToast } = useToast();
 
   useEffect(() => {
     if (!appointment) return;
     setLocalStatus(appointment.status);
     setLocalPaid(appointment.is_paid);
+    setSelectedStaffId(appointment.staff_id || "");
+    setLocalRewardsAvailable(Math.max(0, Number(appointment.customers?.loyalty_rewards_available || 0)));
+    setLocalRewardApplied(Boolean(appointment.loyalty_reward_applied));
     setError(null);
   }, [appointment]);
 
@@ -126,6 +144,19 @@ export default function AppointmentDetailModal({
     setDeleteConfirmOpen(true);
   }
 
+  function handleStaffChange(value: string) {
+    if (!appointment) return;
+    setSelectedStaffId(value);
+    setError(null);
+    startTransition(async () => {
+      const result = await updateAppointmentStaff(appointment.id, value || null, shopId);
+      if (!result.success) {
+        setError(result.error);
+        setSelectedStaffId(appointment.staff_id || "");
+      }
+    });
+  }
+
   function confirmDeleteAppointment() {
     if (!appointment) return;
 
@@ -150,8 +181,9 @@ export default function AppointmentDetailModal({
         setError(result.error);
         return;
       }
+      setLocalRewardsAvailable((prev) => Math.max(0, prev - 1));
+      setLocalRewardApplied(true);
       addToast(`Canje aplicado (${result.data?.discountPercent ?? 0}% de descuento).`, "success");
-      onClose();
     });
   }
 
@@ -213,9 +245,18 @@ export default function AppointmentDetailModal({
             </div>
             <div>
               <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">Staff</span>
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mt-0.5">
-                {appointment.staff?.name || "—"}
-              </p>
+              <div className="mt-1.5">
+                <GlassSelect
+                  options={[
+                    { value: "", label: "Sin peluquero asignado (disponible)" },
+                    ...staff.map((s) => ({ value: s.id, label: s.name || s.email || "Sin nombre" })),
+                  ]}
+                  value={selectedStaffId}
+                  onChange={handleStaffChange}
+                  placeholder="Sin peluquero asignado"
+                  className="w-full"
+                />
+              </div>
             </div>
           </div>
 
@@ -338,21 +379,21 @@ export default function AppointmentDetailModal({
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-700 dark:text-gray-300">Fidelizacion</span>
               <span className="text-xs text-gray-500 dark:text-gray-400">
-                Canjes: {Math.max(0, Number(appointment.customers?.loyalty_rewards_available || 0))}
+                Canjes: {localRewardsAvailable}
               </span>
             </div>
 
-            {!appointment.loyalty_reward_applied && (
+            {!localRewardApplied && (
               <button
                 onClick={handleRedeemLoyaltyReward}
-                disabled={pending || Math.max(0, Number(appointment.customers?.loyalty_rewards_available || 0)) <= 0}
-                className="w-full flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950 hover:bg-violet-100 dark:hover:bg-violet-900 transition-colors cursor-pointer select-none disabled:opacity-50"
+                disabled={pending || localRewardsAvailable <= 0}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-extrabold tracking-wide text-white bg-gradient-to-r from-violet-600 via-fuchsia-600 to-violet-700 shadow-[0_10px_26px_rgba(124,58,237,0.35)] hover:brightness-105 transition-all cursor-pointer select-none disabled:opacity-50 disabled:shadow-none"
               >
-                Aplicar canje de fidelizacion
+                {localRewardsAvailable > 0 ? `Usar canje ahora (${localRewardsAvailable})` : "Usar canje ahora"}
               </button>
             )}
 
-            {appointment.loyalty_reward_applied && (
+            {localRewardApplied && (
               <p className="text-xs text-emerald-700 dark:text-emerald-300">
                 Canje aplicado: {appointment.loyalty_discount_percent_applied || 0}% de descuento.
               </p>

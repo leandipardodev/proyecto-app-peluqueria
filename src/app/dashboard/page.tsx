@@ -103,26 +103,43 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
     : null;
   const todayVouchersCount = voucherAlertsResult.success ? voucherAlertsResult.data?.length || 0 : 0;
   const loyaltyRewardsCount = summary.loyaltyRewardsReadyCount || 0;
+  const firstLoyaltyCustomer = summary.loyaltyRewardCustomerNames?.[0] || null;
+  const extraLoyaltyCustomers = Math.max(0, loyaltyRewardsCount - 1);
   const notificationCard =
     typeof minutesToNextAppointment === "number" && minutesToNextAppointment >= 0 && minutesToNextAppointment <= 60
       ? {
+          kind: "appointment" as const,
           value: `Turno en ${Math.max(1, minutesToNextAppointment)} min`,
           hint: nextAppointment?.customers?.nombre ? `Cliente: ${nextAppointment.customers.nombre}` : "Proximo turno confirmado",
         }
       : todayVouchersCount > 0
         ? {
+            kind: "voucher" as const,
             value: `${todayVouchersCount} cumpleanos hoy`,
             hint: "Hay vouchers para enviar hoy",
           }
         : loyaltyRewardsCount > 0
           ? {
+              kind: "loyalty" as const,
               value: `${loyaltyRewardsCount} canje(s) listo(s)`,
-              hint: "Clientes alcanzaron meta de cortes",
+              hint: firstLoyaltyCustomer
+                ? extraLoyaltyCustomers > 0
+                  ? `${firstLoyaltyCustomer} + ${extraLoyaltyCustomers} cliente(s) con canje`
+                  : `${firstLoyaltyCustomer} tiene un canje listo`
+                : "Clientes alcanzaron meta de cortes",
             }
           : {
+              kind: "none" as const,
               value: "Sin alertas urgentes",
               hint: "Todo bajo control por ahora",
             };
+
+  const notificationHref =
+    notificationCard.kind === "voucher"
+      ? withDashboardBase("/dashboard/vouchers")
+      : notificationCard.kind === "loyalty"
+        ? withDashboardBase("/dashboard/fidelizacion")
+        : withDashboardBase("/dashboard/calendar");
 
   const cards = [
     {
@@ -158,7 +175,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
 
   const cardHrefByLabel: Record<string, string> = {
     "Turnos hoy": withDashboardBase("/dashboard/calendar"),
-    Notificaciones: withDashboardBase("/dashboard/calendar"),
+    Notificaciones: notificationHref,
     "Alertas de stock": withDashboardBase("/dashboard/inventory"),
     "Crecimiento": withDashboardBase("/dashboard/business#estadisticas"),
   };
