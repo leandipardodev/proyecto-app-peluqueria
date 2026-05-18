@@ -98,11 +98,12 @@ export default function FidelizacionClient({
         window.clearTimeout(raffleTimerRef.current);
       }
 
-      const candidates = result.data.candidateNames.length > 0
-        ? result.data.candidateNames
-        : [result.data.winner.nombre];
+      const raffleData = result.data;
+      const candidates = raffleData.candidateNames.length > 0
+        ? raffleData.candidateNames
+        : [raffleData.winner.nombre];
 
-      setRaffleResult(result.data);
+      setRaffleResult(raffleData);
       setRaffleAnimating(true);
       setWinnerBurst(false);
 
@@ -116,7 +117,7 @@ export default function FidelizacionClient({
         setRaffleSpinKey((prev) => prev + 1);
 
         if (tick >= maxTicks) {
-          setRaffleDisplayName(result.data.winner.nombre);
+          setRaffleDisplayName(raffleData.winner.nombre);
           setRaffleSpinKey((prev) => prev + 1);
           setRaffleAnimating(false);
           setRaffleMessage("Sorteo realizado con exito.");

@@ -582,7 +582,7 @@ export default memo(function CalendarView({
                     (a, b) => a.startMin - b.startMin || a.endMin - b.endMin || a.appt.id.localeCompare(b.appt.id)
                   );
                   const eventLayout: Array<{
-                    appt: Appointment;
+                    appt: NormalizedAppointment;
                     startMin: number;
                     endMin: number;
                     durationMin: number;
@@ -604,7 +604,7 @@ export default memo(function CalendarView({
 
                     const activeCols: Array<{ endMin: number; col: number }> = [];
                     const placed: Array<{
-                      appt: Appointment;
+                      appt: NormalizedAppointment;
                       startMin: number;
                       endMin: number;
                       durationMin: number;
@@ -666,14 +666,13 @@ export default memo(function CalendarView({
                             className={`relative overflow-visible border-b border-zinc-200/30 dark:border-slate-800/40 last:border-b-0 transition-colors ${(isMobileDayMode || (isMobileViewport && viewMode === "week" && dayIndex === 0)) ? "pl-7 pr-1 py-1.5" : "p-1.5"} ${
                               isOpenSlot
                                 ? "hover:bg-white/30 dark:hover:bg-white/5 cursor-pointer"
-                                : "bg-slate-200 dark:bg-zinc-950 border-y border-y-black/[0.08] dark:border-y-white/[0.03]"
+                                : "bg-slate-200 dark:bg-zinc-950 border-y border-y-black/[0.08] dark:border-y-white/[0.03] closed-slot-pattern"
                             }`}
                             style={
                               isOpenSlot
                                 ? undefined
                                 : {
-                                    backgroundImage:
-                                      "repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,0.05) 10px, rgba(0,0,0,0.05) 20px)",
+                                    backgroundImage: undefined,
                                   }
                             }
                             onClick={isOpenSlot ? () => onSlotClick(day, hour) : undefined}
@@ -878,10 +877,30 @@ export default memo(function CalendarView({
 
       {businessHours && (
         <div className="mt-4 inline-flex items-center gap-1.5 text-xs bg-white/30 dark:bg-black/20 backdrop-blur-2xl rounded-2xl px-4 py-2.5 border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-sm text-gray-600 dark:text-gray-400">
-          <div className="w-3 h-3 rounded-sm" style={{ backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px)" }} />
+          <div className="w-3 h-3 rounded-sm closed-slot-pattern" style={{ backgroundSize: "6px 6px" }} />
           <span>Cerrado</span>
         </div>
       )}
+      <style>{`
+        .closed-slot-pattern {
+          background-image: repeating-linear-gradient(
+            45deg,
+            transparent,
+            transparent 10px,
+            rgba(0, 0, 0, 0.08) 10px,
+            rgba(0, 0, 0, 0.08) 20px
+          );
+        }
+        .dark .closed-slot-pattern {
+          background-image: repeating-linear-gradient(
+            45deg,
+            transparent,
+            transparent 10px,
+            rgba(255, 255, 255, 0.16) 10px,
+            rgba(255, 255, 255, 0.16) 20px
+          );
+        }
+      `}</style>
     </div>
   );
 })
