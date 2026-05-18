@@ -185,6 +185,7 @@ export async function middleware(request: NextRequest) {
     if (outOfBilling) {
       const billingUrl = request.nextUrl.clone();
       billingUrl.pathname = BILLING_REQUIRED_PATH;
+      billingUrl.searchParams.set("shop_id", targetShop.id);
       return NextResponse.redirect(billingUrl);
     }
 
