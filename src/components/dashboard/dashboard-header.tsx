@@ -18,7 +18,13 @@ interface DashboardHeaderProps {
   userEmail: string;
   onLogout: () => Promise<void>;
   activeShopSlug: string | null;
-  managedShops: Array<{ slug: string; nombre: string }>;
+  managedShops: Array<{ id: string; slug: string; nombre: string; active: boolean | null; plan_expiry: string | null }>;
+  billingStatus: {
+    daysRemaining: number | null;
+    graceDaysRemaining: number | null;
+    isExpired: boolean;
+    inGrace: boolean;
+  };
 }
 
 type CommandNav = { id: string; kind: "nav"; label: string; hint: string; to: string };
@@ -103,7 +109,7 @@ function formatDataHint(item: OmniSearchResult) {
   return `${item.role === "owner" ? "Administrador" : "Staff"} - ${item.email || "Sin email"}`;
 }
 
-export default function DashboardHeader({ shopName, userName, userEmail, onLogout, activeShopSlug, managedShops }: DashboardHeaderProps) {
+export default function DashboardHeader({ shopName, userName, userEmail, onLogout, activeShopSlug, managedShops, billingStatus }: DashboardHeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
   const dashboardBasePath = getDashboardBasePath(pathname);
@@ -141,6 +147,20 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
   const searchRef = useRef<HTMLDivElement>(null);
 
   const rotatingWords = ["clientes...", "productos...", "servicios...", "comandos..."];
+  const daysBadgeLabel = billingStatus.daysRemaining === null
+    ? "--"
+    : billingStatus.daysRemaining > 0
+      ? `${billingStatus.daysRemaining}d`
+      : billingStatus.inGrace
+        ? `G${Math.max(0, billingStatus.graceDaysRemaining ?? 0)}d`
+        : "0d";
+  const planSummary = billingStatus.daysRemaining === null
+    ? "PLAN PRO"
+    : billingStatus.daysRemaining > 0
+      ? `PLAN PRO • ${billingStatus.daysRemaining} DIAS RESTANTES`
+      : billingStatus.inGrace
+        ? `PLAN VENCIDO • EN GRACIA (${Math.max(0, billingStatus.graceDaysRemaining ?? 0)} DIAS)`
+        : "PLAN VENCIDO";
 
   function handleMobileOpen() {
     playClick();
@@ -729,8 +749,8 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
                 title={userName}
               >
                 <span className="-translate-y-[2px]">{getInitials(userName)}</span>
-                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-[30%] rounded-full bg-[#0071E3] px-1.5 py-[1px] text-[9px] font-semibold leading-none text-white shadow-[0_2px_6px_rgba(0,113,227,0.45)] border border-[#5da9f4]">
-                  24d
+                <span className={`absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-[30%] rounded-full px-1.5 py-[1px] text-[9px] font-semibold leading-none text-white border ${billingStatus.isExpired ? "bg-rose-600 border-rose-400 shadow-[0_2px_6px_rgba(225,29,72,0.5)]" : "bg-[#0071E3] border-[#5da9f4] shadow-[0_2px_6px_rgba(0,113,227,0.45)]"}`}>
+                  {daysBadgeLabel}
                 </span>
               </button>
             </div>
@@ -740,7 +760,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
                 <div className="px-3 py-2 border-b border-white/20 dark:border-white/10">
                   <p className="text-xs text-zinc-500">Cuenta</p>
                   <p className="text-sm text-gray-900 dark:text-white truncate">{userEmail || userName}</p>
-                  <p className="text-[10px] font-medium text-slate-400 mt-1">PLAN PRO • 24 DIAS RESTANTES</p>
+                  <p className="text-[10px] font-medium text-slate-400 mt-1">{planSummary}</p>
                 </div>
                 <div className="p-3 space-y-3">
                   <div className="flex items-center justify-between rounded-xl border border-white/20 dark:border-white/10 px-3 py-2">

@@ -84,6 +84,7 @@ export default async function DashboardLayout({
   const requestHeaders = await headers();
   const activeShopSlug = requestHeaders.get("x-shop-slug") || null;
   const managedShops = await getManagedShops(user.id);
+  const selectedShopBilling = getSelectedShopBilling(managedShops, activeShopSlug);
 
   return (
     <div className="flex h-[100dvh] bg-transparent transition-colors relative overflow-hidden">
@@ -105,6 +106,7 @@ export default async function DashboardLayout({
           onLogout={logout}
           activeShopSlug={activeShopSlug}
           managedShops={managedShops}
+          billingStatus={selectedShopBilling}
         />
 
         <main className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain p-3 sm:p-6 lg:p-8">
@@ -115,7 +117,7 @@ export default async function DashboardLayout({
   );
 }
 
-async function getManagedShops(userId: string): Promise<Array<{ slug: string; nombre: string }>> {
+async function getManagedShops(userId: string): Promise<Array<{ id: string; slug: string; nombre: string; active: boolean | null; plan_expiry: string | null }>> {
   const admin = await createServiceRoleClient();
   const { data: memberships } = await admin
     .from("shop_memberships")
@@ -128,9 +130,43 @@ async function getManagedShops(userId: string): Promise<Array<{ slug: string; no
 
   const { data: shops } = await admin
     .from("shops")
-    .select("slug, nombre")
+    .select("id, slug, nombre, active, plan_expiry")
     .in("id", shopIds)
     .order("nombre", { ascending: true });
 
-  return (shops || []).filter((s) => !!s.slug).map((s) => ({ slug: s.slug, nombre: s.nombre || "Local" }));
+  return (shops || [])
+    .filter((s) => !!s.slug)
+    .map((s) => ({
+      id: s.id,
+      slug: s.slug,
+      nombre: s.nombre || "Local",
+      active: s.active,
+      plan_expiry: s.plan_expiry,
+    }));
+}
+
+function getSelectedShopBilling(
+  managedShops: Array<{ id: string; slug: string; nombre: string; active: boolean | null; plan_expiry: string | null }>,
+  activeShopSlug: string | null,
+): { daysRemaining: number | null; graceDaysRemaining: number | null; isExpired: boolean; inGrace: boolean } {
+  const selected = (activeShopSlug ? managedShops.find((shop) => shop.slug === activeShopSlug) : null) || managedShops[0] || null;
+  if (!selected?.plan_expiry) {
+    return { daysRemaining: null, graceDaysRemaining: null, isExpired: false, inGrace: false };
+  }
+
+  const now = Date.now();
+  const expiryMs = new Date(selected.plan_expiry).getTime();
+  const dayMs = 24 * 60 * 60 * 1000;
+  const daysRemaining = Math.ceil((expiryMs - now) / dayMs);
+  const graceUntilMs = expiryMs + 2 * dayMs;
+  const graceDaysRemaining = Math.ceil((graceUntilMs - now) / dayMs);
+  const isExpired = daysRemaining <= 0;
+  const inGrace = isExpired && graceDaysRemaining > 0;
+
+  return {
+    daysRemaining,
+    graceDaysRemaining,
+    isExpired,
+    inGrace,
+  };
 }
