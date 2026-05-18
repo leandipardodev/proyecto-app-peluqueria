@@ -412,7 +412,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
 
   return (
     <>
-      <header className="sticky top-0 z-40 flex items-center gap-4 bg-white/10 dark:bg-black/10 backdrop-blur-xl border-b border-white/20 dark:border-white/10 px-4 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.625rem)] lg:px-6 lg:pt-2.5 transition-colors">
+      <header className="sticky top-0 z-40 flex items-center gap-4 bg-white/10 dark:bg-black/10 backdrop-blur-xl border-b border-white/20 dark:border-white/10 px-4 pb-2.5 pt-[max(env(safe-area-inset-top),0.625rem)] lg:px-6 lg:pt-2.5 transition-colors">
         <button
           onClick={handleMobileOpen}
           className="lg:hidden p-2 rounded-xl text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/5 transition-all cursor-pointer select-none"
@@ -850,7 +850,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
               exit={{ x: -300, transition: { duration: 0.2, ease: "easeIn" } }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
             >
-              <div className="flex items-center justify-between px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] border-b border-white/20 dark:border-white/10 bg-white/30 dark:bg-black/30 backdrop-blur-3xl">
+              <div className="flex items-center justify-between px-4 pb-3 pt-[max(env(safe-area-inset-top),0.75rem)] border-b border-white/20 dark:border-white/10 bg-white/30 dark:bg-black/30 backdrop-blur-3xl">
                 <div className="inline-flex items-center gap-2">
                   <span className="text-xl font-bold tracking-tight text-[#0071E3]">Klip</span>
                 </div>
