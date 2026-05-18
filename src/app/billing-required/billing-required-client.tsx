@@ -8,7 +8,7 @@ type Props = {
   shopName: string;
 };
 
-const CYCLES: BillingCycle[] = ["monthly", "semiannual", "annual"];
+const CYCLES: BillingCycle[] = ["monthly"];
 
 export default function BillingRequiredClient({ shopId, shopName }: Props) {
   const [loading, setLoading] = useState<BillingCycle | null>(null);

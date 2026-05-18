@@ -1,19 +1,14 @@
-export type BillingCycle = "monthly" | "semiannual" | "annual";
+export type BillingCycle = "monthly";
 
 export const BILLING_PRICES: Record<BillingCycle, number> = {
-  monthly: 23000,
-  semiannual: 120000,
-  annual: 216000,
+  monthly: 25000,
 };
 
 export const BILLING_LABELS: Record<BillingCycle, string> = {
   monthly: "Mensual",
-  semiannual: "Semestral",
-  annual: "Anual",
 };
 
 export function cycleMonths(cycle: BillingCycle): number {
-  if (cycle === "annual") return 12;
-  if (cycle === "semiannual") return 6;
+  if (cycle === "monthly") return 1;
   return 1;
 }

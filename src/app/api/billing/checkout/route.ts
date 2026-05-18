@@ -5,7 +5,7 @@ import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
 import { BILLING_LABELS, BILLING_PRICES, BillingCycle } from "@/lib/billing/plans";
 
 function isBillingCycle(value: string): value is BillingCycle {
-  return value === "monthly" || value === "semiannual" || value === "annual";
+  return value === "monthly";
 }
 
 export async function POST(request: NextRequest) {

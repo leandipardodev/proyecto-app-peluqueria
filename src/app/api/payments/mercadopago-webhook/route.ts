@@ -13,6 +13,29 @@ function resolveStatusFromPaymentStatus(paymentStatus: string | undefined): "con
   return "cancelled";
 }
 
+function parseBillingExternalReference(externalReference: string): {
+  shopId: string;
+  cycle: BillingCycle;
+} | null {
+  const parts = externalReference.split(":");
+  if (parts.length < 4) return null;
+  if (parts[0] !== "shop_sub") return null;
+
+  const shopId = parts[1];
+  const cycleRaw = parts[2];
+
+  if (!shopId) return null;
+  if (cycleRaw !== "monthly") return null;
+
+  return { shopId, cycle: cycleRaw };
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const maybeCode = (error as { code?: string }).code;
+  return maybeCode === "23505";
+}
+
 export async function POST(request: NextRequest) {
   try {
     const admin = await createAdminClient();
@@ -53,44 +76,71 @@ export async function POST(request: NextRequest) {
     const paymentResult = await payment.get({ id: paymentId });
 
     const externalReference = (paymentResult.external_reference as string | undefined) || "";
-    if (externalReference.startsWith("shop_sub:")) {
-      const [, extShopId, cycleRaw] = externalReference.split(":");
-      const cycle = cycleRaw as BillingCycle;
-      if (extShopId && (cycle === "monthly" || cycle === "semiannual" || cycle === "annual")) {
-        const { data: shop } = await admin
-          .from("shops")
-          .select("id, plan_expiry")
-          .eq("id", extShopId)
-          .maybeSingle();
+    if (scope === "billing" || externalReference.startsWith("shop_sub:")) {
+      const parsed = parseBillingExternalReference(externalReference);
+      if (!parsed) {
+        return NextResponse.json({ ok: true });
+      }
 
-        if (shop && paymentResult.status === "approved") {
-          const now = new Date();
-          const currentExpiry = shop.plan_expiry ? new Date(shop.plan_expiry) : null;
-          const base = currentExpiry && currentExpiry > now ? currentExpiry : now;
-          const nextExpiry = new Date(base);
-          nextExpiry.setMonth(nextExpiry.getMonth() + cycleMonths(cycle));
+      const { shopId: extShopId, cycle } = parsed;
+      const normalizedPaymentId = String(paymentId);
 
-          await admin
-            .from("shops")
-            .update({
-              active: true,
-              plan_expiry: nextExpiry.toISOString(),
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", extShopId);
+      await admin.from("shop_billing_events").insert({
+        shop_id: extShopId,
+        actor_user_id: null,
+        event_type: "subscription_payment_webhook",
+        payload: {
+          payment_id: normalizedPaymentId,
+          status: paymentResult.status,
+          cycle,
+          external_reference: externalReference,
+        },
+      });
+
+      if (paymentResult.status !== "approved") {
+        return NextResponse.json({ ok: true });
+      }
+
+      const { error: lockError } = await admin.from("shop_billing_events").insert({
+        shop_id: extShopId,
+        actor_user_id: null,
+        event_type: "subscription_payment_applied",
+        payload: {
+          payment_id: normalizedPaymentId,
+          status: paymentResult.status,
+          cycle,
+          external_reference: externalReference,
+        },
+      });
+
+      if (lockError) {
+        if (isUniqueViolation(lockError)) {
+          return NextResponse.json({ ok: true });
         }
+        throw lockError;
+      }
 
-        await admin.from("shop_billing_events").insert({
-          shop_id: extShopId,
-          actor_user_id: null,
-          event_type: "subscription_payment_webhook",
-          payload: {
-            payment_id: paymentId,
-            status: paymentResult.status,
-            cycle,
-            external_reference: externalReference,
-          },
-        });
+      const { data: shop } = await admin
+        .from("shops")
+        .select("id, plan_expiry")
+        .eq("id", extShopId)
+        .maybeSingle();
+
+      if (shop) {
+        const now = new Date();
+        const currentExpiry = shop.plan_expiry ? new Date(shop.plan_expiry) : null;
+        const base = currentExpiry && currentExpiry > now ? currentExpiry : now;
+        const nextExpiry = new Date(base);
+        nextExpiry.setMonth(nextExpiry.getMonth() + cycleMonths(cycle));
+
+        await admin
+          .from("shops")
+          .update({
+            active: true,
+            plan_expiry: nextExpiry.toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", extShopId);
       }
 
       return NextResponse.json({ ok: true });
