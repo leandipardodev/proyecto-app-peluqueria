@@ -40,6 +40,10 @@ body.ios-standalone {
   padding-left: env(safe-area-inset-left);
 }
 
+body.ios-standalone .dashboard-mobile-header {
+  padding-top: 0.625rem;
+}
+
 @media (max-width: 768px) {
   input,
   select,
