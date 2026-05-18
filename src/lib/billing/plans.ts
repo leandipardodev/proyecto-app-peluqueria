@@ -1,7 +1,7 @@
 export type BillingCycle = "monthly";
 
 export const BILLING_PRICES: Record<BillingCycle, number> = {
-  monthly: 1,
+  monthly: 500,
 };
 
 export const BILLING_LABELS: Record<BillingCycle, string> = {
