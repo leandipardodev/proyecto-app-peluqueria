@@ -293,6 +293,10 @@ export default function Home() {
                 Klip unifica agenda, mensajes recordatorios, fidelizacion, inventario y caja en una sola plataforma. Implementalo en minutos y empeza a recibir reservas con una experiencia profesional desde cualquier dispositivo.
               </p>
 
+              <p className="mt-3 max-w-2xl text-[13px] leading-relaxed text-[#4b5563] sm:text-base">
+                Plan mensual: $25.000. Primer mes gratis para que lo pruebes con tu equipo.
+              </p>
+
               <div className="mt-7 sm:mt-10">
                 <Link
                   href="/register"
@@ -408,12 +412,12 @@ export default function Home() {
             <Card className="p-8 bg-gradient-to-br from-white via-white to-violet-50/50 shadow-[0_18px_38px_rgba(15,23,42,0.06)] hover:shadow-[0_24px_48px_rgba(15,23,42,0.1)] transition-shadow">
               <p className="text-xs font-semibold tracking-[0.16em] text-[#0071E3]">PASO 2</p>
               <h3 className="mt-3 text-2xl font-bold tracking-tight text-[#1D1D1F]">Compartis tu link</h3>
-              <p className="mt-3 leading-relaxed text-[#86868B]">Tus clientes entran a tu pagina personalizada de Klip, eligen el servicio, el profesional y el horario disponible.</p>
+              <p className="mt-3 leading-relaxed text-[#86868B]">Tus clientes entran a tu pagina personalizada, reservan en segundos y ese link ayuda a posicionarte mejor en Google para captar mas clientes.</p>
             </Card>
             <Card className="p-8 bg-gradient-to-br from-white via-white to-cyan-50/50 shadow-[0_18px_38px_rgba(15,23,42,0.06)] hover:shadow-[0_24px_48px_rgba(15,23,42,0.1)] transition-shadow">
               <p className="text-xs font-semibold tracking-[0.16em] text-[#0071E3]">PASO 3</p>
               <h3 className="mt-3 text-2xl font-bold tracking-tight text-[#1D1D1F]">El sistema trabaja solo</h3>
-              <p className="mt-3 leading-relaxed text-[#86868B]">Klip agenda el turno, bloquea el horario para que nadie mas lo ocupe y manda un correo automatico 3 horas antes.</p>
+              <p className="mt-3 leading-relaxed text-[#86868B]">Klip se encarga de gestionar el turno, cobrar, organizarlo en tu agenda y enviarle un mensaje al usuario horas antes para terminar con los ausentismos.</p>
             </Card>
           </div>
             </Section>
@@ -434,7 +438,7 @@ export default function Home() {
             <Card className="p-10 md:col-span-3">
               <CalendarCheck2 className="mb-5 h-7 w-7 text-[#0071E3]" />
               <h3 className="mb-3 text-2xl font-bold tracking-tight text-[#1D1D1F]">Agenda Inteligente y Automatizada</h3>
-              <p className="leading-relaxed text-[#86868B]">Un panel visual claro para ver los turnos de todo tu equipo en tiempo real. Evita superposiciones y envia recordatorios automaticos por mail (T-3 horas) para reducir faltazos.</p>
+              <p className="leading-relaxed text-[#86868B]">Un panel visual claro para ver los turnos de todo tu equipo en tiempo real.</p>
             </Card>
 
             <Card className="p-10 md:col-span-3">
@@ -506,8 +510,8 @@ export default function Home() {
                 <div className="relative grid gap-6 lg:grid-cols-[1fr_1.2fr] items-center">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-300">Producto en accion</p>
-                    <h3 className={`${playfair.className} mt-3 text-3xl sm:text-5xl font-bold tracking-[-0.03em] text-white`}>Un cockpit visual para decidir en segundos.</h3>
-                    <p className="mt-4 max-w-xl text-slate-300 leading-relaxed">Detecta huecos, baja no-shows y activa recompensas para que tus clientes vuelvan mas seguido, sin depender de planillas.</p>
+                    <h3 className={`${playfair.className} mt-3 text-3xl sm:text-5xl font-bold tracking-[-0.03em] text-white`}>Un concepto visual claro para decidir en segundos.</h3>
+                    <p className="mt-4 max-w-xl text-slate-300 leading-relaxed">Detecta huecos, reduce drasticamente los ausentismos y activa recompensas y marketing para que tus clientes vuelvan mas seguido, sin depender de planillas.</p>
                   </div>
                   <motion.div className="relative rounded-[1.7rem] border border-slate-600/70 bg-slate-900/80 p-4 shadow-[0_24px_46px_rgba(2,6,23,0.5)]" whileHover={{ y: -5, rotateX: -1.4, rotateY: 1.4 }} transition={MOTION.hover}>
                     <div className="mb-3 flex items-center gap-1.5">
@@ -554,7 +558,7 @@ export default function Home() {
                   <p>Indicador</p><p>Antes</p><p>Con Klip</p>
                 </div>
                 <div className="mt-4 grid items-center gap-3 rounded-2xl border border-slate-200 bg-white/90 p-4 md:grid-cols-3">
-                  <p className="font-semibold text-slate-700">No-shows mensuales</p><p className="text-2xl font-black text-rose-500">18%</p><p className="text-2xl font-black text-emerald-600"><CountUp to={6} suffix="%" /></p>
+                  <p className="font-semibold text-slate-700">Inasistencias mensuales</p><p className="text-2xl font-black text-rose-500">18%</p><p className="text-2xl font-black text-emerald-600"><CountUp to={6} suffix="%" /></p>
                 </div>
                 <div className="mt-3 grid items-center gap-3 rounded-2xl border border-slate-200 bg-white/90 p-4 md:grid-cols-3">
                   <p className="font-semibold text-slate-700">Horas admin por semana</p><p className="text-2xl font-black text-rose-500">12h</p><p className="text-2xl font-black text-emerald-600"><CountUp to={4} suffix="h" /></p>
@@ -574,13 +578,13 @@ export default function Home() {
                 <h2 className={`${playfair.className} title-animated text-5xl sm:text-6xl font-bold tracking-[-0.04em] text-[#101625]`}>Elegido por salones que quieren crecer</h2>
               </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {["Studio Norte", "Menta Hair", "Atelier B", "Aire Salon", "Distrito Barber", "Ritual Color", "Casa Corta", "Seda Beauty"].map((brand) => (
+                {["Studio Norte", "Eunoia", "Jazba", "Aire Salon", "Demetrio Barber", "Ritual Color", "Casa Corta", "Seda Beauty"].map((brand) => (
                   <Card key={brand} className="px-4 py-5 text-center"><p className="text-sm font-semibold tracking-wide text-slate-600">{brand}</p></Card>
                 ))}
               </div>
               <div className="mt-5 grid gap-4 md:grid-cols-2">
-                <Card className="bg-gradient-to-br from-white to-slate-50 p-6"><p className="text-sm font-semibold text-slate-700">&quot;Ordenamos todo el salon en una semana. Hoy nadie se pisa horarios.&quot;</p><p className="mt-3 text-xs uppercase tracking-[0.16em] text-slate-500">Valentina - Studio Norte</p></Card>
-                <Card className="bg-gradient-to-br from-white to-slate-50 p-6"><p className="text-sm font-semibold text-slate-700">&quot;La gente vuelve mas porque reservar y recordarles turno es facil.&quot;</p><p className="mt-3 text-xs uppercase tracking-[0.16em] text-slate-500">Bruno - Distrito Barber</p></Card>
+                <Card className="bg-gradient-to-br from-white to-slate-50 p-6"><p className="text-sm font-semibold text-slate-700">&quot;Ordenamos todo el salon en una semana. Hoy nadie se pisa horarios.&quot;</p><p className="mt-3 text-xs uppercase tracking-[0.16em] text-slate-500">Cristian - JAZBA peluqueria</p></Card>
+                <Card className="bg-gradient-to-br from-white to-slate-50 p-6"><p className="text-sm font-semibold text-slate-700">&quot;La gente vuelve mas porque reservar y recordarles turno es facil.&quot;</p><p className="mt-3 text-xs uppercase tracking-[0.16em] text-slate-500">Lucho - EUNOIA</p></Card>
               </div>
             </Section>
           </SweepSection>
@@ -595,10 +599,9 @@ export default function Home() {
                 <div className="relative">
                   <p className="text-xs uppercase tracking-[0.18em] text-sky-300">Ultimo paso</p>
                   <h3 className={`${playfair.className} mt-3 max-w-3xl text-4xl font-bold tracking-[-0.035em] text-white sm:text-6xl`}>Converti cada horario libre en una nueva reserva.</h3>
-                  <p className="mt-4 max-w-2xl leading-relaxed text-slate-300">Activa tu cuenta, publica tu link y deja funcionando reservas + recordatorios en menos de 10 minutos.</p>
+                  <p className="mt-4 max-w-2xl leading-relaxed text-slate-300">Activa tu cuenta, publica tu link y deja funcionando reservas + recordatorios en menos de 10 minutos. Sale $25.000 por mes y el primer mes es gratis.</p>
                   <div className="mt-7 flex flex-wrap gap-3">
-                    <Link href="/register" className="rounded-full bg-white px-6 py-3 text-sm font-bold text-slate-900 transition hover:translate-y-[-1px] hover:bg-slate-100">Crear cuenta gratis</Link>
-                    <Link href="/login" className="rounded-full border border-slate-400/60 bg-transparent px-6 py-3 text-sm font-bold text-white transition hover:border-slate-200 hover:bg-white/10">Ver demo rapida</Link>
+                    <Link href="/join" className="rounded-full bg-white px-6 py-3 text-sm font-bold text-slate-900 transition hover:translate-y-[-1px] hover:bg-slate-100">Crear cuenta gratis</Link>
                   </div>
                 </div>
               </Card>
@@ -607,10 +610,16 @@ export default function Home() {
         </ParallaxLayer>
 
         <Section className="pb-12">
-          <div className="flex items-center justify-center">
+          <div className="flex items-center justify-center gap-4">
             <Link href="/terminos" className="text-xs text-[#86868B] underline-offset-2 hover:underline">
               Terminos y Condiciones
             </Link>
+            <span className="text-xs text-[#a1a1aa]">-</span>
+            <Link href="mailto:soporte@klip.com.ar" className="text-xs text-[#86868B] underline-offset-2 hover:underline">
+              Soporte
+            </Link>
+            <span className="text-xs text-[#a1a1aa]">-</span>
+            <span className="text-xs text-[#86868B]">Powered by di.X</span>
           </div>
         </Section>
       </div>
