@@ -134,11 +134,24 @@ export default function BusinessClient({
     const mpStatus = params.get("mp");
     if (!mpStatus) return;
 
+    const mpErrorMap: Record<string, string> = {
+      error_oauth: "Mercado Pago rechazo la autorizacion. Volve a intentar y acepta los permisos.",
+      error_state: "La sesion de conexion expiro o es invalida. Reintenta conectar Mercado Pago.",
+      error_env: "Falta configuracion de OAuth en el servidor (client id/secret/state).",
+      error_auth: "Tu sesion expiro durante la conexion. Inicia sesion y reintenta.",
+      error_access: "No tenes permisos para conectar Mercado Pago en este local.",
+      error_token: "Mercado Pago no devolvio token valido. Revisa Redirect URI y credenciales OAuth.",
+      error_save: "No se pudo guardar la conexion de Mercado Pago en el local.",
+    };
+
     if (mpStatus === "connected") {
       setMessage({ type: "success", text: "Mercado Pago conectado correctamente" });
       setTimeout(() => setMessage(null), 3000);
     } else {
-      setMessage({ type: "error", text: "No se pudo conectar Mercado Pago. Intenta de nuevo." });
+      setMessage({
+        type: "error",
+        text: mpErrorMap[mpStatus] || `No se pudo conectar Mercado Pago (${mpStatus}). Intenta de nuevo.`,
+      });
     }
 
     params.delete("mp");
