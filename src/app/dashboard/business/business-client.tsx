@@ -11,7 +11,6 @@ import { createAdditionalShop } from "@/lib/dashboard/auth-actions";
 import {
   fetchBusinessData,
   updateBusinessInfo,
-  getMercadoPagoOauthUrlAction,
   disconnectMercadoPagoOauthAction,
   updateBookingDepositPolicyAction,
   updateWhatsappTemplateAction,
@@ -251,22 +250,7 @@ export default function BusinessClient({
   }
 
   function handleConnectMercadoPago() {
-    startTransition(async () => {
-      const result = await getMercadoPagoOauthUrlAction();
-      if (!result.success) {
-        playError();
-        showError(result.error);
-        return;
-      }
-
-      if (!result.data?.url) {
-        playError();
-        showError("No se pudo iniciar la conexion con Mercado Pago");
-        return;
-      }
-
-      window.location.href = result.data.url;
-    });
+    window.location.href = "/api/payments/mercadopago-oauth/start";
   }
 
   function handleDisconnectMercadoPago() {
