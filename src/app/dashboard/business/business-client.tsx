@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
-import { Store, Eye, EyeOff, Save, CreditCard, MessageSquareText, Smartphone, Link2, MapPin, Phone, Clock, Share2, AlertTriangle, Trash2 } from "lucide-react";
+import { Store, Eye, EyeOff, CreditCard, MessageSquareText, Smartphone, Link2, MapPin, Phone, Clock, Share2, AlertTriangle, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
@@ -79,7 +79,6 @@ export default function BusinessClient({
   const [message, setMessage] = useState<MessageType>(null);
   const [businessHours, setBusinessHours] = useState<BusinessHoursData | null>(null);
   const [hoursLoading, setHoursLoading] = useState(true);
-  const [savedSection, setSavedSection] = useState<string | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [closeConfirm, setCloseConfirm] = useState("");
   const [showCloseModal, setShowCloseModal] = useState(false);
@@ -296,8 +295,6 @@ export default function BusinessClient({
       } else {
         playSuccess();
         showSuccess("Información pública guardada");
-        setSavedSection("info");
-        setTimeout(() => setSavedSection(null), 1500);
         const fresh = await fetchBusinessData();
         if (fresh.success) {
           setData(fresh.data ?? null);
@@ -322,43 +319,6 @@ export default function BusinessClient({
       showSuccess("Mercado Pago desconectado");
       const fresh = await fetchBusinessData();
       if (fresh.success) setData(fresh.data ?? null);
-    });
-  }
-
-  function handleSaveBookingDepositPolicy() {
-    startTransition(async () => {
-      const amount = Math.max(0, Number(bookingDepositAmount) || 0);
-      const result = await updateBookingDepositPolicyAction(bookingDepositEnabled, amount);
-      if (!result.success) {
-        playError();
-        showError(result.error);
-        return;
-      }
-      playSuccess();
-      showSuccess("Politica de cobro online guardada");
-      const fresh = await fetchBusinessData();
-      if (fresh.success && fresh.data) {
-        setData(fresh.data);
-        setBookingDepositEnabled(fresh.data.booking_deposit_enabled);
-        setBookingDepositAmount(String(fresh.data.booking_deposit_amount ?? 3000));
-      }
-    });
-  }
-
-  function handleSaveWhatsapp() {
-    startTransition(async () => {
-      const result = await updateWhatsappTemplateAction(whatsappTemplate);
-      if (!result.success) {
-        playError();
-        showError(result.error);
-      } else {
-        playSuccess();
-        showSuccess("Plantilla de WhatsApp guardada");
-        const fresh = await fetchBusinessData();
-        if (fresh.success) {
-          setData(fresh.data ?? null);
-        }
-      }
     });
   }
 
@@ -921,50 +881,7 @@ export default function BusinessClient({
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Horarios de Atención</h2>
             <p className="text-xs text-zinc-400 dark:text-zinc-500">Días y horarios de apertura del local</p>
           </div>
-          {false && businessHours && (
-            <button
-              type="button"
-              onClick={() => {
-                setSavedSection(null);
-                startTransition(async () => {
-                  const result = await updateBusinessHours(businessHours);
-                  if (!result.success) {
-                    playError();
-                    showError(result.error);
-                  } else {
-                    showSuccess("Horarios guardados");
-                    playSuccess();
-                    setSavedSection("hours");
-                    setTimeout(() => setSavedSection(null), 1500);
-                  }
-                });
-              }}
-              disabled={pending}
-              className={`inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-medium shadow-sm transition-all duration-200 cursor-pointer select-none shrink-0 ${
-                savedSection === "hours"
-                  ? "bg-green-500 text-white scale-105"
-                  : "bg-violet-600 text-white hover:bg-violet-700"
-              } ${pending ? "opacity-50" : ""}`}
-            >
-              {savedSection === "hours" ? (
-                <motion.span
-                  key="saved"
-                  initial={{ scale: 0.5 }}
-                  animate={{ scale: 1 }}
-                  className="inline-flex items-center gap-1"
-                >
-                  Guardado ✓
-                </motion.span>
-              ) : pending ? (
-                "Guardando..."
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  Guardar
-                </>
-              )}
-            </button>
-          )}
+          <div />
         </div>
         <div className="p-4">
           {hoursLoading ? (
