@@ -288,7 +288,7 @@ export async function updateShopName(formData: FormData): Promise<ActionResult> 
   }
 }
 
-export async function createAdditionalShop(shopName: string): Promise<ActionResult<{ slug: string }>> {
+export async function createAdditionalShop(shopName: string): Promise<ActionResult<{ slug: string; isFirstShop: boolean }>> {
   try {
     const trimmedName = shopName.trim();
     if (!trimmedName) {
@@ -320,6 +320,14 @@ export async function createAdditionalShop(shopName: string): Promise<ActionResu
     }
 
     const admin = await createServiceRoleClient();
+    const { data: existingMemberships } = await admin
+      .from("shop_memberships")
+      .select("shop_id")
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .in("role", ["owner", "admin", "staff"]);
+    const isFirstShop = !existingMemberships || existingMemberships.length === 0;
+
     const slug = await resolveUniqueShopSlug(generateShopSlug(trimmedName));
     const trialEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -400,7 +408,7 @@ export async function createAdditionalShop(shopName: string): Promise<ActionResu
       { onConflict: "email" }
     );
 
-    return { success: true, data: { slug: createdShop.slug } };
+    return { success: true, data: { slug: createdShop.slug, isFirstShop } };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al crear local" };
   }

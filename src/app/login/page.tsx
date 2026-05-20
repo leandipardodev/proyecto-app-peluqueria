@@ -71,6 +71,23 @@ export default function LoginPage() {
     }
 
     console.log("LOGIN EXITOSO:", data);
+    const userId = data.user?.id;
+    if (userId) {
+      const { data: memberships } = await supabase
+        .from("shop_memberships")
+        .select("shop_id")
+        .eq("user_id", userId)
+        .eq("is_active", true)
+        .in("role", ["owner", "admin", "staff"])
+        .limit(1);
+
+      if (!memberships || memberships.length === 0) {
+        router.push("/onboarding/create-shop");
+        router.refresh();
+        return;
+      }
+    }
+
     router.push(redirectPath);
     router.refresh();
   };
