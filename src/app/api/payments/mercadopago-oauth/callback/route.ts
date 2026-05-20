@@ -30,10 +30,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(dashboardUrl(url.origin, null, "error_state"));
     }
 
-    const stateSecret = process.env.MP_OAUTH_STATE_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!stateSecret) {
-      return NextResponse.redirect(dashboardUrl(url.origin, null, "error_env"));
-    }
+    const stateSecret =
+      process.env.MP_OAUTH_STATE_SECRET ||
+      process.env.NEXTAUTH_SECRET ||
+      process.env.JWT_SECRET ||
+      process.env.SUPABASE_SERVICE_ROLE_KEY ||
+      "klip-mp-state-fallback";
 
     const expectedSig = crypto.createHmac("sha256", stateSecret).update(payload).digest("base64url");
     if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expectedSig))) {
@@ -76,8 +78,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(dashboardUrl(url.origin, null, "error_access"));
   }
 
-  const clientId = process.env.MP_OAUTH_CLIENT_ID || process.env.MP_CLIENT_ID || process.env.NEXT_PUBLIC_MP_OAUTH_CLIENT_ID;
-  const clientSecret = process.env.MP_OAUTH_CLIENT_SECRET || process.env.MP_CLIENT_SECRET;
+  const clientId =
+    process.env.MP_OAUTH_CLIENT_ID ||
+    process.env.MP_CLIENT_ID ||
+    process.env.NEXT_PUBLIC_MP_OAUTH_CLIENT_ID ||
+    process.env.NEXT_PUBLIC_MP_CLIENT_ID;
+  const clientSecret =
+    process.env.MP_OAUTH_CLIENT_SECRET ||
+    process.env.MP_CLIENT_SECRET ||
+    process.env.MERCADOPAGO_CLIENT_SECRET;
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || url.origin;
   const redirectUri = `${siteUrl.replace(/\/$/, "")}/api/payments/mercadopago-oauth/callback`;
 
