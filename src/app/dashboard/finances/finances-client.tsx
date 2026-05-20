@@ -56,6 +56,14 @@ type FinanceData = {
   expenses: Expense[];
 };
 
+function actionError(result: unknown, fallback: string): string {
+  if (result && typeof result === "object" && "error" in result) {
+    const value = (result as { error?: unknown }).error;
+    if (typeof value === "string" && value.trim().length > 0) return value;
+  }
+  return fallback;
+}
+
 function getArgentinaDate(): string {
   const fmt = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Argentina/Buenos_Aires",
@@ -142,7 +150,7 @@ export default function FinancesClient({
         setData(result.data);
         setError(null);
       } else {
-        setError(result.error ?? "Error al cargar");
+        setError(actionError(result, "Error al cargar"));
       }
     });
   }, [shopId]);
@@ -156,14 +164,14 @@ export default function FinancesClient({
       setStaffProduction(prod.data);
     } else {
       setStaffProduction([]);
-      setError(prod.error ?? "No se pudo cargar el equipo");
+      setError(actionError(prod, "No se pudo cargar el equipo"));
     }
     if (liq.success && liq.data) {
       setLiquidations(liq.data);
     } else {
       setLiquidations([]);
       if (!prod.success) {
-        setError(liq.error ?? "No se pudieron cargar liquidaciones");
+        setError(actionError(liq, "No se pudieron cargar liquidaciones"));
       }
     }
   }, [shopId]);
@@ -208,7 +216,7 @@ export default function FinancesClient({
     formData.set("period_end", to);
     const res = await createStaffPreLiquidation(formData, shopId || undefined);
     setBusyKey(null);
-    if (!res.success || !res.data) return setError(res.error ?? "No se pudo generar");
+    if (!res.success || !res.data) return setError(actionError(res, "No se pudo generar"));
     setLiquidationResult(res.data);
     setQuickFeedback("Pre-liquidacion creada");
     void loadStaff(from, to);
@@ -218,7 +226,7 @@ export default function FinancesClient({
     setBusyKey(`liq-paid-${liq.id}`);
     const res = await markStaffLiquidationPaid(liq.id, liq.finalPayable, shopId || undefined);
     setBusyKey(null);
-    if (!res.success) return setError(res.error ?? "No se pudo actualizar");
+    if (!res.success) return setError(actionError(res, "No se pudo actualizar"));
     setQuickFeedback("Liquidacion pagada");
     void loadStaff(from, to);
   }
@@ -226,7 +234,7 @@ export default function FinancesClient({
   async function handleOpenLiquidationDetail(liqId: string) {
     setSelectedLiquidationId(liqId);
     const res = await fetchStaffLiquidationItems(liqId, shopId || undefined);
-    if (!res.success || !res.data) return setError(res.error ?? "No se pudo cargar detalle");
+    if (!res.success || !res.data) return setError(actionError(res, "No se pudo cargar detalle"));
     setLiquidationItems(res.data);
   }
 
@@ -235,7 +243,7 @@ export default function FinancesClient({
     setBusyKey("cash-open");
     const res = await openCashSession(new FormData(e.currentTarget), shopId || undefined);
     setBusyKey(null);
-    if (!res.success) return setError(res.error ?? "No se pudo abrir caja");
+    if (!res.success) return setError(actionError(res, "No se pudo abrir caja"));
     setQuickFeedback("Caja abierta");
     void loadCash(from, to);
   }
@@ -248,7 +256,7 @@ export default function FinancesClient({
     formData.set("session_id", cashSession.id);
     const res = await closeCashSession(formData, shopId || undefined);
     setBusyKey(null);
-    if (!res.success) return setError(res.error ?? "No se pudo cerrar caja");
+    if (!res.success) return setError(actionError(res, "No se pudo cerrar caja"));
     setQuickFeedback("Caja cerrada");
     void loadCash(from, to);
   }
@@ -259,7 +267,7 @@ export default function FinancesClient({
     setBusyKey("cash-move-create");
     const res = await createCashMovement(new FormData(form), shopId || undefined);
     setBusyKey(null);
-    if (!res.success) return setError(res.error ?? "No se pudo guardar movimiento");
+    if (!res.success) return setError(actionError(res, "No se pudo guardar movimiento"));
     form.reset();
     setQuickFeedback("Movimiento guardado");
     void loadCash(from, to);

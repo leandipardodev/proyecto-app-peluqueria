@@ -556,7 +556,9 @@ export async function openCashSession(formData: FormData, shopIdOverride?: strin
     }
     const openingAmount = Number(formData.get("opening_amount") || 0);
     const actorResult = await requireActorUserId();
-    if (!actorResult.success || !actorResult.data) return actorResult;
+    if (!actorResult.success || !actorResult.data) {
+      return { success: false, error: actorResult.success ? "ACTOR_INVALIDO" : actorResult.error };
+    }
     const admin = await createAdminClient();
     const { error } = await admin.from("cash_sessions").insert({
       shop_id: shopId,
@@ -585,7 +587,9 @@ export async function closeCashSession(formData: FormData, shopIdOverride?: stri
     const sessionId = String(formData.get("session_id") || "").trim();
     const countedAmount = Number(formData.get("counted_amount") || 0);
     const actorResult = await requireActorUserId();
-    if (!actorResult.success || !actorResult.data) return actorResult;
+    if (!actorResult.success || !actorResult.data) {
+      return { success: false, error: actorResult.success ? "ACTOR_INVALIDO" : actorResult.error };
+    }
     if (!sessionId) return { success: false, error: "Sesion de caja invalida" };
 
     const admin = await createAdminClient();
@@ -649,7 +653,9 @@ export async function createCashMovement(formData: FormData, shopIdOverride?: st
     const category = String(formData.get("category") || "General");
     const description = String(formData.get("description") || "") || null;
     const actorResult = await requireActorUserId();
-    if (!actorResult.success || !actorResult.data) return actorResult;
+    if (!actorResult.success || !actorResult.data) {
+      return { success: false, error: actorResult.success ? "ACTOR_INVALIDO" : actorResult.error };
+    }
 
     const admin = await createAdminClient();
     const { data: session } = await admin
