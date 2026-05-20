@@ -152,10 +152,31 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
 
   useEffect(() => {
     if (!isLoggedIn || !user) return;
-    setCustomerName(user.name?.trim() || user.email?.trim() || "Cliente");
+    const safeName = user.name?.trim();
+    const normalizedName = safeName && !safeName.includes("@") ? safeName : "Cliente";
+    setCustomerName(normalizedName);
     setCustomerEmail(user.email?.trim() || "");
     setCustomerPhone(user.phone?.trim() || "");
   }, [isLoggedIn, user]);
+
+  const googleCalendarUrl = useMemo(() => {
+    if (!selectedSlot || !selectedService) return null;
+    const toGoogleDate = (iso: string) => {
+      const d = new Date(iso);
+      const yyyy = d.getUTCFullYear();
+      const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+      const dd = String(d.getUTCDate()).padStart(2, "0");
+      const hh = String(d.getUTCHours()).padStart(2, "0");
+      const min = String(d.getUTCMinutes()).padStart(2, "0");
+      const ss = String(d.getUTCSeconds()).padStart(2, "0");
+      return `${yyyy}${mm}${dd}T${hh}${min}${ss}Z`;
+    };
+    const title = `${shop.name} - ${selectedService.name}`;
+    const details = `Turno reservado en ${shop.name}`;
+    const location = shop.address || "";
+    const dates = `${toGoogleDate(selectedSlot.start)}/${toGoogleDate(selectedSlot.end)}`;
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&details=${encodeURIComponent(details)}&location=${encodeURIComponent(location)}&dates=${encodeURIComponent(dates)}`;
+  }, [selectedSlot, selectedService, shop.name, shop.address]);
 
   const filteredSlots = useMemo(() => {
     if (!selectedDate) return availableSlots;
@@ -644,12 +665,24 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
               </div>
               <h2 className="text-xl font-semibold text-[#1D1D1F] mb-2">Turno reservado</h2>
               <p className="text-sm text-[#86868B] mb-6">Ya quedo todo listo.</p>
-              <button
-                onClick={handleReset}
-                className="px-6 py-2.5 rounded-full text-sm font-medium bg-white text-[#1D1D1F] hover:bg-[#F5F5F7] transition-all border border-[#D2D2D7]"
-              >
-                Nueva reserva
-              </button>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+                {googleCalendarUrl && (
+                  <a
+                    href={googleCalendarUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-5 py-2.5 rounded-full text-sm font-medium bg-[#0071E3] text-white hover:bg-[#0062c6] transition-all"
+                  >
+                    Agregar a Calendar
+                  </a>
+                )}
+                <button
+                  onClick={handleReset}
+                  className="px-6 py-2.5 rounded-full text-sm font-medium bg-white text-[#1D1D1F] hover:bg-[#F5F5F7] transition-all border border-[#D2D2D7]"
+                >
+                  Nueva reserva
+                </button>
+              </div>
             </motion.div>
           )}
         </div>

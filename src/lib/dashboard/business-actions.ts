@@ -4,6 +4,7 @@ import { createServiceRoleClient, requireOwnerShopId, requireShopId } from "@/li
 import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
 import type { ActionResult } from "@/lib/types";
 import { revalidateDashboardSegments } from "@/lib/dashboard/revalidate-dashboard";
+import crypto from "crypto";
 import "server-only";
 
 async function createAdminClient() {
@@ -23,6 +24,7 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 2): Promise<T> {
 }
 
 export type BusinessData = {
+  id: string;
   nombre: string;
   description: string | null;
   address: string | null;
@@ -39,6 +41,7 @@ export type BusinessData = {
   loyalty_discount_percent: number;
   booking_deposit_enabled: boolean;
   booking_deposit_amount: number;
+  mp_oauth_connected: boolean;
 };
 
 export async function fetchBusinessData(shopIdOverride?: string): Promise<ActionResult<BusinessData>> {
@@ -55,7 +58,7 @@ export async function fetchBusinessData(shopIdOverride?: string): Promise<Action
       const admin = await createAdminClient();
       return admin
         .from("shops")
-        .select("nombre, description, address, localidad, phone, instagram_url, facebook_url, tiktok_url, mp_public_key, mp_access_token, whatsapp_template, loyalty_enabled, loyalty_cuts_required, loyalty_discount_percent, booking_deposit_enabled, booking_deposit_amount")
+        .select("id, nombre, description, address, localidad, phone, instagram_url, facebook_url, tiktok_url, mp_public_key, mp_access_token, whatsapp_template, loyalty_enabled, loyalty_cuts_required, loyalty_discount_percent, booking_deposit_enabled, booking_deposit_amount")
         .eq("id", shopId)
         .single();
     });
@@ -64,7 +67,8 @@ export async function fetchBusinessData(shopIdOverride?: string): Promise<Action
 
     return {
       success: true,
-      data: {
+        data: {
+        id: data.id,
         nombre: data.nombre,
         description: data.description || null,
         address: data.address || null,
@@ -81,6 +85,7 @@ export async function fetchBusinessData(shopIdOverride?: string): Promise<Action
         loyalty_discount_percent: Number(data.loyalty_discount_percent || 10),
         booking_deposit_enabled: data.booking_deposit_enabled !== false,
         booking_deposit_amount: Number(data.booking_deposit_amount || 0),
+        mp_oauth_connected: Boolean(data.mp_access_token),
       },
     };
   } catch (e) {
@@ -134,6 +139,57 @@ export async function updateMercadoPagoKeysAction(publicKey: string, accessToken
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al guardar claves de Mercado Pago" };
+  }
+}
+
+export async function getMercadoPagoOauthUrlAction(): Promise<ActionResult<{ url: string }>> {
+  try {
+    const shopIdResult = await requireOwnerShopId();
+    if (!shopIdResult.success) return { success: false, error: shopIdResult.error };
+    const shopId = shopIdResult.data;
+
+    const clientId = process.env.MP_OAUTH_CLIENT_ID || process.env.NEXT_PUBLIC_MP_OAUTH_CLIENT_ID;
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    const redirectUri = `${siteUrl.replace(/\/$/, "")}/api/payments/mercadopago-oauth/callback`;
+
+    if (!clientId) return { success: false, error: "Falta MP_OAUTH_CLIENT_ID" };
+
+    const stateSecret = process.env.MP_OAUTH_STATE_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!stateSecret) return { success: false, error: "Falta MP_OAUTH_STATE_SECRET" };
+
+    const payload = Buffer.from(JSON.stringify({ shopId, ts: Date.now() })).toString("base64url");
+    const sig = crypto.createHmac("sha256", stateSecret).update(payload).digest("base64url");
+    const statePayload = `${payload}.${sig}`;
+    const authUrl = new URL("https://auth.mercadopago.com/authorization");
+    authUrl.searchParams.set("client_id", clientId);
+    authUrl.searchParams.set("response_type", "code");
+    authUrl.searchParams.set("platform_id", "mp");
+    authUrl.searchParams.set("redirect_uri", redirectUri);
+    authUrl.searchParams.set("state", statePayload);
+
+    return { success: true, data: { url: authUrl.toString() } };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al generar URL de conexion" };
+  }
+}
+
+export async function disconnectMercadoPagoOauthAction(): Promise<ActionResult> {
+  try {
+    const shopIdResult = await requireOwnerShopId();
+    if (!shopIdResult.success) return { success: false, error: shopIdResult.error };
+    const shopId = shopIdResult.data;
+    const admin = await createAdminClient();
+
+    const { error } = await admin
+      .from("shops")
+      .update({ mp_access_token: "", mp_public_key: "", updated_at: new Date().toISOString() })
+      .eq("id", shopId);
+
+    if (error) return { success: false, error: error.message };
+    await revalidateDashboardSegments(shopId, ["/business"]);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al desconectar Mercado Pago" };
   }
 }
 

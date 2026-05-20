@@ -1,12 +1,37 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import {
-  TrendingUp, TrendingDown, Plus, Minus, Share2, Inbox, Wallet,
-  X, Trash2,
+  TrendingDown,
+  Users2,
+  CheckCircle2,
+  Vault,
+  RefreshCw,
+  Plus,
+  ChevronDown,
 } from "lucide-react";
-import { fetchFinanceData, createExpense, deleteExpense } from "@/lib/dashboard/finances-actions";
+import {
+  fetchFinanceData,
+  createExpense,
+  deleteExpense,
+  fetchStaffProduction,
+  createStaffPreLiquidation,
+  fetchStaffLiquidations,
+  markStaffLiquidationPaid,
+  fetchCashSession,
+  openCashSession,
+  closeCashSession,
+  createCashMovement,
+  fetchCashMovements,
+  fetchStaffLiquidationItems,
+  fetchCashSessionsHistory,
+  type StaffProduction,
+  type StaffLiquidationPreview,
+  type StaffLiquidationListItem,
+  type CashSessionSummary,
+  type CashMovementItem,
+  type StaffLiquidationDetailItem,
+} from "@/lib/dashboard/finances-actions";
 
 type Movement = {
   id: string;
@@ -34,22 +59,16 @@ type FinanceData = {
   expenses: Expense[];
 };
 
-const EXPENSE_CATEGORIES = [
-  "Alquiler", "Insumos", "Sueldos", "Servicios",
-  "Publicidad", "Mantenimiento", "Impuestos", "Otros",
-];
-
 function getArgentinaDate(): string {
   const fmt = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Argentina/Buenos_Aires",
-    year: "numeric", month: "numeric", day: "numeric",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
   });
   const parts = fmt.formatToParts(new Date());
   const get = (t: string) => parts.find((p) => p.type === t)?.value || "0";
-  const y = get("year");
-  const m = get("month").padStart(2, "0");
-  const d = get("day").padStart(2, "0");
-  return `${y}-${m}-${d}`;
+  return `${get("year")}-${get("month").padStart(2, "0")}-${get("day").padStart(2, "0")}`;
 }
 
 function getMonthBounds(dateStr: string) {
@@ -58,6 +77,21 @@ function getMonthBounds(dateStr: string) {
   const lastDay = new Date(y, m, 0).getDate();
   const to = `${dateStr.slice(0, 7)}-${String(lastDay).padStart(2, "0")}`;
   return { from, to };
+}
+
+function Card({ title, icon, right, children }: { title: string; icon: React.ReactNode; right?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <section className="rounded-3xl border border-slate-200/70 bg-white/85 p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/70">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-slate-500 dark:text-zinc-300">{icon}</span>
+          <h2 className="text-base font-semibold text-slate-900 dark:text-white">{title}</h2>
+        </div>
+        {right}
+      </div>
+      {children}
+    </section>
+  );
 }
 
 export default function FinancesClient({
@@ -81,525 +115,370 @@ export default function FinancesClient({
   const [data, setData] = useState(initialData);
   const [error, setError] = useState<string | null>(initialError);
   const [isPending, startTransition] = useTransition();
+
   const [expenses, setExpenses] = useState(initialData?.expenses || []);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
-  const [expenseError, setExpenseError] = useState<string | null>(null);
 
-  const isToday = from === today && to === today;
-  const isMonth = from === monthBounds.from && to === monthBounds.to;
+  const [staffProduction, setStaffProduction] = useState<StaffProduction[]>([]);
+  const [liquidationResult, setLiquidationResult] = useState<StaffLiquidationPreview | null>(null);
+  const [liquidations, setLiquidations] = useState<StaffLiquidationListItem[]>([]);
+  const [liquidationItems, setLiquidationItems] = useState<StaffLiquidationDetailItem[]>([]);
+  const [selectedLiquidationId, setSelectedLiquidationId] = useState<string | null>(null);
+  const [liquidationStatusFilter, setLiquidationStatusFilter] = useState<"all" | "draft" | "confirmed" | "paid">("all");
 
-  function loadData(newFrom: string, newTo: string) {
-    setFrom(newFrom);
-    setTo(newTo);
+  const [cashSession, setCashSession] = useState<CashSessionSummary | null>(null);
+  const [cashMovements, setCashMovements] = useState<CashMovementItem[]>([]);
+  const [cashSessionsHistory, setCashSessionsHistory] = useState<CashSessionSummary[]>([]);
+
+  const [uiMessage, setUiMessage] = useState<string | null>(null);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [showLiquidationsHistory, setShowLiquidationsHistory] = useState(false);
+  const [showMovements, setShowMovements] = useState(false);
+  const [showClosures, setShowClosures] = useState(false);
+
+  const loadMain = useCallback((nextFrom: string, nextTo: string) => {
+    setFrom(nextFrom);
+    setTo(nextTo);
     startTransition(async () => {
-      try {
-        const result = await fetchFinanceData(newFrom, newTo, shopId || undefined);
-        if (result.success && result.data) {
-          setData(result.data);
-          setError(null);
-          setExpenses(result.data.expenses);
-        } else if (!result.success) {
-          setError(result.error ?? "Error al cargar datos");
-        } else {
-          setError("Error al cargar datos");
-        }
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Error al cargar datos");
+      const result = await fetchFinanceData(nextFrom, nextTo, shopId || undefined);
+      if (result.success && result.data) {
+        setData(result.data);
+        setExpenses(result.data.expenses);
+        setError(null);
+      } else {
+        setError(result.error ?? "Error al cargar");
       }
     });
-  }
+  }, [shopId]);
 
-  function handlePreset(preset: "today" | "month") {
-    if (preset === "today") {
-      loadData(today, today);
+  const loadStaff = useCallback(async (nextFrom: string, nextTo: string) => {
+    const [prod, liq] = await Promise.all([
+      fetchStaffProduction(nextFrom, nextTo, shopId || undefined),
+      fetchStaffLiquidations(nextFrom, nextTo, shopId || undefined),
+    ]);
+    if (prod.success && prod.data) {
+      setStaffProduction(prod.data);
     } else {
-      loadData(monthBounds.from, monthBounds.to);
+      setStaffProduction([]);
+      setError(prod.error ?? "No se pudo cargar el equipo");
     }
+    if (liq.success && liq.data) {
+      setLiquidations(liq.data);
+    } else {
+      setLiquidations([]);
+      if (!prod.success) {
+        setError(liq.error ?? "No se pudieron cargar liquidaciones");
+      }
+    }
+  }, [shopId]);
+
+  const loadCash = useCallback(async (nextFrom: string, nextTo: string) => {
+    const [session, moves, history] = await Promise.all([
+      fetchCashSession(shopId || undefined),
+      fetchCashMovements(nextFrom, nextTo, shopId || undefined),
+      fetchCashSessionsHistory(nextFrom, nextTo, shopId || undefined),
+    ]);
+    if (session.success) setCashSession(session.data ?? null);
+    if (moves.success && moves.data) setCashMovements(moves.data);
+    if (history.success && history.data) setCashSessionsHistory(history.data);
+  }, [shopId]);
+
+  useEffect(() => {
+    void loadStaff(initialFrom, initialTo);
+    void loadCash(initialFrom, initialTo);
+  }, [initialFrom, initialTo, loadCash, loadStaff]);
+
+  const filteredLiquidations = useMemo(
+    () => liquidations.filter((l) => liquidationStatusFilter === "all" || l.status === liquidationStatusFilter),
+    [liquidationStatusFilter, liquidations],
+  );
+
+  function setQuickFeedback(msg: string) {
+    setUiMessage(msg);
+    window.setTimeout(() => setUiMessage(null), 1600);
   }
 
-  function shiftMonth(delta: number) {
-    const [y, m] = from.split("-").map(Number);
-    const d = Math.min(parseInt(from.split("-")[2] || "1"), 28);
-    const dt = new Date(y, m - 1 + delta, d);
-    const ny = dt.getFullYear();
-    const nm = String(dt.getMonth() + 1).padStart(2, "0");
-    const nd = String(dt.getDate()).padStart(2, "0");
-    const newFrom = `${ny}-${nm}-${nd}`;
-    const lastDay = String(new Date(ny, dt.getMonth() + 1, 0).getDate()).padStart(2, "0");
-    const newTo = `${ny}-${nm}-${lastDay}`;
-    loadData(newFrom, newTo);
-  }
-
-  function applyCustomRange() {
-    const f = from || today;
-    const t = to || today;
-    const sortedFrom = f <= t ? f : t;
-    const sortedTo = f <= t ? t : f;
-    loadData(sortedFrom, sortedTo);
+  function applyRangeAndRefresh(nextFrom: string, nextTo: string) {
+    loadMain(nextFrom, nextTo);
+    void loadStaff(nextFrom, nextTo);
+    void loadCash(nextFrom, nextTo);
   }
 
   async function handleExpenseSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setExpenseError(null);
+    setBusyKey("expense-create");
     const formData = new FormData(e.currentTarget);
-    const amount = parseFloat(formData.get("amount") as string);
-    const category = formData.get("category") as string;
-    const description = formData.get("description") as string || null;
-
-    const tempId = crypto.randomUUID();
-    const optimistic: Expense = {
-      id: tempId, amount, category, description,
-      created_at: new Date().toISOString(),
-    };
-    setExpenses((prev) => [optimistic, ...prev]);
-    setShowExpenseForm(false);
-
     const result = await createExpense(formData, shopId || undefined);
-    if (!result.success) {
-      setExpenses((prev) => prev.filter((e) => e.id !== tempId));
-      setExpenseError(result.error ?? "Error al crear gasto");
-    } else {
-      loadData(from, to);
-    }
+    setBusyKey(null);
+    if (!result.success) return setError(result.error ?? "No se pudo guardar");
+    setShowExpenseForm(false);
+    setQuickFeedback("Gasto guardado");
+    applyRangeAndRefresh(from, to);
   }
 
   async function handleExpenseDelete(id: string) {
-    setExpenses((prev) => prev.filter((e) => e.id !== id));
+    setBusyKey(`expense-delete-${id}`);
     const result = await deleteExpense(id, shopId || undefined);
-    if (!result.success) {
-      setExpenseError(result.error ?? "Error al eliminar gasto");
-    } else {
-      loadData(from, to);
-    }
+    setBusyKey(null);
+    if (!result.success) return setError(result.error ?? "No se pudo eliminar");
+    setQuickFeedback("Gasto eliminado");
+    applyRangeAndRefresh(from, to);
   }
 
-  async function handleExport() {
-    if (navigator.share) {
-      await navigator.share({
-        title: "Resumen Financiero",
-        text: `Ingresos: $${(data?.totalIncome ?? 0).toFixed(2)}\nGastos: $${(data?.totalExpenses ?? 0).toFixed(2)}\nBalance: $${(data?.netBalance ?? 0).toFixed(2)}`,
-      });
-    }
+  async function handleCreatePreLiquidation(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setBusyKey("liq-create");
+    const formData = new FormData(e.currentTarget);
+    formData.set("period_start", from);
+    formData.set("period_end", to);
+    const res = await createStaffPreLiquidation(formData, shopId || undefined);
+    setBusyKey(null);
+    if (!res.success || !res.data) return setError(res.error ?? "No se pudo generar");
+    setLiquidationResult(res.data);
+    setQuickFeedback("Pre-liquidacion creada");
+    void loadStaff(from, to);
   }
 
-  const rangeKey = `${from}-${to}`;
+  async function handleMarkLiquidationPaid(liq: StaffLiquidationListItem) {
+    setBusyKey(`liq-paid-${liq.id}`);
+    const res = await markStaffLiquidationPaid(liq.id, liq.finalPayable, shopId || undefined);
+    setBusyKey(null);
+    if (!res.success) return setError(res.error ?? "No se pudo actualizar");
+    setQuickFeedback("Liquidacion pagada");
+    void loadStaff(from, to);
+  }
+
+  async function handleOpenLiquidationDetail(liqId: string) {
+    setSelectedLiquidationId(liqId);
+    const res = await fetchStaffLiquidationItems(liqId, shopId || undefined);
+    if (!res.success || !res.data) return setError(res.error ?? "No se pudo cargar detalle");
+    setLiquidationItems(res.data);
+  }
+
+  async function handleOpenCashSession(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setBusyKey("cash-open");
+    const res = await openCashSession(new FormData(e.currentTarget), shopId || undefined);
+    setBusyKey(null);
+    if (!res.success) return setError(res.error ?? "No se pudo abrir caja");
+    setQuickFeedback("Caja abierta");
+    void loadCash(from, to);
+  }
+
+  async function handleCloseCashSession(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!cashSession) return;
+    setBusyKey("cash-close");
+    const formData = new FormData(e.currentTarget);
+    formData.set("session_id", cashSession.id);
+    const res = await closeCashSession(formData, shopId || undefined);
+    setBusyKey(null);
+    if (!res.success) return setError(res.error ?? "No se pudo cerrar caja");
+    setQuickFeedback("Caja cerrada");
+    void loadCash(from, to);
+  }
+
+  async function handleCreateCashMovement(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    setBusyKey("cash-move-create");
+    const res = await createCashMovement(new FormData(form), shopId || undefined);
+    setBusyKey(null);
+    if (!res.success) return setError(res.error ?? "No se pudo guardar movimiento");
+    form.reset();
+    setQuickFeedback("Movimiento guardado");
+    void loadCash(from, to);
+  }
+
+  const kpiExpected = cashSession?.expectedAmount ?? 0;
+  const kpiCounted = cashSession?.countedAmount ?? 0;
+  const kpiDiff = cashSession?.differenceAmount ?? 0;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">
-          Finanzas
-        </h1>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          {isToday
-            ? "Resumen de hoy"
-            : isMonth
-              ? "Resumen del mes"
-              : `Del ${from} al ${to}`}
-        </p>
+    <div className="space-y-5">
+      <header className="flex flex-wrap items-center gap-3">
+        <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Finanzas</h1>
+        {uiMessage && <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">{uiMessage}</span>}
+        {error && <span className="rounded-full bg-red-500/15 px-3 py-1 text-xs font-semibold text-red-700 dark:text-red-300">{error}</span>}
+      </header>
+
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white/85 p-2.5 dark:border-zinc-800 dark:bg-zinc-900/70">
+        <button onClick={() => applyRangeAndRefresh(today, today)} className="rounded-lg border px-2.5 py-1.5 text-xs">DIA</button>
+        <button onClick={() => applyRangeAndRefresh(monthBounds.from, monthBounds.to)} className="rounded-lg border px-2.5 py-1.5 text-xs">MES</button>
+        <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded-lg border px-2 py-1.5 text-xs" />
+        <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="rounded-lg border px-2 py-1.5 text-xs" />
+        <button onClick={() => applyRangeAndRefresh(from <= to ? from : to, from <= to ? to : from)} className="rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white dark:bg-white dark:text-black">Filtrar</button>
+        <button onClick={() => applyRangeAndRefresh(from, to)} className="ml-auto inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs">
+          <RefreshCw className={`h-4 w-4 ${isPending ? "animate-spin" : ""}`} />
+          Actualizar
+        </button>
       </div>
 
-      {/* Filters row */}
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          onClick={() => handlePreset("today")}
-          className={`px-5 py-2 rounded-full text-sm font-medium transition-all cursor-pointer select-none ${
-            isToday
-              ? "bg-white/40 dark:bg-[#1c1c1e] backdrop-blur-md border border-white/20 dark:border-zinc-700 text-gray-900 dark:text-white shadow-sm"
-              : "bg-white/10 dark:bg-[#1c1c1e]/70 border border-white/10 dark:border-zinc-700/50 text-zinc-600 dark:text-zinc-300 hover:bg-white/20 dark:hover:bg-white/10"
-          }`}
-        >
-          Hoy
-        </button>
-        <button
-          onClick={() => handlePreset("month")}
-          className={`px-5 py-2 rounded-full text-sm font-medium transition-all cursor-pointer select-none ${
-            isMonth
-              ? "bg-white/40 dark:bg-[#1c1c1e] backdrop-blur-md border border-white/20 dark:border-zinc-700 text-gray-900 dark:text-white shadow-sm"
-              : "bg-white/10 dark:bg-[#1c1c1e]/70 border border-white/10 dark:border-zinc-700/50 text-zinc-600 dark:text-zinc-300 hover:bg-white/20 dark:hover:bg-white/10"
-          }`}
-        >
-          Este mes
-        </button>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => shiftMonth(-1)}
-            className="p-2 rounded-full text-zinc-500 dark:text-zinc-400 hover:bg-white/20 dark:hover:bg-white/10 transition-colors cursor-pointer select-none"
-            title="Mes anterior"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-          </button>
-          <button
-            onClick={() => shiftMonth(1)}
-            className="p-2 rounded-full text-zinc-500 dark:text-zinc-400 hover:bg-white/20 dark:hover:bg-white/10 transition-colors cursor-pointer select-none"
-            title="Mes siguiente"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-          </button>
-        </div>
-        <span className="hidden sm:inline text-zinc-300 dark:text-zinc-600 select-none">|</span>
-        <input
-          type="date"
-          value={from}
-          onChange={(e) => setFrom(e.target.value)}
-          className="w-full sm:w-auto rounded-full bg-white/40 dark:bg-[#1c1c1e] backdrop-blur-md border border-white/20 dark:border-zinc-700 px-4 py-2 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-50 [color-scheme:light] dark:[color-scheme:dark] cursor-pointer"
-        />
-        <span className="hidden sm:inline text-zinc-400 text-xs select-none">→</span>
-        <input
-          type="date"
-          value={to}
-          onChange={(e) => setTo(e.target.value)}
-          className="w-full sm:w-auto rounded-full bg-white/40 dark:bg-[#1c1c1e] backdrop-blur-md border border-white/20 dark:border-zinc-700 px-4 py-2 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-50 [color-scheme:light] dark:[color-scheme:dark] cursor-pointer"
-        />
-        <button
-          onClick={applyCustomRange}
-          className="w-full sm:w-auto px-4 py-2 rounded-full bg-violet-600/15 border border-violet-500/30 text-violet-700 dark:text-violet-300 text-sm font-medium hover:bg-violet-600/25 transition-colors cursor-pointer select-none"
-        >
-          Filtrar
-        </button>
-        <div className="sm:ml-auto">
-          <button
-            onClick={handleExport}
-            className="p-3 rounded-full bg-white/20 dark:bg-[#1c1c1e]/60 backdrop-blur-md border border-white/20 dark:border-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-white/30 dark:hover:bg-white/10 transition-all cursor-pointer select-none"
-            title="Compartir resumen"
-          >
-            <Share2 className="w-5 h-5" />
-          </button>
+      <div className="rounded-3xl border border-slate-200 bg-white/85 p-4 dark:border-zinc-800 dark:bg-zinc-900/70">
+        <div className="grid grid-cols-3 gap-3 text-center">
+          <div>
+            <p className="text-[11px] uppercase tracking-wide text-slate-500">Ingresos</p>
+            <p className="mt-1 text-lg font-bold text-emerald-600">${(data?.totalIncome ?? 0).toFixed(2)}</p>
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-wide text-slate-500">Gastos</p>
+            <p className="mt-1 text-lg font-bold text-red-500">${(data?.totalExpenses ?? 0).toFixed(2)}</p>
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-wide text-slate-500">Balance</p>
+            <p className={`mt-1 text-lg font-bold ${(data?.netBalance ?? 0) >= 0 ? "text-emerald-600" : "text-red-500"}`}>${(data?.netBalance ?? 0).toFixed(2)}</p>
+          </div>
         </div>
       </div>
 
-      {/* Error banner */}
-      {error && (
-        <div className="bg-red-50/80 backdrop-blur-md text-red-700 dark:text-red-300 text-sm px-5 py-3 rounded-full border border-red-200/30 dark:border-red-500/20">
-          {error}
+      <Card title="Gastos" icon={<TrendingDown className="h-4 w-4" />} right={<button onClick={() => setShowExpenseForm((v) => !v)} className="inline-flex items-center gap-1 rounded-xl border px-2.5 py-1.5 text-xs"><Plus className="h-3.5 w-3.5" />Agregar</button>}>
+        {showExpenseForm && (
+          <form onSubmit={handleExpenseSubmit} className="mb-4 grid gap-2 md:grid-cols-4">
+            <input name="amount" type="number" step="0.01" min="0.01" required placeholder="Monto" className="rounded-xl border px-3 py-2 text-sm" />
+            <input name="category" required placeholder="Categoria" className="rounded-xl border px-3 py-2 text-sm" />
+            <input name="description" placeholder="Descripcion" className="rounded-xl border px-3 py-2 text-sm md:col-span-2" />
+            <button disabled={busyKey === "expense-create"} className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white md:col-span-4">{busyKey === "expense-create" ? "Guardando..." : "Guardar"}</button>
+          </form>
+        )}
+        {expenses.length === 0 ? (
+          <div className="flex min-h-[120px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 text-center dark:border-zinc-700 dark:bg-zinc-900/40">
+            <TrendingDown className="h-7 w-7 text-slate-400" />
+            <button onClick={() => setShowExpenseForm(true)} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white">+ Agregar gasto</button>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {expenses.map((e) => (
+              <div key={e.id} className="flex items-center justify-between rounded-xl border border-slate-200/70 px-3 py-2 text-sm dark:border-zinc-800">
+                <div>
+                  <p className="font-medium">{e.category}</p>
+                  <p className="text-xs text-slate-500">{e.description || "-"}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-red-500">-${e.amount.toFixed(2)}</span>
+                  <button onClick={() => void handleExpenseDelete(e.id)} disabled={busyKey === `expense-delete-${e.id}`} className="rounded-lg border px-2 py-1 text-xs">{busyKey === `expense-delete-${e.id}` ? "..." : "Borrar"}</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      <Card title="Pagar a empleados" icon={<CheckCircle2 className="h-4 w-4" />}>
+          <p className="mb-2 text-xs text-slate-500">Elegi el empleado y calculamos cuanto le corresponde en este rango.</p>
+          <form onSubmit={handleCreatePreLiquidation} className="grid gap-2">
+            <select name="staff_user_id" required className="rounded-xl border px-3 py-2 text-sm"><option value="">Empleado...</option>{staffProduction.map((s) => <option key={`l-${s.staffId}`} value={s.staffId}>{s.staffName}</option>)}</select>
+            <button disabled={busyKey === "liq-create"} className="rounded-xl bg-emerald-600 px-3 py-2 text-sm font-medium text-white">{busyKey === "liq-create" ? "Calculando..." : "Calcular pago"}</button>
+            {liquidationResult && <p className="rounded-xl bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">{liquidationResult.staffName}: ${liquidationResult.finalPayable.toFixed(2)}</p>}
+          </form>
+      </Card>
+
+      <button onClick={() => setShowLiquidationsHistory((v) => !v)} className="inline-flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white/85 px-4 py-3 text-sm font-semibold dark:border-zinc-800 dark:bg-zinc-900/70">
+        <span>Historial de liquidaciones</span>
+        <ChevronDown className={`h-4 w-4 transition-transform ${showLiquidationsHistory ? "rotate-180" : ""}`} />
+      </button>
+
+      {showLiquidationsHistory && <Card title="Liquidaciones" icon={<CheckCircle2 className="h-4 w-4" />}>
+        <div className="mb-3"><select value={liquidationStatusFilter} onChange={(e) => setLiquidationStatusFilter(e.target.value as "all" | "draft" | "confirmed" | "paid")} className="rounded-xl border px-3 py-2 text-xs"><option value="all">Todos</option><option value="draft">Borrador</option><option value="confirmed">Confirmada</option><option value="paid">Pagada</option></select></div>
+        {filteredLiquidations.length === 0 ? (
+          <div className="flex min-h-[120px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 dark:border-zinc-700 dark:bg-zinc-900/40">
+            <CheckCircle2 className="h-7 w-7 text-slate-400" />
+            <p className="text-xs text-slate-500">Todavia no hay liquidaciones en este rango.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {filteredLiquidations.map((l) => (
+              <div key={l.id} className="rounded-xl border border-slate-200/70 px-3 py-2 dark:border-zinc-800">
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <p className="font-medium">{l.staffName}</p>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs dark:bg-zinc-800">{l.status}</span>
+                  <span className="font-semibold text-emerald-600">${l.finalPayable.toFixed(2)}</span>
+                  <button onClick={() => void handleOpenLiquidationDetail(l.id)} className="ml-auto rounded-lg border px-2 py-1 text-xs">Detalle</button>
+                  {l.status !== "paid" && <button onClick={() => void handleMarkLiquidationPaid(l)} disabled={busyKey === `liq-paid-${l.id}`} className="rounded-lg bg-emerald-600 px-2 py-1 text-xs font-medium text-white">{busyKey === `liq-paid-${l.id}` ? "..." : "Pagar"}</button>}
+                </div>
+                {selectedLiquidationId === l.id && liquidationItems.length > 0 && (
+                  <div className="mt-2 space-y-1 border-t border-slate-100 pt-2 text-xs dark:border-zinc-800">
+                    {liquidationItems.map((it) => (
+                      <div key={it.id} className="flex items-center justify-between"><span>{it.serviceName}</span><span className="text-emerald-600">${it.commissionAmount.toFixed(2)}</span></div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>}
+
+      <Card title="Caja" icon={<Vault className="h-4 w-4" />}>
+        <div className="mb-4 rounded-2xl border border-slate-200/70 bg-slate-50/70 p-4 dark:border-zinc-800 dark:bg-zinc-900/40">
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div><p className="text-[11px] uppercase text-slate-500">Esperado</p><p className="mt-1 text-lg font-bold text-slate-900 dark:text-white">${kpiExpected.toFixed(2)}</p></div>
+            <div><p className="text-[11px] uppercase text-slate-500">Contado</p><p className="mt-1 text-lg font-bold text-slate-900 dark:text-white">${kpiCounted.toFixed(2)}</p></div>
+            <div><p className="text-[11px] uppercase text-slate-500">Diferencia</p><p className={`mt-1 text-lg font-bold ${kpiDiff >= 0 ? "text-emerald-600" : "text-red-500"}`}>${kpiDiff.toFixed(2)}</p></div>
+          </div>
         </div>
-      )}
 
-      {/* Loading indicator */}
-      <AnimatePresence>
-        {isPending && (
-          <motion.div
-            initial={{ width: "0%" }}
-            animate={{ width: "100%" }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 1.5, ease: "easeInOut" }}
-            className="h-0.5 bg-gradient-to-r from-violet-400 via-purple-400 to-violet-400 rounded-full"
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Skeleton during loading */}
-      <AnimatePresence>
-        {isPending && (
-          <motion.div
-            key="skeleton"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="space-y-6"
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="bg-white/20 dark:bg-[#1c1c1e] backdrop-blur-3xl rounded-[2.5rem] border border-white/10 dark:border-white/5 p-6 animate-pulse"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-white/20 dark:bg-white/10" />
-                    <div className="flex-1 space-y-2">
-                      <div className="h-4 w-20 rounded-full bg-white/20 dark:bg-white/10" />
-                      <div className="h-6 w-32 rounded-full bg-white/20 dark:bg-white/10" />
-                      <div className="h-3 w-16 rounded-full bg-white/20 dark:bg-white/10" />
-                    </div>
-                  </div>
-                </div>
-              ))}
+        <div className="grid gap-4 lg:grid-cols-2">
+          <form onSubmit={handleOpenCashSession} className="rounded-2xl border border-slate-200/70 p-4 dark:border-zinc-800">
+            <p className="mb-3 text-xs text-slate-500">Arrancá el dia con el efectivo inicial.</p>
+            <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+              <input name="opening_amount" type="number" step="0.01" min="0" required placeholder="Monto inicial" className="w-full rounded-xl border px-3 py-2.5 text-sm" />
+              <button disabled={!!cashSession || busyKey === "cash-open"} className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50">{busyKey === "cash-open" ? "Abriendo..." : "Abrir caja"}</button>
             </div>
-            <div className="bg-white/20 dark:bg-[#1c1c1e] backdrop-blur-3xl rounded-[2.5rem] border border-white/10 dark:border-white/5 overflow-hidden animate-pulse">
-              <div className="px-6 py-4 border-b border-white/10">
-                <div className="h-5 w-24 rounded-full bg-white/20 dark:bg-white/10" />
-              </div>
-              <div className="space-y-4 p-6">
-                {[1, 2, 3, 4].map((j) => (
-                  <div key={j} className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-white/20 dark:bg-white/10" />
-                    <div className="flex-1 space-y-1.5">
-                      <div className="h-4 w-40 rounded-full bg-white/20 dark:bg-white/10" />
-                      <div className="h-3 w-24 rounded-full bg-white/20 dark:bg-white/10" />
-                    </div>
-                    <div className="h-4 w-16 rounded-full bg-white/20 dark:bg-white/10" />
-                  </div>
-                ))}
-              </div>
+          </form>
+
+          <form onSubmit={handleCloseCashSession} className="rounded-2xl border border-slate-200/70 p-4 dark:border-zinc-800">
+            <p className="mb-3 text-xs text-slate-500">Poné lo contado y cerramos el dia.</p>
+            <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+              <input name="counted_amount" type="number" step="0.01" min="0" required placeholder="Monto contado" className="w-full rounded-xl border px-3 py-2.5 text-sm" />
+              <button disabled={!cashSession || busyKey === "cash-close"} className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50">{busyKey === "cash-close" ? "Cerrando..." : "Cerrar caja"}</button>
             </div>
-          </motion.div>
+          </form>
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-slate-200/70 p-4 dark:border-zinc-800">
+          <p className="mb-3 text-xs text-slate-500">Movimientos rapidos de caja.</p>
+          <form onSubmit={handleCreateCashMovement} className="grid gap-2 md:grid-cols-5">
+            <select name="movement_type" className="rounded-xl border px-3 py-2.5 text-sm"><option value="income">Ingreso</option><option value="expense">Gasto</option><option value="withdrawal">Retiro</option><option value="adjustment">Ajuste</option></select>
+            <select name="payment_method" className="rounded-xl border px-3 py-2.5 text-sm"><option value="cash">Efectivo</option><option value="transfer">Transferencia</option><option value="debit_card">Debito</option><option value="credit_card">Credito</option><option value="qr">QR</option><option value="other">Otro</option></select>
+            <input name="category" required placeholder="Categoria" className="rounded-xl border px-3 py-2.5 text-sm" />
+            <input name="amount" type="number" step="0.01" min="0.01" required placeholder="Monto" className="rounded-xl border px-3 py-2.5 text-sm" />
+            <button disabled={busyKey === "cash-move-create"} className="rounded-xl bg-slate-900 px-3 py-2.5 text-sm font-medium text-white disabled:opacity-50">{busyKey === "cash-move-create" ? "Guardando..." : "Agregar"}</button>
+          </form>
+        </div>
+
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <div className="rounded-2xl border border-slate-200/70 p-3 dark:border-zinc-800">
+            <button onClick={() => setShowMovements((v) => !v)} className="flex w-full items-center justify-between rounded-xl px-2 py-1 text-sm font-semibold">
+              <span>Ultimos movimientos</span>
+              <ChevronDown className={`h-4 w-4 transition-transform ${showMovements ? "rotate-180" : ""}`} />
+            </button>
+            {showMovements && (cashMovements.length === 0 ? <div className="mt-2 rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500 dark:border-zinc-700">Todavia no cargaste movimientos</div> : <div className="mt-2 space-y-2">{cashMovements.slice(0, 8).map((m) => <div key={m.id} className="flex items-center justify-between rounded-xl border border-slate-200/70 px-3 py-2 text-xs dark:border-zinc-800"><span>{m.category}</span><span className={m.movementType === "income" ? "text-emerald-600" : "text-red-500"}>{m.movementType === "income" ? "+" : "-"}${m.amount.toFixed(2)}</span></div>)}</div>)}
+          </div>
+          <div className="rounded-2xl border border-slate-200/70 p-3 dark:border-zinc-800">
+            <button onClick={() => setShowClosures((v) => !v)} className="flex w-full items-center justify-between rounded-xl px-2 py-1 text-sm font-semibold">
+              <span>Ultimos cierres</span>
+              <ChevronDown className={`h-4 w-4 transition-transform ${showClosures ? "rotate-180" : ""}`} />
+            </button>
+            {showClosures && (cashSessionsHistory.filter((s) => s.status === "closed").length === 0 ? <div className="mt-2 rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500 dark:border-zinc-700">Todavia no cerraste caja</div> : <div className="mt-2 space-y-2">{cashSessionsHistory.filter((s) => s.status === "closed").map((s) => <div key={s.id} className="flex items-center justify-between rounded-xl border border-slate-200/70 px-3 py-2 text-xs dark:border-zinc-800"><span>{new Date(s.openedAt).toLocaleDateString("es-AR")}</span><span className={(s.differenceAmount ?? 0) >= 0 ? "text-emerald-600" : "text-red-500"}>${(s.differenceAmount ?? 0).toFixed(2)}</span></div>)}</div>)}
+          </div>
+        </div>
+      </Card>
+
+      <Card title="Equipo" icon={<Users2 className="h-4 w-4" />}>
+        {staffProduction.length === 0 ? (
+          <div className="flex min-h-[130px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 dark:border-zinc-700 dark:bg-zinc-900/40">
+            <Users2 className="h-7 w-7 text-slate-400" />
+            <button onClick={() => { setBusyKey("load-team"); void loadStaff(from, to).finally(() => setBusyKey(null)); }} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white">{busyKey === "load-team" ? "Cargando..." : "+ Cargar equipo"}</button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="text-left text-slate-500"><th className="py-2">Empleado</th><th>Turnos</th><th>Cobrado</th><th>Ticket</th></tr></thead>
+              <tbody>{staffProduction.map((s) => <tr key={s.staffId} className="border-t border-slate-100 dark:border-zinc-800"><td className="py-2 font-medium">{s.staffName}</td><td>{s.appointmentsCount}</td><td className="text-emerald-600">${s.paidRevenue.toFixed(2)}</td><td>${s.avgTicketPaid.toFixed(2)}</td></tr>)}</tbody>
+            </table>
+          </div>
         )}
-      </AnimatePresence>
-
-      {/* Animated content */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={rangeKey}
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -12 }}
-          transition={{ duration: 0.25, ease: "easeInOut" }}
-          className="space-y-6"
-        >
-          {data ? (
-            <>
-              {/* Summary Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-white dark:bg-[#1c1c1e] rounded-[2.5rem] border border-white/10 dark:border-white/10 shadow-2xl shadow-black/[0.03] p-6 flex items-center gap-4">
-                  <div className="p-3 rounded-full bg-green-500/15">
-                    <TrendingUp className="w-5 h-5 text-emerald-500" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">Ingresos</p>
-                    <p className="text-xl font-bold tracking-tighter text-slate-900 dark:text-white">
-                      ${data.totalIncome.toFixed(2)}
-                    </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">{data.appointmentsCount} turnos</p>
-                  </div>
-                </div>
-
-                <div className="bg-white dark:bg-[#1c1c1e] rounded-[2.5rem] border border-white/10 dark:border-white/10 shadow-2xl shadow-black/[0.03] p-6 flex items-center gap-4">
-                  <div className="p-3 rounded-full bg-red-500/15">
-                    <TrendingDown className="w-5 h-5 text-red-500" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">Gastos</p>
-                    <p className="text-xl font-bold tracking-tighter text-slate-900 dark:text-white">
-                      ${data.totalExpenses.toFixed(2)}
-                    </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">{data.expenses.length} registros</p>
-                  </div>
-                </div>
-
-                <div className={`bg-white/20 dark:bg-[#1c1c1e] backdrop-blur-3xl rounded-[2.5rem] border border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-6 flex items-center gap-4 bg-gradient-to-br from-white/30 to-white/10 ${
-                  data.netBalance >= 0
-                    ? "border-green-300/60 dark:border-green-500/20"
-                    : "border-red-300/60 dark:border-red-500/20"
-                }`}>
-                  <div className={`p-3 rounded-full ${
-                    data.netBalance >= 0 ? "bg-green-500/15" : "bg-red-500/15"
-                  }`}>
-                    <Wallet className={`w-5 h-5 ${
-                      data.netBalance >= 0 ? "text-emerald-500" : "text-red-500"
-                    }`} />
-                  </div>
-                  <div>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">Balance Total</p>
-                    <p className={`text-xl font-bold tracking-tighter ${
-                      data.netBalance >= 0
-                        ? "text-green-700 dark:text-green-400"
-                        : "text-red-700 dark:text-red-400"
-                    }`}>
-                      ${data.netBalance.toFixed(2)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Movements (Apple-style list) */}
-              <div className="bg-white/20 dark:bg-[#1c1c1e] backdrop-blur-3xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden">
-                <div className="px-6 py-4 border-b border-white/10">
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Movimientos</h2>
-                </div>
-                {data.recentMovements.length > 0 ? (
-                  <div className="divide-y divide-white/10">
-                    {data.recentMovements.map((movement) => (
-                      <motion.div
-                        key={`${movement.type}-${movement.id}`}
-                        className="flex items-center gap-4 px-6 py-4 transition-colors hover:bg-white/20 dark:hover:bg-white/10"
-                      >
-                        <div className={`p-2.5 rounded-full flex-shrink-0 ${
-                          movement.type === "expense" ? "bg-red-500/15" : "bg-green-500/15"
-                        }`}>
-                          {movement.type === "expense" ? (
-                            <Minus className="w-4 h-4 text-red-500" />
-                          ) : (
-                            <Plus className="w-4 h-4 text-emerald-500" />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                              {movement.description}
-                            </p>
-                            {movement.status === "scheduled" && (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                                Pendiente
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-zinc-400 dark:text-zinc-500">
-                            {new Date(movement.created_at).toLocaleDateString("es-AR", {
-                              day: "numeric", month: "short",
-                            })} · {new Date(movement.created_at).toLocaleTimeString("es-AR", {
-                              hour: "2-digit", minute: "2-digit",
-                            })}
-                          </p>
-                        </div>
-                        <div className={`text-sm font-semibold tracking-tighter ${
-                          movement.type === "expense" ? "text-red-500" : "text-emerald-600 dark:text-emerald-400"
-                        }`}>
-                          {movement.type === "expense" ? "-" : "+"}${movement.amount.toFixed(2)}
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="py-16 text-center">
-                    <Inbox className="w-12 h-12 mx-auto text-zinc-300 dark:text-zinc-600 mb-4 opacity-50" />
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">No hay registros en este período</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Expenses section */}
-              <div className="bg-white/20 dark:bg-[#1c1c1e] backdrop-blur-3xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Gastos registrados</h2>
-                  <button
-                    onClick={() => setShowExpenseForm(true)}
-                    className="flex items-center gap-2 bg-violet-600 text-white px-5 py-2 rounded-full text-sm font-medium shadow-sm hover:bg-violet-700 transition-colors cursor-pointer select-none"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Cargar
-                  </button>
-                </div>
-
-                {expenseError && (
-                  <div className="mx-6 mt-4 bg-red-50/80 backdrop-blur-md text-red-700 dark:text-red-300 text-sm px-4 py-2 rounded-full border border-red-200/30 dark:border-red-500/20">
-                    {expenseError}
-                  </div>
-                )}
-
-                {expenses.length > 0 ? (
-                  <div className="divide-y divide-white/10">
-                    {expenses.map((exp) => (
-                      <motion.div
-                        key={exp.id}
-                        className="flex items-center gap-4 px-6 py-4 transition-colors hover:bg-white/20 dark:hover:bg-white/10"
-                      >
-                        <div className="p-2.5 rounded-full bg-red-500/15 flex-shrink-0">
-                          <TrendingDown className="w-4 h-4 text-red-500" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">{exp.category}</p>
-                          <p className="text-xs text-zinc-400 dark:text-zinc-500 truncate">
-                            {exp.description || "—"} · {new Date(exp.created_at).toLocaleTimeString("es-AR", {
-                              hour: "2-digit", minute: "2-digit",
-                            })}
-                          </p>
-                        </div>
-                        <div className="text-sm font-semibold tracking-tighter text-red-500">
-                          -${exp.amount.toFixed(2)}
-                        </div>
-                        <button
-                          onClick={() => handleExpenseDelete(exp.id)}
-                          className="p-1.5 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer select-none"
-                          title="Eliminar"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </motion.div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="py-12 text-center">
-                    <Inbox className="w-10 h-10 mx-auto text-zinc-300 dark:text-zinc-600 mb-3 opacity-40" />
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">No hay gastos en este período</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Expense creation modal */}
-              <AnimatePresence>
-                {showExpenseForm && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-y-contain backdrop-blur-sm bg-black/10 p-3 sm:p-4"
-                    onClick={() => setShowExpenseForm(false)}
-                  >
-                    <motion.div
-                      initial={{ scale: 0.95, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.95, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      onClick={(e) => e.stopPropagation()}
-                      className="bg-white/20 dark:bg-[#1c1c1e] backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] w-full max-w-md overflow-hidden max-h-[88dvh] flex flex-col"
-                    >
-                      <div className="flex items-center justify-between px-6 py-4 border-b border-white/20 dark:border-white/10">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Nuevo Gasto</h3>
-                        <button
-                          onClick={() => setShowExpenseForm(false)}
-                          className="p-1.5 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer select-none"
-                        >
-                          <X className="w-5 h-5" />
-                        </button>
-                      </div>
-                      <form onSubmit={handleExpenseSubmit} className="p-6 space-y-4 overflow-y-auto overscroll-y-contain">
-                        {expenseError && (
-                          <div className="bg-red-50/80 backdrop-blur-md text-red-700 dark:text-red-300 text-sm px-4 py-2 rounded-full border border-red-200/30 dark:border-red-500/20">
-                            {expenseError}
-                          </div>
-                        )}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 cursor-pointer">Monto ($)</label>
-                          <input
-                            type="number"
-                            name="amount"
-                            step="0.01"
-                            min="0.01"
-                            required
-                            className="w-full px-4 py-2.5 rounded-full border border-gray-300 dark:border-gray-600 text-sm bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500"
-                            placeholder="0.00"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 cursor-pointer">Categoría</label>
-                          <select
-                            name="category"
-                            required
-                            className="w-full px-4 py-2.5 rounded-full border border-gray-300 dark:border-gray-600 text-sm bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500 cursor-pointer"
-                          >
-                            <option value="">Seleccionar...</option>
-                            {EXPENSE_CATEGORIES.map((cat) => (
-                              <option key={cat} value={cat}>{cat}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 cursor-pointer">Descripción</label>
-                          <textarea
-                            name="description"
-                            rows={3}
-                            className="w-full px-4 py-2.5 rounded-2xl border border-gray-300 dark:border-gray-600 text-sm bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500"
-                            placeholder="Descripción del gasto..."
-                          />
-                        </div>
-                        <button
-                          type="submit"
-                          disabled={isPending}
-                          className="w-full bg-violet-600 text-white py-2.5 px-4 rounded-full text-sm font-medium shadow-sm hover:bg-violet-700 disabled:opacity-50 transition-colors cursor-pointer select-none"
-                        >
-                          {isPending ? "Guardando..." : "Guardar Gasto"}
-                        </button>
-                      </form>
-                    </motion.div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </>
-          ) : null}
-        </motion.div>
-      </AnimatePresence>
+      </Card>
     </div>
   );
 }

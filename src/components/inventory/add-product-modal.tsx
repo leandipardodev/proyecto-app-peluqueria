@@ -2,7 +2,6 @@
 
 import { X, Plus } from "lucide-react";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { addProduct } from "@/lib/dashboard/inventory-actions";
 
 interface AddProductModalProps {
@@ -12,7 +11,6 @@ interface AddProductModalProps {
 }
 
 export default function AddProductModal({ shopId, open, onClose }: AddProductModalProps) {
-  const router = useRouter();
   const backdropRef = useRef<HTMLDivElement>(null);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +37,6 @@ export default function AddProductModal({ shopId, open, onClose }: AddProductMod
         setError(result.error);
       } else {
         onClose();
-        router.refresh();
       }
     });
   }

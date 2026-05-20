@@ -50,7 +50,8 @@ export async function POST(request: NextRequest) {
 
     const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
     const baseUrl = origin.replace(/\/+$/, "");
-    const backUrl = `${baseUrl}/billing-required?shop_id=${encodeURIComponent(shopId)}`;
+    const dashboardPath = shop.slug ? `/dashboard/${shop.slug}` : "/dashboard";
+    const backUrl = `${baseUrl}${dashboardPath}?billing=return&shop_id=${encodeURIComponent(shopId)}`;
     const notificationUrl = `${baseUrl}/api/payments/mercadopago-webhook?shop_id=${encodeURIComponent(shopId)}&scope=billing`;
     const externalReference = `shop_sub:${shopId}:${cycleRaw}:${Date.now()}`;
 

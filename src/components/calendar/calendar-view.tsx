@@ -2,7 +2,7 @@
 
 import { format, startOfWeek, addDays, isToday } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, MessageCircle } from "lucide-react";
 import { useRef, useState, useEffect, useMemo, memo } from "react";
 import { AnimatePresence, motion, useMotionValue, useSpring } from "framer-motion";
 import { GRID_END_HOUR, GRID_START_HOUR, HOUR_HEIGHT } from "@/lib/calendar-constants";
@@ -26,7 +26,7 @@ type Appointment = {
   loyalty_reward_applied?: boolean;
   deposit_amount?: number | null;
   notes: string | null;
-  customers: { nombre: string | null; email: string; telefono: string | null; loyalty_rewards_available?: number | null } | null;
+  customers: { id: string; nombre: string | null; email: string; telefono: string | null; loyalty_rewards_available?: number | null } | null;
   staff: { name: string | null; email: string | null } | null;
   services: { name: string; price: number; duration_minutes: number } | null;
 };
@@ -67,12 +67,10 @@ interface CalendarViewProps {
   businessHours?: BusinessHoursMap;
 }
 
-const hours = (() => {
-  const h: number[] = [];
-  for (let i = GRID_START_HOUR; i <= GRID_END_HOUR; i++) h.push(i);
-  h.push(0);
-  return h;
-})();
+function hourFromHHmm(v: string): number {
+  const [h] = v.split(":").map(Number);
+  return Number.isFinite(h) ? h : 0;
+}
 
 const STAFF_COLORS = [
   { bg: "#f3e8ff", border: "#c084fc", text: "#6b21a8" },
@@ -136,12 +134,6 @@ const DAY_MAP: Record<number, string> = {
   4: "thursday", 5: "friday", 6: "saturday",
 };
 
-function getGridRow(timeStr: string): number {
-  const [h, m] = timeStr.split(":").map(Number);
-  const totalMinutes = (h - GRID_START_HOUR) * 60 + m;
-  return 1 + totalMinutes / 60;
-}
-
 export default memo(function CalendarView({
   appointments,
   currentDate,
@@ -176,6 +168,30 @@ export default memo(function CalendarView({
     if (!staffFilter) return appointments;
     return appointments.filter((a) => a.staff_id === staffFilter);
   }, [appointments, staffFilter]);
+
+  const { gridStartHour, gridEndHour, hours } = useMemo(() => {
+    if (!businessHours) {
+      const fallbackHours: number[] = [];
+      for (let i = GRID_START_HOUR; i <= GRID_END_HOUR; i += 1) fallbackHours.push(i);
+      return { gridStartHour: GRID_START_HOUR, gridEndHour: GRID_END_HOUR, hours: fallbackHours };
+    }
+
+    const openDays = Object.values(businessHours).filter((d) => d?.open);
+    if (openDays.length === 0) {
+      const fallbackHours: number[] = [];
+      for (let i = GRID_START_HOUR; i <= GRID_END_HOUR; i += 1) fallbackHours.push(i);
+      return { gridStartHour: GRID_START_HOUR, gridEndHour: GRID_END_HOUR, hours: fallbackHours };
+    }
+
+    const minHour = Math.max(0, Math.min(...openDays.map((d) => hourFromHHmm(d.start))));
+    const maxHour = Math.min(23, Math.max(...openDays.map((d) => hourFromHHmm(d.end))));
+    const normalizedStart = Math.min(minHour, maxHour);
+    const normalizedEnd = Math.max(minHour, maxHour);
+
+    const rangeHours: number[] = [];
+    for (let i = normalizedStart; i <= normalizedEnd; i += 1) rangeHours.push(i);
+    return { gridStartHour: normalizedStart, gridEndHour: normalizedEnd, hours: rangeHours };
+  }, [businessHours]);
 
   const normalizedAppointments = useMemo<NormalizedAppointment[]>(() => {
     const byId = new Map<string, Appointment>();
@@ -228,32 +244,6 @@ export default memo(function CalendarView({
     for (const [, value] of map) {
       value.sort((a, b) => a.start_hhmm.localeCompare(b.start_hhmm));
     }
-    return map;
-  }, [normalizedAppointments, weekDays]);
-
-  const appointmentsByDayHour = useMemo(() => {
-    const map = new Map<string, NormalizedAppointment[]>();
-    for (const day of weekDays) {
-      const dayStr = getArgentinaDateKey(day);
-      for (const hour of hours) {
-        map.set(`${dayStr}-${hour}`, []);
-      }
-    }
-
-    for (const appt of normalizedAppointments) {
-      const startHour = Number.parseInt(appt.start_hhmm.slice(0, 2), 10);
-      const startHourInGrid = startHour === 24 ? 0 : startHour;
-      const key = `${appt.date_key_ar}-${startHourInGrid}`;
-      const bucket = map.get(key);
-      if (bucket) {
-        bucket.push(appt);
-      }
-    }
-
-    for (const [, value] of map) {
-      value.sort((a, b) => a.start_hhmm.localeCompare(b.start_hhmm));
-    }
-
     return map;
   }, [normalizedAppointments, weekDays]);
 
@@ -568,11 +558,11 @@ export default memo(function CalendarView({
                     .filter((appt) => {
                       const startMin = minutesFromHHmm(appt.start_hhmm);
                       const endMin = minutesFromHHmm(appt.end_hhmm);
-                      return endMin > GRID_START_HOUR * 60 && startMin < (GRID_END_HOUR + 1) * 60;
+                      return endMin > gridStartHour * 60 && startMin < (gridEndHour + 1) * 60;
                     })
                     .map((appt) => {
-                      const startMin = Math.max(minutesFromHHmm(appt.start_hhmm), GRID_START_HOUR * 60);
-                      const rawEndMin = Math.min(minutesFromHHmm(appt.end_hhmm), (GRID_END_HOUR + 1) * 60);
+                      const startMin = Math.max(minutesFromHHmm(appt.start_hhmm), gridStartHour * 60);
+                      const rawEndMin = Math.min(minutesFromHHmm(appt.end_hhmm), (gridEndHour + 1) * 60);
                       const endMin = Math.max(rawEndMin, startMin + 15);
                       const durationMin = endMin - startMin;
                       return { appt, startMin, endMin, durationMin };
@@ -639,7 +629,7 @@ export default memo(function CalendarView({
                         }}
                       >
                         {hours.map((hour) => {
-                          const hourNum = hour === 0 && GRID_START_HOUR > 0 ? 24 : hour;
+                          const hourNum = hour;
                           const dayH = dayHours;
                           const isOpenSlot = (() => {
                             if (!dayH?.open) return false;
@@ -692,7 +682,7 @@ export default memo(function CalendarView({
                           {eventLayout.map(({ appt, startMin, durationMin, col, cols }) => {
                             const isWeekMode = viewMode === "week";
                             const isCompact = cols >= 3 || durationMin <= 45;
-                            const topPx = ((startMin - GRID_START_HOUR * 60) / 60) * HOUR_HEIGHT;
+                            const topPx = ((startMin - gridStartHour * 60) / 60) * HOUR_HEIGHT;
                             const heightPx = (durationMin / 60) * HOUR_HEIGHT;
                             const widthPct = 100 / cols;
                             const leftPct = col * widthPct;
@@ -763,6 +753,18 @@ export default memo(function CalendarView({
                                         {appt.customers?.nombre || "Sin cliente"}
                                       </span>
                                       <div className="flex items-center gap-1 shrink-0">
+                                        {appt.customers?.telefono && !isWeekMode && (
+                                          <a
+                                            href={`https://wa.me/${appt.customers.telefono.replace(/\D/g, "")}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="inline-flex items-center justify-center rounded-full border border-emerald-300/70 bg-emerald-50/90 p-1 text-emerald-700 hover:bg-emerald-100"
+                                            title="Enviar WhatsApp"
+                                          >
+                                            <MessageCircle className="h-3 w-3" />
+                                          </a>
+                                        )}
                                         {!isWeekMode && svc.emoji && <span className="text-sm leading-none">{svc.emoji}</span>}
                                         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${needsAttention ? "animate-pulse" : ""}`} style={{ backgroundColor: needsAttention ? "#ef4444" : statusStyle.dot }} />
                                       </div>
@@ -796,8 +798,8 @@ export default memo(function CalendarView({
                             const now = new Date();
                             const isCurrentDay = getArgentinaDateKey(day) === getArgentinaDateKey(now);
                             const nowMinutes = getArgentinaMinutesSinceMidnight(now);
-                            const minMinutes = GRID_START_HOUR * 60;
-                            const maxMinutes = (GRID_END_HOUR + 1) * 60;
+                            const minMinutes = gridStartHour * 60;
+                            const maxMinutes = (gridEndHour + 1) * 60;
                             const visible = isCurrentDay && nowMinutes >= minMinutes && nowMinutes <= maxMinutes;
                             if (!visible) return null;
                             const topPx = ((nowMinutes - minMinutes) / 60) * HOUR_HEIGHT;

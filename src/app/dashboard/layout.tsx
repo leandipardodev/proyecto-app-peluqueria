@@ -8,7 +8,7 @@ import DashboardPageTransition from "@/components/dashboard/dashboard-page-trans
 import ReleaseNotesModal from "@/components/dashboard/release-notes-modal";
 import { getTenantAndUser } from "@/lib/dashboard/get-tenant-and-user";
 import { logout } from "@/lib/dashboard/logout-action";
-import { getArgentinaNow } from "@/lib/argentina-time";
+import { getArgentinaNow, getArgentinaDateString } from "@/lib/argentina-time";
 import { createServiceRoleClient, getShopId } from "@/lib/dashboard/auth-server";
 import { APPOINTMENT_STATUS_NEEDS_CONFIRMATION } from "@/lib/dashboard/appointment-status";
 
@@ -154,12 +154,12 @@ function getSelectedShopBilling(
     return { daysRemaining: null, graceDaysRemaining: null, isExpired: false, inGrace: false };
   }
 
-  const now = Date.now();
-  const expiryMs = new Date(selected.plan_expiry).getTime();
-  const dayMs = 24 * 60 * 60 * 1000;
-  const daysRemaining = Math.ceil((expiryMs - now) / dayMs);
-  const graceUntilMs = expiryMs + 2 * dayMs;
-  const graceDaysRemaining = Math.ceil((graceUntilMs - now) / dayMs);
+  const todayAr = getArgentinaDateString();
+  const expiryAr = formatDateInArgentina(selected.plan_expiry);
+  const daysRemaining = diffDays(expiryAr, todayAr);
+
+  const graceUntil = addDays(expiryAr, 2);
+  const graceDaysRemaining = diffDays(graceUntil, todayAr);
   const isExpired = daysRemaining <= 0;
   const inGrace = isExpired && graceDaysRemaining > 0;
 
@@ -169,4 +169,35 @@ function getSelectedShopBilling(
     isExpired,
     inGrace,
   };
+}
+
+function formatDateInArgentina(value: string): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(value));
+
+  const y = parts.find((p) => p.type === "year")?.value || "1970";
+  const m = parts.find((p) => p.type === "month")?.value || "01";
+  const d = parts.find((p) => p.type === "day")?.value || "01";
+  return `${y}-${m}-${d}`;
+}
+
+function diffDays(target: string, source: string): number {
+  const [ty, tm, td] = target.split("-").map(Number);
+  const [sy, sm, sd] = source.split("-").map(Number);
+  const targetUtc = Date.UTC(ty, tm - 1, td);
+  const sourceUtc = Date.UTC(sy, sm - 1, sd);
+  return Math.floor((targetUtc - sourceUtc) / (24 * 60 * 60 * 1000));
+}
+
+function addDays(isoDate: string, days: number): string {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + days));
+  const yy = dt.getUTCFullYear();
+  const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(dt.getUTCDate()).padStart(2, "0");
+  return `${yy}-${mm}-${dd}`;
 }

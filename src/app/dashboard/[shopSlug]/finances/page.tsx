@@ -21,12 +21,8 @@ export default async function DashboardShopFinancesPage({
 
   const query = await searchParams;
   const today = getArgentinaDateString();
-  const [yearStr, monthStr] = today.split("-");
-  const year = parseInt(yearStr, 10);
-  const month = parseInt(monthStr, 10);
-  const defaultFrom = `${today.slice(0, 7)}-01`;
-  const lastDay = String(new Date(year, month, 0).getDate()).padStart(2, "0");
-  const defaultTo = `${today.slice(0, 7)}-${lastDay}`;
+  const defaultFrom = today;
+  const defaultTo = today;
   const fromRaw = query?.from || defaultFrom;
   const toRaw = query?.to || defaultTo;
   const from = fromRaw <= toRaw ? fromRaw : toRaw;

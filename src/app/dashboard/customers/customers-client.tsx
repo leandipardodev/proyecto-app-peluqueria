@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Gift, Loader2, Search, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Gift, Loader2, MessageCircle, Search, X } from "lucide-react";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { supabase } from "@/lib/supabase";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -94,15 +94,15 @@ export default function CustomersPage() {
     return parts[1].toLowerCase();
   }
 
-  async function resolveActiveShopIdForUser(): Promise<string | null> {
+  const resolveActiveShopIdForUser = useCallback(async (): Promise<string | null> => {
     const slug = extractShopSlugFromPath(pathname);
     if (!slug) return null;
     const resolved = await resolveDashboardShopIdBySlug(slug);
     if (!resolved.success || !resolved.data?.shopId) return null;
     return resolved.data.shopId;
-  }
+  }, [pathname]);
 
-  async function loadCustomers() {
+  const loadCustomers = useCallback(async () => {
     setError(null);
 
     const {
@@ -157,7 +157,7 @@ export default function CustomersPage() {
     }));
 
     setCustomers(normalized);
-  }
+  }, [resolveActiveShopIdForUser]);
 
   useEffect(() => {
     let mounted = true;
@@ -204,7 +204,7 @@ export default function CustomersPage() {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [router]);
+  }, [router, loadCustomers]);
 
   useEffect(() => {
     const q = searchParams.get("q");
@@ -393,7 +393,20 @@ export default function CustomersPage() {
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="font-medium text-slate-900 dark:text-zinc-100 truncate">{customer.nombre || "Sin nombre"}</p>
-                  <p className="text-xs text-slate-500 dark:text-zinc-400 truncate">{customer.telefono || "Sin telefono"}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs text-slate-500 dark:text-zinc-400 truncate">{customer.telefono || "Sin telefono"}</p>
+                    {customer.telefono && (
+                      <a
+                        href={`https://wa.me/${customer.telefono.replace(/\D/g, "")}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex h-5 items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2 text-[10px] font-medium leading-none text-emerald-700 align-middle"
+                      >
+                        <MessageCircle className="h-3 w-3" /> WhatsApp
+                      </a>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {isBirthdayThisWeek(customer.cumpleaños) && <Gift className="w-4 h-4 text-rose-500" />}
@@ -454,7 +467,22 @@ export default function CustomersPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-slate-600 dark:text-zinc-300">{customer.email || "Sin email"}</td>
-                    <td className="px-6 py-4 text-slate-600 dark:text-zinc-300">{customer.telefono || "Sin teléfono"}</td>
+                    <td className="px-6 py-4 text-slate-600 dark:text-zinc-300">
+                      <div className="flex items-center gap-2">
+                        <span>{customer.telefono || "Sin teléfono"}</span>
+                        {customer.telefono && (
+                          <a
+                            href={`https://wa.me/${customer.telefono.replace(/\D/g, "")}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex h-5 items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2 text-[10px] font-medium leading-none text-emerald-700 align-middle"
+                          >
+                            <MessageCircle className="h-3 w-3" /> WhatsApp
+                          </a>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-6 py-4 text-slate-700 dark:text-zinc-200">{formatDate(customer.cumpleaños)}</td>
                     <td className="px-6 py-4 text-slate-700 dark:text-zinc-200 max-w-[280px]">
                       <p className="line-clamp-2">{customer.observaciones_tecnicas || "Sin observaciones"}</p>

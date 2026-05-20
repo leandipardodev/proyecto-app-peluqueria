@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { motion, useInView, useMotionValue, useScroll, useSpring, useTransform } from "framer-motion";
 import { Sparkles, CalendarCheck2, Scissors, Boxes, BarChart3, Clock3, Users2 } from "lucide-react";
@@ -578,8 +579,33 @@ export default function Home() {
                 <h2 className={`${playfair.className} title-animated text-5xl sm:text-6xl font-bold tracking-[-0.04em] text-[#101625]`}>Elegido por salones que quieren crecer</h2>
               </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {["Studio Norte", "Eunoia", "Jazba", "Aire Salon", "Demetrio Barber", "Ritual Color", "Casa Corta", "Seda Beauty"].map((brand) => (
-                  <Card key={brand} className="px-4 py-5 text-center"><p className="text-sm font-semibold tracking-wide text-slate-600">{brand}</p></Card>
+                {[
+                  { name: "Studio Norte" },
+                  { name: "Eunoia", href: "https://www.instagram.com/eunoia.hairstudio/?hl=es" },
+                  { name: "Jazba", href: "https://www.instagram.com/jazba.peluqueria/?hl=es" },
+                  { name: "Aire Salon" },
+                  { name: "Demetrio Barber", href: "https://www.instagram.com/demetrio.barber/?hl=es" },
+                  { name: "Ritual Color" },
+                  { name: "Casa Corta" },
+                  { name: "Seda Beauty" },
+                ].map((brand) => (
+                  brand.href ? (
+                    <Link
+                      key={brand.name}
+                      href={brand.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block cursor-pointer"
+                    >
+                      <Card className="px-4 py-5 text-center hover:border-sky-300/70 hover:bg-sky-50/70 transition-colors cursor-pointer">
+                        <p className="text-sm font-semibold tracking-wide text-slate-600 hover:text-sky-700 transition-colors">{brand.name}</p>
+                      </Card>
+                    </Link>
+                  ) : (
+                    <Card key={brand.name} className="px-4 py-5 text-center">
+                      <p className="text-sm font-semibold tracking-wide text-slate-600">{brand.name}</p>
+                    </Card>
+                  )
                 ))}
               </div>
               <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -592,16 +618,26 @@ export default function Home() {
 
         <ParallaxLayer intensity={1.15}>
           <SweepSection sweepClassName="bg-[linear-gradient(90deg,transparent_0%,rgba(59,130,246,0.48)_48%,transparent_100%)]">
-            <Section className="pb-14 pt-6 sm:pt-10">
-              <Card className="relative overflow-hidden border-white/80 bg-[radial-gradient(110%_120%_at_8%_0%,#0f172a_10%,#111c34_46%,#0b1324_100%)] p-6 sm:p-8 md:p-12 shadow-[0_30px_70px_rgba(2,6,23,0.45)]">
+            <Section className="relative z-[60] pb-14 pt-6 sm:pt-10">
+              <Card className="relative z-[60] isolate overflow-hidden border-white/80 bg-[radial-gradient(110%_120%_at_8%_0%,#0f172a_10%,#111c34_46%,#0b1324_100%)] p-6 sm:p-8 md:p-12 shadow-[0_30px_70px_rgba(2,6,23,0.45)]">
                 <div className="pointer-events-none absolute -top-24 right-10 h-56 w-56 rounded-full bg-sky-400/30 blur-3xl" />
                 <div className="pointer-events-none absolute -bottom-24 left-10 h-56 w-56 rounded-full bg-blue-600/25 blur-3xl" />
-                <div className="relative">
+                <div className="relative z-[70] pointer-events-auto">
                   <p className="text-xs uppercase tracking-[0.18em] text-sky-300">Ultimo paso</p>
                   <h3 className={`${playfair.className} mt-3 max-w-3xl text-4xl font-bold tracking-[-0.035em] text-white sm:text-6xl`}>Converti cada horario libre en una nueva reserva.</h3>
                   <p className="mt-4 max-w-2xl leading-relaxed text-slate-300">Activa tu cuenta, publica tu link y deja funcionando reservas + recordatorios en menos de 10 minutos. Sale $25.000 por mes y el primer mes es gratis.</p>
                   <div className="mt-7 flex flex-wrap gap-3">
-                    <Link href="/join" className="rounded-full bg-white px-6 py-3 text-sm font-bold text-slate-900 transition hover:translate-y-[-1px] hover:bg-slate-100">Crear cuenta gratis</Link>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window.location.href = "/register";
+                      }}
+                      className="relative z-[9999] inline-flex cursor-pointer rounded-full bg-white px-6 py-3 text-sm font-bold text-slate-900 transition hover:translate-y-[-1px] hover:bg-slate-100 pointer-events-auto"
+                    >
+                      Crear cuenta gratis
+                    </button>
                   </div>
                 </div>
               </Card>
@@ -619,7 +655,10 @@ export default function Home() {
               Soporte
             </Link>
             <span className="text-xs text-[#a1a1aa]">-</span>
-            <span className="text-xs text-[#86868B]">Powered by di.X</span>
+            <span className="inline-flex items-center gap-2 rounded-full bg-white/80 px-2 py-1 text-xs text-[#4b5563] ring-1 ring-slate-200">
+              <Image src="/dix-logo.svg" alt="di.X" width={64} height={20} className="h-5 w-auto object-contain" />
+              Powered by di.X
+            </span>
           </div>
         </Section>
       </div>

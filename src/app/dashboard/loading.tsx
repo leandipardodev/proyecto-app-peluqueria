@@ -1,53 +1,33 @@
-export default function DashboardLoading() {
-  const skeletonCard = (
-    <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-6 transition-colors animate-pulse">
-      <div className="flex items-center gap-4">
-        <div className="p-3 rounded-xl bg-white/20 dark:bg-black/20">
-          <div className="w-5 h-5 rounded" />
-        </div>
-        <div className="flex-1 space-y-2">
-          <div className="h-3 w-20 bg-white/20 dark:bg-black/20 rounded-full" />
-          <div className="h-5 w-16 bg-white/20 dark:bg-black/20 rounded-full" />
-        </div>
-      </div>
-    </div>
-  );
-
-  const glassBlock = (
-    <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-6 transition-colors animate-pulse">
-      <div className="h-4 w-32 bg-white/20 dark:bg-black/20 rounded-full mb-2" />
-      <div className="h-3 w-24 bg-white/20 dark:bg-black/20 rounded-full mb-6" />
-      <div className="space-y-4">
-        <div className="h-3 w-full bg-white/20 dark:bg-black/20 rounded-full" />
-        <div className="h-3 w-4/5 bg-white/20 dark:bg-black/20 rounded-full" />
-        <div className="h-3 w-3/5 bg-white/20 dark:bg-black/20 rounded-full" />
-        <div className="h-3 w-5/5 bg-white/20 dark:bg-black/20 rounded-full" />
-        <div className="h-3 w-2/5 bg-white/20 dark:bg-black/20 rounded-full" />
-      </div>
-    </div>
-  );
-
+function SkeletonCard({ className = "" }: { className?: string }) {
   return (
-    <div className="space-y-6">
-      <div className="animate-pulse space-y-2">
-        <div className="h-7 w-64 bg-white/20 dark:bg-black/20 rounded-full" />
-        <div className="h-4 w-40 bg-white/20 dark:bg-black/20 rounded-full" />
+    <div className={`relative overflow-hidden rounded-2xl border border-white/10 bg-white/10 dark:bg-white/[0.04] ${className}`}>
+      <div className="absolute left-4 right-10 top-4 h-2 rounded-full bg-white/30 dark:bg-white/20" />
+      <div className="absolute left-4 right-20 top-8 h-2 rounded-full bg-white/20 dark:bg-white/10" />
+      <div className="absolute -left-1/3 top-0 h-full w-1/3 animate-[glassSweep_1.15s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent dark:via-white/10" />
+    </div>
+  );
+}
+
+export default function DashboardLoading() {
+  return (
+    <div className="min-h-[80vh] flex items-center justify-center p-4 sm:p-6 lg:p-8">
+      <div className="relative w-full max-w-6xl overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 dark:bg-black/5 backdrop-blur-md">
+        <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2 sm:p-6 lg:grid-cols-3 lg:p-8">
+          <SkeletonCard className="h-36 sm:col-span-2" />
+          <SkeletonCard className="h-36" />
+          <SkeletonCard className="h-24" />
+          <SkeletonCard className="h-24" />
+          <SkeletonCard className="h-24" />
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i}>{skeletonCard}</div>
-        ))}
-      </div>
-
-      <div className="h-20 bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-6 transition-colors animate-pulse" />
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2">{glassBlock}</div>
-        <div className="lg:col-span-1">{glassBlock}</div>
-      </div>
-
-      <div className="animate-pulse">{glassBlock}</div>
+      <style>{`
+        @keyframes glassSweep {
+          0% { transform: translateX(0%); opacity: 0; }
+          20% { opacity: 0.7; }
+          100% { transform: translateX(420%); opacity: 0; }
+        }
+      `}</style>
     </div>
   );
 }

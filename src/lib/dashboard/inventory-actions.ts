@@ -124,6 +124,62 @@ export async function updateStock(id: string, delta: number, shopIdOverride?: st
   }
 }
 
+export async function applyStockBatchAdjustments(
+  adjustments: Array<{ id: string; delta: number }>,
+  shopIdOverride?: string,
+): Promise<ActionResult> {
+  try {
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    }
+
+    const normalized = adjustments
+      .filter((a) => a.id && Number.isFinite(a.delta) && a.delta !== 0)
+      .reduce<Record<string, number>>((acc, cur) => {
+        acc[cur.id] = (acc[cur.id] || 0) + cur.delta;
+        return acc;
+      }, {});
+
+    const ids = Object.keys(normalized);
+    if (ids.length === 0) return { success: true };
+
+    const supabase = await createServerClient();
+    const { data: existing, error: fetchError } = await supabase
+      .from("stock")
+      .select("id, quantity")
+      .eq("shop_id", shopId)
+      .in("id", ids);
+
+    if (fetchError) return { success: false, error: fetchError.message };
+
+    const currentById = new Map((existing || []).map((row) => [row.id, Number(row.quantity || 0)]));
+    for (const id of ids) {
+      if (!currentById.has(id)) return { success: false, error: "Producto no encontrado" };
+      const next = (currentById.get(id) || 0) + normalized[id];
+      if (next < 0) return { success: false, error: "La cantidad no puede ser negativa" };
+    }
+
+    for (const id of ids) {
+      const next = (currentById.get(id) || 0) + normalized[id];
+      const { error } = await supabase
+        .from("stock")
+        .update({ quantity: next, updated_at: new Date().toISOString() })
+        .eq("id", id)
+        .eq("shop_id", shopId);
+      if (error) return { success: false, error: error.message };
+    }
+
+    await revalidateDashboardSegments(shopId, ["/inventory"]);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al aplicar ajustes" };
+  }
+}
+
 export async function deleteProduct(id: string, shopIdOverride?: string): Promise<ActionResult> {
   try {
     let shopId: string | undefined = shopIdOverride;

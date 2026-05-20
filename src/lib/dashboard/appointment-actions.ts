@@ -782,6 +782,120 @@ export async function updateAppointmentStaff(
   }
 }
 
+export async function patchAppointmentQuick(
+  id: string,
+  patch: { status?: string; isPaid?: boolean; staffId?: string | null },
+  shopId?: string,
+): Promise<ActionResult> {
+  try {
+    if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+
+    const auth = await createServerClient();
+    const {
+      data: { user },
+    } = await auth.auth.getUser();
+    if (!user) return { success: false, error: "SESION_EXPIRADA" };
+
+    const allowed = await canAccessShopId(user.id, shopId);
+    if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
+
+    const supabase = await createServerClient();
+    const { data: appointment, error: aptError } = await supabase
+      .from("appointments")
+      .select("id, start_time, end_time, status, customer_id")
+      .eq("id", id)
+      .eq("shop_id", shopId)
+      .maybeSingle();
+
+    if (aptError) return { success: false, error: aptError.message };
+    if (!appointment) return { success: false, error: "Turno no encontrado" };
+
+    const normalizedStaffId = patch.staffId !== undefined
+      ? (patch.staffId && patch.staffId.trim().length > 0 ? patch.staffId.trim() : null)
+      : undefined;
+
+    if (normalizedStaffId !== undefined && normalizedStaffId) {
+      const { data: conflict } = await supabase
+        .from("appointments")
+        .select("id")
+        .eq("shop_id", shopId)
+        .eq("staff_id", normalizedStaffId)
+        .not("status", "eq", "cancelled")
+        .gt("end_time", appointment.start_time)
+        .lt("start_time", appointment.end_time)
+        .neq("id", id)
+        .maybeSingle();
+
+      if (conflict) return { success: false, error: "slot_taken" };
+    }
+
+    const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (patch.status !== undefined) updates.status = patch.status;
+    if (patch.isPaid !== undefined) updates.is_paid = patch.isPaid;
+    if (normalizedStaffId !== undefined) updates.staff_id = normalizedStaffId;
+
+    const { error } = await supabase
+      .from("appointments")
+      .update(updates)
+      .eq("id", id)
+      .eq("shop_id", shopId);
+    if (error) return { success: false, error: error.message };
+
+    const nextStatus = patch.status ?? appointment.status;
+    const shouldRegisterLoyaltyCut =
+      nextStatus === "completed" &&
+      appointment.status !== "completed" &&
+      typeof appointment.customer_id === "string" &&
+      appointment.customer_id.length > 0;
+
+    if (shouldRegisterLoyaltyCut) {
+      const loyaltyResult = await registerLoyaltyCut(shopId, appointment.customer_id as string);
+      if (!loyaltyResult.success) return loyaltyResult;
+    }
+
+    await revalidateDashboardSegments(shopId, ["/calendar", "/appointments", ""]);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al actualizar turno" };
+  }
+}
+
+export async function updateCustomerQuick(
+  customerId: string,
+  patch: { nombre?: string; email?: string; telefono?: string | null; cumpleaños?: string | null; observaciones_tecnicas?: string | null; es_vip?: boolean },
+  shopId?: string,
+): Promise<ActionResult> {
+  try {
+    if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    const auth = await createServerClient();
+    const { data: { user } } = await auth.auth.getUser();
+    if (!user) return { success: false, error: "SESION_EXPIRADA" };
+    const allowed = await canAccessShopId(user.id, shopId);
+    if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
+
+    const supabase = await createServerClient();
+    const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (patch.nombre !== undefined) updates.nombre = patch.nombre;
+    if (patch.email !== undefined) updates.email = patch.email;
+    if (patch.telefono !== undefined) updates.telefono = patch.telefono;
+    if (patch.cumpleaños !== undefined) updates["cumpleaños"] = patch.cumpleaños;
+    if (patch.observaciones_tecnicas !== undefined) updates.observaciones_tecnicas = patch.observaciones_tecnicas;
+    if (patch.es_vip !== undefined) updates.es_vip = patch.es_vip;
+
+    const { error } = await supabase
+      .from("customers")
+      .update(updates)
+      .eq("id", customerId)
+      .eq("shop_id", shopId);
+    if (error) return { success: false, error: error.message };
+
+    await revalidateDashboardSegments(shopId, ["/calendar", "/customers"]);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al actualizar cliente" };
+  }
+}
+
 async function registerLoyaltyCut(shopId: string, customerId: string): Promise<ActionResult> {
   const admin = await createAdminClient();
 

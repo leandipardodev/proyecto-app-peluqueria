@@ -10,7 +10,8 @@ import { createAdditionalShop } from "@/lib/dashboard/auth-actions";
 import {
   fetchBusinessData,
   updateBusinessInfo,
-  updateMercadoPagoKeysAction,
+  getMercadoPagoOauthUrlAction,
+  disconnectMercadoPagoOauthAction,
   updateBookingDepositPolicyAction,
   updateWhatsappTemplateAction,
   fetchBusinessHours,
@@ -63,12 +64,8 @@ export default function BusinessClient({
   const [instagramUrl, setInstagramUrl] = useState(data?.instagram_url || "");
   const [facebookUrl, setFacebookUrl] = useState(data?.facebook_url || "");
   const [tiktokUrl, setTiktokUrl] = useState(data?.tiktok_url || "");
-  const [mpPublicKey, setMpPublicKey] = useState(data?.mp_public_key || "");
-  const [mpAccessToken, setMpAccessToken] = useState(data?.mp_access_token || "");
   const [whatsappTemplate, setWhatsappTemplate] = useState(data?.whatsapp_template || "");
-  const [showMpKey, setShowMpKey] = useState(false);
-  const [showMpToken, setShowMpToken] = useState(false);
-  const [showStats, setShowStats] = useState(true);
+  const [showStats, setShowStats] = useState(false);
   const [bookingDepositEnabled, setBookingDepositEnabled] = useState(data?.booking_deposit_enabled ?? true);
   const [bookingDepositAmount, setBookingDepositAmount] = useState(String(data?.booking_deposit_amount ?? 3000));
   const [message, setMessage] = useState<MessageType>(null);
@@ -120,6 +117,23 @@ export default function BusinessClient({
       });
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const mpStatus = params.get("mp");
+    if (!mpStatus) return;
+
+    if (mpStatus === "connected") {
+      setMessage({ type: "success", text: "Mercado Pago conectado correctamente" });
+      setTimeout(() => setMessage(null), 3000);
+    } else {
+      setMessage({ type: "error", text: "No se pudo conectar Mercado Pago. Intenta de nuevo." });
+    }
+
+    params.delete("mp");
+    const next = params.toString();
+    window.history.replaceState({}, "", `${window.location.pathname}${next ? `?${next}` : ""}`);
+  }, []);
+
   function showSuccess(text: string) {
     setMessage({ type: "success", text });
     setTimeout(() => setMessage(null), 3000);
@@ -159,20 +173,37 @@ export default function BusinessClient({
     });
   }
 
-  function handleSaveMpKeys() {
+  function handleConnectMercadoPago() {
     startTransition(async () => {
-      const result = await updateMercadoPagoKeysAction(mpPublicKey, mpAccessToken);
+      const result = await getMercadoPagoOauthUrlAction();
       if (!result.success) {
         playError();
         showError(result.error);
-      } else {
-        playSuccess();
-        showSuccess("Claves de Mercado Pago guardadas");
-        const fresh = await fetchBusinessData();
-        if (fresh.success) {
-          setData(fresh.data ?? null);
-        }
+        return;
       }
+
+      if (!result.data?.url) {
+        playError();
+        showError("No se pudo iniciar la conexion con Mercado Pago");
+        return;
+      }
+
+      window.location.href = result.data.url;
+    });
+  }
+
+  function handleDisconnectMercadoPago() {
+    startTransition(async () => {
+      const result = await disconnectMercadoPagoOauthAction();
+      if (!result.success) {
+        playError();
+        showError(result.error);
+        return;
+      }
+      playSuccess();
+      showSuccess("Mercado Pago desconectado");
+      const fresh = await fetchBusinessData();
+      if (fresh.success) setData(fresh.data ?? null);
     });
   }
 
@@ -191,7 +222,7 @@ export default function BusinessClient({
       if (fresh.success && fresh.data) {
         setData(fresh.data);
         setBookingDepositEnabled(fresh.data.booking_deposit_enabled);
-        setBookingDepositAmount(String(fresh.data.booking_deposit_amount));
+        setBookingDepositAmount(String(fresh.data.booking_deposit_amount ?? 3000));
       }
     });
   }
@@ -267,12 +298,6 @@ export default function BusinessClient({
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Información pública y configuración técnica de tu local</p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Link
-            href={withDashboardBase("/dashboard/services")}
-            className="inline-flex items-center rounded-full border border-sky-300/60 dark:border-sky-500/30 bg-sky-100/80 dark:bg-sky-500/15 px-4 py-2 text-sm font-semibold text-sky-800 dark:text-sky-200 hover:bg-sky-100 dark:hover:bg-sky-500/25 shadow-sm transition-all"
-          >
-            Gestionar servicios
-          </Link>
-          <Link
             href={withDashboardBase("/dashboard/staff")}
             className="inline-flex items-center rounded-full border border-emerald-300/60 dark:border-emerald-500/30 bg-emerald-100/80 dark:bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-800 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-500/25 shadow-sm transition-all"
           >
@@ -309,9 +334,13 @@ export default function BusinessClient({
           </div>
         </div>
 
+        <AnimatePresence initial={false}>
+          {showStats && (
         <motion.div
-          animate={{ opacity: showStats ? 1 : 0.78, filter: showStats ? "blur(0px)" : "blur(1.6px)" }}
-          transition={{ duration: 0.28, ease: "easeOut" }}
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.22, ease: "easeOut" }}
           className="glass-sheen-stagger p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
         >
           <div className="glass-sheen-card sm:col-span-2 lg:col-span-3 rounded-2xl bg-white/40 dark:bg-white/[0.03] border border-white/30 dark:border-white/10 p-4">
@@ -407,6 +436,8 @@ export default function BusinessClient({
             <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Ingresos acumulados menos gastos acumulados.</p>
           </div>
         </motion.div>
+          )}
+        </AnimatePresence>
       </section>
       <style>{`
         .flow-bar {
@@ -472,10 +503,12 @@ export default function BusinessClient({
         )}
       </AnimatePresence>
 
+      <div className="flex flex-col gap-6">
       {/* Card: Información Pública */}
-      <form onSubmit={handleSavePublicInfo}>
+      <form onSubmit={handleSavePublicInfo} className="order-1">
         <div className="bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden transition-colors">
           <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-violet-500/15 text-base font-bold text-violet-700 dark:text-violet-200">1</span>
             <div className="p-2 rounded-full bg-violet-500/15">
               <Store className="w-5 h-5 text-violet-600" />
             </div>
@@ -627,19 +660,20 @@ export default function BusinessClient({
       </form>
 
       {/* Card: Configuración Técnica */}
-      <div className="bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden transition-colors">
+      <div className="order-3 bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden transition-colors">
         <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/15 text-base font-bold text-amber-700 dark:text-amber-200">3</span>
           <div className="p-2 rounded-full bg-amber-500/15">
             <Smartphone className="w-5 h-5 text-amber-600" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Configuración Técnica</h2>
-            <p className="text-xs text-zinc-400 dark:text-zinc-500">Integraciones y plantillas de comunicación</p>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Forma de cobro</h2>
+            <p className="text-xs text-zinc-400 dark:text-zinc-500">Mercado Pago, seña online y mensaje automático</p>
           </div>
         </div>
         <div className="p-6 space-y-8">
 
-          {/* MP Keys */}
+          {/* Mercado Pago OAuth */}
           {canManageBilling ? (
           <div>
             <div className="flex items-center gap-2 mb-4">
@@ -647,57 +681,42 @@ export default function BusinessClient({
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white tracking-tight">Mercado Pago</h3>
             </div>
             <div className="space-y-4">
-              <div className="relative">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 cursor-pointer">MP_PUBLIC_KEY</label>
-                <div className="relative">
-                  <input
-                    value={mpPublicKey}
-                    onChange={(e) => setMpPublicKey(e.target.value)}
-                    type={showMpKey ? "text" : "password"}
-                    className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-5 py-2.5 pr-12 text-sm font-mono text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
-                    placeholder="APP_USR-xxxx-xxxxxxx"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowMpKey(!showMpKey)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors cursor-pointer select-none"
-                    tabIndex={-1}
-                  >
-                    {showMpKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+              <div className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 px-4 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                    {data?.mp_oauth_connected ? "Cuenta conectada" : "Cuenta no conectada"}
+                  </p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                    {data?.mp_oauth_connected
+                      ? "Ya podes cobrar senas online con tu cuenta de Mercado Pago."
+                      : "Conecta tu cuenta para activar cobros online sin cargar tokens manualmente."}
+                  </p>
                 </div>
-              </div>
-              <div className="relative">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 cursor-pointer">MP_ACCESS_TOKEN</label>
-                <div className="relative">
-                  <input
-                    value={mpAccessToken}
-                    onChange={(e) => setMpAccessToken(e.target.value)}
-                    type={showMpToken ? "text" : "password"}
-                    className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-5 py-2.5 pr-12 text-sm font-mono text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
-                    placeholder="APP_USR-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-xxxxxxx"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowMpToken(!showMpToken)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors cursor-pointer select-none"
-                    tabIndex={-1}
-                  >
-                    {showMpToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+                <div className="flex gap-2">
+                  {!data?.mp_oauth_connected ? (
+                    <button
+                      type="button"
+                      onMouseDown={playClick}
+                      onClick={handleConnectMercadoPago}
+                      disabled={pending}
+                      className="inline-flex items-center justify-center gap-2 rounded-full bg-sky-600 px-5 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50"
+                    >
+                      <Link2 className="w-4 h-4" />
+                      {pending ? "Conectando..." : "Conectar Mercado Pago"}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onMouseDown={playClick}
+                      onClick={handleDisconnectMercadoPago}
+                      disabled={pending}
+                      className="inline-flex items-center justify-center gap-2 rounded-full border border-rose-300 bg-white px-5 py-2 text-sm font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-50 dark:border-rose-700/50 dark:bg-black/30 dark:text-rose-200"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      {pending ? "Desconectando..." : "Desconectar"}
+                    </button>
+                  )}
                 </div>
-              </div>
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onMouseDown={playClick}
-                  onClick={handleSaveMpKeys}
-                  disabled={pending}
-                  className="inline-flex w-full sm:w-auto justify-center items-center gap-2 bg-violet-600 text-white px-6 py-2.5 rounded-full text-sm font-medium shadow-sm hover:bg-violet-700 disabled:opacity-50 transition-all cursor-pointer select-none"
-                >
-                  <Save className="w-4 h-4" />
-                  {pending ? "Guardando..." : "Guardar Claves"}
-                </button>
               </div>
 
               <div className="rounded-2xl border border-rose-200/70 dark:border-rose-700/40 bg-rose-50/80 dark:bg-rose-900/20 p-4 space-y-3">
@@ -744,7 +763,7 @@ export default function BusinessClient({
           </div>
           ) : (
             <div className="rounded-2xl border border-amber-200/60 bg-amber-50/70 dark:bg-amber-900/20 px-4 py-3 text-xs text-amber-800 dark:text-amber-200">
-              Solo el owner del local puede gestionar claves de Mercado Pago y acciones de facturacion.
+              Solo el owner del local puede conectar Mercado Pago y gestionar facturacion.
             </div>
           )}
 
@@ -802,8 +821,9 @@ export default function BusinessClient({
       </div>
 
       {/* Card: Horarios de Atención */}
-      <div className="bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden transition-colors">
+      <div className="order-2 bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden transition-colors">
         <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/15 text-base font-bold text-blue-700 dark:text-blue-200">2</span>
           <div className="p-2 rounded-full bg-blue-500/15">
             <Clock className="w-5 h-5 text-blue-600" />
           </div>
@@ -944,6 +964,7 @@ export default function BusinessClient({
             <div className="py-8 text-center text-sm text-red-500">Error al cargar horarios</div>
           )}
         </div>
+      </div>
       </div>
 
       {/* Footer hint */}

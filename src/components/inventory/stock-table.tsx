@@ -1,16 +1,14 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import {
   Package,
   AlertTriangle,
-  Plus,
-  Minus,
   Trash2,
   Search,
 } from "lucide-react";
 import { useTransition } from "react";
-import { deleteProduct, updateStock } from "@/lib/dashboard/inventory-actions";
+import { applyStockBatchAdjustments, deleteProduct } from "@/lib/dashboard/inventory-actions";
 import { supabase } from "@/lib/supabase";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
@@ -30,10 +28,16 @@ interface StockTableProps {
 export default function StockTable({ shopId, items }: StockTableProps) {
   const [stockItems, setStockItems] = useState(items);
   const [search, setSearch] = useState("");
-  const [bulkAmountById, setBulkAmountById] = useState<Record<string, number>>({});
+  const [bulkAmountById, setBulkAmountById] = useState<Record<string, string>>({});
+  const [queuedById, setQueuedById] = useState<Record<string, number>>({});
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const { addToast } = useToast();
+  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setStockItems(items);
+  }, [items]);
 
   useEffect(() => {
     const channel = supabase
@@ -67,24 +71,44 @@ export default function StockTable({ shopId, items }: StockTableProps) {
     [stockItems, search]
   );
 
-  function handleDelta(id: string, delta: number) {
+  function flushQueuedAdjustments() {
+    const current = queuedById;
+    const adjustments = Object.entries(current)
+      .filter(([, delta]) => Number.isFinite(delta) && delta !== 0)
+      .map(([id, delta]) => ({ id, delta }));
+
+    if (adjustments.length === 0) return;
+
+    setQueuedById({});
     startTransition(async () => {
-      const result = await updateStock(id, delta, shopId);
+      const result = await applyStockBatchAdjustments(adjustments, shopId);
       if (!result.success) {
         addToast(result.error, "error");
-        return;
       }
-      setStockItems((prev) =>
-        prev.map((item) =>
-          item.id === id
-            ? { ...item, quantity: Math.max(0, item.quantity + delta) }
-            : item
-        )
-      );
     });
   }
 
+  function handleDelta(id: string, delta: number) {
+    setStockItems((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? { ...item, quantity: Math.max(0, item.quantity + delta) }
+          : item
+      )
+    );
+
+    setQueuedById((prev) => ({
+      ...prev,
+      [id]: (prev[id] || 0) + delta,
+    }));
+  }
+
   function handleDelete(id: string) {
+    if (flushTimerRef.current) {
+      clearTimeout(flushTimerRef.current);
+      flushTimerRef.current = null;
+    }
+    flushQueuedAdjustments();
     setDeleteTargetId(id);
   }
 
@@ -102,9 +126,44 @@ export default function StockTable({ shopId, items }: StockTableProps) {
     });
   }
 
+  useEffect(() => {
+    return () => {
+      if (flushTimerRef.current) {
+        clearTimeout(flushTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!Object.values(queuedById).some((delta) => delta !== 0)) return;
+    if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
+    flushTimerRef.current = setTimeout(() => {
+      const adjustments = Object.entries(queuedById)
+        .filter(([, delta]) => Number.isFinite(delta) && delta !== 0)
+        .map(([id, delta]) => ({ id, delta }));
+
+      if (adjustments.length === 0) return;
+      setQueuedById({});
+      startTransition(async () => {
+        const result = await applyStockBatchAdjustments(adjustments, shopId);
+        if (!result.success) addToast(result.error, "error");
+      });
+    }, 500);
+
+    return () => {
+      if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
+    };
+  }, [queuedById, shopId, startTransition, addToast]);
+
+  function resolveBulkAmount(id: string): number {
+    const raw = (bulkAmountById[id] || "").trim();
+    const parsed = Number(raw);
+    if (!raw || !Number.isFinite(parsed) || parsed <= 0) return 1;
+    return parsed;
+  }
+
   function handleBulkAdjust(id: string, sign: 1 | -1) {
-    const amount = Math.max(0, Number(bulkAmountById[id] || 0));
-    if (!Number.isFinite(amount) || amount <= 0) return;
+    const amount = resolveBulkAmount(id);
     handleDelta(id, sign * amount);
   }
 
@@ -114,6 +173,7 @@ export default function StockTable({ shopId, items }: StockTableProps) {
   );
 
   const lowStockCount = filtered.filter((i) => i.quantity < 5).length;
+  const pendingQueueCount = Object.values(queuedById).filter((delta) => delta !== 0).length;
 
   return (
     <>
@@ -135,6 +195,11 @@ export default function StockTable({ shopId, items }: StockTableProps) {
             <AlertTriangle className="w-4 h-4" />
             {lowStockCount} producto{lowStockCount > 1 ? "s" : ""} con bajo
             stock
+          </div>
+        )}
+        {pendingQueueCount > 0 && (
+          <div className="flex items-center gap-2 text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-900/30 px-3 py-1.5 rounded-lg text-sm">
+            Guardando {pendingQueueCount} ajuste{pendingQueueCount > 1 ? "s" : ""}...
           </div>
         )}
       </div>
@@ -167,40 +232,15 @@ export default function StockTable({ shopId, items }: StockTableProps) {
                   <span className="font-semibold text-gray-900 dark:text-gray-100">${total.toFixed(2)}</span>
                 </div>
 
-                <div className="mt-3 flex items-center justify-end gap-1">
-                  <button
-                    onClick={() => handleDelta(item.id, -1)}
-                    disabled={pending || item.quantity <= 0}
-                    className="p-1.5 rounded-md text-gray-500 hover:text-violet-600 hover:bg-violet-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
-                    title="Restar unidad"
-                  >
-                    <Minus className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelta(item.id, 1)}
-                    disabled={pending}
-                    className="p-1.5 rounded-md text-gray-500 hover:text-violet-600 hover:bg-violet-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
-                    title="Sumar unidad"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(item.id)}
-                    disabled={pending}
-                    className="p-1.5 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
-                    title="Eliminar"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-                <div className="mt-2 flex items-center gap-2">
-                  <input
-                    type="number"
-                    min="1"
-                    value={bulkAmountById[item.id] ?? 1}
-                    onChange={(e) => setBulkAmountById((prev) => ({ ...prev, [item.id]: Number(e.target.value) }))}
-                    className="w-20 px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm"
-                  />
+                <div className="mt-3 flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="1"
+                      value={bulkAmountById[item.id] ?? ""}
+                      placeholder="1"
+                      onChange={(e) => setBulkAmountById((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                      className="w-20 px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm"
+                    />
                   <button
                     onClick={() => handleBulkAdjust(item.id, 1)}
                     disabled={pending}
@@ -210,10 +250,18 @@ export default function StockTable({ shopId, items }: StockTableProps) {
                   </button>
                   <button
                     onClick={() => handleBulkAdjust(item.id, -1)}
-                    disabled={pending}
+                    disabled={pending || item.quantity <= 0}
                     className="px-2 py-1 rounded-md text-xs bg-amber-600 text-white disabled:opacity-40"
                   >
                     - cantidad
+                  </button>
+                  <button
+                    onClick={() => handleDelete(item.id)}
+                    disabled={pending}
+                    className="ml-auto p-1.5 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
+                    title="Eliminar"
+                  >
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -300,38 +348,13 @@ export default function StockTable({ shopId, items }: StockTableProps) {
                         ${total.toFixed(2)}
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center justify-center gap-1 mb-2">
-                          <button
-                            onClick={() => handleDelta(item.id, -1)}
-                            disabled={pending || item.quantity <= 0}
-                            className="p-1.5 rounded-md text-gray-500 hover:text-violet-600 hover:bg-violet-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
-                            title="Restar unidad"
-                          >
-                            <Minus className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelta(item.id, 1)}
-                            disabled={pending}
-                            className="p-1.5 rounded-md text-gray-500 hover:text-violet-600 hover:bg-violet-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
-                            title="Sumar unidad"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(item.id)}
-                            disabled={pending}
-                            className="p-1.5 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
-                            title="Eliminar"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
                         <div className="flex items-center justify-center gap-1.5">
                           <input
                             type="number"
                             min="1"
-                            value={bulkAmountById[item.id] ?? 1}
-                            onChange={(e) => setBulkAmountById((prev) => ({ ...prev, [item.id]: Number(e.target.value) }))}
+                            value={bulkAmountById[item.id] ?? ""}
+                            placeholder="1"
+                            onChange={(e) => setBulkAmountById((prev) => ({ ...prev, [item.id]: e.target.value }))}
                             className="w-16 px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-xs"
                           />
                           <button
@@ -343,10 +366,18 @@ export default function StockTable({ shopId, items }: StockTableProps) {
                           </button>
                           <button
                             onClick={() => handleBulkAdjust(item.id, -1)}
-                            disabled={pending}
+                            disabled={pending || item.quantity <= 0}
                             className="px-2 py-1 rounded-md text-[11px] bg-amber-600 text-white disabled:opacity-40"
                           >
                             -
+                          </button>
+                          <button
+                            onClick={() => handleDelete(item.id)}
+                            disabled={pending}
+                            className="p-1.5 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
+                            title="Eliminar"
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>

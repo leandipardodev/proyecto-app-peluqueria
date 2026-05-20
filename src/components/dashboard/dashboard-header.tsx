@@ -27,17 +27,22 @@ interface DashboardHeaderProps {
   };
 }
 
-type CommandNav = { id: string; kind: "nav"; label: string; hint: string; to: string };
-type CommandAction = { id: string; kind: "action"; label: string; hint: string; action: "toggleTheme" | "togglePerformance" | "logout" };
+type CommandNav = { id: string; kind: "nav"; label: string; hint: string; to: string; keywords: string[] };
+type CommandAction = { id: string; kind: "action"; label: string; hint: string; action: "toggleTheme" | "togglePerformance" | "logout"; keywords: string[] };
 type CommandData = { id: string; kind: "data"; value: OmniSearchResult };
 type CommandItem = CommandNav | CommandAction | CommandData;
 
 const NAV_COMMANDS: CommandNav[] = [
-  { id: "nav-staff", kind: "nav", label: "Ir a Staff", hint: "Personal", to: "/dashboard/staff" },
-  { id: "nav-services", kind: "nav", label: "Ir a Servicios", hint: "Catalogo", to: "/dashboard/services" },
-  { id: "nav-settings", kind: "nav", label: "Ir a Configuracion", hint: "Perfil y preferencias", to: "/dashboard" },
-  { id: "nav-calendar", kind: "nav", label: "Ver Agenda", hint: "Calendario", to: "/dashboard/calendar" },
-  { id: "nav-fidelizacion", kind: "nav", label: "Ver Fidelizacion", hint: "Canjes y vouchers", to: "/dashboard/fidelizacion" },
+  { id: "nav-home", kind: "nav", label: "Ir a Inicio", hint: "Resumen del negocio", to: "/dashboard", keywords: ["inicio", "home", "panel", "dashboard", "resumen", "principal", "portada"] },
+  { id: "nav-calendar", kind: "nav", label: "Ir a Calendario", hint: "Agenda de turnos", to: "/dashboard/calendar", keywords: ["calendario", "agenda", "turnos", "citas", "reservas", "horarios", "proximos"] },
+  { id: "nav-cash", kind: "nav", label: "Ir a Caja", hint: "Ingresos, egresos y liquidaciones", to: "/dashboard/finances", keywords: ["caja", "finanzas", "plata", "dinero", "cobros", "gastos", "ingresos", "egresos", "movimientos", "arqueo", "cierres", "liquidaciones", "comisiones"] },
+  { id: "nav-stock", kind: "nav", label: "Ir a Stock", hint: "Inventario y productos", to: "/dashboard/inventory", keywords: ["stock", "inventario", "productos", "insumos", "deposito", "existencias", "reposicion", "bajo stock"] },
+  { id: "nav-marketing", kind: "nav", label: "Ir a Marketing", hint: "Fidelizacion, canjes y vouchers", to: "/dashboard/fidelizacion", keywords: ["marketing", "fidelizacion", "fidelidad", "puntos", "canjes", "voucher", "vouchers", "descuentos", "promos", "cupones", "campanas"] },
+  { id: "nav-customers", kind: "nav", label: "Ir a Clientes", hint: "Base de clientes", to: "/dashboard/customers", keywords: ["clientes", "clientela", "contactos", "whatsapp", "telefonos", "historial", "ficha cliente"] },
+  { id: "nav-business", kind: "nav", label: "Ir a Mi Negocio", hint: "Datos, horarios y cobros", to: "/dashboard/business", keywords: ["mi negocio", "negocio", "local", "empresa", "perfil negocio", "datos publicos", "horarios", "mercado pago", "cobro", "seña", "sena", "whatsapp template"] },
+  { id: "nav-services", kind: "nav", label: "Ir a Servicios", hint: "Catalogo y duraciones", to: "/dashboard/services", keywords: ["servicios", "catalogo", "precios", "duracion", "duraciones", "barba", "corte", "tratamientos"] },
+  { id: "nav-staff", kind: "nav", label: "Ir a Staff", hint: "Equipo y roles", to: "/dashboard/staff", keywords: ["staff", "equipo", "empleados", "barberos", "roles", "personal"] },
+  { id: "nav-billing", kind: "nav", label: "Ir a Pagos", hint: "Pagar mensualidad", to: "/billing-required", keywords: ["pago", "pagos", "mensualidad", "membresia", "suscripcion", "renovar", "plan", "vencimiento", "factura"] },
 ];
 
 const DASHBOARD_LEGACY_SEGMENTS = new Set([
@@ -71,9 +76,9 @@ function withDashboardBase(basePath: string, to: string): string {
 }
 
 const ACTION_COMMANDS: CommandAction[] = [
-  { id: "act-theme", kind: "action", label: "Cambiar tema", hint: "oscuro o claro", action: "toggleTheme" },
-  { id: "act-performance", kind: "action", label: "Modo rendimiento", hint: "menos animaciones", action: "togglePerformance" },
-  { id: "act-logout", kind: "action", label: "Cerrar sesion", hint: "salir", action: "logout" },
+  { id: "act-theme", kind: "action", label: "Cambiar tema", hint: "oscuro o claro", action: "toggleTheme", keywords: ["tema", "oscuro", "claro", "dark", "light", "colores", "apariencia"] },
+  { id: "act-performance", kind: "action", label: "Modo rendimiento", hint: "menos animaciones", action: "togglePerformance", keywords: ["rendimiento", "performance", "lag", "animaciones", "fluidez", "rapido", "optimizar", "modo liviano"] },
+  { id: "act-logout", kind: "action", label: "Cerrar sesion", hint: "salir", action: "logout", keywords: ["cerrar", "salir", "logout", "desconectar", "terminar sesion"] },
 ];
 
 const SEARCH_COLLAPSED_WIDTH = 280;
@@ -120,6 +125,11 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
     return null;
   }, [pathname]);
   const selectedShopSlug = pathnameShopSlug || activeShopSlug || managedShops[0]?.slug || "";
+  const selectedShop = useMemo(
+    () => (selectedShopSlug ? managedShops.find((shop) => shop.slug === selectedShopSlug) : managedShops[0]) || managedShops[0] || null,
+    [managedShops, selectedShopSlug],
+  );
+  const billingUrl = selectedShop?.id ? `/billing-required?shop_id=${encodeURIComponent(selectedShop.id)}` : "/billing-required";
   const { dark, toggle: toggleDark } = useDarkMode();
   const { performanceMode, togglePerformanceMode } = usePerformanceMode();
   const { playClick, playSearchExpand } = useKlipSounds();
@@ -146,7 +156,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
   const inputRef = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
 
-  const rotatingWords = ["clientes...", "productos...", "servicios...", "comandos..."];
+  const rotatingWords = ["clientes...", "stock...", "caja...", "marketing...", "comandos..."];
   const daysBadgeLabel = billingStatus.daysRemaining === null
     ? "--"
     : billingStatus.daysRemaining > 0
@@ -161,6 +171,10 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
       : billingStatus.inGrace
         ? `PLAN VENCIDO • EN GRACIA (${Math.max(0, billingStatus.graceDaysRemaining ?? 0)} DIAS)`
         : "PLAN VENCIDO";
+
+  function navigateWithTransition(target: string) {
+    router.push(target);
+  }
 
   function handleMobileOpen() {
     playClick();
@@ -266,14 +280,14 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
   const commandItems = useMemo(() => {
     const q = query.trim().toLowerCase();
     const nav = NAV_COMMANDS
-      .map((c) => ({ ...c, to: withDashboardBase(dashboardBasePath, c.to) }))
-      .filter((c) => matchesQuery(q, [c.label, c.hint]));
+      .map((c) => {
+        if (c.id === "nav-billing") return { ...c, to: billingUrl };
+        return { ...c, to: withDashboardBase(dashboardBasePath, c.to) };
+      })
+      .filter((c) => matchesQuery(q, [c.label, c.hint, ...c.keywords]));
 
     const action = ACTION_COMMANDS.filter((c) => {
-      if (!q) return true;
-      if (c.action === "toggleTheme") return matchesQuery(q, ["oscuro", "claro", c.label, c.hint]);
-      if (c.action === "togglePerformance") return matchesQuery(q, ["rendimiento", "performance", "animaciones", c.label, c.hint]);
-      return matchesQuery(q, ["cerrar", "salir", c.label, c.hint]);
+      return matchesQuery(q, [c.label, c.hint, ...c.keywords]);
     });
 
     const stock: CommandData[] = dbResults.filter((r) => r.type === "stock").map((r) => ({ id: `stock-${r.id}`, kind: "data", value: r }));
@@ -289,7 +303,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
       people,
       flat: [...action, ...nav, ...stock, ...services, ...people] as CommandItem[],
     };
-  }, [query, dbResults, dashboardBasePath]);
+  }, [query, dbResults, dashboardBasePath, billingUrl]);
 
   useEffect(() => {
     setActiveIndex(0);
@@ -323,24 +337,24 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
       const result = item.value;
       closeSearch(true);
       if (result.type === "customer") {
-        router.push(`${withDashboardBase(dashboardBasePath, "/dashboard/customers")}?q=${encodeURIComponent(result.nombre || result.telefono || "")}&customerId=${result.id}`);
+        navigateWithTransition(`${withDashboardBase(dashboardBasePath, "/dashboard/customers")}?q=${encodeURIComponent(result.nombre || result.telefono || "")}&customerId=${result.id}`);
         return;
       }
       if (result.type === "stock") {
-        router.push(withDashboardBase(dashboardBasePath, "/dashboard/inventory"));
+        navigateWithTransition(withDashboardBase(dashboardBasePath, "/dashboard/inventory"));
         return;
       }
       if (result.type === "service") {
-        router.push(withDashboardBase(dashboardBasePath, "/dashboard/services"));
+        navigateWithTransition(withDashboardBase(dashboardBasePath, "/dashboard/services"));
         return;
       }
-      router.push(withDashboardBase(dashboardBasePath, "/dashboard/staff"));
+      navigateWithTransition(withDashboardBase(dashboardBasePath, "/dashboard/staff"));
       return;
     }
 
     if (item.kind === "nav") {
       closeSearch(true);
-      router.push(item.to);
+      navigateWithTransition(item.to);
       return;
     }
 
@@ -761,6 +775,16 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
                   <p className="text-xs text-zinc-500">Cuenta</p>
                   <p className="text-sm text-gray-900 dark:text-white truncate">{userEmail || userName}</p>
                   <p className="text-[10px] font-medium text-slate-400 mt-1">{planSummary}</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      navigateWithTransition(billingUrl);
+                    }}
+                    className="mt-2 inline-flex items-center rounded-full border border-rose-300/70 bg-rose-50 px-3 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-100 dark:border-rose-700/50 dark:bg-rose-900/30 dark:text-rose-200"
+                  >
+                    Pagar mensualidad
+                  </button>
                 </div>
                 <div className="p-3 space-y-3">
                   <div className="flex items-center justify-between rounded-xl border border-white/20 dark:border-white/10 px-3 py-2">

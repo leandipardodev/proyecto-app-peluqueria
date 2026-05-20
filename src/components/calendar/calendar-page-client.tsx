@@ -48,7 +48,7 @@ type Appointment = {
   is_paid: boolean;
   deposit_amount?: number | null;
   notes: string | null;
-  customers: { nombre: string | null; email: string; telefono: string | null } | null;
+  customers: { id: string; nombre: string | null; email: string; telefono: string | null } | null;
   staff: { name: string | null; email: string | null } | null;
   services: { name: string; price: number; duration_minutes: number } | null;
 };

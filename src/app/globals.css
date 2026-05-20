@@ -52,6 +52,16 @@ body.ios-standalone .dashboard-mobile-header {
   }
 }
 
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 *::-webkit-scrollbar {
   width: 5px;
   height: 5px;
@@ -181,4 +191,26 @@ html.perf-mode .glass-sheen-card::before,
 html.perf-mode .analytics-wave-layer,
 html.perf-mode .analytics-card-bg::after {
   opacity: 0 !important;
+}
+
+html.perf-mode *,
+html.perf-mode *::before,
+html.perf-mode *::after {
+  scroll-behavior: auto !important;
+}
+
+html.perf-mode .backdrop-blur-3xl,
+html.perf-mode .backdrop-blur-2xl,
+html.perf-mode .backdrop-blur-xl,
+html.perf-mode .backdrop-blur-lg,
+html.perf-mode .backdrop-blur-md,
+html.perf-mode .backdrop-blur-sm {
+  backdrop-filter: none !important;
+}
+
+html.perf-mode .transition-all,
+html.perf-mode .transition-colors,
+html.perf-mode .transition-opacity,
+html.perf-mode .transition-transform {
+  transition-duration: 80ms !important;
 }

@@ -264,8 +264,6 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
         </div>
       </div>
 
-      <ShareLinkCard slug={shopSlugOverride || summary.shopSlug} />
-
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map(({ label, value, hint, icon: Icon, color, bg }, idx) => {
           const isGrowthCard = label === "Crecimiento";
@@ -419,6 +417,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
         )}
       </div>
 
+      <ShareLinkCard slug={shopSlugOverride || summary.shopSlug} />
       <PwaInstallButton />
       <style>{`
         .flow-mini {

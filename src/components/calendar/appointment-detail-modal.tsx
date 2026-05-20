@@ -1,8 +1,8 @@
 "use client";
 
-import { X, Check, XCircle, Trash2 } from "lucide-react";
+import { X, Check, XCircle, Trash2, MessageCircle, UserRoundPen } from "lucide-react";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { deleteAppointment, redeemLoyaltyReward, updateAppointmentStaff, updateAppointmentStatus } from "@/lib/dashboard/appointment-actions";
+import { deleteAppointment, patchAppointmentQuick, redeemLoyaltyReward, updateCustomerQuick } from "@/lib/dashboard/appointment-actions";
 import { AnimatePresence, motion } from "framer-motion";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
@@ -21,7 +21,7 @@ type Appointment = {
   loyalty_reward_applied?: boolean;
   loyalty_discount_percent_applied?: number;
   notes: string | null;
-  customers: { nombre: string | null; email: string; telefono: string | null; loyalty_rewards_available?: number | null } | null;
+  customers: { id: string; nombre: string | null; email: string; telefono: string | null; loyalty_rewards_available?: number | null } | null;
   staff: { name: string | null; email: string | null } | null;
   services: { name: string; price: number; duration_minutes: number } | null;
 };
@@ -81,7 +81,16 @@ export default function AppointmentDetailModal({
     Math.max(0, Number(appointment?.customers?.loyalty_rewards_available || 0))
   );
   const [localRewardApplied, setLocalRewardApplied] = useState(Boolean(appointment?.loyalty_reward_applied));
+  const [showCustomerEditor, setShowCustomerEditor] = useState(false);
+  const [customerName, setCustomerName] = useState(appointment?.customers?.nombre || "");
+  const [customerEmail, setCustomerEmail] = useState(appointment?.customers?.email || "");
+  const [customerPhone, setCustomerPhone] = useState(appointment?.customers?.telefono || "");
+  const [customerBirthday, setCustomerBirthday] = useState("");
+  const [customerNotes, setCustomerNotes] = useState("");
+  const [customerVip, setCustomerVip] = useState(false);
   const { addToast } = useToast();
+  const patchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const patchDraftRef = useRef<{ status?: string; isPaid?: boolean; staffId?: string | null }>({});
 
   useEffect(() => {
     if (!appointment) return;
@@ -90,6 +99,10 @@ export default function AppointmentDetailModal({
     setSelectedStaffId(appointment.staff_id || "");
     setLocalRewardsAvailable(Math.max(0, Number(appointment.customers?.loyalty_rewards_available || 0)));
     setLocalRewardApplied(Boolean(appointment.loyalty_reward_applied));
+    setCustomerName(appointment.customers?.nombre || "");
+    setCustomerEmail(appointment.customers?.email || "");
+    setCustomerPhone(appointment.customers?.telefono || "");
+    setShowCustomerEditor(false);
     setError(null);
   }, [appointment]);
 
@@ -102,41 +115,37 @@ export default function AppointmentDetailModal({
     return () => document.removeEventListener("keydown", handleEscape);
   }, [appointment, onClose]);
 
+  function flushAppointmentPatch() {
+    if (!appointment) return;
+    const payload = { ...patchDraftRef.current };
+    patchDraftRef.current = {};
+    if (payload.status === undefined && payload.isPaid === undefined && payload.staffId === undefined) return;
+
+    startTransition(async () => {
+      const result = await patchAppointmentQuick(appointment.id, payload, shopId);
+      if (!result.success) setError(result.error);
+    });
+  }
+
+  function queueAppointmentPatch(next: { status?: string; isPaid?: boolean; staffId?: string | null }) {
+    patchDraftRef.current = { ...patchDraftRef.current, ...next };
+    if (patchTimerRef.current) clearTimeout(patchTimerRef.current);
+    patchTimerRef.current = setTimeout(flushAppointmentPatch, 450);
+  }
+
   function handleStatusChange(newStatus: string) {
     if (!appointment) return;
     setError(null);
-    startTransition(async () => {
-      const result = await updateAppointmentStatus(
-        appointment.id,
-        newStatus,
-        undefined,
-        shopId
-      );
-      if (result.success) {
-        setLocalStatus(newStatus);
-      } else {
-        setError(result.error);
-      }
-    });
+    setLocalStatus(newStatus);
+    queueAppointmentPatch({ status: newStatus });
   }
 
   function handleTogglePaid() {
     if (!appointment) return;
     const newPaid = !localPaid;
     setError(null);
-    startTransition(async () => {
-      const result = await updateAppointmentStatus(
-        appointment.id,
-        localStatus,
-        newPaid,
-        shopId
-      );
-      if (result.success) {
-        setLocalPaid(newPaid);
-      } else {
-        setError(result.error);
-      }
-    });
+    setLocalPaid(newPaid);
+    queueAppointmentPatch({ isPaid: newPaid });
   }
 
   function handleDeleteAppointment() {
@@ -148,12 +157,31 @@ export default function AppointmentDetailModal({
     if (!appointment) return;
     setSelectedStaffId(value);
     setError(null);
+    queueAppointmentPatch({ staffId: value || null });
+  }
+
+  async function handleSaveCustomerQuick() {
+    if (!appointment?.customers) return;
+    setError(null);
     startTransition(async () => {
-      const result = await updateAppointmentStaff(appointment.id, value || null, shopId);
+      const result = await updateCustomerQuick(
+        appointment.customers!.id,
+        {
+          nombre: customerName,
+          email: customerEmail,
+          telefono: customerPhone || null,
+          cumpleaños: customerBirthday || null,
+          observaciones_tecnicas: customerNotes || null,
+          es_vip: customerVip,
+        },
+        shopId,
+      );
       if (!result.success) {
         setError(result.error);
-        setSelectedStaffId(appointment.staff_id || "");
+        return;
       }
+      addToast("Cliente actualizado", "success");
+      setShowCustomerEditor(false);
     });
   }
 
@@ -237,11 +265,26 @@ export default function AppointmentDetailModal({
               <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mt-0.5">
                 {appointment.customers?.nombre || "—"}
               </p>
-              {appointment.customers?.email && (
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {appointment.customers.email}
-                </p>
-              )}
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                {appointment.customers?.email && <p className="text-xs text-gray-500 dark:text-gray-400">{appointment.customers.email}</p>}
+                {appointment.customers?.telefono && (
+                  <a
+                    href={`https://wa.me/${appointment.customers.telefono.replace(/\D/g, "")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700"
+                  >
+                    <MessageCircle className="h-3 w-3" /> WhatsApp
+                  </a>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowCustomerEditor((v) => !v)}
+                  className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px]"
+                >
+                  <UserRoundPen className="h-3 w-3" /> Editar cliente
+                </button>
+              </div>
             </div>
             <div>
               <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">Staff</span>
@@ -259,6 +302,23 @@ export default function AppointmentDetailModal({
               </div>
             </div>
           </div>
+
+          {showCustomerEditor && (
+            <div className="rounded-2xl border border-slate-200/70 bg-white/70 p-3 dark:border-zinc-800 dark:bg-zinc-900/40">
+              <p className="mb-2 text-xs font-semibold text-slate-600 dark:text-zinc-300">Editar cliente</p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Nombre" className="rounded-xl border px-3 py-2 text-sm" />
+                <input value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} placeholder="Email" className="rounded-xl border px-3 py-2 text-sm" />
+                <input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="Telefono" className="rounded-xl border px-3 py-2 text-sm" />
+                <input value={customerBirthday} onChange={(e) => setCustomerBirthday(e.target.value)} type="date" className="rounded-xl border px-3 py-2 text-sm" />
+                <input value={customerNotes} onChange={(e) => setCustomerNotes(e.target.value)} placeholder="Observaciones" className="rounded-xl border px-3 py-2 text-sm sm:col-span-2" />
+                <label className="inline-flex items-center gap-2 text-xs sm:col-span-2"><input type="checkbox" checked={customerVip} onChange={(e) => setCustomerVip(e.target.checked)} /> VIP</label>
+              </div>
+              <div className="mt-2 flex justify-end">
+                <button type="button" onClick={() => void handleSaveCustomerQuick()} className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-medium text-white">Guardar cliente</button>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div>

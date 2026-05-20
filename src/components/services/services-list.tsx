@@ -2,7 +2,6 @@
 
 import { Pencil, Trash2, Plus } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import ServiceModal from "./service-modal";
 import ServiceForm from "./service-form";
 import { deleteService } from "@/lib/dashboard/service-actions";
@@ -23,13 +22,16 @@ interface ServicesListProps {
 }
 
 export default function ServicesList({ shopId, initialServices }: ServicesListProps) {
-  const router = useRouter();
   const [services, setServices] = useState(initialServices);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const { addToast } = useToast();
+
+  useEffect(() => {
+    setServices(initialServices);
+  }, [initialServices]);
 
   useEffect(() => {
     const channel = supabase
@@ -73,7 +75,14 @@ export default function ServicesList({ shopId, initialServices }: ServicesListPr
   function handleSuccess() {
     setModalOpen(false);
     setEditingService(null);
-    router.refresh();
+    startTransition(async () => {
+      const { data } = await supabase
+        .from("services")
+        .select("id, name, price, duration_minutes")
+        .eq("shop_id", shopId)
+        .order("created_at", { ascending: false });
+      if (data) setServices(data as Service[]);
+    });
   }
 
   function handleDelete(id: string) {

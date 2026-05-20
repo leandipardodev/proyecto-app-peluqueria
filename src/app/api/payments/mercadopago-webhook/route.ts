@@ -36,6 +36,20 @@ function isUniqueViolation(error: unknown): boolean {
   return maybeCode === "23505";
 }
 
+function formatDateInArgentina(value: Date | string): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(value));
+
+  const y = parts.find((p) => p.type === "year")?.value || "1970";
+  const m = parts.find((p) => p.type === "month")?.value || "01";
+  const d = parts.find((p) => p.type === "day")?.value || "01";
+  return `${y}-${m}-${d}`;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const admin = await createAdminClient();
@@ -129,7 +143,10 @@ export async function POST(request: NextRequest) {
       if (shop) {
         const now = new Date();
         const currentExpiry = shop.plan_expiry ? new Date(shop.plan_expiry) : null;
-        const base = currentExpiry && currentExpiry > now ? currentExpiry : now;
+        const todayAr = formatDateInArgentina(now);
+        const expiryAr = currentExpiry ? formatDateInArgentina(currentExpiry) : null;
+        const hasPaidDaysRemaining = Boolean(currentExpiry && expiryAr && expiryAr > todayAr);
+        const base = hasPaidDaysRemaining && currentExpiry ? currentExpiry : now;
         const nextExpiry = new Date(base);
         nextExpiry.setMonth(nextExpiry.getMonth() + cycleMonths(cycle));
 

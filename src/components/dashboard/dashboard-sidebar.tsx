@@ -15,14 +15,15 @@ import {
 } from "lucide-react";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { APP_VERSION } from "@/lib/app-version";
+import { usePerformanceMode } from "@/lib/use-performance-mode";
 
 const navItems = [
   { label: "Inicio", href: "/dashboard", icon: Home },
   { label: "Calendario", href: "/dashboard/calendar", icon: CalendarDays },
-  { label: "Inventario", href: "/dashboard/inventory", icon: Package },
-  { label: "Fidelizacion", href: "/dashboard/fidelizacion", icon: Gift },
+  { label: "Caja", href: "/dashboard/finances", icon: Wallet },
+  { label: "Stock", href: "/dashboard/inventory", icon: Package },
+  { label: "Marketing", href: "/dashboard/fidelizacion", icon: Gift },
   { label: "Clientes", href: "/dashboard/customers", icon: UserRound },
-  { label: "Finanzas", href: "/dashboard/finances", icon: Wallet },
   { label: "Mi Negocio", href: "/dashboard/business", icon: Store },
 ];
 
@@ -80,6 +81,14 @@ export default function DashboardSidebar({
   const pathname = usePathname();
   const dashboardBasePath = getDashboardBasePath(pathname);
   const { playClick } = useKlipSounds();
+  const { performanceMode } = usePerformanceMode();
+
+  const navContainerVariants = performanceMode
+    ? { hidden: {}, show: {} }
+    : containerVariants;
+  const navItemVariants = performanceMode
+    ? { hidden: { opacity: 1, x: 0 }, show: { opacity: 1, x: 0 } }
+    : itemVariants;
 
   return (
     <AnimatePresence mode="wait">
@@ -89,11 +98,11 @@ export default function DashboardSidebar({
         initial={{ x: -300, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         exit={{ x: -300, opacity: 0, transition: { duration: 0.2, ease: "easeIn" } }}
-        transition={{ type: "spring", damping: 25, stiffness: 200 }}
+        transition={performanceMode ? { duration: 0.1 } : { type: "spring", damping: 25, stiffness: 200 }}
       >
       {showBrand && (
         <div className="px-6 pt-9 pb-7">
-          <motion.div whileHover={{ scale: 1.02 }} transition={{ type: "spring", stiffness: 360, damping: 22 }} className="inline-flex items-center gap-2">
+          <motion.div whileHover={performanceMode ? undefined : { scale: 1.02 }} transition={performanceMode ? { duration: 0.1 } : { type: "spring", stiffness: 360, damping: 22 }} className="inline-flex items-center gap-2">
             <span className="text-2xl font-bold tracking-tight text-[#0071E3]">Klip</span>
           </motion.div>
           <div className="mt-5 h-px bg-black/5 dark:bg-white/10" />
@@ -103,7 +112,7 @@ export default function DashboardSidebar({
       <LayoutGroup>
         <motion.nav
           className="flex-1 px-3 space-y-1"
-          variants={containerVariants}
+          variants={navContainerVariants}
           initial="hidden"
           animate="show"
         >
@@ -120,14 +129,14 @@ export default function DashboardSidebar({
             return (
               <motion.div
                 key={href}
-                variants={itemVariants}
-                whileHover={{ x: 5 }}
-                whileTap={{ scale: 0.97 }}
+                variants={navItemVariants}
+                whileHover={performanceMode ? undefined : { x: 5 }}
+                whileTap={performanceMode ? undefined : { scale: 0.97 }}
               >
                  <Link
-                  href={targetHref}
-                  onMouseDown={playClick}
-                  className={`relative flex items-center gap-3 px-3 py-3 rounded-2xl text-sm font-medium transition-colors cursor-pointer select-none ${
+                   href={targetHref}
+                   onMouseDown={playClick}
+                   className={`relative flex items-center gap-3 px-3 py-3 rounded-2xl text-sm font-medium transition-colors cursor-pointer select-none ${
                     isActive
                       ? "text-violet-700 dark:text-white"
                       : "text-zinc-500 dark:text-zinc-400 hover:bg-white/50 dark:hover:bg-white/5 hover:text-zinc-700 dark:hover:text-white"
@@ -137,7 +146,7 @@ export default function DashboardSidebar({
                     <motion.div
                       layoutId="active-pill"
                       className="absolute inset-0 rounded-2xl bg-white/30 dark:bg-white/10 border border-white/20 dark:border-white/10 shadow-sm"
-                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                      transition={performanceMode ? { duration: 0.1 } : { type: "spring", stiffness: 380, damping: 30 }}
                     />
                   )}
                   <Icon
@@ -163,8 +172,8 @@ export default function DashboardSidebar({
             {userName}
           </span>
           <motion.div
-            whileHover={{ scale: 1.05 }}
-            transition={{ type: "spring", stiffness: 400, damping: 15 }}
+            whileHover={performanceMode ? undefined : { scale: 1.05 }}
+            transition={performanceMode ? { duration: 0.1 } : { type: "spring", stiffness: 400, damping: 15 }}
           >
             <button
               onMouseDown={playClick}

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 const STORAGE_KEY = "klip-performance-mode";
+const PERF_EVENT = "klip-performance-mode-change";
 
 function readStored(): boolean {
   if (typeof window === "undefined") return false;
@@ -25,6 +26,7 @@ export function usePerformanceMode() {
     if (typeof window !== "undefined") {
       localStorage.setItem(STORAGE_KEY, String(value));
       document.documentElement.classList.toggle("perf-mode", value);
+      window.dispatchEvent(new CustomEvent(PERF_EVENT, { detail: value }));
     }
   }, []);
 
@@ -33,4 +35,12 @@ export function usePerformanceMode() {
   }, [performanceMode, setPerformanceMode]);
 
   return { performanceMode, setPerformanceMode, togglePerformanceMode, mounted };
+}
+
+export function getPerformanceModeStorageKey() {
+  return STORAGE_KEY;
+}
+
+export function getPerformanceModeEventName() {
+  return PERF_EVENT;
 }

@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  fetchStaffMembers,
   addStaffMember,
   updateStaffName,
   updateStaffRole,
@@ -34,7 +34,6 @@ export default function StaffList({
   currentUserId: string;
   canManageStaff: boolean;
 }) {
-  const router = useRouter();
   const [staff, setStaff] = useState<StaffMember[]>(initialStaff);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,16 +49,25 @@ export default function StaffList({
   const { addToast } = useToast();
 
   useEffect(() => {
+    setStaff(initialStaff);
+  }, [initialStaff]);
+
+  useEffect(() => {
+    const refreshStaff = async () => {
+      const latest = await fetchStaffMembers(shopId);
+      if (latest.success) setStaff(latest.data ?? []);
+    };
+
     const channel = supabase
       .channel(`staff-${shopId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "shop_memberships", filter: `shop_id=eq.${shopId}` }, () => router.refresh())
-      .on("postgres_changes", { event: "*", schema: "public", table: "user_profiles", filter: `shop_id=eq.${shopId}` }, () => router.refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "shop_memberships", filter: `shop_id=eq.${shopId}` }, refreshStaff)
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_profiles" }, refreshStaff)
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [shopId, router]);
+  }, [shopId]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -88,7 +96,8 @@ export default function StaffList({
     setName("");
     setEmail("");
     setRole("staff");
-    router.refresh();
+    const latest = await fetchStaffMembers(shopId);
+    if (latest.success) setStaff(latest.data ?? []);
   }
 
   async function handleRoleChange(id: string, newRole: "staff" | "owner") {
