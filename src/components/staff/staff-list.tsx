@@ -1,14 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import CustomSelect from "@/components/ui/custom-select";
 import { Label } from "@/components/ui/label";
 import {
   fetchStaffMembers,
   addStaffMember,
   updateStaffName,
   updateStaffRole,
+  updateStaffPayMode,
   removeStaff,
 } from "@/lib/dashboard/staff-actions";
 import { supabase } from "@/lib/supabase";
@@ -21,6 +24,9 @@ type StaffMember = {
   email: string | null;
   role: string;
   revenue: number;
+  payModel: "percentage" | "fixed" | "mixed";
+  percentageRate: number;
+  fixedAmount: number;
 };
 
 export default function StaffList({
@@ -46,7 +52,16 @@ export default function StaffList({
   const [renameTarget, setRenameTarget] = useState<{ id: string; name: string } | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [payModel, setPayModel] = useState<"percentage" | "fixed" | "mixed">("percentage");
+  const [payPercentage, setPayPercentage] = useState("40");
+  const [payFixed, setPayFixed] = useState("0");
+  const [payEditor, setPayEditor] = useState<{ id: string; name: string; payModel: "percentage" | "fixed" | "mixed"; percentageRate: number; fixedAmount: number } | null>(null);
+  const [portalReady, setPortalReady] = useState(false);
   const { addToast } = useToast();
+
+  useEffect(() => {
+    setPortalReady(true);
+  }, []);
 
   useEffect(() => {
     setStaff(initialStaff);
@@ -78,6 +93,9 @@ export default function StaffList({
     formData.append("name", name);
     formData.append("email", email);
     formData.append("role", role);
+    formData.append("pay_model", payModel);
+    formData.append("percentage_rate", payPercentage || "0");
+    formData.append("fixed_amount", payFixed || "0");
 
     const result = await addStaffMember(formData, shopId);
 
@@ -96,6 +114,9 @@ export default function StaffList({
     setName("");
     setEmail("");
     setRole("staff");
+    setPayModel("percentage");
+    setPayPercentage("40");
+    setPayFixed("0");
     const latest = await fetchStaffMembers(shopId);
     if (latest.success) setStaff(latest.data ?? []);
   }
@@ -190,16 +211,34 @@ export default function StaffList({
             </div>
             <div>
               <Label htmlFor="role">Rol</Label>
-              <select
-                id="role"
+              <CustomSelect
                 value={role}
-                onChange={(e) => setRole(e.target.value as "staff" | "owner")}
-                className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-950 py-2 px-3 text-sm dark:text-gray-100 cursor-pointer"
-              >
-                <option value="staff">Peluquero</option>
-                <option value="owner">Administrador</option>
-              </select>
+                onChange={(v) => setRole(v as "staff" | "owner")}
+                options={[{ value: "staff", label: "Peluquero" }, { value: "owner", label: "Administrador" }]}
+                className="mt-1"
+              />
             </div>
+            <div>
+              <Label>Modo cobro (opcional)</Label>
+              <CustomSelect
+                value={payModel}
+                onChange={(v) => setPayModel(v as "percentage" | "fixed" | "mixed")}
+                options={[{ value: "percentage", label: "%" }, { value: "fixed", label: "$ fijo" }, { value: "mixed", label: "% + $" }]}
+                className="mt-1"
+              />
+            </div>
+            {payModel !== "fixed" && (
+              <div>
+                <Label>Porcentaje</Label>
+                <Input type="number" min="0" max="100" value={payPercentage} onChange={(e) => setPayPercentage(e.target.value)} className="mt-1" />
+              </div>
+            )}
+            {payModel !== "percentage" && (
+              <div>
+                <Label>Monto fijo</Label>
+                <Input type="number" min="0" value={payFixed} onChange={(e) => setPayFixed(e.target.value)} className="mt-1" />
+              </div>
+            )}
             <div className="flex flex-col sm:flex-row gap-3">
               <Button type="submit" disabled={saving}>
                 {saving ? "Guardando..." : "Guardar"}
@@ -287,16 +326,14 @@ export default function StaffList({
                 <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{member.email || "-"}</p>
                 <div className="mt-3 flex items-center justify-between text-sm">
                   <span className="text-gray-500 dark:text-gray-400">Rol</span>
-                  <select
-                    value={member.role}
-                    onChange={(e) => handleRoleChange(member.id, e.target.value as "staff" | "owner")}
-                       disabled={!canManageStaff || isCurrentOwnerSelf}
-                    title={isCurrentOwnerSelf ? selfOwnerTooltip : undefined}
-                    className="text-sm rounded border border-gray-300 dark:border-gray-600 py-1 px-2 bg-white dark:bg-gray-950 dark:text-gray-100 cursor-pointer"
-                  >
-                    <option value="staff">Peluquero</option>
-                    <option value="owner">Admin</option>
-                  </select>
+                  <div className="min-w-[150px]">
+                    <CustomSelect
+                      value={member.role}
+                      onChange={(v) => handleRoleChange(member.id, v as "staff" | "owner")}
+                      options={[{ value: "staff", label: "Peluquero" }, { value: "owner", label: "Admin" }]}
+                      className={!canManageStaff || isCurrentOwnerSelf ? "pointer-events-none opacity-60" : ""}
+                    />
+                  </div>
                 </div>
                 <div className="mt-2 flex items-center justify-between text-sm">
                   <span className="text-gray-500 dark:text-gray-400">Facturación</span>
@@ -307,6 +344,13 @@ export default function StaffList({
                     <span className="text-xs text-gray-400 cursor-not-allowed select-none" title={selfOwnerTooltip}>-</span>
                   ) : (
                     <>
+                      <button
+                        type="button"
+                        onClick={() => setPayEditor({ id: member.id, name: member.name || member.email || "Staff", payModel: member.payModel, percentageRate: member.percentageRate, fixedAmount: member.fixedAmount })}
+                        className="text-sm text-sky-600 hover:text-sky-800 cursor-pointer select-none mr-3"
+                      >
+                        Cobro
+                      </button>
                       <button
                         type="button"
                         onClick={() => {
@@ -376,16 +420,14 @@ export default function StaffList({
                     {member.email || "-"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <select
-                      value={member.role}
-                      onChange={(e) => handleRoleChange(member.id, e.target.value as "staff" | "owner")}
-                       disabled={!canManageStaff || isCurrentOwnerSelf}
-                      title={isCurrentOwnerSelf ? selfOwnerTooltip : undefined}
-                      className="text-sm rounded border border-gray-300 dark:border-gray-600 py-1 px-2 bg-white dark:bg-gray-950 dark:text-gray-100 cursor-pointer"
-                    >
-                      <option value="staff">Peluquero</option>
-                      <option value="owner">Admin</option>
-                    </select>
+                    <div className="min-w-[150px]">
+                      <CustomSelect
+                        value={member.role}
+                        onChange={(v) => handleRoleChange(member.id, v as "staff" | "owner")}
+                        options={[{ value: "staff", label: "Peluquero" }, { value: "owner", label: "Admin" }]}
+                        className={!canManageStaff || isCurrentOwnerSelf ? "pointer-events-none opacity-60" : ""}
+                      />
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                     ${member.revenue.toFixed(2)}
@@ -397,6 +439,13 @@ export default function StaffList({
                       </span>
                     ) : (
                       <>
+                        <button
+                          type="button"
+                          onClick={() => setPayEditor({ id: member.id, name: member.name || member.email || "Staff", payModel: member.payModel, percentageRate: member.percentageRate, fixedAmount: member.fixedAmount })}
+                          className="text-sky-600 hover:text-sky-800 cursor-pointer select-none mr-3"
+                        >
+                          Cobro
+                        </button>
                         <button
                           type="button"
                           onClick={() => {
@@ -427,7 +476,7 @@ export default function StaffList({
         </div>
       </div>
 
-      {renameTarget && (
+      {portalReady && renameTarget && createPortal((
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
           <div className="w-full max-w-sm bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2rem] border border-white/10 dark:border-white/5 p-5 shadow-2xl shadow-black/[0.08]">
             <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Renombrar peluquero</h3>
@@ -460,7 +509,64 @@ export default function StaffList({
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
+
+      {portalReady && payEditor && createPortal((
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+          <div className="w-full max-w-sm bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2rem] border border-white/10 dark:border-white/5 p-5 shadow-2xl shadow-black/[0.08]">
+            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Modo de cobro</h3>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{payEditor.name}</p>
+            <div className="mt-3 space-y-3">
+              <CustomSelect
+                value={payEditor.payModel}
+                onChange={(v) => setPayEditor((prev) => (prev ? { ...prev, payModel: v as "percentage" | "fixed" | "mixed" } : prev))}
+                options={[{ value: "percentage", label: "%" }, { value: "fixed", label: "$ fijo" }, { value: "mixed", label: "% + $" }]}
+              />
+              {payEditor.payModel !== "fixed" && (
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={String(payEditor.percentageRate)}
+                  onChange={(e) => setPayEditor((prev) => (prev ? { ...prev, percentageRate: Number(e.target.value || 0) } : prev))}
+                />
+              )}
+              {payEditor.payModel !== "percentage" && (
+                <Input
+                  type="number"
+                  min="0"
+                  value={String(payEditor.fixedAmount)}
+                  onChange={(e) => setPayEditor((prev) => (prev ? { ...prev, fixedAmount: Number(e.target.value || 0) } : prev))}
+                />
+              )}
+            </div>
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button type="button" onClick={() => setPayEditor(null)} className="px-3 py-1.5 rounded-lg text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200">Cancelar</button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!payEditor) return;
+                  const res = await updateStaffPayMode(payEditor.id, {
+                    payModel: payEditor.payModel,
+                    percentageRate: payEditor.percentageRate,
+                    fixedAmount: payEditor.fixedAmount,
+                  }, shopId);
+                  if (!res.success) {
+                    setError(res.error);
+                    return;
+                  }
+                  setStaff((prev) => prev.map((m) => (m.id === payEditor.id ? { ...m, payModel: payEditor.payModel, percentageRate: payEditor.percentageRate, fixedAmount: payEditor.fixedAmount } : m)));
+                  setPayEditor(null);
+                  addToast("Modo de cobro actualizado", "success");
+                }}
+                className="px-3 py-1.5 rounded-lg text-sm bg-violet-600 text-white hover:bg-violet-700"
+              >
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      ), document.body)}
 
       <ConfirmDialog
         open={Boolean(deleteTargetId)}

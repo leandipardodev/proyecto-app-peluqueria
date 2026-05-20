@@ -171,7 +171,7 @@ export default function ServiceForm({ shopId, service, onSuccess }: ServiceFormP
             id="duration_minutes"
             name="duration_minutes"
             defaultValue={service?.duration_minutes ?? 30}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent cursor-pointer"
+            className="ui-select w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
         >
           {durationOptions.map((mins) => (
             <option key={mins} value={mins}>

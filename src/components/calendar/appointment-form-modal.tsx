@@ -7,6 +7,7 @@ import { playPop } from "@/lib/sound";
 import { getArgentinaDateString } from "@/lib/argentina-time";
 import { AnimatePresence, motion } from "framer-motion";
 import GlassSelect from "@/components/ui/glass-select";
+import { createPortal } from "react-dom";
 
 const STAFF_COLORS = ["#c084fc", "#34d399", "#fbbf24", "#fb7185", "#22d3ee", "#fb923c", "#818cf8", "#f472b6"];
 
@@ -72,6 +73,11 @@ export default function AppointmentFormModal({
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerEmail, setNewCustomerEmail] = useState("");
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
+  const [portalReady, setPortalReady] = useState(false);
+
+  useEffect(() => {
+    setPortalReady(true);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -139,7 +145,7 @@ export default function AppointmentFormModal({
     });
   }
 
-  return (
+  const modalNode = (
     <AnimatePresence>
       {open && (
         <motion.div
@@ -431,4 +437,7 @@ export default function AppointmentFormModal({
       )}
     </AnimatePresence>
   );
+
+  if (!portalReady || typeof document === "undefined") return null;
+  return createPortal(modalNode, document.body);
 }

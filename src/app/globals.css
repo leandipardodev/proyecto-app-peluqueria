@@ -4,11 +4,29 @@
 :root {
   color-scheme: light dark;
   background-color: #f5f5f7;
+  --ui-bg: #f5f7fb;
+  --ui-surface: #ffffff;
+  --ui-surface-muted: #f8fafc;
+  --ui-border: #dbe2ea;
+  --ui-text: #0f172a;
+  --ui-text-muted: #475569;
+  --ui-primary: #0a84ff;
+  --ui-success: #0ea46e;
+  --ui-danger: #dc4a4a;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     background-color: #09090b;
+    --ui-bg: #080b11;
+    --ui-surface: #111827;
+    --ui-surface-muted: #0f172a;
+    --ui-border: #2a3443;
+    --ui-text: #e5e7eb;
+    --ui-text-muted: #94a3b8;
+    --ui-primary: #4ea2ff;
+    --ui-success: #34d399;
+    --ui-danger: #f87171;
   }
 }
 
@@ -22,14 +40,105 @@
     overflow-x: hidden;
     min-height: 100dvh;
   }
-  body {
-    overflow-x: hidden;
-    min-height: 100dvh;
-  }
+body {
+  overflow-x: hidden;
+  min-height: 100dvh;
+  background: radial-gradient(circle at 14% -8%, color-mix(in srgb, var(--ui-primary) 10%, transparent) 0%, transparent 36%),
+    radial-gradient(circle at 94% 110%, color-mix(in srgb, var(--ui-success) 7%, transparent) 0%, transparent 32%),
+    var(--ui-bg);
+  color: var(--ui-text);
+}
   input:where(:not([type="checkbox"], [type="radio"], [type="submit"], [type="button"], [type="reset"])),
   textarea {
     cursor: text;
   }
+
+  button:not(:disabled),
+  [type="button"]:not(:disabled),
+  [type="submit"]:not(:disabled),
+  [type="reset"]:not(:disabled),
+  a[href],
+  summary,
+  label[for],
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"],
+  [role="menuitem"],
+  [data-clickable="true"] {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [type="button"]:disabled,
+  [type="submit"]:disabled,
+  [type="reset"]:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+}
+
+.ui-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 2.25rem !important;
+  background-image:
+    linear-gradient(45deg, transparent 50%, color-mix(in srgb, var(--ui-text-muted) 85%, transparent) 50%),
+    linear-gradient(135deg, color-mix(in srgb, var(--ui-text-muted) 85%, transparent) 50%, transparent 50%);
+  background-position:
+    calc(100% - 16px) calc(50% - 2px),
+    calc(100% - 10px) calc(50% - 2px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+  border-color: var(--ui-border);
+}
+
+.ui-select:focus {
+  border-color: color-mix(in srgb, var(--ui-primary) 50%, var(--ui-border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-primary) 20%, transparent);
+}
+
+.ui-card {
+  border: 1px solid color-mix(in srgb, var(--ui-border) 92%, transparent);
+  background: color-mix(in srgb, var(--ui-surface) 88%, transparent);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+}
+
+.ui-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--ui-primary) 14%, transparent);
+  color: color-mix(in srgb, var(--ui-primary) 78%, var(--ui-text));
+}
+
+.ui-btn-primary,
+.ui-btn-ghost {
+  border-radius: 0.8rem;
+  font-weight: 600;
+  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+
+.ui-btn-primary {
+  border: 1px solid color-mix(in srgb, var(--ui-primary) 65%, transparent);
+  background: var(--ui-primary);
+  color: white;
+}
+
+.ui-btn-primary:hover {
+  background: color-mix(in srgb, var(--ui-primary) 88%, black);
+}
+
+.ui-btn-ghost {
+  border: 1px solid color-mix(in srgb, var(--ui-border) 90%, transparent);
+  background: color-mix(in srgb, var(--ui-surface) 78%, transparent);
+  color: var(--ui-text);
+}
+
+.ui-btn-ghost:hover {
+  background: color-mix(in srgb, var(--ui-surface-muted) 86%, transparent);
 }
 
 body.ios-standalone {

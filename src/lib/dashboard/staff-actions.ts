@@ -64,6 +64,9 @@ type StaffMember = {
   email: string | null;
   role: string;
   revenue: number;
+  payModel: "percentage" | "fixed" | "mixed";
+  percentageRate: number;
+  fixedAmount: number;
 };
 
 type StaffRpcRow = {
@@ -107,6 +110,11 @@ export async function fetchStaffMembers(shopIdOverride?: string): Promise<Action
     if (profilesError) return { success: false, error: profilesError.message };
 
     const profileMap = new Map((profiles || []).map((p) => [p.user_id, p]));
+    const { data: rules } = await admin
+      .from("staff_compensation_rules")
+      .select("staff_user_id, percentage_rate, fixed_amount")
+      .eq("shop_id", shopId);
+    const ruleMap = new Map((rules || []).map((r) => [r.staff_user_id as string, r]));
     const staffRows: StaffRpcRow[] = (memberships || []).map((m) => {
       const profile = profileMap.get(m.user_id);
       return {
@@ -131,6 +139,10 @@ export async function fetchStaffMembers(shopIdOverride?: string): Promise<Action
         const revenue = (revenueData || []).reduce((sum, apt) => {
           return sum + (apt.services?.[0]?.price || 0);
         }, 0);
+        const rule = ruleMap.get(member.user_id);
+        const percentageRate = Number(rule?.percentage_rate || 0);
+        const fixedAmount = Number(rule?.fixed_amount || 0);
+        const payModel: StaffMember["payModel"] = fixedAmount > 0 && percentageRate > 0 ? "mixed" : fixedAmount > 0 ? "fixed" : "percentage";
 
         return {
           id: member.user_id,
@@ -138,6 +150,9 @@ export async function fetchStaffMembers(shopIdOverride?: string): Promise<Action
           email: member.email,
           role: member.role,
           revenue,
+          payModel,
+          percentageRate,
+          fixedAmount,
         };
       })
     );
@@ -164,9 +179,18 @@ export async function addStaffMember(formData: FormData, shopIdOverride?: string
     const name = formData.get("name") as string;
     const email = formData.get("email") as string;
     const role = formData.get("role") as "staff" | "owner";
+    const payModel = String(formData.get("pay_model") || "percentage").trim();
+    const percentageRate = Number(formData.get("percentage_rate") || 0);
+    const fixedAmount = Number(formData.get("fixed_amount") || 0);
 
     if (!name || !email || !role) {
       return { success: false, error: "Todos los campos son obligatorios" };
+    }
+    if (Number.isNaN(percentageRate) || percentageRate < 0 || percentageRate > 100) {
+      return { success: false, error: "Porcentaje invalido" };
+    }
+    if (Number.isNaN(fixedAmount) || fixedAmount < 0) {
+      return { success: false, error: "Monto fijo invalido" };
     }
 
     const admin = await createAdminClient();
@@ -192,6 +216,23 @@ export async function addStaffMember(formData: FormData, shopIdOverride?: string
         },
         { onConflict: "user_id,shop_id" }
       );
+
+      const normalizedPercentage = payModel === "fixed" ? 0 : percentageRate;
+      const normalizedFixed = payModel === "percentage" ? 0 : fixedAmount;
+      if (role === "staff") {
+        await admin.from("staff_compensation_rules").upsert(
+          {
+            shop_id: shopId,
+            staff_user_id: existingUser.user_id,
+            model: normalizedFixed > 0 && normalizedPercentage > 0 ? "fixed_plus_percentage" : "percentage",
+            percentage_rate: normalizedPercentage,
+            fixed_amount: normalizedFixed,
+            active_from: new Date().toISOString().slice(0, 10),
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "shop_id,staff_user_id,active_from" },
+        );
+      }
 
       await admin
         .from("user_profiles")
@@ -266,6 +307,19 @@ export async function addStaffMember(formData: FormData, shopIdOverride?: string
       return { success: false, error: membershipError.message };
     }
 
+    const normalizedPercentage = payModel === "fixed" ? 0 : percentageRate;
+    const normalizedFixed = payModel === "percentage" ? 0 : fixedAmount;
+    if (role === "staff") {
+      await admin.from("staff_compensation_rules").insert({
+        shop_id: shopId,
+        staff_user_id: adminData.user.id,
+        model: normalizedFixed > 0 && normalizedPercentage > 0 ? "fixed_plus_percentage" : "percentage",
+        percentage_rate: normalizedPercentage,
+        fixed_amount: normalizedFixed,
+        active_from: new Date().toISOString().slice(0, 10),
+      });
+    }
+
     try {
       await sendStaffInviteEmail({ to: normalizedEmail, name, role });
     } catch (mailError) {
@@ -276,6 +330,48 @@ export async function addStaffMember(formData: FormData, shopIdOverride?: string
     return { success: true, data: { password, login_url: loginUrl } };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al agregar personal" };
+  }
+}
+
+export async function updateStaffPayMode(
+  id: string,
+  input: { payModel: "percentage" | "fixed" | "mixed"; percentageRate: number; fixedAmount: number },
+  shopIdOverride?: string,
+): Promise<ActionResult> {
+  try {
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    }
+
+    const ownerAccess = await requireOwnerAccessForShop(shopId);
+    if (!ownerAccess.success) return ownerAccess;
+
+    const admin = await createAdminClient();
+    const percentage = input.payModel === "fixed" ? 0 : Math.max(0, Math.min(100, Number(input.percentageRate) || 0));
+    const fixed = input.payModel === "percentage" ? 0 : Math.max(0, Number(input.fixedAmount) || 0);
+
+    const { error } = await admin.from("staff_compensation_rules").upsert(
+      {
+        shop_id: shopId,
+        staff_user_id: id,
+        model: fixed > 0 && percentage > 0 ? "fixed_plus_percentage" : "percentage",
+        percentage_rate: percentage,
+        fixed_amount: fixed,
+        active_from: new Date().toISOString().slice(0, 10),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "shop_id,staff_user_id,active_from" },
+    );
+
+    if (error) return { success: false, error: error.message };
+    await revalidateDashboardSegments(shopId, ["/staff", "/finances"]);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al actualizar modo de cobro" };
   }
 }
 

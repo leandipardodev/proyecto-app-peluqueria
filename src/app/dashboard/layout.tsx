@@ -1,16 +1,11 @@
 import { createServerClient } from "@/lib/supabase/server";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import DashboardSidebar from "@/components/dashboard/dashboard-sidebar";
-import DashboardHeader from "@/components/dashboard/dashboard-header";
+import DashboardHeaderLoader from "@/components/dashboard/dashboard-header-loader";
 import DashboardPageTransition from "@/components/dashboard/dashboard-page-transition";
 import ReleaseNotesModal from "@/components/dashboard/release-notes-modal";
-import { getTenantAndUser } from "@/lib/dashboard/get-tenant-and-user";
 import { logout } from "@/lib/dashboard/logout-action";
-import { getArgentinaNow, getArgentinaDateString } from "@/lib/argentina-time";
-import { createServiceRoleClient, getShopId } from "@/lib/dashboard/auth-server";
-import { APPOINTMENT_STATUS_NEEDS_CONFIRMATION } from "@/lib/dashboard/appointment-status";
 
 export const dynamic = "force-dynamic";
 
@@ -35,56 +30,13 @@ async function getUserOrRedirect() {
   return user;
 }
 
-async function getNotifications() {
-  try {
-    const supabase = await createServerClient();
-    const authUser = (await supabase.auth.getUser()).data?.user;
-    if (!authUser) return { urgentAppointments: false, lowStock: false };
-
-    const shopId = await getShopId({ user: { id: authUser.id } });
-    if (!shopId) return { urgentAppointments: false, lowStock: false };
-
-    const admin = await createServiceRoleClient();
-
-    const nowAr = getArgentinaNow();
-    const oneHourFromNow = new Date(nowAr.getTime() + 60 * 60 * 1000).toISOString();
-
-    const [urgentRes, stockRes] = await Promise.all([
-      admin
-        .from("appointments")
-        .select("id", { count: "exact", head: true })
-        .eq("shop_id", shopId)
-        .in("status", APPOINTMENT_STATUS_NEEDS_CONFIRMATION as unknown as string[])
-        .gte("start_time", nowAr.toISOString())
-        .lte("start_time", oneHourFromNow),
-      admin
-        .from("stock")
-        .select("id", { count: "exact", head: true })
-        .eq("shop_id", shopId)
-        .lt("quantity", 5),
-    ]);
-
-    return {
-      urgentAppointments: (urgentRes.count || 0) > 0,
-      lowStock: (stockRes.count || 0) > 0,
-    };
-  } catch {
-    return { urgentAppointments: false, lowStock: false };
-  }
-}
-
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const user = await getUserOrRedirect();
-  const { shopName, userName } = await getTenantAndUser();
-  const notifications = await getNotifications();
-  const requestHeaders = await headers();
-  const activeShopSlug = requestHeaders.get("x-shop-slug") || null;
-  const managedShops = await getManagedShops(user.id);
-  const selectedShopBilling = getSelectedShopBilling(managedShops, activeShopSlug);
+  const userName = user.email || "Usuario";
 
   return (
     <div className="flex h-[100dvh] bg-transparent transition-colors relative overflow-hidden">
@@ -94,20 +46,12 @@ export default async function DashboardLayout({
       <div className="fixed top-[40%] right-[-5%] w-[300px] h-[300px] rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
 
       <div className="hidden lg:flex lg:w-64 lg:flex-shrink-0 overflow-hidden relative z-10">
-        <DashboardSidebar userName={userName} onLogout={logout} notifications={notifications} />
+        <DashboardSidebar userName={userName} onLogout={logout} />
       </div>
 
       <div className="flex flex-col flex-1 min-w-0 min-h-0 relative z-10">
         <ReleaseNotesModal />
-        <DashboardHeader
-          shopName={shopName}
-          userName={userName}
-          userEmail={user.email ?? ""}
-          onLogout={logout}
-          activeShopSlug={activeShopSlug}
-          managedShops={managedShops}
-          billingStatus={selectedShopBilling}
-        />
+        <DashboardHeaderLoader userEmail={user.email ?? ""} onLogout={logout} />
 
         <main className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain p-3 sm:p-6 lg:p-8">
           <DashboardPageTransition>{children}</DashboardPageTransition>
@@ -115,89 +59,4 @@ export default async function DashboardLayout({
       </div>
     </div>
   );
-}
-
-async function getManagedShops(userId: string): Promise<Array<{ id: string; slug: string; nombre: string; active: boolean | null; plan_expiry: string | null }>> {
-  const admin = await createServiceRoleClient();
-  const { data: memberships } = await admin
-    .from("shop_memberships")
-    .select("shop_id")
-    .eq("user_id", userId)
-    .eq("is_active", true);
-
-  const shopIds = (memberships || []).map((m) => m.shop_id).filter(Boolean);
-  if (shopIds.length === 0) return [];
-
-  const { data: shops } = await admin
-    .from("shops")
-    .select("id, slug, nombre, active, plan_expiry")
-    .in("id", shopIds)
-    .order("nombre", { ascending: true });
-
-  return (shops || [])
-    .filter((s) => !!s.slug)
-    .map((s) => ({
-      id: s.id,
-      slug: s.slug,
-      nombre: s.nombre || "Local",
-      active: s.active,
-      plan_expiry: s.plan_expiry,
-    }));
-}
-
-function getSelectedShopBilling(
-  managedShops: Array<{ id: string; slug: string; nombre: string; active: boolean | null; plan_expiry: string | null }>,
-  activeShopSlug: string | null,
-): { daysRemaining: number | null; graceDaysRemaining: number | null; isExpired: boolean; inGrace: boolean } {
-  const selected = (activeShopSlug ? managedShops.find((shop) => shop.slug === activeShopSlug) : null) || managedShops[0] || null;
-  if (!selected?.plan_expiry) {
-    return { daysRemaining: null, graceDaysRemaining: null, isExpired: false, inGrace: false };
-  }
-
-  const todayAr = getArgentinaDateString();
-  const expiryAr = formatDateInArgentina(selected.plan_expiry);
-  const daysRemaining = diffDays(expiryAr, todayAr);
-
-  const graceUntil = addDays(expiryAr, 2);
-  const graceDaysRemaining = diffDays(graceUntil, todayAr);
-  const isExpired = daysRemaining <= 0;
-  const inGrace = isExpired && graceDaysRemaining > 0;
-
-  return {
-    daysRemaining,
-    graceDaysRemaining,
-    isExpired,
-    inGrace,
-  };
-}
-
-function formatDateInArgentina(value: string): string {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Argentina/Buenos_Aires",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date(value));
-
-  const y = parts.find((p) => p.type === "year")?.value || "1970";
-  const m = parts.find((p) => p.type === "month")?.value || "01";
-  const d = parts.find((p) => p.type === "day")?.value || "01";
-  return `${y}-${m}-${d}`;
-}
-
-function diffDays(target: string, source: string): number {
-  const [ty, tm, td] = target.split("-").map(Number);
-  const [sy, sm, sd] = source.split("-").map(Number);
-  const targetUtc = Date.UTC(ty, tm - 1, td);
-  const sourceUtc = Date.UTC(sy, sm - 1, sd);
-  return Math.floor((targetUtc - sourceUtc) / (24 * 60 * 60 * 1000));
-}
-
-function addDays(isoDate: string, days: number): string {
-  const [y, m, d] = isoDate.split("-").map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d + days));
-  const yy = dt.getUTCFullYear();
-  const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(dt.getUTCDate()).padStart(2, "0");
-  return `${yy}-${mm}-${dd}`;
 }

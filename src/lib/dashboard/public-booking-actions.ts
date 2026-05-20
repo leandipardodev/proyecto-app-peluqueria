@@ -619,20 +619,30 @@ export async function createPaymentPreference(
       return { success: false, error: "Servicio no encontrado para generar preferencia" };
     }
 
-    const { data: shopPolicy } = await admin
+    const { data: shopPolicy, error: shopPolicyError } = await admin
       .from("shops")
       .select("booking_deposit_enabled, booking_deposit_amount, mp_access_token")
-      .eq("id", appointmentData.shopId)
+      .eq("id", appointment.shop_id)
       .single();
 
-    const accessToken = (shopPolicy?.mp_access_token as string | undefined) || process.env.MP_ACCESS_TOKEN;
+    let resolvedShopPolicy = shopPolicy;
+    if ((!resolvedShopPolicy || shopPolicyError) && appointmentData.shopSlug) {
+      const { data: bySlug } = await admin
+        .from("shops")
+        .select("booking_deposit_enabled, booking_deposit_amount, mp_access_token")
+        .eq("slug", appointmentData.shopSlug)
+        .maybeSingle();
+      if (bySlug) resolvedShopPolicy = bySlug;
+    }
+
+    const accessToken = (resolvedShopPolicy?.mp_access_token as string | undefined) || process.env.MP_ACCESS_TOKEN;
     if (!accessToken) {
-      return { success: false, error: "Configura el Access Token de Mercado Pago en Mi Negocio" };
+      return { success: false, error: "Mercado Pago no esta configurado para este local. Reconecta Mercado Pago en Mi Negocio." };
     }
 
     const servicePrice = Math.max(0, Number(service.price) || 0);
-    const depositEnabled = shopPolicy?.booking_deposit_enabled !== false;
-    const configuredDeposit = Math.max(0, Number(shopPolicy?.booking_deposit_amount || 0));
+    const depositEnabled = resolvedShopPolicy?.booking_deposit_enabled !== false;
+    const configuredDeposit = Math.max(0, Number(resolvedShopPolicy?.booking_deposit_amount || 0));
     const chargeAmount = depositEnabled
       ? Math.max(1, Math.min(servicePrice, configuredDeposit || servicePrice))
       : Math.max(1, servicePrice);

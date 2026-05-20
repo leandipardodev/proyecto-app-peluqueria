@@ -1,10 +1,9 @@
 "use client";
 
-import { Menu, X, Search, Bell, BellOff, Moon, Sun, Gauge, Repeat2, Check } from "lucide-react";
+import { Menu, X, Search, Moon, Sun, Gauge, Repeat2, Check } from "lucide-react";
 import { useState, useRef, useEffect, useTransition, useMemo, type KeyboardEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import DashboardSidebar from "./dashboard-sidebar";
-import { isMuted, setMuted } from "@/lib/sound";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
@@ -138,7 +137,6 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
   const [menuOpen, setMenuOpen] = useState(false);
   const [shopMenuOpen, setShopMenuOpen] = useState(false);
   const [logoutPending, startLogoutTransition] = useTransition();
-  const [soundEnabled, setSoundEnabled] = useState(false);
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
@@ -171,8 +169,29 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
       : billingStatus.inGrace
         ? `PLAN VENCIDO • EN GRACIA (${Math.max(0, billingStatus.graceDaysRemaining ?? 0)} DIAS)`
         : "PLAN VENCIDO";
+  const showBillingCta =
+    billingStatus.daysRemaining !== null && billingStatus.daysRemaining <= 3;
+  const billingCtaTone =
+    billingStatus.daysRemaining !== null && billingStatus.daysRemaining <= 0
+      ? "critical"
+      : billingStatus.daysRemaining !== null && billingStatus.daysRemaining <= 1
+        ? "warning"
+        : "normal";
+  const billingCtaClass =
+    billingCtaTone === "critical"
+      ? "mt-2 inline-flex items-center rounded-full border border-red-300/80 bg-red-50 px-3 py-1 text-[11px] font-semibold text-red-700 hover:bg-red-100 dark:border-red-700/50 dark:bg-red-900/35 dark:text-red-200"
+      : billingCtaTone === "warning"
+        ? "mt-2 inline-flex items-center rounded-full border border-amber-300/80 bg-amber-50 px-3 py-1 text-[11px] font-semibold text-amber-700 hover:bg-amber-100 dark:border-amber-700/50 dark:bg-amber-900/35 dark:text-amber-200"
+        : "mt-2 inline-flex items-center rounded-full border border-rose-300/70 bg-rose-50 px-3 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-100 dark:border-rose-700/50 dark:bg-rose-900/30 dark:text-rose-200";
+  const billingCtaLabel =
+    billingCtaTone === "critical"
+      ? "Plan vencido - pagar ahora"
+      : billingCtaTone === "warning"
+        ? "Vence pronto - pagar"
+        : "Pagar mensualidad";
 
   function navigateWithTransition(target: string) {
+    window.dispatchEvent(new CustomEvent("dashboard:nav-start"));
     router.push(target);
   }
 
@@ -180,10 +199,6 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
     playClick();
     setMobileOpen(true);
   }
-
-  useEffect(() => {
-    setSoundEnabled(!isMuted());
-  }, []);
 
   useEffect(() => {
     function onKeyDown(e: globalThis.KeyboardEvent) {
@@ -775,16 +790,18 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
                   <p className="text-xs text-zinc-500">Cuenta</p>
                   <p className="text-sm text-gray-900 dark:text-white truncate">{userEmail || userName}</p>
                   <p className="text-[10px] font-medium text-slate-400 mt-1">{planSummary}</p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      navigateWithTransition(billingUrl);
-                    }}
-                    className="mt-2 inline-flex items-center rounded-full border border-rose-300/70 bg-rose-50 px-3 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-100 dark:border-rose-700/50 dark:bg-rose-900/30 dark:text-rose-200"
-                  >
-                    Pagar mensualidad
-                  </button>
+                  {showBillingCta && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        navigateWithTransition(billingUrl);
+                      }}
+                      className={billingCtaClass}
+                    >
+                      {billingCtaLabel}
+                    </button>
+                  )}
                 </div>
                 <div className="p-3 space-y-3">
                   <div className="flex items-center justify-between rounded-xl border border-white/20 dark:border-white/10 px-3 py-2">
@@ -813,25 +830,6 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
                       title="Atajo: tecla L"
                     >
                       <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${performanceMode ? "translate-x-5" : "translate-x-0"}`} />
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between rounded-xl border border-white/20 dark:border-white/10 px-3 py-2">
-                    <div className="flex items-center gap-2 text-sm text-gray-800 dark:text-gray-100">
-                      {soundEnabled ? <Bell className="w-4 h-4 text-violet-500" /> : <BellOff className="w-4 h-4 text-zinc-400" />}
-                      {soundEnabled ? "Sonido activado" : "Sonido silenciado"}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const next = !soundEnabled;
-                        setSoundEnabled(next);
-                        setMuted(!next);
-                        if (next) playClick();
-                      }}
-                      className={`relative w-10 h-5 rounded-full transition-colors ${soundEnabled ? "bg-violet-600" : "bg-gray-300"}`}
-                    >
-                      <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${soundEnabled ? "translate-x-5" : "translate-x-0"}`} />
                     </button>
                   </div>
 

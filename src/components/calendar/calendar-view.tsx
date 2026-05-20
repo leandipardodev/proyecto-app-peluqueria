@@ -5,6 +5,7 @@ import { es } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, MessageCircle } from "lucide-react";
 import { useRef, useState, useEffect, useMemo, memo } from "react";
 import { AnimatePresence, motion, useMotionValue, useSpring } from "framer-motion";
+import { createPortal } from "react-dom";
 import { GRID_END_HOUR, GRID_START_HOUR, HOUR_HEIGHT } from "@/lib/calendar-constants";
 import {
   extractArgentinaTimeHHmm,
@@ -155,6 +156,7 @@ export default memo(function CalendarView({
   const [isCoarsePointer, setIsCoarsePointer] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [hoverTooltip, setHoverTooltip] = useState<HoverTooltipState | null>(null);
+  const [portalReady, setPortalReady] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const startX = useRef(0);
@@ -305,6 +307,7 @@ export default memo(function CalendarView({
 
   useEffect(() => {
     setMounted(true);
+    setPortalReady(true);
   }, []);
 
   useEffect(() => {
@@ -727,6 +730,8 @@ export default memo(function CalendarView({
                                   const adjusted = getTooltipPosition(pos.x, pos.y);
                                   tooltipTargetX.set(adjusted.left);
                                   tooltipTargetY.set(adjusted.top);
+                                  tooltipX.set(adjusted.left);
+                                  tooltipY.set(adjusted.top);
                                   setHoverTooltip({ appointment: appt });
                                 }}
                                 onMouseMove={(e) => {
@@ -826,6 +831,7 @@ export default memo(function CalendarView({
         </motion.div>
       </div>
 
+      {portalReady && createPortal((
       <AnimatePresence>
         {!isCoarsePointer && hoverTooltip && (() => {
           const tipAppt = hoverTooltip.appointment;
@@ -876,6 +882,7 @@ export default memo(function CalendarView({
           );
         })()}
       </AnimatePresence>
+      ), document.body)}
 
       {businessHours && (
         <div className="mt-4 inline-flex items-center gap-1.5 text-xs bg-white/30 dark:bg-black/20 backdrop-blur-2xl rounded-2xl px-4 py-2.5 border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-sm text-gray-600 dark:text-gray-400">

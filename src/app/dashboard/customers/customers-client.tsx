@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Gift, Loader2, MessageCircle, Search, X } from "lucide-react";
+import { createPortal } from "react-dom";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { supabase } from "@/lib/supabase";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -86,7 +87,12 @@ export default function CustomersPage() {
 
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [portalReady, setPortalReady] = useState(false);
   const initialSessionLoadedRef = useRef(false);
+
+  useEffect(() => {
+    setPortalReady(true);
+  }, []);
 
   function extractShopSlugFromPath(path: string): string | null {
     const parts = path.split("/").filter(Boolean);
@@ -510,7 +516,7 @@ export default function CustomersPage() {
         </div>
       </div>
 
-      {(selectedCustomer || isCreating) && (
+      {portalReady && (selectedCustomer || isCreating) && createPortal((
         <>
           <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40" onClick={closeEditor} />
           <div className="fixed right-0 top-0 h-[100dvh] w-full max-w-xl z-50 bg-white/90 dark:bg-zinc-900/95 backdrop-blur-xl border-l border-slate-200 dark:border-zinc-700 shadow-2xl">
@@ -551,7 +557,7 @@ export default function CustomersPage() {
                     <select
                       value={draftRecurringWeekday}
                       onChange={(e) => setDraftRecurringWeekday(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                      className="ui-select w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                     >
                       <option value="">No recurrente</option>
                       <option value="1">Lunes</option>
@@ -642,7 +648,7 @@ export default function CustomersPage() {
             </div>
           </div>
         </>
-      )}
+      ), document.body)}
     </div>
   );
 }

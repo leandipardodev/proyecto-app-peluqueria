@@ -3,6 +3,7 @@
 import { X, Plus } from "lucide-react";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { addProduct } from "@/lib/dashboard/inventory-actions";
+import { createPortal } from "react-dom";
 
 interface AddProductModalProps {
   shopId: string;
@@ -25,7 +26,7 @@ export default function AddProductModal({ shopId, open, onClose }: AddProductMod
     return () => document.removeEventListener("keydown", handleEscape);
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -41,7 +42,7 @@ export default function AddProductModal({ shopId, open, onClose }: AddProductMod
     });
   }
 
-  return (
+  return createPortal(
     <div
       ref={backdropRef}
       className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-y-contain backdrop-blur-sm p-3 sm:p-4"
@@ -135,6 +136,7 @@ export default function AddProductModal({ shopId, open, onClose }: AddProductMod
           </button>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

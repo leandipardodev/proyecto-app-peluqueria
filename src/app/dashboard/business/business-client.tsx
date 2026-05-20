@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { createPortal } from "react-dom";
 import { Store, Eye, EyeOff, Save, CreditCard, MessageSquareText, Smartphone, Link2, MapPin, Phone, Clock, Share2, AlertTriangle, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -22,6 +23,14 @@ import {
 import { deleteCurrentShop } from "@/lib/dashboard/shop-actions";
 
 type MessageType = { type: "success" | "error"; text: string } | null;
+
+const TOUR_STEPS = [
+  { id: "setup-public-info", title: "1. Informacion publica", text: "Completa nombre, descripcion, direccion y telefono de tu local." },
+  { id: "setup-hours", title: "2. Horarios de atencion", text: "Defini los dias y horarios para que las reservas muestren disponibilidad real." },
+  { id: "setup-payments", title: "3. Formas de cobro", text: "Configura Mercado Pago y la politica de seña para cobrar sin friccion." },
+  { id: "setup-staff", title: "4. Empleados", text: "Agrega y administra tu equipo para asignar turnos correctamente." },
+  { id: "setup-services", title: "5. Servicios", text: "Carga tu catalogo de servicios con precio y duracion." },
+] as const;
 
 export default function BusinessClient({
   initialData,
@@ -77,6 +86,10 @@ export default function BusinessClient({
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [newShopName, setNewShopName] = useState("");
   const [showCreateShopModal, setShowCreateShopModal] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
+  const [tourRect, setTourRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+  const [portalReady, setPortalReady] = useState(false);
 
   const DAYS = [
     { key: "monday", label: "Lunes" },
@@ -133,6 +146,70 @@ export default function BusinessClient({
     const next = params.toString();
     window.history.replaceState({}, "", `${window.location.pathname}${next ? `?${next}` : ""}`);
   }, []);
+
+  useEffect(() => {
+    setPortalReady(true);
+  }, []);
+
+  useEffect(() => {
+    const key = `klip-business-onboarding-v1:${shopSlug || "default"}`;
+    const done = window.localStorage.getItem(key) === "1";
+    if (!done) {
+      setTourOpen(true);
+      setTourStep(0);
+      window.setTimeout(() => {
+        document.getElementById(TOUR_STEPS[0].id)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 140);
+    }
+  }, [shopSlug]);
+
+  useEffect(() => {
+    if (!tourOpen) return;
+    const target = TOUR_STEPS[tourStep];
+    if (!target) return;
+    document.getElementById(target.id)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [tourOpen, tourStep]);
+
+  useEffect(() => {
+    if (!tourOpen) {
+      setTourRect(null);
+      return;
+    }
+
+    let rafId = 0;
+
+    const updateRect = () => {
+      const target = TOUR_STEPS[tourStep];
+      if (!target) return;
+      const el = document.getElementById(target.id);
+      if (!el) {
+        setTourRect(null);
+        return;
+      }
+      const r = el.getBoundingClientRect();
+      setTourRect({ top: r.top, left: r.left, width: r.width, height: r.height });
+    };
+
+    const tick = () => {
+      updateRect();
+      rafId = window.requestAnimationFrame(tick);
+    };
+
+    updateRect();
+    rafId = window.requestAnimationFrame(tick);
+    window.addEventListener("scroll", updateRect, true);
+    window.addEventListener("resize", updateRect);
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      window.removeEventListener("scroll", updateRect, true);
+      window.removeEventListener("resize", updateRect);
+    };
+  }, [tourOpen, tourStep]);
+
+  function completeTour() {
+    window.localStorage.setItem(`klip-business-onboarding-v1:${shopSlug || "default"}`, "1");
+    setTourOpen(false);
+  }
 
   function showSuccess(text: string) {
     setMessage({ type: "success", text });
@@ -298,10 +375,18 @@ export default function BusinessClient({
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Información pública y configuración técnica de tu local</p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Link
+            id="setup-staff"
             href={withDashboardBase("/dashboard/staff")}
-            className="inline-flex items-center rounded-full border border-emerald-300/60 dark:border-emerald-500/30 bg-emerald-100/80 dark:bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-800 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-500/25 shadow-sm transition-all"
+            className="ui-btn-ghost inline-flex items-center rounded-full border-emerald-300/60 dark:border-emerald-500/30 bg-emerald-100/80 dark:bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-800 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-500/25 shadow-sm"
           >
             Gestionar personal
+          </Link>
+          <Link
+            id="setup-services"
+            href={withDashboardBase("/dashboard/services")}
+            className="ui-btn-ghost inline-flex items-center rounded-full border-sky-300/60 dark:border-sky-500/30 bg-sky-100/80 dark:bg-sky-500/15 px-4 py-2 text-sm font-semibold text-sky-800 dark:text-sky-200 hover:bg-sky-100 dark:hover:bg-sky-500/25 shadow-sm"
+          >
+            Gestionar servicios
           </Link>
           <button
             type="button"
@@ -505,7 +590,7 @@ export default function BusinessClient({
 
       <div className="flex flex-col gap-6">
       {/* Card: Información Pública */}
-      <form onSubmit={handleSavePublicInfo} className="order-1">
+      <form id="setup-public-info" onSubmit={handleSavePublicInfo} className="order-1">
         <div className="bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden transition-colors">
           <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
             <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-violet-500/15 text-base font-bold text-violet-700 dark:text-violet-200">1</span>
@@ -660,7 +745,7 @@ export default function BusinessClient({
       </form>
 
       {/* Card: Configuración Técnica */}
-      <div className="order-3 bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden transition-colors">
+      <div id="setup-payments" className="order-3 bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden transition-colors">
         <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
           <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/15 text-base font-bold text-amber-700 dark:text-amber-200">3</span>
           <div className="p-2 rounded-full bg-amber-500/15">
@@ -821,7 +906,7 @@ export default function BusinessClient({
       </div>
 
       {/* Card: Horarios de Atención */}
-      <div className="order-2 bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden transition-colors">
+      <div id="setup-hours" className="order-2 bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden transition-colors">
         <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
           <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/15 text-base font-bold text-blue-700 dark:text-blue-200">2</span>
           <div className="p-2 rounded-full bg-blue-500/15">
@@ -965,6 +1050,71 @@ export default function BusinessClient({
           )}
         </div>
       </div>
+
+      {portalReady && typeof document !== "undefined" && createPortal(
+        <AnimatePresence>
+          {tourOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="pointer-events-none fixed inset-0 z-[80] bg-black/28"
+              />
+              {tourRect && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="pointer-events-none fixed z-[81] rounded-[2rem] border-2 border-violet-400/85 shadow-[0_0_0_9999px_rgba(0,0,0,0.08),0_0_0_6px_rgba(167,139,250,0.22)]"
+                  style={{
+                    top: Math.max(8, tourRect.top - 8),
+                    left: Math.max(8, tourRect.left - 8),
+                    width: Math.max(120, tourRect.width + 16),
+                    height: Math.max(70, tourRect.height + 16),
+                  }}
+                />
+              )}
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                className="fixed bottom-4 left-1/2 z-[90] w-[min(94vw,620px)] -translate-x-1/2 rounded-3xl border border-white/25 dark:border-white/10 bg-white/92 dark:bg-zinc-900/92 backdrop-blur-2xl p-4 shadow-2xl"
+              >
+                <p className="text-[11px] uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Recorrido guiado</p>
+                <h3 className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{TOUR_STEPS[tourStep].title}</h3>
+                <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">{TOUR_STEPS[tourStep].text}</p>
+                <div className="mt-3 flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={completeTour}
+                    className="ui-btn-ghost rounded-full px-3 py-1.5 text-xs font-semibold"
+                  >
+                    Omitir
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400">{tourStep + 1}/{TOUR_STEPS.length}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (tourStep >= TOUR_STEPS.length - 1) {
+                          completeTour();
+                          return;
+                        }
+                        setTourStep((s) => Math.min(s + 1, TOUR_STEPS.length - 1));
+                      }}
+                      className="ui-btn-primary rounded-full px-4 py-1.5 text-xs font-semibold"
+                    >
+                      {tourStep >= TOUR_STEPS.length - 1 ? "Finalizar" : "Siguiente"}
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
       </div>
 
       {/* Footer hint */}
@@ -998,6 +1148,7 @@ export default function BusinessClient({
         </div>
       )}
 
+      {portalReady && createPortal(
       <AnimatePresence>
         {showCreateShopModal && (
           <motion.div
@@ -1052,8 +1203,9 @@ export default function BusinessClient({
             </motion.div>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>, document.body)}
 
+      {portalReady && createPortal(
       <AnimatePresence>
         {showCloseModal && (
           <motion.div
@@ -1112,7 +1264,7 @@ export default function BusinessClient({
             </motion.div>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>, document.body)}
 
       <p className="text-xs text-center text-zinc-400 dark:text-zinc-600 pt-2">
         Los tokens de Mercado Pago se almacenan de forma segura en la base de datos.

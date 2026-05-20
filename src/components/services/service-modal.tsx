@@ -2,6 +2,7 @@
 
 import { X } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 interface ServiceModalProps {
   open: boolean;
@@ -29,9 +30,9 @@ export default function ServiceModal({
     return () => document.removeEventListener("keydown", handleEscape);
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
-  return (
+  return createPortal(
     <div
       ref={backdropRef}
       className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-y-contain backdrop-blur-sm p-3 sm:p-4"
@@ -51,6 +52,7 @@ export default function ServiceModal({
         </div>
         <div className="p-6 overflow-y-auto overscroll-y-contain">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -2,18 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import {
-  TrendingDown,
   Users2,
   CheckCircle2,
   Vault,
   RefreshCw,
-  Plus,
   ChevronDown,
 } from "lucide-react";
 import {
   fetchFinanceData,
-  createExpense,
-  deleteExpense,
   fetchStaffProduction,
   createStaffPreLiquidation,
   fetchStaffLiquidations,
@@ -32,6 +28,7 @@ import {
   type CashMovementItem,
   type StaffLiquidationDetailItem,
 } from "@/lib/dashboard/finances-actions";
+import CustomSelect from "@/components/ui/custom-select";
 
 type Movement = {
   id: string;
@@ -81,7 +78,7 @@ function getMonthBounds(dateStr: string) {
 
 function Card({ title, icon, right, children }: { title: string; icon: React.ReactNode; right?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section className="rounded-3xl border border-slate-200/70 bg-white/85 p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/70">
+    <section className="ui-card rounded-3xl p-5 dark:border-zinc-800 dark:bg-zinc-900/70">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <span className="text-slate-500 dark:text-zinc-300">{icon}</span>
@@ -116,15 +113,15 @@ export default function FinancesClient({
   const [error, setError] = useState<string | null>(initialError);
   const [isPending, startTransition] = useTransition();
 
-  const [expenses, setExpenses] = useState(initialData?.expenses || []);
-  const [showExpenseForm, setShowExpenseForm] = useState(false);
-
   const [staffProduction, setStaffProduction] = useState<StaffProduction[]>([]);
   const [liquidationResult, setLiquidationResult] = useState<StaffLiquidationPreview | null>(null);
   const [liquidations, setLiquidations] = useState<StaffLiquidationListItem[]>([]);
   const [liquidationItems, setLiquidationItems] = useState<StaffLiquidationDetailItem[]>([]);
   const [selectedLiquidationId, setSelectedLiquidationId] = useState<string | null>(null);
   const [liquidationStatusFilter, setLiquidationStatusFilter] = useState<"all" | "draft" | "confirmed" | "paid">("all");
+  const [selectedStaffForLiquidation, setSelectedStaffForLiquidation] = useState("");
+  const [cashMovementType, setCashMovementType] = useState("income");
+  const [cashPaymentMethod, setCashPaymentMethod] = useState("cash");
 
   const [cashSession, setCashSession] = useState<CashSessionSummary | null>(null);
   const [cashMovements, setCashMovements] = useState<CashMovementItem[]>([]);
@@ -143,7 +140,6 @@ export default function FinancesClient({
       const result = await fetchFinanceData(nextFrom, nextTo, shopId || undefined);
       if (result.success && result.data) {
         setData(result.data);
-        setExpenses(result.data.expenses);
         setError(null);
       } else {
         setError(result.error ?? "Error al cargar");
@@ -202,27 +198,6 @@ export default function FinancesClient({
     loadMain(nextFrom, nextTo);
     void loadStaff(nextFrom, nextTo);
     void loadCash(nextFrom, nextTo);
-  }
-
-  async function handleExpenseSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setBusyKey("expense-create");
-    const formData = new FormData(e.currentTarget);
-    const result = await createExpense(formData, shopId || undefined);
-    setBusyKey(null);
-    if (!result.success) return setError(result.error ?? "No se pudo guardar");
-    setShowExpenseForm(false);
-    setQuickFeedback("Gasto guardado");
-    applyRangeAndRefresh(from, to);
-  }
-
-  async function handleExpenseDelete(id: string) {
-    setBusyKey(`expense-delete-${id}`);
-    const result = await deleteExpense(id, shopId || undefined);
-    setBusyKey(null);
-    if (!result.success) return setError(result.error ?? "No se pudo eliminar");
-    setQuickFeedback("Gasto eliminado");
-    applyRangeAndRefresh(from, to);
   }
 
   async function handleCreatePreLiquidation(e: React.FormEvent<HTMLFormElement>) {
@@ -298,23 +273,23 @@ export default function FinancesClient({
     <div className="space-y-5">
       <header className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Finanzas</h1>
-        {uiMessage && <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">{uiMessage}</span>}
+        {uiMessage && <span className="ui-badge">{uiMessage}</span>}
         {error && <span className="rounded-full bg-red-500/15 px-3 py-1 text-xs font-semibold text-red-700 dark:text-red-300">{error}</span>}
       </header>
 
-      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white/85 p-2.5 dark:border-zinc-800 dark:bg-zinc-900/70">
-        <button onClick={() => applyRangeAndRefresh(today, today)} className="rounded-lg border px-2.5 py-1.5 text-xs">DIA</button>
-        <button onClick={() => applyRangeAndRefresh(monthBounds.from, monthBounds.to)} className="rounded-lg border px-2.5 py-1.5 text-xs">MES</button>
+      <div className="ui-card inline-flex max-w-full flex-wrap items-center gap-2 rounded-2xl p-2.5 dark:border-zinc-800 dark:bg-zinc-900/70">
+        <button onClick={() => applyRangeAndRefresh(today, today)} className="ui-btn-ghost rounded-lg px-2.5 py-1.5 text-xs">DIA</button>
+        <button onClick={() => applyRangeAndRefresh(monthBounds.from, monthBounds.to)} className="ui-btn-ghost rounded-lg px-2.5 py-1.5 text-xs">MES</button>
         <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded-lg border px-2 py-1.5 text-xs" />
         <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="rounded-lg border px-2 py-1.5 text-xs" />
-        <button onClick={() => applyRangeAndRefresh(from <= to ? from : to, from <= to ? to : from)} className="rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white dark:bg-white dark:text-black">Filtrar</button>
-        <button onClick={() => applyRangeAndRefresh(from, to)} className="ml-auto inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs">
+        <button onClick={() => applyRangeAndRefresh(from <= to ? from : to, from <= to ? to : from)} className="ui-btn-primary rounded-lg px-2.5 py-1.5 text-xs">Filtrar</button>
+        <button onClick={() => applyRangeAndRefresh(from, to)} className="ui-btn-ghost inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs">
           <RefreshCw className={`h-4 w-4 ${isPending ? "animate-spin" : ""}`} />
           Actualizar
         </button>
       </div>
 
-      <div className="rounded-3xl border border-slate-200 bg-white/85 p-4 dark:border-zinc-800 dark:bg-zinc-900/70">
+      <div className="ui-card rounded-3xl p-4 dark:border-zinc-800 dark:bg-zinc-900/70">
         <div className="grid grid-cols-3 gap-3 text-center">
           <div>
             <p className="text-[11px] uppercase tracking-wide text-slate-500">Ingresos</p>
@@ -331,43 +306,17 @@ export default function FinancesClient({
         </div>
       </div>
 
-      <Card title="Gastos" icon={<TrendingDown className="h-4 w-4" />} right={<button onClick={() => setShowExpenseForm((v) => !v)} className="inline-flex items-center gap-1 rounded-xl border px-2.5 py-1.5 text-xs"><Plus className="h-3.5 w-3.5" />Agregar</button>}>
-        {showExpenseForm && (
-          <form onSubmit={handleExpenseSubmit} className="mb-4 grid gap-2 md:grid-cols-4">
-            <input name="amount" type="number" step="0.01" min="0.01" required placeholder="Monto" className="rounded-xl border px-3 py-2 text-sm" />
-            <input name="category" required placeholder="Categoria" className="rounded-xl border px-3 py-2 text-sm" />
-            <input name="description" placeholder="Descripcion" className="rounded-xl border px-3 py-2 text-sm md:col-span-2" />
-            <button disabled={busyKey === "expense-create"} className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white md:col-span-4">{busyKey === "expense-create" ? "Guardando..." : "Guardar"}</button>
-          </form>
-        )}
-        {expenses.length === 0 ? (
-          <div className="flex min-h-[120px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 text-center dark:border-zinc-700 dark:bg-zinc-900/40">
-            <TrendingDown className="h-7 w-7 text-slate-400" />
-            <button onClick={() => setShowExpenseForm(true)} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white">+ Agregar gasto</button>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {expenses.map((e) => (
-              <div key={e.id} className="flex items-center justify-between rounded-xl border border-slate-200/70 px-3 py-2 text-sm dark:border-zinc-800">
-                <div>
-                  <p className="font-medium">{e.category}</p>
-                  <p className="text-xs text-slate-500">{e.description || "-"}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-red-500">-${e.amount.toFixed(2)}</span>
-                  <button onClick={() => void handleExpenseDelete(e.id)} disabled={busyKey === `expense-delete-${e.id}`} className="rounded-lg border px-2 py-1 text-xs">{busyKey === `expense-delete-${e.id}` ? "..." : "Borrar"}</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
-
       <Card title="Pagar a empleados" icon={<CheckCircle2 className="h-4 w-4" />}>
           <p className="mb-2 text-xs text-slate-500">Elegi el empleado y calculamos cuanto le corresponde en este rango.</p>
           <form onSubmit={handleCreatePreLiquidation} className="grid gap-2">
-            <select name="staff_user_id" required className="rounded-xl border px-3 py-2 text-sm"><option value="">Empleado...</option>{staffProduction.map((s) => <option key={`l-${s.staffId}`} value={s.staffId}>{s.staffName}</option>)}</select>
-            <button disabled={busyKey === "liq-create"} className="rounded-xl bg-emerald-600 px-3 py-2 text-sm font-medium text-white">{busyKey === "liq-create" ? "Calculando..." : "Calcular pago"}</button>
+            <CustomSelect
+              name="staff_user_id"
+              value={selectedStaffForLiquidation}
+              onChange={setSelectedStaffForLiquidation}
+              placeholder="Empleado..."
+              options={staffProduction.map((s) => ({ value: s.staffId, label: s.staffName }))}
+            />
+            <button disabled={busyKey === "liq-create" || !selectedStaffForLiquidation} className="rounded-xl bg-emerald-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-50">{busyKey === "liq-create" ? "Calculando..." : "Calcular pago"}</button>
             {liquidationResult && <p className="rounded-xl bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">{liquidationResult.staffName}: ${liquidationResult.finalPayable.toFixed(2)}</p>}
           </form>
       </Card>
@@ -378,7 +327,14 @@ export default function FinancesClient({
       </button>
 
       {showLiquidationsHistory && <Card title="Liquidaciones" icon={<CheckCircle2 className="h-4 w-4" />}>
-        <div className="mb-3"><select value={liquidationStatusFilter} onChange={(e) => setLiquidationStatusFilter(e.target.value as "all" | "draft" | "confirmed" | "paid")} className="rounded-xl border px-3 py-2 text-xs"><option value="all">Todos</option><option value="draft">Borrador</option><option value="confirmed">Confirmada</option><option value="paid">Pagada</option></select></div>
+        <div className="mb-3">
+          <CustomSelect
+            value={liquidationStatusFilter}
+            onChange={(v) => setLiquidationStatusFilter(v as "all" | "draft" | "confirmed" | "paid")}
+            options={[{ value: "all", label: "Todos" }, { value: "draft", label: "Borrador" }, { value: "confirmed", label: "Confirmada" }, { value: "paid", label: "Pagada" }]}
+            className="max-w-[180px]"
+          />
+        </div>
         {filteredLiquidations.length === 0 ? (
           <div className="flex min-h-[120px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 dark:border-zinc-700 dark:bg-zinc-900/40">
             <CheckCircle2 className="h-7 w-7 text-slate-400" />
@@ -438,8 +394,18 @@ export default function FinancesClient({
         <div className="mt-4 rounded-2xl border border-slate-200/70 p-4 dark:border-zinc-800">
           <p className="mb-3 text-xs text-slate-500">Movimientos rapidos de caja.</p>
           <form onSubmit={handleCreateCashMovement} className="grid gap-2 md:grid-cols-5">
-            <select name="movement_type" className="rounded-xl border px-3 py-2.5 text-sm"><option value="income">Ingreso</option><option value="expense">Gasto</option><option value="withdrawal">Retiro</option><option value="adjustment">Ajuste</option></select>
-            <select name="payment_method" className="rounded-xl border px-3 py-2.5 text-sm"><option value="cash">Efectivo</option><option value="transfer">Transferencia</option><option value="debit_card">Debito</option><option value="credit_card">Credito</option><option value="qr">QR</option><option value="other">Otro</option></select>
+            <CustomSelect
+              name="movement_type"
+              value={cashMovementType}
+              onChange={setCashMovementType}
+              options={[{ value: "income", label: "Ingreso" }, { value: "expense", label: "Gasto" }, { value: "withdrawal", label: "Retiro" }]}
+            />
+            <CustomSelect
+              name="payment_method"
+              value={cashPaymentMethod}
+              onChange={setCashPaymentMethod}
+              options={[{ value: "cash", label: "Efectivo" }, { value: "transfer", label: "Transferencia" }]}
+            />
             <input name="category" required placeholder="Categoria" className="rounded-xl border px-3 py-2.5 text-sm" />
             <input name="amount" type="number" step="0.01" min="0.01" required placeholder="Monto" className="rounded-xl border px-3 py-2.5 text-sm" />
             <button disabled={busyKey === "cash-move-create"} className="rounded-xl bg-slate-900 px-3 py-2.5 text-sm font-medium text-white disabled:opacity-50">{busyKey === "cash-move-create" ? "Guardando..." : "Agregar"}</button>

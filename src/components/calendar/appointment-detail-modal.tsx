@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import GlassSelect from "@/components/ui/glass-select";
+import { createPortal } from "react-dom";
 
 const IOS_MODAL_SPRING = { stiffness: 460, damping: 34, mass: 0.65 };
 
@@ -88,9 +89,14 @@ export default function AppointmentDetailModal({
   const [customerBirthday, setCustomerBirthday] = useState("");
   const [customerNotes, setCustomerNotes] = useState("");
   const [customerVip, setCustomerVip] = useState(false);
+  const [portalReady, setPortalReady] = useState(false);
   const { addToast } = useToast();
   const patchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const patchDraftRef = useRef<{ status?: string; isPaid?: boolean; staffId?: string | null }>({});
+
+  useEffect(() => {
+    setPortalReady(true);
+  }, []);
 
   useEffect(() => {
     if (!appointment) return;
@@ -220,7 +226,7 @@ export default function AppointmentDetailModal({
 
   const actions = statusFlow[localStatus] || [];
 
-  return (
+  const modalNode = (
     <AnimatePresence>
       {appointment && (
         <motion.div
@@ -475,4 +481,7 @@ export default function AppointmentDetailModal({
       )}
     </AnimatePresence>
   );
+
+  if (!portalReady || typeof document === "undefined") return null;
+  return createPortal(modalNode, document.body);
 }

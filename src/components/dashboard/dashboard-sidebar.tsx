@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import {
   Home,
@@ -79,9 +80,62 @@ export default function DashboardSidebar({
   showBrand = true,
 }: DashboardSidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const dashboardBasePath = getDashboardBasePath(pathname);
   const { playClick } = useKlipSounds();
   const { performanceMode } = usePerformanceMode();
+  const [liveNotifications, setLiveNotifications] = useState({
+    urgentAppointments: Boolean(notifications?.urgentAppointments),
+    lowStock: Boolean(notifications?.lowStock),
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadNotifications = async () => {
+      try {
+        const res = await fetch("/api/dashboard/notifications", {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as { urgentAppointments?: boolean; lowStock?: boolean };
+        if (!isMounted) return;
+        setLiveNotifications({
+          urgentAppointments: Boolean(data.urgentAppointments),
+          lowStock: Boolean(data.lowStock),
+        });
+      } catch {
+      }
+    };
+
+    loadNotifications();
+    const id = window.setInterval(loadNotifications, 45_000);
+    return () => {
+      isMounted = false;
+      window.clearInterval(id);
+    };
+  }, [pathname]);
+
+  useEffect(() => {
+    const targets = navItems
+      .map(({ href }) => (href === "/dashboard" ? dashboardBasePath : `${dashboardBasePath}${href.replace("/dashboard", "")}`))
+      .filter((href) => href !== pathname);
+
+    const runPrefetch = () => {
+      for (const href of targets) router.prefetch(href);
+    };
+
+    const idle = (window as Window & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback;
+    if (idle) {
+      const id = idle(runPrefetch, { timeout: 1200 });
+      return () => window.cancelIdleCallback?.(id);
+    }
+
+    const timeoutId = window.setTimeout(runPrefetch, 250);
+    return () => window.clearTimeout(timeoutId);
+  }, [dashboardBasePath, pathname, router]);
 
   const navContainerVariants = performanceMode
     ? { hidden: {}, show: {} }
@@ -89,6 +143,10 @@ export default function DashboardSidebar({
   const navItemVariants = performanceMode
     ? { hidden: { opacity: 1, x: 0 }, show: { opacity: 1, x: 0 } }
     : itemVariants;
+
+  function startNavTransition() {
+    window.dispatchEvent(new CustomEvent("dashboard:nav-start"));
+  }
 
   return (
     <AnimatePresence mode="wait">
@@ -123,8 +181,8 @@ export default function DashboardSidebar({
               (href !== "/dashboard" && pathname.startsWith(targetHref));
 
             const showAlert =
-              (href === "/dashboard/calendar" && notifications?.urgentAppointments) ||
-              (href === "/dashboard/inventory" && notifications?.lowStock);
+              (href === "/dashboard/calendar" && liveNotifications.urgentAppointments) ||
+              (href === "/dashboard/inventory" && liveNotifications.lowStock);
 
             return (
               <motion.div
@@ -133,10 +191,14 @@ export default function DashboardSidebar({
                 whileHover={performanceMode ? undefined : { x: 5 }}
                 whileTap={performanceMode ? undefined : { scale: 0.97 }}
               >
-                 <Link
-                   href={targetHref}
-                   onMouseDown={playClick}
-                   className={`relative flex items-center gap-3 px-3 py-3 rounded-2xl text-sm font-medium transition-colors cursor-pointer select-none ${
+                  <Link
+                    href={targetHref}
+                    prefetch={true}
+                    onMouseDown={() => {
+                      playClick();
+                      startNavTransition();
+                    }}
+                    className={`relative flex items-center gap-3 px-3 py-3 rounded-2xl text-sm font-medium transition-colors cursor-pointer select-none ${
                     isActive
                       ? "text-violet-700 dark:text-white"
                       : "text-zinc-500 dark:text-zinc-400 hover:bg-white/50 dark:hover:bg-white/5 hover:text-zinc-700 dark:hover:text-white"
