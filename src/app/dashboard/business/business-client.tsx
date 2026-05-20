@@ -165,10 +165,23 @@ export default function BusinessClient({
 
   useEffect(() => {
     const key = `klip-business-onboarding-v1:${shopSlug || "default"}`;
-    const done = window.localStorage.getItem(key) === "1";
+    let done = false;
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (raw) {
+        if (raw === "1") done = true;
+        else {
+          const parsed = JSON.parse(raw) as { active?: boolean; step?: number; doneAt?: number };
+          if (parsed?.doneAt || parsed?.active === false) done = true;
+          if (parsed?.active && typeof parsed.step === "number") {
+            setTourStep(Math.max(0, Math.min(parsed.step, TOUR_STEPS.length - 1)));
+          }
+        }
+      }
+    } catch {}
     if (!done) {
       setTourOpen(true);
-      setTourStep(0);
+      window.localStorage.setItem(key, JSON.stringify({ active: true, step: 0 }));
       window.setTimeout(() => {
         document.getElementById(TOUR_STEPS[0].id)?.scrollIntoView({ behavior: "smooth", block: "center" });
       }, 140);
@@ -219,8 +232,39 @@ export default function BusinessClient({
   }, [tourOpen, tourStep]);
 
   function completeTour() {
-    window.localStorage.setItem(`klip-business-onboarding-v1:${shopSlug || "default"}`, "1");
+    window.localStorage.setItem(`klip-business-onboarding-v1:${shopSlug || "default"}`, JSON.stringify({ active: false, step: 5, doneAt: Date.now() }));
     setTourOpen(false);
+  }
+
+  async function saveAllSections(): Promise<boolean> {
+    const formData = new FormData();
+    formData.set("nombre", name);
+    formData.set("description", description);
+    formData.set("address", address);
+    formData.set("localidad", localidad);
+    formData.set("phone", phone);
+    formData.set("instagram_url", instagramUrl);
+    formData.set("facebook_url", facebookUrl);
+    formData.set("tiktok_url", tiktokUrl);
+
+    const info = await updateBusinessInfo(formData);
+    if (!info.success) return showError(info.error), false;
+
+    if (businessHours) {
+      const hours = await updateBusinessHours(businessHours);
+      if (!hours.success) return showError(hours.error), false;
+    }
+
+    const amount = Math.max(0, Number(bookingDepositAmount) || 0);
+    const policy = await updateBookingDepositPolicyAction(bookingDepositEnabled, amount);
+    if (!policy.success) return showError(policy.error), false;
+
+    const wa = await updateWhatsappTemplateAction(whatsappTemplate);
+    if (!wa.success) return showError(wa.error), false;
+
+    playSuccess();
+    showSuccess("Todo guardado correctamente");
+    return true;
   }
 
   function showSuccess(text: string) {
@@ -371,6 +415,18 @@ export default function BusinessClient({
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Mi Negocio</h1>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Información pública y configuración técnica de tu local</p>
         <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              startTransition(async () => {
+                await saveAllSections();
+              });
+            }}
+            disabled={pending}
+            className="ui-btn-primary inline-flex items-center rounded-full px-4 py-2 text-sm font-semibold disabled:opacity-60"
+          >
+            {pending ? "Guardando todo..." : "Guardar todo"}
+          </button>
           <Link
             id="setup-staff"
             href={withDashboardBase("/dashboard/staff")}
@@ -708,35 +764,7 @@ export default function BusinessClient({
                 </div>
               </div>
             </div>
-            <div className="flex justify-end pt-2">
-              <button
-                type="submit"
-                disabled={pending}
-                className={`inline-flex w-full sm:w-auto justify-center items-center gap-2 px-6 py-2.5 rounded-full text-sm font-medium shadow-sm transition-all duration-200 cursor-pointer select-none ${
-                  savedSection === "info"
-                    ? "bg-green-500 text-white scale-105"
-                    : "bg-violet-600 text-white hover:bg-violet-700"
-                } ${pending ? "opacity-50" : ""}`}
-              >
-                {savedSection === "info" ? (
-                  <motion.span
-                    key="saved-info"
-                    initial={{ scale: 0.5 }}
-                    animate={{ scale: 1 }}
-                    className="inline-flex items-center gap-1"
-                  >
-                    Guardado ✓
-                  </motion.span>
-                ) : pending ? (
-                  "Guardando..."
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" />
-                    Guardar Cambios
-                  </>
-                )}
-              </button>
-            </div>
+            <div className="pt-2" />
           </div>
         </div>
       </form>
@@ -828,18 +856,7 @@ export default function BusinessClient({
                     placeholder="Monto de seña (ARS)"
                   />
                 </div>
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onMouseDown={playClick}
-                    onClick={handleSaveBookingDepositPolicy}
-                    disabled={pending}
-                    className="inline-flex items-center gap-2 rounded-full bg-rose-600 px-5 py-2 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-50"
-                  >
-                    <Save className="w-4 h-4" />
-                    {pending ? "Guardando..." : "Guardar politica de cobro"}
-                  </button>
-                </div>
+                <div />
               </div>
             </div>
           </div>
@@ -886,16 +903,7 @@ export default function BusinessClient({
                   )}
                 </p>
               </div>
-              <button
-                type="button"
-                onMouseDown={playSuccess}
-                onClick={handleSaveWhatsapp}
-                disabled={pending}
-                className="inline-flex w-full sm:w-auto justify-center items-center gap-2 bg-violet-600 text-white px-6 py-2.5 rounded-full text-sm font-medium shadow-sm hover:bg-violet-700 disabled:opacity-50 transition-all cursor-pointer select-none"
-              >
-                <Save className="w-4 h-4" />
-                {pending ? "Guardando..." : "Guardar Plantilla"}
-              </button>
+              <div />
             </div>
           </div>
 
@@ -913,7 +921,7 @@ export default function BusinessClient({
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Horarios de Atención</h2>
             <p className="text-xs text-zinc-400 dark:text-zinc-500">Días y horarios de apertura del local</p>
           </div>
-          {businessHours && (
+          {false && businessHours && (
             <button
               type="button"
               onClick={() => {
@@ -1098,7 +1106,19 @@ export default function BusinessClient({
                           completeTour();
                           return;
                         }
-                        setTourStep((s) => Math.min(s + 1, TOUR_STEPS.length - 1));
+                        if (tourStep === 2) {
+                          startTransition(async () => {
+                            const ok = await saveAllSections();
+                            if (!ok) return;
+                            const key = `klip-business-onboarding-v1:${shopSlug || "default"}`;
+                            window.localStorage.setItem(key, JSON.stringify({ active: true, step: 3 }));
+                            router.push(shopSlug ? `/dashboard/${shopSlug}/staff` : "/dashboard/staff");
+                          });
+                          return;
+                        }
+                        const nextStep = Math.min(tourStep + 1, TOUR_STEPS.length - 1);
+                        setTourStep(nextStep);
+                        window.localStorage.setItem(`klip-business-onboarding-v1:${shopSlug || "default"}`, JSON.stringify({ active: true, step: nextStep }));
                       }}
                       className="ui-btn-primary rounded-full px-4 py-1.5 text-xs font-semibold"
                     >

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import CustomSelect from "@/components/ui/custom-select";
@@ -31,15 +32,18 @@ type StaffMember = {
 
 export default function StaffList({
   shopId,
+  shopSlug,
   initialStaff,
   currentUserId,
   canManageStaff,
 }: {
   shopId: string;
+  shopSlug?: string;
   initialStaff: StaffMember[];
   currentUserId: string;
   canManageStaff: boolean;
 }) {
+  const router = useRouter();
   const [staff, setStaff] = useState<StaffMember[]>(initialStaff);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,11 +61,24 @@ export default function StaffList({
   const [payFixed, setPayFixed] = useState("0");
   const [payEditor, setPayEditor] = useState<{ id: string; name: string; payModel: "percentage" | "fixed" | "mixed"; percentageRate: number; fixedAmount: number } | null>(null);
   const [portalReady, setPortalReady] = useState(false);
+  const [tutorialActive, setTutorialActive] = useState(false);
   const { addToast } = useToast();
 
   useEffect(() => {
     setPortalReady(true);
   }, []);
+
+  useEffect(() => {
+    const key = `klip-business-onboarding-v1:${shopSlug || "default"}`;
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { active?: boolean; step?: number };
+      setTutorialActive(Boolean(parsed?.active && parsed?.step === 3));
+    } catch {
+      setTutorialActive(false);
+    }
+  }, [shopSlug]);
 
   useEffect(() => {
     setStaff(initialStaff);
@@ -164,6 +181,25 @@ export default function StaffList({
 
   return (
     <div>
+      {tutorialActive && (
+        <div className="mb-4 rounded-2xl border border-violet-300/50 bg-violet-50/80 dark:bg-violet-900/20 px-4 py-3">
+          <p className="text-sm font-semibold text-violet-800 dark:text-violet-200">Paso 4: Empleados</p>
+          <p className="mt-1 text-xs text-violet-700/90 dark:text-violet-200/90">Cuando termines, continua al paso de Servicios.</p>
+          <div className="mt-3 flex justify-end">
+            <button
+              type="button"
+              onClick={() => {
+                const key = `klip-business-onboarding-v1:${shopSlug || "default"}`;
+                window.localStorage.setItem(key, JSON.stringify({ active: true, step: 4 }));
+                router.push(shopSlug ? `/dashboard/${shopSlug}/services` : "/dashboard/services");
+              }}
+              className="ui-btn-primary rounded-full px-4 py-1.5 text-xs"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
+      )}
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-6">
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white tracking-tight">Personal</h2>
         {canManageStaff ? (

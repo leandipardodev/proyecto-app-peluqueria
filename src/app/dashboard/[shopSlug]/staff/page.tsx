@@ -23,5 +23,5 @@ export default async function DashboardShopStaffPage({ params }: { params: Promi
   const canManageStaff = Boolean(membership?.is_active && membership.role === "owner");
 
   const result = await fetchStaffMembers(shopId);
-  return <StaffList shopId={shopId} initialStaff={result.success ? result.data ?? [] : []} currentUserId={session.user.id} canManageStaff={canManageStaff} />;
+  return <StaffList shopId={shopId} shopSlug={shopSlug} initialStaff={result.success ? result.data ?? [] : []} currentUserId={session.user.id} canManageStaff={canManageStaff} />;
 }

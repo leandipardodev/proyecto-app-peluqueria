@@ -2,6 +2,7 @@
 
 import { Pencil, Trash2, Plus } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import ServiceModal from "./service-modal";
 import ServiceForm from "./service-form";
 import { deleteService } from "@/lib/dashboard/service-actions";
@@ -18,20 +19,35 @@ type Service = {
 
 interface ServicesListProps {
   shopId: string;
+  shopSlug?: string;
   initialServices: Service[];
 }
 
-export default function ServicesList({ shopId, initialServices }: ServicesListProps) {
+export default function ServicesList({ shopId, shopSlug, initialServices }: ServicesListProps) {
+  const router = useRouter();
   const [services, setServices] = useState(initialServices);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const { addToast } = useToast();
+  const [tutorialActive, setTutorialActive] = useState(false);
 
   useEffect(() => {
     setServices(initialServices);
   }, [initialServices]);
+
+  useEffect(() => {
+    const key = `klip-business-onboarding-v1:${shopSlug || "default"}`;
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { active?: boolean; step?: number };
+      setTutorialActive(Boolean(parsed?.active && parsed?.step === 4));
+    } catch {
+      setTutorialActive(false);
+    }
+  }, [shopSlug]);
 
   useEffect(() => {
     const channel = supabase
@@ -105,6 +121,25 @@ export default function ServicesList({ shopId, initialServices }: ServicesListPr
 
   return (
     <>
+      {tutorialActive && (
+        <div className="mb-4 rounded-2xl border border-violet-300/50 bg-violet-50/80 dark:bg-violet-900/20 px-4 py-3">
+          <p className="text-sm font-semibold text-violet-800 dark:text-violet-200">Paso 5: Servicios</p>
+          <p className="mt-1 text-xs text-violet-700/90 dark:text-violet-200/90">Carga o valida tus servicios y finaliza el recorrido.</p>
+          <div className="mt-3 flex justify-end">
+            <button
+              type="button"
+              onClick={() => {
+                const key = `klip-business-onboarding-v1:${shopSlug || "default"}`;
+                window.localStorage.setItem(key, JSON.stringify({ active: false, step: 5, doneAt: Date.now() }));
+                router.push(shopSlug ? `/dashboard/${shopSlug}/business` : "/dashboard/business");
+              }}
+              className="ui-btn-primary rounded-full px-4 py-1.5 text-xs"
+            >
+              Finalizar
+            </button>
+          </div>
+        </div>
+      )}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Servicios</h1>
         <button

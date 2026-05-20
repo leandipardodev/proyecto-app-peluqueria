@@ -15,5 +15,5 @@ export default async function DashboardShopServicesPage({ params }: { params: Pr
   const result = await fetchServices(shopId);
   const services = result.success ? result.data ?? [] : [];
 
-  return <ServicesList shopId={shopId} initialServices={services} />;
+  return <ServicesList shopId={shopId} shopSlug={shopSlug} initialServices={services} />;
 }
