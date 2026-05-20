@@ -106,6 +106,7 @@ export default function BusinessClient({
   const expensePct = Math.max(8, Math.round((expenseValue / flowTotal) * 100));
   const dashboardBasePath = shopSlug ? `/dashboard/${shopSlug}` : "/dashboard";
   const netValue = incomeValue - expenseValue;
+  const mpDraftKey = `klip-business-draft-v1:${shopSlug || "default"}`;
 
   const maskValue = (value: string) => (showStats ? value : "••••");
 
@@ -129,6 +130,39 @@ export default function BusinessClient({
   }, []);
 
   useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(mpDraftKey);
+      if (!raw) return;
+      const draft = JSON.parse(raw) as {
+        name?: string;
+        description?: string;
+        address?: string;
+        localidad?: string;
+        phone?: string;
+        instagramUrl?: string;
+        facebookUrl?: string;
+        tiktokUrl?: string;
+        whatsappTemplate?: string;
+        bookingDepositEnabled?: boolean;
+        bookingDepositAmount?: string;
+        businessHours?: BusinessHoursData | null;
+      };
+      if (typeof draft.name === "string") setName(draft.name);
+      if (typeof draft.description === "string") setDescription(draft.description);
+      if (typeof draft.address === "string") setAddress(draft.address);
+      if (typeof draft.localidad === "string") setLocalidad(draft.localidad);
+      if (typeof draft.phone === "string") setPhone(draft.phone);
+      if (typeof draft.instagramUrl === "string") setInstagramUrl(draft.instagramUrl);
+      if (typeof draft.facebookUrl === "string") setFacebookUrl(draft.facebookUrl);
+      if (typeof draft.tiktokUrl === "string") setTiktokUrl(draft.tiktokUrl);
+      if (typeof draft.whatsappTemplate === "string") setWhatsappTemplate(draft.whatsappTemplate);
+      if (typeof draft.bookingDepositEnabled === "boolean") setBookingDepositEnabled(draft.bookingDepositEnabled);
+      if (typeof draft.bookingDepositAmount === "string") setBookingDepositAmount(draft.bookingDepositAmount);
+      if (draft.businessHours && typeof draft.businessHours === "object") setBusinessHours(draft.businessHours);
+    } catch {}
+  }, [mpDraftKey]);
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const mpStatus = params.get("mp");
     if (!mpStatus) return;
@@ -144,6 +178,7 @@ export default function BusinessClient({
     };
 
     if (mpStatus === "connected") {
+      window.localStorage.removeItem(mpDraftKey);
       setMessage({ type: "success", text: "Mercado Pago conectado correctamente" });
       setTimeout(() => setMessage(null), 3000);
     } else {
@@ -156,7 +191,7 @@ export default function BusinessClient({
     params.delete("mp");
     const next = params.toString();
     window.history.replaceState({}, "", `${window.location.pathname}${next ? `?${next}` : ""}`);
-  }, []);
+  }, [mpDraftKey]);
 
   useEffect(() => {
     setPortalReady(true);
@@ -304,6 +339,23 @@ export default function BusinessClient({
   }
 
   function handleConnectMercadoPago() {
+    window.localStorage.setItem(
+      mpDraftKey,
+      JSON.stringify({
+        name,
+        description,
+        address,
+        localidad,
+        phone,
+        instagramUrl,
+        facebookUrl,
+        tiktokUrl,
+        whatsappTemplate,
+        bookingDepositEnabled,
+        bookingDepositAmount,
+        businessHours,
+      }),
+    );
     window.location.href = "/api/payments/mercadopago-oauth/start";
   }
 
@@ -358,8 +410,7 @@ export default function BusinessClient({
       playSuccess();
       setShowCreateShopModal(false);
       setNewShopName("");
-      router.push(`/dashboard/${result.data.slug}/business`);
-      router.refresh();
+      window.location.assign(`/dashboard/${result.data.slug}/business`);
     });
   }
 

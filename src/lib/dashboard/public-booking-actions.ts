@@ -525,9 +525,11 @@ export async function createPublicAppointment(data: {
           admin.from("services").select("name").eq("id", data.serviceId).maybeSingle(),
         ]);
 
-        const shopData = (shop as { nombre?: string | null; email?: string | null; address?: string | null } | null) || null;
+        const shopData = (shop as { nombre?: string | null; email?: string | null; address?: string | null; localidad?: string | null } | null) || null;
         const serviceName = (service as { name?: string | null } | null)?.name || "Servicio";
         const replyTo = shopData?.email && shopData.email.includes("@") ? shopData.email : undefined;
+        const locationParts = [shopData?.address?.trim(), shopData?.localidad?.trim()].filter(Boolean);
+        const shopAddress = locationParts.length > 0 ? locationParts.join(", ") : undefined;
 
         await sendAppointmentConfirmationEmail({
           to: data.customerEmail,
@@ -543,7 +545,7 @@ export async function createPublicAppointment(data: {
           customerName: data.customerName,
           shopName: shopData?.nombre || "Klip",
           serviceName,
-          shopAddress: shopData?.address || undefined,
+          shopAddress,
           startTime: data.startTime,
           replyTo,
         });

@@ -1,14 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { createAdditionalShop } from "@/lib/dashboard/auth-actions";
 
 export default function CreateShopRecoveryClient({ userEmail }: { userEmail: string }) {
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const router = useRouter();
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
@@ -44,8 +42,7 @@ export default function CreateShopRecoveryClient({ userEmail }: { userEmail: str
               const target = result.data.isFirstShop
                 ? `/dashboard/${result.data.slug}/business`
                 : `/dashboard/${result.data.slug}`;
-              router.push(target);
-              router.refresh();
+              window.location.assign(target);
             });
           }}
           className="mt-5 w-full rounded-2xl bg-violet-600 text-white py-2.5 text-sm font-medium hover:bg-violet-700 disabled:opacity-50"

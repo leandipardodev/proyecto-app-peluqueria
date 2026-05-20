@@ -593,32 +593,52 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
                         )}
 
                         {paymentPreferenceId && (
-                          <div className="rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 p-4 space-y-3">
-                            <p className="text-sm font-medium text-white">{isDepositPayment ? "Seña lista para completar" : "Pago listo para completar"}</p>
-                            {chargedAmount !== null && (
-                              <p className="text-xs text-zinc-300">
-                                {isDepositPayment ? "Seña online" : "Monto online"}: <span className="font-semibold text-white">${chargedAmount.toFixed(2)}</span>
-                              </p>
-                            )}
-                            {shop.mpPublicKey ? (
-                              <div className="rounded-xl overflow-hidden bg-white p-2">
-                                <Wallet initialization={{ preferenceId: paymentPreferenceId }} />
+                          <div className="relative overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-br from-[#0B1B31] via-[#112947] to-[#0D223D] p-5 shadow-[0_20px_60px_-25px_rgba(0,113,227,0.7)]">
+                            <div className="pointer-events-none absolute -top-14 -right-12 h-36 w-36 rounded-full bg-sky-300/20 blur-2xl" />
+                            <div className="pointer-events-none absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-[#0071E3]/20 blur-2xl" />
+
+                            <div className="relative space-y-4">
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="text-[11px] uppercase tracking-[0.2em] text-sky-100/70">Checkout seguro</p>
+                                  <p className="mt-1 text-sm font-semibold text-white">{isDepositPayment ? "Sena lista para completar" : "Pago listo para completar"}</p>
+                                </div>
+                                <span className="rounded-full border border-emerald-300/40 bg-emerald-400/15 px-2.5 py-1 text-[11px] font-semibold text-emerald-100">
+                                  Mercado Pago
+                                </span>
                               </div>
-                            ) : (
-                              <div className="rounded-xl border border-amber-300/40 bg-amber-50/70 px-3 py-2 text-xs text-amber-800">
-                                Falta MP_PUBLIC_KEY en este local. Cargala en Mi Negocio para mostrar el checkout embebido.
-                              </div>
-                            )}
-                            {paymentInitPoint && (
-                              <a
-                                href={paymentInitPoint}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-xs font-medium bg-white/10 hover:bg-white/15 border border-white/15 text-zinc-100 transition-all"
-                              >
-                                Abrir checkout en otra pestaña
-                              </a>
-                            )}
+
+                              {chargedAmount !== null && (
+                                <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-sm">
+                                  <p className="text-[11px] uppercase tracking-wide text-sky-100/70">{isDepositPayment ? "Sena online" : "Monto online"}</p>
+                                  <p className="mt-0.5 text-2xl font-semibold leading-none text-white">
+                                    ${chargedAmount.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </p>
+                                </div>
+                              )}
+
+                              {shop.mpPublicKey ? (
+                                <div className="rounded-2xl overflow-hidden border border-white/15 bg-white p-2">
+                                  <Wallet initialization={{ preferenceId: paymentPreferenceId }} />
+                                </div>
+                              ) : (
+                                <div className="rounded-2xl border border-amber-300/40 bg-amber-50/80 px-3 py-2 text-xs text-amber-900">
+                                  Falta MP_PUBLIC_KEY en este local. Cargala en Mi Negocio para mostrar el checkout embebido.
+                                </div>
+                              )}
+
+                              {paymentInitPoint && (
+                                <a
+                                  href={paymentInitPoint}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/25 bg-white/12 px-4 py-2.5 text-xs font-semibold text-white transition-all hover:bg-white/20"
+                                >
+                                  Abrir checkout en otra pestana
+                                  <ExternalLink className="h-3.5 w-3.5" />
+                                </a>
+                              )}
+                            </div>
                           </div>
                         )}
                       </div>
