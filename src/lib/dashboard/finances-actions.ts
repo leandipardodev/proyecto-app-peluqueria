@@ -528,6 +528,21 @@ export async function fetchCashSession(shopIdOverride?: string): Promise<ActionR
 
     if (error) return { success: false, error: error.message };
     if (!data) return { success: true, data: null };
+    const { data: sessionMoves, error: movesError } = await admin
+      .from("cash_movements")
+      .select("movement_type, amount")
+      .eq("shop_id", shopId)
+      .eq("cash_session_id", data.id);
+    if (movesError) return { success: false, error: movesError.message };
+
+    const movementNet = (sessionMoves || []).reduce((sum, m) => {
+      const amt = Number(m.amount || 0);
+      return sum + (m.movement_type === "expense" || m.movement_type === "withdrawal" ? -amt : amt);
+    }, 0);
+    const expectedAmount = data.status === "open"
+      ? Number(data.opening_amount || 0) + movementNet
+      : Number(data.expected_amount || 0);
+
     return {
       success: true,
       data: {
@@ -535,7 +550,7 @@ export async function fetchCashSession(shopIdOverride?: string): Promise<ActionR
         status: data.status,
         openedAt: data.opened_at,
         openingAmount: Number(data.opening_amount || 0),
-        expectedAmount: Number(data.expected_amount || 0),
+        expectedAmount,
         countedAmount: data.counted_amount == null ? null : Number(data.counted_amount),
         differenceAmount: data.difference_amount == null ? null : Number(data.difference_amount),
       },
@@ -736,8 +751,6 @@ export async function fetchFinanceData(fromDate?: string, toDate?: string, shopI
       if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
     }
 
-    console.log("[fetchFinanceData] fromDate:", fromDate, "toDate:", toDate, "shopId:", shopId);
-
     const admin = await createAdminClient();
 
     const today = getArgentinaDateString();
@@ -747,7 +760,7 @@ export async function fetchFinanceData(fromDate?: string, toDate?: string, shopI
     const fromBounds = getArgentinaDayBounds(from);
     const toBounds = getArgentinaDayBounds(to);
 
-    const [incomeAppts, expensesResult] = await Promise.all([
+    const [incomeAppts, expensesResult, cashMovesResult] = await Promise.all([
       admin
         .from("appointments")
         .select("id, start_time, status, services:service_id(price, name)")
@@ -763,6 +776,12 @@ export async function fetchFinanceData(fromDate?: string, toDate?: string, shopI
         .gte("created_at", fromBounds.start.toISOString())
         .lte("created_at", toBounds.end.toISOString())
         .order("created_at", { ascending: true }),
+      admin
+        .from("cash_movements")
+        .select("id, movement_type, amount, category, description, happened_at")
+        .eq("shop_id", shopId)
+        .gte("happened_at", fromBounds.start.toISOString())
+        .lte("happened_at", toBounds.end.toISOString()),
     ]);
 
     if (incomeAppts.error) {
@@ -773,9 +792,14 @@ export async function fetchFinanceData(fromDate?: string, toDate?: string, shopI
       console.error("[finances] expenses error:", JSON.stringify(expensesResult.error, null, 2));
       return { success: false, error: expensesResult.error.message || "Error al consultar gastos" };
     }
+    if (cashMovesResult.error) {
+      console.error("[finances] cash moves error:", JSON.stringify(cashMovesResult.error, null, 2));
+      return { success: false, error: cashMovesResult.error.message || "Error al consultar movimientos de caja" };
+    }
 
     const incomeRows: AppointmentIncomeRow[] = (incomeAppts.data || []) as AppointmentIncomeRow[];
     const expenseRows: ExpenseRow[] = (expensesResult.data || []) as ExpenseRow[];
+    const cashRows = (cashMovesResult.data || []) as Array<{ id: string; movement_type: string; amount: number | null; category: string | null; description: string | null; happened_at: string }>;
 
     const incomeMovements: Movement[] = incomeRows.map((a) => {
       const svc = Array.isArray(a.services) ? a.services[0] : a.services;
@@ -798,11 +822,33 @@ export async function fetchFinanceData(fromDate?: string, toDate?: string, shopI
       status: null,
     }));
 
-    const allMovements = [...incomeMovements, ...expenseMovements]
+    const manualIncomeMovements: Movement[] = cashRows
+      .filter((m) => m.movement_type === "income")
+      .map((m) => ({
+        id: `cash-inc-${m.id}`,
+        amount: Number(m.amount || 0),
+        description: m.description || m.category || "Ingreso de caja",
+        created_at: m.happened_at,
+        type: "income" as const,
+        status: null,
+      }));
+
+    const manualExpenseMovements: Movement[] = cashRows
+      .filter((m) => m.movement_type === "expense" || m.movement_type === "withdrawal")
+      .map((m) => ({
+        id: `cash-exp-${m.id}`,
+        amount: Number(m.amount || 0),
+        description: m.description || m.category || (m.movement_type === "withdrawal" ? "Retiro de caja" : "Gasto de caja"),
+        created_at: m.happened_at,
+        type: "expense" as const,
+        status: null,
+      }));
+
+    const allMovements = [...incomeMovements, ...manualIncomeMovements, ...expenseMovements, ...manualExpenseMovements]
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-    const totalIncome = incomeMovements.reduce((sum, m) => sum + m.amount, 0);
-    const totalExpenses = expenseMovements.reduce((sum, m) => sum + m.amount, 0);
+    const totalIncome = [...incomeMovements, ...manualIncomeMovements].reduce((sum, m) => sum + m.amount, 0);
+    const totalExpenses = [...expenseMovements, ...manualExpenseMovements].reduce((sum, m) => sum + m.amount, 0);
 
     return {
       success: true,

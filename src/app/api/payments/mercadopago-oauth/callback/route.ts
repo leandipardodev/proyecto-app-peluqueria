@@ -34,8 +34,11 @@ export async function GET(request: NextRequest) {
       process.env.MP_OAUTH_STATE_SECRET ||
       process.env.NEXTAUTH_SECRET ||
       process.env.JWT_SECRET ||
-      process.env.SUPABASE_SERVICE_ROLE_KEY ||
-      "klip-mp-state-fallback";
+      process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!stateSecret) {
+      return NextResponse.redirect(dashboardUrl(url.origin, null, "error_env"));
+    }
 
     const expectedSig = crypto.createHmac("sha256", stateSecret).update(payload).digest("base64url");
     if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expectedSig))) {

@@ -14,5 +14,3 @@ export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true,
   },
 });
-
-console.log("Supabase Client Init:", !!supabase);

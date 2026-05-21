@@ -88,6 +88,9 @@ export default function BusinessClient({
   const [tourStep, setTourStep] = useState(0);
   const [tourRect, setTourRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const [portalReady, setPortalReady] = useState(false);
+  const [mpConnectUnlockAt, setMpConnectUnlockAt] = useState(0);
+  const [isConnectingMp, setIsConnectingMp] = useState(false);
+  const [isDisconnectingMp, setIsDisconnectingMp] = useState(false);
 
   const DAYS = [
     { key: "monday", label: "Lunes" },
@@ -230,6 +233,46 @@ export default function BusinessClient({
   }, [tourOpen, tourStep]);
 
   useEffect(() => {
+    if (!tourOpen) return;
+    const id = window.setTimeout(() => {
+      window.localStorage.setItem(
+        mpDraftKey,
+        JSON.stringify({
+          name,
+          description,
+          address,
+          localidad,
+          phone,
+          instagramUrl,
+          facebookUrl,
+          tiktokUrl,
+          whatsappTemplate,
+          bookingDepositEnabled,
+          bookingDepositAmount,
+          businessHours,
+        }),
+      );
+    }, 180);
+
+    return () => window.clearTimeout(id);
+  }, [
+    tourOpen,
+    mpDraftKey,
+    name,
+    description,
+    address,
+    localidad,
+    phone,
+    instagramUrl,
+    facebookUrl,
+    tiktokUrl,
+    whatsappTemplate,
+    bookingDepositEnabled,
+    bookingDepositAmount,
+    businessHours,
+  ]);
+
+  useEffect(() => {
     if (!tourOpen) {
       setTourRect(null);
       return;
@@ -339,6 +382,8 @@ export default function BusinessClient({
   }
 
   function handleConnectMercadoPago() {
+    if (Date.now() < mpConnectUnlockAt) return;
+    setIsConnectingMp(true);
     window.localStorage.setItem(
       mpDraftKey,
       JSON.stringify({
@@ -360,9 +405,11 @@ export default function BusinessClient({
   }
 
   function handleDisconnectMercadoPago() {
+    setIsDisconnectingMp(true);
     startTransition(async () => {
       const result = await disconnectMercadoPagoOauthAction();
       if (!result.success) {
+        setIsDisconnectingMp(false);
         playError();
         showError(result.error);
         return;
@@ -371,6 +418,7 @@ export default function BusinessClient({
       showSuccess("Mercado Pago desconectado");
       const fresh = await fetchBusinessData();
       if (fresh.success) setData(fresh.data ?? null);
+      setIsDisconnectingMp(false);
     });
   }
 
@@ -819,22 +867,22 @@ export default function BusinessClient({
                       type="button"
                       onMouseDown={playClick}
                       onClick={handleConnectMercadoPago}
-                      disabled={pending}
+                      disabled={isConnectingMp || isDisconnectingMp}
                       className="inline-flex items-center justify-center gap-2 rounded-full bg-sky-600 px-5 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50"
                     >
                       <Link2 className="w-4 h-4" />
-                      {pending ? "Conectando..." : "Conectar Mercado Pago"}
+                      {isConnectingMp ? "Conectando..." : "Conectar Mercado Pago"}
                     </button>
                   ) : (
                     <button
                       type="button"
                       onMouseDown={playClick}
                       onClick={handleDisconnectMercadoPago}
-                      disabled={pending}
+                      disabled={isDisconnectingMp || isConnectingMp}
                       className="inline-flex items-center justify-center gap-2 rounded-full border border-rose-300 bg-white px-5 py-2 text-sm font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-50 dark:border-rose-700/50 dark:bg-black/30 dark:text-rose-200"
                     >
                       <Trash2 className="w-4 h-4" />
-                      {pending ? "Desconectando..." : "Desconectar"}
+                      {isDisconnectingMp ? "Desconectando..." : "Desconectar"}
                     </button>
                   )}
                 </div>
@@ -1028,18 +1076,12 @@ export default function BusinessClient({
         <AnimatePresence>
           {tourOpen && (
             <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="pointer-events-none fixed inset-0 z-[80] bg-black/28"
-              />
               {tourRect && (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="pointer-events-none fixed z-[81] rounded-[2rem] border-2 border-violet-400/85 shadow-[0_0_0_9999px_rgba(0,0,0,0.08),0_0_0_6px_rgba(167,139,250,0.22)]"
+                  className="pointer-events-none fixed z-[81] rounded-[2rem] border-2 border-violet-400/85 shadow-[0_0_0_9999px_rgba(10,12,18,0.42),0_0_0_6px_rgba(167,139,250,0.22)]"
                   style={{
                     top: Math.max(8, tourRect.top - 8),
                     left: Math.max(8, tourRect.left - 8),
@@ -1075,6 +1117,7 @@ export default function BusinessClient({
                           return;
                         }
                         if (tourStep === 2) {
+                          setMpConnectUnlockAt(Date.now() + 1400);
                           startTransition(async () => {
                             const ok = await saveAllSections();
                             if (!ok) return;

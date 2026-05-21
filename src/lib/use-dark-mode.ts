@@ -34,7 +34,6 @@ export function useDarkMode() {
 
   const toggle = useCallback(() => {
     const next = !dark;
-    console.log("[useDarkMode] toggle:", { from: dark, to: next });
     setDark(next);
   }, [dark, setDark]);
 

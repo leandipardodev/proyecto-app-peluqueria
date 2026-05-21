@@ -37,9 +37,6 @@ export async function GET(request: NextRequest) {
     ? process.env.NEXT_PUBLIC_BASE_URL.replace(/\/$/, '')
     : new URL(request.url).origin;
   const redirectTo = `${baseUrl}/auth/callback?state=${stateParam || ""}`;
-  
-  console.log("Auth route - RedirectTo:", redirectTo);
-
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
@@ -50,8 +47,6 @@ export async function GET(request: NextRequest) {
       },
     },
   });
-
-  console.log("Auth route - SignIn result:", { data, error });
 
   if (error) {
     console.error("Auth route - Error:", error);
@@ -67,8 +62,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(errorUrl);
   }
 
-  console.log("Auth route - Redirecting to Google:", data.url);
-  
   // Create final response with Google URL and cookies
   const googleResponse = NextResponse.redirect(data.url);
   

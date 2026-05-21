@@ -28,8 +28,9 @@ export async function GET(request: NextRequest) {
     process.env.MP_OAUTH_STATE_SECRET ||
     process.env.NEXTAUTH_SECRET ||
     process.env.JWT_SECRET ||
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    "klip-mp-state-fallback";
+    process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!stateSecret) return redirectToBusiness("error_env");
 
   const redirectUri = `${siteUrl.replace(/\/$/, "")}/api/payments/mercadopago-oauth/callback`;
   const payload = Buffer.from(JSON.stringify({ shopId: shopIdResult.data, ts: Date.now() })).toString("base64url");

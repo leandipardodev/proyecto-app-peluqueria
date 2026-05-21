@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   Users2,
   CheckCircle2,
@@ -86,7 +86,7 @@ function getMonthBounds(dateStr: string) {
 
 function Card({ title, icon, right, children }: { title: string; icon: React.ReactNode; right?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section className="ui-card rounded-3xl p-5 dark:border-zinc-800 dark:bg-zinc-900/70">
+    <section className="ui-card rounded-3xl border border-slate-200/80 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900/65">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <span className="text-slate-500 dark:text-zinc-300">{icon}</span>
@@ -140,6 +140,7 @@ export default function FinancesClient({
   const [showLiquidationsHistory, setShowLiquidationsHistory] = useState(false);
   const [showMovements, setShowMovements] = useState(false);
   const [showClosures, setShowClosures] = useState(false);
+  const refreshTimerRef = useRef<number | null>(null);
 
   const loadMain = useCallback((nextFrom: string, nextTo: string) => {
     setFrom(nextFrom);
@@ -187,10 +188,29 @@ export default function FinancesClient({
     if (history.success && history.data) setCashSessionsHistory(history.data);
   }, [shopId]);
 
+  const refreshAll = useCallback((nextFrom: string, nextTo: string) => {
+    loadMain(nextFrom, nextTo);
+    void loadStaff(nextFrom, nextTo);
+    void loadCash(nextFrom, nextTo);
+  }, [loadCash, loadMain, loadStaff]);
+
   useEffect(() => {
-    void loadStaff(initialFrom, initialTo);
-    void loadCash(initialFrom, initialTo);
-  }, [initialFrom, initialTo, loadCash, loadStaff]);
+    refreshAll(from, to);
+  }, [from, to, refreshAll]);
+
+  useEffect(() => {
+    if (refreshTimerRef.current) {
+      window.clearInterval(refreshTimerRef.current);
+    }
+    refreshTimerRef.current = window.setInterval(() => {
+      refreshAll(from, to);
+    }, 30000);
+    return () => {
+      if (refreshTimerRef.current) {
+        window.clearInterval(refreshTimerRef.current);
+      }
+    };
+  }, [from, to, refreshAll]);
 
   const filteredLiquidations = useMemo(
     () => liquidations.filter((l) => liquidationStatusFilter === "all" || l.status === liquidationStatusFilter),
@@ -203,9 +223,8 @@ export default function FinancesClient({
   }
 
   function applyRangeAndRefresh(nextFrom: string, nextTo: string) {
-    loadMain(nextFrom, nextTo);
-    void loadStaff(nextFrom, nextTo);
-    void loadCash(nextFrom, nextTo);
+    setFrom(nextFrom);
+    setTo(nextTo);
   }
 
   async function handleCreatePreLiquidation(e: React.FormEvent<HTMLFormElement>) {
@@ -245,6 +264,7 @@ export default function FinancesClient({
     setBusyKey(null);
     if (!res.success) return setError(actionError(res, "No se pudo abrir caja"));
     setQuickFeedback("Caja abierta");
+    loadMain(from, to);
     void loadCash(from, to);
   }
 
@@ -258,6 +278,7 @@ export default function FinancesClient({
     setBusyKey(null);
     if (!res.success) return setError(actionError(res, "No se pudo cerrar caja"));
     setQuickFeedback("Caja cerrada");
+    loadMain(from, to);
     void loadCash(from, to);
   }
 
@@ -270,6 +291,7 @@ export default function FinancesClient({
     if (!res.success) return setError(actionError(res, "No se pudo guardar movimiento"));
     form.reset();
     setQuickFeedback("Movimiento guardado");
+    loadMain(from, to);
     void loadCash(from, to);
   }
 
@@ -285,7 +307,7 @@ export default function FinancesClient({
         {error && <span className="rounded-full bg-red-500/15 px-3 py-1 text-xs font-semibold text-red-700 dark:text-red-300">{error}</span>}
       </header>
 
-      <div className="ui-card inline-flex max-w-full flex-wrap items-center gap-2 rounded-2xl p-2.5 dark:border-zinc-800 dark:bg-zinc-900/70">
+      <div className="ui-card inline-flex max-w-full flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-2.5 dark:border-zinc-700 dark:bg-zinc-900/65">
         <button onClick={() => applyRangeAndRefresh(today, today)} className="ui-btn-ghost rounded-lg px-2.5 py-1.5 text-xs">DIA</button>
         <button onClick={() => applyRangeAndRefresh(monthBounds.from, monthBounds.to)} className="ui-btn-ghost rounded-lg px-2.5 py-1.5 text-xs">MES</button>
         <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded-lg border px-2 py-1.5 text-xs" />
@@ -297,18 +319,18 @@ export default function FinancesClient({
         </button>
       </div>
 
-      <div className="ui-card rounded-3xl p-4 dark:border-zinc-800 dark:bg-zinc-900/70">
+      <div className="ui-card rounded-3xl border border-slate-200/80 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900/65">
         <div className="grid grid-cols-3 gap-3 text-center">
           <div>
-            <p className="text-[11px] uppercase tracking-wide text-slate-500">Ingresos</p>
+            <p className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-zinc-400">Ingresos</p>
             <p className="mt-1 text-lg font-bold text-emerald-600">${(data?.totalIncome ?? 0).toFixed(2)}</p>
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-wide text-slate-500">Gastos</p>
+            <p className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-zinc-400">Gastos</p>
             <p className="mt-1 text-lg font-bold text-red-500">${(data?.totalExpenses ?? 0).toFixed(2)}</p>
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-wide text-slate-500">Balance</p>
+            <p className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-zinc-400">Balance</p>
             <p className={`mt-1 text-lg font-bold ${(data?.netBalance ?? 0) >= 0 ? "text-emerald-600" : "text-red-500"}`}>${(data?.netBalance ?? 0).toFixed(2)}</p>
           </div>
         </div>
@@ -373,34 +395,34 @@ export default function FinancesClient({
       </Card>}
 
       <Card title="Caja" icon={<Vault className="h-4 w-4" />}>
-        <div className="mb-4 rounded-2xl border border-slate-200/70 bg-slate-50/70 p-4 dark:border-zinc-800 dark:bg-zinc-900/40">
+        <div className="mb-4 rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white to-slate-50 p-4 dark:border-zinc-700/80 dark:bg-gradient-to-br dark:from-zinc-900 dark:to-zinc-950">
           <div className="grid grid-cols-3 gap-2 text-center">
-            <div><p className="text-[11px] uppercase text-slate-500">Esperado</p><p className="mt-1 text-lg font-bold text-slate-900 dark:text-white">${kpiExpected.toFixed(2)}</p></div>
-            <div><p className="text-[11px] uppercase text-slate-500">Contado</p><p className="mt-1 text-lg font-bold text-slate-900 dark:text-white">${kpiCounted.toFixed(2)}</p></div>
-            <div><p className="text-[11px] uppercase text-slate-500">Diferencia</p><p className={`mt-1 text-lg font-bold ${kpiDiff >= 0 ? "text-emerald-600" : "text-red-500"}`}>${kpiDiff.toFixed(2)}</p></div>
+            <div><p className="text-[11px] uppercase text-slate-500 dark:text-zinc-400">Esperado</p><p className="mt-1 text-lg font-bold text-slate-900 dark:text-white">${kpiExpected.toFixed(2)}</p></div>
+            <div><p className="text-[11px] uppercase text-slate-500 dark:text-zinc-400">Contado</p><p className="mt-1 text-lg font-bold text-slate-900 dark:text-white">${kpiCounted.toFixed(2)}</p></div>
+            <div><p className="text-[11px] uppercase text-slate-500 dark:text-zinc-400">Diferencia</p><p className={`mt-1 text-lg font-bold ${kpiDiff >= 0 ? "text-emerald-600" : "text-red-500"}`}>${kpiDiff.toFixed(2)}</p></div>
           </div>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">
-          <form onSubmit={handleOpenCashSession} className="rounded-2xl border border-slate-200/70 p-4 dark:border-zinc-800">
-            <p className="mb-3 text-xs text-slate-500">Arrancá el dia con el efectivo inicial.</p>
+          <form onSubmit={handleOpenCashSession} className="rounded-2xl border border-slate-200/80 bg-white/80 p-4 dark:border-zinc-700 dark:bg-zinc-900/55">
+            <p className="mb-3 text-xs text-slate-500 dark:text-zinc-400">Arrancá el dia con el efectivo inicial.</p>
             <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-              <input name="opening_amount" type="number" step="0.01" min="0" required placeholder="Monto inicial" className="w-full rounded-xl border px-3 py-2.5 text-sm" />
-              <button disabled={!!cashSession || busyKey === "cash-open"} className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50">{busyKey === "cash-open" ? "Abriendo..." : "Abrir caja"}</button>
+              <input name="opening_amount" type="number" step="0.01" min="0" required placeholder="Monto inicial" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
+              <button disabled={!!cashSession || busyKey === "cash-open"} className="ui-btn-primary rounded-xl px-4 py-2.5 text-sm font-medium disabled:opacity-50">{busyKey === "cash-open" ? "Abriendo..." : "Abrir caja"}</button>
             </div>
           </form>
 
-          <form onSubmit={handleCloseCashSession} className="rounded-2xl border border-slate-200/70 p-4 dark:border-zinc-800">
-            <p className="mb-3 text-xs text-slate-500">Poné lo contado y cerramos el dia.</p>
+          <form onSubmit={handleCloseCashSession} className="rounded-2xl border border-slate-200/80 bg-white/80 p-4 dark:border-zinc-700 dark:bg-zinc-900/55">
+            <p className="mb-3 text-xs text-slate-500 dark:text-zinc-400">Poné lo contado y cerramos el dia.</p>
             <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-              <input name="counted_amount" type="number" step="0.01" min="0" required placeholder="Monto contado" className="w-full rounded-xl border px-3 py-2.5 text-sm" />
-              <button disabled={!cashSession || busyKey === "cash-close"} className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50">{busyKey === "cash-close" ? "Cerrando..." : "Cerrar caja"}</button>
+              <input name="counted_amount" type="number" step="0.01" min="0" required placeholder="Monto contado" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
+              <button disabled={!cashSession || busyKey === "cash-close"} className="ui-btn-primary rounded-xl px-4 py-2.5 text-sm font-medium disabled:opacity-50">{busyKey === "cash-close" ? "Cerrando..." : "Cerrar caja"}</button>
             </div>
           </form>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-slate-200/70 p-4 dark:border-zinc-800">
-          <p className="mb-3 text-xs text-slate-500">Movimientos rapidos de caja.</p>
+        <div className="mt-4 rounded-2xl border border-slate-200/80 bg-white/80 p-4 dark:border-zinc-700 dark:bg-zinc-900/55">
+          <p className="mb-3 text-xs text-slate-500 dark:text-zinc-400">Movimientos rapidos de caja.</p>
           <form onSubmit={handleCreateCashMovement} className="grid gap-2 md:grid-cols-5">
             <CustomSelect
               name="movement_type"
@@ -414,21 +436,21 @@ export default function FinancesClient({
               onChange={setCashPaymentMethod}
               options={[{ value: "cash", label: "Efectivo" }, { value: "transfer", label: "Transferencia" }]}
             />
-            <input name="category" required placeholder="Categoria" className="rounded-xl border px-3 py-2.5 text-sm" />
-            <input name="amount" type="number" step="0.01" min="0.01" required placeholder="Monto" className="rounded-xl border px-3 py-2.5 text-sm" />
-            <button disabled={busyKey === "cash-move-create"} className="rounded-xl bg-slate-900 px-3 py-2.5 text-sm font-medium text-white disabled:opacity-50">{busyKey === "cash-move-create" ? "Guardando..." : "Agregar"}</button>
+            <input name="category" required placeholder="Categoria" className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
+            <input name="amount" type="number" step="0.01" min="0.01" required placeholder="Monto" className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
+            <button disabled={busyKey === "cash-move-create"} className="ui-btn-primary rounded-xl px-3 py-2.5 text-sm font-medium disabled:opacity-50">{busyKey === "cash-move-create" ? "Guardando..." : "Agregar"}</button>
           </form>
         </div>
 
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          <div className="rounded-2xl border border-slate-200/70 p-3 dark:border-zinc-800">
+          <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-3 dark:border-zinc-700 dark:bg-zinc-900/55">
             <button onClick={() => setShowMovements((v) => !v)} className="flex w-full items-center justify-between rounded-xl px-2 py-1 text-sm font-semibold">
               <span>Ultimos movimientos</span>
               <ChevronDown className={`h-4 w-4 transition-transform ${showMovements ? "rotate-180" : ""}`} />
             </button>
             {showMovements && (cashMovements.length === 0 ? <div className="mt-2 rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500 dark:border-zinc-700">Todavia no cargaste movimientos</div> : <div className="mt-2 space-y-2">{cashMovements.slice(0, 8).map((m) => <div key={m.id} className="flex items-center justify-between rounded-xl border border-slate-200/70 px-3 py-2 text-xs dark:border-zinc-800"><span>{m.category}</span><span className={m.movementType === "income" ? "text-emerald-600" : "text-red-500"}>{m.movementType === "income" ? "+" : "-"}${m.amount.toFixed(2)}</span></div>)}</div>)}
           </div>
-          <div className="rounded-2xl border border-slate-200/70 p-3 dark:border-zinc-800">
+          <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-3 dark:border-zinc-700 dark:bg-zinc-900/55">
             <button onClick={() => setShowClosures((v) => !v)} className="flex w-full items-center justify-between rounded-xl px-2 py-1 text-sm font-semibold">
               <span>Ultimos cierres</span>
               <ChevronDown className={`h-4 w-4 transition-transform ${showClosures ? "rotate-180" : ""}`} />

@@ -56,21 +56,18 @@ export default function LoginPage() {
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
 
-    console.log("Intentando login con:", email);
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     if (error) {
-      console.error("ERROR DE SUPABASE:", error.message);
       addToast(`Error de login: ${error.message}`, "error");
       setError(error.message);
       setLoading(false);
       return;
     }
 
-    console.log("LOGIN EXITOSO:", data);
     const userId = data.user?.id;
     if (userId) {
       const { data: memberships } = await supabase
