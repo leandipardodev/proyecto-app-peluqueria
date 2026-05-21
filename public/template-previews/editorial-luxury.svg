@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="640" viewBox="0 0 360 640" fill="none">
+  <rect width="360" height="640" fill="#F8F2EA"/>
+  <circle cx="54" cy="92" r="92" fill="#F2DFC9"/>
+  <circle cx="306" cy="564" r="124" fill="#E9D9C9"/>
+  <rect x="22" y="76" width="316" height="488" rx="30" fill="#FFF8F0" stroke="#DECDBB"/>
+  <text x="50" y="154" fill="#3A2A1E" font-size="20" letter-spacing="1">PASTELES MARRON</text>
+  <rect x="50" y="196" width="260" height="54" rx="20" fill="#FFFDF8" stroke="#DCCAB7"/>
+  <rect x="50" y="268" width="260" height="54" rx="20" fill="#FFFDF8" stroke="#DCCAB7"/>
+  <rect x="50" y="340" width="260" height="54" rx="20" fill="#FFFDF8" stroke="#DCCAB7"/>
+  <rect x="94" y="444" width="172" height="50" rx="25" fill="#7D5C3A"/>
+</svg>

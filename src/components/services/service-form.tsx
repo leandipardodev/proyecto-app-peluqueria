@@ -9,6 +9,7 @@ interface ServiceFormProps {
   service?: {
     id: string;
     name: string;
+    category: string;
     price: number;
     duration_minutes: number;
   };
@@ -139,6 +140,8 @@ export default function ServiceForm({ shopId, service, onSuccess }: ServiceFormP
           Elegí un emoji para identificar el servicio visualmente en el calendario
         </p>
       </div>
+
+      <input type="hidden" name="category" value={service?.category ?? "General"} />
 
       <div>
         <label

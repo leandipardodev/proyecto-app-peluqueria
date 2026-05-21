@@ -10,6 +10,7 @@ import { usePathname } from "next/navigation";
 import { globalSearch, type OmniSearchResult } from "@/lib/dashboard/global-search-actions";
 import { useDarkMode } from "@/lib/use-dark-mode";
 import { usePerformanceMode } from "@/lib/use-performance-mode";
+import { triggerDashboardNavTransition } from "@/lib/dashboard/nav-transition";
 
 interface DashboardHeaderProps {
   shopName: string;
@@ -191,7 +192,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
         : "Pagar mensualidad";
 
   function navigateWithTransition(target: string) {
-    window.dispatchEvent(new CustomEvent("dashboard:nav-start"));
+    triggerDashboardNavTransition();
     router.push(target);
   }
 

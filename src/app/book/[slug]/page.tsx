@@ -1,6 +1,7 @@
 import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
 import BookingClient from "./booking-client";
 import { absoluteUrl } from "@/lib/seo";
+import { DEFAULT_BOOKING_TEMPLATE, type BookingTemplateId } from "@/lib/booking/theme-presets";
 
 async function createAdminClient() {
   return createServiceRoleClient();
@@ -40,7 +41,7 @@ export default async function BookPage({ params }: BookPageProps) {
   const [servicesRes, membershipsRes] = await Promise.all([
     admin
       .from("services")
-      .select("id, name, price, duration_minutes")
+      .select("id, name, price, duration_minutes, category")
       .eq("shop_id", shop.id)
       .order("name", { ascending: true }),
     admin
@@ -94,6 +95,12 @@ export default async function BookPage({ params }: BookPageProps) {
     })),
   };
 
+  const { data: bookingTheme } = await admin
+    .from("shop_booking_theme")
+    .select("template_id, section_order, section_service_order, logo_url, hero_title, hero_subtitle, about_title, about_text")
+    .eq("shop_id", shop.id)
+    .maybeSingle();
+
   return (
     <>
       <script
@@ -110,6 +117,24 @@ export default async function BookPage({ params }: BookPageProps) {
           instagramUrl: shop.instagram_url || "",
           slug: shop.slug || "",
           mpPublicKey: shop.mp_public_key || "",
+          logoUrl: (bookingTheme?.logo_url as string | null) || "",
+          heroTitle: (bookingTheme?.hero_title as string | null) || "",
+          heroSubtitle: (bookingTheme?.hero_subtitle as string | null) || "",
+          aboutTitle: (bookingTheme?.about_title as string | null) || "",
+          aboutText: (bookingTheme?.about_text as string | null) || "",
+          sectionOrder: Array.isArray((bookingTheme as { section_order?: string[] } | null)?.section_order)
+            ? (((bookingTheme as { section_order?: string[] }).section_order || [])
+                .map((item) => String(item || "").trim())
+                .filter(Boolean))
+            : [],
+          sectionServiceOrder: Array.isArray((bookingTheme as { section_service_order?: string[] } | null)?.section_service_order)
+            ? (((bookingTheme as { section_service_order?: string[] }).section_service_order || [])
+                .map((item) => String(item || "").trim())
+                .filter(Boolean))
+            : [],
+          templateId: (["classic-dark", "minimal-glass", "editorial-luxury", "street-bold"].includes(String(bookingTheme?.template_id))
+            ? bookingTheme?.template_id
+            : DEFAULT_BOOKING_TEMPLATE) as BookingTemplateId,
         }}
         services={services}
         staffMembers={staffMembers}

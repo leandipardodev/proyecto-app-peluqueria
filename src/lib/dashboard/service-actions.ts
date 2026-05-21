@@ -12,12 +12,76 @@ async function createAdminClient() {
 type ServiceRow = {
   id: string;
   name: string;
+  category: string;
   price: number;
   duration_minutes: number;
   created_at: string;
   updated_at: string | null;
   shop_id: string;
 };
+
+function normalizeCategoryKey(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function toDisplayCategory(value: string): string {
+  return value
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+}
+
+function levenshteinDistance(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const matrix: number[][] = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
+  for (let i = 0; i <= a.length; i++) matrix[i][0] = i;
+  for (let j = 0; j <= b.length; j++) matrix[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,
+        matrix[i][j - 1] + 1,
+        matrix[i - 1][j - 1] + cost,
+      );
+    }
+  }
+  return matrix[a.length][b.length];
+}
+
+async function resolveCanonicalCategory(admin: Awaited<ReturnType<typeof createAdminClient>>, shopId: string, rawCategory: string): Promise<string> {
+  const candidate = toDisplayCategory(rawCategory || "General") || "General";
+  const candidateKey = normalizeCategoryKey(candidate);
+  const { data } = await admin.from("services").select("category").eq("shop_id", shopId);
+  const existing = Array.from(new Set((data || []).map((row) => String(row.category || "General").trim()).filter(Boolean)));
+
+  for (const current of existing) {
+    if (normalizeCategoryKey(current) === candidateKey) return current;
+  }
+
+  let best: string | null = null;
+  let bestDistance = Number.MAX_SAFE_INTEGER;
+  for (const current of existing) {
+    const dist = levenshteinDistance(candidateKey, normalizeCategoryKey(current));
+    if (dist < bestDistance) {
+      bestDistance = dist;
+      best = current;
+    }
+  }
+
+  if (best && bestDistance <= 1) return best;
+  return candidate;
+}
 
 export async function fetchServices(shopIdOverride?: string): Promise<ActionResult<ServiceRow[]>> {
   try {
@@ -59,6 +123,7 @@ export async function createService(formData: FormData, shopIdOverride?: string)
 
     const name = formData.get("name") as string;
     const price = parseFloat(formData.get("price") as string);
+    const rawCategory = String(formData.get("category") || "General");
     const durationMinutes = parseInt(formData.get("duration_minutes") as string);
 
     if (!name || isNaN(price) || isNaN(durationMinutes)) {
@@ -71,9 +136,12 @@ export async function createService(formData: FormData, shopIdOverride?: string)
 
     const admin = await createAdminClient();
 
+    const category = await resolveCanonicalCategory(admin, shopId, rawCategory);
+
     const { error } = await admin.from("services").insert({
       shop_id: shopId,
       name,
+      category,
       price,
       duration_minutes: durationMinutes,
     });
@@ -101,6 +169,7 @@ export async function updateService(id: string, formData: FormData, shopIdOverri
     }
 
     const name = formData.get("name") as string;
+    const rawCategory = String(formData.get("category") || "General");
     const price = parseFloat(formData.get("price") as string);
     const durationMinutes = parseInt(formData.get("duration_minutes") as string);
 
@@ -110,9 +179,11 @@ export async function updateService(id: string, formData: FormData, shopIdOverri
 
     const admin = await createAdminClient();
 
+    const category = await resolveCanonicalCategory(admin, shopId, rawCategory);
+
     const { error } = await admin
       .from("services")
-      .update({ name, price, duration_minutes: durationMinutes, updated_at: new Date().toISOString() })
+      .update({ name, category, price, duration_minutes: durationMinutes, updated_at: new Date().toISOString() })
       .eq("id", id)
       .eq("shop_id", shopId);
 
@@ -125,6 +196,38 @@ export async function updateService(id: string, formData: FormData, shopIdOverri
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al actualizar servicio" };
+  }
+}
+
+export async function bulkUpdateServiceCategories(
+  updates: Array<{ id: string; category: string }>,
+  shopIdOverride?: string,
+): Promise<ActionResult> {
+  try {
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    }
+
+    const admin = await createAdminClient();
+    for (const item of updates) {
+      const category = await resolveCanonicalCategory(admin, shopId, item.category);
+      const { error } = await admin
+        .from("services")
+        .update({ category, updated_at: new Date().toISOString() })
+        .eq("id", item.id)
+        .eq("shop_id", shopId);
+
+      if (error) return { success: false, error: error.message };
+    }
+
+    await revalidateDashboardSegments(shopId, ["/business", "/services"]);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al actualizar categorias" };
   }
 }
 

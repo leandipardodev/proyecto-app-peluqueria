@@ -13,6 +13,7 @@ import { useToast } from "@/components/ui/toast";
 type Service = {
   id: string;
   name: string;
+  category: string;
   price: number;
   duration_minutes: number;
 };
@@ -58,7 +59,7 @@ export default function ServicesList({ shopId, shopSlug, initialServices }: Serv
         async () => {
           const { data } = await supabase
             .from("services")
-            .select("id, name, price, duration_minutes")
+            .select("id, name, category, price, duration_minutes")
             .eq("shop_id", shopId)
             .order("created_at", { ascending: false });
           if (data) {
@@ -94,7 +95,7 @@ export default function ServicesList({ shopId, shopSlug, initialServices }: Serv
     startTransition(async () => {
       const { data } = await supabase
         .from("services")
-        .select("id, name, price, duration_minutes")
+        .select("id, name, category, price, duration_minutes")
         .eq("shop_id", shopId)
         .order("created_at", { ascending: false });
       if (data) setServices(data as Service[]);
@@ -141,7 +142,10 @@ export default function ServicesList({ shopId, shopSlug, initialServices }: Serv
         </div>
       )}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Servicios</h1>
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Servicios</h1>
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Las secciones/categorias de /book ahora se editan en Mi Negocio - Personalizacion.</p>
+        </div>
         <button
           onClick={openCreate}
           className="inline-flex items-center justify-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 transition-colors cursor-pointer select-none"
@@ -171,6 +175,10 @@ export default function ServicesList({ shopId, shopSlug, initialServices }: Serv
               <div key={service.id} className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[1.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-4">
                 <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{service.name}</p>
                 <div className="mt-2 flex items-center justify-between text-sm">
+                  <span className="text-gray-500 dark:text-gray-400">Categoria</span>
+                  <span className="font-medium text-gray-900 dark:text-gray-100">{service.category}</span>
+                </div>
+                <div className="mt-1 flex items-center justify-between text-sm">
                   <span className="text-gray-500 dark:text-gray-400">Precio</span>
                   <span className="font-medium text-gray-900 dark:text-gray-100">${service.price.toFixed(2)}</span>
                 </div>
@@ -207,6 +215,9 @@ export default function ServicesList({ shopId, shopSlug, initialServices }: Serv
                     Nombre
                   </th>
                   <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider px-6 py-3">
+                    Categoria
+                  </th>
+                  <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider px-6 py-3">
                     Precio
                   </th>
                   <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider px-6 py-3">
@@ -222,6 +233,9 @@ export default function ServicesList({ shopId, shopSlug, initialServices }: Serv
                   <tr key={service.id} className="hover:bg-white/40 dark:hover:bg-white/5 cursor-pointer">
                     <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-gray-100">
                       {service.name}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                      {service.category}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
                       ${service.price.toFixed(2)}

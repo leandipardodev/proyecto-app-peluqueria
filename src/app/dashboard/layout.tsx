@@ -5,6 +5,7 @@ import DashboardSidebar from "@/components/dashboard/dashboard-sidebar";
 import DashboardHeaderLoader from "@/components/dashboard/dashboard-header-loader";
 import DashboardPageTransition from "@/components/dashboard/dashboard-page-transition";
 import ReleaseNotesModal from "@/components/dashboard/release-notes-modal";
+import BugReportModal from "@/components/dashboard/bug-report-modal";
 import { logout } from "@/lib/dashboard/logout-action";
 
 export const dynamic = "force-dynamic";
@@ -51,6 +52,7 @@ export default async function DashboardLayout({
 
       <div className="flex flex-col flex-1 min-w-0 min-h-0 relative z-10">
         <ReleaseNotesModal />
+        <BugReportModal />
         <DashboardHeaderLoader userEmail={user.email ?? ""} onLogout={logout} />
 
         <main className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain p-3 sm:p-6 lg:p-8">

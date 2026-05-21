@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="640" viewBox="0 0 360 640" fill="none">
+  <rect width="360" height="640" fill="#EEF2FA"/>
+  <circle cx="70" cy="104" r="96" fill="#DDE7FF"/>
+  <circle cx="302" cy="556" r="124" fill="#F9E1E8"/>
+  <rect x="22" y="76" width="316" height="488" rx="30" fill="#FFFFFF" fill-opacity="0.9" stroke="#DCE4EF"/>
+  <text x="50" y="154" fill="#2D3142" font-size="20" letter-spacing="1">COLORIDO PASTEL</text>
+  <rect x="50" y="196" width="260" height="54" rx="20" fill="#FFFFFF" stroke="#D5DEEB"/>
+  <rect x="50" y="268" width="260" height="54" rx="20" fill="#FFFFFF" stroke="#D5DEEB"/>
+  <rect x="50" y="340" width="260" height="54" rx="20" fill="#FFFFFF" stroke="#D5DEEB"/>
+  <rect x="94" y="444" width="172" height="50" rx="25" fill="#6883D8"/>
+</svg>

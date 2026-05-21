@@ -1,5 +1,6 @@
 import { fetchBusinessData } from "@/lib/dashboard/business-actions";
 import { fetchDashboardSummary, fetchDashboardMetrics } from "@/lib/dashboard/dashboard-summary";
+import { fetchServices } from "@/lib/dashboard/service-actions";
 import BusinessClient from "@/app/dashboard/business/business-client";
 import { createServerClient } from "@/lib/supabase/server";
 import { getAuthSession, getShopIdBySlug } from "@/lib/dashboard/auth-server";
@@ -23,10 +24,11 @@ export default async function DashboardShopBusinessPage({ params }: { params: Pr
     .maybeSingle();
   const canManageBilling = Boolean(membership?.is_active && membership.role === "owner");
 
-  const [result, summaryResult, metricsResult] = await Promise.all([
+  const [result, summaryResult, metricsResult, servicesResult] = await Promise.all([
     fetchBusinessData(shopId),
     fetchDashboardSummary(shopId),
     fetchDashboardMetrics(shopId),
+    fetchServices(shopId),
   ]);
 
   const summaryStats =
@@ -58,6 +60,7 @@ export default async function DashboardShopBusinessPage({ params }: { params: Pr
       metricStats={metricStats}
       canManageBilling={canManageBilling}
       shopSlug={shopSlug}
+      initialServices={servicesResult.success ? servicesResult.data ?? [] : []}
     />
   );
 }

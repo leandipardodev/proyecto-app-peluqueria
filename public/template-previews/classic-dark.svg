@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="640" viewBox="0 0 360 640" fill="none">
+  <rect width="360" height="640" fill="#08090B"/>
+  <circle cx="56" cy="88" r="92" fill="#0F2A4A" fill-opacity="0.5"/>
+  <circle cx="304" cy="568" r="122" fill="#1A202B"/>
+  <rect x="24" y="80" width="312" height="482" rx="32" fill="#14171D" stroke="#2A313D"/>
+  <text x="52" y="154" fill="#CDE4FF" font-size="20" letter-spacing="1">MODO OSCURO</text>
+  <rect x="50" y="196" width="260" height="54" rx="20" fill="#171D28" stroke="#374154"/>
+  <rect x="50" y="268" width="260" height="54" rx="20" fill="#171D28" stroke="#374154"/>
+  <rect x="50" y="340" width="260" height="54" rx="20" fill="#171D28" stroke="#374154"/>
+  <rect x="94" y="444" width="172" height="50" rx="25" fill="#EAF2FF"/>
+</svg>

@@ -1,12 +1,16 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
 import { Store, Eye, EyeOff, CreditCard, MessageSquareText, Smartphone, Link2, MapPin, Phone, Clock, Share2, AlertTriangle, Trash2 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
+import BookingTemplateCarousel from "@/components/dashboard/booking-template-carousel";
+import BookingThemeLivePreview from "@/components/dashboard/booking-theme-live-preview";
+import { bulkUpdateServiceCategories } from "@/lib/dashboard/service-actions";
 import { createAdditionalShop } from "@/lib/dashboard/auth-actions";
 import {
   fetchBusinessData,
@@ -20,8 +24,16 @@ import {
   type BusinessHoursData,
 } from "@/lib/dashboard/business-actions";
 import { deleteCurrentShop } from "@/lib/dashboard/shop-actions";
+import {
+  fetchBookingTheme,
+  upsertBookingTheme,
+  uploadBookingLogo,
+  type BookingThemeData,
+} from "@/lib/dashboard/booking-theme-actions";
+import { DEFAULT_BOOKING_TEMPLATE, type BookingTemplateId } from "@/lib/booking/theme-presets";
 
 type MessageType = { type: "success" | "error"; text: string } | null;
+type InitialServiceItem = { id: string; name: string; category?: string | null; price: number; duration_minutes: number };
 
 const TOUR_STEPS = [
   { id: "setup-public-info", title: "1. Informacion publica", text: "Completa nombre, descripcion, direccion y telefono de tu local." },
@@ -38,6 +50,7 @@ export default function BusinessClient({
   metricStats,
   canManageBilling,
   shopSlug,
+  initialServices,
 }: {
   initialData: BusinessData | null;
   initialError: string | null;
@@ -56,6 +69,7 @@ export default function BusinessClient({
   } | null;
   canManageBilling: boolean;
   shopSlug: string | null;
+  initialServices: InitialServiceItem[];
 }) {
   const { playSuccess, playError, playClick } = useKlipSounds();
   const router = useRouter();
@@ -91,6 +105,53 @@ export default function BusinessClient({
   const [mpConnectUnlockAt, setMpConnectUnlockAt] = useState(0);
   const [isConnectingMp, setIsConnectingMp] = useState(false);
   const [isDisconnectingMp, setIsDisconnectingMp] = useState(false);
+  const [bookingTheme, setBookingTheme] = useState<BookingThemeData | null>(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<BookingTemplateId>(DEFAULT_BOOKING_TEMPLATE);
+  const [logoUrl, setLogoUrl] = useState<string>("");
+  const [heroTitle, setHeroTitle] = useState("");
+  const [heroSubtitle, setHeroSubtitle] = useState("");
+  const [aboutTitle, setAboutTitle] = useState("");
+  const [aboutText, setAboutText] = useState("");
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [serviceCategoryDraft, setServiceCategoryDraft] = useState<Record<string, string>>(
+    Object.fromEntries(initialServices.map((service) => [service.id, (service.category || "General").trim() || "General"])),
+  );
+  const [sectionCatalog, setSectionCatalog] = useState<string[]>(() => {
+    const unique = Array.from(new Set(initialServices.map((service) => (service.category || "General").trim() || "General")));
+    if (!unique.includes("General")) unique.unshift("General");
+    return unique;
+  });
+  const [newSectionName, setNewSectionName] = useState("");
+  const [draggingServiceId, setDraggingServiceId] = useState<string | null>(null);
+  const [dragOverSection, setDragOverSection] = useState<string | null>(null);
+  const [mobileDropFlashSection, setMobileDropFlashSection] = useState<string | null>(null);
+  const [serviceOrderIds, setServiceOrderIds] = useState<string[]>(initialServices.map((service) => service.id));
+  const orderedServices = useMemo(() => {
+    const rank = new Map(serviceOrderIds.map((id, index) => [id, index]));
+    return [...initialServices].sort((a, b) => {
+      const ai = rank.get(a.id);
+      const bi = rank.get(b.id);
+      if (ai === undefined && bi === undefined) return 0;
+      if (ai === undefined) return 1;
+      if (bi === undefined) return -1;
+      return ai - bi;
+    });
+  }, [initialServices, serviceOrderIds]);
+  const previewServices = useMemo(
+    () =>
+      orderedServices.map((service) => ({
+        id: service.id,
+        name: service.name,
+        price: Number(service.price || 0),
+        duration_minutes: Number(service.duration_minutes || 30),
+        category: (serviceCategoryDraft[service.id] || "General").trim() || "General",
+      })),
+    [orderedServices, serviceCategoryDraft],
+  );
+  const bookingThemeSyncKey = useMemo(
+    () => `${shopSlug || "default"}::${initialServices.map((service) => service.id).join("|")}`,
+    [shopSlug, initialServices],
+  );
 
   const DAYS = [
     { key: "monday", label: "Lunes" },
@@ -131,6 +192,45 @@ export default function BusinessClient({
         setHoursLoading(false);
       });
   }, []);
+
+  useEffect(() => {
+    fetchBookingTheme(undefined, shopSlug).then((result) => {
+      if (!result.success) return;
+      const theme = result.data;
+      if (!theme) return;
+      setBookingTheme(theme);
+      setSelectedTemplateId(theme.template_id);
+      setLogoUrl(theme.logo_url || "");
+      setHeroTitle(theme.hero_title || "");
+      setHeroSubtitle(theme.hero_subtitle || "");
+      setAboutTitle(theme.about_title || "");
+      setAboutText(theme.about_text || "");
+      if (Array.isArray(theme.section_order) && theme.section_order.length > 0) {
+        const fromServices = Array.from(new Set(initialServices.map((service) => (service.category || "General").trim() || "General")));
+        const merged = [...theme.section_order, ...fromServices].filter((item, index, arr) => Boolean(item) && arr.indexOf(item) === index);
+        if (!merged.includes("General")) merged.unshift("General");
+        const ordered = ["General", ...merged.filter((item) => item !== "General")];
+        setSectionCatalog(ordered);
+      }
+      if (Array.isArray(theme.section_service_order) && theme.section_service_order.length > 0) {
+        const ranked = new Map(theme.section_service_order.map((id, index) => [id, index]));
+        const orderedFromTheme = [...initialServices].sort((a, b) => {
+          const ai = ranked.get(a.id);
+          const bi = ranked.get(b.id);
+          if (ai === undefined && bi === undefined) return 0;
+          if (ai === undefined) return 1;
+          if (bi === undefined) return -1;
+          return ai - bi;
+        });
+        const nextDraft: Record<string, string> = {};
+        for (const service of orderedFromTheme) {
+          nextDraft[service.id] = (service.category || "General").trim() || "General";
+        }
+        setServiceCategoryDraft((prev) => ({ ...nextDraft, ...prev }));
+        setServiceOrderIds(orderedFromTheme.map((service) => service.id));
+      }
+    });
+  }, [bookingThemeSyncKey, initialServices, shopSlug]);
 
   useEffect(() => {
     try {
@@ -339,6 +439,27 @@ export default function BusinessClient({
     const wa = await updateWhatsappTemplateAction(whatsappTemplate);
     if (!wa.success) return showError(wa.error), false;
 
+    if (initialServices.length > 0) {
+      const categoryUpdates = initialServices.map((service) => ({
+        id: service.id,
+        category: (serviceCategoryDraft[service.id] || "General").trim() || "General",
+      }));
+      const categoryResult = await bulkUpdateServiceCategories(categoryUpdates);
+      if (!categoryResult.success) return showError(categoryResult.error), false;
+    }
+
+    const theme = await upsertBookingTheme({
+      templateId: selectedTemplateId,
+      shopSlug,
+      sectionOrder: sectionCatalog,
+      sectionServiceOrder: buildSectionServiceOrder(),
+      heroTitle,
+      heroSubtitle,
+      aboutTitle,
+      aboutText,
+    });
+    if (!theme.success) return showError(theme.error), false;
+
     playSuccess();
     showSuccess("Todo guardado correctamente");
     return true;
@@ -402,6 +523,174 @@ export default function BusinessClient({
       }),
     );
     window.location.href = "/api/payments/mercadopago-oauth/start";
+  }
+
+  function handleSaveBookingTheme() {
+    startTransition(async () => {
+      const categoryUpdates = initialServices.map((service) => ({
+        id: service.id,
+        category: (serviceCategoryDraft[service.id] || "General").trim() || "General",
+      }));
+
+      if (categoryUpdates.length > 0) {
+        const categoryResult = await bulkUpdateServiceCategories(categoryUpdates);
+        if (!categoryResult.success) {
+          playError();
+          showError(categoryResult.error);
+          return;
+        }
+      }
+
+      const result = await upsertBookingTheme({
+        templateId: selectedTemplateId,
+        shopSlug,
+        sectionOrder: sectionCatalog,
+        sectionServiceOrder: buildSectionServiceOrder(),
+        heroTitle,
+        heroSubtitle,
+        aboutTitle,
+        aboutText,
+      });
+
+      if (!result.success) {
+        playError();
+        showError(result.error);
+        return;
+      }
+
+      const fresh = await fetchBookingTheme(undefined, shopSlug);
+      if (fresh.success) setBookingTheme(fresh.data ?? null);
+      playSuccess();
+      showSuccess("Personalizacion de /book guardada");
+    });
+  }
+
+  function handleAddSection() {
+    const clean = newSectionName.trim();
+    if (!clean) return;
+    const normalized = clean
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9\s]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!normalized) return;
+
+    const exists = sectionCatalog.some((section) => {
+      const sectionNorm = section
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9\s]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+      return sectionNorm === normalized;
+    });
+    if (exists) {
+      setNewSectionName("");
+      return;
+    }
+
+    const display = clean
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" ");
+
+    setSectionCatalog((prev) => [...prev, display]);
+    setNewSectionName("");
+  }
+
+  function handleRemoveSection(sectionToRemove: string) {
+    if (sectionToRemove === "General") return;
+    setSectionCatalog((prev) => prev.filter((section) => section !== sectionToRemove));
+    setServiceCategoryDraft((prev) => {
+      const next = { ...prev };
+      for (const serviceId of Object.keys(next)) {
+        if (next[serviceId] === sectionToRemove) next[serviceId] = "General";
+      }
+      return next;
+    });
+  }
+
+  function moveSection(section: string, direction: "up" | "down") {
+    if (section === "General") return;
+    setSectionCatalog((prev) => {
+      const index = prev.indexOf(section);
+      if (index === -1) return prev;
+      const target = direction === "up" ? index - 1 : index + 1;
+      if (target < 1 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }
+
+  function buildSectionServiceOrder(): string[] {
+    const known = new Set(initialServices.map((service) => service.id));
+    const ordered = serviceOrderIds.filter((id) => known.has(id));
+    const missing = initialServices.map((service) => service.id).filter((id) => !ordered.includes(id));
+    return [...ordered, ...missing];
+  }
+
+  function moveServiceToSection(serviceId: string, section: string, beforeServiceId?: string) {
+    setServiceCategoryDraft((prev) => ({ ...prev, [serviceId]: section }));
+    setServiceOrderIds((prevOrder) => {
+      const without = prevOrder.filter((id) => id !== serviceId);
+      if (beforeServiceId && without.includes(beforeServiceId)) {
+        const idx = without.indexOf(beforeServiceId);
+        const next = [...without];
+        next.splice(idx, 0, serviceId);
+        return next;
+      }
+
+      const tempCategories = { ...serviceCategoryDraft, [serviceId]: section };
+      let lastInSectionIndex = -1;
+      for (let i = 0; i < without.length; i++) {
+        const currentId = without[i];
+        if ((tempCategories[currentId] || "General") === section) lastInSectionIndex = i;
+      }
+      const next = [...without];
+      if (lastInSectionIndex === -1) next.push(serviceId);
+      else next.splice(lastInSectionIndex + 1, 0, serviceId);
+      return next;
+    });
+    showSuccess(`Servicio movido a ${section}.`);
+  }
+
+  function placeServiceInSection(serviceId: string, section: string) {
+    moveServiceToSection(serviceId, section);
+    setDraggingServiceId(null);
+    setDragOverSection(null);
+    setMobileDropFlashSection(section);
+    window.setTimeout(() => {
+      setMobileDropFlashSection((prev) => (prev === section ? null : prev));
+    }, 360);
+  }
+
+  function handleLogoUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploadingLogo(true);
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.set("logo", file);
+      if (shopSlug) formData.set("shopSlug", shopSlug);
+      const result = await uploadBookingLogo(formData);
+      setUploadingLogo(false);
+
+      if (!result.success || !result.data) {
+        playError();
+        showError(result.success ? "No se pudo subir el logo" : result.error);
+        return;
+      }
+
+      setLogoUrl(result.data.logoUrl);
+      playSuccess();
+      showSuccess("Logo actualizado");
+    });
   }
 
   function handleDisconnectMercadoPago() {
@@ -725,16 +1014,6 @@ export default function BusinessClient({
                 required
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 cursor-pointer">Descripción</label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={3}
-                className="w-full rounded-2xl bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all resize-none"
-                placeholder="Contanos brevemente sobre tu local..."
-              />
-            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 cursor-pointer flex items-center gap-1.5">
@@ -827,6 +1106,375 @@ export default function BusinessClient({
           </div>
         </div>
       </form>
+
+      <section className="order-4 bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden transition-colors">
+        <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-fuchsia-500/15 text-base font-bold text-fuchsia-700 dark:text-fuchsia-200">4</span>
+          <div className="flex-1">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Personalizar web de reservas (/book)</h2>
+            <p className="text-xs text-zinc-400 dark:text-zinc-500">Selecciona template, logo y textos principales</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleSaveBookingTheme}
+            disabled={pending || uploadingLogo}
+            className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#0071E3] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#005fcc] disabled:opacity-60"
+          >
+            {pending ? "Publicando..." : "Publicar cambios"}
+          </button>
+        </div>
+        <div className="p-6 grid grid-cols-1 gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+          <div className="space-y-5">
+          <BookingTemplateCarousel selectedTemplateId={selectedTemplateId} onSelect={setSelectedTemplateId} />
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300">Titulo principal</label>
+              <input
+                value={heroTitle}
+                onChange={(event) => setHeroTitle(event.target.value)}
+                className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
+                placeholder={data?.nombre ? `Reserva en ${data.nombre}` : "Reserva tu turno"}
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300">Subtitulo</label>
+              <input
+                value={heroSubtitle}
+                onChange={(event) => setHeroSubtitle(event.target.value)}
+                className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
+                placeholder="Elegi servicio, profesional y horario"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300">Titulo seccion secundaria</label>
+              <input
+                value={aboutTitle}
+                onChange={(event) => setAboutTitle(event.target.value)}
+                className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
+                placeholder="Sobre nosotros"
+              />
+            </div>
+            <div className="sm:row-span-2">
+              <label className="mb-1.5 block cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300">Texto seccion secundaria</label>
+              <textarea
+                value={aboutText}
+                onChange={(event) => setAboutText(event.target.value)}
+                rows={4}
+                className="w-full rounded-2xl bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all resize-none"
+                placeholder="Contale al cliente el estilo de atencion de tu local"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1.5 block cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300">Descripcion del local (no se usa en /book)</label>
+              <textarea
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                rows={3}
+                className="w-full rounded-2xl bg-white/30 dark:bg-black/20 backdrop-blur-md border border-white/20 dark:border-white/10 px-5 py-2.5 text-sm text-gray-500 dark:text-zinc-400 placeholder-zinc-400 transition-all resize-none cursor-not-allowed opacity-70"
+                placeholder="Campo legacy. Usa titulo/subtitulo y seccion secundaria para /book."
+                disabled
+              />
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/30 dark:bg-black/20 p-4">
+            <p className="text-sm font-semibold text-gray-900 dark:text-white">Logo de la peluqueria</p>
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">PNG/JPG/WebP/SVG hasta 2MB. Recomendado: 512x512 o superior para evitar pixelado.</p>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <label className="inline-flex min-h-12 cursor-pointer items-center justify-center rounded-full border border-white/30 bg-white/55 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-white/80 dark:border-white/10 dark:bg-zinc-900/40 dark:text-zinc-200 dark:hover:bg-zinc-900">
+                {uploadingLogo ? "Subiendo..." : "Subir logo"}
+                <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="hidden" onChange={handleLogoUpload} />
+              </label>
+              {logoUrl ? <Image src={logoUrl} alt="Logo" width={80} height={80} quality={100} className="h-20 w-20 rounded-2xl object-contain border border-white/20 bg-white/50 p-1.5 dark:bg-zinc-900/40" /> : null}
+              {bookingTheme?.logo_url && !logoUrl ? <span className="text-xs text-zinc-500">Logo configurado</span> : null}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/30 dark:bg-black/20 p-4">
+            <p className="text-sm font-semibold text-gray-900 dark:text-white">Secciones de servicios (/book)</p>
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Crealas una sola vez y luego asigna cada servicio con un selector.</p>
+
+            <div className="mt-3 rounded-xl border border-white/20 bg-white/40 p-3 dark:border-white/10 dark:bg-zinc-900/30">
+              <p className="text-xs font-medium text-zinc-600 dark:text-zinc-300">Secciones disponibles</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {sectionCatalog.map((section) => (
+                  <span key={section} className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/70 px-3 py-1 text-xs text-zinc-700 dark:border-white/10 dark:bg-zinc-900/60 dark:text-zinc-200">
+                    {section}
+                    {section !== "General" ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => moveSection(section, "up")}
+                          className="text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-100"
+                          title={`Subir ${section}`}
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveSection(section, "down")}
+                          className="text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-100"
+                          title={`Bajar ${section}`}
+                        >
+                          ↓
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSection(section)}
+                          className="text-zinc-400 hover:text-red-500"
+                          title={`Eliminar ${section}`}
+                        >
+                          x
+                        </button>
+                      </>
+                    ) : null}
+                  </span>
+                ))}
+              </div>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                <input
+                  value={newSectionName}
+                  onChange={(event) => setNewSectionName(event.target.value)}
+                  className="min-h-12 flex-1 rounded-full border border-white/40 bg-white/80 px-4 py-2 text-sm text-zinc-800 outline-none ring-[#0071E3] focus:ring-2 dark:border-white/10 dark:bg-zinc-900/60 dark:text-zinc-100"
+                  placeholder="Nueva seccion (ej: Cortes)"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddSection}
+                  className="min-h-12 rounded-full bg-[#111114] px-4 py-2 text-sm font-medium text-white hover:bg-black"
+                >
+                  Agregar
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-3 space-y-2">
+              {initialServices.length === 0 ? (
+                <p className="text-xs text-zinc-500">No hay servicios cargados todavia.</p>
+              ) : (
+                <>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Desktop: arrastra servicios entre secciones. Mobile: usa el selector de cada servicio.</p>
+
+                  <div className="hidden md:grid md:grid-cols-2 md:gap-3">
+                    {sectionCatalog.map((section) => {
+                      const servicesInSection = orderedServices.filter(
+                        (service) => (serviceCategoryDraft[service.id] ?? "General") === section,
+                      );
+                      const avgPrice = servicesInSection.length
+                        ? Math.round(servicesInSection.reduce((sum, service) => sum + Number(service.price || 0), 0) / servicesInSection.length)
+                        : 0;
+                      const avgDuration = servicesInSection.length
+                        ? Math.round(servicesInSection.reduce((sum, service) => sum + Number(service.duration_minutes || 0), 0) / servicesInSection.length)
+                        : 0;
+                      const isDragOver = dragOverSection === section;
+                      return (
+                        <div
+                          key={section}
+                          onDragOver={(event) => {
+                            event.preventDefault();
+                            if (dragOverSection !== section) setDragOverSection(section);
+                          }}
+                          onDragEnter={() => setDragOverSection(section)}
+                          onDragLeave={(event) => {
+                            const currentTarget = event.currentTarget;
+                            const related = event.relatedTarget as Node | null;
+                            if (!related || !currentTarget.contains(related)) {
+                              setDragOverSection((prev) => (prev === section ? null : prev));
+                            }
+                          }}
+                          onDrop={(event) => {
+                            event.preventDefault();
+                            const serviceId = event.dataTransfer.getData("text/plain");
+                            if (serviceId) moveServiceToSection(serviceId, section);
+                            setDragOverSection(null);
+                            setDraggingServiceId(null);
+                          }}
+                          className={`min-h-[180px] rounded-2xl border p-3 transition-all duration-300 ${
+                            isDragOver
+                              ? "border-[#0071E3]/70 bg-[#0071E3]/10 shadow-[0_0_0_3px_rgba(0,113,227,0.18)] dark:bg-[#0071E3]/20"
+                              : "border-white/25 bg-white/50 dark:border-white/10 dark:bg-zinc-900/35"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{section}</p>
+                            <span className="rounded-full bg-white/80 px-2 py-0.5 text-[11px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">{servicesInSection.length}</span>
+                          </div>
+                          <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                            {servicesInSection.length > 0 ? `~$${avgPrice} · ${avgDuration} min` : "Sin servicios"}
+                          </p>
+                          <div className="mt-3 space-y-2">
+                            {servicesInSection.length === 0 ? (
+                              <div className="rounded-xl border border-dashed border-white/30 px-3 py-5 text-center text-xs text-zinc-500 dark:border-white/10 dark:text-zinc-400">
+                                Solta servicios aca
+                              </div>
+                            ) : (
+                              servicesInSection.map((service) => (
+                                <motion.div
+                                  layout
+                                  transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+                                  key={service.id}
+                                  draggable
+                                  onDragStart={(event) => {
+                                    event.dataTransfer.setData("text/plain", service.id);
+                                    setDraggingServiceId(service.id);
+                                  }}
+                                  onDragOver={(event) => event.preventDefault()}
+                                  onDrop={(event) => {
+                                    event.preventDefault();
+                                    const movingServiceId = event.dataTransfer.getData("text/plain");
+                                    if (movingServiceId) moveServiceToSection(movingServiceId, section, service.id);
+                                    setDragOverSection(null);
+                                    setDraggingServiceId(null);
+                                  }}
+                                  onDragEnd={() => {
+                                    setDraggingServiceId(null);
+                                    setDragOverSection(null);
+                                  }}
+                                  className={`cursor-grab rounded-xl border px-3 py-2 text-sm active:cursor-grabbing transition-all duration-200 ${
+                                    draggingServiceId === service.id
+                                      ? "border-[#0071E3]/50 bg-[#0071E3]/10 text-zinc-900 dark:text-zinc-100"
+                                      : "border-white/35 bg-white/85 text-zinc-800 dark:border-white/10 dark:bg-zinc-900/70 dark:text-zinc-100"
+                                  }`}
+                                  title="Arrastra para mover de seccion"
+                                >
+                                  <span>{service.name}</span>
+                                </motion.div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="space-y-3 md:hidden">
+                    <div className="rounded-2xl border border-white/25 bg-white/55 p-3 dark:border-white/10 dark:bg-zinc-900/35">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-600 dark:text-zinc-300">Principal (General)</p>
+                      <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">Arrastra un servicio y soltalo en una categoria.</p>
+                      <div className="mt-3 space-y-2">
+                        {orderedServices
+                          .filter((service) => (serviceCategoryDraft[service.id] ?? "General") === "General")
+                          .map((service) => (
+                            <div
+                              key={service.id}
+                              draggable
+                              onPointerDown={() => setDraggingServiceId(service.id)}
+                              onDragStart={(event) => {
+                                event.dataTransfer.setData("text/plain", service.id);
+                                setDraggingServiceId(service.id);
+                              }}
+                              onDragEnd={() => {
+                                setDraggingServiceId(null);
+                                setDragOverSection(null);
+                              }}
+                              className={`cursor-grab active:cursor-grabbing rounded-xl border px-3 py-2 text-sm transition-all ${
+                                draggingServiceId === service.id
+                                  ? "border-[#0071E3]/55 bg-[#0071E3]/10"
+                                  : "border-white/35 bg-white/85 dark:border-white/10 dark:bg-zinc-900/70"
+                              }`}
+                            >
+                              <p className="font-medium text-zinc-800 dark:text-zinc-100">{service.name}</p>
+                            </div>
+                          ))}
+                        {orderedServices.filter((service) => (serviceCategoryDraft[service.id] ?? "General") === "General").length === 0 ? (
+                          <div className="rounded-xl border border-dashed border-white/30 px-3 py-4 text-center text-xs text-zinc-500 dark:border-white/10 dark:text-zinc-400">
+                            No hay servicios en principal.
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    {sectionCatalog.filter((section) => section !== "General").map((section) => {
+                      const servicesInSection = orderedServices.filter((service) => (serviceCategoryDraft[service.id] ?? "General") === section);
+                      const isDragOver = dragOverSection === section;
+                      return (
+                        <details
+                          key={section}
+                          className={`rounded-2xl border transition-all ${
+                            isDragOver || mobileDropFlashSection === section
+                              ? "border-[#0071E3]/70 bg-[#0071E3]/10 shadow-[0_0_0_3px_rgba(0,113,227,0.15)]"
+                              : "border-white/25 bg-white/55 dark:border-white/10 dark:bg-zinc-900/35"
+                          }`}
+                          onDragOver={(event) => {
+                            event.preventDefault();
+                            if (dragOverSection !== section) setDragOverSection(section);
+                          }}
+                          onDragLeave={(event) => {
+                            const currentTarget = event.currentTarget;
+                            const related = event.relatedTarget as Node | null;
+                            if (!related || !currentTarget.contains(related)) setDragOverSection((prev) => (prev === section ? null : prev));
+                          }}
+                          onDrop={(event) => {
+                            event.preventDefault();
+                            const serviceId = event.dataTransfer.getData("text/plain");
+                            if (serviceId) placeServiceInSection(serviceId, section);
+                          }}
+                        >
+                          <summary
+                            className="cursor-pointer list-none px-3 py-3"
+                            onClick={(event) => {
+                              if (draggingServiceId) {
+                                event.preventDefault();
+                                placeServiceInSection(draggingServiceId, section);
+                              }
+                            }}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{section}</p>
+                              <span className="rounded-full bg-white/85 px-2 py-0.5 text-[11px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                                {servicesInSection.length}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                              {draggingServiceId ? "Toque para soltar en esta categoria." : "Abri para ver y quitar servicios."}
+                            </p>
+                          </summary>
+
+                          <div className="border-t border-white/20 px-3 py-3 dark:border-white/10">
+                            <div className="space-y-2">
+                              {servicesInSection.length === 0 ? (
+                                <div className="rounded-xl border border-dashed border-white/30 px-3 py-4 text-center text-xs text-zinc-500 dark:border-white/10 dark:text-zinc-400">
+                                  Solta servicios aca.
+                                </div>
+                              ) : (
+                                servicesInSection.map((service) => (
+                                  <div key={service.id} className="flex items-center justify-between gap-2 rounded-xl border border-white/30 bg-white/75 px-3 py-2 dark:border-white/10 dark:bg-zinc-900/65">
+                                    <p className="text-sm font-medium text-zinc-800 dark:text-zinc-100 truncate">{service.name}</p>
+                                    <button
+                                      type="button"
+                                      onClick={() => moveServiceToSection(service.id, "General")}
+                                      className="rounded-full border border-white/35 bg-white/85 px-2.5 py-1 text-[11px] font-medium text-zinc-700 hover:bg-white dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-200"
+                                    >
+                                      Quitar
+                                    </button>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
+                        </details>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+          </div>
+
+          <BookingThemeLivePreview
+            templateId={selectedTemplateId}
+            logoUrl={logoUrl}
+            shopName={name || data?.nombre || "Tu negocio"}
+            heroTitle={heroTitle}
+            heroSubtitle={heroSubtitle}
+            aboutTitle={aboutTitle}
+            aboutText={aboutText}
+            services={previewServices}
+          />
+        </div>
+      </section>
 
       {/* Card: Configuración Técnica */}
       <div id="setup-payments" className="order-3 bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden transition-colors">

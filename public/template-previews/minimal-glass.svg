@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="640" viewBox="0 0 360 640" fill="none">
+  <rect width="360" height="640" fill="#F4F7FC"/>
+  <circle cx="64" cy="96" r="100" fill="#D7E8FF"/>
+  <circle cx="312" cy="566" r="122" fill="#D8F6EB"/>
+  <rect x="22" y="74" width="316" height="492" rx="36" fill="#FFFFFF" fill-opacity="0.75" stroke="#E4EAF3"/>
+  <text x="52" y="150" fill="#101828" font-size="20" letter-spacing="1">MODO CLARO</text>
+  <rect x="50" y="192" width="260" height="56" rx="20" fill="#FFFFFF" stroke="#E5EAF1"/>
+  <rect x="50" y="264" width="260" height="56" rx="20" fill="#FFFFFF" stroke="#E5EAF1"/>
+  <rect x="50" y="336" width="260" height="56" rx="20" fill="#FFFFFF" stroke="#E5EAF1"/>
+  <rect x="94" y="442" width="172" height="50" rx="25" fill="#0071E3"/>
+</svg>

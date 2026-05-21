@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.0.1] - 2026-05-21
+
+### Personalizacion avanzada de /book
+- Nuevo sistema de templates para /book con configuracion por local
+- Se agregaron 4 estilos visuales premium con vista previa en vivo
+- Se eliminaron texturas de ruido y se rediseñaron fondos, tipografia, cards y progreso
+- Se incorporo feedback tactil (haptic) en categorias, servicios y confirmacion
+- Se corrigio la inicializacion del checkout para evitar errores por preferenceId invalido
+
+### Mi Negocio y experiencia de edicion
+- Nueva seccion de personalizacion de /book dentro de Mi Negocio
+- Carrusel de skins mejorado con arrastre manual e inercia suave tipo app nativa
+- Rework mobile de secciones/categorias con flujo de arrastrar/soltar y quitar por categoria
+- Vista previa mobile/desktop alineada con los estilos reales de /book
+
+### UX global de dashboard
+- Mejoras en headers, sidebar, transiciones y estados de carga glass
+- Nuevos componentes de soporte visual y modal de reporte de bugs
+
+### Base de datos y assets
+- Nuevas migraciones para guardar tema, assets y orden de secciones/servicios de /book
+- Nuevos previews SVG y recursos graficos para templates
+
+### App shell
+- Favicon actualizado a nuevo icono PNG
+
 ## [0.1.4] - 2026-05-06
 
 ### Sección de Personal (Staff)

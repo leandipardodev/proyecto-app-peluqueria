@@ -13,10 +13,12 @@ import {
   Wallet,
   Store,
   Gift,
+  Bug,
 } from "lucide-react";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { APP_VERSION } from "@/lib/app-version";
 import { usePerformanceMode } from "@/lib/use-performance-mode";
+import { triggerDashboardNavTransition } from "@/lib/dashboard/nav-transition";
 
 const navItems = [
   { label: "Inicio", href: "/dashboard", icon: Home },
@@ -145,7 +147,7 @@ export default function DashboardSidebar({
     : itemVariants;
 
   function startNavTransition() {
-    window.dispatchEvent(new CustomEvent("dashboard:nav-start"));
+    triggerDashboardNavTransition();
   }
 
   return (
@@ -247,7 +249,19 @@ export default function DashboardSidebar({
             </button>
           </motion.div>
         </div>
-        <p className="mt-3 text-[11px] text-zinc-400 dark:text-zinc-500">Version actual: v{APP_VERSION}</p>
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <p className="text-[11px] text-zinc-400 dark:text-zinc-500">Version actual: v{APP_VERSION}</p>
+          <button
+            type="button"
+            onMouseDown={playClick}
+            onClick={() => window.dispatchEvent(new CustomEvent("dashboard:open-bug-report"))}
+            className="inline-flex items-center gap-1 rounded-full border border-zinc-200/80 px-2 py-1 text-[11px] font-medium text-zinc-500 transition-colors hover:bg-white/80 hover:text-zinc-700 dark:border-zinc-700/80 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
+            title="Reportar bug"
+          >
+            <Bug className="h-3.5 w-3.5" strokeWidth={1.8} />
+            Bug
+          </button>
+        </div>
       </div>
     </motion.aside>
     </AnimatePresence>
