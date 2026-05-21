@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect, useMemo } from "react";
+import { useState, useTransition, useEffect, useMemo, type DragEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
 import { Store, Eye, EyeOff, CreditCard, MessageSquareText, Smartphone, Link2, MapPin, Phone, Clock, Share2, AlertTriangle, Trash2 } from "lucide-react";
@@ -194,7 +194,7 @@ export default function BusinessClient({
   }, []);
 
   useEffect(() => {
-    fetchBookingTheme(undefined, shopSlug).then((result) => {
+    fetchBookingTheme(undefined, shopSlug ?? undefined).then((result) => {
       if (!result.success) return;
       const theme = result.data;
       if (!theme) return;
@@ -450,7 +450,7 @@ export default function BusinessClient({
 
     const theme = await upsertBookingTheme({
       templateId: selectedTemplateId,
-      shopSlug,
+      shopSlug: shopSlug ?? undefined,
       sectionOrder: sectionCatalog,
       sectionServiceOrder: buildSectionServiceOrder(),
       heroTitle,
@@ -543,7 +543,7 @@ export default function BusinessClient({
 
       const result = await upsertBookingTheme({
         templateId: selectedTemplateId,
-        shopSlug,
+        shopSlug: shopSlug ?? undefined,
         sectionOrder: sectionCatalog,
         sectionServiceOrder: buildSectionServiceOrder(),
         heroTitle,
@@ -558,7 +558,7 @@ export default function BusinessClient({
         return;
       }
 
-      const fresh = await fetchBookingTheme(undefined, shopSlug);
+      const fresh = await fetchBookingTheme(undefined, shopSlug ?? undefined);
       if (fresh.success) setBookingTheme(fresh.data ?? null);
       playSuccess();
       showSuccess("Personalizacion de /book guardada");
@@ -667,6 +667,11 @@ export default function BusinessClient({
     window.setTimeout(() => {
       setMobileDropFlashSection((prev) => (prev === section ? null : prev));
     }, 360);
+  }
+
+  function getTransfer(event: unknown): DataTransfer | null {
+    const dragEvent = event as DragEvent<HTMLElement>;
+    return dragEvent?.dataTransfer ?? null;
   }
 
   function handleLogoUpload(event: React.ChangeEvent<HTMLInputElement>) {
@@ -1285,7 +1290,7 @@ export default function BusinessClient({
                           }}
                           onDrop={(event) => {
                             event.preventDefault();
-                            const serviceId = event.dataTransfer.getData("text/plain");
+                            const serviceId = getTransfer(event)?.getData("text/plain") || "";
                             if (serviceId) moveServiceToSection(serviceId, section);
                             setDragOverSection(null);
                             setDraggingServiceId(null);
@@ -1316,13 +1321,13 @@ export default function BusinessClient({
                                   key={service.id}
                                   draggable
                                   onDragStart={(event) => {
-                                    event.dataTransfer.setData("text/plain", service.id);
+                                    getTransfer(event)?.setData("text/plain", service.id);
                                     setDraggingServiceId(service.id);
                                   }}
                                   onDragOver={(event) => event.preventDefault()}
                                   onDrop={(event) => {
                                     event.preventDefault();
-                                    const movingServiceId = event.dataTransfer.getData("text/plain");
+                                    const movingServiceId = getTransfer(event)?.getData("text/plain") || "";
                                     if (movingServiceId) moveServiceToSection(movingServiceId, section, service.id);
                                     setDragOverSection(null);
                                     setDraggingServiceId(null);
@@ -1361,7 +1366,7 @@ export default function BusinessClient({
                               draggable
                               onPointerDown={() => setDraggingServiceId(service.id)}
                               onDragStart={(event) => {
-                                event.dataTransfer.setData("text/plain", service.id);
+                                getTransfer(event)?.setData("text/plain", service.id);
                                 setDraggingServiceId(service.id);
                               }}
                               onDragEnd={() => {
@@ -1407,7 +1412,7 @@ export default function BusinessClient({
                           }}
                           onDrop={(event) => {
                             event.preventDefault();
-                            const serviceId = event.dataTransfer.getData("text/plain");
+                            const serviceId = getTransfer(event)?.getData("text/plain") || "";
                             if (serviceId) placeServiceInSection(serviceId, section);
                           }}
                         >
