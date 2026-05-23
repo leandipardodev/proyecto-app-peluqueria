@@ -9,6 +9,8 @@ import { deleteService } from "@/lib/dashboard/service-actions";
 import { supabase } from "@/lib/supabase";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
+import { INDUSTRY_CONFIG } from "@/lib/industry/config";
+import type { Industry } from "@/lib/industry/types";
 
 type Service = {
   id: string;
@@ -21,10 +23,11 @@ type Service = {
 interface ServicesListProps {
   shopId: string;
   shopSlug?: string;
+  industry: Industry;
   initialServices: Service[];
 }
 
-export default function ServicesList({ shopId, shopSlug, initialServices }: ServicesListProps) {
+export default function ServicesList({ shopId, shopSlug, industry, initialServices }: ServicesListProps) {
   const router = useRouter();
   const [services, setServices] = useState(initialServices);
   const [modalOpen, setModalOpen] = useState(false);
@@ -33,6 +36,8 @@ export default function ServicesList({ shopId, shopSlug, initialServices }: Serv
   const [, startTransition] = useTransition();
   const { addToast } = useToast();
   const [tutorialActive, setTutorialActive] = useState(false);
+  const serviceWord = INDUSTRY_CONFIG[industry].labels.serviceSingular;
+  const serviceWordLower = serviceWord.toLowerCase();
 
   useEffect(() => {
     setServices(initialServices);
@@ -124,8 +129,8 @@ export default function ServicesList({ shopId, shopSlug, initialServices }: Serv
     <>
       {tutorialActive && (
         <div className="mb-4 rounded-2xl border border-violet-300/50 bg-violet-50/80 dark:bg-violet-900/20 px-4 py-3">
-          <p className="text-sm font-semibold text-violet-800 dark:text-violet-200">Paso 5: Servicios</p>
-          <p className="mt-1 text-xs text-violet-700/90 dark:text-violet-200/90">Carga o valida tus servicios y finaliza el recorrido.</p>
+          <p className="text-sm font-semibold text-violet-800 dark:text-violet-200">Paso 5: {serviceWord}s</p>
+          <p className="mt-1 text-xs text-violet-700/90 dark:text-violet-200/90">Carga o valida tus {serviceWordLower}s y finaliza el recorrido.</p>
           <div className="mt-3 flex justify-end">
             <button
               type="button"
@@ -143,7 +148,7 @@ export default function ServicesList({ shopId, shopSlug, initialServices }: Serv
       )}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Servicios</h1>
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">{serviceWord}s</h1>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Las secciones/categorias de /book ahora se editan en Mi Negocio - Personalizacion.</p>
         </div>
         <button
@@ -151,14 +156,14 @@ export default function ServicesList({ shopId, shopSlug, initialServices }: Serv
           className="inline-flex items-center justify-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 transition-colors cursor-pointer select-none"
         >
           <Plus className="w-4 h-4" />
-          Nuevo Servicio
+          Nuevo {serviceWord}
         </button>
       </div>
 
       {services.length === 0 ? (
         <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] py-16 px-6 text-center">
           <p className="text-gray-500 dark:text-gray-400 text-sm">
-            No hay servicios creados aún.
+            No hay {serviceWordLower}s creados aun.
           </p>
           <button
             onClick={openCreate}
@@ -273,7 +278,7 @@ export default function ServicesList({ shopId, shopSlug, initialServices }: Serv
       <ServiceModal
         open={modalOpen}
         onClose={handleClose}
-        title={editingService ? "Editar Servicio" : "Nuevo Servicio"}
+        title={editingService ? `Editar ${serviceWord}` : `Nuevo ${serviceWord}`}
       >
         <ServiceForm
           shopId={shopId}
@@ -284,8 +289,8 @@ export default function ServicesList({ shopId, shopSlug, initialServices }: Serv
 
       <ConfirmDialog
         open={Boolean(deleteTargetId)}
-        title="Eliminar servicio"
-        message="Esta accion eliminara el servicio del catalogo."
+        title={`Eliminar ${serviceWordLower}`}
+        message={`Esta accion eliminara el ${serviceWordLower} del catalogo.`}
         confirmLabel="Eliminar"
         danger
         onCancel={() => setDeleteTargetId(null)}

@@ -19,6 +19,9 @@ import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { APP_VERSION } from "@/lib/app-version";
 import { usePerformanceMode } from "@/lib/use-performance-mode";
 import { triggerDashboardNavTransition } from "@/lib/dashboard/nav-transition";
+import { useAuth } from "@/lib/auth-context";
+import { INDUSTRY_CONFIG } from "@/lib/industry/config";
+import { resolveIndustry } from "@/lib/industry/resolve";
 
 const navItems = [
   { label: "Inicio", href: "/dashboard", icon: Home },
@@ -26,7 +29,7 @@ const navItems = [
   { label: "Caja", href: "/dashboard/finances", icon: Wallet },
   { label: "Stock", href: "/dashboard/inventory", icon: Package },
   { label: "Marketing", href: "/dashboard/fidelizacion", icon: Gift },
-  { label: "Clientes", href: "/dashboard/customers", icon: UserRound },
+  { label: "__CUSTOMERS_LABEL__", href: "/dashboard/customers", icon: UserRound },
   { label: "Mi Negocio", href: "/dashboard/business", icon: Store },
 ];
 
@@ -81,6 +84,10 @@ export default function DashboardSidebar({
   notifications,
   showBrand = true,
 }: DashboardSidebarProps) {
+  const { shop } = useAuth();
+  const industry = resolveIndustry(shop?.industry);
+  const customerPlural = INDUSTRY_CONFIG[industry].labels.customerPlural;
+  const resolvedNavItems = navItems.map((item) => (item.label === "__CUSTOMERS_LABEL__" ? { ...item, label: customerPlural } : item));
   const pathname = usePathname();
   const router = useRouter();
   const dashboardBasePath = getDashboardBasePath(pathname);
@@ -121,7 +128,7 @@ export default function DashboardSidebar({
   }, [pathname]);
 
   useEffect(() => {
-    const targets = navItems
+    const targets = resolvedNavItems
       .map(({ href }) => (href === "/dashboard" ? dashboardBasePath : `${dashboardBasePath}${href.replace("/dashboard", "")}`))
       .filter((href) => href !== pathname);
 
@@ -137,7 +144,7 @@ export default function DashboardSidebar({
 
     const timeoutId = window.setTimeout(runPrefetch, 250);
     return () => window.clearTimeout(timeoutId);
-  }, [dashboardBasePath, pathname, router]);
+  }, [dashboardBasePath, pathname, resolvedNavItems, router]);
 
   const navContainerVariants = performanceMode
     ? { hidden: {}, show: {} }
@@ -176,7 +183,7 @@ export default function DashboardSidebar({
           initial="hidden"
           animate="show"
         >
-          {navItems.map(({ label, href, icon: Icon }) => {
+          {resolvedNavItems.map(({ label, href, icon: Icon }) => {
             const targetHref = href === "/dashboard" ? dashboardBasePath : `${dashboardBasePath}${href.replace("/dashboard", "")}`;
             const isActive =
               pathname === targetHref ||

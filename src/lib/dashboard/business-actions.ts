@@ -149,7 +149,7 @@ export async function getMercadoPagoOauthUrlAction(): Promise<ActionResult<{ url
     const shopId = shopIdResult.data;
 
     const clientId = process.env.MP_OAUTH_CLIENT_ID || process.env.NEXT_PUBLIC_MP_OAUTH_CLIENT_ID;
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || "https://klip.com.ar";
     const redirectUri = `${siteUrl.replace(/\/$/, "")}/api/payments/mercadopago-oauth/callback`;
 
     if (!clientId) return { success: false, error: "Falta MP_OAUTH_CLIENT_ID" };

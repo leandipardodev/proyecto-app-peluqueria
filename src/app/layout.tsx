@@ -19,6 +19,16 @@ const softwareJsonLd = {
   },
 };
 
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: SITE_NAME,
+  url: absoluteUrl("/"),
+  logo: absoluteUrl("/dix-logo.svg"),
+  description: SITE_DESCRIPTION,
+  sameAs: [],
+};
+
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
@@ -27,12 +37,17 @@ export const metadata: Metadata = {
     default: SITE_TITLE,
     template: `%s | ${SITE_NAME}`,
   },
+  alternates: {
+    canonical: "/",
+  },
   description: SITE_DESCRIPTION,
   applicationName: SITE_NAME,
   referrer: "origin-when-cross-origin",
   keywords: [
     "software para peluquerias",
     "sistema para barberias",
+    "software para duenos de peluqueria",
+    "agenda para peluquerias",
     "agenda de turnos",
     "reservas online",
     "gestion de clientes",
@@ -80,10 +95,13 @@ export const metadata: Metadata = {
     title: "Klip",
   },
   icons: {
-    shortcut: "/favicon.png",
+    shortcut: "/favicon.ico",
     apple: "/apple-touch-icon.png",
     icon: [
-      { url: "/favicon.png", type: "image/png" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", type: "image/x-icon" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
       { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
       { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
     ],
@@ -115,6 +133,10 @@ export default function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareJsonLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
         />
         <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
           <div className="absolute -top-40 right-0 h-[800px] w-[800px] rounded-full bg-violet-300/20 blur-[150px] dark:bg-violet-500/15" />

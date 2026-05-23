@@ -2,6 +2,7 @@ import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
 import BookingClient from "./booking-client";
 import { absoluteUrl } from "@/lib/seo";
 import { DEFAULT_BOOKING_TEMPLATE, type BookingTemplateId } from "@/lib/booking/theme-presets";
+import { resolveIndustry } from "@/lib/industry/resolve";
 
 async function createAdminClient() {
   return createServiceRoleClient();
@@ -19,7 +20,7 @@ export default async function BookPage({ params }: BookPageProps) {
 
   const { data: shop, error: shopError } = await admin
     .from("shops")
-    .select("id, nombre, description, address, phone, instagram_url, business_hours, slug, mp_public_key")
+    .select("id, nombre, description, address, phone, instagram_url, business_hours, slug, mp_public_key, industry")
     .eq("slug", slug)
     .maybeSingle();
 
@@ -116,6 +117,7 @@ export default async function BookPage({ params }: BookPageProps) {
           phone: shop.phone || "",
           instagramUrl: shop.instagram_url || "",
           slug: shop.slug || "",
+          industry: resolveIndustry((shop as { industry?: string | null }).industry || null),
           mpPublicKey: shop.mp_public_key || "",
           logoUrl: (bookingTheme?.logo_url as string | null) || "",
           heroTitle: (bookingTheme?.hero_title as string | null) || "",

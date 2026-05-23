@@ -9,6 +9,8 @@ import { fetchWhatsappTemplate } from "@/lib/dashboard/whatsapp-actions";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
 import { buildWhatsAppContactUrl, buildWhatsAppUrl } from "@/lib/dashboard/whatsapp-utils";
 import { createServiceRoleClient, getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
+import { INDUSTRY_CONFIG } from "@/lib/industry/config";
+import { resolveIndustry } from "@/lib/industry/resolve";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { fetchTodayVoucherAlerts } from "@/lib/dashboard/voucher-actions";
@@ -73,8 +75,6 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
     fetchWhatsappTemplate(shopIdOverride),
     fetchTodayVoucherAlerts(shopIdOverride),
   ]);
-  const socialLinks = await fetchShopLinks(shopIdOverride);
-
   const whatsappTemplate = whatsappTemplateResult.success ? (whatsappTemplateResult.data ?? DEFAULT_WHATSAPP_TEMPLATE) : DEFAULT_WHATSAPP_TEMPLATE;
 
   if (!summaryResult.success || !summaryResult.data) {
@@ -85,6 +85,12 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
     );
   }
   const summary = summaryResult.data;
+  const socialLinks = await fetchShopLinks(shopIdOverride);
+  const industry = await fetchShopIndustry(shopIdOverride, shopSlugOverride || summary.shopSlug || null);
+  const labels = INDUSTRY_CONFIG[industry].labels;
+  const customerWord = labels.customerSingular;
+  const customerPlural = labels.customerPlural;
+  const servicePlural = labels.servicePlural;
   const metrics = metricsResult.success && metricsResult.data ? metricsResult.data : null;
   const dashboardBasePath = summary.shopSlug ? `/dashboard/${summary.shopSlug}` : "/dashboard";
 
@@ -110,7 +116,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
       ? {
           kind: "appointment" as const,
           value: `Turno en ${Math.max(1, minutesToNextAppointment)} min`,
-          hint: nextAppointment?.customers?.nombre ? `Cliente: ${nextAppointment.customers.nombre}` : "Proximo turno confirmado",
+          hint: nextAppointment?.customers?.nombre ? `${customerWord}: ${nextAppointment.customers.nombre}` : "Proximo turno confirmado",
         }
       : todayVouchersCount > 0
         ? {
@@ -126,7 +132,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
                 ? extraLoyaltyCustomers > 0
                   ? `${firstLoyaltyCustomer} + ${extraLoyaltyCustomers} cliente(s) con canje`
                   : `${firstLoyaltyCustomer} tiene un canje listo`
-                : "Clientes alcanzaron meta de cortes",
+                : `${customerPlural} alcanzaron meta de cortes`,
             }
           : {
               kind: "none" as const,
@@ -311,7 +317,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
           <RevenueChart data={metrics?.revenueChart ?? []} flowByPeriod={metrics?.flowByPeriod} />
         </div>
         <div className="lg:col-span-1">
-          <TopServices data={metrics?.topServices ?? []} />
+          <TopServices data={metrics?.topServices ?? []} serviceLabelPlural={servicePlural} />
         </div>
       </div>
 
@@ -577,4 +583,34 @@ async function fetchShopLinks(shopIdOverride?: string): Promise<{ phone: string 
     facebookUrl: (data as { facebook_url?: string | null } | null)?.facebook_url || null,
     tiktokUrl: (data as { tiktok_url?: string | null } | null)?.tiktok_url || null,
   };
+}
+
+async function fetchShopIndustry(shopIdOverride?: string, shopSlugOverride?: string | null) {
+  let shopId = shopIdOverride || null;
+  const admin = await createServiceRoleClient();
+
+  if (!shopId && shopSlugOverride) {
+    const { data: bySlug } = await admin
+      .from("shops")
+      .select("id")
+      .eq("slug", shopSlugOverride)
+      .maybeSingle();
+    shopId = bySlug?.id || null;
+  }
+
+  if (!shopId) {
+    const session = await getAuthSession();
+    if (!session) return resolveIndustry(null);
+    shopId = await getShopId(session);
+  }
+
+  if (!shopId) return resolveIndustry(null);
+
+  const { data } = await admin
+    .from("shops")
+    .select("industry")
+    .eq("id", shopId)
+    .maybeSingle();
+
+  return resolveIndustry((data as { industry?: string | null } | null)?.industry || null);
 }

@@ -8,8 +8,18 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: ["/", "/landing", "/book/", "/confirmacion"],
-        disallow: ["/dashboard", "/client", "/login", "/register", "/join", "/billing-required"],
+        allow: ["/", "/landing", "/book/", "/confirmacion", "/terminos"],
+        disallow: [
+          "/dashboard",
+          "/client",
+          "/login",
+          "/register",
+          "/join",
+          "/billing-required",
+          "/api/",
+          "/auth/",
+          "/onboarding/",
+        ],
       },
     ],
     sitemap: `${base}/sitemap.xml`,

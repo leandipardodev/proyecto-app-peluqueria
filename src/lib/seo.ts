@@ -1,10 +1,10 @@
 export const SITE_NAME = "Klip";
-export const SITE_TITLE = "Klip | Sistema de gestion para peluquerias";
+export const SITE_TITLE = "Klip | Software para peluquerias y barberias";
 export const SITE_DESCRIPTION =
-  "Software para peluquerias y barberias: turnos online, clientes, inventario, finanzas, recordatorios y cobros en un solo lugar.";
+  "Software para duenos de peluquerias y barberias: agenda de turnos, senas online, clientes, inventario y finanzas en una sola plataforma.";
 
 export function getSiteUrl(): string {
-  const raw = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const raw = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || "https://klip.com.ar";
   return raw.endsWith("/") ? raw.slice(0, -1) : raw;
 }
 

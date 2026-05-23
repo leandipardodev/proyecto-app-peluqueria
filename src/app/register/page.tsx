@@ -4,8 +4,10 @@ import { registerShop } from "@/lib/dashboard/auth-actions";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
+import { resolveIndustry } from "@/lib/industry/resolve";
+import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 
 const REGISTER_COOLDOWN_MS = 60_000;
 const REGISTER_COOLDOWN_KEY = "klip_register_cooldown_until";
@@ -26,6 +28,8 @@ export default function RegisterPage() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const industry = resolveIndustry(searchParams.get("rubro"));
   const { addToast } = useToast();
 
   useEffect(() => {
@@ -80,7 +84,7 @@ export default function RegisterPage() {
       return;
     }
 
-    const state = encodeURIComponent(JSON.stringify({ shopName: trimmedShopName }));
+    const state = encodeURIComponent(JSON.stringify({ shopName: trimmedShopName, industry }));
     const redirectTo = `${window.location.origin}/auth/callback?flow=owner_signup&next=/dashboard&state=${state}`;
 
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
@@ -101,6 +105,7 @@ export default function RegisterPage() {
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-violet-700 tracking-tight">Klip</h1>
           <p className="mt-2 text-gray-600">Crea tu cuenta y publica tu local en minutos</p>
+          <p className="mt-1 text-xs font-medium text-zinc-500">Rubro seleccionado: {INDUSTRY_CONFIG[industry].displayName}</p>
         </div>
 
         <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-8 space-y-6">
@@ -123,6 +128,7 @@ export default function RegisterPage() {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-5">
+              <input type="hidden" name="industry" value={industry} />
               <div>
                 <label htmlFor="shop_name" className="block text-sm font-medium text-gray-700 mb-1">Nombre del Local</label>
                 <input type="text" id="shop_name" name="shop_name" required value={shopName} onChange={(e) => setShopName(e.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent" placeholder="Ej: Klip Barber" />

@@ -2,6 +2,8 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
+import { resolveIndustry } from "@/lib/industry/resolve";
+import type { Industry } from "@/lib/industry/types";
 
 export type UserInfo = {
   id: string;
@@ -16,6 +18,7 @@ export type ShopInfo = {
   id: string;
   name: string;
   slug: string;
+  industry: Industry;
 };
 
 type AuthState = {
@@ -87,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const { data: shop } = await supabase
         .from("shops")
-        .select("id, nombre, slug")
+        .select("id, nombre, slug, industry")
         .eq("id", profile.shop_id)
         .single();
 
@@ -100,7 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             phone: metaPhone,
             role: profile.role,
           },
-          shop: shop ? { id: shop.id, name: shop.nombre, slug: shop.slug } : null,
+          shop: shop ? { id: shop.id, name: shop.nombre, slug: shop.slug, industry: resolveIndustry(shop.industry) } : null,
           isLoading: false,
         });
       } finally {

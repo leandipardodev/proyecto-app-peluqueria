@@ -16,7 +16,14 @@ function base64UrlDecode(value: string): string {
 }
 
 function getSecret(): string {
-  return process.env.STAFF_INVITE_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || "dev-staff-invite-secret";
+  const secret = process.env.STAFF_INVITE_SECRET;
+  if (secret && secret.trim()) return secret;
+
+  if (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test") {
+    return "dev-staff-invite-secret";
+  }
+
+  throw new Error("Missing STAFF_INVITE_SECRET in production environment");
 }
 
 function sign(raw: string): string {

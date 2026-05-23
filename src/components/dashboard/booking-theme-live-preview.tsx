@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import { BOOKING_TEMPLATE_PRESETS, type BookingTemplateId } from "@/lib/booking/theme-presets";
+import { INDUSTRY_CONFIG } from "@/lib/industry/config";
+import type { Industry } from "@/lib/industry/types";
 
 type PreviewService = {
   id: string;
@@ -21,6 +23,7 @@ type Props = {
   aboutTitle: string;
   aboutText: string;
   services: PreviewService[];
+  industry?: Industry;
 };
 
 export default function BookingThemeLivePreview({
@@ -32,6 +35,7 @@ export default function BookingThemeLivePreview({
   aboutTitle,
   aboutText,
   services,
+  industry = "peluqueria",
 }: Props) {
   const [viewport, setViewport] = useState<"mobile" | "desktop">("mobile");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -65,6 +69,8 @@ export default function BookingThemeLivePreview({
     ? sourceServices
     : sourceServices.filter((s) => (s.category || "General") === activeCategory)).slice(0, 3);
   const templateLabel = BOOKING_TEMPLATE_PRESETS.find((item) => item.id === templateId)?.name || "Template";
+  const labels = INDUSTRY_CONFIG[industry].labels;
+  const servicePlural = labels.servicePlural;
 
   const styles = {
     "classic-dark": {
@@ -176,7 +182,7 @@ export default function BookingThemeLivePreview({
 
               <div className="mt-3 space-y-2">
                 {!hasRealServices ? (
-                  <p className="text-[11px] text-zinc-500 italic">Servicios de ejemplo hasta que cargues los tuyos.</p>
+                  <p className="text-[11px] text-zinc-500 italic">{servicePlural} de ejemplo hasta que cargues los tuyos.</p>
                 ) : null}
                 {visibleServices.map((service) => (
                   <div key={service.id} className={`rounded-2xl border p-3 ${styles.card}`}>

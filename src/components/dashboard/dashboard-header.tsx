@@ -11,6 +11,9 @@ import { globalSearch, type OmniSearchResult } from "@/lib/dashboard/global-sear
 import { useDarkMode } from "@/lib/use-dark-mode";
 import { usePerformanceMode } from "@/lib/use-performance-mode";
 import { triggerDashboardNavTransition } from "@/lib/dashboard/nav-transition";
+import { useAuth } from "@/lib/auth-context";
+import { INDUSTRY_CONFIG } from "@/lib/industry/config";
+import { resolveIndustry } from "@/lib/industry/resolve";
 
 interface DashboardHeaderProps {
   shopName: string;
@@ -38,10 +41,10 @@ const NAV_COMMANDS: CommandNav[] = [
   { id: "nav-cash", kind: "nav", label: "Ir a Caja", hint: "Ingresos, egresos y liquidaciones", to: "/dashboard/finances", keywords: ["caja", "finanzas", "plata", "dinero", "cobros", "gastos", "ingresos", "egresos", "movimientos", "arqueo", "cierres", "liquidaciones", "comisiones"] },
   { id: "nav-stock", kind: "nav", label: "Ir a Stock", hint: "Inventario y productos", to: "/dashboard/inventory", keywords: ["stock", "inventario", "productos", "insumos", "deposito", "existencias", "reposicion", "bajo stock"] },
   { id: "nav-marketing", kind: "nav", label: "Ir a Marketing", hint: "Fidelizacion, canjes y vouchers", to: "/dashboard/fidelizacion", keywords: ["marketing", "fidelizacion", "fidelidad", "puntos", "canjes", "voucher", "vouchers", "descuentos", "promos", "cupones", "campanas"] },
-  { id: "nav-customers", kind: "nav", label: "Ir a Clientes", hint: "Base de clientes", to: "/dashboard/customers", keywords: ["clientes", "clientela", "contactos", "whatsapp", "telefonos", "historial", "ficha cliente"] },
+  { id: "nav-customers", kind: "nav", label: "Ir a __CUSTOMERS_LABEL__", hint: "Base de clientes", to: "/dashboard/customers", keywords: ["clientes", "clientela", "contactos", "whatsapp", "telefonos", "historial", "ficha cliente", "pacientes"] },
   { id: "nav-business", kind: "nav", label: "Ir a Mi Negocio", hint: "Datos, horarios y cobros", to: "/dashboard/business", keywords: ["mi negocio", "negocio", "local", "empresa", "perfil negocio", "datos publicos", "horarios", "mercado pago", "cobro", "seña", "sena", "whatsapp template"] },
-  { id: "nav-services", kind: "nav", label: "Ir a Servicios", hint: "Catalogo y duraciones", to: "/dashboard/services", keywords: ["servicios", "catalogo", "precios", "duracion", "duraciones", "barba", "corte", "tratamientos"] },
-  { id: "nav-staff", kind: "nav", label: "Ir a Staff", hint: "Equipo y roles", to: "/dashboard/staff", keywords: ["staff", "equipo", "empleados", "barberos", "roles", "personal"] },
+  { id: "nav-services", kind: "nav", label: "Ir a __SERVICES_LABEL__", hint: "Catalogo y duraciones", to: "/dashboard/services", keywords: ["servicios", "catalogo", "precios", "duracion", "duraciones", "barba", "corte", "tratamientos", "sesiones"] },
+  { id: "nav-staff", kind: "nav", label: "Ir a __STAFF_LABEL__", hint: "Equipo y roles", to: "/dashboard/staff", keywords: ["staff", "equipo", "empleados", "barberos", "roles", "personal", "terapeutas", "profesionales"] },
   { id: "nav-billing", kind: "nav", label: "Ir a Pagos", hint: "Pagar mensualidad", to: "/billing-required", keywords: ["pago", "pagos", "mensualidad", "membresia", "suscripcion", "renovar", "plan", "vencimiento", "factura"] },
 ];
 
@@ -103,18 +106,23 @@ function matchesQuery(query: string, terms: string[]) {
 function formatDataLabel(item: OmniSearchResult) {
   if (item.type === "stock") return item.nombre_producto;
   if (item.type === "service") return item.name;
-  if (item.type === "customer") return item.nombre || item.telefono || "Cliente";
-  return item.name || item.email || "Staff";
+  if (item.type === "customer") return item.nombre || item.telefono || "Persona";
+  return item.name || item.email || "Miembro";
 }
 
 function formatDataHint(item: OmniSearchResult) {
   if (item.type === "stock") return `Cantidad disponible: ${item.quantity}`;
   if (item.type === "service") return `Duracion: ${item.duration_minutes} min`;
   if (item.type === "customer") return `Telefono: ${item.telefono || "Sin telefono"}`;
-  return `${item.role === "owner" ? "Administrador" : "Staff"} - ${item.email || "Sin email"}`;
+  return `${item.role === "owner" ? "Administrador" : "Miembro"} - ${item.email || "Sin email"}`;
 }
 
 export default function DashboardHeader({ shopName, userName, userEmail, onLogout, activeShopSlug, managedShops, billingStatus }: DashboardHeaderProps) {
+  const { shop } = useAuth();
+  const industry = resolveIndustry(shop?.industry);
+  const customerPlural = INDUSTRY_CONFIG[industry].labels.customerPlural;
+  const servicePlural = INDUSTRY_CONFIG[industry].labels.servicePlural;
+  const staffPlural = INDUSTRY_CONFIG[industry].labels.staffPlural;
   const router = useRouter();
   const pathname = usePathname();
   const dashboardBasePath = getDashboardBasePath(pathname);
@@ -295,7 +303,16 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
 
   const commandItems = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const nav = NAV_COMMANDS
+    const navCommandsResolved = NAV_COMMANDS.map((item) => (
+      item.id === "nav-customers"
+        ? { ...item, label: item.label.replace("__CUSTOMERS_LABEL__", customerPlural) }
+        : item.id === "nav-services"
+          ? { ...item, label: item.label.replace("__SERVICES_LABEL__", servicePlural) }
+          : item.id === "nav-staff"
+            ? { ...item, label: item.label.replace("__STAFF_LABEL__", staffPlural) }
+            : item
+    ));
+    const nav = navCommandsResolved
       .map((c) => {
         if (c.id === "nav-billing") return { ...c, to: billingUrl };
         return { ...c, to: withDashboardBase(dashboardBasePath, c.to) };
@@ -319,7 +336,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
       people,
       flat: [...action, ...nav, ...stock, ...services, ...people] as CommandItem[],
     };
-  }, [query, dbResults, dashboardBasePath, billingUrl]);
+  }, [query, dbResults, dashboardBasePath, billingUrl, customerPlural, servicePlural, staffPlural]);
 
   useEffect(() => {
     setActiveIndex(0);

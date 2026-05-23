@@ -7,6 +7,9 @@ import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { supabase } from "@/lib/supabase";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { resolveDashboardShopIdBySlug } from "@/lib/dashboard/auth-actions";
+import { useAuth } from "@/lib/auth-context";
+import { INDUSTRY_CONFIG } from "@/lib/industry/config";
+import { resolveIndustry } from "@/lib/industry/resolve";
 
 type Customer = {
   id: string;
@@ -61,6 +64,10 @@ function isBirthdayThisWeek(date: string | null): boolean {
 }
 
 export default function CustomersPage() {
+  const { shop } = useAuth();
+  const industry = resolveIndustry(shop?.industry);
+  const customerWord = INDUSTRY_CONFIG[industry].labels.customerSingular;
+  const customerPlural = INDUSTRY_CONFIG[industry].labels.customerPlural;
   const { playSuccess, playClick } = useKlipSounds();
   const router = useRouter();
   const pathname = usePathname();
@@ -137,7 +144,7 @@ export default function CustomersPage() {
     ]);
 
     if (fetchError) {
-      setError("Error al cargar clientes");
+      setError(`Error al cargar ${customerPlural.toLowerCase()}`);
       return;
     }
 
@@ -360,7 +367,7 @@ export default function CustomersPage() {
   return (
     <div className="space-y-6 relative">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-zinc-100">Clientes</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-zinc-100">{customerPlural}</h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-zinc-400">Gestión de fichas técnicas y datos de contacto.</p>
       </div>
 
@@ -370,7 +377,7 @@ export default function CustomersPage() {
           onClick={openCreate}
           className="bg-blue-600 text-white rounded-full px-6 py-2 text-sm font-medium hover:bg-blue-700 transition"
         >
-          + Nuevo Cliente
+          + Nuevo {customerWord}
         </button>
       </div>
 
@@ -387,7 +394,7 @@ export default function CustomersPage() {
       <div className="md:hidden space-y-3">
         {filteredCustomers.length === 0 ? (
           <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-2xl px-4 py-8 text-center text-sm text-slate-500 dark:text-zinc-400 shadow-[0_8px_30px_rgb(0,0,0,0.03)]">
-            No se encontraron clientes
+            No se encontraron {customerPlural.toLowerCase()}
           </div>
         ) : (
           filteredCustomers.map((customer) => (
@@ -443,7 +450,7 @@ export default function CustomersPage() {
           <table className="w-full min-w-[900px] text-sm">
             <thead>
               <tr className="bg-slate-50 dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700 text-left text-slate-500 dark:text-zinc-400">
-                <th className="px-6 py-3 font-medium">Cliente</th>
+                 <th className="px-6 py-3 font-medium">{customerWord}</th>
                 <th className="px-6 py-3 font-medium">Email</th>
                 <th className="px-6 py-3 font-medium">Teléfono</th>
                 <th className="px-6 py-3 font-medium">Cumpleaños</th>
@@ -456,7 +463,7 @@ export default function CustomersPage() {
               {filteredCustomers.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center text-slate-500 dark:text-zinc-400">
-                    No se encontraron clientes
+                    No se encontraron {customerPlural.toLowerCase()}
                   </td>
                 </tr>
               ) : (
@@ -523,7 +530,7 @@ export default function CustomersPage() {
             <div className="h-full flex flex-col">
               <div className="px-6 py-4 border-b border-slate-200 dark:border-zinc-700 flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900 dark:text-zinc-100">{isCreating ? "Nuevo cliente" : "Ficha de cliente"}</h2>
+                  <h2 className="text-lg font-semibold text-slate-900 dark:text-zinc-100">{isCreating ? `Nuevo ${customerWord.toLowerCase()}` : `Ficha de ${customerWord.toLowerCase()}`}</h2>
                   {!isCreating && <p className="text-sm text-slate-500 dark:text-zinc-400">{selectedCustomer?.nombre || "Sin nombre"}</p>}
                 </div>
                 <button onClick={closeEditor} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500 dark:text-zinc-400">
@@ -553,7 +560,7 @@ export default function CustomersPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-900 dark:text-zinc-100 mb-1.5">Cliente recurrente (día)</label>
+                    <label className="block text-sm font-medium text-slate-900 dark:text-zinc-100 mb-1.5">{customerWord} recurrente (dia)</label>
                     <select
                       value={draftRecurringWeekday}
                       onChange={(e) => setDraftRecurringWeekday(e.target.value)}

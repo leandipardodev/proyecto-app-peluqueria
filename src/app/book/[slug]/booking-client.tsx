@@ -26,6 +26,8 @@ import {
 import GoogleSignInButton from "@/components/auth/google-sign-in-button";
 import { useAuth } from "@/lib/auth-context";
 import type { BookingTemplateId } from "@/lib/booking/theme-presets";
+import type { Industry } from "@/lib/industry/types";
+import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 
 type Service = { id: string; name: string; price: number; duration_minutes: number; category: string | null };
 type StaffMember = { id: string; name: string };
@@ -40,6 +42,7 @@ interface BookingClientProps {
     phone: string;
     instagramUrl: string;
     slug: string;
+    industry: Industry;
     mpPublicKey: string;
     logoUrl: string;
     heroTitle: string;
@@ -53,8 +56,6 @@ interface BookingClientProps {
   services: Service[];
   staffMembers: StaffMember[];
 }
-
-const STEP_NAMES = ["Servicio", "Profesional", "Fecha", "Tus datos"];
 
 const stepReveal = {
   initial: { opacity: 0, y: 14, filter: "blur(2px)" },
@@ -184,6 +185,12 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("Todos");
+  const industryConfig = INDUSTRY_CONFIG[shop.industry] || INDUSTRY_CONFIG.peluqueria;
+  const serviceWord = industryConfig.labels.serviceSingular;
+  const staffWord = industryConfig.labels.staffSingular;
+  const serviceWordLower = serviceWord.toLowerCase();
+  const staffWordLower = staffWord.toLowerCase();
+  const STEP_NAMES = [serviceWord, staffWord, "Fecha", "Tus datos"];
 
   const weekDates = getWeekDates();
   const isLoggedIn = !!user;
@@ -483,7 +490,8 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
       calendar: "bg-[#0071E3] text-white hover:bg-[#0062c6]",
       checkoutOrbA: "bg-[#8bb9ff]/35",
       checkoutOrbB: "bg-[#8de4cc]/30",
-      priceText: "text-[1.45rem] sm:text-[1.6rem] font-semibold tracking-[-0.02em] font-['SF_Pro_Display','Segoe_UI','Inter','system-ui',sans-serif]",
+      priceText: "text-[1.58rem] sm:text-[1.8rem] font-bold tracking-[-0.03em] font-['SF_Pro_Display','Segoe_UI','Inter','system-ui',sans-serif]",
+      priceFx: "text-[#0c4a98] drop-shadow-[0_10px_22px_rgba(15,79,163,0.28)]",
       pricePill: "border-[#b9cade] bg-white/55 text-[#41526a]",
       ghostBtn: "border-[#cfd8e6] bg-white/75 text-[#2a3950] hover:bg-white",
     },
@@ -553,7 +561,8 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
       calendar: "bg-[#7AB8FF] text-black hover:bg-[#95c6ff]",
       checkoutOrbA: "bg-[#62a6ff]/30",
       checkoutOrbB: "bg-[#74c8ff]/22",
-      priceText: "text-[1.45rem] sm:text-[1.6rem] font-semibold tracking-[-0.02em] font-['SF_Pro_Display','Segoe_UI','Inter','system-ui',sans-serif]",
+      priceText: "text-[1.58rem] sm:text-[1.8rem] font-bold tracking-[-0.03em] font-['SF_Pro_Display','Segoe_UI','Inter','system-ui',sans-serif]",
+      priceFx: "text-[#b1d5ff] drop-shadow-[0_12px_24px_rgba(122,184,255,0.34)]",
       pricePill: "border-white/20 bg-white/10 text-[#c7d6eb]",
       ghostBtn: "border-[#2f4466] bg-[#101c2d]/85 text-[#c5daf6] hover:bg-[#172940]",
     },
@@ -623,7 +632,8 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
       calendar: "bg-[#7D5C3A] text-white hover:bg-[#6a4d31]",
       checkoutOrbA: "bg-[#e8b88a]/30",
       checkoutOrbB: "bg-[#d9a774]/25",
-      priceText: "text-[1.45rem] sm:text-[1.6rem] font-semibold tracking-[-0.02em] font-['SF_Pro_Display','Segoe_UI','Inter','system-ui',sans-serif]",
+      priceText: "text-[1.58rem] sm:text-[1.8rem] font-bold tracking-[-0.03em] font-['SF_Pro_Display','Segoe_UI','Inter','system-ui',sans-serif]",
+      priceFx: "text-[#7a4f30] drop-shadow-[0_10px_22px_rgba(127,85,54,0.3)]",
       pricePill: "border-[#ceb79f] bg-[#fff8ef] text-[#715944]",
       ghostBtn: "border-[#d8c4af] bg-[#fff9f2] text-[#5f4d3a] hover:bg-[#fff2e4]",
     },
@@ -694,7 +704,8 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
       checkoutOrbA: "bg-[#b7c7ff]/35",
       checkoutOrbB: "bg-[#ffc8dc]/30",
       pricePill: "text-[#5f6c8a]",
-      priceText: "text-[1.45rem] sm:text-[1.6rem] font-semibold tracking-[-0.02em] font-['SF_Pro_Display','Segoe_UI','Inter','system-ui',sans-serif]",
+      priceText: "text-[1.58rem] sm:text-[1.8rem] font-bold tracking-[-0.03em] font-['SF_Pro_Display','Segoe_UI','Inter','system-ui',sans-serif]",
+      priceFx: "text-[#4c60be] drop-shadow-[0_10px_22px_rgba(82,102,194,0.3)]",
       ghostBtn: "border-[#cfdaec] bg-white/78 text-[#4f5f80] hover:bg-white",
     },
   }[resolvedTemplate];
@@ -803,7 +814,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
                   >
                     {step === 0 && (
                       <div className="space-y-8">
-                        <motion.h2 variants={stepItemReveal} className={`text-xl font-medium ${templateStyles.heading} ${templateStyles.headingFx}`}>Elegi tu servicio</motion.h2>
+                        <motion.h2 variants={stepItemReveal} className={`text-xl font-medium ${templateStyles.heading} ${templateStyles.headingFx}`}>{`Elegi tu ${serviceWordLower}`}</motion.h2>
                         <motion.div variants={stepItemReveal} className="-mx-1 overflow-x-auto pb-1">
                           <div className="flex items-center gap-2 px-1">
                             {categories.map((category) => {
@@ -855,8 +866,9 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
                                       <p className={`text-xl font-medium ${templateStyles.heading}`}>{svc.name}</p>
                                       <p className={`mt-1 text-sm ${templateStyles.tiny}`}>{svc.duration_minutes} min</p>
                                     </div>
-                                      <p className={`${templateStyles.priceText} ${templateStyles.accent} drop-shadow-[0_1px_0_rgba(255,255,255,0.45)]`}>
-                                      ${svc.price.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                    <p className={`${templateStyles.priceText} ${templateStyles.priceFx} tabular-nums`}>
+                                      <span className="mr-1.5 align-top text-[0.72em] font-semibold opacity-85">$</span>
+                                      <span className="tracking-[-0.045em]">{svc.price.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
                                     </p>
                                   </div>
                                 </button>
@@ -869,7 +881,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
 
                     {step === 1 && (
                       <div className="space-y-5">
-                        <motion.h2 variants={stepItemReveal} className={`font-semibold leading-[1.02] ${templateStyles.heading} ${templateStyles.headingFx}`}>Elegi tu profesional</motion.h2>
+                        <motion.h2 variants={stepItemReveal} className={`font-semibold leading-[1.02] ${templateStyles.heading} ${templateStyles.headingFx}`}>{`Elegi tu ${staffWordLower}`}</motion.h2>
                         <button
                           onClick={() => setSelectedStaff(null)}
                           className={`w-full px-6 py-5 rounded-[14px] text-left border ${tactileClass} ${
@@ -878,7 +890,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
                         >
                           <div>
                             <p className={`text-lg sm:text-xl font-semibold tracking-tight ${templateStyles.heading}`}>Sin preferencia</p>
-                            <p className={`text-[11px] uppercase tracking-[0.16em] mt-1 ${templateStyles.tiny}`}>Cualquier profesional disponible</p>
+                            <p className={`text-[11px] uppercase tracking-[0.16em] mt-1 ${templateStyles.tiny}`}>{`Cualquier ${staffWordLower} disponible`}</p>
                           </div>
                         </button>
                         {staffMembers.map((s) => {
@@ -1272,7 +1284,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
           <div className={`mx-2 mb-2 rounded-2xl border px-4 py-3 ${templateStyles.footer}`}>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <div className={`text-xs sm:text-sm min-w-0 flex-1 ${templateStyles.footerText}`}>
-                <p className="truncate"><span className={templateStyles.tiny}>Servicio:</span> {summaryService}</p>
+                <p className="truncate"><span className={templateStyles.tiny}>{`${serviceWord}:`}</span> {summaryService}</p>
                 <p className="truncate"><span className={templateStyles.tiny}>Fecha:</span> {summaryDate}</p>
                 <p className="truncate"><span className={templateStyles.tiny}>Hora:</span> {summaryTime}</p>
                 {chargedAmount !== null && (

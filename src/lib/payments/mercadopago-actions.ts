@@ -145,18 +145,20 @@ export async function createPaymentLink(appointmentId: string): Promise<ActionRe
     const client = new MercadoPagoConfig({ accessToken });
     const preference = new Preference(client);
 
+    const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || "https://klip.com.ar").replace(/\/$/, "");
+
     const result = await preference.create({
       body: {
         items: [{ id: appointmentId, title, quantity: 1, unit_price: price, currency_id: "ARS" }],
         payer: { name: customerName },
         back_urls: {
-          success: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/dashboard/appointments`,
-          failure: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/dashboard/appointments`,
-          pending: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/dashboard/appointments`,
+          success: `${siteUrl}/dashboard/appointments`,
+          failure: `${siteUrl}/dashboard/appointments`,
+          pending: `${siteUrl}/dashboard/appointments`,
         },
         auto_return: "approved",
         external_reference: appointmentId,
-        notification_url: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/payments/mercadopago-webhook?shop_id=${shopId}`,
+        notification_url: `${siteUrl}/api/payments/mercadopago-webhook?shop_id=${shopId}`,
       },
     });
 

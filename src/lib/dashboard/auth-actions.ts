@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import type { ActionResult } from "@/lib/types";
 import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
 import { sendEmailWithResend } from "@/lib/email/resend";
+import { resolveIndustry } from "@/lib/industry/resolve";
 import "server-only";
 
 function generateShopSlug(name: string): string {
@@ -37,8 +38,22 @@ function mapAuthError(message: string): string {
   return message;
 }
 
+function resolvePublicSiteUrl(): string {
+  const raw =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    "https://klip.com.ar";
+  return raw.replace(/\/$/, "");
+}
+
+const TRIAL_DAYS = 15;
+
+function getTrialExpiryIso(): string {
+  return new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString();
+}
+
 async function sendAdminConfirmationEmail(email: string): Promise<void> {
-  const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || "https://klip.com.ar").replace(/\/$/, "");
+  const baseUrl = resolvePublicSiteUrl();
   await sendEmailWithResend({
     to: email,
     subject: "Confirma tu acceso a Klip",
@@ -98,6 +113,7 @@ export async function registerShop(
     const shopName = formData.get("shop_name") as string;
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
+    const industry = resolveIndustry(formData.get("industry") as string | null);
     const termsAccepted = formData.get("terms_accepted");
 
     if (!shopName || !email || !password) {
@@ -134,7 +150,14 @@ export async function registerShop(
     const slug = await resolveUniqueShopSlug(generateShopSlug(shopName));
     const normalizedEmail = email.trim().toLowerCase();
 
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email: normalizedEmail, password });
+    const baseUrl = resolvePublicSiteUrl();
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      email: normalizedEmail,
+      password,
+      options: {
+        emailRedirectTo: `${baseUrl}/auth/callback?next=/dashboard`,
+      },
+    });
     if (signUpError) {
       return { success: false, error: mapAuthError(signUpError.message) };
     }
@@ -144,13 +167,14 @@ export async function registerShop(
     }
 
     const admin = await createServiceRoleClient();
-    const trialEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    const trialEnd = getTrialExpiryIso();
 
     const { data: createdShop, error: shopError } = await admin
       .from("shops")
       .insert({
         nombre: shopName,
         slug,
+        industry,
         active: true,
         plan_expiry: trialEnd,
       })
@@ -254,7 +278,7 @@ export async function getGoogleAuthUrl(): Promise<ActionResult<{ url: string }>>
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_BASE_URL || new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).origin || "http://localhost:3000"}/auth/callback`,
+        redirectTo: `${resolvePublicSiteUrl()}/auth/callback`,
       },
     });
 
@@ -324,19 +348,19 @@ export async function createAdditionalShop(shopName: string): Promise<ActionResu
       .from("shop_memberships")
       .select("shop_id")
       .eq("user_id", user.id)
-      .eq("is_active", true)
-      .in("role", ["owner", "admin", "staff"]);
+      .eq("role", "owner");
     const isFirstShop = !existingMemberships || existingMemberships.length === 0;
 
     const slug = await resolveUniqueShopSlug(generateShopSlug(trimmedName));
-    const trialEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    const trialEnd = isFirstShop ? getTrialExpiryIso() : null;
 
     const { data: createdShop, error: shopError } = await admin
       .from("shops")
       .insert({
         nombre: trimmedName,
         slug,
-        active: true,
+        industry: "peluqueria",
+        active: isFirstShop,
         plan_expiry: trialEnd,
       })
       .select("id, slug")

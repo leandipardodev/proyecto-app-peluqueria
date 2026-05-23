@@ -22,7 +22,7 @@ export default function DashboardHeaderLoader({
     billingStatus: BillingStatus;
   }>({
     loading: true,
-    shopName: "Mi Peluqueria",
+    shopName: "Mi Negocio",
     userName: userEmail || "Usuario",
     managedShops: [],
     billingStatus: { daysRemaining: null, graceDaysRemaining: null, isExpired: false, inGrace: false },
@@ -47,7 +47,7 @@ export default function DashboardHeaderLoader({
         if (!mounted) return;
         setState({
           loading: false,
-          shopName: data.shopName || "Mi Peluqueria",
+          shopName: data.shopName || "Mi Negocio",
           userName: data.userName || userEmail || "Usuario",
           managedShops: data.managedShops || [],
           billingStatus: data.billingStatus || { daysRemaining: null, graceDaysRemaining: null, isExpired: false, inGrace: false },

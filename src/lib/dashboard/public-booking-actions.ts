@@ -658,7 +658,7 @@ export async function createPaymentPreference(
       .eq("id", appointment.id)
       .eq("shop_id", appointmentData.shopId);
 
-    const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000").replace(/\/+$/, "");
+    const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || "https://klip.com.ar").replace(/\/+$/, "");
     const successUrl = `${baseUrl}/confirmacion?status=success&slug=${encodeURIComponent(appointmentData.shopSlug)}`;
     const pendingUrl = `${baseUrl}/confirmacion?status=pending&slug=${encodeURIComponent(appointmentData.shopSlug)}`;
     const failureUrl = `${baseUrl}/confirmacion?status=failure&slug=${encodeURIComponent(appointmentData.shopSlug)}`;

@@ -15,6 +15,9 @@ export default function CreateShopRecoveryClient({ userEmail }: { userEmail: str
         <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
           Tu cuenta ({userEmail || "sin email"}) no tiene un local activo. Crea uno nuevo para entrar al dashboard.
         </p>
+        <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
+          El trial de 15 dias aplica solo a la primera tienda de la cuenta. Las tiendas adicionales ingresan sin trial.
+        </p>
 
         {error && <div className="mt-3 rounded-xl bg-red-50 text-red-700 px-3 py-2 text-sm">{error}</div>}
 

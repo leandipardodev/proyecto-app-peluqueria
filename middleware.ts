@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createMiddlewareClient } from "@/lib/supabase/middleware";
 import { createClient } from "@supabase/supabase-js";
+import { DASHBOARD_LEGACY_SEGMENTS_SET } from "@/lib/dashboard/legacy-segments";
 
 const LOGIN_PATH = "/login";
 const BILLING_REQUIRED_PATH = "/billing-required";
@@ -9,20 +10,6 @@ const ACTIVE_SHOP_ID_COOKIE = "klip_active_shop_id";
 const ACTIVE_SHOP_SLUG_COOKIE = "klip_active_shop_slug";
 
 const PROTECTED_PATHS = ["/dashboard", "/admin", "/client"];
-const DASHBOARD_LEGACY_SEGMENTS = new Set([
-  "appointments",
-  "business",
-  "calendar",
-  "customers",
-  "finances",
-  "inventory",
-  "profile",
-  "services",
-  "settings",
-  "staff",
-  "vouchers",
-]);
-
 function isProtectedPath(pathname: string): boolean {
   return PROTECTED_PATHS.some(
     (p) => pathname === p || pathname.startsWith(p + "/")
@@ -54,7 +41,7 @@ export async function middleware(request: NextRequest) {
 
   const { data: userProfile, error: profileError } = await supabase
     .from("user_profiles")
-    .select("role")
+    .select("role, platform_role")
     .eq("user_id", user.id)
     .single();
 
@@ -62,6 +49,18 @@ export async function middleware(request: NextRequest) {
     const billingUrl = request.nextUrl.clone();
     billingUrl.pathname = BILLING_REQUIRED_PATH;
     return NextResponse.redirect(billingUrl);
+  }
+
+  if (pathname.startsWith("/admin")) {
+    const platformRole = (userProfile as { platform_role?: string | null }).platform_role;
+    const legacyRole = (userProfile as { role?: string | null }).role;
+    const isSuperAdmin = platformRole === "super_admin" || legacyRole === "superadmin";
+    if (!isSuperAdmin) {
+      const dashboardUrl = request.nextUrl.clone();
+      dashboardUrl.pathname = "/dashboard";
+      return NextResponse.redirect(dashboardUrl);
+    }
+    return response;
   }
 
   if (pathname.startsWith("/dashboard") && userProfile.role === "customer") {
@@ -142,12 +141,12 @@ export async function middleware(request: NextRequest) {
   const hasShopSlugInPath = Boolean(
     parts[0] === "dashboard" &&
     slugCandidate &&
-    !DASHBOARD_LEGACY_SEGMENTS.has(slugCandidate)
+    !DASHBOARD_LEGACY_SEGMENTS_SET.has(slugCandidate)
   );
 
   const hasLegacyDashboardPath =
     parts[0] === "dashboard" &&
-    (!slugCandidate || DASHBOARD_LEGACY_SEGMENTS.has(slugCandidate));
+    (!slugCandidate || DASHBOARD_LEGACY_SEGMENTS_SET.has(slugCandidate));
 
   if (hasLegacyDashboardPath && !isSlugRewriteRequest) {
     const redirectUrl = request.nextUrl.clone();

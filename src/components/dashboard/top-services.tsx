@@ -4,16 +4,17 @@ import { motion } from "framer-motion";
 
 type TopServicesProps = {
   data: Array<{ name: string; count: number }>;
+  serviceLabelPlural?: string;
 };
 
-export default function TopServices({ data }: TopServicesProps) {
+export default function TopServices({ data, serviceLabelPlural = "Servicios" }: TopServicesProps) {
   const maxCount = data.length > 0 ? Math.max(...data.map((s) => s.count)) : 1;
 
   if (data.length === 0) {
     return (
       <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-6 transition-colors">
         <p className="text-sm text-zinc-500 dark:text-zinc-400 text-center py-12">
-          Sin servicios aún
+          Sin {serviceLabelPlural.toLowerCase()} aun
         </p>
       </div>
     );
@@ -22,7 +23,7 @@ export default function TopServices({ data }: TopServicesProps) {
   return (
     <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-6 transition-colors">
       <h3 className="text-sm font-medium text-gray-900 dark:text-white tracking-tight mb-1">
-        Top servicios
+        Top {serviceLabelPlural.toLowerCase()}
       </h3>
       <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
         Los más pedidos

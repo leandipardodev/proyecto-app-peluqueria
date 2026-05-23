@@ -92,6 +92,7 @@ export default function BookingTemplateCarousel({ selectedTemplateId, onSelect }
       el.releasePointerCapture(e.pointerId);
     } catch {}
     dragStateRef.current.pointerId = null;
+    dragStateRef.current.moved = false;
     setIsDragging(false);
     startInertia();
   };
@@ -115,6 +116,7 @@ export default function BookingTemplateCarousel({ selectedTemplateId, onSelect }
               onClick={(e) => {
                 if (dragStateRef.current.moved) {
                   e.preventDefault();
+                  dragStateRef.current.moved = false;
                   return;
                 }
                 onSelect(template.id);

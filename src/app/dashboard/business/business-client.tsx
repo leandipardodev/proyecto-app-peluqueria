@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect, useMemo, type DragEvent } from "react";
+import { useState, useTransition, useEffect, useMemo, useRef, type DragEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
 import { Store, Eye, EyeOff, CreditCard, MessageSquareText, Smartphone, Link2, MapPin, Phone, Clock, Share2, AlertTriangle, Trash2 } from "lucide-react";
@@ -31,17 +31,22 @@ import {
   type BookingThemeData,
 } from "@/lib/dashboard/booking-theme-actions";
 import { DEFAULT_BOOKING_TEMPLATE, type BookingTemplateId } from "@/lib/booking/theme-presets";
+import { useAuth } from "@/lib/auth-context";
+import { INDUSTRY_CONFIG } from "@/lib/industry/config";
+import { resolveIndustry } from "@/lib/industry/resolve";
 
 type MessageType = { type: "success" | "error"; text: string } | null;
 type InitialServiceItem = { id: string; name: string; category?: string | null; price: number; duration_minutes: number };
 
-const TOUR_STEPS = [
-  { id: "setup-public-info", title: "1. Informacion publica", text: "Completa nombre, descripcion, direccion y telefono de tu local." },
-  { id: "setup-hours", title: "2. Horarios de atencion", text: "Defini los dias y horarios para que las reservas muestren disponibilidad real." },
-  { id: "setup-payments", title: "3. Formas de cobro", text: "Configura Mercado Pago y la politica de seña para cobrar sin friccion." },
-  { id: "setup-staff", title: "4. Empleados", text: "Agrega y administra tu equipo para asignar turnos correctamente." },
-  { id: "setup-services", title: "5. Servicios", text: "Carga tu catalogo de servicios con precio y duracion." },
-] as const;
+function getTourSteps(staffPlural: string, servicePlural: string) {
+  return [
+    { id: "setup-public-info", title: "1. Informacion publica", text: "Completa nombre, descripcion, direccion y telefono de tu local." },
+    { id: "setup-hours", title: "2. Horarios de atencion", text: "Defini los dias y horarios para que las reservas muestren disponibilidad real." },
+    { id: "setup-payments", title: "3. Formas de cobro", text: "Configura Mercado Pago y la politica de sena para cobrar sin friccion." },
+    { id: "setup-staff", title: `4. ${staffPlural}`, text: `Agrega y administra tus ${staffPlural.toLowerCase()} para asignar turnos correctamente.` },
+    { id: "setup-services", title: `5. ${servicePlural}`, text: `Carga tu catalogo de ${servicePlural.toLowerCase()} con precio y duracion.` },
+  ] as const;
+}
 
 export default function BusinessClient({
   initialData,
@@ -71,6 +76,16 @@ export default function BusinessClient({
   shopSlug: string | null;
   initialServices: InitialServiceItem[];
 }) {
+  const { shop } = useAuth();
+  const industry = resolveIndustry(shop?.industry);
+  const industryLabels = INDUSTRY_CONFIG[industry].labels;
+  const staffWord = industryLabels.staffSingular;
+  const staffPlural = industryLabels.staffPlural;
+  const serviceWord = industryLabels.serviceSingular;
+  const servicePlural = industryLabels.servicePlural;
+  const customerWord = industryLabels.customerSingular;
+  const customerPlural = industryLabels.customerPlural;
+  const tourSteps = useMemo(() => getTourSteps(staffPlural, servicePlural), [staffPlural, servicePlural]);
   const { playSuccess, playError, playClick } = useKlipSounds();
   const router = useRouter();
   const [data, setData] = useState(initialData);
@@ -107,6 +122,7 @@ export default function BusinessClient({
   const [isDisconnectingMp, setIsDisconnectingMp] = useState(false);
   const [bookingTheme, setBookingTheme] = useState<BookingThemeData | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<BookingTemplateId>(DEFAULT_BOOKING_TEMPLATE);
+  const templateTouchedRef = useRef(false);
   const [logoUrl, setLogoUrl] = useState<string>("");
   const [heroTitle, setHeroTitle] = useState("");
   const [heroSubtitle, setHeroSubtitle] = useState("");
@@ -199,7 +215,9 @@ export default function BusinessClient({
       const theme = result.data;
       if (!theme) return;
       setBookingTheme(theme);
-      setSelectedTemplateId(theme.template_id);
+      if (!templateTouchedRef.current) {
+        setSelectedTemplateId(theme.template_id);
+      }
       setLogoUrl(theme.logo_url || "");
       setHeroTitle(theme.hero_title || "");
       setHeroSubtitle(theme.hero_subtitle || "");
@@ -311,7 +329,7 @@ export default function BusinessClient({
           const parsed = JSON.parse(raw) as { active?: boolean; step?: number; doneAt?: number };
           if (parsed?.doneAt || parsed?.active === false) done = true;
           if (parsed?.active && typeof parsed.step === "number") {
-            setTourStep(Math.max(0, Math.min(parsed.step, TOUR_STEPS.length - 1)));
+            setTourStep(Math.max(0, Math.min(parsed.step, tourSteps.length - 1)));
           }
         }
       }
@@ -320,17 +338,17 @@ export default function BusinessClient({
       setTourOpen(true);
       window.localStorage.setItem(key, JSON.stringify({ active: true, step: 0 }));
       window.setTimeout(() => {
-        document.getElementById(TOUR_STEPS[0].id)?.scrollIntoView({ behavior: "smooth", block: "center" });
+        document.getElementById(tourSteps[0].id)?.scrollIntoView({ behavior: "smooth", block: "center" });
       }, 140);
     }
-  }, [shopSlug]);
+  }, [shopSlug, tourSteps]);
 
   useEffect(() => {
     if (!tourOpen) return;
-    const target = TOUR_STEPS[tourStep];
+    const target = tourSteps[tourStep];
     if (!target) return;
     document.getElementById(target.id)?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [tourOpen, tourStep]);
+  }, [tourOpen, tourStep, tourSteps]);
 
   useEffect(() => {
     if (!tourOpen) return;
@@ -381,7 +399,7 @@ export default function BusinessClient({
     let rafId = 0;
 
     const updateRect = () => {
-      const target = TOUR_STEPS[tourStep];
+      const target = tourSteps[tourStep];
       if (!target) return;
       const el = document.getElementById(target.id);
       if (!el) {
@@ -406,7 +424,7 @@ export default function BusinessClient({
       window.removeEventListener("scroll", updateRect, true);
       window.removeEventListener("resize", updateRect);
     };
-  }, [tourOpen, tourStep]);
+  }, [tourOpen, tourStep, tourSteps]);
 
   function completeTour() {
     window.localStorage.setItem(`klip-business-onboarding-v1:${shopSlug || "default"}`, JSON.stringify({ active: false, step: 5, doneAt: Date.now() }));
@@ -560,6 +578,7 @@ export default function BusinessClient({
 
       const fresh = await fetchBookingTheme(undefined, shopSlug ?? undefined);
       if (fresh.success) setBookingTheme(fresh.data ?? null);
+      templateTouchedRef.current = false;
       playSuccess();
       showSuccess("Personalizacion de /book guardada");
     });
@@ -785,14 +804,14 @@ export default function BusinessClient({
             href={withDashboardBase("/dashboard/staff")}
             className="ui-btn-ghost inline-flex items-center rounded-full border-emerald-300/60 dark:border-emerald-500/30 bg-emerald-100/80 dark:bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-800 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-500/25 shadow-sm"
           >
-            Gestionar personal
+            Gestionar {staffPlural.toLowerCase()}
           </Link>
           <Link
             id="setup-services"
             href={withDashboardBase("/dashboard/services")}
             className="ui-btn-ghost inline-flex items-center rounded-full border-sky-300/60 dark:border-sky-500/30 bg-sky-100/80 dark:bg-sky-500/15 px-4 py-2 text-sm font-semibold text-sky-800 dark:text-sky-200 hover:bg-sky-100 dark:hover:bg-sky-500/25 shadow-sm"
           >
-            Gestionar servicios
+            Gestionar {servicePlural.toLowerCase()}
           </Link>
           <button
             type="button"
@@ -886,7 +905,7 @@ export default function BusinessClient({
           </div>
 
           <div className="glass-sheen-card h-full min-h-[118px] md:min-h-[124px] rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4 flex flex-col">
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Clientes totales</p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">{customerPlural} totales</p>
             <p className="mt-1 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{maskValue(String(metricStats?.totalClients ?? "-"))}</p>
             <div className="mt-auto pt-3 h-1.5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 overflow-hidden">
               <div className="h-full w-2/3 bg-gradient-to-r from-indigo-400 to-indigo-300 dark:from-indigo-500 dark:to-indigo-400" />
@@ -912,7 +931,7 @@ export default function BusinessClient({
           </div>
 
           <div className="glass-sheen-card h-full min-h-[118px] md:min-h-[124px] rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4 flex flex-col">
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Servicios activos</p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">{servicePlural} activos</p>
             <p className="mt-1 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{maskValue(String(metricStats?.topServicesCount ?? "-"))}</p>
             <div className="mt-auto pt-3 h-1.5 rounded-full bg-cyan-100 dark:bg-cyan-900/30 overflow-hidden">
               <div className="h-full w-3/5 bg-gradient-to-r from-cyan-400 to-cyan-300 dark:from-cyan-500 dark:to-cyan-400" />
@@ -1127,10 +1146,28 @@ export default function BusinessClient({
           >
             {pending ? "Publicando..." : "Publicar cambios"}
           </button>
+          {shopSlug ? (
+            <a
+              href={`/book/${shopSlug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/30 bg-white/80 px-4 py-2.5 text-sm font-semibold text-zinc-700 transition-colors hover:bg-white dark:border-white/10 dark:bg-zinc-900/60 dark:text-zinc-200 dark:hover:bg-zinc-900"
+              title="Abrir version cliente"
+            >
+              <Store className="h-4 w-4" />
+              Ver tienda
+            </a>
+          ) : null}
         </div>
         <div className="p-6 grid grid-cols-1 gap-6 xl:grid-cols-[1.05fr_0.95fr]">
           <div className="space-y-5">
-          <BookingTemplateCarousel selectedTemplateId={selectedTemplateId} onSelect={setSelectedTemplateId} />
+          <BookingTemplateCarousel
+            selectedTemplateId={selectedTemplateId}
+            onSelect={(templateId) => {
+              templateTouchedRef.current = true;
+              setSelectedTemplateId(templateId);
+            }}
+          />
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
@@ -1148,7 +1185,7 @@ export default function BusinessClient({
                 value={heroSubtitle}
                 onChange={(event) => setHeroSubtitle(event.target.value)}
                 className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
-                placeholder="Elegi servicio, profesional y horario"
+                placeholder={`Elegi ${serviceWord.toLowerCase()}, ${staffWord.toLowerCase()} y horario`}
               />
             </div>
             <div>
@@ -1167,7 +1204,7 @@ export default function BusinessClient({
                 onChange={(event) => setAboutText(event.target.value)}
                 rows={4}
                 className="w-full rounded-2xl bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all resize-none"
-                placeholder="Contale al cliente el estilo de atencion de tu local"
+                placeholder={`Contale al ${customerWord.toLowerCase()} el estilo de atencion de tu local`}
               />
             </div>
             <div className="sm:col-span-2">
@@ -1184,7 +1221,7 @@ export default function BusinessClient({
           </div>
 
           <div className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/30 dark:bg-black/20 p-4">
-            <p className="text-sm font-semibold text-gray-900 dark:text-white">Logo de la peluqueria</p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-white">Logo del negocio</p>
             <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">PNG/JPG/WebP/SVG hasta 2MB. Recomendado: 512x512 o superior para evitar pixelado.</p>
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <label className="inline-flex min-h-12 cursor-pointer items-center justify-center rounded-full border border-white/30 bg-white/55 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-white/80 dark:border-white/10 dark:bg-zinc-900/40 dark:text-zinc-200 dark:hover:bg-zinc-900">
@@ -1197,8 +1234,8 @@ export default function BusinessClient({
           </div>
 
           <div className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/30 dark:bg-black/20 p-4">
-            <p className="text-sm font-semibold text-gray-900 dark:text-white">Secciones de servicios (/book)</p>
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Crealas una sola vez y luego asigna cada servicio con un selector.</p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-white">Secciones de {servicePlural.toLowerCase()} (/book)</p>
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Crealas una sola vez y luego asigna cada {serviceWord.toLowerCase()} con un selector.</p>
 
             <div className="mt-3 rounded-xl border border-white/20 bg-white/40 p-3 dark:border-white/10 dark:bg-zinc-900/30">
               <p className="text-xs font-medium text-zinc-600 dark:text-zinc-300">Secciones disponibles</p>
@@ -1256,10 +1293,10 @@ export default function BusinessClient({
 
             <div className="mt-3 space-y-2">
               {initialServices.length === 0 ? (
-                <p className="text-xs text-zinc-500">No hay servicios cargados todavia.</p>
+                  <p className="text-xs text-zinc-500">No hay {servicePlural.toLowerCase()} cargados todavia.</p>
               ) : (
                 <>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Desktop: arrastra servicios entre secciones. Mobile: usa el selector de cada servicio.</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Desktop: arrastra {servicePlural.toLowerCase()} entre secciones. Mobile: usa el selector de cada {serviceWord.toLowerCase()}.</p>
 
                   <div className="hidden md:grid md:grid-cols-2 md:gap-3">
                     {sectionCatalog.map((section) => {
@@ -1306,12 +1343,12 @@ export default function BusinessClient({
                             <span className="rounded-full bg-white/80 px-2 py-0.5 text-[11px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">{servicesInSection.length}</span>
                           </div>
                           <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
-                            {servicesInSection.length > 0 ? `~$${avgPrice} · ${avgDuration} min` : "Sin servicios"}
+                            {servicesInSection.length > 0 ? `~$${avgPrice} · ${avgDuration} min` : `Sin ${servicePlural.toLowerCase()}`}
                           </p>
                           <div className="mt-3 space-y-2">
                             {servicesInSection.length === 0 ? (
                               <div className="rounded-xl border border-dashed border-white/30 px-3 py-5 text-center text-xs text-zinc-500 dark:border-white/10 dark:text-zinc-400">
-                                Solta servicios aca
+                                Solta {servicePlural.toLowerCase()} aca
                               </div>
                             ) : (
                               servicesInSection.map((service) => (
@@ -1341,7 +1378,7 @@ export default function BusinessClient({
                                       ? "border-[#0071E3]/50 bg-[#0071E3]/10 text-zinc-900 dark:text-zinc-100"
                                       : "border-white/35 bg-white/85 text-zinc-800 dark:border-white/10 dark:bg-zinc-900/70 dark:text-zinc-100"
                                   }`}
-                                  title="Arrastra para mover de seccion"
+                                  title={`Arrastra para mover ${servicePlural.toLowerCase()} de seccion`}
                                 >
                                   <span>{service.name}</span>
                                 </motion.div>
@@ -1356,7 +1393,7 @@ export default function BusinessClient({
                   <div className="space-y-3 md:hidden">
                     <div className="rounded-2xl border border-white/25 bg-white/55 p-3 dark:border-white/10 dark:bg-zinc-900/35">
                       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-600 dark:text-zinc-300">Principal (General)</p>
-                      <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">Arrastra un servicio y soltalo en una categoria.</p>
+                      <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">Arrastra un {serviceWord.toLowerCase()} y soltalo en una categoria.</p>
                       <div className="mt-3 space-y-2">
                         {orderedServices
                           .filter((service) => (serviceCategoryDraft[service.id] ?? "General") === "General")
@@ -1384,7 +1421,7 @@ export default function BusinessClient({
                           ))}
                         {orderedServices.filter((service) => (serviceCategoryDraft[service.id] ?? "General") === "General").length === 0 ? (
                           <div className="rounded-xl border border-dashed border-white/30 px-3 py-4 text-center text-xs text-zinc-500 dark:border-white/10 dark:text-zinc-400">
-                            No hay servicios en principal.
+                            No hay {servicePlural.toLowerCase()} en principal.
                           </div>
                         ) : null}
                       </div>
@@ -1432,7 +1469,7 @@ export default function BusinessClient({
                               </span>
                             </div>
                             <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
-                              {draggingServiceId ? "Toque para soltar en esta categoria." : "Abri para ver y quitar servicios."}
+                              {draggingServiceId ? "Toque para soltar en esta categoria." : `Abri para ver y quitar ${servicePlural.toLowerCase()}.`}
                             </p>
                           </summary>
 
@@ -1440,7 +1477,7 @@ export default function BusinessClient({
                             <div className="space-y-2">
                               {servicesInSection.length === 0 ? (
                                 <div className="rounded-xl border border-dashed border-white/30 px-3 py-4 text-center text-xs text-zinc-500 dark:border-white/10 dark:text-zinc-400">
-                                  Solta servicios aca.
+                                  Solta {servicePlural.toLowerCase()} aca.
                                 </div>
                               ) : (
                                 servicesInSection.map((service) => (
@@ -1477,6 +1514,7 @@ export default function BusinessClient({
             aboutTitle={aboutTitle}
             aboutText={aboutText}
             services={previewServices}
+            industry={industry}
           />
         </div>
       </section>
@@ -1588,7 +1626,7 @@ export default function BusinessClient({
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white tracking-tight">Mensaje de WhatsApp</h3>
             </div>
             <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-3">
-              Podes usar <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{Nombre}'}</code> y <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{Peluqueria}'}</code> y se autocompletara con los datos del turno. Es obligatorio incluir <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{Hora}'}</code> y <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{ubicacion}'}</code> (o <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{Lugar}'}</code>).
+              Podes usar <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{Nombre}'}</code> y <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{Peluqueria}'}</code> (o <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{Negocio}'}</code>) y se autocompletara con los datos del turno. Es obligatorio incluir <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{Hora}'}</code> y <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{ubicacion}'}</code> (o <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{Lugar}'}</code>).
             </p>
             <textarea
               value={whatsappTemplate}
@@ -1750,8 +1788,8 @@ export default function BusinessClient({
                 className="fixed bottom-4 left-1/2 z-[90] w-[min(94vw,620px)] -translate-x-1/2 rounded-3xl border border-white/25 dark:border-white/10 bg-white/92 dark:bg-zinc-900/92 backdrop-blur-2xl p-4 shadow-2xl"
               >
                 <p className="text-[11px] uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Recorrido guiado</p>
-                <h3 className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{TOUR_STEPS[tourStep].title}</h3>
-                <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">{TOUR_STEPS[tourStep].text}</p>
+                <h3 className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{tourSteps[tourStep].title}</h3>
+                <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">{tourSteps[tourStep].text}</p>
                 <div className="mt-3 flex items-center justify-between gap-2">
                   <button
                     type="button"
@@ -1761,11 +1799,11 @@ export default function BusinessClient({
                     Omitir
                   </button>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-zinc-500 dark:text-zinc-400">{tourStep + 1}/{TOUR_STEPS.length}</span>
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400">{tourStep + 1}/{tourSteps.length}</span>
                     <button
                       type="button"
                       onClick={() => {
-                        if (tourStep >= TOUR_STEPS.length - 1) {
+                        if (tourStep >= tourSteps.length - 1) {
                           completeTour();
                           return;
                         }
@@ -1780,13 +1818,13 @@ export default function BusinessClient({
                           });
                           return;
                         }
-                        const nextStep = Math.min(tourStep + 1, TOUR_STEPS.length - 1);
+                        const nextStep = Math.min(tourStep + 1, tourSteps.length - 1);
                         setTourStep(nextStep);
                         window.localStorage.setItem(`klip-business-onboarding-v1:${shopSlug || "default"}`, JSON.stringify({ active: true, step: nextStep }));
                       }}
                       className="ui-btn-primary rounded-full px-4 py-1.5 text-xs font-semibold"
                     >
-                      {tourStep >= TOUR_STEPS.length - 1 ? "Finalizar" : "Siguiente"}
+                      {tourStep >= tourSteps.length - 1 ? "Finalizar" : "Siguiente"}
                     </button>
                   </div>
                 </div>
@@ -1853,6 +1891,9 @@ export default function BusinessClient({
               <h4 className="text-base font-semibold text-violet-700 dark:text-violet-300">Crear nuevo local</h4>
               <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
                 Elegi un nombre para el local. Luego podras editarlo desde configuracion.
+              </p>
+              <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
+                El trial de 15 dias aplica solo a la primera tienda de la cuenta. Las tiendas adicionales ingresan sin trial.
               </p>
               <div className="mt-4">
                 <input

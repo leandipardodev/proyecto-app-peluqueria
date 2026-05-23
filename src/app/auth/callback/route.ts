@@ -1,6 +1,10 @@
 import { createServerClient, parseCookieHeader } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import { resolveIndustry } from "@/lib/industry/resolve";
+import { DASHBOARD_LEGACY_SEGMENTS_SET } from "@/lib/dashboard/legacy-segments";
+
+const TRIAL_DAYS = 15;
 
 function createSupabaseClient(request: NextRequest, response: NextResponse) {
   return createServerClient(
@@ -64,20 +68,8 @@ function buildDashboardRedirectPath(nextPath: string | null, slug: string | null
   }
 
   const firstTail = dashboardTail[0];
-  const legacySegments = new Set([
-    "appointments",
-    "business",
-    "calendar",
-    "customers",
-    "finances",
-    "inventory",
-    "profile",
-    "services",
-    "settings",
-    "staff",
-  ]);
 
-  const tailPath = legacySegments.has(firstTail)
+  const tailPath = DASHBOARD_LEGACY_SEGMENTS_SET.has(firstTail)
     ? `/${dashboardTail.join("/")}`
     : `/${dashboardTail.slice(1).join("/")}`;
 
@@ -202,10 +194,12 @@ export async function GET(request: NextRequest) {
 
     if (flow === "owner_signup" && !hasOperationalAccess) {
       let ownerShopName: string | null = null;
+      let ownerIndustry = resolveIndustry(null);
       if (stateParam) {
         try {
           const state = JSON.parse(decodeURIComponent(stateParam));
           ownerShopName = typeof state?.shopName === "string" ? state.shopName.trim() : null;
+          ownerIndustry = resolveIndustry(typeof state?.industry === "string" ? state.industry : null);
         } catch {}
       }
 
@@ -214,13 +208,14 @@ export async function GET(request: NextRequest) {
       }
 
       const slug = await resolveUniqueShopSlug(adminClient, generateShopSlug(ownerShopName));
-      const trialEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      const trialEnd = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
       const { data: createdShop, error: createShopError } = await adminClient
         .from("shops")
         .insert({
           nombre: ownerShopName,
           slug,
+          industry: ownerIndustry,
           active: true,
           plan_expiry: trialEnd,
         })

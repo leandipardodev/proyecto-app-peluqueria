@@ -11,6 +11,9 @@ import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/toast";
+import { useAuth } from "@/lib/auth-context";
+import { INDUSTRY_CONFIG } from "@/lib/industry/config";
+import { resolveIndustry } from "@/lib/industry/resolve";
 
 type Appointment = {
   id: string;
@@ -77,6 +80,11 @@ interface Props {
 }
 
 export default function AppointmentsTable({ shopId, initialAppointments, services, staff, customers, shopName, shopAddress, whatsappTemplate, canManageBilling = false, error }: Props) {
+  const { shop } = useAuth();
+  const industry = resolveIndustry(shop?.industry);
+  const customerWord = INDUSTRY_CONFIG[industry].labels.customerSingular;
+  const serviceWord = INDUSTRY_CONFIG[industry].labels.serviceSingular;
+  const staffWord = INDUSTRY_CONFIG[industry].labels.staffSingular;
   const router = useRouter();
   const { playSuccess, playError, playClick } = useKlipSounds();
   const [appointments] = useState(initialAppointments);
@@ -118,6 +126,7 @@ export default function AppointmentsTable({ shopId, initialAppointments, service
     const text = template
       .replace(/\{Nombre\}/g, customerName)
       .replace(/\{Peluqueria\}/g, shopName)
+      .replace(/\{Negocio\}/g, shopName)
       .replace(/\{Hora\}/g, time) + locationLine;
     return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
   }
@@ -162,7 +171,7 @@ export default function AppointmentsTable({ shopId, initialAppointments, service
             const svc = apt.services?.name ? extractEmoji(apt.services.name) : null;
             const urgent = needsStatusAttention(apt.status);
             const phone = apt.customers?.telefono || null;
-            const whatsappUrl = buildWhatsAppUrl(phone, apt.customers?.nombre || "Cliente", apt.start_time);
+            const whatsappUrl = buildWhatsAppUrl(phone, apt.customers?.nombre || customerWord, apt.start_time);
             const link = paymentLinks[apt.id];
             const generating = generatingId === apt.id;
             return (
@@ -182,7 +191,7 @@ export default function AppointmentsTable({ shopId, initialAppointments, service
                   {new Date(apt.end_time).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
                 </p>
                 <p className="text-sm text-gray-700 dark:text-gray-300">{svc ? `${svc.emoji} ${svc.label}` : apt.services?.name || "N/A"}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Staff: {apt.staff?.name || "N/A"}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{staffWord}: {apt.staff?.name || "N/A"}</p>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <a
                     href={whatsappUrl}
@@ -276,9 +285,9 @@ export default function AppointmentsTable({ shopId, initialAppointments, service
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Fecha</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Horario</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Cliente</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Servicio</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Staff</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{customerWord}</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{serviceWord}</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{staffWord}</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Estado</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Pago</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Seña</th>
@@ -328,7 +337,7 @@ export default function AppointmentsTable({ shopId, initialAppointments, service
                         {(() => {
                           const urgent = needsStatusAttention(apt.status);
                           const phone = apt.customers?.telefono || null;
-                          const whatsappUrl = buildWhatsAppUrl(phone, apt.customers?.nombre || "Cliente", apt.start_time);
+                          const whatsappUrl = buildWhatsAppUrl(phone, apt.customers?.nombre || customerWord, apt.start_time);
                           const link = paymentLinks[apt.id];
                           const generating = generatingId === apt.id;
                           return (

@@ -1,17 +1,48 @@
 import type { Metadata } from "next";
 
+const landingFaqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: [
+    {
+      "@type": "Question",
+      name: "Para que tipo de negocio sirve Klip?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Klip esta pensado para duenos de peluquerias y barberias que necesitan gestionar turnos, clientes, inventario y finanzas en un solo lugar.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "Se puede cobrar sena online?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Si. Klip permite cobrar sena online con Mercado Pago para reducir ausencias y confirmar turnos con mayor seguridad.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "Klip ayuda a ordenar la operacion diaria?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Si. Centraliza la agenda, la base de clientes, los servicios, el stock y los indicadores del negocio para que el dueno tome mejores decisiones.",
+      },
+    },
+  ],
+};
+
 export const metadata: Metadata = {
-  title: "Landing",
+  title: "Software para duenos de peluquerias",
   description:
-    "Conoce Klip: software para peluquerias y barberias con agenda, clientes, inventario y finanzas en una sola plataforma.",
+    "Klip ayuda a duenos de peluquerias y barberias a ordenar turnos, senas, clientes, stock y finanzas en un solo sistema.",
   alternates: {
     canonical: "/landing",
   },
   openGraph: {
     url: "/landing",
-    title: "Klip | Software para peluquerias y barberias",
+    title: "Klip | Software para duenos de peluquerias",
     description:
-      "Automatiza turnos, controla clientes y mejora tus ingresos con Klip.",
+      "Ordena tu peluqueria con agenda inteligente, senas online, clientes, inventario y finanzas.",
     images: [
       {
         url: "/hero.png",
@@ -23,12 +54,20 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Klip | Software para peluquerias y barberias",
-    description: "Automatiza turnos, clientes e ingresos con Klip.",
+    title: "Klip | Software para duenos de peluquerias",
+    description: "Gestiona turnos, clientes e ingresos de tu peluqueria desde un solo lugar.",
     images: ["/hero.png"],
   },
 };
 
 export default function LandingLayout({ children }: { children: React.ReactNode }) {
-  return children;
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(landingFaqJsonLd) }}
+      />
+      {children}
+    </>
+  );
 }

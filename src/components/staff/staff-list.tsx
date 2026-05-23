@@ -18,6 +18,8 @@ import {
 import { supabase } from "@/lib/supabase";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
+import { INDUSTRY_CONFIG } from "@/lib/industry/config";
+import type { Industry } from "@/lib/industry/types";
 
 type StaffMember = {
   id: string;
@@ -33,12 +35,14 @@ type StaffMember = {
 export default function StaffList({
   shopId,
   shopSlug,
+  industry,
   initialStaff,
   currentUserId,
   canManageStaff,
 }: {
   shopId: string;
   shopSlug?: string;
+  industry: Industry;
   initialStaff: StaffMember[];
   currentUserId: string;
   canManageStaff: boolean;
@@ -63,6 +67,9 @@ export default function StaffList({
   const [portalReady, setPortalReady] = useState(false);
   const [tutorialActive, setTutorialActive] = useState(false);
   const { addToast } = useToast();
+  const staffWord = INDUSTRY_CONFIG[industry].labels.staffSingular;
+  const staffWordLower = staffWord.toLowerCase();
+  const staffPlural = INDUSTRY_CONFIG[industry].labels.staffPlural;
 
   useEffect(() => {
     setPortalReady(true);
@@ -183,7 +190,7 @@ export default function StaffList({
     <div>
       {tutorialActive && (
         <div className="mb-4 rounded-2xl border border-violet-300/50 bg-violet-50/80 dark:bg-violet-900/20 px-4 py-3">
-          <p className="text-sm font-semibold text-violet-800 dark:text-violet-200">Paso 4: Empleados</p>
+          <p className="text-sm font-semibold text-violet-800 dark:text-violet-200">Paso 4: {staffPlural}</p>
           <p className="mt-1 text-xs text-violet-700/90 dark:text-violet-200/90">Cuando termines, continua al paso de Servicios.</p>
           <div className="mt-3 flex justify-end">
             <button
@@ -201,9 +208,9 @@ export default function StaffList({
         </div>
       )}
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-6">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white tracking-tight">Personal</h2>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white tracking-tight">{staffPlural}</h2>
         {canManageStaff ? (
-          <Button type="button" onClick={() => setShowForm(true)}>Agregar Peluquero</Button>
+          <Button type="button" onClick={() => setShowForm(true)}>Agregar {staffWord}</Button>
         ) : (
           <span className="text-xs text-gray-500 dark:text-gray-400">Solo owner puede invitar y editar personal</span>
         )}
@@ -217,11 +224,11 @@ export default function StaffList({
 
       {showForm && canManageStaff && (
         <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-4 sm:p-6 mb-6">
-          <h3 className="text-lg font-medium dark:text-gray-100 mb-4 tracking-tight">Nuevo Peluquero</h3>
+          <h3 className="text-lg font-medium dark:text-gray-100 mb-4 tracking-tight">Nuevo {staffWord}</h3>
           <div className="mb-4 rounded-xl border border-sky-200/60 bg-sky-50/80 dark:bg-sky-900/20 px-3 py-2 text-xs text-sky-800 dark:text-sky-200">
-            1) Cargá nombre, email y rol. 2) Guardá. 3) Copiá el link de ingreso y compartilo con el peluquero.
+            1) Carga nombre, email y rol. 2) Guarda. 3) Copia el link de ingreso y compartelo con el {staffWordLower}.
             <br />
-            El peluquero debe abrir ese link e iniciar sesión con ese mismo email para quedar asociado al local.
+            El {staffWordLower} debe abrir ese link e iniciar sesion con ese mismo email para quedar asociado al local.
           </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -250,7 +257,7 @@ export default function StaffList({
               <CustomSelect
                 value={role}
                 onChange={(v) => setRole(v as "staff" | "owner")}
-                options={[{ value: "staff", label: "Peluquero" }, { value: "owner", label: "Administrador" }]}
+                options={[{ value: "staff", label: staffWord }, { value: "owner", label: "Administrador" }]}
                 className="mt-1"
               />
             </div>
@@ -317,7 +324,7 @@ export default function StaffList({
                     </Button>
                   </div>
                   <p className="text-xs text-green-600 dark:text-green-400 mt-2">
-                    Comparte esta contraseña con el peluquero.
+                    Comparte esta contrasena con el {staffWordLower}.
                   </p>
                 </>
               )}
@@ -366,7 +373,7 @@ export default function StaffList({
                     <CustomSelect
                       value={member.role}
                       onChange={(v) => handleRoleChange(member.id, v as "staff" | "owner")}
-                      options={[{ value: "staff", label: "Peluquero" }, { value: "owner", label: "Admin" }]}
+                       options={[{ value: "staff", label: staffWord }, { value: "owner", label: "Admin" }]}
                       className={!canManageStaff || isCurrentOwnerSelf ? "pointer-events-none opacity-60" : ""}
                     />
                   </div>
@@ -460,7 +467,7 @@ export default function StaffList({
                       <CustomSelect
                         value={member.role}
                         onChange={(v) => handleRoleChange(member.id, v as "staff" | "owner")}
-                        options={[{ value: "staff", label: "Peluquero" }, { value: "owner", label: "Admin" }]}
+                         options={[{ value: "staff", label: staffWord }, { value: "owner", label: "Admin" }]}
                         className={!canManageStaff || isCurrentOwnerSelf ? "pointer-events-none opacity-60" : ""}
                       />
                     </div>
@@ -515,7 +522,7 @@ export default function StaffList({
       {portalReady && renameTarget && createPortal((
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
           <div className="w-full max-w-sm bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2rem] border border-white/10 dark:border-white/5 p-5 shadow-2xl shadow-black/[0.08]">
-            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Renombrar peluquero</h3>
+            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Renombrar {staffWordLower}</h3>
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Actualizá el nombre visible en staff, turnos y calendario.</p>
             <input
               value={renameValue}

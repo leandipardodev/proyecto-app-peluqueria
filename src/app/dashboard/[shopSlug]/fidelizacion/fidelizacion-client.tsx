@@ -7,6 +7,9 @@ import { runLoyaltyRaffleAction, updateLoyaltyProgramAction } from "@/lib/dashbo
 import { updateVoucherWhatsappTemplate } from "@/lib/dashboard/voucher-actions";
 import VouchersClient from "../vouchers/vouchers-client";
 import type { VoucherRow } from "@/lib/dashboard/voucher-actions";
+import { useAuth } from "@/lib/auth-context";
+import { INDUSTRY_CONFIG } from "@/lib/industry/config";
+import { resolveIndustry } from "@/lib/industry/resolve";
 
 type LoyaltyRewardCustomer = {
   id: string;
@@ -33,6 +36,10 @@ export default function FidelizacionClient({
   loyaltyDiscountPercent,
   loyaltyRewardCustomers,
 }: Props) {
+  const { shop } = useAuth();
+  const industry = resolveIndustry(shop?.industry);
+  const customerWord = INDUSTRY_CONFIG[industry].labels.customerSingular;
+  const customerWordLower = customerWord.toLowerCase();
   const [enabled, setEnabled] = useState(loyaltyEnabled);
   const [cutsRequired, setCutsRequired] = useState(String(loyaltyCutsRequired));
   const [discountPercent, setDiscountPercent] = useState(String(loyaltyDiscountPercent));
@@ -112,7 +119,7 @@ export default function FidelizacionClient({
 
       const spin = () => {
         tick += 1;
-        const randomName = candidates[Math.floor(Math.random() * candidates.length)] || "Cliente";
+        const randomName = candidates[Math.floor(Math.random() * candidates.length)] || customerWord;
         setRaffleDisplayName(randomName);
         setRaffleSpinKey((prev) => prev + 1);
 
@@ -167,7 +174,7 @@ export default function FidelizacionClient({
               <span className="text-xs font-semibold text-amber-800 dark:text-amber-200">Total canjes: {totalRewardsAvailable}</span>
             </div>
             {loyaltyRewardCustomers.length === 0 ? (
-              <p className="text-sm text-zinc-600 dark:text-zinc-300">Todavia no hay clientes con canje disponible.</p>
+              <p className="text-sm text-zinc-600 dark:text-zinc-300">Todavia no hay {customerWordLower}s con canje disponible.</p>
             ) : (
               <div className="space-y-2">
                 {loyaltyRewardCustomers.slice(0, 5).map((customer) => (
@@ -176,7 +183,7 @@ export default function FidelizacionClient({
                     className="flex items-center justify-between rounded-xl border border-amber-200/70 dark:border-amber-700/40 bg-amber-50/70 dark:bg-amber-900/20 px-3 py-2"
                   >
                     <span className="text-sm font-medium text-amber-900 dark:text-amber-100 truncate pr-2">
-                      {customer.nombre || "Cliente sin nombre"}
+                      {customer.nombre || `${customerWord} sin nombre`}
                     </span>
                     <span className="shrink-0 rounded-full bg-amber-500 text-white text-xs font-semibold px-2 py-0.5">
                       {Math.max(0, Number(customer.loyalty_rewards_available || 0))} canje(s)
@@ -194,13 +201,13 @@ export default function FidelizacionClient({
               <Users className="w-4.5 h-4.5 text-cyan-600" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white tracking-tight">Realizar sorteo entre clientes</h3>
+               <h3 className="text-sm font-semibold text-gray-900 dark:text-white tracking-tight">Realizar sorteo entre {customerWordLower}s</h3>
               <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Tarjeta de acceso rapido</p>
             </div>
           </div>
           <div className="p-5">
             <p className="text-sm text-zinc-700 dark:text-zinc-300">
-              Usa este bloque para lanzar dinamicas con tus clientes frecuentes y aumentar recurrencia.
+               Usa este bloque para lanzar dinamicas con tus {customerWordLower}s frecuentes y aumentar recurrencia.
             </p>
             <button
               type="button"
@@ -208,7 +215,7 @@ export default function FidelizacionClient({
               className="mt-4 inline-flex items-center gap-2 rounded-full bg-cyan-600 text-white px-4 py-2 text-sm font-medium hover:bg-cyan-700 transition-colors"
             >
               <Gift className="w-4 h-4" />
-              {showRafflePanel ? "Ocultar sorteo" : "Realizar sorteo entre clientes"}
+              {showRafflePanel ? "Ocultar sorteo" : `Realizar sorteo entre ${customerWordLower}s`}
             </button>
 
             {showRafflePanel && (
