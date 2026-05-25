@@ -326,3 +326,21 @@ html.perf-mode .transition-opacity,
 html.perf-mode .transition-transform {
   transition: none !important;
 }
+
+.delicate-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+}
+
+.delicate-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.delicate-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.delicate-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(148, 163, 184, 0.52), rgba(148, 163, 184, 0.28));
+  border-radius: 999px;
+}

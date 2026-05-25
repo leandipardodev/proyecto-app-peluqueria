@@ -745,7 +745,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
       />
       <div className="relative z-10 flex min-h-screen items-center justify-center p-4 sm:p-8 lg:p-12">
         <div className="w-full max-w-md md:max-w-xl">
-        <div className={`rounded-[32px] p-6 sm:p-10 lg:p-12 ${templateStyles.shell}`}>
+        <div className={`rounded-[32px] p-6 sm:p-10 lg:p-12 h-[min(860px,calc(100dvh-2rem))] sm:h-[min(900px,calc(100dvh-3rem))] flex flex-col ${templateStyles.shell}`}>
           {!done ? (
             <>
               <div className="pb-10">
@@ -803,7 +803,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
 
               </div>
 
-              <div className="pt-4 min-h-[430px]">
+              <div className="pt-4 min-h-0 flex-1 overflow-hidden">
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={step}
@@ -811,6 +811,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
                     initial="initial"
                     animate="animate"
                     exit="exit"
+                    className="h-full overflow-y-auto delicate-scroll pr-1"
                   >
                     {step === 0 && (
                       <div className="space-y-8">

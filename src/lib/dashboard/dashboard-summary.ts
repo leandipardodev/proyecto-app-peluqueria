@@ -269,7 +269,7 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
     }
 
     for (const fin of financesRes.data ?? []) {
-      const month = fin.created_at?.slice(0, 7);
+      const month = fin.created_at ? getArgentinaDateKey(fin.created_at).slice(0, 7) : null;
       if (!month) continue;
       if (fin.type === "income") {
         incomeByMonth.set(month, (incomeByMonth.get(month) ?? 0) + fin.amount);

@@ -128,6 +128,7 @@ export default function BusinessClient({
   const [bookingTheme, setBookingTheme] = useState<BookingThemeData | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<BookingTemplateId>(DEFAULT_BOOKING_TEMPLATE);
   const templateTouchedRef = useRef(false);
+  const bookingCopyTouchedRef = useRef(false);
   const [logoUrl, setLogoUrl] = useState<string>("");
   const [heroTitle, setHeroTitle] = useState("");
   const [heroSubtitle, setHeroSubtitle] = useState("");
@@ -225,10 +226,12 @@ export default function BusinessClient({
         setSelectedTemplateId(theme.template_id);
       }
       setLogoUrl(theme.logo_url || "");
-      setHeroTitle(theme.hero_title || "");
-      setHeroSubtitle(theme.hero_subtitle || "");
-      setAboutTitle(theme.about_title || "");
-      setAboutText(theme.about_text || "");
+      if (!bookingCopyTouchedRef.current) {
+        setHeroTitle(theme.hero_title || "");
+        setHeroSubtitle(theme.hero_subtitle || "");
+        setAboutTitle(theme.about_title || "");
+        setAboutText(theme.about_text || "");
+      }
       if (Array.isArray(theme.section_order) && theme.section_order.length > 0) {
         const fromServices = Array.from(new Set(initialServices.map((service) => (service.category || "General").trim() || "General")));
         const merged = [...theme.section_order, ...fromServices].filter((item, index, arr) => Boolean(item) && arr.indexOf(item) === index);
@@ -1194,7 +1197,10 @@ export default function BusinessClient({
               <label className="mb-1.5 block cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300">Titulo principal</label>
               <input
                 value={heroTitle}
-                onChange={(event) => setHeroTitle(event.target.value)}
+                onChange={(event) => {
+                  bookingCopyTouchedRef.current = true;
+                  setHeroTitle(event.target.value);
+                }}
                 className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
                 placeholder={data?.nombre ? `Reserva en ${data.nombre}` : "Reserva tu turno"}
               />
@@ -1203,7 +1209,10 @@ export default function BusinessClient({
               <label className="mb-1.5 block cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300">Subtitulo</label>
               <input
                 value={heroSubtitle}
-                onChange={(event) => setHeroSubtitle(event.target.value)}
+                onChange={(event) => {
+                  bookingCopyTouchedRef.current = true;
+                  setHeroSubtitle(event.target.value);
+                }}
                 className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
                 placeholder={`Elegi ${serviceWord.toLowerCase()}, ${staffWord.toLowerCase()} y horario`}
               />
@@ -1212,7 +1221,10 @@ export default function BusinessClient({
               <label className="mb-1.5 block cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300">Titulo seccion secundaria</label>
               <input
                 value={aboutTitle}
-                onChange={(event) => setAboutTitle(event.target.value)}
+                onChange={(event) => {
+                  bookingCopyTouchedRef.current = true;
+                  setAboutTitle(event.target.value);
+                }}
                 className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
                 placeholder="Sobre nosotros"
               />
@@ -1221,7 +1233,10 @@ export default function BusinessClient({
               <label className="mb-1.5 block cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300">Texto seccion secundaria</label>
               <textarea
                 value={aboutText}
-                onChange={(event) => setAboutText(event.target.value)}
+                onChange={(event) => {
+                  bookingCopyTouchedRef.current = true;
+                  setAboutText(event.target.value);
+                }}
                 rows={4}
                 className="w-full rounded-2xl bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all resize-none"
                 placeholder={`Contale al ${customerWord.toLowerCase()} el estilo de atencion de tu local`}
