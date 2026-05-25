@@ -100,27 +100,52 @@ export async function GET(request: NextRequest) {
   try {
     const requestUrl = new URL(request.url);
     const code = requestUrl.searchParams.get("code");
-    const stateParam = requestUrl.searchParams.get("state");
-    const flowParam = requestUrl.searchParams.get("flow");
-    const flow = flowParam === "admin" || flowParam === "owner_signup" ? flowParam : "client";
+    const cookieFlow = request.cookies.get("klip_oauth_flow")?.value || null;
+    const cookieNextRaw = request.cookies.get("klip_oauth_next")?.value || null;
+    const cookieNext = cookieNextRaw ? decodeURIComponent(cookieNextRaw) : null;
+    const cookieState = request.cookies.get("klip_oauth_state")?.value || null;
+    const stateParam = requestUrl.searchParams.get("state") || cookieState;
+    const flowParam = requestUrl.searchParams.get("flow") || cookieFlow;
+    const requestedAdminFlow = flowParam === "admin";
+    let flow: "admin" | "owner_signup" | "client" =
+      flowParam === "admin" || flowParam === "owner_signup" ? flowParam : "client";
 
     if (!code) {
-      let shopSlug = "kmln";
-      if (stateParam) {
-        try {
-          const state = JSON.parse(decodeURIComponent(stateParam));
-          shopSlug = state.shopSlug || "kmln";
-        } catch {}
+      if (process.env.NODE_ENV !== "production") {
+        console.info("[oauth-debug][callback] missing code", {
+          url: request.url,
+          flowParam,
+          hasState: Boolean(stateParam),
+          next: requestUrl.searchParams.get("next"),
+        });
       }
-      const errorUrl = new URL(`/book/${shopSlug}`, request.url);
-      errorUrl.searchParams.set("error", "No+se+recibió+el+código+de+Google");
-      return NextResponse.redirect(errorUrl);
+      return NextResponse.redirect(
+        new URL("/login?error=No+se+recibio+el+codigo+de+Google", request.url)
+      );
     }
 
     let shopSlug: string | null = null;
     let serviceId: string | null = null;
     let staffId: string | null = null;
-    const nextPath = requestUrl.searchParams.get("next");
+    const nextPath = requestUrl.searchParams.get("next") || cookieNext;
+    const isExplicitAdminTarget = requestedAdminFlow && Boolean(nextPath?.startsWith("/admin"));
+
+    if (process.env.NODE_ENV !== "production") {
+      console.info("[oauth-debug][callback] incoming", {
+        url: request.url,
+        origin: requestUrl.origin,
+        host: requestUrl.host,
+        flowParam,
+        requestedAdminFlow,
+        nextPath,
+        hasState: Boolean(stateParam),
+        isExplicitAdminTarget,
+      });
+    }
+
+    if (requestedAdminFlow && !isExplicitAdminTarget) {
+      flow = "client";
+    }
 
     if (stateParam) {
       try {
@@ -128,10 +153,20 @@ export async function GET(request: NextRequest) {
         shopSlug = state.shopSlug || null;
         serviceId = state.serviceId || null;
         staffId = state.staffId || null;
+        if (
+          flow === "client" &&
+          typeof state?.shopName === "string" &&
+          state.shopName.trim().length > 0
+        ) {
+          flow = "owner_signup";
+        }
       } catch {}
     }
 
     const response = new NextResponse(null, { status: 200 });
+    response.cookies.set("klip_oauth_flow", "", { path: "/", maxAge: 0 });
+    response.cookies.set("klip_oauth_next", "", { path: "/", maxAge: 0 });
+    response.cookies.set("klip_oauth_state", "", { path: "/", maxAge: 0 });
 
     const supabase = createSupabaseClient(request, response);
 
@@ -184,7 +219,11 @@ export async function GET(request: NextRequest) {
     const hasOperationalAccess = Boolean(existingOperationalMembership?.shop_id);
     let createdOrSelectedShopId: string | null = null;
 
-    if (flow === "admin" && !isAllowlistedAdmin && !hasOperationalAccess) {
+    if (!isExplicitAdminTarget && requestedAdminFlow && !isAllowlistedAdmin && !hasOperationalAccess) {
+      flow = "client";
+    }
+
+    if (isExplicitAdminTarget && !isAllowlistedAdmin && !hasOperationalAccess) {
       await supabase.auth.signOut();
       return NextResponse.redirect(
         new URL("/login?error=Acceso+admin+denegado.+Tu+email+no+está+autorizado", request.url),

@@ -1,4 +1,5 @@
 import withPWAInit from "@ducanh2912/next-pwa";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const withPWA = withPWAInit({
   dest: "public",
@@ -65,7 +66,7 @@ const nextConfig = {
       "style-src 'self' 'unsafe-inline' https:",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data: https:",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.mercadopago.com https://sdk.mercadopago.com https://*.mercadopago.com",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.mercadopago.com https://sdk.mercadopago.com https://*.mercadopago.com https://*.ingest.sentry.io https://*.sentry.io",
       "frame-src 'self' https://www.mercadopago.com https://sdk.mercadopago.com https://*.mercadopago.com",
       "manifest-src 'self'",
       "worker-src 'self' blob:",
@@ -89,4 +90,11 @@ const nextConfig = {
   },
 };
 
-export default withPWA(nextConfig);
+const sentryWebpackPluginOptions = {
+  silent: true,
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+};
+
+export default withSentryConfig(withPWA(nextConfig), sentryWebpackPluginOptions);

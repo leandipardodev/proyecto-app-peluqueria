@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MessageCircle, Bell, CreditCard, Copy, Check } from "lucide-react";
 import AppointmentFormModal from "@/components/calendar/appointment-form-modal";
 import { Button } from "@/components/ui/button";
@@ -88,11 +88,23 @@ export default function AppointmentsTable({ shopId, initialAppointments, service
   const router = useRouter();
   const { playSuccess, playError, playClick } = useKlipSounds();
   const [appointments] = useState(initialAppointments);
+  const [page, setPage] = useState(1);
   const [showForm, setShowForm] = useState(false);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [paymentLinks, setPaymentLinks] = useState<Record<string, string>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const { addToast } = useToast();
+  const pageSize = 10;
+
+  const totalPages = Math.max(1, Math.ceil(appointments.length / pageSize));
+  const pagedAppointments = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return appointments.slice(start, start + pageSize);
+  }, [appointments, page]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   useAppointmentAlarm(appointments);
 
@@ -145,7 +157,7 @@ export default function AppointmentsTable({ shopId, initialAppointments, service
   return (
     <div className="p-3 sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Proximos 10 turnos</h1>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Proximos turnos</h1>
         <Button onClick={() => setShowForm(true)}>Nuevo Turno</Button>
       </div>
 
@@ -167,7 +179,7 @@ export default function AppointmentsTable({ shopId, initialAppointments, service
             No hay turnos registrados
           </div>
         ) : (
-          appointments.map((apt) => {
+          pagedAppointments.map((apt) => {
             const svc = apt.services?.name ? extractEmoji(apt.services.name) : null;
             const urgent = needsStatusAttention(apt.status);
             const phone = apt.customers?.telefono || null;
@@ -300,7 +312,7 @@ export default function AppointmentsTable({ shopId, initialAppointments, service
                 <td colSpan={9} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No hay turnos registrados</td>
               </tr>
             ) : (
-              appointments.map((apt) => {
+              pagedAppointments.map((apt) => {
                 const svc = apt.services?.name ? extractEmoji(apt.services.name) : null;
                 return (
                   <tr key={apt.id} className="hover:bg-white/40 dark:hover:bg-white/5 cursor-pointer">
@@ -455,6 +467,32 @@ export default function AppointmentsTable({ shopId, initialAppointments, service
         </table>
         </div>
       </div>
+
+      {appointments.length > pageSize && (
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-white/20 bg-white/35 px-4 py-3 text-sm dark:border-white/10 dark:bg-black/20">
+          <p className="text-zinc-600 dark:text-zinc-300">
+            Pagina {page} de {totalPages} - Mostrando {pagedAppointments.length} de {appointments.length} turnos
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+              disabled={page <= 1}
+              className="rounded-full border border-white/30 bg-white/70 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/15 dark:bg-zinc-900/50 dark:text-zinc-200 dark:hover:bg-zinc-900"
+            >
+              Anterior
+            </button>
+            <button
+              type="button"
+              onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+              disabled={page >= totalPages}
+              className="rounded-full border border-white/30 bg-white/70 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/15 dark:bg-zinc-900/50 dark:text-zinc-200 dark:hover:bg-zinc-900"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

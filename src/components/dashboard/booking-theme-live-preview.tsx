@@ -119,6 +119,8 @@ export default function BookingThemeLivePreview({
     },
   }[templateId];
 
+  const isDesktopPreview = viewport === "desktop";
+
   return (
     <section className="rounded-3xl border border-white/30 bg-white/55 p-4 dark:border-white/10 dark:bg-black/20">
       <div className="mb-3 flex items-center justify-between gap-3">
@@ -147,10 +149,19 @@ export default function BookingThemeLivePreview({
       </div>
 
       <div className="flex justify-center">
-        <div className={`${viewport === "mobile" ? "w-[320px]" : "w-full max-w-[780px]"} transition-all duration-200`}>
-          <div className={`mx-auto rounded-[2.2rem] border p-2 shadow-2xl ${viewport === "mobile" ? "max-w-[320px]" : "max-w-[780px]"}`}>
-            <div className="h-5 w-24 rounded-full bg-black/70 mx-auto mb-2" />
-            <div className={`rounded-[1.8rem] border p-3 sm:p-4 shadow-[0_24px_60px_-36px_rgba(15,23,42,0.45)] ${styles.page} ${styles.shell}`}>
+        <div className={`${isDesktopPreview ? "w-full max-w-[780px]" : "w-[320px]"} transition-all duration-200`}>
+          <div className={`mx-auto border p-2 shadow-2xl ${isDesktopPreview ? "max-w-[780px] rounded-[1.35rem]" : "max-w-[320px] rounded-[2.2rem]"}`}>
+            {isDesktopPreview ? (
+              <div className="mb-2 flex h-8 items-center gap-2 rounded-[0.75rem] bg-zinc-900/85 px-3">
+                <span className="h-2.5 w-2.5 rounded-full bg-rose-400" />
+                <span className="h-2.5 w-2.5 rounded-full bg-amber-300" />
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                <div className="ml-2 h-5 w-full max-w-[320px] rounded-full bg-white/10" />
+              </div>
+            ) : (
+              <div className="mx-auto mb-2 h-5 w-24 rounded-full bg-black/70" />
+            )}
+            <div className={`rounded-[1.4rem] border shadow-[0_24px_60px_-36px_rgba(15,23,42,0.45)] ${styles.page} ${styles.shell} ${isDesktopPreview ? "p-4 sm:p-5" : "p-3 sm:p-4"}`}>
               <div className="flex items-center gap-3 border-b border-white/15 pb-3">
                 <div className="h-14 w-14 overflow-hidden">
                   {logoUrl ? <Image src={logoUrl} alt="Logo preview" width={112} height={112} quality={100} className="h-full w-full object-contain" /> : null}
@@ -180,15 +191,15 @@ export default function BookingThemeLivePreview({
                 </div>
               </div>
 
-              <div className="mt-3 space-y-2">
-                {!hasRealServices ? (
-                  <p className="text-[11px] text-zinc-500 italic">{servicePlural} de ejemplo hasta que cargues los tuyos.</p>
-                ) : null}
+              <div className={`mt-3 ${isDesktopPreview ? "grid grid-cols-2 gap-2.5" : "space-y-2"}`}>
+                {!hasRealServices && (
+                  <p className={`text-[11px] text-zinc-500 italic ${isDesktopPreview ? "col-span-2" : ""}`}>{servicePlural} de ejemplo hasta que cargues los tuyos.</p>
+                )}
                 {visibleServices.map((service) => (
                   <div key={service.id} className={`rounded-2xl border p-3 ${styles.card}`}>
                     <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className={`text-sm font-semibold ${styles.heading}`}>{service.name}</p>
+                      <div className="min-w-0">
+                        <p className={`truncate text-sm font-semibold ${styles.heading}`}>{service.name}</p>
                         <p className="text-[11px] text-zinc-500">{service.duration_minutes} min</p>
                       </div>
                       <p className={`text-sm font-semibold ${styles.accent}`}>${service.price.toFixed(0)}</p>

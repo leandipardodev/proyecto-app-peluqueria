@@ -62,11 +62,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-      const { data: profile } = await supabase
-        .from("user_profiles")
-        .select("shop_id, name, role")
-        .eq("user_id", user.id)
-        .single();
+        let profile: { shop_id: string | null; name: string | null; role: string | null } | null = null;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const { data } = await supabase
+            .from("user_profiles")
+            .select("shop_id, name, role")
+            .eq("user_id", user.id)
+            .maybeSingle();
+          profile = data;
+          if (profile) break;
+          if (attempt < 2) {
+            await new Promise((resolve) => window.setTimeout(resolve, 220 * (attempt + 1)));
+          }
+        }
 
       const metaName: string | null = typeof user.user_metadata?.full_name === "string" ? user.user_metadata.full_name : null;
       const metaAvatar: string | null = typeof user.user_metadata?.avatar_url === "string" ? user.user_metadata.avatar_url : null;
@@ -88,11 +96,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-      const { data: shop } = await supabase
-        .from("shops")
-        .select("id, nombre, slug, industry")
-        .eq("id", profile.shop_id)
-        .single();
+        const { data: shop } = await supabase
+          .from("shops")
+          .select("id, nombre, slug, industry")
+          .eq("id", profile.shop_id)
+          .maybeSingle();
 
         if (isMounted) setState({
           user: {

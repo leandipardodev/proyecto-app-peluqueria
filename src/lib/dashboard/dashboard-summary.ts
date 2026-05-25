@@ -166,13 +166,14 @@ async function createAdminClient() {
 
 export type DashboardMetrics = {
   revenueChart: Array<{ month: string; income: number; expenses: number }>;
+  monthlyGrowth: Array<{ month: string; clients: number; growthPct: number | null }>;
   flowByPeriod: {
     today: { income: number; expenses: number };
     week: { income: number; expenses: number };
     month: { income: number; expenses: number };
   };
   topServices: Array<{ name: string; count: number }>;
-  stats: { totalClients: number; growth: number; totalAppointments: number };
+  stats: { totalClients: number; growth: number | null; totalAppointments: number };
 };
 
 async function fetchFlowRange(
@@ -324,17 +325,33 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
     const prevMonthClients =
       clientsRes.data?.filter((c) => toMonthKey(c.created_at) === prevMonth).length ?? 0;
 
-    const growth =
-      prevMonthClients > 0
-        ? Math.round(((currentMonthClients - prevMonthClients) / prevMonthClients) * 100)
-        : currentMonthClients > 0
-          ? 100
-          : 0;
+    const growth = prevMonthClients > 0 ? Math.round(((currentMonthClients - prevMonthClients) / prevMonthClients) * 100) : null;
+
+    const clientsByMonth = new Map<string, number>();
+    for (const client of clientsRes.data ?? []) {
+      const mk = toMonthKey(client.created_at);
+      if (!mk) continue;
+      clientsByMonth.set(mk, (clientsByMonth.get(mk) || 0) + 1);
+    }
+
+    const monthlyGrowth = [...clientsByMonth.keys()]
+      .sort()
+      .slice(-6)
+      .map((month, index, arr) => {
+        const clients = clientsByMonth.get(month) || 0;
+        if (index === 0) {
+          return { month, clients, growthPct: null };
+        }
+        const prevClients = clientsByMonth.get(arr[index - 1]) || 0;
+        const growthPct = prevClients > 0 ? Math.round(((clients - prevClients) / prevClients) * 100) : null;
+        return { month, clients, growthPct };
+      });
 
     return {
       success: true,
       data: {
         revenueChart,
+        monthlyGrowth,
         flowByPeriod: {
           today: flowToday,
           week: flowWeek,

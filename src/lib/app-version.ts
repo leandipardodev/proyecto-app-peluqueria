@@ -1,16 +1,18 @@
-export const APP_VERSION = "1.1.0";
+import packageJson from "../../package.json";
+
+export const APP_VERSION = packageJson.version;
 
 export const RELEASE_NOTES_TITLE = `Notas de version v${APP_VERSION}`;
 
 export const RELEASE_NOTES_ITEMS: string[] = [
-  "Actualizamos textos de la pagina principal para comunicar mejor los mensajes recordatorios de turnos.",
-  "Mejoramos la pagina principal con mas estilo visual, mejor tipografia y nuevas animaciones premium.",
-  "Renovamos el diseno visual de la pagina principal con una estetica mas premium y un logo Klip mas protagonista.",
-  "Renovamos la pagina principal con una explicacion mas clara de como funciona Klip y sus beneficios.",
-  "Arreglamos un error que a veces bloqueaba el scroll en la app.",
-  "Mejoramos el menu para que sea mas comodo y facil de usar.",
-  "Activamos recordatorios automaticos por mail 3 horas antes del turno.",
-  "El recordatorio ahora incluye boton a Google Maps con la ubicacion de la peluqueria.",
-  "Sumamos Terminos y Condiciones en el registro para mayor claridad.",
-  "Ya esta activo el correo de soporte oficial: soporte@klip.com.ar.",
+  "Fortalecimos el login con Google y el callback OAuth para evitar redirecciones incorrectas y errores de acceso admin.",
+  "Extendimos el trial a 15 dias y aplicamos la politica de un solo trial por cuenta en la primera tienda.",
+  "Mejoramos el panel admin con nuevos KPIs, metricas por rubro, top negocios y tendencias comparativas 7/30/90.",
+  "Activamos sonido y vibracion en acciones clave del dashboard, con control para silenciar desde el menu.",
+  "Actualizamos favicon e iconos de marca en toda la app para una identidad visual mas consistente.",
+  "Corregimos modales para que no se cierren por accidente al seleccionar texto o hacer drag en mobile.",
+  "Mejoramos la vista previa de templates (/book), corregimos seleccion de skins y renovamos miniaturas de estilo.",
+  "Agregamos busqueda global Ctrl+K con sinonimos por rubro, tolerancia a typos y mejor ranking de resultados.",
+  "Desactivar animaciones ahora corta practicamente todas las animaciones CSS y Framer Motion en toda la plataforma.",
+  "La seccion de turnos ahora muestra paginacion real: 10 por pagina con navegacion para ver todos.",
 ];

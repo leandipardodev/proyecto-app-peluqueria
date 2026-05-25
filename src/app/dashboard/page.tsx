@@ -3,6 +3,7 @@ import { CalendarDays, Bell, AlertTriangle, TrendingUp, Clock, MessageCircle } f
 import ShareLinkCard from "@/components/dashboard/share-link-card";
 import RevenueChart from "@/components/dashboard/revenue-chart";
 import TopServices from "@/components/dashboard/top-services";
+import MonthlyGrowthCard from "@/components/dashboard/monthly-growth-card";
 import PwaInstallButton from "@/components/dashboard/pwa-install-button";
 import HoverScale from "@/components/ui/hover-scale";
 import { fetchWhatsappTemplate } from "@/lib/dashboard/whatsapp-actions";
@@ -63,7 +64,8 @@ function stringToColor(name: string): string {
   return colors[Math.abs(hash) % colors.length];
 }
 
-function formatGrowth(value: number): string {
+function formatGrowth(value: number | null): string {
+  if (value === null) return "N/D";
   const sign = value >= 0 ? "+" : "";
   return `${sign}${value}%`;
 }
@@ -100,9 +102,9 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
     return `${dashboardBasePath}${tail}`;
   };
 
-  const growthValue = metrics?.stats.growth ?? 0;
-  const growthColor = growthValue >= 0 ? "text-green-600" : "text-red-600";
-  const growthBg = growthValue >= 0 ? "bg-green-500/10" : "bg-red-500/10";
+  const growthValue = metrics?.stats.growth ?? null;
+  const growthColor = growthValue === null ? "text-zinc-500 dark:text-zinc-400" : growthValue >= 0 ? "text-green-600" : "text-red-600";
+  const growthBg = growthValue === null ? "bg-zinc-500/10" : growthValue >= 0 ? "bg-green-500/10" : "bg-red-500/10";
   const nextAppointment = summary.nextAppointments[0];
   const minutesToNextAppointment = nextAppointment
     ? Math.round((new Date(nextAppointment.start_time).getTime() - Date.now()) / 60000)
@@ -273,7 +275,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map(({ label, value, hint, icon: Icon, color, bg }, idx) => {
           const isGrowthCard = label === "Crecimiento";
-          const growthFill = Math.min(Math.max(Math.abs(growthValue), 8), 100);
+          const growthFill = growthValue === null ? 18 : Math.min(Math.max(Math.abs(growthValue), 8), 100);
           const hasProgress = isGrowthCard;
           const sheenStyle: CSSProperties & Record<"--sheen-delay" | "--sheen-duration", string> = {
             "--sheen-delay": `${-0.5 - idx * 2.1}s`,
@@ -297,7 +299,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
                     <div className="mt-2.5">
                       <div className="h-2 w-full rounded-full bg-zinc-200/70 dark:bg-zinc-700/60 overflow-hidden">
                         <div
-                          className={`h-full rounded-full flow-mini ${growthValue >= 0 ? "flow-mini-pos" : "flow-mini-neg"}`}
+                          className={`h-full rounded-full flow-mini ${growthValue === null || growthValue >= 0 ? "flow-mini-pos" : "flow-mini-neg"}`}
                           style={{ width: `${growthFill}%` }}
                         />
                       </div>
@@ -312,12 +314,13 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
         })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2">
+      <div className="relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+        <div className="lg:col-span-2 min-w-0">
           <RevenueChart data={metrics?.revenueChart ?? []} flowByPeriod={metrics?.flowByPeriod} />
         </div>
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 space-y-4 min-w-0">
           <TopServices data={metrics?.topServices ?? []} serviceLabelPlural={servicePlural} />
+          <MonthlyGrowthCard clientsData={metrics?.monthlyGrowth ?? []} revenueData={metrics?.revenueChart ?? []} />
         </div>
       </div>
 

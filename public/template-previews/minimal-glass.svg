@@ -1,11 +1,30 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="360" height="640" viewBox="0 0 360 640" fill="none">
-  <rect width="360" height="640" fill="#F4F7FC"/>
-  <circle cx="64" cy="96" r="100" fill="#D7E8FF"/>
-  <circle cx="312" cy="566" r="122" fill="#D8F6EB"/>
-  <rect x="22" y="74" width="316" height="492" rx="36" fill="#FFFFFF" fill-opacity="0.75" stroke="#E4EAF3"/>
-  <text x="52" y="150" fill="#101828" font-size="20" letter-spacing="1">MODO CLARO</text>
-  <rect x="50" y="192" width="260" height="56" rx="20" fill="#FFFFFF" stroke="#E5EAF1"/>
-  <rect x="50" y="264" width="260" height="56" rx="20" fill="#FFFFFF" stroke="#E5EAF1"/>
-  <rect x="50" y="336" width="260" height="56" rx="20" fill="#FFFFFF" stroke="#E5EAF1"/>
-  <rect x="94" y="442" width="172" height="50" rx="25" fill="#0071E3"/>
+  <defs>
+    <linearGradient id="bg" x1="26" y1="22" x2="332" y2="616" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F7FAFF"/>
+      <stop offset="1" stop-color="#ECF5FF"/>
+    </linearGradient>
+    <linearGradient id="cta" x1="100" y1="0" x2="100" y2="44" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38A2FF"/>
+      <stop offset="1" stop-color="#0B73DE"/>
+    </linearGradient>
+  </defs>
+  <rect width="360" height="640" fill="url(#bg)"/>
+  <circle cx="290" cy="72" r="116" fill="#D8ECFF"/>
+  <circle cx="46" cy="592" r="136" fill="#CFF2E8"/>
+  <rect x="24" y="56" width="312" height="528" rx="34" fill="#FFFFFF" fill-opacity="0.78" stroke="#DCE7F4"/>
+  <rect x="44" y="82" width="272" height="128" rx="26" fill="#FFFFFF" fill-opacity="0.78" stroke="#E4EDF8"/>
+  <rect x="62" y="102" width="110" height="12" rx="6" fill="#5F7894" fill-opacity="0.86"/>
+  <rect x="62" y="122" width="176" height="8" rx="4" fill="#8DA3BC" fill-opacity="0.72"/>
+  <rect x="62" y="152" width="94" height="32" rx="16" fill="url(#cta)"/>
+  <rect x="44" y="228" width="272" height="66" rx="22" fill="#FFFFFF" stroke="#DFEAF6"/>
+  <rect x="62" y="248" width="146" height="10" rx="5" fill="#3C5877" fill-opacity="0.9"/>
+  <rect x="62" y="264" width="98" height="8" rx="4" fill="#8AA1BA"/>
+  <rect x="44" y="308" width="272" height="66" rx="22" fill="#FFFFFF" stroke="#DFEAF6"/>
+  <rect x="62" y="328" width="128" height="10" rx="5" fill="#3C5877" fill-opacity="0.9"/>
+  <rect x="62" y="344" width="86" height="8" rx="4" fill="#8AA1BA"/>
+  <rect x="44" y="388" width="272" height="66" rx="22" fill="#FFFFFF" stroke="#DFEAF6"/>
+  <rect x="62" y="408" width="138" height="10" rx="5" fill="#3C5877" fill-opacity="0.9"/>
+  <rect x="62" y="424" width="92" height="8" rx="4" fill="#8AA1BA"/>
+  <rect x="80" y="488" width="200" height="44" rx="22" fill="url(#cta)"/>
 </svg>

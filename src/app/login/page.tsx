@@ -8,6 +8,13 @@ import { useToast } from "@/components/ui/toast";
 const RESET_COOLDOWN_MS = 60_000;
 const RESET_COOLDOWN_KEY = "klip_reset_cooldown_until";
 
+function getPublicBaseUrl(): string {
+  const envBase = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL;
+  if (envBase && /^https?:\/\//i.test(envBase)) return envBase.replace(/\/$/, "");
+  if (typeof window !== "undefined") return window.location.origin.replace(/\/$/, "");
+  return "http://localhost:3000";
+}
+
 function isRateLimitError(message: string | null | undefined): boolean {
   if (!message) return false;
   const normalized = message.toLowerCase();
@@ -120,18 +127,66 @@ export default function LoginPage() {
     setLoading(false);
   };
 
-  const handleGoogleAdmin = async () => {
+  const handleGoogleOwnerLogin = async () => {
     setError("");
     setLoading(true);
-    const redirectTo = `${window.location.origin}/auth/callback?flow=admin&next=${encodeURIComponent(redirectPath)}`;
-    const { error } = await supabase.auth.signInWithOAuth({
+    window.sessionStorage.setItem("klip_oauth_flow", "client");
+    window.sessionStorage.setItem("klip_oauth_next", redirectPath);
+    window.sessionStorage.removeItem("klip_oauth_state");
+    document.cookie = `klip_oauth_flow=client; Path=/; Max-Age=600; SameSite=Lax`;
+    document.cookie = `klip_oauth_next=${encodeURIComponent(redirectPath)}; Path=/; Max-Age=600; SameSite=Lax`;
+    document.cookie = "klip_oauth_state=; Path=/; Max-Age=0; SameSite=Lax";
+    const redirectTo = `${getPublicBaseUrl()}/auth/callback`;
+    if (process.env.NODE_ENV !== "production") {
+      console.info("[oauth-debug][login]", {
+        baseUrl: getPublicBaseUrl(),
+        redirectTo,
+        redirectPath,
+      });
+    }
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo },
+      options: { redirectTo, skipBrowserRedirect: true },
     });
     if (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[oauth-debug][login] signInWithOAuth error", error);
+      }
       setError(error.message);
       setLoading(false);
+      return;
     }
+
+    if (!data?.url) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[oauth-debug][login] missing oauth url", data);
+      }
+      setError("No se pudo iniciar Google OAuth. Intenta de nuevo.");
+      setLoading(false);
+      return;
+    }
+
+    if (process.env.NODE_ENV !== "production") {
+      console.info("[oauth-debug][login] oauth url", data.url);
+    }
+
+    try {
+      const oauthUrl = new URL(data.url);
+      const redirectParam = oauthUrl.searchParams.get("redirect_to");
+      const expectedOrigin = getPublicBaseUrl();
+      if (redirectParam && !redirectParam.startsWith(expectedOrigin)) {
+        setError(
+          `OAuth devolvio redirect_to inesperado. Esperado: ${expectedOrigin}. Recibido: ${redirectParam}`
+        );
+        setLoading(false);
+        if (process.env.NODE_ENV !== "production") {
+          console.error("[oauth-debug][login] redirect_to mismatch", { expectedOrigin, redirectParam, oauthUrl: data.url });
+        }
+        return;
+      }
+    } catch {}
+
+    window.location.assign(data.url);
   };
 
   return (
@@ -240,10 +295,10 @@ export default function LoginPage() {
               <button
                 type="button"
                 disabled={loading}
-                onClick={handleGoogleAdmin}
+                onClick={handleGoogleOwnerLogin}
                 className="w-full bg-white text-gray-900 py-2.5 px-4 rounded-2xl text-sm font-medium shadow-sm border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50 cursor-pointer select-none"
               >
-                Continuar con Google (Admin)
+                Continuar con Google (solo duenos)
               </button>
             </form>
           )}

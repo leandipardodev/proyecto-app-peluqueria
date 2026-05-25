@@ -90,6 +90,7 @@ export default function AppointmentDetailModal({
   const [customerNotes, setCustomerNotes] = useState("");
   const [customerVip, setCustomerVip] = useState(false);
   const [portalReady, setPortalReady] = useState(false);
+  const [hasPendingChanges, setHasPendingChanges] = useState(false);
   const { addToast } = useToast();
   const patchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const patchDraftRef = useRef<{ status?: string; isPaid?: boolean; staffId?: string | null }>({});
@@ -109,6 +110,7 @@ export default function AppointmentDetailModal({
     setCustomerEmail(appointment.customers?.email || "");
     setCustomerPhone(appointment.customers?.telefono || "");
     setShowCustomerEditor(false);
+    setHasPendingChanges(false);
     setError(null);
   }, [appointment]);
 
@@ -125,6 +127,7 @@ export default function AppointmentDetailModal({
     if (!appointment) return;
     const payload = { ...patchDraftRef.current };
     patchDraftRef.current = {};
+    setHasPendingChanges(false);
     if (payload.status === undefined && payload.isPaid === undefined && payload.staffId === undefined) return;
 
     startTransition(async () => {
@@ -135,8 +138,36 @@ export default function AppointmentDetailModal({
 
   function queueAppointmentPatch(next: { status?: string; isPaid?: boolean; staffId?: string | null }) {
     patchDraftRef.current = { ...patchDraftRef.current, ...next };
+    setHasPendingChanges(true);
     if (patchTimerRef.current) clearTimeout(patchTimerRef.current);
     patchTimerRef.current = setTimeout(flushAppointmentPatch, 450);
+  }
+
+  function handleSaveAppointment() {
+    if (!appointment) return;
+    setError(null);
+
+    const payload = { ...patchDraftRef.current };
+    patchDraftRef.current = {};
+    setHasPendingChanges(false);
+    if (patchTimerRef.current) {
+      clearTimeout(patchTimerRef.current);
+      patchTimerRef.current = null;
+    }
+
+    if (payload.status === undefined && payload.isPaid === undefined && payload.staffId === undefined) {
+      addToast("No hay cambios pendientes", "info");
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await patchAppointmentQuick(appointment.id, payload, shopId);
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+      addToast("Turno guardado", "success");
+    });
   }
 
   function handleStatusChange(newStatus: string) {
@@ -449,15 +480,25 @@ export default function AppointmentDetailModal({
               </span>
             </div>
 
-            {!localRewardApplied && (
+            <div className={`grid gap-2 ${!localRewardApplied ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"}`}>
+              {!localRewardApplied && (
+                <button
+                  onClick={handleRedeemLoyaltyReward}
+                  disabled={pending || localRewardsAvailable <= 0}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-extrabold tracking-wide text-white bg-gradient-to-r from-violet-600 via-fuchsia-600 to-violet-700 shadow-[0_10px_26px_rgba(124,58,237,0.35)] hover:brightness-105 transition-all cursor-pointer select-none disabled:opacity-50 disabled:shadow-none"
+                >
+                  {localRewardsAvailable > 0 ? `Usar canje ahora (${localRewardsAvailable})` : "Usar canje ahora"}
+                </button>
+              )}
+
               <button
-                onClick={handleRedeemLoyaltyReward}
-                disabled={pending || localRewardsAvailable <= 0}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-extrabold tracking-wide text-white bg-gradient-to-r from-violet-600 via-fuchsia-600 to-violet-700 shadow-[0_10px_26px_rgba(124,58,237,0.35)] hover:brightness-105 transition-all cursor-pointer select-none disabled:opacity-50 disabled:shadow-none"
+                onClick={handleSaveAppointment}
+                disabled={pending || !hasPendingChanges}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold text-violet-700 dark:text-violet-200 bg-violet-50/90 dark:bg-violet-950/45 border border-violet-200/80 dark:border-violet-800/60 hover:bg-violet-100/90 dark:hover:bg-violet-900/50 transition-all cursor-pointer select-none disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {localRewardsAvailable > 0 ? `Usar canje ahora (${localRewardsAvailable})` : "Usar canje ahora"}
+                Guardar turno
               </button>
-            )}
+            </div>
 
             {localRewardApplied && (
               <p className="text-xs text-emerald-700 dark:text-emerald-300">

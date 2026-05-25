@@ -304,6 +304,10 @@ html.perf-mode .analytics-card-bg::after {
 html.perf-mode *,
 html.perf-mode *::before,
 html.perf-mode *::after {
+  animation: none !important;
+  transition-property: none !important;
+  transition-duration: 0ms !important;
+  transition-delay: 0ms !important;
   scroll-behavior: auto !important;
 }
 
@@ -320,5 +324,5 @@ html.perf-mode .transition-all,
 html.perf-mode .transition-colors,
 html.perf-mode .transition-opacity,
 html.perf-mode .transition-transform {
-  transition-duration: 80ms !important;
+  transition: none !important;
 }

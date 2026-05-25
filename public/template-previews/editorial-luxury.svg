@@ -1,11 +1,30 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="360" height="640" viewBox="0 0 360 640" fill="none">
-  <rect width="360" height="640" fill="#F8F2EA"/>
-  <circle cx="54" cy="92" r="92" fill="#F2DFC9"/>
-  <circle cx="306" cy="564" r="124" fill="#E9D9C9"/>
-  <rect x="22" y="76" width="316" height="488" rx="30" fill="#FFF8F0" stroke="#DECDBB"/>
-  <text x="50" y="154" fill="#3A2A1E" font-size="20" letter-spacing="1">PASTELES MARRON</text>
-  <rect x="50" y="196" width="260" height="54" rx="20" fill="#FFFDF8" stroke="#DCCAB7"/>
-  <rect x="50" y="268" width="260" height="54" rx="20" fill="#FFFDF8" stroke="#DCCAB7"/>
-  <rect x="50" y="340" width="260" height="54" rx="20" fill="#FFFDF8" stroke="#DCCAB7"/>
-  <rect x="94" y="444" width="172" height="50" rx="25" fill="#7D5C3A"/>
+  <defs>
+    <linearGradient id="bg" x1="30" y1="16" x2="328" y2="618" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FBF4EC"/>
+      <stop offset="1" stop-color="#F2E3D3"/>
+    </linearGradient>
+    <linearGradient id="cta" x1="100" y1="0" x2="100" y2="44" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#9A6F45"/>
+      <stop offset="1" stop-color="#7A5535"/>
+    </linearGradient>
+  </defs>
+  <rect width="360" height="640" fill="url(#bg)"/>
+  <circle cx="312" cy="86" r="118" fill="#EED6BE"/>
+  <circle cx="44" cy="594" r="136" fill="#E8CCB3"/>
+  <rect x="24" y="56" width="312" height="528" rx="34" fill="#FFF8F0" fill-opacity="0.9" stroke="#D7C1AA"/>
+  <rect x="44" y="82" width="272" height="128" rx="26" fill="#FFFDF9" stroke="#E4D1BD"/>
+  <rect x="62" y="102" width="140" height="12" rx="6" fill="#6E4D33" fill-opacity="0.9"/>
+  <rect x="62" y="122" width="186" height="8" rx="4" fill="#A98A6D" fill-opacity="0.76"/>
+  <rect x="62" y="152" width="110" height="32" rx="16" fill="#8C623E"/>
+  <rect x="44" y="228" width="272" height="66" rx="22" fill="#FFFCF7" stroke="#E4D1BD"/>
+  <rect x="62" y="248" width="150" height="10" rx="5" fill="#65472F" fill-opacity="0.9"/>
+  <rect x="62" y="264" width="102" height="8" rx="4" fill="#A4876D"/>
+  <rect x="44" y="308" width="272" height="66" rx="22" fill="#FFFCF7" stroke="#E4D1BD"/>
+  <rect x="62" y="328" width="134" height="10" rx="5" fill="#65472F" fill-opacity="0.9"/>
+  <rect x="62" y="344" width="88" height="8" rx="4" fill="#A4876D"/>
+  <rect x="44" y="388" width="272" height="66" rx="22" fill="#FFFCF7" stroke="#E4D1BD"/>
+  <rect x="62" y="408" width="142" height="10" rx="5" fill="#65472F" fill-opacity="0.9"/>
+  <rect x="62" y="424" width="96" height="8" rx="4" fill="#A4876D"/>
+  <rect x="80" y="488" width="200" height="44" rx="22" fill="url(#cta)"/>
 </svg>

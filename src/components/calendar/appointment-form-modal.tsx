@@ -62,6 +62,7 @@ export default function AppointmentFormModal({
   customers,
 }: AppointmentFormModalProps) {
   const backdropRef = useRef<HTMLDivElement>(null);
+  const backdropPointerDownRef = useRef(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
@@ -151,8 +152,12 @@ export default function AppointmentFormModal({
         <motion.div
           ref={backdropRef}
           className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-y-contain bg-white/40 p-3 dark:bg-black/40 backdrop-blur-sm sm:p-4"
-          onClick={(e) => {
-            if (e.target === backdropRef.current) onClose();
+          onPointerDown={(e) => {
+            backdropPointerDownRef.current = e.target === backdropRef.current;
+          }}
+          onPointerUp={(e) => {
+            if (backdropPointerDownRef.current && e.target === backdropRef.current) onClose();
+            backdropPointerDownRef.current = false;
           }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

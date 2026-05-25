@@ -38,6 +38,10 @@ import { resolveIndustry } from "@/lib/industry/resolve";
 type MessageType = { type: "success" | "error"; text: string } | null;
 type InitialServiceItem = { id: string; name: string; category?: string | null; price: number; duration_minutes: number };
 
+function getMpReturnScrollKey(shopSlug: string | null): string {
+  return `klip-mp-return-scroll:${shopSlug || "default"}`;
+}
+
 function getTourSteps(staffPlural: string, servicePlural: string) {
   return [
     { id: "setup-public-info", title: "1. Informacion publica", text: "Completa nombre, descripcion, direccion y telefono de tu local." },
@@ -67,7 +71,7 @@ export default function BusinessClient({
   metricStats: {
     totalClients: number;
     totalAppointments: number;
-    growth: number;
+    growth: number | null;
     topServicesCount: number;
     income: number;
     expenses: number;
@@ -107,6 +111,7 @@ export default function BusinessClient({
   const [bookingDepositAmount, setBookingDepositAmount] = useState(String(data?.booking_deposit_amount ?? 3000));
   const [message, setMessage] = useState<MessageType>(null);
   const [businessHours, setBusinessHours] = useState<BusinessHoursData | null>(null);
+  const [tourAdvancing, setTourAdvancing] = useState(false);
   const [hoursLoading, setHoursLoading] = useState(true);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [closeConfirm, setCloseConfirm] = useState("");
@@ -187,6 +192,7 @@ export default function BusinessClient({
   const dashboardBasePath = shopSlug ? `/dashboard/${shopSlug}` : "/dashboard";
   const netValue = incomeValue - expenseValue;
   const mpDraftKey = `klip-business-draft-v1:${shopSlug || "default"}`;
+  const mpReturnScrollKey = getMpReturnScrollKey(shopSlug);
 
   const maskValue = (value: string) => (showStats ? value : "••••");
 
@@ -312,7 +318,18 @@ export default function BusinessClient({
     params.delete("mp");
     const next = params.toString();
     window.history.replaceState({}, "", `${window.location.pathname}${next ? `?${next}` : ""}`);
-  }, [mpDraftKey]);
+
+    const savedY = Number(window.sessionStorage.getItem(mpReturnScrollKey) || "NaN");
+    if (Number.isFinite(savedY) && savedY >= 0) {
+      const restore = () => window.scrollTo({ top: savedY, left: 0, behavior: "auto" });
+      restore();
+      requestAnimationFrame(() => {
+        restore();
+        setTimeout(restore, 60);
+      });
+      window.sessionStorage.removeItem(mpReturnScrollKey);
+    }
+  }, [mpDraftKey, mpReturnScrollKey]);
 
   useEffect(() => {
     setPortalReady(true);
@@ -321,6 +338,7 @@ export default function BusinessClient({
   useEffect(() => {
     const key = `klip-business-onboarding-v1:${shopSlug || "default"}`;
     let done = false;
+    let startStep = 0;
     try {
       const raw = window.localStorage.getItem(key);
       if (raw) {
@@ -329,16 +347,17 @@ export default function BusinessClient({
           const parsed = JSON.parse(raw) as { active?: boolean; step?: number; doneAt?: number };
           if (parsed?.doneAt || parsed?.active === false) done = true;
           if (parsed?.active && typeof parsed.step === "number") {
-            setTourStep(Math.max(0, Math.min(parsed.step, tourSteps.length - 1)));
+            startStep = Math.max(0, Math.min(parsed.step, tourSteps.length - 1));
+            setTourStep(startStep);
           }
         }
       }
     } catch {}
     if (!done) {
       setTourOpen(true);
-      window.localStorage.setItem(key, JSON.stringify({ active: true, step: 0 }));
+      window.localStorage.setItem(key, JSON.stringify({ active: true, step: startStep }));
       window.setTimeout(() => {
-        document.getElementById(tourSteps[0].id)?.scrollIntoView({ behavior: "smooth", block: "center" });
+        document.getElementById(tourSteps[startStep].id)?.scrollIntoView({ behavior: "smooth", block: "center" });
       }, 140);
     }
   }, [shopSlug, tourSteps]);
@@ -540,6 +559,7 @@ export default function BusinessClient({
         businessHours,
       }),
     );
+    window.sessionStorage.setItem(mpReturnScrollKey, String(window.scrollY || 0));
     window.location.href = "/api/payments/mercadopago-oauth/start";
   }
 
@@ -914,11 +934,11 @@ export default function BusinessClient({
 
           <div className="glass-sheen-card h-full min-h-[118px] md:min-h-[124px] rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4 flex flex-col">
             <p className="text-xs text-zinc-500 dark:text-zinc-400">Crecimiento mensual</p>
-            <p className={`mt-1 text-2xl font-bold tracking-tight ${(metricStats?.growth ?? 0) >= 0 ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300"}`}>
-              {maskValue(`${(metricStats?.growth ?? 0) >= 0 ? "+" : ""}${metricStats?.growth ?? 0}%`)}
+            <p className={`mt-1 text-2xl font-bold tracking-tight ${metricStats?.growth === null ? "text-zinc-600 dark:text-zinc-300" : (metricStats?.growth ?? 0) >= 0 ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300"}`}>
+              {maskValue(metricStats?.growth === null ? "N/D" : `${(metricStats?.growth ?? 0) >= 0 ? "+" : ""}${metricStats?.growth ?? 0}%`)}
             </p>
             <div className="mt-auto pt-3 h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
-              <div className={`h-full ${(metricStats?.growth ?? 0) >= 0 ? "bg-gradient-to-r from-emerald-400 to-emerald-300 dark:from-emerald-500 dark:to-emerald-400" : "bg-gradient-to-r from-rose-400 to-rose-300 dark:from-rose-500 dark:to-rose-400"}`} style={{ width: `${Math.min(Math.max(Math.abs(metricStats?.growth ?? 0), 10), 100)}%` }} />
+              <div className={`h-full ${metricStats?.growth === null || (metricStats?.growth ?? 0) >= 0 ? "bg-gradient-to-r from-emerald-400 to-emerald-300 dark:from-emerald-500 dark:to-emerald-400" : "bg-gradient-to-r from-rose-400 to-rose-300 dark:from-rose-500 dark:to-rose-400"}`} style={{ width: `${metricStats?.growth === null ? 18 : Math.min(Math.max(Math.abs(metricStats?.growth ?? 0), 10), 100)}%` }} />
             </div>
           </div>
 
@@ -1808,10 +1828,14 @@ export default function BusinessClient({
                           return;
                         }
                         if (tourStep === 2) {
+                          setTourAdvancing(true);
                           setMpConnectUnlockAt(Date.now() + 1400);
                           startTransition(async () => {
                             const ok = await saveAllSections();
-                            if (!ok) return;
+                            if (!ok) {
+                              setTourAdvancing(false);
+                              return;
+                            }
                             const key = `klip-business-onboarding-v1:${shopSlug || "default"}`;
                             window.localStorage.setItem(key, JSON.stringify({ active: true, step: 3 }));
                             router.push(shopSlug ? `/dashboard/${shopSlug}/staff` : "/dashboard/staff");
@@ -1822,9 +1846,10 @@ export default function BusinessClient({
                         setTourStep(nextStep);
                         window.localStorage.setItem(`klip-business-onboarding-v1:${shopSlug || "default"}`, JSON.stringify({ active: true, step: nextStep }));
                       }}
-                      className="ui-btn-primary rounded-full px-4 py-1.5 text-xs font-semibold"
+                      disabled={tourAdvancing}
+                      className="ui-btn-primary rounded-full px-4 py-1.5 text-xs font-semibold disabled:opacity-60"
                     >
-                      {tourStep >= tourSteps.length - 1 ? "Finalizar" : "Siguiente"}
+                      {tourAdvancing ? "Guardando y continuando..." : tourStep >= tourSteps.length - 1 ? "Finalizar" : "Siguiente"}
                     </button>
                   </div>
                 </div>

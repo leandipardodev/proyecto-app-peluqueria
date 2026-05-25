@@ -21,6 +21,20 @@ export default function BookingTemplateCarousel({ selectedTemplateId, onSelect }
   });
   const velocityRef = useRef<{ lastX: number; lastT: number; v: number }>({ lastX: 0, lastT: 0, v: 0 });
 
+  const resolveTemplateIdFromTarget = (target: EventTarget | null): BookingTemplateId | null => {
+    if (!(target instanceof Element)) return null;
+    const el = target.closest<HTMLButtonElement>("button[data-template-id]");
+    const raw = el?.dataset.templateId;
+    if (!raw) return null;
+    return BOOKING_TEMPLATE_PRESETS.some((item) => item.id === raw) ? (raw as BookingTemplateId) : null;
+  };
+
+  const resolveTemplateIdFromPoint = (x: number, y: number): BookingTemplateId | null => {
+    if (typeof document === "undefined") return null;
+    const el = document.elementFromPoint(x, y);
+    return resolveTemplateIdFromTarget(el);
+  };
+
   const stopInertia = () => {
     if (inertiaFrameRef.current !== null) {
       cancelAnimationFrame(inertiaFrameRef.current);
@@ -72,7 +86,7 @@ export default function BookingTemplateCarousel({ selectedTemplateId, onSelect }
     const el = railRef.current;
     if (!el || dragStateRef.current.pointerId !== e.pointerId) return;
     const delta = e.clientX - dragStateRef.current.startX;
-    if (Math.abs(delta) > 3) dragStateRef.current.moved = true;
+    if (Math.abs(delta) > 8) dragStateRef.current.moved = true;
     el.scrollLeft = dragStateRef.current.startScrollLeft - delta;
 
     const now = performance.now();
@@ -88,12 +102,18 @@ export default function BookingTemplateCarousel({ selectedTemplateId, onSelect }
   const endDrag = (e: PointerEvent<HTMLDivElement>) => {
     const el = railRef.current;
     if (!el || dragStateRef.current.pointerId !== e.pointerId) return;
+    const moved = dragStateRef.current.moved;
+    const tappedTemplateId = moved ? null : (resolveTemplateIdFromTarget(e.target) ?? resolveTemplateIdFromPoint(e.clientX, e.clientY));
     try {
       el.releasePointerCapture(e.pointerId);
     } catch {}
     dragStateRef.current.pointerId = null;
     dragStateRef.current.moved = false;
     setIsDragging(false);
+    if (tappedTemplateId) {
+      onSelect(tappedTemplateId);
+      return;
+    }
     startInertia();
   };
 
@@ -112,6 +132,7 @@ export default function BookingTemplateCarousel({ selectedTemplateId, onSelect }
           return (
             <button
               key={template.id}
+              data-template-id={template.id}
               type="button"
               onClick={(e) => {
                 if (dragStateRef.current.moved) {

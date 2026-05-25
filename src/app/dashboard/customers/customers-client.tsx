@@ -95,6 +95,7 @@ export default function CustomersPage() {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [portalReady, setPortalReady] = useState(false);
+  const overlayPointerDownRef = useRef(false);
   const initialSessionLoadedRef = useRef(false);
 
   useEffect(() => {
@@ -170,7 +171,7 @@ export default function CustomersPage() {
     }));
 
     setCustomers(normalized);
-  }, [resolveActiveShopIdForUser]);
+  }, [resolveActiveShopIdForUser, customerPlural]);
 
   useEffect(() => {
     let mounted = true;
@@ -347,10 +348,13 @@ export default function CustomersPage() {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 z-50 bg-[#FBFBFC] flex items-center justify-center">
-        <div className="flex items-center gap-3 text-slate-600">
-          <Loader2 className="w-5 h-5 animate-spin" />
-          <span className="text-sm">Verificando sesión...</span>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.14),_transparent_48%),linear-gradient(180deg,_#f8fafc_0%,_#f1f5f9_100%)] px-6 dark:bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.16),_transparent_46%),linear-gradient(180deg,_#09090b_0%,_#111827_100%)]">
+        <div className="flex w-full max-w-sm items-center gap-3 rounded-2xl border border-white/70 bg-white/80 px-4 py-3 text-slate-700 shadow-[0_18px_45px_-28px_rgba(15,23,42,0.45)] backdrop-blur-xl dark:border-white/15 dark:bg-zinc-900/65 dark:text-zinc-200">
+          <Loader2 className="h-5 w-5 animate-spin text-blue-600 dark:text-sky-300" />
+          <div className="min-w-0">
+            <p className="text-sm font-medium">Verificando sesión...</p>
+            <p className="truncate text-xs text-slate-500 dark:text-zinc-400">Cargando {customerPlural.toLowerCase()} y configuración del local</p>
+          </div>
         </div>
       </div>
     );
@@ -525,7 +529,16 @@ export default function CustomersPage() {
 
       {portalReady && (selectedCustomer || isCreating) && createPortal((
         <>
-          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40" onClick={closeEditor} />
+          <div
+            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40"
+            onPointerDown={(e) => {
+              overlayPointerDownRef.current = e.target === e.currentTarget;
+            }}
+            onPointerUp={(e) => {
+              if (overlayPointerDownRef.current && e.target === e.currentTarget) closeEditor();
+              overlayPointerDownRef.current = false;
+            }}
+          />
           <div className="fixed right-0 top-0 h-[100dvh] w-full max-w-xl z-50 bg-white/90 dark:bg-zinc-900/95 backdrop-blur-xl border-l border-slate-200 dark:border-zinc-700 shadow-2xl">
             <div className="h-full flex flex-col">
               <div className="px-6 py-4 border-b border-slate-200 dark:border-zinc-700 flex items-center justify-between">

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, useInView, useMotionValue, useScroll, useSpring, useTransform } from "framer-motion";
 import { Sparkles, CalendarCheck2, Scissors, Boxes, BarChart3, Clock3, Users2 } from "lucide-react";
 import { Playfair_Display } from "next/font/google";
@@ -39,22 +40,33 @@ function ParallaxLayer({
   children: React.ReactNode;
   intensity?: number;
 }) {
+  const [enableParallax, setEnableParallax] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const apply = () => setEnableParallax(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ["start end", "end start"],
   });
 
-  const y = useTransform(scrollYProgress, [0, 0.5, 1], [42 * intensity, 0, -42 * intensity]);
-  const rotateX = useTransform(scrollYProgress, [0, 0.5, 1], [7 * intensity, 0, -7 * intensity]);
-  const scale = useTransform(scrollYProgress, [0, 0.5, 1], [0.98, 1, 0.985]);
-  const opacity = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0.72, 1, 1, 0.78]);
+  const y = useTransform(scrollYProgress, [0, 0.5, 1], enableParallax ? [42 * intensity, 0, -42 * intensity] : [0, 0, 0]);
+  const rotateX = useTransform(scrollYProgress, [0, 0.5, 1], enableParallax ? [7 * intensity, 0, -7 * intensity] : [0, 0, 0]);
+  const scale = useTransform(scrollYProgress, [0, 0.5, 1], enableParallax ? [0.98, 1, 0.985] : [1, 1, 1]);
+  const opacity = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], enableParallax ? [0.72, 1, 1, 0.78] : [1, 1, 1, 1]);
 
   return (
     <motion.div
       ref={ref}
       style={{ y, rotateX, scale, opacity, transformStyle: "preserve-3d" }}
-      className="[perspective:1200px]"
+      className="relative z-10 [perspective:1200px]"
     >
       {children}
     </motion.div>
@@ -106,7 +118,6 @@ function Card({
 }) {
   return (
     <motion.div
-      layout
       whileHover={{ y: -3 }}
       transition={MOTION.hover}
       className={`rounded-3xl border border-slate-200 bg-white/80 backdrop-blur-xl shadow-[0_20px_40px_rgba(0,0,0,0.04)] ${className}`}
@@ -145,6 +156,8 @@ function CountUp({ to, suffix = "", className = "" }: { to: number; suffix?: str
 }
 
 export default function Home() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const hero3DRef = useRef<HTMLDivElement | null>(null);
   const mouseX = useMotionValue(-1000);
   const mouseY = useMotionValue(-1000);
@@ -152,6 +165,7 @@ export default function Home() {
   const smoothY = useSpring(mouseY, { stiffness: 120, damping: 24, mass: 0.45 });
 
   const [mounted, setMounted] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
   const [turnosHoy, setTurnosHoy] = useState(8);
 
   const { scrollYProgress: heroProgress } = useScroll({
@@ -160,16 +174,51 @@ export default function Home() {
   });
   const panelRotateX = useTransform(heroProgress, [0, 0.45, 1], [10, 0, -9]);
   const panelRotateY = useTransform(heroProgress, [0, 0.5, 1], [-6, 0, 6]);
-  const panelLift = useTransform(heroProgress, [0, 0.5, 1], [22, 0, -18]);
+
+  useEffect(() => {
+    const code = searchParams.get("code");
+    if (!code) return;
+    if (process.env.NODE_ENV !== "production") {
+      console.info("[oauth-debug][home] received code on home", {
+        href: window.location.href,
+        search: window.location.search,
+      });
+    }
+    const passthrough = new URLSearchParams(searchParams.toString());
+    if (!passthrough.get("flow")) {
+      const storedFlow = window.sessionStorage.getItem("klip_oauth_flow");
+      if (storedFlow) passthrough.set("flow", storedFlow);
+    }
+    if (!passthrough.get("next")) {
+      const storedNext = window.sessionStorage.getItem("klip_oauth_next");
+      if (storedNext) passthrough.set("next", storedNext);
+    }
+    if (!passthrough.get("state")) {
+      const storedState = window.sessionStorage.getItem("klip_oauth_state");
+      if (storedState) passthrough.set("state", storedState);
+    }
+    const query = passthrough.toString();
+    if (process.env.NODE_ENV !== "production") {
+      console.info("[oauth-debug][home] redirecting to callback", `/auth/callback${query ? `?${query}` : ""}`);
+    }
+    router.replace(`/auth/callback${query ? `?${query}` : ""}`);
+  }, [router, searchParams]);
 
   useEffect(() => {
     setMounted(true);
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const apply = () => setIsDesktop(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
     function onMove(e: MouseEvent) {
       mouseX.set(e.clientX);
       mouseY.set(e.clientY);
     }
     window.addEventListener("mousemove", onMove);
-    return () => window.removeEventListener("mousemove", onMove);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      mq.removeEventListener("change", apply);
+    };
   }, [mouseX, mouseY]);
 
   useEffect(() => {
@@ -313,12 +362,12 @@ export default function Home() {
                 className="relative mx-auto w-full max-w-[430px] lg:max-w-none"
                 initial={{ opacity: 0, y: 16, scale: 0.98 }}
                 whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                viewport={{ once: false, amount: 0.25 }}
+                viewport={{ once: true, amount: 0.25 }}
                 transition={{ duration: 0.6, ease: "easeOut" }}
                 style={{
-                  rotateX: panelRotateX,
-                  rotateY: panelRotateY,
-                  y: panelLift,
+                  rotateX: isDesktop ? panelRotateX : 0,
+                  rotateY: isDesktop ? panelRotateY : 0,
+                  y: 0,
                   transformStyle: "preserve-3d",
                 }}
               >
@@ -616,34 +665,25 @@ export default function Home() {
           </SweepSection>
         </ParallaxLayer>
 
-        <ParallaxLayer intensity={1.15}>
-          <SweepSection sweepClassName="bg-[linear-gradient(90deg,transparent_0%,rgba(59,130,246,0.48)_48%,transparent_100%)]">
-            <Section className="relative z-[60] pb-14 pt-6 sm:pt-10">
-              <Card className="relative z-[60] isolate overflow-hidden border-white/80 bg-[radial-gradient(110%_120%_at_8%_0%,#0f172a_10%,#111c34_46%,#0b1324_100%)] p-6 sm:p-8 md:p-12 shadow-[0_30px_70px_rgba(2,6,23,0.45)]">
-                <div className="pointer-events-none absolute -top-24 right-10 h-56 w-56 rounded-full bg-sky-400/30 blur-3xl" />
-                <div className="pointer-events-none absolute -bottom-24 left-10 h-56 w-56 rounded-full bg-blue-600/25 blur-3xl" />
-                <div className="relative z-[70] pointer-events-auto">
-                  <p className="text-xs uppercase tracking-[0.18em] text-sky-300">Ultimo paso</p>
-                  <h3 className={`${playfair.className} mt-3 max-w-3xl text-4xl font-bold tracking-[-0.035em] text-white sm:text-6xl`}>Converti cada horario libre en una nueva reserva.</h3>
-                  <p className="mt-4 max-w-2xl leading-relaxed text-slate-300">Activa tu cuenta, publica tu link y deja funcionando reservas + recordatorios en menos de 10 minutos. Sale $25.000 por mes y el primer mes es gratis.</p>
-                  <div className="mt-7 flex flex-wrap gap-3">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        window.location.href = "/register";
-                      }}
-                      className="relative z-[9999] inline-flex cursor-pointer rounded-full bg-white px-6 py-3 text-sm font-bold text-slate-900 transition hover:translate-y-[-1px] hover:bg-slate-100 pointer-events-auto"
-                    >
-                      Crear cuenta gratis
-                    </button>
-                  </div>
-                </div>
-              </Card>
-            </Section>
-          </SweepSection>
-        </ParallaxLayer>
+        <Section className="relative z-[200] pb-14 pt-6 sm:pt-10 pointer-events-auto">
+          <Card className="relative z-[200] isolate overflow-hidden border-white/80 bg-[radial-gradient(110%_120%_at_8%_0%,#0f172a_10%,#111c34_46%,#0b1324_100%)] p-6 sm:p-8 md:p-12 shadow-[0_30px_70px_rgba(2,6,23,0.45)] pointer-events-auto">
+            <div className="pointer-events-none absolute -top-24 right-10 h-56 w-56 rounded-full bg-sky-400/30 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-24 left-10 h-56 w-56 rounded-full bg-blue-600/25 blur-3xl" />
+            <div className="relative z-[210] pointer-events-auto">
+              <p className="text-xs uppercase tracking-[0.18em] text-sky-300">Ultimo paso</p>
+              <h3 className={`${playfair.className} mt-3 max-w-3xl text-4xl font-bold tracking-[-0.035em] text-white sm:text-6xl`}>Converti cada horario libre en una nueva reserva.</h3>
+              <p className="mt-4 max-w-2xl leading-relaxed text-slate-300">Activa tu cuenta, publica tu link y deja funcionando reservas + recordatorios en menos de 10 minutos. Sale $25.000 por mes y el primer mes es gratis.</p>
+              <div className="mt-7 flex flex-wrap gap-3">
+                <Link
+                  href="/register"
+                  className="relative z-[220] inline-flex cursor-pointer rounded-full bg-white px-6 py-3 text-sm font-bold text-slate-900 transition hover:translate-y-[-1px] hover:bg-slate-100 pointer-events-auto"
+                >
+                  Crear cuenta gratis
+                </Link>
+              </div>
+            </div>
+          </Card>
+        </Section>
 
         <Section className="pb-12">
           <div className="flex items-center justify-center gap-4">
