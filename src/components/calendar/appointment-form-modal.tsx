@@ -211,6 +211,8 @@ export default function AppointmentFormModal({
                       value={selectedCustomerId}
                       onChange={setSelectedCustomerId}
                       placeholder="Seleccionar cliente..."
+                      searchable
+                      searchPlaceholder="Buscar cliente por nombre..."
                       name="customer_id"
                       required
                       className="flex-1"

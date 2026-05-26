@@ -383,17 +383,19 @@ export default function StaffList({
                   <span className="font-medium text-gray-900 dark:text-gray-100">${member.revenue.toFixed(2)}</span>
                 </div>
                 <div className="mt-3 flex justify-end">
-                     {!canManageStaff || isCurrentOwnerSelf ? (
-                    <span className="text-xs text-gray-400 cursor-not-allowed select-none" title={selfOwnerTooltip}>-</span>
+                  {!canManageStaff ? (
+                    <span className="text-xs text-gray-400 cursor-not-allowed select-none">-</span>
                   ) : (
                     <>
-                      <button
-                        type="button"
-                        onClick={() => setPayEditor({ id: member.id, name: member.name || member.email || "Staff", payModel: member.payModel, percentageRate: member.percentageRate, fixedAmount: member.fixedAmount })}
-                        className="text-sm text-sky-600 hover:text-sky-800 cursor-pointer select-none mr-3"
-                      >
-                        Cobro
-                      </button>
+                      {!isCurrentOwnerSelf && (
+                        <button
+                          type="button"
+                          onClick={() => setPayEditor({ id: member.id, name: member.name || member.email || "Staff", payModel: member.payModel, percentageRate: member.percentageRate, fixedAmount: member.fixedAmount })}
+                          className="text-sm text-sky-600 hover:text-sky-800 cursor-pointer select-none mr-3"
+                        >
+                          Cobro
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => {
@@ -404,13 +406,17 @@ export default function StaffList({
                       >
                         Renombrar
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => handleRemove(member.id)}
-                        className="text-sm text-red-600 hover:text-red-800 cursor-pointer select-none"
-                      >
-                        Eliminar
-                      </button>
+                      {!isCurrentOwnerSelf ? (
+                        <button
+                          type="button"
+                          onClick={() => handleRemove(member.id)}
+                          className="text-sm text-red-600 hover:text-red-800 cursor-pointer select-none"
+                        >
+                          Eliminar
+                        </button>
+                      ) : (
+                        <span className="text-xs text-gray-400 cursor-not-allowed select-none" title={selfOwnerTooltip}>Tu usuario</span>
+                      )}
                     </>
                   )}
                 </div>
@@ -476,19 +482,19 @@ export default function StaffList({
                     ${member.revenue.toFixed(2)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    {!canManageStaff || isCurrentOwnerSelf ? (
-                      <span className="text-gray-400 cursor-not-allowed select-none" title={selfOwnerTooltip}>
-                        -
-                      </span>
+                    {!canManageStaff ? (
+                      <span className="text-gray-400 cursor-not-allowed select-none">-</span>
                     ) : (
                       <>
-                        <button
-                          type="button"
-                          onClick={() => setPayEditor({ id: member.id, name: member.name || member.email || "Staff", payModel: member.payModel, percentageRate: member.percentageRate, fixedAmount: member.fixedAmount })}
-                          className="text-sky-600 hover:text-sky-800 cursor-pointer select-none mr-3"
-                        >
-                          Cobro
-                        </button>
+                        {!isCurrentOwnerSelf && (
+                          <button
+                            type="button"
+                            onClick={() => setPayEditor({ id: member.id, name: member.name || member.email || "Staff", payModel: member.payModel, percentageRate: member.percentageRate, fixedAmount: member.fixedAmount })}
+                            className="text-sky-600 hover:text-sky-800 cursor-pointer select-none mr-3"
+                          >
+                            Cobro
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => {
@@ -499,13 +505,17 @@ export default function StaffList({
                         >
                           Renombrar
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => handleRemove(member.id)}
-                          className="text-red-600 hover:text-red-800 cursor-pointer select-none"
-                        >
-                          Eliminar
-                        </button>
+                        {!isCurrentOwnerSelf ? (
+                          <button
+                            type="button"
+                            onClick={() => handleRemove(member.id)}
+                            className="text-red-600 hover:text-red-800 cursor-pointer select-none"
+                          >
+                            Eliminar
+                          </button>
+                        ) : (
+                          <span className="text-gray-400 cursor-not-allowed select-none" title={selfOwnerTooltip}>Tu usuario</span>
+                        )}
                       </>
                     )}
                   </td>

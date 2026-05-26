@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { motion, useMotionValue, useScroll, useSpring, useTransform } from "framer-motion";
 import { CalendarDays, Scissors, Boxes, Wallet, Users, Check, TriangleAlert } from "lucide-react";
+import HomeFeaturesCarousel from "@/components/dashboard/home-features-carousel";
 
 const EASE: [number, number, number, number] = [0.43, 0.13, 0.23, 0.96];
 
@@ -246,6 +247,7 @@ function SpotlightCard({ className, children }: { className?: string; children: 
   );
 }
 
+
 export default function LandingPage() {
   const heroRef = useRef<HTMLDivElement>(null);
   const mockRef = useRef<HTMLDivElement>(null);
@@ -470,6 +472,8 @@ export default function LandingPage() {
           </div>
         </motion.div>
       </section>
+
+      <HomeFeaturesCarousel />
 
       <section id="pricing" className="mx-auto max-w-7xl px-6 py-40 [contain:layout_paint]">
         <motion.div variants={container} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }}>

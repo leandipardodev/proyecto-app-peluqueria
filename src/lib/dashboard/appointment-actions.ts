@@ -784,7 +784,7 @@ export async function updateAppointmentStaff(
 
 export async function patchAppointmentQuick(
   id: string,
-  patch: { status?: string; isPaid?: boolean; staffId?: string | null },
+  patch: { status?: string; isPaid?: boolean; staffId?: string | null; serviceId?: string; startTime?: string },
   shopId?: string,
 ): Promise<ActionResult> {
   try {
@@ -802,7 +802,7 @@ export async function patchAppointmentQuick(
     const supabase = await createServerClient();
     const { data: appointment, error: aptError } = await supabase
       .from("appointments")
-      .select("id, start_time, end_time, status, customer_id")
+      .select("id, start_time, end_time, status, customer_id, service_id, staff_id")
       .eq("id", id)
       .eq("shop_id", shopId)
       .maybeSingle();
@@ -814,15 +814,42 @@ export async function patchAppointmentQuick(
       ? (patch.staffId && patch.staffId.trim().length > 0 ? patch.staffId.trim() : null)
       : undefined;
 
-    if (normalizedStaffId !== undefined && normalizedStaffId) {
+    const normalizedServiceId = patch.serviceId !== undefined
+      ? patch.serviceId.trim()
+      : undefined;
+
+    let nextStartIso = appointment.start_time;
+    if (patch.startTime !== undefined) {
+      const parsed = new Date(patch.startTime);
+      if (Number.isNaN(parsed.getTime())) return { success: false, error: "Fecha/hora invalida" };
+      nextStartIso = parsed.toISOString();
+    }
+
+    let durationMinutes = Math.max(1, Math.round((new Date(appointment.end_time).getTime() - new Date(appointment.start_time).getTime()) / 60000));
+    if (normalizedServiceId !== undefined) {
+      const { data: nextService, error: nextServiceError } = await supabase
+        .from("services")
+        .select("id, duration_minutes")
+        .eq("id", normalizedServiceId)
+        .eq("shop_id", shopId)
+        .maybeSingle();
+      if (nextServiceError) return { success: false, error: nextServiceError.message };
+      if (!nextService) return { success: false, error: "Servicio invalido" };
+      durationMinutes = Math.max(1, Number(nextService.duration_minutes || durationMinutes));
+    }
+    const nextEndIso = new Date(new Date(nextStartIso).getTime() + durationMinutes * 60000).toISOString();
+
+    const nextStaffId = normalizedStaffId !== undefined ? normalizedStaffId : appointment.staff_id;
+
+    if (nextStaffId) {
       const { data: conflict } = await supabase
         .from("appointments")
         .select("id")
         .eq("shop_id", shopId)
-        .eq("staff_id", normalizedStaffId)
+        .eq("staff_id", nextStaffId)
         .not("status", "eq", "cancelled")
-        .gt("end_time", appointment.start_time)
-        .lt("start_time", appointment.end_time)
+        .gt("end_time", nextStartIso)
+        .lt("start_time", nextEndIso)
         .neq("id", id)
         .maybeSingle();
 
@@ -833,6 +860,12 @@ export async function patchAppointmentQuick(
     if (patch.status !== undefined) updates.status = patch.status;
     if (patch.isPaid !== undefined) updates.is_paid = patch.isPaid;
     if (normalizedStaffId !== undefined) updates.staff_id = normalizedStaffId;
+    if (normalizedServiceId !== undefined) updates.service_id = normalizedServiceId;
+    if (patch.startTime !== undefined || normalizedServiceId !== undefined) {
+      updates.start_time = nextStartIso;
+      updates.end_time = nextEndIso;
+      updates.date_key_ar = getArgentinaDateKey(nextStartIso);
+    }
 
     const { error } = await supabase
       .from("appointments")

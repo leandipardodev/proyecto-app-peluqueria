@@ -48,7 +48,13 @@ const withPWA = withPWAInit({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   turbopack: {},
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "6mb",
+    },
+  },
   images: {
+    qualities: [100, 75],
     remotePatterns: [
       {
         protocol: "https",

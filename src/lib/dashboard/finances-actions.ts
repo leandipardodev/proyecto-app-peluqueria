@@ -306,7 +306,7 @@ export async function upsertStaffCompensationRule(formData: FormData, shopIdOver
     });
     if (error) return { success: false, error: error.message };
 
-    await revalidateDashboardSegments(shopId, ["/finances"]);
+    await revalidateDashboardSegments(shopId, ["/finances", "", "/business"]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al guardar regla" };
@@ -414,7 +414,7 @@ export async function createStaffPreLiquidation(formData: FormData, shopIdOverri
     }
 
     const staff = staffRows.find((s) => s.user_id === staffUserId);
-    await revalidateDashboardSegments(shopId, ["/finances"]);
+    await revalidateDashboardSegments(shopId, ["/finances", "", "/business"]);
 
     return {
       success: true,
@@ -501,7 +501,7 @@ export async function markStaffLiquidationPaid(liquidationId: string, paidAmount
       .eq("shop_id", shopId);
 
     if (error) return { success: false, error: error.message };
-    await revalidateDashboardSegments(shopId, ["/finances"]);
+    await revalidateDashboardSegments(shopId, ["/finances", "", "/business"]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al marcar liquidacion" };
@@ -582,7 +582,7 @@ export async function openCashSession(formData: FormData, shopIdOverride?: strin
       opened_by: actorResult.data,
     });
     if (error) return { success: false, error: error.message };
-    await revalidateDashboardSegments(shopId, ["/finances"]);
+    await revalidateDashboardSegments(shopId, ["/finances", "", "/business"]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al abrir caja" };
@@ -645,7 +645,7 @@ export async function closeCashSession(formData: FormData, shopIdOverride?: stri
       .eq("status", "open");
     if (error) return { success: false, error: error.message };
 
-    await revalidateDashboardSegments(shopId, ["/finances"]);
+    await revalidateDashboardSegments(shopId, ["/finances", "", "/business"]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al cerrar caja" };
@@ -691,7 +691,7 @@ export async function createCashMovement(formData: FormData, shopIdOverride?: st
       description,
     });
     if (error) return { success: false, error: error.message };
-    await revalidateDashboardSegments(shopId, ["/finances"]);
+    await revalidateDashboardSegments(shopId, ["/finances", "", "/business"]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al crear movimiento de caja" };
@@ -765,7 +765,8 @@ export async function fetchFinanceData(fromDate?: string, toDate?: string, shopI
         .from("appointments")
         .select("id, start_time, status, services:service_id(price, name)")
         .eq("shop_id", shopId)
-        .in("status", ["scheduled", "confirmed", "completed"])
+        .eq("status", "completed")
+        .eq("is_paid", true)
         .gte("start_time", fromBounds.start.toISOString())
         .lte("start_time", toBounds.end.toISOString()),
       admin
@@ -987,7 +988,7 @@ export async function createExpense(formData: FormData, shopIdOverride?: string)
       return { success: false, error: error.message };
     }
 
-    await revalidateDashboardSegments(shopId, ["/finances"]);
+    await revalidateDashboardSegments(shopId, ["/finances", "", "/business"]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al crear gasto" };
@@ -1017,7 +1018,7 @@ export async function deleteExpense(id: string, shopIdOverride?: string): Promis
       return { success: false, error: error.message };
     }
 
-    await revalidateDashboardSegments(shopId, ["/finances"]);
+    await revalidateDashboardSegments(shopId, ["/finances", "", "/business"]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al eliminar gasto" };

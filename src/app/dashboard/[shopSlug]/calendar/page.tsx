@@ -36,12 +36,13 @@ export default async function CalendarByShopSlugPage({
   searchParams,
 }: {
   params: Promise<{ shopSlug: string }>;
-  searchParams?: { date?: string; appointmentId?: string };
+  searchParams?: Promise<{ date?: string; appointmentId?: string }>;
 }) {
   const session = await getAuthSession();
   if (!session) redirect("/login");
 
   const { shopSlug } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const shopIdBySlug = await getShopIdBySlug(shopSlug, session.user.id);
   const shopId = shopIdBySlug || (await getShopId(session));
   if (!shopId) redirect("/dashboard");
@@ -119,8 +120,8 @@ export default async function CalendarByShopSlugPage({
         customers={customers}
         error={error}
         businessHours={businessHours ?? undefined}
-        initialDateParam={searchParams?.date}
-        initialAppointmentId={searchParams?.appointmentId}
+        initialDateParam={resolvedSearchParams?.date}
+        initialAppointmentId={resolvedSearchParams?.appointmentId}
       />
 
       <AppointmentsTable

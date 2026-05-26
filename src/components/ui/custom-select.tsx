@@ -49,7 +49,7 @@ export default function CustomSelect({
       </button>
 
       {open && (
-        <div className="ui-card absolute z-50 mt-1 max-h-64 w-full overflow-auto rounded-xl p-1">
+        <div className="ui-card absolute z-50 mt-1 max-h-64 w-full overflow-y-auto overflow-x-hidden rounded-xl p-1">
           {options.map((opt) => (
             <button
               key={opt.value}
@@ -58,7 +58,7 @@ export default function CustomSelect({
                 onChange(opt.value);
                 setOpen(false);
               }}
-              className={`w-full rounded-lg px-2.5 py-2 text-left text-sm ${
+              className={`w-full rounded-lg px-2.5 py-2 text-left text-sm whitespace-normal break-words ${
                 opt.value === value
                   ? "bg-[color-mix(in_srgb,var(--ui-primary)_15%,transparent)] text-slate-900 dark:text-slate-100"
                   : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"

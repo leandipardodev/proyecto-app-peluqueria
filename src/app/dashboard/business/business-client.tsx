@@ -98,7 +98,6 @@ export default function BusinessClient({
   const [creatingShop, startCreateShopTransition] = useTransition();
 
   const [name, setName] = useState(data?.nombre || "");
-  const [description, setDescription] = useState(data?.description || "");
   const [address, setAddress] = useState(data?.address || "");
   const [localidad, setLocalidad] = useState(data?.localidad || "");
   const [phone, setPhone] = useState(data?.phone || "");
@@ -265,7 +264,6 @@ export default function BusinessClient({
       if (!raw) return;
       const draft = JSON.parse(raw) as {
         name?: string;
-        description?: string;
         address?: string;
         localidad?: string;
         phone?: string;
@@ -278,7 +276,6 @@ export default function BusinessClient({
         businessHours?: BusinessHoursData | null;
       };
       if (typeof draft.name === "string") setName(draft.name);
-      if (typeof draft.description === "string") setDescription(draft.description);
       if (typeof draft.address === "string") setAddress(draft.address);
       if (typeof draft.localidad === "string") setLocalidad(draft.localidad);
       if (typeof draft.phone === "string") setPhone(draft.phone);
@@ -379,7 +376,6 @@ export default function BusinessClient({
         mpDraftKey,
         JSON.stringify({
           name,
-          description,
           address,
           localidad,
           phone,
@@ -399,7 +395,6 @@ export default function BusinessClient({
     tourOpen,
     mpDraftKey,
     name,
-    description,
     address,
     localidad,
     phone,
@@ -456,7 +451,6 @@ export default function BusinessClient({
   async function saveAllSections(): Promise<boolean> {
     const formData = new FormData();
     formData.set("nombre", name);
-    formData.set("description", description);
     formData.set("address", address);
     formData.set("localidad", localidad);
     formData.set("phone", phone);
@@ -518,7 +512,6 @@ export default function BusinessClient({
     e.preventDefault();
     const formData = new FormData();
     formData.set("nombre", name);
-    formData.set("description", description);
     formData.set("address", address);
     formData.set("localidad", localidad);
     formData.set("phone", phone);
@@ -549,7 +542,6 @@ export default function BusinessClient({
       mpDraftKey,
       JSON.stringify({
         name,
-        description,
         address,
         localidad,
         phone,
@@ -722,21 +714,28 @@ export default function BusinessClient({
 
     setUploadingLogo(true);
     startTransition(async () => {
-      const formData = new FormData();
-      formData.set("logo", file);
-      if (shopSlug) formData.set("shopSlug", shopSlug);
-      const result = await uploadBookingLogo(formData);
-      setUploadingLogo(false);
+      try {
+        const formData = new FormData();
+        formData.set("logo", file);
+        if (shopSlug) formData.set("shopSlug", shopSlug);
 
-      if (!result.success || !result.data) {
+        const result = await uploadBookingLogo(formData);
+        if (!result.success || !result.data) {
+          playError();
+          showError(result.success ? "No se pudo subir el logo" : result.error);
+          return;
+        }
+
+        setLogoUrl(result.data.logoUrl);
+        playSuccess();
+        showSuccess("Logo actualizado");
+      } catch (error) {
         playError();
-        showError(result.success ? "No se pudo subir el logo" : result.error);
-        return;
+        showError(error instanceof Error ? error.message : "No se pudo subir el logo");
+      } finally {
+        setUploadingLogo(false);
+        event.target.value = "";
       }
-
-      setLogoUrl(result.data.logoUrl);
-      playSuccess();
-      showSuccess("Logo actualizado");
     });
   }
 
@@ -1240,17 +1239,6 @@ export default function BusinessClient({
                 rows={4}
                 className="w-full rounded-2xl bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all resize-none"
                 placeholder={`Contale al ${customerWord.toLowerCase()} el estilo de atencion de tu local`}
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="mb-1.5 block cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300">Descripcion del local (no se usa en /book)</label>
-              <textarea
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                rows={3}
-                className="w-full rounded-2xl bg-white/30 dark:bg-black/20 backdrop-blur-md border border-white/20 dark:border-white/10 px-5 py-2.5 text-sm text-gray-500 dark:text-zinc-400 placeholder-zinc-400 transition-all resize-none cursor-not-allowed opacity-70"
-                placeholder="Campo legacy. Usa titulo/subtitulo y seccion secundaria para /book."
-                disabled
               />
             </div>
           </div>

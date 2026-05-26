@@ -123,7 +123,7 @@ export async function fetchAdminAnalytics(): Promise<AdminAnalytics> {
   const now = new Date();
   const iso7d = daysAgoIso(7);
   const iso30d = daysAgoIso(30);
-  const iso90d = daysAgoIso(90);
+  const iso180d = daysAgoIso(180);
 
   const [{ data: shopsRaw }, { data: appliedEventsRaw }, { data: appointmentsRaw }, { data: servicesRaw }, { data: customersRaw }, { data: membershipsRaw }] = await Promise.all([
     admin.from("shops").select("id, nombre, slug, created_at, industry, active, plan_expiry"),
@@ -131,7 +131,7 @@ export async function fetchAdminAnalytics(): Promise<AdminAnalytics> {
       .from("shop_billing_events")
       .select("id, shop_id, created_at, payload")
       .eq("event_type", "subscription_payment_applied"),
-    admin.from("appointments").select("shop_id, created_at, status").gte("created_at", iso90d),
+    admin.from("appointments").select("shop_id, created_at, status").gte("created_at", iso180d),
     admin.from("services").select("shop_id"),
     admin.from("customers").select("shop_id"),
     admin.from("shop_memberships").select("shop_id, role, is_active").eq("is_active", true).in("role", ["owner", "admin", "staff"]),
@@ -190,8 +190,9 @@ export async function fetchAdminAnalytics(): Promise<AdminAnalytics> {
     list.push(appt);
     appointmentsByShop.set(appt.shop_id, list);
   }
-  const totalAppointments30d = appointments.length;
-  const completedAppointments30d = appointments.filter((a) => a.status === "completed").length;
+  const appointments30d = appointments.filter((a) => a.created_at >= iso30d);
+  const totalAppointments30d = appointments30d.length;
+  const completedAppointments30d = appointments30d.filter((a) => a.status === "completed").length;
   const totalServices = services.length;
   const totalCustomers = customers.length;
   const totalStaff = memberships.length;
@@ -290,7 +291,7 @@ export async function fetchAdminAnalytics(): Promise<AdminAnalytics> {
       const industry = resolveIndustry(shop.industry);
       const active = Boolean(shop.active) && isActiveByExpiry(shop.plan_expiry);
       const payments = events30dByShop.get(shop.id) || 0;
-      const appts = appointmentsByShop.get(shop.id) || [];
+      const appts30d = (appointmentsByShop.get(shop.id) || []).filter((a) => a.created_at >= iso30d);
       return {
         shopId: shop.id,
         shopName: shop.nombre || "Local",
@@ -300,8 +301,8 @@ export async function fetchAdminAnalytics(): Promise<AdminAnalytics> {
         daysToExpiry: shop.plan_expiry ? diffDays(shop.plan_expiry, now) : null,
         payments30d: payments,
         revenue30d: payments * monthlyPrice,
-        appointments30d: appts.length,
-        completedAppointments30d: appts.filter((a) => a.status === "completed").length,
+        appointments30d: appts30d.length,
+        completedAppointments30d: appts30d.filter((a) => a.status === "completed").length,
         servicesCount: servicesByShop.get(shop.id) || 0,
         customersCount: customersByShop.get(shop.id) || 0,
         staffCount: staffByShop.get(shop.id) || 0,

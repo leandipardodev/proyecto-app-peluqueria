@@ -2,7 +2,7 @@
 
 import { format, startOfWeek, addDays, isToday } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, MessageCircle } from "lucide-react";
+import { Check, CheckCheck, ChevronLeft, ChevronRight, Hourglass, MessageCircle, X } from "lucide-react";
 import { useRef, useState, useEffect, useMemo, memo } from "react";
 import { AnimatePresence, motion, useMotionValue, useSpring } from "framer-motion";
 import { createPortal } from "react-dom";
@@ -83,15 +83,6 @@ const STAFF_COLORS = [
   { bg: "#e0e7ff", border: "#818cf8", text: "#3730a3" },
   { bg: "#fce7f3", border: "#f472b6", text: "#9d174d" },
 ];
-
-const STATUS_STYLES: Record<string, { bg: string; border: string; dot: string; label: string }> = {
-  scheduled:    { bg: "#fef3c7", border: "#f59e0b", dot: "#f59e0b", label: "A confirmar" },
-  confirmed:    { bg: "#dcfce7", border: "#22c55e", dot: "#22c55e", label: "Confirmado" },
-  in_progress:  { bg: "#dcfce7", border: "#22c55e", dot: "#22c55e", label: "Confirmado" },
-  completed:    { bg: "#f0fdf4", border: "#16a34a", dot: "#16a34a", label: "Completado" },
-  cancelled:    { bg: "#fef2f2", border: "#ef4444", dot: "#ef4444", label: "Cancelado" },
-  no_show:      { bg: "#fef2f2", border: "#ef4444", dot: "#ef4444", label: "Cancelado" },
-};
 
 const STATUS_FINAL = new Set(["completed", "cancelled", "no_show"]);
 const MOTION_PRESET = {
@@ -698,22 +689,38 @@ export default memo(function CalendarView({
                               ? extractEmoji(appt.services.name)
                               : { emoji: "", label: "" };
 
-                            const statusStyle = STATUS_STYLES[appt.status] || STATUS_STYLES.scheduled;
                             const isFinalStatus = STATUS_FINAL.has(appt.status);
+                            const isCancelled = appt.status === "cancelled" || appt.status === "no_show";
+                            const isCompleted = appt.status === "completed";
+                            const isConfirmed = appt.status === "confirmed" || appt.status === "in_progress";
                             const needsAttention = appt.status === "scheduled";
                             const displayLabel = getTurnoStatusLabel(appt.status, appt.is_paid);
+                            const showStatusBadge = !isWeekMode || isMobileViewport;
 
                             return (
                               <motion.div
                                 key={appt.id}
-                                className={`absolute pointer-events-auto min-w-0 rounded-xl text-xs cursor-pointer bg-white/90 dark:bg-white/10 backdrop-blur-md border border-white/45 dark:border-white/20 shadow-sm group overflow-hidden ${isFinalStatus ? "opacity-50" : ""} ${needsAttention ? "animate-pulse-border" : ""}`}
+                                className={`absolute pointer-events-auto min-w-0 rounded-xl text-xs cursor-pointer bg-white/90 dark:bg-white/10 backdrop-blur-md border border-white/45 dark:border-white/20 shadow-sm group overflow-hidden ${isCancelled ? "opacity-30 saturate-0" : isCompleted ? "opacity-65 saturate-90" : isFinalStatus ? "opacity-50" : ""} ${needsAttention ? "animate-pulse-border" : ""}`}
                                 style={{
                                   top: `${topPx}px`,
                                   height: `${Math.max(heightPx - 2, 18)}px`,
                                   width: `calc(${widthPct}% - 6px)`,
                                   left: `calc(${leftPct}% + 3px)`,
                                   fontFamily: "Inter, sans-serif",
-                                  boxShadow: `inset 2px 0 0 ${hexToRgba(staffColor.border, 0.32)}`,
+                                  boxShadow: isCancelled
+                                    ? "inset 2px 0 0 rgba(220,38,38,0.6)"
+                                    : needsAttention
+                                      ? "inset 2px 0 0 rgba(245,158,11,0.85), 0 0 0 1px rgba(245,158,11,0.22)"
+                                    : isConfirmed && isMobileViewport
+                                      ? "inset 2px 0 0 rgba(14,165,233,0.85), 0 0 0 1px rgba(14,165,233,0.22)"
+                                    : `inset 2px 0 0 ${hexToRgba(staffColor.border, 0.32)}`,
+                                  background: isCancelled
+                                    ? "linear-gradient(180deg, rgba(254,202,202,0.68) 0%, rgba(254,226,226,0.36) 46%, rgba(255,255,255,0.22) 100%)"
+                                  : isCompleted
+                                      ? "linear-gradient(180deg, rgba(187,247,208,0.62) 0%, rgba(220,252,231,0.36) 48%, rgba(255,255,255,0.25) 100%)"
+                                      : isConfirmed && isMobileViewport
+                                        ? "linear-gradient(180deg, rgba(186,230,253,0.66) 0%, rgba(224,242,254,0.34) 48%, rgba(255,255,255,0.24) 100%)"
+                                      : undefined,
                                 }}
                                 initial={{ opacity: 0, scale: 0.96 }}
                                 animate={{ opacity: 1, scale: 1 }}
@@ -754,9 +761,14 @@ export default memo(function CalendarView({
                                 <div className={`relative z-10 flex h-full ${isWeekMode ? "flex-col justify-around p-1.5 gap-1" : "flex-col justify-between p-1.5 gap-0.5"}`}>
                                   <div className="min-w-0 space-y-0.5">
                                     <div className="flex items-center justify-between gap-1">
-                                      <span className={`font-bold text-gray-900 dark:text-gray-100 leading-tight truncate ${isWeekMode ? "text-[10px]" : isCompact ? "text-[11px]" : "text-xs"}`}>
-                                        {appt.customers?.nombre || "Sin cliente"}
-                                      </span>
+                                      <div className="min-w-0 flex items-center gap-1">
+                                        <span className={`inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full ring-1 ${isCompleted ? "bg-emerald-500/18 text-emerald-700 dark:text-emerald-300 ring-emerald-500/25" : isCancelled ? "bg-rose-500/18 text-rose-700 dark:text-rose-300 ring-rose-500/25" : isConfirmed ? "bg-sky-500/18 text-sky-700 dark:text-sky-300 ring-sky-500/25" : "bg-amber-500/18 text-amber-700 dark:text-amber-200 ring-amber-500/25"}`}>
+                                          {isCompleted ? <Check className="h-2 w-2" /> : isCancelled ? <X className="h-2 w-2" /> : isConfirmed ? <CheckCheck className="h-2 w-2" /> : <Hourglass className="h-2 w-2" />}
+                                        </span>
+                                        <span className={`font-bold text-gray-900 dark:text-gray-100 leading-tight truncate ${isWeekMode ? "text-[10px]" : isCompact ? "text-[11px]" : "text-xs"} ${isCancelled ? "line-through" : ""}`}>
+                                          {appt.customers?.nombre || "Sin cliente"}
+                                        </span>
+                                      </div>
                                       <div className="flex items-center gap-1 shrink-0">
                                         {appt.customers?.telefono && !isWeekMode && (
                                           <a
@@ -771,7 +783,6 @@ export default memo(function CalendarView({
                                           </a>
                                         )}
                                         {!isWeekMode && svc.emoji && <span className="text-sm leading-none">{svc.emoji}</span>}
-                                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${needsAttention ? "animate-pulse" : ""}`} style={{ backgroundColor: needsAttention ? "#ef4444" : statusStyle.dot }} />
                                       </div>
                                     </div>
                                     <span className={`text-gray-700 dark:text-gray-300 leading-tight truncate ${isWeekMode ? "text-[9px]" : isCompact ? "text-[10px]" : "text-[11px]"}`}>
@@ -783,10 +794,8 @@ export default memo(function CalendarView({
                                         {svc.label || appt.services.name}
                                       </span>
                                     )}
-                                    {!isWeekMode && (
-                                      <span className="text-[9px] font-semibold text-gray-600 dark:text-gray-300 leading-tight truncate">
-                                        {displayLabel}
-                                      </span>
+                                    {showStatusBadge && (
+                                      <span className="sr-only">{displayLabel}</span>
                                     )}
                                     {!isWeekMode && !appt.loyalty_reward_applied && Math.max(0, Number(appt.customers?.loyalty_rewards_available || 0)) > 0 && (
                                       <span className="inline-flex items-center rounded-full bg-amber-100/90 text-amber-800 px-1.5 py-0.5 text-[9px] font-semibold w-fit">

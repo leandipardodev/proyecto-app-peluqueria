@@ -142,14 +142,13 @@ body {
 
 body.ios-standalone {
   min-height: 100dvh;
-  padding-top: env(safe-area-inset-top);
   padding-right: env(safe-area-inset-right);
   padding-bottom: env(safe-area-inset-bottom);
   padding-left: env(safe-area-inset-left);
 }
 
 body.ios-standalone .dashboard-mobile-header {
-  padding-top: 0.625rem;
+  padding-top: calc(env(safe-area-inset-top) + 0.5rem);
 }
 
 @media (max-width: 768px) {

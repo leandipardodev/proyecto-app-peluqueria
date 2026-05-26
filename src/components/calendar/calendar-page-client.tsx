@@ -306,6 +306,7 @@ export default function CalendarPageClient({
         appointment={selectedAppointment}
         shopId={shopId}
         staff={staff}
+        services={services}
         onClose={() => setSelectedAppointment(null)}
       />
     </div>

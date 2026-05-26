@@ -8,6 +8,7 @@ import { motion, useInView, useMotionValue, useScroll, useSpring, useTransform }
 import { Sparkles, CalendarCheck2, Scissors, Boxes, BarChart3, Clock3, Users2 } from "lucide-react";
 import { Playfair_Display } from "next/font/google";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import HomeFeaturesCarousel from "@/components/dashboard/home-features-carousel";
 
 const playfair = Playfair_Display({ subsets: ["latin"], weight: ["600", "700", "800", "900"] });
 const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"] });
@@ -58,15 +59,13 @@ function ParallaxLayer({
   });
 
   const y = useTransform(scrollYProgress, [0, 0.5, 1], enableParallax ? [42 * intensity, 0, -42 * intensity] : [0, 0, 0]);
-  const rotateX = useTransform(scrollYProgress, [0, 0.5, 1], enableParallax ? [7 * intensity, 0, -7 * intensity] : [0, 0, 0]);
-  const scale = useTransform(scrollYProgress, [0, 0.5, 1], enableParallax ? [0.98, 1, 0.985] : [1, 1, 1]);
   const opacity = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], enableParallax ? [0.72, 1, 1, 0.78] : [1, 1, 1, 1]);
 
   return (
     <motion.div
       ref={ref}
-      style={{ y, rotateX, scale, opacity, transformStyle: "preserve-3d" }}
-      className="relative z-10 [perspective:1200px]"
+      style={{ y, opacity }}
+      className="relative z-10"
     >
       {children}
     </motion.div>
@@ -76,12 +75,14 @@ function ParallaxLayer({
 function SweepSection({
   children,
   sweepClassName = "bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.55)_48%,transparent_100%)]",
+  allowOverflow = false,
 }: {
   children: React.ReactNode;
   sweepClassName?: string;
+  allowOverflow?: boolean;
 }) {
   return (
-    <motion.div className="relative overflow-hidden rounded-[2rem]" initial={{ opacity: 0.88 }} whileInView={{ opacity: 1 }} viewport={{ once: false, amount: 0.2 }}>
+    <motion.div className={`relative rounded-[2rem] ${allowOverflow ? "overflow-visible" : "overflow-hidden"}`} initial={{ opacity: 0.88 }} whileInView={{ opacity: 1 }} viewport={{ once: false, amount: 0.2 }}>
       <motion.div
         aria-hidden
         className={`pointer-events-none absolute -left-1/3 top-0 z-20 h-full w-1/2 -skew-x-12 ${sweepClassName}`}
@@ -443,6 +444,10 @@ export default function Home() {
           </Card>
         </Section>
 
+        <Section className="pb-4 sm:pb-8">
+          <HomeFeaturesCarousel />
+        </Section>
+
         <ParallaxLayer intensity={1.05}>
           <SweepSection sweepClassName="bg-[linear-gradient(90deg,transparent_0%,rgba(56,189,248,0.42)_48%,transparent_100%)]">
             <Section className="py-10 sm:py-20">
@@ -553,11 +558,12 @@ export default function Home() {
         </ParallaxLayer>
 
         <ParallaxLayer intensity={1.1}>
-          <SweepSection sweepClassName="bg-[linear-gradient(90deg,transparent_0%,rgba(125,211,252,0.44)_48%,transparent_100%)]">
+          <SweepSection sweepClassName="bg-[linear-gradient(90deg,transparent_0%,rgba(125,211,252,0.44)_48%,transparent_100%)]" allowOverflow>
             <Section className="py-10 sm:py-12">
-              <Card className="relative overflow-hidden p-5 sm:p-8 md:p-10 bg-gradient-to-br from-[#0f172a] via-[#111c34] to-[#0b1324] border-slate-700/70 shadow-[0_28px_60px_rgba(15,23,42,0.35)]">
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_80%_at_10%_0%,rgba(56,189,248,0.24),transparent_65%)]" />
-                <div className="relative grid gap-6 lg:grid-cols-[1fr_1.2fr] items-center">
+              <Card className="relative overflow-visible p-0 bg-transparent border-slate-700/60 shadow-[0_22px_68px_rgba(14,165,233,0.16),0_34px_88px_rgba(15,23,42,0.34)]">
+                <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f172a] via-[#111c34] to-[#0b1324] p-5 sm:p-8 md:p-10">
+                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_80%_at_10%_0%,rgba(56,189,248,0.24),transparent_65%)]" />
+                  <div className="relative grid gap-6 lg:grid-cols-[1fr_1.2fr] items-center">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-300">Producto en accion</p>
                     <h3 className={`${playfair.className} mt-3 text-3xl sm:text-5xl font-bold tracking-[-0.03em] text-white`}>Un concepto visual claro para decidir en segundos.</h3>
@@ -590,6 +596,7 @@ export default function Home() {
                       Recordatorios activos
                     </motion.div>
                   </motion.div>
+                  </div>
                 </div>
               </Card>
             </Section>

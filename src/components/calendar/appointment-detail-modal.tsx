@@ -1,7 +1,7 @@
 "use client";
 
 import { X, Check, XCircle, Trash2, MessageCircle, UserRoundPen } from "lucide-react";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { deleteAppointment, patchAppointmentQuick, redeemLoyaltyReward, updateCustomerQuick } from "@/lib/dashboard/appointment-actions";
 import { AnimatePresence, motion } from "framer-motion";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
@@ -13,6 +13,7 @@ const IOS_MODAL_SPRING = { stiffness: 460, damping: 34, mass: 0.65 };
 
 type Appointment = {
   id: string;
+  service_id?: string | null;
   staff_id?: string | null;
   start_time: string;
   end_time: string;
@@ -33,10 +34,18 @@ type StaffMember = {
   email: string | null;
 };
 
+type ServiceItem = {
+  id: string;
+  name: string;
+  duration_minutes: number;
+  price: number;
+};
+
 interface AppointmentDetailModalProps {
   shopId: string;
   appointment: Appointment | null;
   staff: StaffMember[];
+  services: ServiceItem[];
   onClose: () => void;
 }
 
@@ -69,6 +78,7 @@ export default function AppointmentDetailModal({
   shopId,
   appointment,
   staff,
+  services,
   onClose,
 }: AppointmentDetailModalProps) {
   const backdropRef = useRef<HTMLDivElement>(null);
@@ -77,6 +87,7 @@ export default function AppointmentDetailModal({
   const [localPaid, setLocalPaid] = useState(appointment?.is_paid || false);
   const [error, setError] = useState<string | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
   const [selectedStaffId, setSelectedStaffId] = useState(appointment?.staff_id || "");
   const [localRewardsAvailable, setLocalRewardsAvailable] = useState(
     Math.max(0, Number(appointment?.customers?.loyalty_rewards_available || 0))
@@ -91,9 +102,16 @@ export default function AppointmentDetailModal({
   const [customerVip, setCustomerVip] = useState(false);
   const [portalReady, setPortalReady] = useState(false);
   const [hasPendingChanges, setHasPendingChanges] = useState(false);
+  const [selectedServiceId, setSelectedServiceId] = useState(appointment?.service_id || "");
+  const [startDateTimeLocal, setStartDateTimeLocal] = useState("");
   const { addToast } = useToast();
-  const patchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const patchDraftRef = useRef<{ status?: string; isPaid?: boolean; staffId?: string | null }>({});
+  const patchDraftRef = useRef<{ status?: string; isPaid?: boolean; staffId?: string | null; serviceId?: string; startTime?: string }>({});
+
+  function toDateTimeLocalValue(iso: string): string {
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
 
   useEffect(() => {
     setPortalReady(true);
@@ -109,38 +127,33 @@ export default function AppointmentDetailModal({
     setCustomerName(appointment.customers?.nombre || "");
     setCustomerEmail(appointment.customers?.email || "");
     setCustomerPhone(appointment.customers?.telefono || "");
+    setSelectedServiceId(appointment.service_id || "");
+    setStartDateTimeLocal(toDateTimeLocalValue(appointment.start_time));
     setShowCustomerEditor(false);
     setHasPendingChanges(false);
     setError(null);
   }, [appointment]);
 
+  const requestClose = useCallback(() => {
+    if (hasPendingChanges) {
+      setCloseConfirmOpen(true);
+      return;
+    }
+    onClose();
+  }, [hasPendingChanges, onClose]);
+
   useEffect(() => {
     if (!appointment) return;
     function handleEscape(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") requestClose();
     }
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
-  }, [appointment, onClose]);
+  }, [appointment, requestClose]);
 
-  function flushAppointmentPatch() {
-    if (!appointment) return;
-    const payload = { ...patchDraftRef.current };
-    patchDraftRef.current = {};
-    setHasPendingChanges(false);
-    if (payload.status === undefined && payload.isPaid === undefined && payload.staffId === undefined) return;
-
-    startTransition(async () => {
-      const result = await patchAppointmentQuick(appointment.id, payload, shopId);
-      if (!result.success) setError(result.error);
-    });
-  }
-
-  function queueAppointmentPatch(next: { status?: string; isPaid?: boolean; staffId?: string | null }) {
+  function queueAppointmentPatch(next: { status?: string; isPaid?: boolean; staffId?: string | null; serviceId?: string; startTime?: string }) {
     patchDraftRef.current = { ...patchDraftRef.current, ...next };
     setHasPendingChanges(true);
-    if (patchTimerRef.current) clearTimeout(patchTimerRef.current);
-    patchTimerRef.current = setTimeout(flushAppointmentPatch, 450);
   }
 
   function handleSaveAppointment() {
@@ -150,12 +163,8 @@ export default function AppointmentDetailModal({
     const payload = { ...patchDraftRef.current };
     patchDraftRef.current = {};
     setHasPendingChanges(false);
-    if (patchTimerRef.current) {
-      clearTimeout(patchTimerRef.current);
-      patchTimerRef.current = null;
-    }
 
-    if (payload.status === undefined && payload.isPaid === undefined && payload.staffId === undefined) {
+    if (payload.status === undefined && payload.isPaid === undefined && payload.staffId === undefined && payload.serviceId === undefined && payload.startTime === undefined) {
       addToast("No hay cambios pendientes", "info");
       return;
     }
@@ -168,6 +177,19 @@ export default function AppointmentDetailModal({
       }
       addToast("Turno guardado", "success");
     });
+  }
+
+  function handleServiceChange(value: string) {
+    setSelectedServiceId(value);
+    setError(null);
+    queueAppointmentPatch({ serviceId: value });
+  }
+
+  function handleStartDateTimeChange(value: string) {
+    setStartDateTimeLocal(value);
+    setError(null);
+    if (!value) return;
+    queueAppointmentPatch({ startTime: new Date(value).toISOString() });
   }
 
   function handleStatusChange(newStatus: string) {
@@ -264,7 +286,7 @@ export default function AppointmentDetailModal({
           ref={backdropRef}
           className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-y-contain bg-white/40 p-3 dark:bg-black/40 backdrop-blur-sm sm:p-4"
           onClick={(e) => {
-            if (e.target === backdropRef.current) onClose();
+            if (e.target === backdropRef.current) requestClose();
           }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -283,7 +305,7 @@ export default function AppointmentDetailModal({
             Detalle del Turno
           </h2>
           <button
-            onClick={onClose}
+            onClick={requestClose}
             className="p-1 rounded-md text-gray-500 dark:text-gray-400 hover:bg-white/40 dark:hover:bg-white/10 transition-colors cursor-pointer select-none"
           >
             <X className="w-5 h-5" />
@@ -324,6 +346,18 @@ export default function AppointmentDetailModal({
               </div>
             </div>
             <div>
+              <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">Servicio</span>
+              <div className="mt-1.5">
+                <GlassSelect
+                  options={services.map((svc) => ({ value: svc.id, label: `${svc.name} - $${svc.price}` }))}
+                  value={selectedServiceId}
+                  onChange={handleServiceChange}
+                  placeholder="Seleccionar servicio"
+                  className="w-full"
+                />
+              </div>
+            </div>
+            <div>
               <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">Staff</span>
               <div className="mt-1.5">
                 <GlassSelect
@@ -337,6 +371,15 @@ export default function AppointmentDetailModal({
                   className="w-full"
                 />
               </div>
+            </div>
+            <div className="col-span-2">
+              <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">Fecha y hora</span>
+              <input
+                type="datetime-local"
+                value={startDateTimeLocal}
+                onChange={(e) => handleStartDateTimeChange(e.target.value)}
+                className="mt-1.5 w-full rounded-xl border border-white/25 bg-white/45 px-3 py-2 text-sm text-gray-900 outline-none backdrop-blur-md dark:border-white/15 dark:bg-white/10 dark:text-gray-100"
+              />
             </div>
           </div>
 
@@ -517,6 +560,20 @@ export default function AppointmentDetailModal({
             danger
             onCancel={() => setDeleteConfirmOpen(false)}
             onConfirm={confirmDeleteAppointment}
+          />
+
+          <ConfirmDialog
+            open={closeConfirmOpen}
+            title="Descartar cambios"
+            message="Tenes cambios sin guardar en este turno. Si cerras ahora, se perderan."
+            confirmLabel="Descartar"
+            onCancel={() => setCloseConfirmOpen(false)}
+            onConfirm={() => {
+              setCloseConfirmOpen(false);
+              patchDraftRef.current = {};
+              setHasPendingChanges(false);
+              onClose();
+            }}
           />
         </motion.div>
       )}

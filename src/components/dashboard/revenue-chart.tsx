@@ -1,10 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Inter } from "next/font/google";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Bar, BarChart, Cell, LabelList, ResponsiveContainer, XAxis, YAxis } from "recharts";
-
-const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "700", "900"] });
 
 type RevenueChartProps = {
   data: Array<{ month: string; income: number; expenses: number }>;
@@ -62,6 +59,25 @@ function CompactLabel({ x, y, value }: CompactLabelProps) {
 export default function RevenueChart({ data, flowByPeriod }: RevenueChartProps) {
   const [hoveredBar, setHoveredBar] = useState<string | null>(null);
   const [period, setPeriod] = useState<"today" | "week" | "month">("today");
+  const chartHostRef = useRef<HTMLDivElement | null>(null);
+  const [canRenderChart, setCanRenderChart] = useState(false);
+
+  useEffect(() => {
+    const node = chartHostRef.current;
+    if (!node) return;
+
+    const update = () => {
+      const rect = node.getBoundingClientRect();
+      const hasWidth = rect.width > 0;
+      const isVisible = node.offsetParent !== null;
+      setCanRenderChart(hasWidth && isVisible);
+    };
+
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   const totals = useMemo(() => {
     const lastMonth = data[data.length - 1];
@@ -83,7 +99,7 @@ export default function RevenueChart({ data, flowByPeriod }: RevenueChartProps) 
   if (data.length === 0) {
     return (
       <div
-        className={`${inter.className} rounded-[2.5rem] border border-white/20 bg-white/40 p-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3),0_20px_40px_rgba(0,0,0,0.2)] backdrop-blur-2xl dark:border-slate-700/30 dark:bg-slate-800/40 dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_20px_40px_rgba(0,0,0,0.4)]`}
+        className="rounded-[2.5rem] border border-white/20 bg-white/40 p-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3),0_20px_40px_rgba(0,0,0,0.2)] backdrop-blur-2xl dark:border-slate-700/30 dark:bg-slate-800/40 dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_20px_40px_rgba(0,0,0,0.4)]"
         style={{ fontFamily: "Inter, sans-serif" }}
       >
         <p className="py-12 text-center text-sm text-slate-500">Sin datos de ingresos aun</p>
@@ -93,7 +109,7 @@ export default function RevenueChart({ data, flowByPeriod }: RevenueChartProps) 
 
   return (
     <div
-      className={`${inter.className} rounded-[2.5rem] border border-white/20 bg-white/40 p-6 shadow-[inset_0_1px_2px_rgba(255,255,255,0.8),0_10px_30px_rgba(0,0,0,0.03)] backdrop-blur-2xl dark:border-slate-700/30 dark:bg-slate-900/80 dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_10px_30px_rgba(0,0,0,0.2)]`}
+      className="rounded-[2.5rem] border border-white/20 bg-white/40 p-6 shadow-[inset_0_1px_2px_rgba(255,255,255,0.8),0_10px_30px_rgba(0,0,0,0.03)] backdrop-blur-2xl dark:border-slate-700/30 dark:bg-slate-900/80 dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_10px_30px_rgba(0,0,0,0.2)]"
       style={{ fontFamily: "Inter, sans-serif" }}
     >
       <h3 className="mb-1 text-sm font-medium text-slate-900 dark:text-white">Ingresos vs Gastos</h3>
@@ -149,7 +165,8 @@ export default function RevenueChart({ data, flowByPeriod }: RevenueChartProps) 
       </div>
 
       <div
-        className="analytics-chart-wave h-72 rounded-3xl px-2 pt-2 pb-1"
+        ref={chartHostRef}
+        className="analytics-chart-wave h-72 min-h-[18rem] min-w-0 w-full overflow-hidden rounded-3xl px-2 pt-2 pb-1"
         style={{
           background: "transparent",
           backdropFilter: "blur(40px)",
@@ -166,7 +183,7 @@ export default function RevenueChart({ data, flowByPeriod }: RevenueChartProps) 
             <path d="M0,194 C100,176 200,208 300,190 C400,172 500,212 600,194 C700,176 800,214 900,192 C950,182 980,188 1000,186" />
           </svg>
         </div>
-        <ResponsiveContainer width="100%" height="100%">
+        {canRenderChart && <ResponsiveContainer width="100%" height={260} minWidth={280} minHeight={220}>
           <BarChart data={data} margin={{ top: 20, right: 8, left: -8, bottom: 0 }} barGap={8} barCategoryGap="20%">
             <defs>
               <linearGradient id="income-grad" x1="0" y1="0" x2="0" y2="1">
@@ -258,7 +275,7 @@ export default function RevenueChart({ data, flowByPeriod }: RevenueChartProps) 
               })}
             </Bar>
           </BarChart>
-        </ResponsiveContainer>
+        </ResponsiveContainer>}
       </div>
       <style>{`
         .analytics-chart-wave {

@@ -9,7 +9,6 @@ import {
   getArgentinaNow,
 } from "@/lib/argentina-time";
 import {
-  APPOINTMENT_STATUS_BILLABLE,
   APPOINTMENT_STATUS_TODAY_SUMMARY,
   APPOINTMENT_STATUS_UPCOMING,
 } from "@/lib/dashboard/appointment-status";
@@ -69,7 +68,8 @@ export async function fetchDashboardSummary(shopIdOverride?: string): Promise<Ac
         .eq("shop_id", shopId)
         .gte("start_time", todayStartIso)
         .lte("start_time", todayEndIso)
-        .in("status", APPOINTMENT_STATUS_BILLABLE as unknown as string[]),
+        .eq("status", "completed")
+        .eq("is_paid", true),
 
       supabase
         .from("stock")
@@ -182,39 +182,55 @@ async function fetchFlowRange(
   startIso: string,
   endIso: string
 ): Promise<{ income: number; expenses: number }> {
-  const [appointmentsRes, financesRes] = await Promise.all([
+  const [appointmentsRes, financesRes, cashMovesRes] = await Promise.all([
     admin
       .from("appointments")
-      .select("services!appointments_service_id_fkey(price)")
+      .select("is_paid, services!appointments_service_id_fkey(price)")
       .eq("shop_id", shopId)
       .gte("start_time", startIso)
       .lte("start_time", endIso)
-      .in("status", APPOINTMENT_STATUS_BILLABLE as unknown as string[]),
+      .eq("status", "completed"),
     admin
       .from("finances")
       .select("amount, type")
       .eq("shop_id", shopId)
       .gte("created_at", startIso)
       .lte("created_at", endIso),
+    admin
+      .from("cash_movements")
+      .select("amount, movement_type")
+      .eq("shop_id", shopId)
+      .gte("happened_at", startIso)
+      .lte("happened_at", endIso),
   ]);
 
   if (appointmentsRes.error) throw new Error(appointmentsRes.error.message);
   if (financesRes.error) throw new Error(financesRes.error.message);
+  if (cashMovesRes.error) throw new Error(cashMovesRes.error.message);
 
   const appointmentsIncome = (appointmentsRes.data ?? []).reduce((sum, row) => {
+    if (!row.is_paid) return sum;
     const svc = Array.isArray(row.services) ? row.services[0] : row.services;
     return sum + Number(svc?.price || 0);
   }, 0);
 
-  const extraIncome = (financesRes.data ?? [])
+  const cashIncome = (cashMovesRes.data ?? [])
+    .filter((m) => m.movement_type === "income")
+    .reduce((sum, m) => sum + Number(m.amount || 0), 0);
+
+  const manualIncome = (financesRes.data ?? [])
     .filter((f) => f.type === "income")
     .reduce((sum, f) => sum + Number(f.amount || 0), 0);
 
-  const expenses = (financesRes.data ?? [])
+  const financeExpenses = (financesRes.data ?? [])
     .filter((f) => f.type === "expense")
     .reduce((sum, f) => sum + Number(f.amount || 0), 0);
 
-  return { income: appointmentsIncome + extraIncome, expenses };
+  const cashExpenses = (cashMovesRes.data ?? [])
+    .filter((m) => m.movement_type === "expense" || m.movement_type === "withdrawal")
+    .reduce((sum, m) => sum + Number(m.amount || 0), 0);
+
+  return { income: appointmentsIncome + manualIncome + cashIncome, expenses: financeExpenses + cashExpenses };
 }
 
 export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<ActionResult<DashboardMetrics>> {
@@ -232,18 +248,32 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
     const todayArKey = getArgentinaDateKey(nowAr);
     const { start: dayStart, end: dayEnd } = getArgentinaDayBounds(todayArKey);
 
-    const weekStart = new Date(dayStart.getTime() - 6 * 24 * 60 * 60 * 1000);
-    const monthStart = new Date(dayStart.getTime() - 29 * 24 * 60 * 60 * 1000);
+    const weekStart = new Date(dayStart);
+    const dayOfWeek = weekStart.getUTCDay();
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    weekStart.setUTCDate(weekStart.getUTCDate() + mondayOffset);
 
-    const [apptsRes, financesRes, clientsRes, flowToday, flowWeek, flowMonth] = await Promise.all([
+    const monthStart = new Date(dayStart);
+    monthStart.setUTCDate(1);
+
+    const [apptsRevenueRes, apptsCountRes, financesRes, cashMovesRes, clientsRes, flowToday, flowWeek, flowMonth] = await Promise.all([
       admin
         .from("appointments")
-        .select("date_key_ar, service_id, services!appointments_service_id_fkey(price)")
+        .select("date_key_ar, service_id, is_paid, services!appointments_service_id_fkey(price)")
         .eq("shop_id", shopId)
-        .in("status", APPOINTMENT_STATUS_BILLABLE as unknown as string[]),
+        .eq("status", "completed"),
+      admin
+        .from("appointments")
+        .select("id")
+        .eq("shop_id", shopId)
+        .in("status", ["scheduled", "confirmed", "pending_payment", "in_progress", "completed"]),
       admin
         .from("finances")
         .select("amount, type, created_at")
+        .eq("shop_id", shopId),
+      admin
+        .from("cash_movements")
+        .select("amount, movement_type, happened_at")
         .eq("shop_id", shopId),
       admin
         .from("customers")
@@ -254,14 +284,17 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
       fetchFlowRange(admin, shopId, monthStart.toISOString(), dayEnd.toISOString()),
     ]);
 
-    if (apptsRes.error) return { success: false, error: apptsRes.error.message };
+    if (apptsRevenueRes.error) return { success: false, error: apptsRevenueRes.error.message };
+    if (apptsCountRes.error) return { success: false, error: apptsCountRes.error.message };
     if (financesRes.error) return { success: false, error: financesRes.error.message };
+    if (cashMovesRes.error) return { success: false, error: cashMovesRes.error.message };
     if (clientsRes.error) return { success: false, error: clientsRes.error.message };
 
     const incomeByMonth = new Map<string, number>();
     const expensesByMonth = new Map<string, number>();
 
-    for (const apt of apptsRes.data ?? []) {
+    for (const apt of apptsRevenueRes.data ?? []) {
+      if (!apt.is_paid) continue;
       const month = typeof apt.date_key_ar === "string" ? apt.date_key_ar.slice(0, 7) : null;
       if (!month) continue;
       const svc = Array.isArray(apt.services) ? apt.services[0] : apt.services;
@@ -278,6 +311,16 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
       }
     }
 
+    for (const mov of cashMovesRes.data ?? []) {
+      const month = mov.happened_at ? getArgentinaDateKey(mov.happened_at).slice(0, 7) : null;
+      if (!month) continue;
+      if (mov.movement_type === "income") {
+        incomeByMonth.set(month, (incomeByMonth.get(month) ?? 0) + Number(mov.amount || 0));
+      } else if (mov.movement_type === "expense" || mov.movement_type === "withdrawal") {
+        expensesByMonth.set(month, (expensesByMonth.get(month) ?? 0) + Number(mov.amount || 0));
+      }
+    }
+
     const allMonths = new Set([...incomeByMonth.keys(), ...expensesByMonth.keys()]);
     const revenueChart = [...allMonths].sort().map((month) => ({
       month,
@@ -287,9 +330,10 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
 
     const { data: topRaw, error: topErr } = await admin
       .from("appointments")
-      .select("service_id, services!appointments_service_id_fkey(name)")
+      .select("service_id, is_paid, services!appointments_service_id_fkey(name)")
       .eq("shop_id", shopId)
-      .in("status", ["completed", "confirmed", "scheduled"]);
+      .eq("status", "completed")
+      .eq("is_paid", true);
 
     if (topErr) return { success: false, error: topErr.message };
 
@@ -308,7 +352,7 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
       .slice(0, 5);
 
     const totalClients = clientsRes.data?.length ?? 0;
-    const totalAppointments = apptsRes.data?.length ?? 0;
+    const totalAppointments = apptsCountRes.data?.length ?? 0;
 
     const currentMonth = todayArKey.slice(0, 7);
     const prevMonthDate = new Date(`${currentMonth}-01T00:00:00-03:00`);

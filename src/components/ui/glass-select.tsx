@@ -18,6 +18,8 @@ interface GlassSelectProps {
   name?: string;
   required?: boolean;
   className?: string;
+  searchable?: boolean;
+  searchPlaceholder?: string;
 }
 
 const dropVariants = {
@@ -30,12 +32,15 @@ export default function GlassSelect({
   options,
   value,
   onChange,
-      placeholder = "Seleccionar...",
-      name,
-      required,
-      className = "",
+  placeholder = "Seleccionar...",
+  name,
+  required,
+  className = "",
+  searchable = false,
+  searchPlaceholder = "Buscar...",
 }: GlassSelectProps) {
   const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
 
   const selected = options.find((o) => o.value === value);
@@ -49,6 +54,26 @@ export default function GlassSelect({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!open) setSearchQuery("");
+  }, [open]);
+
+  const normalizedQuery = searchQuery
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+
+  const filteredOptions = !normalizedQuery
+    ? options
+    : options.filter((opt) =>
+        opt.label
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .includes(normalizedQuery)
+      );
 
   return (
     <div ref={containerRef} className={`relative ${className}`}>
@@ -76,10 +101,21 @@ export default function GlassSelect({
             animate="visible"
             exit="exit"
           >
-            {options.length === 0 ? (
+            {searchable && (
+              <div className="px-2 pb-1">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={searchPlaceholder}
+                  className="w-full rounded-xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-black/30 px-3 py-2 text-xs text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-violet-500/25"
+                />
+              </div>
+            )}
+            {filteredOptions.length === 0 ? (
               <div className="px-3 py-2 text-sm text-zinc-400">Sin opciones</div>
             ) : (
-              options.map((opt) => {
+              filteredOptions.map((opt) => {
                 const isActive = opt.value === value;
                 return (
                   <button
