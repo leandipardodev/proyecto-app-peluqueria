@@ -367,7 +367,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {cards.map(({ label, value, hint, icon: Icon, color, bg }, idx) => {
+        {cards.map(({ label, value, icon: Icon, color, bg }, idx) => {
           const isGrowthCard = label === "Crecimiento";
           const growthFill = growthValue === null ? 18 : Math.min(Math.max(Math.abs(growthValue), 8), 100);
           const hasProgress = isGrowthCard;
@@ -388,7 +388,6 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
                 <div className="relative z-10 flex-1 min-w-0 flex flex-col">
                   <p className="text-sm text-gray-500 dark:text-zinc-400">{label}</p>
                   <p className="text-xl font-bold tracking-tighter text-gray-900 dark:text-white">{value}</p>
-                  {hint && <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400 truncate">{hint}</p>}
                   {isGrowthCard && (
                     <div className="mt-2.5">
                       <div className="h-2 w-full rounded-full bg-zinc-200/70 dark:bg-zinc-700/60 overflow-hidden">
