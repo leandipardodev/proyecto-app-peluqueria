@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
+import { trackProductEvent } from "@/lib/analytics/product-events";
 
 export async function GET(request: Request) {
   const auth = request.headers.get("authorization");
@@ -49,6 +50,14 @@ export async function GET(request: Request) {
           executed_at: nowIso,
         },
       }))
+    );
+
+    await Promise.allSettled(
+      shopIds.map((shopId) =>
+        trackProductEvent(shopId, "subscription_canceled", {
+          metadata: { reason: "grace_period_expired", source: "billing_expiry_cron" },
+        })
+      )
     );
 
     return NextResponse.json({ ok: true, updated: shopIds.length });

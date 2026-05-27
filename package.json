@@ -9,6 +9,10 @@
     "start": "next start",
     "lint": "eslint .",
     "audit:gains-cash": "node scripts/audit-gains-cash.mjs",
+    "audit:rls": "node scripts/audit-rls-anon.mjs",
+    "audit:product-events": "node scripts/check-product-events.mjs",
+    "perf:budget": "node scripts/perf-budget-check.mjs",
+    "perf:budget:auth": "node scripts/perf-auth-budget-check.mjs",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
   },

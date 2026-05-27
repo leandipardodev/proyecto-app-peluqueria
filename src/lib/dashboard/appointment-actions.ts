@@ -2,6 +2,7 @@
 
 import { createServerClient } from "@/lib/supabase/server";
 import { canAccessShopId, createServiceRoleClient, requireShopId } from "@/lib/dashboard/auth-server";
+import { trackProductEvent } from "@/lib/analytics/product-events";
 import { revalidateDashboardSegments } from "@/lib/dashboard/revalidate-dashboard";
 import { createArgentinaDate, getArgentinaDateKey, getArgentinaNow } from "@/lib/argentina-time";
 import { sendEmailWithResend } from "@/lib/email/resend";
@@ -884,6 +885,13 @@ export async function patchAppointmentQuick(
     if (shouldRegisterLoyaltyCut) {
       const loyaltyResult = await registerLoyaltyCut(shopId, appointment.customer_id as string);
       if (!loyaltyResult.success) return loyaltyResult;
+    }
+
+    if (nextStatus === "confirmed" && appointment.status !== "confirmed") {
+      await trackProductEvent(shopId, "first_booking_confirmed", {
+        actorUserId: user.id,
+        metadata: { appointment_id: id },
+      });
     }
 
     await revalidateDashboardSegments(shopId, ["/calendar", "/appointments", ""]);

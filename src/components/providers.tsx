@@ -13,9 +13,11 @@ export function Providers({ children }: { children: ReactNode }) {
   useEffect(() => {
     const ua = window.navigator.userAgent;
     const isIOS = /iPad|iPhone|iPod/.test(ua) || (window.navigator.platform === "MacIntel" && window.navigator.maxTouchPoints > 1);
+    const isAndroid = /Android/i.test(ua);
     const isStandalone = window.matchMedia("(display-mode: standalone)").matches || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
 
     document.body.classList.toggle("ios-standalone", isIOS && isStandalone);
+    document.body.classList.toggle("android-standalone", isAndroid && isStandalone);
   }, []);
 
   useEffect(() => {

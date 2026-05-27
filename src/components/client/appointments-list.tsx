@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { CalendarDays, DollarSign, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { StatePanel } from "@/components/ui/state-panel";
 
 interface Appointment {
   id: string;
@@ -70,18 +71,17 @@ export default function ClientAppointmentsList({
 
   return (
     <div className="space-y-6">
-      {/* Upcoming Appointments */}
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
             <CalendarDays className="w-5 h-5 text-violet-600" />
-            Próximos Turnos
+            Próximos turnos
           </h2>
         </div>
 
         {upcoming.length === 0 ? (
-          <div className="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">
-            No tenés turnos programados.
+          <div className="px-6 py-8">
+            <StatePanel title="Sin turnos próximos" description="No tenés turnos programados por ahora." />
           </div>
         ) : (
           <div className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -151,7 +151,7 @@ export default function ClientAppointmentsList({
                         />
                         <button
                           type="submit"
-                          className="text-sm text-red-600 hover:text-red-700 flex items-center gap-1 cursor-pointer select-none"
+                          className="text-sm text-red-600 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 rounded-md flex items-center gap-1 cursor-pointer select-none"
                         >
                           <XCircle className="w-4 h-4" />
                           Cancelar
@@ -172,12 +172,11 @@ export default function ClientAppointmentsList({
         )}
       </div>
 
-      {/* Past Appointments */}
       {past.length > 0 && (
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              Historial de Turnos
+              Historial de turnos
             </h2>
           </div>
 

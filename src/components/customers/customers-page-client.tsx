@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Gift, Search } from "lucide-react";
 import type { CustomerRow } from "@/lib/dashboard/customers-actions";
+import { StatePanel } from "@/components/ui/state-panel";
 
 function formatDate(date: string | null): string {
   if (!date) return "-";
@@ -63,18 +64,22 @@ export default function CustomersPageClient({ initialCustomers }: { initialCusto
       </div>
 
       <div className="max-w-md relative">
+        <label htmlFor="customers-search" className="sr-only">
+          Buscar clientes
+        </label>
         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
         <input
+          id="customers-search"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Buscar por nombre u observaciones..."
-          className="w-full rounded-full bg-white border border-slate-200 pl-9 pr-4 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all"
+          className="w-full rounded-full bg-white border border-slate-200 pl-9 pr-4 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all"
         />
       </div>
 
       <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.03)]">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px] text-sm">
+          <table className="w-full min-w-[1100px] text-sm" aria-label="Tabla de clientes">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-left text-slate-500">
                 <th className="px-6 py-3 font-medium">Cliente</th>
@@ -90,8 +95,8 @@ export default function CustomersPageClient({ initialCustomers }: { initialCusto
             <tbody>
               {filteredCustomers.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
-                    No se encontraron clientes
+                  <td colSpan={8} className="px-6 py-8">
+                    <StatePanel title="Sin resultados" description="No encontramos clientes con ese criterio de búsqueda." />
                   </td>
                 </tr>
               ) : (
@@ -111,13 +116,13 @@ export default function CustomersPageClient({ initialCustomers }: { initialCusto
                         </div>
                       </td>
                       <td className="px-6 py-4 text-slate-600">
-                        <p>{customer.email || "Sin mail"}</p>
+                        <p>{customer.email || "Sin correo"}</p>
                         <p>{customer.telefono || "Sin teléfono"}</p>
                       </td>
                       <td className="px-6 py-4 text-slate-700">{formatDate(customer.birthday)}</td>
                       <td className="px-6 py-4 text-slate-700">{formatDate(customer.lastVisit)}</td>
                       <td className="px-6 py-4 text-slate-700">
-                        {customer.servicesHistory.length > 0 ? customer.servicesHistory.join(", ") : "Sin historial"}
+                          {customer.servicesHistory.length > 0 ? customer.servicesHistory.join(", ") : "Sin historial de turnos"}
                       </td>
                       <td className="px-6 py-4 text-slate-700 max-w-[280px]">
                         <p className="line-clamp-3">{customer.observations || "Sin observaciones"}</p>

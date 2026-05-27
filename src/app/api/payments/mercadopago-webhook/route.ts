@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
+import { trackProductEvent } from "@/lib/analytics/product-events";
 import { MercadoPagoConfig, Payment } from "mercadopago";
 import { cycleMonths, type BillingCycle } from "@/lib/billing/plans";
 
@@ -158,6 +159,10 @@ export async function POST(request: NextRequest) {
             updated_at: new Date().toISOString(),
           })
           .eq("id", extShopId);
+
+        await trackProductEvent(extShopId, "subscription_paid", {
+          metadata: { payment_id: normalizedPaymentId, cycle },
+        });
       }
 
       return NextResponse.json({ ok: true });
@@ -172,6 +177,7 @@ export async function POST(request: NextRequest) {
     }
 
     const status = resolveStatusFromPaymentStatus(paymentResult.status);
+    const normalizedPaymentId = String(paymentId);
 
     let appointmentQuery = admin
       .from("appointments")
@@ -186,6 +192,27 @@ export async function POST(request: NextRequest) {
 
     if (!appointment) {
       return NextResponse.json({ ok: true });
+    }
+
+    if (paymentResult.status === "approved") {
+      const { error: lockError } = await admin.from("shop_billing_events").insert({
+        shop_id: appointment.shop_id,
+        actor_user_id: null,
+        event_type: "appointment_payment_applied",
+        payload: {
+          payment_id: normalizedPaymentId,
+          appointment_id: appointment.id,
+          status: paymentResult.status,
+          external_reference: paymentResult.external_reference,
+        },
+      });
+
+      if (lockError) {
+        if (isUniqueViolation(lockError)) {
+          return NextResponse.json({ ok: true });
+        }
+        throw lockError;
+      }
     }
 
     const preferenceId = (paymentResult.order?.id as string | undefined) || (paymentResult.metadata?.preference_id as string | undefined) || undefined;
@@ -207,7 +234,7 @@ export async function POST(request: NextRequest) {
       mp_preference_id: preferenceId,
       event_type: "payment_webhook",
       payload: {
-        payment_id: paymentId,
+        payment_id: normalizedPaymentId,
         status: paymentResult.status,
         external_reference: paymentResult.external_reference,
       },

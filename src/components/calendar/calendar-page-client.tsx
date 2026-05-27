@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { addWeeks, subWeeks } from "date-fns";
 import { motion } from "framer-motion";
 import { Plus } from "lucide-react";
@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import CalendarView from "./calendar-view";
 import AppointmentFormModal from "./appointment-form-modal";
 import AppointmentDetailModal from "./appointment-detail-modal";
+import { StatePanel } from "@/components/ui/state-panel";
 import { useAppointmentAlarm } from "@/lib/use-appointment-alarm";
 import { getArgentinaDateKey } from "@/lib/argentina-time";
 import { supabase } from "@/lib/supabase";
@@ -145,6 +146,7 @@ export default function CalendarPageClient({
     useState<Appointment | null>(null);
   const [staffFilter, setStaffFilter] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setHydrated(true);
@@ -161,15 +163,23 @@ export default function CalendarPageClient({
   useAppointmentAlarm(resolvedAppointments);
 
   useEffect(() => {
+    const scheduleRefresh = () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = setTimeout(() => {
+        router.refresh();
+      }, 250);
+    };
+
     const channel = supabase
       .channel(`calendar-${shopId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "appointments", filter: `shop_id=eq.${shopId}` }, () => router.refresh())
-      .on("postgres_changes", { event: "*", schema: "public", table: "customers", filter: `shop_id=eq.${shopId}` }, () => router.refresh())
-      .on("postgres_changes", { event: "*", schema: "public", table: "services", filter: `shop_id=eq.${shopId}` }, () => router.refresh())
-      .on("postgres_changes", { event: "*", schema: "public", table: "shop_memberships", filter: `shop_id=eq.${shopId}` }, () => router.refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "appointments", filter: `shop_id=eq.${shopId}` }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "customers", filter: `shop_id=eq.${shopId}` }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "services", filter: `shop_id=eq.${shopId}` }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "shop_memberships", filter: `shop_id=eq.${shopId}` }, scheduleRefresh)
       .subscribe();
 
     return () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
       supabase.removeChannel(channel);
     };
   }, [shopId, router]);
@@ -199,19 +209,13 @@ export default function CalendarPageClient({
   return (
     <div className="h-full flex flex-col">
       {error && (
-        <div className="bg-red-100/60 dark:bg-red-950/40 backdrop-blur-sm border border-red-200/40 dark:border-red-800/30 text-red-700 dark:text-red-300 text-sm px-4 py-3 rounded-xl mb-4 shadow-sm">
-          Error: {error}
-        </div>
+        <StatePanel title="Error al cargar turnos" description={error} variant="error" />
       )}
       {(!services || services.length === 0) && (
-        <div className="bg-amber-100/60 dark:bg-amber-950/40 backdrop-blur-sm border border-amber-200/40 dark:border-amber-800/30 text-amber-700 dark:text-amber-300 text-sm px-4 py-3 rounded-xl mb-4 shadow-sm">
-          No hay servicios registrados. Agregá servicios en la sección Servicios.
-        </div>
+        <StatePanel title="Sin servicios" description="No hay servicios registrados. Agregá servicios en la sección Servicios." />
       )}
       {(!staff || staff.length === 0) && (
-        <div className="bg-amber-100/60 dark:bg-amber-950/40 backdrop-blur-sm border border-amber-200/40 dark:border-amber-800/30 text-amber-700 dark:text-amber-300 text-sm px-4 py-3 rounded-xl mb-4 shadow-sm">
-          No hay personal registrado. Agregá personal en la sección Personal.
-        </div>
+        <StatePanel title="Sin personal" description="No hay personal registrado. Agregá personal en la sección Personal." />
       )}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
         <div>
@@ -225,13 +229,14 @@ export default function CalendarPageClient({
               setFormInitialHour(undefined);
               setFormModalOpen(true);
             }}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 transition-colors cursor-pointer select-none"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 transition-colors cursor-pointer select-none"
           >
             <Plus className="h-4 w-4" />
             Agregar turno
           </button>
           <div className="flex flex-wrap items-center rounded-2xl sm:rounded-full bg-white/30 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 p-0.5 shadow-sm relative gap-1">
           <button
+            type="button"
             onClick={() => setStaffFilter(null)}
             className={`relative z-10 px-2.5 sm:px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all cursor-pointer select-none ${
               staffFilter === null
@@ -253,6 +258,7 @@ export default function CalendarPageClient({
             return (
               <button
                 key={s.id}
+                type="button"
                 onClick={() => setStaffFilter(isActive ? null : s.id)}
                 className={`relative z-10 inline-flex max-w-full items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all cursor-pointer select-none ${
                   isActive

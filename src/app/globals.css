@@ -151,6 +151,11 @@ body.ios-standalone .dashboard-mobile-header {
   padding-top: calc(env(safe-area-inset-top) + 0.5rem);
 }
 
+body.android-standalone .dashboard-mobile-header {
+  padding-top: calc(env(safe-area-inset-top) + 0.85rem);
+  min-height: 4.2rem;
+}
+
 @media (max-width: 768px) {
   input,
   select,

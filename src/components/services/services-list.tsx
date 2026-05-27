@@ -9,6 +9,7 @@ import { deleteService } from "@/lib/dashboard/service-actions";
 import { supabase } from "@/lib/supabase";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
+import { StatePanel } from "@/components/ui/state-panel";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import type { Industry } from "@/lib/industry/types";
 
@@ -149,11 +150,12 @@ export default function ServicesList({ shopId, shopSlug, industry, initialServic
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">{serviceWord}s</h1>
-          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Las secciones/categorias de /book ahora se editan en Mi Negocio - Personalizacion.</p>
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Las secciones/categorías de /book ahora se editan en Mi Negocio - Personalización.</p>
         </div>
         <button
+          type="button"
           onClick={openCreate}
-          className="inline-flex items-center justify-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 transition-colors cursor-pointer select-none"
+          className="inline-flex items-center justify-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 transition-colors cursor-pointer select-none"
         >
           <Plus className="w-4 h-4" />
           Nuevo {serviceWord}
@@ -162,10 +164,9 @@ export default function ServicesList({ shopId, shopSlug, industry, initialServic
 
       {services.length === 0 ? (
         <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] py-16 px-6 text-center">
-          <p className="text-gray-500 dark:text-gray-400 text-sm">
-            No hay {serviceWordLower}s creados aun.
-          </p>
+          <StatePanel title={`Sin ${serviceWordLower}s`} description={`Todavía no hay ${serviceWordLower}s creados.`} />
           <button
+            type="button"
             onClick={openCreate}
             className="mt-4 inline-flex items-center gap-2 text-violet-600 text-sm font-medium hover:text-violet-700 cursor-pointer select-none"
           >
@@ -192,14 +193,16 @@ export default function ServicesList({ shopId, shopSlug, industry, initialServic
                   <span className="font-medium text-gray-900 dark:text-gray-100">{service.duration_minutes} min</span>
                 </div>
                 <div className="mt-3 flex items-center justify-end gap-1">
-                  <button
+                   <button
+                    type="button"
                     onClick={() => openEdit(service)}
                     className="p-1.5 rounded-md text-gray-500 hover:text-violet-600 hover:bg-violet-50 transition-colors cursor-pointer select-none"
                     title="Editar"
                   >
                     <Pencil className="w-4 h-4" />
                   </button>
-                  <button
+                   <button
+                    type="button"
                     onClick={() => handleDelete(service.id)}
                     className="p-1.5 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer select-none"
                     title="Eliminar"
@@ -213,7 +216,7 @@ export default function ServicesList({ shopId, shopSlug, industry, initialServic
 
           <div className="hidden md:block bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full" aria-label="Tabla de servicios">
               <thead>
                 <tr className="bg-white/40 dark:bg-black/20 border-b border-white/20 dark:border-white/10">
                   <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider px-6 py-3">
@@ -250,14 +253,16 @@ export default function ServicesList({ shopId, shopSlug, industry, initialServic
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <button
+                         <button
+                          type="button"
                           onClick={() => openEdit(service)}
                           className="p-1.5 rounded-md text-gray-500 hover:text-violet-600 hover:bg-violet-50 transition-colors cursor-pointer select-none"
                           title="Editar"
                         >
                           <Pencil className="w-4 h-4" />
                         </button>
-                        <button
+                         <button
+                          type="button"
                           onClick={() => handleDelete(service.id)}
                           className="p-1.5 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer select-none"
                           title="Eliminar"

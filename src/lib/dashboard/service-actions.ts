@@ -1,6 +1,7 @@
 "use server";
 
 import { createServiceRoleClient, requireShopId } from "@/lib/dashboard/auth-server";
+import { trackProductEvent } from "@/lib/analytics/product-events";
 import { revalidateDashboardSegments } from "@/lib/dashboard/revalidate-dashboard";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
@@ -150,6 +151,8 @@ export async function createService(formData: FormData, shopIdOverride?: string)
       console.error("[createService] Supabase error:", error);
       return { success: false, error: error.message };
     }
+
+    await trackProductEvent(shopId, "first_service_published");
 
     await revalidateDashboardSegments(shopId, ["/services"]);
     return { success: true };

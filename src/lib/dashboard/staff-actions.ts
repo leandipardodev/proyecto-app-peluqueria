@@ -2,6 +2,7 @@
 
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient, requireShopId } from "@/lib/dashboard/auth-server";
+import { trackProductEvent } from "@/lib/analytics/product-events";
 import { revalidateDashboardSegments } from "@/lib/dashboard/revalidate-dashboard";
 import { createStaffInviteToken } from "@/lib/dashboard/staff-invite";
 import type { ActionResult } from "@/lib/types";
@@ -257,6 +258,10 @@ export async function addStaffMember(formData: FormData, shopIdOverride?: string
         console.error("[addStaffMember] invite email error:", mailError);
       }
 
+      if (role === "staff") {
+        await trackProductEvent(shopId, "first_staff_added", { metadata: { source: "existing_user" } });
+      }
+
       await revalidateDashboardSegments(shopId, ["/staff"]);
       return { success: true, data: { login_url: loginUrl } };
     }
@@ -324,6 +329,10 @@ export async function addStaffMember(formData: FormData, shopIdOverride?: string
       await sendStaffInviteEmail({ to: normalizedEmail, name, role });
     } catch (mailError) {
       console.error("[addStaffMember] invite email error:", mailError);
+    }
+
+    if (role === "staff") {
+      await trackProductEvent(shopId, "first_staff_added", { metadata: { source: "new_user" } });
     }
 
     await revalidateDashboardSegments(shopId, ["/staff"]);

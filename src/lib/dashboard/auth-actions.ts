@@ -5,6 +5,7 @@ import { createServerClient } from "@supabase/ssr";
 import { redirect } from "next/navigation";
 import type { ActionResult } from "@/lib/types";
 import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
+import { trackProductEvent } from "@/lib/analytics/product-events";
 import { sendEmailWithResend } from "@/lib/email/resend";
 import { resolveIndustry } from "@/lib/industry/resolve";
 import "server-only";
@@ -219,6 +220,11 @@ export async function registerShop(
       return { success: false, error: membershipError.message };
     }
 
+    await trackProductEvent(createdShop.id, "trial_started", {
+      actorUserId: signUpData.user.id,
+      metadata: { source: "register_shop", trial_days: 15 },
+    });
+
     try {
       await admin.from("admin_allowlist").upsert(
         {
@@ -401,6 +407,13 @@ export async function createAdditionalShop(shopName: string): Promise<ActionResu
         await admin.from("shops").delete().eq("id", createdShop.id);
       } catch {}
       return { success: false, error: "No se pudo vincular el nuevo local al usuario" };
+    }
+
+    if (isFirstShop && trialEnd) {
+      await trackProductEvent(createdShop.id, "trial_started", {
+        actorUserId: user.id,
+        metadata: { source: "create_additional_shop", trial_days: 15 },
+      });
     }
 
     const { error: profileSyncError } = await admin

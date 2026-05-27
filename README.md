@@ -30,6 +30,10 @@ npm install
 npm run dev
 ```
 
+## Guías de UX
+
+- Consistencia de microcopy, estados vacíos/error y accesibilidad base: `docs/ux/ux-copy-map.md`
+
 ## Variables de entorno
 
 Crea un archivo `.env.local` con:

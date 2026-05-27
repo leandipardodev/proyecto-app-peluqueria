@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { resolveIndustry } from "@/lib/industry/resolve";
 import { DASHBOARD_LEGACY_SEGMENTS_SET } from "@/lib/dashboard/legacy-segments";
+import { trackProductEvent } from "@/lib/analytics/product-events";
 
 const TRIAL_DAYS = 15;
 
@@ -320,6 +321,11 @@ export async function GET(request: NextRequest) {
         } catch {}
         return NextResponse.redirect(new URL(`/register?error=${encodeURIComponent(membershipError.message)}`, request.url));
       }
+
+      await trackProductEvent(createdShop.id, "trial_started", {
+        actorUserId: user.id,
+        metadata: { source: "oauth_owner_signup", trial_days: TRIAL_DAYS },
+      });
 
       await adminClient.from("admin_allowlist").upsert(
         {

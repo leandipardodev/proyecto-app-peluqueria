@@ -12,6 +12,7 @@ import { applyStockBatchAdjustments, deleteProduct } from "@/lib/dashboard/inven
 import { supabase } from "@/lib/supabase";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
+import { StatePanel } from "@/components/ui/state-panel";
 
 type StockItem = {
   id: string;
@@ -186,6 +187,7 @@ export default function StockTable({ shopId, items }: StockTableProps) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar producto..."
+            aria-label="Buscar producto"
             className="w-full pl-9 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-950 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
           />
         </div>
@@ -206,9 +208,10 @@ export default function StockTable({ shopId, items }: StockTableProps) {
 
       <div className="md:hidden space-y-3">
         {filtered.length === 0 ? (
-          <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[1.75rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-4 text-sm text-center text-gray-500 dark:text-gray-400">
-            {search ? "No se encontraron productos" : "No hay productos en el inventario"}
-          </div>
+          <StatePanel
+            title={search ? "Sin resultados" : "Sin productos"}
+            description={search ? "No encontramos productos con ese criterio de búsqueda." : "Todavía no hay productos en el inventario."}
+          />
         ) : (
           filtered.map((item) => {
             const isLow = item.quantity < 5;
@@ -242,6 +245,7 @@ export default function StockTable({ shopId, items }: StockTableProps) {
                       className="w-20 px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm"
                     />
                   <button
+                    type="button"
                     onClick={() => handleBulkAdjust(item.id, 1)}
                     disabled={pending}
                     className="px-2 py-1 rounded-md text-xs bg-emerald-600 text-white disabled:opacity-40"
@@ -249,6 +253,7 @@ export default function StockTable({ shopId, items }: StockTableProps) {
                     + cantidad
                   </button>
                   <button
+                    type="button"
                     onClick={() => handleBulkAdjust(item.id, -1)}
                     disabled={pending || item.quantity <= 0}
                     className="px-2 py-1 rounded-md text-xs bg-amber-600 text-white disabled:opacity-40"
@@ -256,10 +261,12 @@ export default function StockTable({ shopId, items }: StockTableProps) {
                     - cantidad
                   </button>
                   <button
+                    type="button"
                     onClick={() => handleDelete(item.id)}
                     disabled={pending}
                     className="ml-auto p-1.5 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
                     title="Eliminar"
+                    aria-label={`Eliminar ${item.nombre_producto}`}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -279,7 +286,7 @@ export default function StockTable({ shopId, items }: StockTableProps) {
 
       <div className="hidden md:block bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full" aria-label="Tabla de inventario">
             <thead>
               <tr className="bg-white/40 dark:bg-black/20 border-b border-white/20 dark:border-white/10">
                 <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider px-6 py-3">
@@ -306,9 +313,10 @@ export default function StockTable({ shopId, items }: StockTableProps) {
                       colSpan={5}
                       className="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400"
                   >
-                    {search
-                      ? "No se encontraron productos"
-                      : "No hay productos en el inventario"}
+                    <StatePanel
+                      title={search ? "Sin resultados" : "Sin productos"}
+                      description={search ? "No encontramos productos con ese criterio de búsqueda." : "Todavía no hay productos en el inventario."}
+                    />
                   </td>
                 </tr>
               ) : (
@@ -358,6 +366,7 @@ export default function StockTable({ shopId, items }: StockTableProps) {
                             className="w-16 px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-xs"
                           />
                           <button
+                            type="button"
                             onClick={() => handleBulkAdjust(item.id, 1)}
                             disabled={pending}
                             className="px-2 py-1 rounded-md text-[11px] bg-emerald-600 text-white disabled:opacity-40"
@@ -365,6 +374,7 @@ export default function StockTable({ shopId, items }: StockTableProps) {
                             +
                           </button>
                           <button
+                            type="button"
                             onClick={() => handleBulkAdjust(item.id, -1)}
                             disabled={pending || item.quantity <= 0}
                             className="px-2 py-1 rounded-md text-[11px] bg-amber-600 text-white disabled:opacity-40"
@@ -372,10 +382,12 @@ export default function StockTable({ shopId, items }: StockTableProps) {
                             -
                           </button>
                           <button
+                            type="button"
                             onClick={() => handleDelete(item.id)}
                             disabled={pending}
                             className="p-1.5 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
                             title="Eliminar"
+                            aria-label={`Eliminar ${item.nombre_producto}`}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>

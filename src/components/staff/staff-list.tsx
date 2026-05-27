@@ -18,6 +18,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
+import { StatePanel } from "@/components/ui/state-panel";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import type { Industry } from "@/lib/industry/types";
 
@@ -100,7 +101,7 @@ export default function StaffList({
     const channel = supabase
       .channel(`staff-${shopId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "shop_memberships", filter: `shop_id=eq.${shopId}` }, refreshStaff)
-      .on("postgres_changes", { event: "*", schema: "public", table: "user_profiles" }, refreshStaff)
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_profiles", filter: `shop_id=eq.${shopId}` }, refreshStaff)
       .subscribe();
 
     return () => {
@@ -191,7 +192,7 @@ export default function StaffList({
       {tutorialActive && (
         <div className="mb-4 rounded-2xl border border-violet-300/50 bg-violet-50/80 dark:bg-violet-900/20 px-4 py-3">
           <p className="text-sm font-semibold text-violet-800 dark:text-violet-200">Paso 4: {staffPlural}</p>
-          <p className="mt-1 text-xs text-violet-700/90 dark:text-violet-200/90">Cuando termines, continua al paso de Servicios.</p>
+          <p className="mt-1 text-xs text-violet-700/90 dark:text-violet-200/90">Cuando termines, continuá al paso de Servicios.</p>
           <div className="mt-3 flex justify-end">
             <button
               type="button"
@@ -212,13 +213,13 @@ export default function StaffList({
         {canManageStaff ? (
           <Button type="button" onClick={() => setShowForm(true)}>Agregar {staffWord}</Button>
         ) : (
-          <span className="text-xs text-gray-500 dark:text-gray-400">Solo owner puede invitar y editar personal</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">Solo el owner puede invitar y editar personal</span>
         )}
       </div>
 
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-sm px-4 py-3 rounded-lg mb-4">
-          {error}
+        <div className="mb-4">
+          <StatePanel title="Error al gestionar personal" description={error} variant="error" />
         </div>
       )}
 
@@ -226,9 +227,9 @@ export default function StaffList({
         <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-4 sm:p-6 mb-6">
           <h3 className="text-lg font-medium dark:text-gray-100 mb-4 tracking-tight">Nuevo {staffWord}</h3>
           <div className="mb-4 rounded-xl border border-sky-200/60 bg-sky-50/80 dark:bg-sky-900/20 px-3 py-2 text-xs text-sky-800 dark:text-sky-200">
-            1) Carga nombre, email y rol. 2) Guarda. 3) Copia el link de ingreso y compartelo con el {staffWordLower}.
+            1) Cargá nombre, correo y rol. 2) Guardá. 3) Copiá el enlace de ingreso y compartilo con el {staffWordLower}.
             <br />
-            El {staffWordLower} debe abrir ese link e iniciar sesion con ese mismo email para quedar asociado al local.
+            El {staffWordLower} debe abrir ese enlace e iniciar sesión con ese mismo correo para quedar asociado al local.
           </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -241,8 +242,8 @@ export default function StaffList({
                 className="mt-1"
               />
             </div>
-            <div>
-              <Label htmlFor="email">Email</Label>
+             <div>
+               <Label htmlFor="email">Correo</Label>
               <Input
                 id="email"
                 type="email"
@@ -324,7 +325,7 @@ export default function StaffList({
                     </Button>
                   </div>
                   <p className="text-xs text-green-600 dark:text-green-400 mt-2">
-                    Comparte esta contrasena con el {staffWordLower}.
+                     Compartí esta contraseña con el {staffWordLower}.
                   </p>
                 </>
               )}
@@ -356,9 +357,7 @@ export default function StaffList({
 
       <div className="md:hidden space-y-3">
         {staff.length === 0 ? (
-          <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[1.75rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-4 text-sm text-center text-gray-500 dark:text-gray-400">
-            No hay personal registrado
-          </div>
+          <StatePanel title="Sin personal" description="Todavía no hay personal registrado en este local." />
         ) : (
           staff.map((member) => {
             const isCurrentOwnerSelf = member.id === currentUserId && member.role === "owner";
@@ -428,7 +427,7 @@ export default function StaffList({
 
       <div className="hidden md:block bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden">
         <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700" aria-label="Tabla de personal">
           <thead className="bg-white/40 dark:bg-black/20">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -452,7 +451,7 @@ export default function StaffList({
             {staff.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
-                  No hay personal registrado
+                  <StatePanel title="Sin personal" description="Todavía no hay personal registrado en este local." />
                 </td>
               </tr>
             ) : (

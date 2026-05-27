@@ -1,9 +1,6 @@
 import { fetchDashboardSummary, fetchDashboardMetrics } from "@/lib/dashboard/dashboard-summary";
 import { CalendarDays, Bell, AlertTriangle, TrendingUp, Clock, MessageCircle } from "lucide-react";
 import ShareLinkCard from "@/components/dashboard/share-link-card";
-import RevenueChart from "@/components/dashboard/revenue-chart";
-import TopServices from "@/components/dashboard/top-services";
-import MonthlyGrowthCard from "@/components/dashboard/monthly-growth-card";
 import PwaInstallButton from "@/components/dashboard/pwa-install-button";
 import HoverScale from "@/components/ui/hover-scale";
 import { fetchWhatsappTemplate } from "@/lib/dashboard/whatsapp-actions";
@@ -13,10 +10,21 @@ import { createServiceRoleClient, getAuthSession, getShopId } from "@/lib/dashbo
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { resolveIndustry } from "@/lib/industry/resolve";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { redirect } from "next/navigation";
 import { fetchTodayVoucherAlerts } from "@/lib/dashboard/voucher-actions";
-import VoucherBirthdayAlert from "@/components/dashboard/voucher-birthday-alert";
 import type { CSSProperties } from "react";
+
+const RevenueChart = dynamic(() => import("@/components/dashboard/revenue-chart"), {
+  loading: () => <div className="h-72 rounded-3xl bg-white/30 dark:bg-white/5 animate-pulse" />,
+});
+const TopServices = dynamic(() => import("@/components/dashboard/top-services"), {
+  loading: () => <div className="h-52 rounded-3xl bg-white/30 dark:bg-white/5 animate-pulse" />,
+});
+const MonthlyGrowthCard = dynamic(() => import("@/components/dashboard/monthly-growth-card"), {
+  loading: () => <div className="h-52 rounded-3xl bg-white/30 dark:bg-white/5 animate-pulse" />,
+});
+const VoucherBirthdayAlert = dynamic(() => import("@/components/dashboard/voucher-birthday-alert"));
 
 export const dynamic = "force-dynamic";
 
