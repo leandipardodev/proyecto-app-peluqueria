@@ -10,21 +10,21 @@ import { createServiceRoleClient, getAuthSession, getShopId } from "@/lib/dashbo
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { resolveIndustry } from "@/lib/industry/resolve";
 import Link from "next/link";
-import dynamic from "next/dynamic";
+import dynamicImport from "next/dynamic";
 import { redirect } from "next/navigation";
 import { fetchTodayVoucherAlerts } from "@/lib/dashboard/voucher-actions";
 import type { CSSProperties } from "react";
 
-const RevenueChart = dynamic(() => import("@/components/dashboard/revenue-chart"), {
+const RevenueChart = dynamicImport(() => import("@/components/dashboard/revenue-chart"), {
   loading: () => <div className="h-72 rounded-3xl bg-white/30 dark:bg-white/5 animate-pulse" />,
 });
-const TopServices = dynamic(() => import("@/components/dashboard/top-services"), {
+const TopServices = dynamicImport(() => import("@/components/dashboard/top-services"), {
   loading: () => <div className="h-52 rounded-3xl bg-white/30 dark:bg-white/5 animate-pulse" />,
 });
-const MonthlyGrowthCard = dynamic(() => import("@/components/dashboard/monthly-growth-card"), {
+const MonthlyGrowthCard = dynamicImport(() => import("@/components/dashboard/monthly-growth-card"), {
   loading: () => <div className="h-52 rounded-3xl bg-white/30 dark:bg-white/5 animate-pulse" />,
 });
-const VoucherBirthdayAlert = dynamic(() => import("@/components/dashboard/voucher-birthday-alert"));
+const VoucherBirthdayAlert = dynamicImport(() => import("@/components/dashboard/voucher-birthday-alert"));
 
 export const dynamic = "force-dynamic";
 
