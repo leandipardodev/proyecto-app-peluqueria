@@ -1,5 +1,5 @@
 import { fetchDashboardSummary, fetchDashboardMetrics } from "@/lib/dashboard/dashboard-summary";
-import { CalendarDays, Bell, AlertTriangle, TrendingUp, Clock, MessageCircle } from "lucide-react";
+import { CalendarDays, AlertTriangle, TrendingUp, Clock, MessageCircle } from "lucide-react";
 import ShareLinkCard from "@/components/dashboard/share-link-card";
 import PwaInstallButton from "@/components/dashboard/pwa-install-button";
 import HoverScale from "@/components/ui/hover-scale";
@@ -14,6 +14,7 @@ import dynamicImport from "next/dynamic";
 import { redirect } from "next/navigation";
 import { fetchTodayVoucherAlerts } from "@/lib/dashboard/voucher-actions";
 import type { CSSProperties } from "react";
+import AINotificationCard from "@/components/dashboard/ai-notification-card";
 
 const RevenueChart = dynamicImport(() => import("@/components/dashboard/revenue-chart"), {
   loading: () => <div className="h-72 rounded-3xl bg-white/30 dark:bg-white/5 animate-pulse" />,
@@ -78,6 +79,30 @@ function formatGrowth(value: number | null): string {
   return `${sign}${value}%`;
 }
 
+function sameMonthDay(date: Date, monthIndex: number, day: number): boolean {
+  return date.getMonth() === monthIndex && date.getDate() === day;
+}
+
+function thirdSundayOfOctober(year: number): Date {
+  const firstDay = new Date(year, 9, 1);
+  const firstSundayOffset = (7 - firstDay.getDay()) % 7;
+  const day = 1 + firstSundayOffset + 14;
+  return new Date(year, 9, day);
+}
+
+function seasonalMomentLabel(now: Date): string | null {
+  if (sameMonthDay(now, 1, 14)) return "14 de febrero: Día de San Valentín";
+  if (sameMonthDay(now, 2, 8)) return "8 de marzo: Día Internacional de la Mujer";
+  if (sameMonthDay(now, 2, 21)) return "21 de marzo: Inicio del otoño (cambio de look)";
+  if (sameMonthDay(now, 5, 21)) return "21 de junio: Día del Padre";
+  if (sameMonthDay(now, 7, 25)) return "25 de agosto: Día del Peluquero";
+  if (sameMonthDay(now, 8, 21)) return "21 de septiembre: Inicio de la primavera (cambio de look)";
+  const thirdSunday = thirdSundayOfOctober(now.getFullYear());
+  if (now.getMonth() === 9 && now.getDate() === thirdSunday.getDate()) return "Tercer domingo de octubre: Día de la Madre";
+  if (now.getMonth() === 11) return "Diciembre: Fiestas de fin de año (Navidad y Año Nuevo)";
+  return null;
+}
+
 export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOverride?: string) {
   const [summaryResult, metricsResult, whatsappTemplateResult, voucherAlertsResult] = await Promise.all([
     fetchDashboardSummary(shopIdOverride),
@@ -98,7 +123,6 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
   const socialLinks = await fetchShopLinks(shopIdOverride);
   const industry = await fetchShopIndustry(shopIdOverride, shopSlugOverride || summary.shopSlug || null);
   const labels = INDUSTRY_CONFIG[industry].labels;
-  const customerWord = labels.customerSingular;
   const customerPlural = labels.customerPlural;
   const servicePlural = labels.servicePlural;
   const metrics = metricsResult.success && metricsResult.data ? metricsResult.data : null;
@@ -121,41 +145,112 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
   const loyaltyRewardsCount = summary.loyaltyRewardsReadyCount || 0;
   const firstLoyaltyCustomer = summary.loyaltyRewardCustomerNames?.[0] || null;
   const extraLoyaltyCustomers = Math.max(0, loyaltyRewardsCount - 1);
-  const notificationCard =
-    typeof minutesToNextAppointment === "number" && minutesToNextAppointment >= 0 && minutesToNextAppointment <= 60
-      ? {
-          kind: "appointment" as const,
-          value: `Turno en ${Math.max(1, minutesToNextAppointment)} min`,
-          hint: nextAppointment?.customers?.nombre ? `${customerWord}: ${nextAppointment.customers.nombre}` : "Proximo turno confirmado",
-        }
-      : todayVouchersCount > 0
-        ? {
-            kind: "voucher" as const,
-            value: `${todayVouchersCount} cumpleanos hoy`,
-            hint: "Hay vouchers para enviar hoy",
-          }
-        : loyaltyRewardsCount > 0
-          ? {
-              kind: "loyalty" as const,
-              value: `${loyaltyRewardsCount} canje(s) listo(s)`,
-              hint: firstLoyaltyCustomer
-                ? extraLoyaltyCustomers > 0
-                  ? `${firstLoyaltyCustomer} + ${extraLoyaltyCustomers} cliente(s) con canje`
-                  : `${firstLoyaltyCustomer} tiene un canje listo`
-                : `${customerPlural} alcanzaron meta de cortes`,
-            }
-          : {
-              kind: "none" as const,
-              value: "Sin alertas urgentes",
-              hint: "Todo bajo control por ahora",
-            };
+  const aiMessages: Array<{ id: string; title: string; body: string; tone: "urgent" | "action" | "insight"; href: string }> = [];
 
-  const notificationHref =
-    notificationCard.kind === "voucher"
-      ? withDashboardBase("/dashboard/vouchers")
-      : notificationCard.kind === "loyalty"
-        ? withDashboardBase("/dashboard/fidelizacion")
-        : withDashboardBase("/dashboard/calendar");
+  const seasonalLabel = seasonalMomentLabel(new Date());
+  if (seasonalLabel) {
+    aiMessages.push({
+      id: "seasonal",
+      title: "Fecha importante detectada",
+      body: `${seasonalLabel}. Te recomiendo campaña y contenido hoy mismo.`,
+      tone: "insight",
+      href: withDashboardBase("/dashboard/business"),
+    });
+  }
+
+  if (typeof minutesToNextAppointment === "number" && minutesToNextAppointment >= 0 && minutesToNextAppointment <= 90) {
+    aiMessages.push({
+      id: "next-appointment",
+      title: "Agenda en movimiento",
+      body: `Tenés un turno en ${Math.max(1, minutesToNextAppointment)} min${nextAppointment?.customers?.nombre ? ` (${nextAppointment.customers.nombre})` : ""}.`,
+      tone: "urgent",
+      href: withDashboardBase("/dashboard/calendar"),
+    });
+  }
+
+  if (summary.appointmentsCount === 0) {
+    aiMessages.push({
+      id: "empty-day",
+      title: "Oportunidad del día",
+      body: "La agenda está tranquila. Es un buen momento para activar recordatorios por WhatsApp.",
+      tone: "action",
+      href: withDashboardBase("/dashboard/calendar"),
+    });
+  } else {
+    aiMessages.push({
+      id: "appointments-volume",
+      title: "Pulso de agenda",
+      body: `Hoy tenés ${summary.appointmentsCount} turno(s) cargado(s).`,
+      tone: "insight",
+      href: withDashboardBase("/dashboard/calendar"),
+    });
+  }
+
+  if (summary.lowStockCount > 0) {
+    aiMessages.push({
+      id: "low-stock",
+      title: "Stock en alerta",
+      body: `${summary.lowStockCount} producto(s) están bajos. Conviene reponer antes de hora pico.`,
+      tone: "urgent",
+      href: withDashboardBase("/dashboard/inventory"),
+    });
+  }
+
+  if (todayVouchersCount > 0) {
+    aiMessages.push({
+      id: "birthday-voucher",
+      title: "Cumpleaños detectados",
+      body: `Hay ${todayVouchersCount} voucher(s) de cumple listos para enviar hoy.`,
+      tone: "action",
+      href: withDashboardBase("/dashboard/vouchers"),
+    });
+  }
+
+  if (loyaltyRewardsCount > 0) {
+    aiMessages.push({
+      id: "loyalty",
+      title: "Clientes para fidelizar",
+      body: firstLoyaltyCustomer
+        ? `${firstLoyaltyCustomer}${extraLoyaltyCustomers > 0 ? ` y ${extraLoyaltyCustomers} más` : ""} tienen canje disponible.`
+        : `${customerPlural} tienen canjes disponibles.`,
+      tone: "action",
+      href: withDashboardBase("/dashboard/fidelizacion"),
+    });
+  }
+
+  const todayFlow = metrics?.flowByPeriod.today;
+  if (todayFlow) {
+    aiMessages.push({
+      id: "cashflow",
+      title: "Caja en tiempo real",
+      body: `Hoy ingresan $${Math.round(todayFlow.income).toLocaleString("es-AR")} y egresan $${Math.round(todayFlow.expenses).toLocaleString("es-AR")}.`,
+      tone: "insight",
+      href: withDashboardBase("/dashboard/finances"),
+    });
+  }
+
+  const topService = metrics?.topServices?.[0];
+  if (topService) {
+    aiMessages.push({
+      id: "top-service",
+      title: "Servicio estrella",
+      body: `${topService.name} lidera hoy con ${topService.count} reserva(s).`,
+      tone: "insight",
+      href: withDashboardBase("/dashboard/business"),
+    });
+  }
+
+  if (aiMessages.length === 0) {
+    aiMessages.push({
+      id: "all-good",
+      title: "Todo en orden",
+      body: "No hay alertas urgentes ahora. Me quedo monitoreando tu local en vivo.",
+      tone: "insight",
+      href: withDashboardBase("/dashboard/calendar"),
+    });
+  }
+
+  const aiCardHref = aiMessages[0]?.href || withDashboardBase("/dashboard/calendar");
 
   const cards = [
     {
@@ -164,14 +259,6 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
       icon: CalendarDays,
       color: "text-blue-600",
       bg: "bg-blue-500/10",
-    },
-    {
-      label: "Notificaciones",
-      value: notificationCard.value,
-      hint: notificationCard.hint,
-      icon: Bell,
-      color: "text-indigo-600",
-      bg: "bg-indigo-500/10",
     },
     {
       label: "Alertas de stock",
@@ -191,7 +278,6 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
 
   const cardHrefByLabel: Record<string, string> = {
     "Turnos hoy": withDashboardBase("/dashboard/calendar"),
-    Notificaciones: notificationHref,
     "Alertas de stock": withDashboardBase("/dashboard/inventory"),
     "Crecimiento": withDashboardBase("/dashboard/business#estadisticas"),
   };
@@ -320,6 +406,10 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
           </HoverScale>
           );
         })}
+        <AINotificationCard
+          href={aiCardHref}
+          messages={aiMessages.map((item) => ({ id: item.id, title: item.title, body: item.body, tone: item.tone }))}
+        />
       </div>
 
       <div className="relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
