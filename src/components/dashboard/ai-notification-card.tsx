@@ -80,7 +80,7 @@ export default function AINotificationCard({
       <div className="relative h-[148px] md:h-[156px]">
         <div className="absolute inset-0 rounded-[2rem]" />
         <div className="ai-orb-wrap relative h-full overflow-hidden rounded-[2rem] border border-cyan-300/30 bg-white p-4 text-cyan-950 shadow-[0_20px_48px_rgba(8,145,178,0.28)] transition-transform duration-300 group-hover:-translate-y-0.5 dark:bg-slate-950/92 dark:text-cyan-50">
-          <div className={`pointer-events-none absolute inset-0 ai-mode-layer ai-mode-orb ${visualMode === "orb" ? "opacity-100 blur-0" : "opacity-0 blur-[4px]"} bg-[radial-gradient(circle_at_22%_24%,rgba(6,182,212,0.12),transparent_36%),radial-gradient(circle_at_80%_16%,rgba(37,99,235,0.10),transparent_34%)] dark:bg-[radial-gradient(circle_at_22%_24%,rgba(34,211,238,0.2),transparent_36%),radial-gradient(circle_at_80%_16%,rgba(96,165,250,0.18),transparent_34%)]`} />
+          <div className={`pointer-events-none absolute inset-0 ai-mode-layer ai-mode-orb ${visualMode === "orb" ? "opacity-100 blur-0" : "opacity-0 blur-[4px]"} bg-[radial-gradient(circle_at_22%_24%,rgba(6,182,212,0.22),transparent_42%),radial-gradient(circle_at_80%_16%,rgba(37,99,235,0.20),transparent_40%),radial-gradient(circle_at_45%_88%,rgba(14,165,233,0.16),transparent_44%)] dark:bg-[radial-gradient(circle_at_22%_24%,rgba(34,211,238,0.2),transparent_36%),radial-gradient(circle_at_80%_16%,rgba(96,165,250,0.18),transparent_34%)]`} />
           <div className={`pointer-events-none absolute inset-0 ai-mode-layer ai-mode-matrix ${visualMode === "matrix" ? "opacity-100 blur-0" : "opacity-0 blur-[4px]"}`}>
             <div className="ai-matrix-grid h-full w-full" />
           </div>
@@ -173,14 +173,22 @@ export default function AINotificationCard({
           }
           .ai-matrix-grid {
             background-image:
-              linear-gradient(rgba(34,211,238,0.16) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(34,211,238,0.16) 1px, transparent 1px);
+              linear-gradient(rgba(14,165,233,0.26) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(14,165,233,0.26) 1px, transparent 1px);
             background-size: 18px 18px;
             animation: matrixDrift 6.5s linear infinite;
           }
+          :global(html.dark) .ai-matrix-grid {
+            background-image:
+              linear-gradient(rgba(34,211,238,0.16) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(34,211,238,0.16) 1px, transparent 1px);
+          }
           .ai-scan {
-            background: linear-gradient(180deg, transparent 0%, rgba(45, 212, 191, 0.08) 45%, transparent 100%);
+            background: linear-gradient(180deg, transparent 0%, rgba(14, 165, 233, 0.16) 48%, transparent 100%);
             animation: aiScan 3.8s linear infinite;
+          }
+          :global(html.dark) .ai-scan {
+            background: linear-gradient(180deg, transparent 0%, rgba(45, 212, 191, 0.08) 45%, transparent 100%);
           }
           .ai-mode-layer {
             will-change: opacity, filter;

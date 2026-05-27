@@ -682,6 +682,9 @@ export async function updateAppointmentStatus(
     if (!currentAppointment) return { success: false, error: "Turno no encontrado" };
 
     const updates: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
+    if (status === "completed" && isPaid === undefined) {
+      updates.is_paid = true;
+    }
     if (isPaid !== undefined) {
       updates.is_paid = isPaid;
     }
@@ -859,6 +862,7 @@ export async function patchAppointmentQuick(
 
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (patch.status !== undefined) updates.status = patch.status;
+    if (patch.status === "completed" && patch.isPaid === undefined) updates.is_paid = true;
     if (patch.isPaid !== undefined) updates.is_paid = patch.isPaid;
     if (normalizedStaffId !== undefined) updates.staff_id = normalizedStaffId;
     if (normalizedServiceId !== undefined) updates.service_id = normalizedServiceId;

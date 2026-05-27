@@ -96,7 +96,7 @@ export default async function BillingRequiredPage({
           </p>
 
           <div className="pt-1 pb-2">
-            <a href="mailto:soporte@klip.app" className="text-xs text-zinc-500 hover:text-zinc-700">¿Necesitás ayuda? soporte@klip.app</a>
+            <a href="mailto:soporte@klip.com.ar" className="text-xs text-zinc-500 hover:text-zinc-700">¿Necesitás ayuda? soporte@klip.com.ar</a>
           </div>
         </div>
       </div>
