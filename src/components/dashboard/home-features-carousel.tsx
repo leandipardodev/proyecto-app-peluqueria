@@ -30,7 +30,7 @@ const SLIDES: Slide[] = [
     kicker: "Inicio optimizado",
     title: "Métricas y estadísticas claras para no perder ningún detalle.",
     text: "Tu panel principal resume lo importante de ingresos, actividad y alertas para que tomes decisiones rápido, sin fricción.",
-    image: "/landing/carousel/2.png",
+    image: "/landing/carousel/1.png",
     alt: "Panel principal de Klip con métricas del negocio",
   },
   {
@@ -38,7 +38,7 @@ const SLIDES: Slide[] = [
     kicker: "Calendario completo",
     title: "Gestioná turnos con una vista potente y súper práctica.",
     text: "Editá, reprogramá y controlá toda la agenda desde un solo lugar, con estados visuales claros y flujo operativo en tiempo real.",
-    image: "/landing/carousel/3.png",
+    image: "/landing/carousel/1.png",
     alt: "Calendario de Klip con funcionalidades de agenda",
   },
 ];
@@ -50,14 +50,8 @@ export default function HomeFeaturesCarousel() {
   const slide = SLIDES[active];
 
   const imageStyles = useMemo(() => {
-    if (slide.id === "devices") {
-      return { frame: "rotate-[-1.2deg] md:translate-y-1", glow: "from-sky-300/45 via-cyan-200/26 to-blue-300/40" };
-    }
-    if (slide.id === "dashboard") {
-      return { frame: "rotate-[0.65deg] md:-translate-y-1", glow: "from-indigo-300/42 via-blue-200/20 to-sky-300/38" };
-    }
-    return { frame: "rotate-[-0.45deg] md:translate-y-0.5", glow: "from-cyan-300/42 via-sky-200/24 to-teal-300/36" };
-  }, [slide.id]);
+    return { frame: "", glow: "from-sky-300/45 via-cyan-200/26 to-blue-300/40" };
+  }, []);
 
   function goPrev() {
     setActive((prev) => (prev - 1 + SLIDES.length) % SLIDES.length);
@@ -129,16 +123,16 @@ export default function HomeFeaturesCarousel() {
         </div>
 
         <div className="order-1 md:order-2 md:col-span-7">
-          <div className="relative h-[320px] overflow-visible md:h-[490px]">
-            <div className={`pointer-events-none absolute -inset-x-12 inset-y-6 bg-gradient-to-br ${imageStyles.glow} blur-2xl`} />
+          <div className="relative h-[380px] overflow-visible md:h-[560px]">
+            <div className={`pointer-events-none absolute -inset-x-16 inset-y-4 bg-gradient-to-br ${imageStyles.glow} blur-3xl`} />
             <AnimatePresence mode="wait">
               <motion.div
                 key={slide.id}
                 initial={{ opacity: 0, scale: 1.02 }}
-                animate={{ opacity: 1, scale: 1.08, x: dragX }}
+                animate={{ opacity: 1, scale: 1, x: dragX }}
                 exit={{ opacity: 0, scale: 1.04 }}
                 transition={{ duration: 0.6, ease: EASE }}
-                className={`absolute -inset-x-6 inset-y-0 overflow-hidden md:-inset-x-10 ${imageStyles.frame}`}
+                className={`absolute -inset-x-4 inset-y-0 overflow-hidden md:-inset-x-6 ${imageStyles.frame}`}
                 drag="x"
                 dragConstraints={{ left: 0, right: 0 }}
                 dragElastic={0.12}
@@ -151,12 +145,12 @@ export default function HomeFeaturesCarousel() {
                   if (shouldNext) goNext();
                 }}
                 style={{
-                  filter: "drop-shadow(0 18px 30px rgba(15,23,42,0.16))",
-                  WebkitMaskImage: "radial-gradient(145% 120% at 50% 50%, black 72%, transparent 100%)",
-                  maskImage: "radial-gradient(145% 120% at 50% 50%, black 72%, transparent 100%)",
+                  filter: "drop-shadow(0 20px 40px rgba(15,23,42,0.18))",
+                  WebkitMaskImage: "radial-gradient(130% 115% at 50% 50%, black 74%, transparent 100%)",
+                  maskImage: "radial-gradient(130% 115% at 50% 50%, black 74%, transparent 100%)",
                 }}
               >
-                <Image src={slide.image} alt={slide.alt} fill sizes="(max-width: 768px) 100vw, 60vw" className="object-cover" priority={active === 0} />
+                <Image src={slide.image} alt={slide.alt} fill sizes="(max-width: 768px) 100vw, 60vw" className="object-contain" priority={active === 0} />
                 <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,rgba(255,255,255,0.08)_0%,transparent_42%,rgba(14,165,233,0.08)_100%)]" />
               </motion.div>
             </AnimatePresence>
