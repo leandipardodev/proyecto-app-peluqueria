@@ -76,7 +76,10 @@ export default async function AdminIndustriesPage({
           <thead>
             <tr className="border-b border-zinc-200 bg-zinc-50 text-xs font-semibold uppercase tracking-[0.05em] text-zinc-500">
               <th className="px-5 py-3">Industria</th>
-              <th className="px-5 py-3 text-center">Inventory (Stock)</th>
+              <th className="px-5 py-3 text-center">Inventory</th>
+              <th className="px-5 py-3 text-center">Marketing</th>
+              <th className="px-5 py-3 text-center">Staff</th>
+              <th className="px-5 py-3 text-center">Vouchers</th>
             </tr>
           </thead>
           <tbody>
@@ -86,12 +89,16 @@ export default async function AdminIndustriesPage({
                 <tr key={cfg.industry} className="border-b border-zinc-100 last:border-0">
                   <td className="px-5 py-4 font-medium">{info.displayName}</td>
                   <td className="px-5 py-4 text-center">
-                    <IndustryToggle
-                      industry={cfg.industry}
-                      feature="inventory"
-                      enabled={cfg.features.inventory}
-                      handleToggle={handleToggle}
-                    />
+                    <IndustryToggle industry={cfg.industry} feature="inventory" enabled={cfg.features.inventory} handleToggle={handleToggle} />
+                  </td>
+                  <td className="px-5 py-4 text-center">
+                    <IndustryToggle industry={cfg.industry} feature="marketing" enabled={cfg.features.marketing} handleToggle={handleToggle} />
+                  </td>
+                  <td className="px-5 py-4 text-center">
+                    <IndustryToggle industry={cfg.industry} feature="staff" enabled={cfg.features.staff} handleToggle={handleToggle} />
+                  </td>
+                  <td className="px-5 py-4 text-center">
+                    <IndustryToggle industry={cfg.industry} feature="vouchers" enabled={cfg.features.vouchers} handleToggle={handleToggle} />
                   </td>
                 </tr>
               );

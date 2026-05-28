@@ -2,6 +2,16 @@ import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
 import { DEFAULT_FEATURES } from "@/lib/industry/types";
 import type { Industry, IndustryFeatures } from "@/lib/industry/types";
 
+function parseFeatures(raw: Record<string, boolean> | undefined, industry: Industry): IndustryFeatures {
+  const defaults = DEFAULT_FEATURES[industry];
+  return {
+    inventory: typeof raw?.inventory === "boolean" ? raw.inventory : defaults.inventory,
+    marketing: typeof raw?.marketing === "boolean" ? raw.marketing : defaults.marketing,
+    staff: typeof raw?.staff === "boolean" ? raw.staff : defaults.staff,
+    vouchers: typeof raw?.vouchers === "boolean" ? raw.vouchers : defaults.vouchers,
+  };
+}
+
 export async function getFeatures(industry: Industry): Promise<IndustryFeatures> {
   try {
     const admin = await createServiceRoleClient();
@@ -15,10 +25,7 @@ export async function getFeatures(industry: Industry): Promise<IndustryFeatures>
       return DEFAULT_FEATURES[industry];
     }
 
-    const parsed = data.features as Record<string, boolean>;
-    return {
-      inventory: typeof parsed.inventory === "boolean" ? parsed.inventory : DEFAULT_FEATURES[industry].inventory,
-    };
+    return parseFeatures(data.features as Record<string, boolean>, industry);
   } catch {
     return DEFAULT_FEATURES[industry];
   }
@@ -76,15 +83,9 @@ export async function getAdminIndustryConfigs(): Promise<
     }
 
     return data.map((row) => {
-      const parsed = row.features as Record<string, boolean> | undefined;
       return {
         industry: row.industry as Industry,
-        features: {
-          inventory:
-            typeof parsed?.inventory === "boolean"
-              ? parsed.inventory
-              : DEFAULT_FEATURES[row.industry as Industry]?.inventory ?? false,
-        },
+        features: parseFeatures(row.features as Record<string, boolean> | undefined, row.industry as Industry),
       };
     });
   } catch {

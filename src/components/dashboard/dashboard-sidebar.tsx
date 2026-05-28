@@ -92,6 +92,7 @@ export default function DashboardSidebar({
   const resolvedNavItems = navItems
     .filter((item) => {
       if (item.href === "/dashboard/inventory") return features.inventory;
+      if (item.href === "/dashboard/fidelizacion") return features.marketing;
       return true;
     })
     .map((item) => (item.label === "__CUSTOMERS_LABEL__" ? { ...item, label: customerPlural } : item));

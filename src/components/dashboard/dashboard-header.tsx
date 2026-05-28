@@ -249,6 +249,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
   const features = useFeatures();
   const filteredNavCommands = NAV_COMMANDS.filter((cmd) => {
     if (cmd.id === "nav-stock") return features.inventory;
+    if (cmd.id === "nav-marketing") return features.marketing;
     return true;
   });
   const router = useRouter();
@@ -292,9 +293,13 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
   const inputRef = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
 
-  const rotatingWords = features.inventory
-    ? ["clientes...", "stock...", "caja...", "marketing...", "comandos..."]
-    : ["clientes...", "caja...", "marketing...", "comandos..."];
+  const rotatingWords = [
+    "clientes...",
+    ...(features.inventory ? ["stock..."] : []),
+    "caja...",
+    ...(features.marketing ? ["marketing..."] : []),
+    "comandos...",
+  ];
   const daysBadgeLabel = billingStatus.daysRemaining === null
     ? "--"
     : billingStatus.daysRemaining > 0

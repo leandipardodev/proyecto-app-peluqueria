@@ -198,7 +198,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
     });
   }
 
-  if (todayVouchersCount > 0) {
+  if (features.vouchers && todayVouchersCount > 0) {
     aiMessages.push({
       id: "birthday-voucher",
       title: "Cumpleaños detectados",
@@ -208,7 +208,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
     });
   }
 
-  if (loyaltyRewardsCount > 0) {
+  if (features.marketing && loyaltyRewardsCount > 0) {
     aiMessages.push({
       id: "loyalty",
       title: "Clientes para fidelizar",

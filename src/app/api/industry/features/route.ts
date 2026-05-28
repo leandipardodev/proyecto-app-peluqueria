@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
 import { DEFAULT_FEATURES, INDUSTRIES } from "@/lib/industry/types";
 import type { Industry } from "@/lib/industry/types";
+import { getFeatures } from "@/lib/industry/features";
 
 export const dynamic = "force-dynamic";
 
@@ -13,21 +14,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Invalid industry" }, { status: 400 });
   }
 
-  const supabase = await createServiceRoleClient();
-  const { data } = await supabase
-    .from("industry_config")
-    .select("features")
-    .eq("industry", industry as Industry)
-    .maybeSingle();
-
-  if (data?.features) {
-    const parsed = data.features as Record<string, boolean>;
-    return NextResponse.json({
-      features: {
-        inventory: typeof parsed.inventory === "boolean" ? parsed.inventory : DEFAULT_FEATURES[industry as Industry].inventory,
-      },
-    });
-  }
-
-  return NextResponse.json({ features: DEFAULT_FEATURES[industry as Industry] });
+  const features = await getFeatures(industry as Industry);
+  return NextResponse.json({ features });
 }
