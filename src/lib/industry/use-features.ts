@@ -38,3 +38,38 @@ export function useFeatures(): IndustryFeatures {
 
   return features;
 }
+
+export function useShopFeatures(): IndustryFeatures {
+  const { shop } = useAuth();
+  const shopId = shop?.id;
+  const industry = resolveIndustry(shop?.industry);
+  const [features, setFeatures] = useState<IndustryFeatures>(() => INDUSTRY_CONFIG[industry].features);
+
+  useEffect(() => {
+    if (!shopId) return;
+    let cancelled = false;
+    const controller = new AbortController();
+
+    const fetchFeatures = async () => {
+      try {
+        const res = await fetch(`/api/shop/features?shopId=${shopId}`, {
+          signal: controller.signal,
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as { features: IndustryFeatures };
+        if (!cancelled) setFeatures(data.features);
+      } catch {
+        // fallback to initial value
+      }
+    };
+
+    fetchFeatures();
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [shopId, industry]);
+
+  return features;
+}

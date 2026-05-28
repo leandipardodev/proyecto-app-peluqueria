@@ -3,7 +3,7 @@ import StaffList from "@/components/staff/staff-list";
 import { getAuthSession, getShopIdBySlug } from "@/lib/dashboard/auth-server";
 import { createServerClient } from "@/lib/supabase/server";
 import { resolveIndustry } from "@/lib/industry/resolve";
-import { getFeatures } from "@/lib/industry/features";
+import { getShopFeatures } from "@/lib/industry/features";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +25,7 @@ export default async function DashboardShopStaffPage({ params }: { params: Promi
   const canManageStaff = Boolean(membership?.is_active && membership.role === "owner");
   const { data: shop } = await supabase.from("shops").select("industry").eq("id", shopId).maybeSingle();
   const industry = resolveIndustry((shop as { industry?: string | null } | null)?.industry || null);
-  const features = await getFeatures(industry);
+  const features = await getShopFeatures(shopId);
   if (!features.staff) {
     redirect(`/dashboard/${shopSlug}`);
   }

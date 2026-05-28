@@ -22,7 +22,7 @@ import { triggerDashboardNavTransition } from "@/lib/dashboard/nav-transition";
 import { useAuth } from "@/lib/auth-context";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { resolveIndustry } from "@/lib/industry/resolve";
-import { useFeatures } from "@/lib/industry/use-features";
+import { useShopFeatures } from "@/lib/industry/use-features";
 
 const navItems = [
   { label: "Inicio", href: "/dashboard", icon: Home },
@@ -88,7 +88,7 @@ export default function DashboardSidebar({
   const { shop } = useAuth();
   const industry = resolveIndustry(shop?.industry);
   const customerPlural = INDUSTRY_CONFIG[industry].labels.customerPlural;
-  const features = useFeatures();
+  const features = useShopFeatures();
   const resolvedNavItems = navItems
     .filter((item) => {
       if (item.href === "/dashboard/inventory") return features.inventory;

@@ -9,7 +9,7 @@ import { buildWhatsAppContactUrl, buildWhatsAppUrl } from "@/lib/dashboard/whats
 import { createServiceRoleClient, getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { resolveIndustry } from "@/lib/industry/resolve";
-import { getFeatures } from "@/lib/industry/features";
+import { getShopFeatures } from "@/lib/industry/features";
 import Link from "next/link";
 import dynamicImport from "next/dynamic";
 import { redirect } from "next/navigation";
@@ -113,6 +113,10 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
   ]);
   const whatsappTemplate = whatsappTemplateResult.success ? (whatsappTemplateResult.data ?? DEFAULT_WHATSAPP_TEMPLATE) : DEFAULT_WHATSAPP_TEMPLATE;
 
+  if (!shopIdOverride) {
+    return <div className="bg-red-50/80 backdrop-blur-md text-red-700 dark:text-red-300 text-sm px-5 py-3 rounded-full border border-red-200/30">Shop ID no disponible</div>;
+  }
+
   if (!summaryResult.success || !summaryResult.data) {
     return (
       <div className="bg-red-50/80 backdrop-blur-md text-red-700 dark:text-red-300 text-sm px-5 py-3 rounded-full border border-red-200/30">
@@ -124,7 +128,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
   const socialLinks = await fetchShopLinks(shopIdOverride);
   const industry = await fetchShopIndustry(shopIdOverride, shopSlugOverride || summary.shopSlug || null);
   const labels = INDUSTRY_CONFIG[industry].labels;
-  const features = await getFeatures(industry);
+  const features = await getShopFeatures(shopIdOverride);
   const customerPlural = labels.customerPlural;
   const servicePlural = labels.servicePlural;
   const metrics = metricsResult.success && metricsResult.data ? metricsResult.data : null;

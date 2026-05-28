@@ -12,6 +12,8 @@ function parseFeatures(raw: Record<string, boolean> | undefined, industry: Indus
   };
 }
 
+const FEATURE_KEYS: (keyof IndustryFeatures)[] = ["inventory", "marketing", "staff", "vouchers"];
+
 export async function getFeatures(industry: Industry): Promise<IndustryFeatures> {
   try {
     const admin = await createServiceRoleClient();
@@ -28,6 +30,80 @@ export async function getFeatures(industry: Industry): Promise<IndustryFeatures>
     return parseFeatures(data.features as Record<string, boolean>, industry);
   } catch {
     return DEFAULT_FEATURES[industry];
+  }
+}
+
+export async function getShopFeatures(shopId: string): Promise<IndustryFeatures> {
+  try {
+    const admin = await createServiceRoleClient();
+
+    const { data: shop } = await admin
+      .from("shops")
+      .select("industry, features_override")
+      .eq("id", shopId)
+      .maybeSingle();
+
+    if (!shop) {
+      return DEFAULT_FEATURES.peluqueria;
+    }
+
+    const industry = shop.industry as Industry;
+    const industryFeatures = await getFeatures(industry);
+    const overrides = (shop.features_override ?? {}) as Record<string, boolean>;
+
+    const result = { ...industryFeatures };
+    for (const key of FEATURE_KEYS) {
+      if (overrides[key] === true) {
+        result[key] = true;
+      }
+    }
+
+    return result;
+  } catch {
+    return DEFAULT_FEATURES.peluqueria;
+  }
+}
+
+export async function updateShopFeatureOverride(
+  shopId: string,
+  feature: keyof IndustryFeatures,
+  enabled: boolean,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const admin = await createServiceRoleClient();
+
+    const { data: shop } = await admin
+      .from("shops")
+      .select("features_override")
+      .eq("id", shopId)
+      .maybeSingle();
+
+    if (!shop) {
+      return { success: false, error: "Local no encontrado" };
+    }
+
+    const currentOverrides = (shop.features_override ?? {}) as Record<string, boolean>;
+
+    if (enabled) {
+      currentOverrides[feature] = true;
+    } else {
+      delete currentOverrides[feature];
+    }
+
+    const newOverrides = Object.keys(currentOverrides).length > 0 ? currentOverrides : null;
+
+    const { error } = await admin
+      .from("shops")
+      .update({ features_override: newOverrides as Record<string, boolean> | null })
+      .eq("id", shopId);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
   }
 }
 

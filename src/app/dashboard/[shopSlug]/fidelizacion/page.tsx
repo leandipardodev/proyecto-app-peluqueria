@@ -3,8 +3,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { fetchVouchers, fetchVoucherWhatsappTemplate } from "@/lib/dashboard/voucher-actions";
 import { fetchBusinessData } from "@/lib/dashboard/business-actions";
 import { redirect } from "next/navigation";
-import { resolveIndustry } from "@/lib/industry/resolve";
-import { getFeatures } from "@/lib/industry/features";
+import { getShopFeatures } from "@/lib/industry/features";
 import FidelizacionClient from "./fidelizacion-client";
 
 type LoyaltyRewardCustomer = {
@@ -22,10 +21,7 @@ export default async function DashboardShopFidelizacionPage({ params }: { params
   const shopId = await getShopIdBySlug(shopSlug, session.user.id);
   if (!shopId) redirect("/dashboard");
 
-  const admin = await (await import("@/lib/dashboard/auth-server")).createServiceRoleClient();
-  const { data: shop } = await admin.from("shops").select("industry").eq("id", shopId).maybeSingle();
-  const industry = resolveIndustry((shop as { industry?: string | null } | null)?.industry || null);
-  const features = await getFeatures(industry);
+  const features = await getShopFeatures(shopId);
   if (!features.marketing) {
     redirect(`/dashboard/${shopSlug}`);
   }

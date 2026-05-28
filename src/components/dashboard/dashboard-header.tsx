@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, X, Search, Moon, Sun, Gauge, Repeat2, Check, Volume2, VolumeX } from "lucide-react";
+import { Menu, X, Search, Moon, Sun, Gauge, Repeat2, Check, Volume2, VolumeX, SlidersHorizontal } from "lucide-react";
 import { useState, useRef, useEffect, useTransition, useMemo, type KeyboardEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import DashboardSidebar from "./dashboard-sidebar";
@@ -14,7 +14,7 @@ import { triggerDashboardNavTransition } from "@/lib/dashboard/nav-transition";
 import { useAuth } from "@/lib/auth-context";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { resolveIndustry } from "@/lib/industry/resolve";
-import { useFeatures } from "@/lib/industry/use-features";
+import { useShopFeatures } from "@/lib/industry/use-features";
 import { isMuted, setMuted } from "@/lib/sound";
 
 interface DashboardHeaderProps {
@@ -246,7 +246,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
   const customerPlural = INDUSTRY_CONFIG[industry].labels.customerPlural;
   const servicePlural = INDUSTRY_CONFIG[industry].labels.servicePlural;
   const staffPlural = INDUSTRY_CONFIG[industry].labels.staffPlural;
-  const features = useFeatures();
+  const features = useShopFeatures();
   const filteredNavCommands = NAV_COMMANDS.filter((cmd) => {
     if (cmd.id === "nav-stock") return features.inventory;
     if (cmd.id === "nav-marketing") return features.marketing;
@@ -1018,6 +1018,18 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
                       <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${soundMuted ? "translate-x-0" : "translate-x-5"}`} />
                     </button>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      navigateWithTransition(`${dashboardBasePath}/features`);
+                    }}
+                    className="flex w-full items-center gap-2 rounded-xl border border-white/20 dark:border-white/10 px-3 py-2 text-sm text-gray-800 dark:text-gray-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
+                  >
+                    <SlidersHorizontal className="w-4 h-4 text-zinc-400" />
+                    Funcionalidades del local
+                  </button>
 
                   <button
                     type="button"
