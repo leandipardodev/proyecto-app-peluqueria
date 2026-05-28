@@ -1,5 +1,6 @@
 "use client";
 
+import { useToast } from "@/components/ui/toast";
 import { X, Plus, UserPlus } from "lucide-react";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createAppointment, createCustomerAndAppointment } from "@/lib/dashboard/appointment-actions";
@@ -75,6 +76,7 @@ export default function AppointmentFormModal({
   const [newCustomerEmail, setNewCustomerEmail] = useState("");
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
   const [portalReady, setPortalReady] = useState(false);
+  const { addToast } = useToast();
 
   useEffect(() => {
     setPortalReady(true);
@@ -140,6 +142,7 @@ export default function AppointmentFormModal({
         setError(result.error);
       } else {
         playPop();
+        addToast("Turno guardado", "success");
         onSuccess?.();
         onClose();
       }
