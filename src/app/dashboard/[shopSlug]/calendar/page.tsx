@@ -133,7 +133,6 @@ export default async function CalendarByShopSlugPage({
         shopName={shopName || "Mi Peluquería"}
         shopAddress={shopAddress}
         whatsappTemplate={whatsappTemplate || null}
-        canManageBilling={canManageBilling}
         error={null}
       />
     </div>

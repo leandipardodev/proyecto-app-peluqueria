@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   Users2,
   CheckCircle2,
@@ -142,11 +142,17 @@ export default function FinancesClient({
   const [showClosures, setShowClosures] = useState(false);
   const refreshTimerRef = useRef<number | null>(null);
 
-  const loadMain = useCallback((nextFrom: string, nextTo: string) => {
-    setFrom(nextFrom);
-    setTo(nextTo);
+  const shopRef = useRef(shopId);
+
+  useEffect(() => {
+    shopRef.current = shopId;
+  }, [shopId]);
+
+  async function triggerLoads(nextFrom: string, nextTo: string) {
+    const sid = shopRef.current || undefined;
+
     startTransition(async () => {
-      const result = await fetchFinanceData(nextFrom, nextTo, shopId || undefined);
+      const result = await fetchFinanceData(nextFrom, nextTo, sid);
       if (result.success && result.data) {
         setData(result.data);
         setError(null);
@@ -154,63 +160,68 @@ export default function FinancesClient({
         setError(actionError(result, "Error al cargar"));
       }
     });
-  }, [shopId]);
 
-  const loadStaff = useCallback(async (nextFrom: string, nextTo: string) => {
-    const [prod, liq] = await Promise.all([
-      fetchStaffProduction(nextFrom, nextTo, shopId || undefined),
-      fetchStaffLiquidations(nextFrom, nextTo, shopId || undefined),
-    ]);
-    if (prod.success && prod.data) {
-      setStaffProduction(prod.data);
-    } else {
-      setStaffProduction([]);
-      setError(actionError(prod, "No se pudo cargar el equipo"));
-    }
-    if (liq.success && liq.data) {
-      setLiquidations(liq.data);
-    } else {
-      setLiquidations([]);
-      if (!prod.success) {
-        setError(actionError(liq, "No se pudieron cargar liquidaciones"));
+    const staffPromise = (async () => {
+      try {
+        const [prod, liq] = await Promise.all([
+          fetchStaffProduction(nextFrom, nextTo, sid),
+          fetchStaffLiquidations(nextFrom, nextTo, sid),
+        ]);
+        if (prod.success && prod.data) {
+          setStaffProduction(prod.data);
+        } else {
+          setStaffProduction([]);
+          setError(actionError(prod, "No se pudo cargar el equipo"));
+        }
+        if (liq.success && liq.data) {
+          setLiquidations(liq.data);
+        } else {
+          setLiquidations([]);
+          if (!prod.success) {
+            setError(actionError(liq, "No se pudieron cargar liquidaciones"));
+          }
+        }
+      } catch {
+        setStaffProduction([]);
+        setLiquidations([]);
       }
-    }
-  }, [shopId]);
+    })();
 
-  const loadCash = useCallback(async (nextFrom: string, nextTo: string) => {
-    const [session, moves, history] = await Promise.all([
-      fetchCashSession(shopId || undefined),
-      fetchCashMovements(nextFrom, nextTo, shopId || undefined),
-      fetchCashSessionsHistory(nextFrom, nextTo, shopId || undefined),
-    ]);
-    if (session.success) setCashSession(session.data ?? null);
-    if (moves.success && moves.data) setCashMovements(moves.data);
-    if (history.success && history.data) setCashSessionsHistory(history.data);
-  }, [shopId]);
+    const cashPromise = (async () => {
+      try {
+        const [session, moves, history] = await Promise.all([
+          fetchCashSession(sid),
+          fetchCashMovements(nextFrom, nextTo, sid),
+          fetchCashSessionsHistory(nextFrom, nextTo, sid),
+        ]);
+        if (session.success) setCashSession(session.data ?? null);
+        if (moves.success && moves.data) setCashMovements(moves.data);
+        if (history.success && history.data) setCashSessionsHistory(history.data);
+      } catch {
+        /* silently ignore */
+      }
+    })();
 
-  const refreshAll = useCallback((nextFrom: string, nextTo: string) => {
-    loadMain(nextFrom, nextTo);
-    void loadStaff(nextFrom, nextTo);
-    void loadCash(nextFrom, nextTo);
-  }, [loadCash, loadMain, loadStaff]);
+    await Promise.allSettled([staffPromise, cashPromise]);
+  }
 
   useEffect(() => {
-    refreshAll(from, to);
-  }, [from, to, refreshAll]);
+    triggerLoads(from, to);
+  }, [from, to]);
 
   useEffect(() => {
     if (refreshTimerRef.current) {
       window.clearInterval(refreshTimerRef.current);
     }
     refreshTimerRef.current = window.setInterval(() => {
-      refreshAll(from, to);
+      triggerLoads(from, to);
     }, 30000);
     return () => {
       if (refreshTimerRef.current) {
         window.clearInterval(refreshTimerRef.current);
       }
     };
-  }, [from, to, refreshAll]);
+  }, [from, to]);
 
   const filteredLiquidations = useMemo(
     () => liquidations.filter((l) => liquidationStatusFilter === "all" || l.status === liquidationStatusFilter),
@@ -238,7 +249,7 @@ export default function FinancesClient({
     if (!res.success || !res.data) return setError(actionError(res, "No se pudo generar"));
     setLiquidationResult(res.data);
     setQuickFeedback("Pre-liquidacion creada");
-    void loadStaff(from, to);
+    void triggerLoads(from, to);
   }
 
   async function handleMarkLiquidationPaid(liq: StaffLiquidationListItem) {
@@ -247,7 +258,7 @@ export default function FinancesClient({
     setBusyKey(null);
     if (!res.success) return setError(actionError(res, "No se pudo actualizar"));
     setQuickFeedback("Liquidacion pagada");
-    void loadStaff(from, to);
+    void triggerLoads(from, to);
   }
 
   async function handleOpenLiquidationDetail(liqId: string) {
@@ -264,8 +275,7 @@ export default function FinancesClient({
     setBusyKey(null);
     if (!res.success) return setError(actionError(res, "No se pudo abrir caja"));
     setQuickFeedback("Caja abierta");
-    loadMain(from, to);
-    void loadCash(from, to);
+    void triggerLoads(from, to);
   }
 
   async function handleCloseCashSession(e: React.FormEvent<HTMLFormElement>) {
@@ -278,8 +288,7 @@ export default function FinancesClient({
     setBusyKey(null);
     if (!res.success) return setError(actionError(res, "No se pudo cerrar caja"));
     setQuickFeedback("Caja cerrada");
-    loadMain(from, to);
-    void loadCash(from, to);
+    void triggerLoads(from, to);
   }
 
   async function handleCreateCashMovement(e: React.FormEvent<HTMLFormElement>) {
@@ -291,8 +300,7 @@ export default function FinancesClient({
     if (!res.success) return setError(actionError(res, "No se pudo guardar movimiento"));
     form.reset();
     setQuickFeedback("Movimiento guardado");
-    loadMain(from, to);
-    void loadCash(from, to);
+    void triggerLoads(from, to);
   }
 
   const kpiExpected = cashSession?.expectedAmount ?? 0;
@@ -464,7 +472,7 @@ export default function FinancesClient({
         {staffProduction.length === 0 ? (
           <div className="flex min-h-[130px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 dark:border-zinc-700 dark:bg-zinc-900/40">
             <Users2 className="h-7 w-7 text-slate-400" />
-            <button onClick={() => { setBusyKey("load-team"); void loadStaff(from, to).finally(() => setBusyKey(null)); }} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white">{busyKey === "load-team" ? "Cargando..." : "+ Cargar equipo"}</button>
+            <button onClick={() => { setBusyKey("load-team"); triggerLoads(from, to).finally(() => setBusyKey(null)); }} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white">{busyKey === "load-team" ? "Cargando..." : "+ Cargar equipo"}</button>
           </div>
         ) : (
           <div className="overflow-x-auto">

@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Sistema para barberias",
   description:
-    "Sistema para barberias con agenda de turnos, senas online, control de clientes e indicadores para mejorar ingresos y organizacion.",
+    "Sistema para barberias con agenda de turnos, señas online, control de clientes e indicadores para mejorar ingresos y organizacion.",
   alternates: { canonical: "/sistema-para-barberias" },
   openGraph: {
     title: "Sistema para barberias | Klip",
@@ -22,7 +22,7 @@ export default function SistemaParaBarberiasPage() {
       </p>
       <h1 className="mt-4 text-4xl font-black tracking-[-0.03em] text-slate-900 sm:text-5xl">Sistema para barberias</h1>
       <p className="mt-4 text-lg text-slate-600">
-        Diseñado para duenos de barberias que quieren ordenar turnos, equipo, clientes y caja en un panel simple y accionable.
+        Diseñado para dueños de barberias que quieren ordenar turnos, equipo, clientes y caja en un panel simple y accionable.
       </p>
 
       <section className="mt-10 grid gap-4 sm:grid-cols-2">

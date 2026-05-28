@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Software para peluquerias",
   description:
-    "Klip es un software para peluquerias que centraliza turnos, senas, clientes, inventario y finanzas para duenos que quieren ordenar su negocio.",
+    "Klip es un software para peluquerias que centraliza turnos, señas, clientes, inventario y finanzas para dueños que quieren ordenar su negocio.",
   alternates: { canonical: "/software-para-peluquerias" },
   openGraph: {
     title: "Software para peluquerias | Klip",
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Software para peluquerias | Klip",
-    description: "Gestion de turnos, clientes y finanzas para duenos de peluquerias.",
+    description: "Gestion de turnos, clientes y finanzas para dueños de peluquerias.",
     images: ["/hero.png"],
   },
 };
@@ -24,7 +24,7 @@ export default function SoftwareParaPeluqueriasPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-14 sm:px-6 lg:px-8">
       <p className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold tracking-[0.14em] text-slate-600">
-        Solucion para duenos
+        Solucion para dueños
       </p>
       <h1 className="mt-4 text-4xl font-black tracking-[-0.03em] text-slate-900 sm:text-5xl">Software para peluquerias</h1>
       <p className="mt-4 text-lg text-slate-600">
@@ -49,7 +49,7 @@ export default function SoftwareParaPeluqueriasPage() {
       <section className="mt-10 rounded-2xl border border-slate-200 bg-slate-50 p-6">
         <h2 className="text-xl font-semibold text-slate-900">Para que tipo de peluqueria sirve?</h2>
         <p className="mt-2 text-sm text-slate-600">
-          Para peluquerias de barrio, barberias, estudios de color y negocios con uno o varios profesionales. Si sos dueno y queres ordenar la
+          Para peluquerias de barrio, barberias, estudios de color y negocios con uno o varios profesionales. Si sos dueño y queres ordenar la
           operacion diaria, Klip te da una base simple para crecer sin caos.
         </p>
       </section>

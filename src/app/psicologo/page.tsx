@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Software para psicologos",
-  description: "Klip para psicologos: agenda de sesiones, pacientes, recordatorios y cobro de sena en una sola plataforma.",
+  description: "Klip para psicologos: agenda de sesiones, pacientes, recordatorios y cobro de seña en una sola plataforma.",
   alternates: { canonical: "/psicologo" },
   openGraph: {
     title: "Klip para psicologos",

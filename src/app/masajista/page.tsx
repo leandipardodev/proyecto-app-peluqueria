@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Software para masajistas",
-  description: "Klip para masajistas: agenda de sesiones, control de clientes y cobro de sena para reducir ausencias.",
+  description: "Klip para masajistas: agenda de sesiones, control de clientes y cobro de seña para reducir ausencias.",
   alternates: { canonical: "/masajista" },
   openGraph: {
     title: "Klip para masajistas",

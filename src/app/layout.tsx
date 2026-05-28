@@ -47,7 +47,7 @@ export const metadata: Metadata = {
   keywords: [
     "software para peluquerias",
     "sistema para barberias",
-    "software para duenos de peluqueria",
+    "software para dueños de peluqueria",
     "agenda para peluquerias",
     "agenda de turnos",
     "reservas online",

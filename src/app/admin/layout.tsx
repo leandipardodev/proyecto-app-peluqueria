@@ -22,6 +22,17 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             </Link>
           </div>
         </div>
+        <nav className="mx-auto mt-3 flex w-full max-w-7xl gap-4 text-sm">
+          <Link href="/admin" className="text-zinc-500 hover:text-zinc-900 transition-colors">
+            Dashboard
+          </Link>
+          <Link href="/admin/industries" className="text-zinc-500 hover:text-zinc-900 transition-colors">
+            Industrias
+          </Link>
+          <Link href="/admin/referrals" className="text-zinc-500 hover:text-zinc-900 transition-colors">
+            Referidos
+          </Link>
+        </nav>
       </header>
       <main className="mx-auto w-full max-w-7xl px-6 py-6">{children}</main>
     </div>

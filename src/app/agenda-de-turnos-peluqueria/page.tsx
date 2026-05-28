@@ -22,7 +22,7 @@ export default function AgendaDeTurnosPeluqueriaPage() {
       </p>
       <h1 className="mt-4 text-4xl font-black tracking-[-0.03em] text-slate-900 sm:text-5xl">Agenda de turnos para peluqueria</h1>
       <p className="mt-4 text-lg text-slate-600">
-        Klip te da una agenda clara para gestionar citas por dia, profesional y servicio. Ideal para duenos que necesitan orden sin perder tiempo.
+        Klip te da una agenda clara para gestionar citas por dia, profesional y servicio. Ideal para dueños que necesitan orden sin perder tiempo.
       </p>
 
       <section className="mt-10 space-y-4">

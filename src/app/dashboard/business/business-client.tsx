@@ -46,7 +46,7 @@ function getTourSteps(staffPlural: string, servicePlural: string) {
   return [
     { id: "setup-public-info", title: "1. Informacion publica", text: "Completa nombre, descripcion, direccion y telefono de tu local." },
     { id: "setup-hours", title: "2. Horarios de atencion", text: "Defini los dias y horarios para que las reservas muestren disponibilidad real." },
-    { id: "setup-payments", title: "3. Formas de cobro", text: "Configura Mercado Pago y la politica de sena para cobrar sin friccion." },
+    { id: "setup-payments", title: "3. Formas de cobro", text: "Configura Mercado Pago y la politica de seña para cobrar sin friccion." },
     { id: "setup-staff", title: `4. ${staffPlural}`, text: `Agrega y administra tus ${staffPlural.toLowerCase()} para asignar turnos correctamente.` },
     { id: "setup-services", title: `5. ${servicePlural}`, text: `Carga tu catalogo de ${servicePlural.toLowerCase()} con precio y duracion.` },
   ] as const;
@@ -337,6 +337,19 @@ export default function BusinessClient({
 
   useEffect(() => {
     const key = `klip-business-onboarding-v1:${shopSlug || "default"}`;
+
+    const hasData = Boolean(
+      initialData?.nombre?.trim() &&
+      initialData?.address?.trim() &&
+      initialData?.phone?.trim() &&
+      initialServices.length > 0
+    );
+
+    if (hasData) {
+      window.localStorage.setItem(key, JSON.stringify({ active: false, step: 5, doneAt: Date.now() }));
+      return;
+    }
+
     let done = false;
     let startStep = 0;
     try {
@@ -360,7 +373,7 @@ export default function BusinessClient({
         document.getElementById(tourSteps[startStep].id)?.scrollIntoView({ behavior: "smooth", block: "center" });
       }, 140);
     }
-  }, [shopSlug, tourSteps]);
+  }, [shopSlug, tourSteps, initialData, initialServices]);
 
   useEffect(() => {
     if (!tourOpen) return;
@@ -1571,7 +1584,7 @@ export default function BusinessClient({
                   </p>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">
                     {data?.mp_oauth_connected
-                      ? "Ya podes cobrar senas online con tu cuenta de Mercado Pago."
+                      ? "Ya podes cobrar señas online con tu cuenta de Mercado Pago."
                       : "Conecta tu cuenta para activar cobros online sin cargar tokens manualmente."}
                   </p>
                 </div>

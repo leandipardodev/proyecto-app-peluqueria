@@ -298,7 +298,7 @@ export default function LoginPage() {
                 onClick={handleGoogleOwnerLogin}
                 className="w-full bg-white text-gray-900 py-2.5 px-4 rounded-2xl text-sm font-medium shadow-sm border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50 cursor-pointer select-none"
               >
-                Continuar con Google (solo duenos)
+                Continuar con Google (solo dueños)
               </button>
             </form>
           )}

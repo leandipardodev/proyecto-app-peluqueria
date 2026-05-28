@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "crypto";
+import { createHmac, timingSafeEqual, randomBytes } from "crypto";
 
 type InvitePayload = {
   shopId: string;
@@ -23,7 +23,22 @@ function getSecret(): string {
     return "dev-staff-invite-secret";
   }
 
+  const generated = generateFallbackSecret();
+  if (generated) return generated;
+
   throw new Error("Missing STAFF_INVITE_SECRET in production environment");
+}
+
+let _fallbackSecret: string | null = null;
+function generateFallbackSecret(): string | null {
+  if (_fallbackSecret) return _fallbackSecret;
+  try {
+    _fallbackSecret = randomBytes(32).toString("hex");
+    console.warn("[staff-invite] STAFF_INVITE_SECRET not set. Usando secreto auto-generado (invitaciones se invalidan al reiniciar).");
+    return _fallbackSecret;
+  } catch {
+    return null;
+  }
 }
 
 function sign(raw: string): string {

@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Software para peluquerias",
-  description: "Klip para peluquerias: agenda de turnos, senas online, clientes, inventario y finanzas en un solo sistema.",
+  description: "Klip para peluquerias: agenda de turnos, señas online, clientes, inventario y finanzas en un solo sistema.",
   alternates: { canonical: "/peluqueria" },
   openGraph: {
     title: "Klip para peluquerias",

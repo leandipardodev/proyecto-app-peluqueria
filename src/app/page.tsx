@@ -454,7 +454,7 @@ export default function Home() {
           <div className="mb-8 max-w-3xl">
             <h2 className={`${playfair.className} title-animated text-5xl sm:text-6xl font-bold tracking-[-0.04em] text-[#101625]`}>Como funciona Klip</h2>
             <p className="mt-4 text-lg leading-relaxed text-[#86868B]">
-              Un flujo simple para que el dueno del local entienda exactamente lo que compra y lo use desde el primer dia.
+              Un flujo simple para que el dueño del local entienda exactamente lo que compra y lo use desde el primer dia.
             </p>
           </div>
 

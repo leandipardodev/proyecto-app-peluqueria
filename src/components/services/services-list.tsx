@@ -138,7 +138,7 @@ export default function ServicesList({ shopId, shopSlug, industry, initialServic
               onClick={() => {
                 const key = `klip-business-onboarding-v1:${shopSlug || "default"}`;
                 window.localStorage.setItem(key, JSON.stringify({ active: false, step: 5, doneAt: Date.now() }));
-                router.push(shopSlug ? `/dashboard/${shopSlug}/business` : "/dashboard/business");
+                router.push(shopSlug ? `/dashboard/${shopSlug}` : "/dashboard");
               }}
               className="ui-btn-primary rounded-full px-4 py-1.5 text-xs"
             >

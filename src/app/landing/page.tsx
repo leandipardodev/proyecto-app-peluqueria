@@ -506,7 +506,7 @@ export default function LandingPage() {
       <footer id="contact" className="mx-auto max-w-7xl px-6 pb-24 pt-12">
         <div className="rounded-[2rem] border border-white/35 bg-white/30 p-10 backdrop-blur-[50px]">
           <p className="text-sm font-thin text-black/55">Klip Elite Edition</p>
-          <p className="mt-2 text-2xl font-black tracking-[-0.03em]">Disenado para equipos que quieren operar en otro nivel.</p>
+          <p className="mt-2 text-2xl font-black tracking-[-0.03em]">Diseñado para equipos que quieren operar en otro nivel.</p>
         </div>
       </footer>
 

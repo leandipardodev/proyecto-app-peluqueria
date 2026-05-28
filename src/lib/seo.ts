@@ -1,7 +1,7 @@
 export const SITE_NAME = "Klip";
 export const SITE_TITLE = "Klip | Software para peluquerias y barberias";
 export const SITE_DESCRIPTION =
-  "Software para duenos de peluquerias y barberias: agenda de turnos, senas online, clientes, inventario y finanzas en una sola plataforma.";
+  "Software para dueños de peluquerias y barberias: agenda de turnos, señas online, clientes, inventario y finanzas en una sola plataforma.";
 
 export function getSiteUrl(): string {
   const raw = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || "https://klip.com.ar";

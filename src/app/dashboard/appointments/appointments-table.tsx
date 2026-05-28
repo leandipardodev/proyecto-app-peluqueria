@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { MessageCircle, Bell, CreditCard, Copy, Check } from "lucide-react";
+import { MessageCircle, Bell } from "lucide-react";
 import AppointmentFormModal from "@/components/calendar/appointment-form-modal";
 import { Button } from "@/components/ui/button";
 import { useAppointmentAlarm } from "@/lib/use-appointment-alarm";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
-import { createPaymentLink } from "@/lib/payments/mercadopago-actions";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -62,8 +61,9 @@ function getTurnoStatusLabel(status: string, isPaid: boolean): string {
   return status;
 }
 
-function needsStatusAttention(status: string): boolean {
-  return status === "scheduled";
+function needsStatusAttention(startTime: string): boolean {
+  const diff = new Date(startTime).getTime() - Date.now();
+  return diff > 0 && diff <= 3600000;
 }
 
 interface Props {
@@ -75,11 +75,10 @@ interface Props {
   shopName: string;
   shopAddress?: string | null;
   whatsappTemplate?: string | null;
-  canManageBilling?: boolean;
   error?: string | null;
 }
 
-export default function AppointmentsTable({ shopId, initialAppointments, services, staff, customers, shopName, shopAddress, whatsappTemplate, canManageBilling = false, error }: Props) {
+export default function AppointmentsTable({ shopId, initialAppointments, services, staff, customers, shopName, shopAddress, whatsappTemplate, error }: Props) {
   const { shop } = useAuth();
   const industry = resolveIndustry(shop?.industry);
   const customerWord = INDUSTRY_CONFIG[industry].labels.customerSingular;
@@ -90,9 +89,6 @@ export default function AppointmentsTable({ shopId, initialAppointments, service
   const [appointments] = useState(initialAppointments);
   const [page, setPage] = useState(1);
   const [showForm, setShowForm] = useState(false);
-  const [generatingId, setGeneratingId] = useState<string | null>(null);
-  const [paymentLinks, setPaymentLinks] = useState<Record<string, string>>({});
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const { addToast } = useToast();
   const pageSize = 10;
 
@@ -181,11 +177,9 @@ export default function AppointmentsTable({ shopId, initialAppointments, service
         ) : (
           pagedAppointments.map((apt) => {
             const svc = apt.services?.name ? extractEmoji(apt.services.name) : null;
-            const urgent = needsStatusAttention(apt.status);
+            const urgent = needsStatusAttention(apt.start_time);
             const phone = apt.customers?.telefono || null;
             const whatsappUrl = buildWhatsAppUrl(phone, apt.customers?.nombre || customerWord, apt.start_time);
-            const link = paymentLinks[apt.id];
-            const generating = generatingId === apt.id;
             return (
               <div key={apt.id} className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[1.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-4">
                 <div className="flex items-start justify-between gap-2">
@@ -235,53 +229,6 @@ export default function AppointmentsTable({ shopId, initialAppointments, service
                     <MessageCircle className="w-4 h-4" />
                     WhatsApp
                   </a>
-                  {apt.is_paid ? (
-                    <span className="text-xs text-emerald-600 font-medium">Pagado</span>
-                  ) : link ? (
-                    <>
-                      <a href={link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors cursor-pointer select-none">
-                        <CreditCard className="w-3.5 h-3.5" />
-                        Link
-                      </a>
-                      <button
-                        onClick={async () => {
-                          playClick();
-                          await navigator.clipboard.writeText(link);
-                          setCopiedId(apt.id);
-                          setTimeout(() => setCopiedId(null), 2000);
-                        }}
-                        className="p-1.5 rounded-md text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer select-none"
-                        title="Copiar link"
-                      >
-                        {copiedId === apt.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                      </button>
-                    </>
-                  ) : canManageBilling ? (
-                    <button
-                      onClick={async () => {
-                        setGeneratingId(apt.id);
-                        setPaymentLinks((prev) => {
-                          const next = { ...prev };
-                          delete next[apt.id];
-                          return next;
-                        });
-                        const result = await createPaymentLink(apt.id);
-                        if (result.success && result.data?.init_point) {
-                          setPaymentLinks((prev) => ({ ...prev, [apt.id]: result.data!.init_point }));
-                        } else {
-                          addToast("Error al generar el link", "error");
-                        }
-                        setGeneratingId(null);
-                      }}
-                      disabled={generating}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-semibold bg-indigo-500 text-white hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm cursor-pointer select-none"
-                    >
-                      <CreditCard className="w-4 h-4" />
-                      {generating ? "Generando..." : "Cobrar"}
-                    </button>
-                  ) : (
-                    <span className="text-xs text-zinc-500">Solo owner</span>
-                  )}
                   {urgent && <Bell className="w-4 h-4 text-red-500 animate-pulse shrink-0" />}
                 </div>
               </div>
@@ -347,11 +294,9 @@ export default function AppointmentsTable({ shopId, initialAppointments, service
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex items-center gap-2">
                         {(() => {
-                          const urgent = needsStatusAttention(apt.status);
+                          const urgent = needsStatusAttention(apt.start_time);
                           const phone = apt.customers?.telefono || null;
                           const whatsappUrl = buildWhatsAppUrl(phone, apt.customers?.nombre || customerWord, apt.start_time);
-                          const link = paymentLinks[apt.id];
-                          const generating = generatingId === apt.id;
                           return (
                             <>
                               <a
@@ -385,70 +330,6 @@ export default function AppointmentsTable({ shopId, initialAppointments, service
                                 <MessageCircle className="w-4 h-4" />
                                 WhatsApp
                               </a>
-                              {apt.is_paid ? (
-                                <span className="text-xs text-emerald-600 font-medium">Pagado</span>
-                              ) : link ? (
-                                <div className="flex items-center gap-1">
-                                  <a
-                                    href={link}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors cursor-pointer select-none"
-                                    title="Abrir link de pago"
-                                  >
-                                    <CreditCard className="w-3.5 h-3.5" />
-                                    Link
-                                  </a>
-                                  <button
-                                    onClick={async () => {
-                                      playClick();
-                                      await navigator.clipboard.writeText(link);
-                                      setCopiedId(apt.id);
-                                      setTimeout(() => setCopiedId(null), 2000);
-                                    }}
-                                    className="p-1.5 rounded-md text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer select-none"
-                                    title="Copiar link"
-                                  >
-                                    {copiedId === apt.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                                  </button>
-                                  {phone && (
-                                    <a
-                                      href={`https://wa.me/${phone.replace(/[^\d]/g, "").replace(/^00/, "")}?text=${encodeURIComponent(`Hola! Te paso el link para pagar tu turno: ${link}`)}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="p-1.5 rounded-md text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors cursor-pointer select-none"
-                                      title="Enviar por WhatsApp"
-                                    >
-                                      <MessageCircle className="w-3.5 h-3.5" />
-                                    </a>
-                                  )}
-                                </div>
-                              ) : canManageBilling ? (
-                                <button
-                                  onClick={async () => {
-                                    setGeneratingId(apt.id);
-                                    setPaymentLinks((prev) => {
-                                      const next = { ...prev };
-                                      delete next[apt.id];
-                                      return next;
-                                    });
-                                    const result = await createPaymentLink(apt.id);
-                                    if (result.success && result.data?.init_point) {
-                                      setPaymentLinks((prev) => ({ ...prev, [apt.id]: result.data!.init_point }));
-                                    } else {
-                                      addToast("Error al generar el link", "error");
-                                    }
-                                    setGeneratingId(null);
-                                  }}
-                                  disabled={generating}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-semibold bg-indigo-500 text-white hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm cursor-pointer select-none"
-                                >
-                                  <CreditCard className="w-4 h-4" />
-                                  {generating ? "Generando..." : "Cobrar"}
-                                </button>
-                              ) : (
-                                <span className="text-xs text-zinc-500">Solo owner</span>
-                              )}
                               {urgent && (
                                 <span title="Próximo turno en menos de 1 hora">
                                   <Bell className="w-4 h-4 text-red-500 animate-pulse shrink-0" />
@@ -469,26 +350,58 @@ export default function AppointmentsTable({ shopId, initialAppointments, service
       </div>
 
       {appointments.length > pageSize && (
-        <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-white/20 bg-white/35 px-4 py-3 text-sm dark:border-white/10 dark:bg-black/20">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/20 bg-white/35 px-4 py-3 text-sm dark:border-white/10 dark:bg-black/20">
           <p className="text-zinc-600 dark:text-zinc-300">
-            Pagina {page} de {totalPages} - Mostrando {pagedAppointments.length} de {appointments.length} turnos
+            {page === 1 ? 1 : (page - 1) * pageSize + 1}
+            {" - "}
+            {Math.min(page * pageSize, appointments.length)} de {appointments.length} turnos
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setPage(1)}
+              disabled={page <= 1}
+              className="rounded-lg border border-white/30 bg-white/70 px-2 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/15 dark:bg-zinc-900/50 dark:text-zinc-200 dark:hover:bg-zinc-900"
+            >
+              &laquo;
+            </button>
             <button
               type="button"
               onClick={() => setPage((prev) => Math.max(1, prev - 1))}
               disabled={page <= 1}
-              className="rounded-full border border-white/30 bg-white/70 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/15 dark:bg-zinc-900/50 dark:text-zinc-200 dark:hover:bg-zinc-900"
+              className="rounded-lg border border-white/30 bg-white/70 px-2 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/15 dark:bg-zinc-900/50 dark:text-zinc-200 dark:hover:bg-zinc-900"
             >
-              Anterior
+              &lsaquo;
             </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setPage(p)}
+                className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  p === page
+                    ? "border-indigo-300 bg-indigo-100 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-200"
+                    : "border-white/30 bg-white/70 text-zinc-700 hover:bg-white dark:border-white/15 dark:bg-zinc-900/50 dark:text-zinc-200 dark:hover:bg-zinc-900"
+                }`}
+              >
+                {p}
+              </button>
+            ))}
             <button
               type="button"
               onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
               disabled={page >= totalPages}
-              className="rounded-full border border-white/30 bg-white/70 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/15 dark:bg-zinc-900/50 dark:text-zinc-200 dark:hover:bg-zinc-900"
+              className="rounded-lg border border-white/30 bg-white/70 px-2 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/15 dark:bg-zinc-900/50 dark:text-zinc-200 dark:hover:bg-zinc-900"
             >
-              Siguiente
+              &rsaquo;
+            </button>
+            <button
+              type="button"
+              onClick={() => setPage(totalPages)}
+              disabled={page >= totalPages}
+              className="rounded-lg border border-white/30 bg-white/70 px-2 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/15 dark:bg-zinc-900/50 dark:text-zinc-200 dark:hover:bg-zinc-900"
+            >
+              &raquo;
             </button>
           </div>
         </div>
