@@ -1,9 +1,11 @@
-import type { Industry } from "@/lib/industry/types";
+import type { Industry, IndustryFeatures } from "@/lib/industry/types";
+import { DEFAULT_FEATURES } from "@/lib/industry/types";
 
 export type IndustryConfig = {
   key: Industry;
   displayName: string;
   landingPath: `/${string}`;
+  features: IndustryFeatures;
   labels: {
     customerSingular: string;
     customerPlural: string;
@@ -19,6 +21,7 @@ export const INDUSTRY_CONFIG: Record<Industry, IndustryConfig> = {
     key: "peluqueria",
     displayName: "Peluqueria",
     landingPath: "/peluqueria",
+    features: DEFAULT_FEATURES.peluqueria,
     labels: {
       customerSingular: "Cliente",
       customerPlural: "Clientes",
@@ -32,6 +35,7 @@ export const INDUSTRY_CONFIG: Record<Industry, IndustryConfig> = {
     key: "psicologo",
     displayName: "Psicologia",
     landingPath: "/psicologo",
+    features: DEFAULT_FEATURES.psicologo,
     labels: {
       customerSingular: "Paciente",
       customerPlural: "Pacientes",
@@ -45,6 +49,7 @@ export const INDUSTRY_CONFIG: Record<Industry, IndustryConfig> = {
     key: "masajista",
     displayName: "Masajes",
     landingPath: "/masajista",
+    features: DEFAULT_FEATURES.masajista,
     labels: {
       customerSingular: "Cliente",
       customerPlural: "Clientes",
@@ -52,6 +57,20 @@ export const INDUSTRY_CONFIG: Record<Industry, IndustryConfig> = {
       staffPlural: "Terapeutas",
       serviceSingular: "Sesion",
       servicePlural: "Sesiones",
+    },
+  },
+  canchas: {
+    key: "canchas",
+    displayName: "Canchas",
+    landingPath: "/canchas",
+    features: DEFAULT_FEATURES.canchas,
+    labels: {
+      customerSingular: "Jugador",
+      customerPlural: "Jugadores",
+      staffSingular: "Encargado",
+      staffPlural: "Encargados",
+      serviceSingular: "Cancha",
+      servicePlural: "Canchas",
     },
   },
 };

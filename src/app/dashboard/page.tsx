@@ -9,6 +9,7 @@ import { buildWhatsAppContactUrl, buildWhatsAppUrl } from "@/lib/dashboard/whats
 import { createServiceRoleClient, getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { resolveIndustry } from "@/lib/industry/resolve";
+import { getFeatures } from "@/lib/industry/features";
 import Link from "next/link";
 import dynamicImport from "next/dynamic";
 import { redirect } from "next/navigation";
@@ -123,6 +124,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
   const socialLinks = await fetchShopLinks(shopIdOverride);
   const industry = await fetchShopIndustry(shopIdOverride, shopSlugOverride || summary.shopSlug || null);
   const labels = INDUSTRY_CONFIG[industry].labels;
+  const features = await getFeatures(industry);
   const customerPlural = labels.customerPlural;
   const servicePlural = labels.servicePlural;
   const metrics = metricsResult.success && metricsResult.data ? metricsResult.data : null;
@@ -186,7 +188,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
     });
   }
 
-  if (summary.lowStockCount > 0) {
+  if (features.inventory && summary.lowStockCount > 0) {
     aiMessages.push({
       id: "low-stock",
       title: "Stock en alerta",
@@ -260,13 +262,15 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
       color: "text-blue-600",
       bg: "bg-blue-500/10",
     },
-    {
-      label: "Alertas de stock",
-      value: summary.lowStockCount,
-      icon: AlertTriangle,
-      color: "text-amber-600",
-      bg: "bg-amber-500/10",
-    },
+    ...(features.inventory
+      ? [{
+          label: "Alertas de stock",
+          value: summary.lowStockCount,
+          icon: AlertTriangle,
+          color: "text-amber-600",
+          bg: "bg-amber-500/10",
+        }]
+      : []),
     {
       label: "Crecimiento",
       value: formatGrowth(growthValue),
@@ -278,7 +282,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
 
   const cardHrefByLabel: Record<string, string> = {
     "Turnos hoy": withDashboardBase("/dashboard/calendar"),
-    "Alertas de stock": withDashboardBase("/dashboard/inventory"),
+    ...(features.inventory ? { "Alertas de stock": withDashboardBase("/dashboard/inventory") } : {}),
     "Crecimiento": withDashboardBase("/dashboard/business#estadisticas"),
   };
 
@@ -627,12 +631,23 @@ export default async function DashboardPage() {
 
   const { data: shop } = await admin
     .from("shops")
-    .select("slug")
+    .select("slug, nombre, address")
     .eq("id", firstShopId)
     .maybeSingle();
 
   if (!shop?.slug) {
     redirect("/landing");
+  }
+
+  const { count: servicesCount } = await admin
+    .from("services")
+    .select("*", { count: "exact", head: true })
+    .eq("shop_id", firstShopId);
+
+  const needsTutorial = !shop?.nombre?.trim() || !shop?.address?.trim() || !servicesCount;
+
+  if (needsTutorial) {
+    redirect(`/dashboard/${shop.slug}/business`);
   }
 
   redirect(`/dashboard/${shop.slug}`);

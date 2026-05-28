@@ -14,6 +14,7 @@ import { triggerDashboardNavTransition } from "@/lib/dashboard/nav-transition";
 import { useAuth } from "@/lib/auth-context";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { resolveIndustry } from "@/lib/industry/resolve";
+import { useFeatures } from "@/lib/industry/use-features";
 import { isMuted, setMuted } from "@/lib/sound";
 
 interface DashboardHeaderProps {
@@ -245,6 +246,11 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
   const customerPlural = INDUSTRY_CONFIG[industry].labels.customerPlural;
   const servicePlural = INDUSTRY_CONFIG[industry].labels.servicePlural;
   const staffPlural = INDUSTRY_CONFIG[industry].labels.staffPlural;
+  const features = useFeatures();
+  const filteredNavCommands = NAV_COMMANDS.filter((cmd) => {
+    if (cmd.id === "nav-stock") return features.inventory;
+    return true;
+  });
   const router = useRouter();
   const pathname = usePathname();
   const dashboardBasePath = getDashboardBasePath(pathname);
@@ -286,7 +292,9 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
   const inputRef = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
 
-  const rotatingWords = ["clientes...", "stock...", "caja...", "marketing...", "comandos..."];
+  const rotatingWords = features.inventory
+    ? ["clientes...", "stock...", "caja...", "marketing...", "comandos..."]
+    : ["clientes...", "caja...", "marketing...", "comandos..."];
   const daysBadgeLabel = billingStatus.daysRemaining === null
     ? "--"
     : billingStatus.daysRemaining > 0
@@ -431,7 +439,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
   const commandItems = useMemo(() => {
     const q = query.trim();
     const industryKeywords = getIndustrySearchKeywords(industry);
-    const navCommandsResolved = NAV_COMMANDS.map((item) => (
+    const navCommandsResolved = filteredNavCommands.map((item) => (
       item.id === "nav-customers"
         ? { ...item, label: item.label.replace("__CUSTOMERS_LABEL__", customerPlural) }
         : item.id === "nav-services"
@@ -459,7 +467,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
       .sort((a, b) => b.score - a.score)
       .map((entry) => entry.item);
 
-    const stock: CommandData[] = dbResults.filter((r) => r.type === "stock").map((r) => ({ id: `stock-${r.id}`, kind: "data", value: r }));
+    const stock: CommandData[] = features.inventory ? dbResults.filter((r) => r.type === "stock").map((r) => ({ id: `stock-${r.id}`, kind: "data", value: r })) : [];
     const services: CommandData[] = dbResults.filter((r) => r.type === "service").map((r) => ({ id: `service-${r.id}`, kind: "data", value: r }));
     const people: CommandData[] = dbResults
       .filter((r) => r.type === "customer" || r.type === "staff")
@@ -472,7 +480,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
       people,
       flat: [...action, ...nav, ...stock, ...services, ...people] as CommandItem[],
     };
-  }, [query, dbResults, dashboardBasePath, billingUrl, customerPlural, servicePlural, staffPlural, industry]);
+  }, [query, dbResults, dashboardBasePath, billingUrl, customerPlural, servicePlural, staffPlural, industry, features, filteredNavCommands]);
 
   useEffect(() => {
     setActiveIndex(0);
@@ -510,6 +518,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
         return;
       }
       if (result.type === "stock") {
+        if (!features.inventory) return;
         navigateWithTransition(withDashboardBase(dashboardBasePath, "/dashboard/inventory"));
         return;
       }
