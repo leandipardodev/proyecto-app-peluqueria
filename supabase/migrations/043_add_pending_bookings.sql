@@ -5,7 +5,7 @@ create table if not exists pending_bookings (
   id uuid primary key default gen_random_uuid(),
   shop_id uuid not null references public.shops(id) on delete cascade,
   service_id uuid not null references public.services(id) on delete cascade,
-  staff_id uuid references public.staff(id) on delete set null,
+  staff_id uuid,
   customer_name text not null,
   customer_email text,
   customer_phone text not null,
