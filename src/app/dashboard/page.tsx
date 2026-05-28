@@ -91,16 +91,16 @@ function thirdSundayOfOctober(year: number): Date {
   return new Date(year, 9, day);
 }
 
-function seasonalMomentLabel(now: Date): string | null {
-  if (sameMonthDay(now, 1, 14)) return "14 de febrero: Día de San Valentín";
-  if (sameMonthDay(now, 2, 8)) return "8 de marzo: Día Internacional de la Mujer";
-  if (sameMonthDay(now, 2, 21)) return "21 de marzo: Inicio del otoño (cambio de look)";
-  if (sameMonthDay(now, 5, 21)) return "21 de junio: Día del Padre";
-  if (sameMonthDay(now, 7, 25)) return "25 de agosto: Día del Peluquero";
-  if (sameMonthDay(now, 8, 21)) return "21 de septiembre: Inicio de la primavera (cambio de look)";
+function seasonalMomentLabel(now: Date, customerPlural: string): string | null {
+  if (sameMonthDay(now, 1, 14)) return "14 de febrero - San Valentín. Buen momento para promociones.";
+  if (sameMonthDay(now, 2, 8)) return "8 de marzo - Día de la Mujer. Oportunidad para campañas especiales.";
+  if (sameMonthDay(now, 2, 21)) return "21 de marzo - Inicio de temporada. Ideal para renovar tu oferta.";
+  if (sameMonthDay(now, 5, 21)) return "21 de junio - Día del Padre. Momento clave para promocionar.";
+  if (sameMonthDay(now, 7, 25)) return "25 de agosto - Fecha especial del rubro. Aprovechá para campañas.";
+  if (sameMonthDay(now, 8, 21)) return "21 de septiembre - Inicio de temporada. Prepará tus servicios.";
   const thirdSunday = thirdSundayOfOctober(now.getFullYear());
-  if (now.getMonth() === 9 && now.getDate() === thirdSunday.getDate()) return "Tercer domingo de octubre: Día de la Madre";
-  if (now.getMonth() === 11) return "Diciembre: Fiestas de fin de año (Navidad y Año Nuevo)";
+  if (now.getMonth() === 9 && now.getDate() === thirdSunday.getDate()) return "Día de la Madre. Oportunidad para llegar a más " + customerPlural + ".";
+  if (now.getMonth() === 11) return "Diciembre - Fiestas de fin de año. Aumentá tu presencia digital.";
   return null;
 }
 
@@ -149,7 +149,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
   const extraLoyaltyCustomers = Math.max(0, loyaltyRewardsCount - 1);
   const aiMessages: Array<{ id: string; title: string; body: string; tone: "urgent" | "action" | "insight"; href: string }> = [];
 
-  const seasonalLabel = seasonalMomentLabel(new Date());
+  const seasonalLabel = seasonalMomentLabel(new Date(), customerPlural);
   if (seasonalLabel) {
     aiMessages.push({
       id: "seasonal",
