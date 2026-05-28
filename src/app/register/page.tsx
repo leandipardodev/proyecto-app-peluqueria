@@ -1,157 +1,149 @@
 "use client";
 
-import { registerShop } from "@/lib/dashboard/auth-actions";
-import { supabase } from "@/lib/supabase";
+import { registerShop, completeRegistration, resendVerificationCode } from "@/lib/dashboard/auth-actions";
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
 import { resolveIndustry } from "@/lib/industry/resolve";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 
-const REGISTER_COOLDOWN_MS = 60_000;
-const REGISTER_COOLDOWN_KEY = "klip_register_cooldown_until";
-
-function getPublicBaseUrl(): string {
-  const envBase = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL;
-  if (envBase && /^https?:\/\//i.test(envBase)) return envBase.replace(/\/$/, "");
-  if (typeof window !== "undefined") return window.location.origin.replace(/\/$/, "");
-  return "http://localhost:3000";
-}
-
-function isRateLimitError(message: string | null | undefined): boolean {
-  if (!message) return false;
-  const normalized = message.toLowerCase();
-  return normalized.includes("rate limit") || normalized.includes("too many requests") || normalized.includes("too many");
-}
-
 export default function RegisterPage() {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [registrationSuccess, setRegistrationSuccess] = useState(false);
-  const [cooldownUntil, setCooldownUntil] = useState(0);
-  const [now, setNow] = useState(() => Date.now());
+  const [step, setStep] = useState<"form" | "code">("form");
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [pendingShopName, setPendingShopName] = useState("");
+  const [pendingIndustry, setPendingIndustry] = useState("");
   const [shopName, setShopName] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
+  const [code, setCode] = useState("");
+  const [resent, setResent] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const industry = resolveIndustry(searchParams.get("rubro"));
   const { addToast } = useToast();
 
-  useEffect(() => {
-    const stored = Number(window.localStorage.getItem(REGISTER_COOLDOWN_KEY) || "0");
-    if (stored > Date.now()) setCooldownUntil(stored);
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const cooldownSeconds = Math.max(0, Math.ceil((cooldownUntil - now) / 1000));
-
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (cooldownSeconds > 0) {
-      setError(`Espera ${cooldownSeconds}s antes de volver a solicitar el correo de confirmacion.`);
-      return;
-    }
     setError(null);
     const formData = new FormData(e.currentTarget);
+    const email = formData.get("email") as string;
+    const name = formData.get("shop_name") as string;
+    const ind = formData.get("industry") as string;
+
     startTransition(async () => {
       const result = await registerShop(formData);
       if (!result.success) {
-        if (isRateLimitError(result.error)) {
-          const until = Date.now() + REGISTER_COOLDOWN_MS;
-          setCooldownUntil(until);
-          window.localStorage.setItem(REGISTER_COOLDOWN_KEY, String(until));
-        }
         setError(result.error);
       } else {
-        const payload = result.data as { redirectToDashboard?: boolean; requiresEmailConfirmation?: boolean; message?: string } | undefined;
-        if (payload?.redirectToDashboard) {
-          addToast("Local creado. Redirigiendo al dashboard...", "success");
-          setTimeout(() => router.push("/dashboard"), 800);
-          return;
-        }
-
-        addToast(payload?.message || "Cuenta creada con exito. Revisa tu email para confirmar.", "success");
-        setRegistrationSuccess(true);
+        setPendingEmail(email);
+        setPendingShopName(name);
+        setPendingIndustry(ind);
+        setStep("code");
+        addToast("Te enviamos un código de 6 dígitos", "success");
       }
     });
   }
 
-  async function handleGoogleOwnerSignup() {
+  function handleVerifyCode(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
     setError(null);
-    const trimmedShopName = shopName.trim();
-    if (!trimmedShopName) {
-      setError("Debes indicar el nombre del local antes de continuar con Google.");
-      return;
-    }
-    if (!termsAccepted) {
-      setError("Debes aceptar los Terminos y Condiciones para continuar.");
+
+    if (code.length !== 6) {
+      setError("El código debe tener 6 dígitos");
       return;
     }
 
-    const state = encodeURIComponent(JSON.stringify({ shopName: trimmedShopName, industry }));
-    const redirectTo = `${getPublicBaseUrl()}/auth/callback`;
-    if (process.env.NODE_ENV !== "production") {
-      console.info("[oauth-debug][register]", {
-        baseUrl: getPublicBaseUrl(),
-        redirectTo,
-        industry,
-        shopName: trimmedShopName,
-      });
-    }
-    window.sessionStorage.setItem("klip_oauth_flow", "owner_signup");
-    window.sessionStorage.setItem("klip_oauth_next", "/dashboard");
-    window.sessionStorage.setItem("klip_oauth_state", state);
-    document.cookie = `klip_oauth_flow=owner_signup; Path=/; Max-Age=600; SameSite=Lax`;
-    document.cookie = `klip_oauth_next=${encodeURIComponent("/dashboard")}; Path=/; Max-Age=600; SameSite=Lax`;
-    document.cookie = `klip_oauth_state=${state}; Path=/; Max-Age=600; SameSite=Lax`;
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.set("email", pendingEmail);
+      formData.set("code", code);
+      formData.set("shop_name", pendingShopName);
+      formData.set("industry", pendingIndustry);
+      formData.set("password", (document.getElementById("reg-password") as HTMLInputElement)?.value || "");
 
-    const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo,
-        skipBrowserRedirect: true,
-      },
+      const result = await completeRegistration(formData);
+      if (!result.success) {
+        setError(result.error);
+      } else {
+        addToast("Local creado. Redirigiendo al dashboard...", "success");
+        setTimeout(() => router.push("/dashboard"), 800);
+      }
     });
+  }
 
-    if (oauthError) {
-      if (process.env.NODE_ENV !== "production") {
-        console.error("[oauth-debug][register] signInWithOAuth error", oauthError);
+  function handleResendCode() {
+    setResent(true);
+    setError(null);
+    startTransition(async () => {
+      const result = await resendVerificationCode(pendingEmail);
+      if (result.success) {
+        addToast("Código reenviado", "success");
+      } else {
+        setError(result.error || "No se pudo reenviar el código");
       }
-      setError(`Error de Google OAuth: ${oauthError.message}`);
-      return;
-    }
+    });
+  }
 
-    if (!data?.url) {
-      if (process.env.NODE_ENV !== "production") {
-        console.error("[oauth-debug][register] missing oauth url", data);
-      }
-      setError("No se pudo iniciar Google OAuth. Intenta de nuevo.");
-      return;
-    }
+  if (step === "code") {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-violet-700 tracking-tight">Klip</h1>
+            <p className="mt-2 text-gray-600">Verificá tu email</p>
+          </div>
 
-    if (process.env.NODE_ENV !== "production") {
-      console.info("[oauth-debug][register] oauth url", data.url);
-    }
+          <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-8 space-y-6">
+            {error && (
+              <div className="bg-red-50 text-red-700 text-sm px-4 py-3 rounded-lg">{error}</div>
+            )}
 
-    try {
-      const oauthUrl = new URL(data.url);
-      const redirectParam = oauthUrl.searchParams.get("redirect_to");
-      const expectedOrigin = getPublicBaseUrl();
-      if (redirectParam && !redirectParam.startsWith(expectedOrigin)) {
-        setError(
-          `OAuth devolvio redirect_to inesperado. Esperado: ${expectedOrigin}. Recibido: ${redirectParam}`
-        );
-        if (process.env.NODE_ENV !== "production") {
-          console.error("[oauth-debug][register] redirect_to mismatch", { expectedOrigin, redirectParam, oauthUrl: data.url });
-        }
-        return;
-      }
-    } catch {}
+            <p className="text-sm text-gray-600 text-center">
+              Te enviamos un código de 6 dígitos a <strong>{pendingEmail}</strong>
+            </p>
 
-    window.location.assign(data.url);
+            <form onSubmit={handleVerifyCode} className="space-y-5">
+              <div>
+                <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-1">Código de verificación</label>
+                <input
+                  type="text"
+                  id="code"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  className="w-full px-3 py-3 border border-gray-300 rounded-lg text-center text-2xl font-bold tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                  placeholder="------"
+                  maxLength={6}
+                  autoFocus
+                  autoComplete="one-time-code"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={pending || code.length !== 6}
+                className="w-full bg-violet-600 text-white py-2.5 px-4 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
+              >
+                {pending ? "Verificando..." : "Verificar y crear cuenta"}
+              </button>
+            </form>
+
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={handleResendCode}
+                disabled={pending || resent}
+                className="text-sm text-violet-600 hover:text-violet-700 underline disabled:opacity-50 cursor-pointer select-none"
+              >
+                {resent ? "Código reenviado" : "Reenviar código"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -171,80 +163,54 @@ export default function RegisterPage() {
             <div className="bg-red-50 text-red-700 text-sm px-4 py-3 rounded-lg">{error}</div>
           )}
 
-          {registrationSuccess ? (
-            <div className="rounded-2xl border border-blue-200 bg-blue-50 px-5 py-6 text-center">
-              <p className="text-sm font-medium text-blue-900">
-                Listo. Te enviamos un correo de confirmacion para activar tu acceso.
-              </p>
-              <button
-                type="button"
-                onClick={() => router.push("/login")}
-                className="mt-5 inline-flex rounded-xl bg-[#0071E3] px-4 py-2 text-sm font-medium text-white hover:bg-[#005bb8] transition-colors"
-              >
-                Ir a iniciar sesion
-              </button>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <input type="hidden" name="industry" value={industry} />
+            <div>
+              <label htmlFor="shop_name" className="block text-sm font-medium text-gray-700 mb-1">Nombre del Local</label>
+              <input type="text" id="shop_name" name="shop_name" required value={shopName} onChange={(e) => setShopName(e.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent" placeholder="Ej: Klip Barber" />
             </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <input type="hidden" name="industry" value={industry} />
-              <div>
-                <label htmlFor="shop_name" className="block text-sm font-medium text-gray-700 mb-1">Nombre del Local</label>
-                <input type="text" id="shop_name" name="shop_name" required value={shopName} onChange={(e) => setShopName(e.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent" placeholder="Ej: Klip Barber" />
-              </div>
 
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input type="email" id="email" name="email" required className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent" placeholder="tu@email.com" />
-              </div>
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input type="email" id="email" name="email" required className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent" placeholder="tu@email.com" />
+            </div>
 
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Contrasena</label>
-                <input type="password" id="password" name="password" required minLength={6} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent" placeholder="Minimo 6 caracteres" />
-              </div>
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+              <input type="password" id="reg-password" name="password" required minLength={6} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent" placeholder="Minimo 6 caracteres" />
+            </div>
 
-              <div className="rounded-xl border border-gray-200 bg-white/60 px-3 py-2.5">
-                <label className="flex items-start gap-2.5 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    name="terms_accepted"
-                    checked={termsAccepted}
-                    onChange={(e) => setTermsAccepted(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
-                  />
-                  <span>
-                    Acepto los Terminos y Condiciones y las Politicas de Privacidad de Klip. {" "}
-                    <button
-                      type="button"
-                      onClick={() => setTermsOpen(true)}
-                      className="font-medium text-violet-700 hover:text-violet-800 underline"
-                    >
-                      Leer Terminos y Condiciones
-                    </button>
-                  </span>
-                </label>
-              </div>
+            <div className="rounded-xl border border-gray-200 bg-white/60 px-3 py-2.5">
+              <label className="flex items-start gap-2.5 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  name="terms_accepted"
+                  checked={termsAccepted}
+                  onChange={(e) => setTermsAccepted(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                />
+                <span>
+                  Acepto los Terminos y Condiciones y las Politicas de Privacidad de Klip. {" "}
+                  <button
+                    type="button"
+                    onClick={() => setTermsOpen(true)}
+                    className="font-medium text-violet-700 hover:text-violet-800 underline"
+                  >
+                    Leer Terminos y Condiciones
+                  </button>
+                </span>
+              </label>
+            </div>
 
-              <button type="submit" disabled={pending || cooldownSeconds > 0 || !termsAccepted} className="w-full bg-violet-600 text-white py-2.5 px-4 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer select-none">
-                {pending ? "Creando cuenta..." : cooldownSeconds > 0 ? `Reintenta en ${cooldownSeconds}s` : "Crear cuenta y local"}
-              </button>
-
-              <button
-                type="button"
-                onClick={handleGoogleOwnerSignup}
-                disabled={pending || !termsAccepted}
-                className="w-full bg-white text-gray-900 py-2.5 px-4 rounded-2xl text-sm font-medium shadow-sm border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50 cursor-pointer select-none"
-              >
-                Continuar con Google (crear local)
-              </button>
-            </form>
-          )}
+            <button type="submit" disabled={pending || !termsAccepted} className="w-full bg-violet-600 text-white py-2.5 px-4 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer select-none">
+              {pending ? "Creando cuenta..." : "Crear cuenta"}
+            </button>
+          </form>
         </div>
 
-        {!registrationSuccess && (
-          <p className="mt-6 text-center text-sm text-gray-600">
-            Ya tenes cuenta? <Link href="/login" className="font-medium text-violet-600 hover:text-violet-700">Inicia sesion</Link>
-          </p>
-        )}
+        <p className="mt-6 text-center text-sm text-gray-600">
+          Ya tenes cuenta? <Link href="/login" className="font-medium text-violet-600 hover:text-violet-700">Inicia sesion</Link>
+        </p>
       </div>
 
       {termsOpen && (

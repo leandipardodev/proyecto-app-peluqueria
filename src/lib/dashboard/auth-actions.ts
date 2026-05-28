@@ -6,8 +6,8 @@ import { redirect } from "next/navigation";
 import type { ActionResult } from "@/lib/types";
 import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
 import { trackProductEvent } from "@/lib/analytics/product-events";
-import { sendEmailWithResend } from "@/lib/email/resend";
 import { resolveIndustry } from "@/lib/industry/resolve";
+import { sendVerificationCode, verifyEmailCode } from "@/lib/dashboard/verification-actions";
 import "server-only";
 
 function generateShopSlug(name: string): string {
@@ -53,26 +53,6 @@ function getTrialExpiryIso(): string {
   return new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString();
 }
 
-async function sendAdminConfirmationEmail(email: string): Promise<void> {
-  const baseUrl = resolvePublicSiteUrl();
-  await sendEmailWithResend({
-    to: email,
-    subject: "Confirma tu acceso a Klip",
-    html: `
-      <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#111827;">
-        <h1 style="font-size:22px;margin:0 0 12px;">Bienvenido a Klip</h1>
-        <p style="font-size:15px;line-height:1.6;margin:0 0 14px;">
-          Tu cuenta fue creada correctamente. Si ya confirmaste tu email en Supabase, podés iniciar sesión.
-        </p>
-        <p style="margin:22px 0;">
-          <a href="${baseUrl}/login" style="background:#111827;color:#fff;text-decoration:none;padding:10px 14px;border-radius:8px;display:inline-block;">Ir a iniciar sesión</a>
-        </p>
-        <p style="font-size:12px;color:#6b7280;margin-top:18px;">Enviado por Klip desde send.klip.com.ar</p>
-      </div>
-    `,
-  });
-}
-
 export async function login(formData: FormData): Promise<never> {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
@@ -109,7 +89,7 @@ export async function login(formData: FormData): Promise<never> {
 
 export async function registerShop(
   formData: FormData
-): Promise<ActionResult<{ requiresEmailConfirmation?: boolean; message?: string; redirectToDashboard?: boolean }>> {
+): Promise<ActionResult<{ requiresEmailVerification?: boolean; email?: string; message?: string }>> {
   try {
     const shopName = formData.get("shop_name") as string;
     const email = formData.get("email") as string;
@@ -130,44 +110,94 @@ export async function registerShop(
       return { success: false, error: "La contraseña debe tener al menos 6 caracteres" };
     }
 
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
-            } catch {}
-          },
-        },
-      }
-    );
-
-    const slug = await resolveUniqueShopSlug(generateShopSlug(shopName));
     const normalizedEmail = email.trim().toLowerCase();
 
-    const baseUrl = resolvePublicSiteUrl();
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-      email: normalizedEmail,
-      password,
-      options: {
-        emailRedirectTo: `${baseUrl}/auth/callback?next=/dashboard`,
-      },
-    });
-    if (signUpError) {
-      return { success: false, error: mapAuthError(signUpError.message) };
+    const admin = await createServiceRoleClient();
+
+    const { data: existingUser } = await admin.auth.admin.listUsers();
+    const alreadyExists = existingUser?.users?.some((u) => u.email === normalizedEmail);
+    if (alreadyExists) {
+      return { success: false, error: "Ya existe una cuenta con ese email. Inicia sesión o usa otro email." };
     }
 
-    if (!signUpData.user) {
-      return { success: false, error: "No se pudo crear el usuario" };
+    const { data: createdUser, error: createError } = await admin.auth.admin.createUser({
+      email: normalizedEmail,
+      password,
+      email_confirm: false,
+    });
+
+    if (createError || !createdUser?.user) {
+      return { success: false, error: mapAuthError(createError?.message || "No se pudo crear el usuario") };
+    }
+
+    const userId = createdUser.user.id;
+
+    const { error: profileError } = await admin.from("user_profiles").upsert({
+      user_id: userId,
+      shop_id: null,
+      name: normalizedEmail,
+      email: normalizedEmail,
+      role: "owner",
+      is_active: false,
+      updated_at: new Date().toISOString(),
+    });
+
+    if (profileError) {
+      try { await admin.auth.admin.deleteUser(userId); } catch {}
+      return { success: false, error: profileError.message };
+    }
+
+    const codeResult = await sendVerificationCode(normalizedEmail);
+    if (!codeResult.success) {
+      try { await admin.auth.admin.deleteUser(userId); } catch {}
+      try { await admin.from("user_profiles").delete().eq("user_id", userId); } catch {}
+      return { success: false, error: "No se pudo enviar el código de verificación. Intentá de nuevo." };
+    }
+
+    return {
+      success: true,
+      data: {
+        requiresEmailVerification: true,
+        email: normalizedEmail,
+        message: "Te enviamos un código de 6 dígitos a tu email.",
+      },
+    };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al registrar" };
+  }
+}
+
+export async function completeRegistration(
+  formData: FormData
+): Promise<ActionResult<{ redirectToDashboard?: boolean; message?: string }>> {
+  try {
+    const email = formData.get("email") as string;
+    const code = formData.get("code") as string;
+    const shopName = formData.get("shop_name") as string;
+    const industry = resolveIndustry(formData.get("industry") as string | null);
+
+    if (!email || !code || !shopName) {
+      return { success: false, error: "Faltan datos para completar el registro" };
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const verifyResult = await verifyEmailCode(normalizedEmail, code);
+    if (!verifyResult.success) {
+      return { success: false as const, error: verifyResult.error || "Código incorrecto" };
     }
 
     const admin = await createServiceRoleClient();
+
+    const { data: userList } = await admin.auth.admin.listUsers();
+    const user = userList?.users?.find((u) => u.email === normalizedEmail);
+    if (!user) {
+      return { success: false, error: "Usuario no encontrado" };
+    }
+
+    await admin.auth.admin.updateUserById(user.id, { email_confirm: true });
+
+    const slug = await resolveUniqueShopSlug(generateShopSlug(shopName));
     const trialEnd = getTrialExpiryIso();
 
     const { data: createdShop, error: shopError } = await admin
@@ -186,24 +216,19 @@ export async function registerShop(
       return { success: false, error: shopError?.message || "No se pudo crear el local" };
     }
 
-    const { error: profileError } = await admin.from("user_profiles").upsert({
-      user_id: signUpData.user.id,
+    await admin.from("user_profiles").upsert({
+      user_id: user.id,
       shop_id: createdShop.id,
-      name: signUpData.user.user_metadata?.full_name || normalizedEmail,
+      name: normalizedEmail,
       email: normalizedEmail,
       role: "owner",
       is_active: true,
       updated_at: new Date().toISOString(),
     });
 
-    if (profileError) {
-      try { await admin.from("shops").delete().eq("id", createdShop.id); } catch {}
-      return { success: false, error: profileError.message };
-    }
-
     const { error: membershipError } = await admin.from("shop_memberships").upsert(
       {
-        user_id: signUpData.user.id,
+        user_id: user.id,
         shop_id: createdShop.id,
         role: "owner",
         is_active: true,
@@ -213,15 +238,12 @@ export async function registerShop(
     );
 
     if (membershipError) {
-      try {
-        await admin.from("user_profiles").delete().eq("user_id", signUpData.user.id);
-        await admin.from("shops").delete().eq("id", createdShop.id);
-      } catch {}
+      try { await admin.from("shops").delete().eq("id", createdShop.id); } catch {}
       return { success: false, error: membershipError.message };
     }
 
     await trackProductEvent(createdShop.id, "trial_started", {
-      actorUserId: signUpData.user.id,
+      actorUserId: user.id,
       metadata: { source: "register_shop", trial_days: 15 },
     });
 
@@ -238,27 +260,48 @@ export async function registerShop(
       );
     } catch {}
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
-    if (signInError) {
-      try {
-        await sendAdminConfirmationEmail(normalizedEmail);
-      } catch (mailError) {
-        console.error("[registerShop] resend confirmation email error", mailError);
-      }
-      return {
-        success: true,
-        data: {
-          requiresEmailConfirmation: true,
-          message: "Cuenta creada. Confirmá tu email para terminar de configurar tu negocio.",
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() { return cookieStore.getAll(); },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
+            } catch {}
+          },
         },
-      };
+      }
+    );
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: normalizedEmail,
+      password: formData.get("password") as string,
+    });
+
+    if (signInError) {
+      return { success: false, error: "Cuenta verificada pero no se pudo iniciar sesión. Intentá desde el login." };
     }
 
     await supabase.auth.refreshSession();
 
     return { success: true, data: { redirectToDashboard: true } };
   } catch (e) {
-    return { success: false, error: e instanceof Error ? e.message : "Error al registrar" };
+    return { success: false, error: e instanceof Error ? e.message : "Error al completar el registro" };
+  }
+}
+
+export async function resendVerificationCode(email: string): Promise<ActionResult> {
+  try {
+    const result = await sendVerificationCode(email);
+    if (!result.success) {
+      return { success: false, error: result.error || "No se pudo reenviar el código" };
+    }
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al reenviar código" };
   }
 }
 
