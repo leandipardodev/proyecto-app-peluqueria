@@ -3,6 +3,8 @@ import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
 import { trackProductEvent } from "@/lib/analytics/product-events";
 import { MercadoPagoConfig, Payment } from "mercadopago";
 import { cycleMonths, type BillingCycle } from "@/lib/billing/plans";
+import { getArgentinaDateKey } from "@/lib/argentina-time";
+import { sendAppointmentConfirmationEmail } from "@/lib/email/booking-emails";
 
 async function createAdminClient() {
   return createServiceRoleClient();
@@ -166,6 +168,151 @@ export async function POST(request: NextRequest) {
       }
 
       return NextResponse.json({ ok: true });
+    }
+
+    // Check if this is a pending_booking (new flow: appointment created after payment)
+    const PENDING_BOOKING_PREFIX = "pending_booking:";
+    if (externalReference.startsWith(PENDING_BOOKING_PREFIX)) {
+      const bookingId = externalReference.slice(PENDING_BOOKING_PREFIX.length);
+      if (!bookingId) {
+        return NextResponse.json({ ok: true });
+      }
+
+      const { data: booking } = await admin
+        .from("pending_bookings")
+        .select("*")
+        .eq("id", bookingId)
+        .maybeSingle();
+
+      if (!booking || booking.status !== "pending") {
+        return NextResponse.json({ ok: true });
+      }
+
+      const normalizedPaymentId = String(paymentId);
+
+      if (paymentResult.status === "approved") {
+        // Ensure idempotency
+        const { error: lockError } = await admin.from("shop_billing_events").insert({
+          shop_id: booking.shop_id,
+          actor_user_id: null,
+          event_type: "appointment_payment_applied",
+          payload: {
+            payment_id: normalizedPaymentId,
+            pending_booking_id: booking.id,
+            status: paymentResult.status,
+          },
+        });
+
+        if (lockError) {
+          if (isUniqueViolation(lockError)) {
+            return NextResponse.json({ ok: true });
+          }
+          throw lockError;
+        }
+
+        // Create or update customer
+        let customerId: string;
+        const { data: existingCustomer } = await admin
+          .from("customers")
+          .select("id")
+          .eq("shop_id", booking.shop_id)
+          .eq("telefono", booking.customer_phone)
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+
+        if (existingCustomer) {
+          customerId = existingCustomer.id;
+          await admin
+            .from("customers")
+            .update({
+              nombre: booking.customer_name,
+              email: booking.customer_email || null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", customerId);
+        } else {
+          const { data: newCustomer, error: custError } = await admin
+            .from("customers")
+            .insert({
+              shop_id: booking.shop_id,
+              nombre: booking.customer_name,
+              telefono: booking.customer_phone,
+              email: booking.customer_email || null,
+            })
+            .select("id")
+            .single();
+
+          if (custError) throw custError;
+          customerId = newCustomer.id;
+        }
+
+        // Create appointment
+        const { data: service } = await admin
+          .from("services")
+          .select("name")
+          .eq("id", booking.service_id)
+          .maybeSingle();
+
+        const { data: shop } = await admin
+          .from("shops")
+          .select("nombre, email")
+          .eq("id", booking.shop_id)
+          .maybeSingle();
+
+        const { data: createdAppointment, error: aptError } = await admin
+          .from("appointments")
+          .insert({
+            shop_id: booking.shop_id,
+            customer_id: customerId,
+            staff_id: booking.staff_id || null,
+            service_id: booking.service_id,
+            start_time: booking.start_time,
+            end_time: booking.end_time,
+            date_key_ar: getArgentinaDateKey(booking.start_time),
+            status: "scheduled",
+            is_paid: true,
+            deposit_amount: booking.deposit_amount,
+            mp_preference_id: booking.mp_preference_id,
+          })
+          .select("id")
+          .single();
+
+        if (aptError) throw aptError;
+
+        // Mark pending_booking as completed
+        await admin
+          .from("pending_bookings")
+          .update({ status: "completed" })
+          .eq("id", booking.id);
+
+        // Send confirmation email
+        if (booking.customer_email) {
+          const shopData = shop as { nombre?: string | null; email?: string | null } | null;
+          const serviceName = (service as { name?: string | null } | null)?.name || "Servicio";
+          const replyTo = shopData?.email && shopData.email.includes("@") ? shopData.email : undefined;
+
+          sendAppointmentConfirmationEmail({
+            to: booking.customer_email,
+            customerName: booking.customer_name,
+            shopName: shopData?.nombre || "Klip",
+            serviceName,
+            startTime: booking.start_time,
+            replyTo,
+          }).catch((err) => console.error("[webhook] confirmation email error:", err));
+        }
+
+        return NextResponse.json({ ok: true });
+      } else {
+        // Payment not approved — mark booking as expired/cancelled
+        const cancelStatus = paymentResult.status === "cancelled" ? "cancelled" : "expired";
+        await admin
+          .from("pending_bookings")
+          .update({ status: cancelStatus })
+          .eq("id", booking.id);
+
+        return NextResponse.json({ ok: true });
+      }
     }
 
     const appointmentId =

@@ -11,115 +11,13 @@ import {
 } from "@/lib/argentina-time";
 import { MercadoPagoConfig, Preference } from "mercadopago";
 import type { ActionResult } from "@/lib/types";
-import { sendEmailWithResend } from "@/lib/email/resend";
+import { sendAppointmentConfirmationEmail, scheduleAppointmentReminderEmail } from "@/lib/email/booking-emails";
 import "server-only";
 
 async function createAdminClient() {
   return createServiceRoleClient();
 }
 
-async function sendAppointmentConfirmationEmail(params: {
-  to: string;
-  customerName: string;
-  shopName: string;
-  serviceName: string;
-  startTime: string;
-  replyTo?: string;
-}): Promise<void> {
-  const appointmentDate = new Date(params.startTime);
-  const dateLabel = appointmentDate.toLocaleDateString("es-AR", {
-    weekday: "long",
-    day: "2-digit",
-    month: "2-digit",
-    timeZone: "America/Argentina/Buenos_Aires",
-  });
-  const timeLabel = appointmentDate.toLocaleTimeString("es-AR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: "America/Argentina/Buenos_Aires",
-  });
-  const when = `${dateLabel} a las ${timeLabel}`;
-
-  await sendEmailWithResend({
-    to: params.to,
-    subject: `Confirmado! Tu turno el ${dateLabel} a las ${timeLabel}`,
-    replyTo: params.replyTo,
-    html: `
-      <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#111827;">
-        <h1 style="font-size:22px;margin:0 0 12px;">Tu turno fue reservado</h1>
-        <p style="font-size:15px;line-height:1.6;margin:0 0 8px;">Hola ${params.customerName}, ya confirmamos tu reserva.</p>
-        <p style="font-size:15px;line-height:1.6;margin:0;">
-          <strong>Local:</strong> ${params.shopName}<br/>
-          <strong>Servicio:</strong> ${params.serviceName}<br/>
-          <strong>Fecha y hora:</strong> ${when}
-        </p>
-        <p style="font-size:12px;color:#6b7280;margin-top:18px;">Klip - no-reply@send.klip.com.ar</p>
-      </div>
-    `,
-  });
-}
-
-async function scheduleAppointmentReminderEmail(params: {
-  to: string;
-  customerName: string;
-  shopName: string;
-  serviceName: string;
-  shopAddress?: string;
-  startTime: string;
-  replyTo?: string;
-}): Promise<void> {
-  const reminderDate = new Date(new Date(params.startTime).getTime() - 3 * 60 * 60 * 1000);
-  if (reminderDate <= new Date()) {
-    return;
-  }
-
-  const appointmentDate = new Date(params.startTime);
-  const dateLabel = appointmentDate.toLocaleDateString("es-AR", {
-    weekday: "long",
-    day: "2-digit",
-    month: "2-digit",
-    timeZone: "America/Argentina/Buenos_Aires",
-  });
-  const timeLabel = appointmentDate.toLocaleTimeString("es-AR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: "America/Argentina/Buenos_Aires",
-  });
-
-  const mapsUrl = params.shopAddress
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(params.shopAddress)}`
-    : null;
-  const locationLine = params.shopAddress
-    ? `<p style="font-size:14px;line-height:1.6;margin:4px 0 14px;"><strong>Direccion:</strong> ${params.shopAddress}</p>`
-    : "";
-  const mapsButton = mapsUrl
-    ? `<a href="${mapsUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#0071E3;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:999px;font-size:13px;font-weight:600;">Ver ubicacion en Google Maps</a>`
-    : "";
-
-  await sendEmailWithResend({
-    to: params.to,
-    subject: `⏰ Recordatorio: Tenes un turno en ${params.shopName}`,
-    scheduledAt: reminderDate.toISOString(),
-    replyTo: params.replyTo,
-    html: `
-      <div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#111827;background:#f8fafc;border:1px solid #e5e7eb;border-radius:16px;">
-        <h1 style="font-size:22px;margin:0 0 12px;">Recordatorio de turno</h1>
-        <p style="font-size:15px;line-height:1.65;margin:0 0 16px;">Hola ${params.customerName}, este es un recordatorio de tu turno para hoy.</p>
-        <div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;margin-bottom:14px;">
-          <p style="font-size:14px;line-height:1.6;margin:0 0 4px;"><strong>Peluqueria:</strong> ${params.shopName}</p>
-          <p style="font-size:14px;line-height:1.6;margin:4px 0;"><strong>Servicio:</strong> ${params.serviceName}</p>
-          <p style="font-size:14px;line-height:1.6;margin:4px 0;"><strong>Hora:</strong> ${dateLabel} a las ${timeLabel}</p>
-          ${locationLine}
-          ${mapsButton}
-        </div>
-        <p style="font-size:12px;line-height:1.6;color:#6b7280;margin-top:14px;">Este es un aviso automatico. No respondas a este mail. Si necesitas cancelar, contacta a la peluqueria directamente.</p>
-        <p style="font-size:12px;color:#9ca3af;margin-top:8px;">Klip Turnos - no-reply@send.klip.com.ar</p>
-      </div>
-    `,
-  });
-}
 
 const DAY_KEYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
@@ -275,6 +173,24 @@ export async function fetchPublicAvailableSlots(
       isPendingPaymentStillBlocking(apt.status as string | null | undefined, apt.created_at as string | null | undefined)
     );
 
+    // Also block slots held by pending bookings (new flow)
+    const { data: pendingBookings } = await admin
+      .from("pending_bookings")
+      .select("start_time, end_time, staff_id")
+      .eq("shop_id", shopId)
+      .eq("status", "pending")
+      .gte("start_time", dayStart.toISOString())
+      .lte("start_time", dayEnd.toISOString());
+
+    const allBlocks = [
+      ...appointments,
+      ...(pendingBookings || []).map((pb) => ({
+        start_time: pb.start_time,
+        end_time: pb.end_time,
+        staff_id: pb.staff_id,
+      })),
+    ];
+
     const { data: allStaff } = await admin
       .from("user_profiles")
       .select("user_id")
@@ -306,7 +222,7 @@ export async function fetchPublicAvailableSlots(
         const slotEnd = new Date(slotStart.getTime() + slotDuration * 60000);
 
         if (staffId) {
-          const hasConflict = appointments.some((apt) => {
+          const hasConflict = allBlocks.some((apt) => {
             const aptStart = new Date(apt.start_time);
             const aptEnd = new Date(apt.end_time);
             return slotStart < aptEnd && slotEnd > aptStart;
@@ -316,7 +232,7 @@ export async function fetchPublicAvailableSlots(
           }
         } else {
           const busyStaff = new Set<string>();
-          appointments.forEach((apt) => {
+          allBlocks.forEach((apt) => {
             const aptStart = new Date(apt.start_time);
             const aptEnd = new Date(apt.end_time);
             if (slotStart < aptEnd && slotEnd > aptStart && apt.staff_id) {

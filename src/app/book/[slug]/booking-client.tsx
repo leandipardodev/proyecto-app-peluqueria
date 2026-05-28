@@ -17,12 +17,8 @@ import {
   UserRound,
 } from "lucide-react";
 import { initMercadoPago, Wallet } from "@mercadopago/sdk-react";
-import {
-  createPaymentPreference,
-  createPublicAppointment,
-  deletePublicAppointment,
-  fetchPublicAvailableSlots,
-} from "@/lib/dashboard/public-booking-actions";
+import { fetchPublicAvailableSlots } from "@/lib/dashboard/public-booking-actions";
+import { createPendingBooking, deletePendingBooking } from "@/lib/dashboard/pending-booking-actions";
 import GoogleSignInButton from "@/components/auth/google-sign-in-button";
 import { useAuth } from "@/lib/auth-context";
 import type { BookingTemplateId } from "@/lib/booking/theme-presets";
@@ -335,58 +331,40 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
     setCreatingPreference(true);
     setError(null);
 
-    const appointmentResult = await createPublicAppointment({
+    const bookingResult = await createPendingBooking({
       shopId: shop.id,
+      shopSlug: shop.slug,
       serviceId: selectedService.id,
+      serviceName: selectedService.name,
+      servicePrice: selectedService.price,
       staffId: selectedStaff?.id,
       customerName: customerName.trim(),
       customerEmail: customerEmail.trim() || undefined,
       customerPhone: customerPhone.trim(),
       authenticatedUserId: user?.id,
-      status: "pending_payment",
       startTime: selectedSlot.start,
       endTime: selectedSlot.end,
-    });
-
-    if (!appointmentResult.success || !appointmentResult.data?.appointmentId) {
-      setSubmitting(false);
-      setCreatingPreference(false);
-      setError(appointmentResult.success ? "No se pudo crear el turno" : appointmentResult.error || "No se pudo crear el turno");
-      return;
-    }
-
-    const preferenceResult = await createPaymentPreference({
-      appointmentId: appointmentResult.data.appointmentId,
-      shopId: shop.id,
-      shopSlug: shop.slug,
     });
 
     setSubmitting(false);
     setCreatingPreference(false);
 
-    if (!preferenceResult.success || !preferenceResult.data) {
-      await deletePublicAppointment({
-        appointmentId: appointmentResult.data.appointmentId,
-        shopId: shop.id,
-      });
-      setError(preferenceResult.success ? "No se pudo iniciar el pago" : preferenceResult.error || "No se pudo iniciar el pago");
+    if (!bookingResult.success || !bookingResult.data) {
+      setError(bookingResult.success ? "No se pudo iniciar el pago" : bookingResult.error || "No se pudo iniciar el pago");
       return;
     }
 
-    const safePreferenceId = String(preferenceResult.data.preferenceId || "").trim();
+    const safePreferenceId = String(bookingResult.data.preferenceId || "").trim();
     if (!safePreferenceId) {
-      await deletePublicAppointment({
-        appointmentId: appointmentResult.data.appointmentId,
-        shopId: shop.id,
-      });
+      await deletePendingBooking(bookingResult.data.bookingId, shop.id);
       setError("No se pudo iniciar el checkout");
       return;
     }
 
     setPaymentPreferenceId(safePreferenceId);
-    setPaymentInitPoint(preferenceResult.data.initPoint);
-    setChargedAmount(preferenceResult.data.chargedAmount ?? null);
-    setIsDepositPayment(Boolean(preferenceResult.data.isDeposit));
+    setPaymentInitPoint(bookingResult.data.initPoint);
+    setChargedAmount(bookingResult.data.chargedAmount ?? null);
+    setIsDepositPayment(Boolean(bookingResult.data.isDeposit));
   }
 
   function handleReset() {
@@ -1127,7 +1105,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
                               <div className="flex items-start justify-between gap-3">
                                 <div>
                                   <p className={`text-[11px] uppercase tracking-[0.2em] ${templateStyles.checkoutKicker}`}>Checkout seguro</p>
-                                  <p className={`mt-1 text-sm font-semibold ${templateStyles.checkoutTitle}`}>{isDepositPayment ? "Sena lista para completar" : "Pago listo para completar"}</p>
+                                  <p className={`mt-1 text-sm font-semibold ${templateStyles.checkoutTitle}`}>{isDepositPayment ? "Seña lista para completar" : "Pago listo para completar"}</p>
                                 </div>
                                 <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${templateStyles.checkoutBadge}`}>
                                   Mercado Pago
@@ -1136,7 +1114,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
 
                               {chargedAmount !== null && (
                                 <div className={`rounded-2xl border px-4 py-3 backdrop-blur-sm ${templateStyles.plain}`}>
-                                  <p className={`text-[11px] uppercase tracking-wide ${templateStyles.checkoutKicker}`}>{isDepositPayment ? "Sena online" : "Monto online"}</p>
+                                  <p className={`text-[11px] uppercase tracking-wide ${templateStyles.checkoutKicker}`}>{isDepositPayment ? "Seña online" : "Monto online"}</p>
                                   <p className={`mt-0.5 text-2xl font-semibold leading-none ${templateStyles.checkoutAmount}`}>
                                     ${chargedAmount.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </p>
