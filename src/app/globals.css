@@ -324,21 +324,21 @@ html.perf-mode .backdrop-blur-sm {
   backdrop-filter: none !important;
 }
 
-html.perf-mode .bg-white\\/10,
-html.perf-mode .bg-white\\/20,
-html.perf-mode .bg-white\\/30,
-html.perf-mode .bg-black\\/10,
-html.perf-mode .bg-black\\/20,
-html.perf-mode .bg-black\\/30 {
+html.perf-mode [class*="bg-white/10"],
+html.perf-mode [class*="bg-white/20"],
+html.perf-mode [class*="bg-white/30"],
+html.perf-mode [class*="bg-black/10"],
+html.perf-mode [class*="bg-black/20"],
+html.perf-mode [class*="bg-black/30"] {
   background-color: rgba(255, 255, 255, 0.85) !important;
 }
 
-html.dark.perf-mode .bg-white\\/10,
-html.dark.perf-mode .bg-white\\/20,
-html.dark.perf-mode .bg-white\\/30,
-html.dark.perf-mode .bg-black\\/10,
-html.dark.perf-mode .bg-black\\/20,
-html.dark.perf-mode .bg-black\\/30 {
+html.dark.perf-mode [class*="bg-white/10"],
+html.dark.perf-mode [class*="bg-white/20"],
+html.dark.perf-mode [class*="bg-white/30"],
+html.dark.perf-mode [class*="bg-black/10"],
+html.dark.perf-mode [class*="bg-black/20"],
+html.dark.perf-mode [class*="bg-black/30"] {
   background-color: rgba(0, 0, 0, 0.75) !important;
 }
 
