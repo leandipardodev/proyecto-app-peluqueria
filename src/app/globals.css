@@ -349,6 +349,19 @@ html.perf-mode .transition-transform {
   transition: none !important;
 }
 
+@keyframes carousel-zoom {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.08); }
+}
+
+.carousel-image-zoom {
+  animation: carousel-zoom 20s ease-in-out infinite alternate;
+}
+
+html.perf-mode .carousel-image-zoom {
+  animation: none !important;
+}
+
 .delicate-scroll {
   scrollbar-width: thin;
   scrollbar-color: rgba(148, 163, 184, 0.45) transparent;

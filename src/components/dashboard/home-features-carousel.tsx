@@ -140,7 +140,7 @@ export default function HomeFeaturesCarousel() {
                 animate={{ opacity: 1, scale: 1, x: dragX }}
                 exit={{ opacity: 0, scale: 1.04 }}
                 transition={{ duration: 0.6, ease: EASE }}
-                className={`absolute -inset-x-4 inset-y-0 overflow-hidden md:-inset-x-6 ${imageStyles.frame}`}
+                className={`absolute -inset-x-4 inset-y-0 md:-inset-x-6 ${imageStyles.frame}`}
                 drag="x"
                 dragConstraints={{ left: 0, right: 0 }}
                 dragElastic={0.12}
@@ -154,11 +154,11 @@ export default function HomeFeaturesCarousel() {
                 }}
                 style={{
                   filter: "drop-shadow(0 20px 40px rgba(15,23,42,0.18))",
-                  WebkitMaskImage: "radial-gradient(130% 115% at 50% 50%, black 74%, transparent 100%)",
-                  maskImage: "radial-gradient(130% 115% at 50% 50%, black 74%, transparent 100%)",
                 }}
               >
-                <Image src={slide.image} alt={slide.alt} fill sizes="(max-width: 768px) 100vw, 60vw" className="object-contain" priority={active === 0} />
+                <div className="absolute inset-0 carousel-image-zoom">
+                  <Image src={slide.image} alt={slide.alt} fill sizes="(max-width: 768px) 100vw, 60vw" className="object-contain" priority={active === 0} />
+                </div>
                 <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,rgba(255,255,255,0.08)_0%,transparent_42%,rgba(14,165,233,0.08)_100%)]" />
               </motion.div>
             </AnimatePresence>
