@@ -156,8 +156,8 @@ export default function HomeFeaturesCarousel() {
                   filter: "drop-shadow(0 20px 40px rgba(15,23,42,0.18))",
                 }}
               >
-                <div className="absolute inset-0 carousel-image-zoom">
-                  <Image src={slide.image} alt={slide.alt} fill sizes="(max-width: 768px) 100vw, 60vw" className="object-contain" priority={active === 0} />
+                <div className="absolute inset-0 carousel-image-zoom scale-[1.12]">
+                  <Image src={slide.image} alt={slide.alt} fill sizes="(max-width: 768px) 100vw, 60vw" className="object-cover" priority={active === 0} />
                 </div>
                 <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,rgba(255,255,255,0.08)_0%,transparent_42%,rgba(14,165,233,0.08)_100%)]" />
               </motion.div>
