@@ -38,7 +38,7 @@ const SLIDES: Slide[] = [
     kicker: "Inicio optimizado",
     title: "Métricas y estadísticas claras para no perder ningún detalle.",
     text: "Tu panel principal resume lo importante de ingresos, actividad y alertas para que tomes decisiones rápido, sin fricción.",
-    image: "/landing/carousel/1.png",
+    image: "/landing/carousel/aa4.webp",
     alt: "Panel principal de Klip con métricas del negocio",
   },
   {

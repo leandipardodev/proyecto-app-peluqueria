@@ -30,8 +30,6 @@ const organizationJsonLd = {
   sameAs: [],
 };
 
-export const dynamic = "force-dynamic";
-
 export const metadata: Metadata = {
   metadataBase: new URL(absoluteUrl("/")),
   title: {

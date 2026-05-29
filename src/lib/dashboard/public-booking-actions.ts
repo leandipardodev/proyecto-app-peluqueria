@@ -249,28 +249,6 @@ export async function fetchPublicAvailableSlots(
       }
     }
 
-    if (slots.length === 0) {
-      const fallbackStart = 9 * 60;
-      const fallbackEnd = 12 * 60;
-      let fbMinute = isTodayInArgentina ? Math.max(fallbackStart, nowMinuteInArgentina) : fallbackStart;
-
-      if (isTodayInArgentina && fbMinute > fallbackStart) {
-        const remainder = fbMinute % slotDuration;
-        if (remainder !== 0) {
-          fbMinute += slotDuration - remainder;
-        }
-      }
-
-      while (fbMinute + slotDuration <= fallbackEnd) {
-        const hour = Math.floor(fbMinute / 60);
-        const minute = fbMinute % 60;
-        const slotStart = createArgentinaDate(y, monthNum, d, hour, minute);
-        const slotEnd = new Date(slotStart.getTime() + slotDuration * 60000);
-        slots.push({ start: slotStart.toISOString(), end: slotEnd.toISOString(), time: formatArgentinaTime(slotStart) });
-        fbMinute += slotDuration;
-      }
-    }
-
     return { success: true, data: slots };
   } catch (e) {
     console.error("[fetchPublicAvailableSlots] error:", e);

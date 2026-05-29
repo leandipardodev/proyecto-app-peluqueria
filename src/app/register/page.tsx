@@ -2,13 +2,14 @@
 
 import { registerShop, completeRegistration, resendVerificationCode } from "@/lib/dashboard/auth-actions";
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { Suspense, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
 import { resolveIndustry } from "@/lib/industry/resolve";
+import type { Industry } from "@/lib/industry/types";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 
-export default function RegisterPage() {
+function RegisterPageContent({ industry }: { industry: Industry }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState<"form" | "code">("form");
@@ -22,8 +23,6 @@ export default function RegisterPage() {
   const [pendingPassword, setPendingPassword] = useState("");
   const [resent, setResent] = useState(false);
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const industry = resolveIndustry(searchParams.get("rubro"));
   const { addToast } = useToast();
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -298,5 +297,19 @@ export default function RegisterPage() {
         </div>
       )}
     </div>
+  );
+}
+
+function RegisterPageWithIndustry() {
+  const searchParams = useSearchParams();
+  const industry = resolveIndustry(searchParams.get("rubro"));
+  return <RegisterPageContent industry={industry} />;
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={null}>
+      <RegisterPageWithIndustry />
+    </Suspense>
   );
 }

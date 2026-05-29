@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, useInView, useMotionValue, useScroll, useSpring, useTransform } from "framer-motion";
 import { Sparkles, CalendarCheck2, Scissors, Boxes, BarChart3, Clock3, Users2 } from "lucide-react";
@@ -156,25 +156,9 @@ function CountUp({ to, suffix = "", className = "" }: { to: number; suffix?: str
   );
 }
 
-export default function Home() {
+function OAuthHandler() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const hero3DRef = useRef<HTMLDivElement | null>(null);
-  const mouseX = useMotionValue(-1000);
-  const mouseY = useMotionValue(-1000);
-  const smoothX = useSpring(mouseX, { stiffness: 120, damping: 24, mass: 0.45 });
-  const smoothY = useSpring(mouseY, { stiffness: 120, damping: 24, mass: 0.45 });
-
-  const [mounted, setMounted] = useState(false);
-  const [isDesktop, setIsDesktop] = useState(false);
-  const [turnosHoy, setTurnosHoy] = useState(8);
-
-  const { scrollYProgress: heroProgress } = useScroll({
-    target: hero3DRef,
-    offset: ["start end", "end start"],
-  });
-  const panelRotateX = useTransform(heroProgress, [0, 0.45, 1], [10, 0, -9]);
-  const panelRotateY = useTransform(heroProgress, [0, 0.5, 1], [-6, 0, 6]);
 
   useEffect(() => {
     const code = searchParams.get("code");
@@ -204,6 +188,27 @@ export default function Home() {
     }
     router.replace(`/auth/callback${query ? `?${query}` : ""}`);
   }, [router, searchParams]);
+
+  return null;
+}
+
+export default function Home() {
+  const hero3DRef = useRef<HTMLDivElement | null>(null);
+  const mouseX = useMotionValue(-1000);
+  const mouseY = useMotionValue(-1000);
+  const smoothX = useSpring(mouseX, { stiffness: 120, damping: 24, mass: 0.45 });
+  const smoothY = useSpring(mouseY, { stiffness: 120, damping: 24, mass: 0.45 });
+
+  const [mounted, setMounted] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
+  const [turnosHoy, setTurnosHoy] = useState(8);
+
+  const { scrollYProgress: heroProgress } = useScroll({
+    target: hero3DRef,
+    offset: ["start end", "end start"],
+  });
+  const panelRotateX = useTransform(heroProgress, [0, 0.45, 1], [10, 0, -9]);
+  const panelRotateY = useTransform(heroProgress, [0, 0.5, 1], [-6, 0, 6]);
 
   useEffect(() => {
     setMounted(true);
@@ -239,6 +244,9 @@ export default function Home() {
 
   return (
     <main className={`${jakarta.className} relative min-h-screen overflow-hidden bg-[#F6F7FB]`}>
+      <Suspense fallback={null}>
+        <OAuthHandler />
+      </Suspense>
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10 opacity-60"

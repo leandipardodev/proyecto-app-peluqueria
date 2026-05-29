@@ -1,5 +1,6 @@
 "use server";
 
+import crypto from "crypto";
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient, requireShopId } from "@/lib/dashboard/auth-server";
 import { trackProductEvent } from "@/lib/analytics/product-events";
@@ -96,7 +97,7 @@ export async function fetchStaffMembers(shopIdOverride?: string): Promise<Action
       .select("user_id, role")
       .eq("shop_id", shopId)
       .eq("is_active", true)
-      .in("role", ["owner", "staff"]);
+      .in("role", ["owner", "staff", "admin"]);
 
     if (membershipsError) return { success: false, error: membershipsError.message };
 
@@ -266,7 +267,7 @@ export async function addStaffMember(formData: FormData, shopIdOverride?: string
       return { success: true, data: { login_url: loginUrl } };
     }
 
-    const password = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
+    const password = crypto.randomBytes(6).toString("hex");
 
     const { data: adminData, error: adminError } = await admin.auth.admin.createUser({
       email: normalizedEmail,

@@ -5,6 +5,7 @@ import { MercadoPagoConfig, Payment } from "mercadopago";
 import { cycleMonths, type BillingCycle } from "@/lib/billing/plans";
 import { getArgentinaDateKey } from "@/lib/argentina-time";
 import { sendAppointmentConfirmationEmail } from "@/lib/email/booking-emails";
+import crypto from "crypto";
 
 async function createAdminClient() {
   return createServiceRoleClient();
@@ -39,6 +40,31 @@ function isUniqueViolation(error: unknown): boolean {
   return maybeCode === "23505";
 }
 
+function verifyMercadoPagoSignature(
+  rawBody: string,
+  xSignature: string | null,
+  secret: string
+): boolean {
+  if (!xSignature || !secret) return process.env.NODE_ENV === "development";
+
+  const tsMatch = xSignature.match(/ts=(\d+)/);
+  const v1Match = xSignature.match(/v1=([a-f0-9]+)/);
+
+  if (!tsMatch || !v1Match) return false;
+
+  const ts = tsMatch[1];
+
+  const signingString = `${rawBody}|${ts}`;
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update(signingString, "utf8")
+    .digest("hex");
+
+  if (expected.length !== v1Match[1].length) return false;
+
+  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(v1Match[1]));
+}
+
 function formatDateInArgentina(value: Date | string): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Argentina/Buenos_Aires",
@@ -55,6 +81,20 @@ function formatDateInArgentina(value: Date | string): string {
 
 export async function POST(request: NextRequest) {
   try {
+    const rawBody = await request.text();
+    let payload: { type?: string; data?: { id?: string }; action?: string } | null = null;
+    try {
+      payload = JSON.parse(rawBody);
+    } catch {
+      return NextResponse.json({ ok: false, error: "invalid body" }, { status: 400 });
+    }
+
+    const webhookSecret = process.env.MP_WEBHOOK_SECRET || "";
+    const xSignature = request.headers.get("x-signature");
+    if (!verifyMercadoPagoSignature(rawBody, xSignature, webhookSecret)) {
+      return NextResponse.json({ ok: false, error: "invalid signature" }, { status: 401 });
+    }
+
     const admin = await createAdminClient();
     const shopId = request.nextUrl.searchParams.get("shop_id");
     const scope = request.nextUrl.searchParams.get("scope");
@@ -78,7 +118,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, error: "Mercado Pago token missing" }, { status: 500 });
     }
 
-    const payload = await request.json().catch(() => null);
     const queryType = request.nextUrl.searchParams.get("type") || request.nextUrl.searchParams.get("topic");
     const queryDataId = request.nextUrl.searchParams.get("data.id") || request.nextUrl.searchParams.get("id");
     const type = payload?.type || queryType;
@@ -191,7 +230,7 @@ export async function POST(request: NextRequest) {
       const normalizedPaymentId = String(paymentId);
 
       if (paymentResult.status === "approved") {
-        // Ensure idempotency
+        // Try to insert billing event as idempotency lock
         const { error: lockError } = await admin.from("shop_billing_events").insert({
           shop_id: booking.shop_id,
           actor_user_id: null,
@@ -205,9 +244,20 @@ export async function POST(request: NextRequest) {
 
         if (lockError) {
           if (isUniqueViolation(lockError)) {
-            return NextResponse.json({ ok: true });
+            // Billing event already exists — check if appointment was actually created
+            const { data: existingBooking } = await admin
+              .from("pending_bookings")
+              .select("status")
+              .eq("id", booking.id)
+              .maybeSingle();
+
+            if (existingBooking?.status === "completed") {
+              return NextResponse.json({ ok: true });
+            }
+            // If booking is still pending, continue to create appointment below
+          } else {
+            throw lockError;
           }
-          throw lockError;
         }
 
         // Create or update customer
@@ -341,6 +391,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    const preferenceId = (paymentResult.order?.id as string | undefined) || (paymentResult.metadata?.preference_id as string | undefined) || undefined;
+
+    // Update appointment first (idempotent — setting same values on retry)
+    const { error: updateError } = await admin
+      .from("appointments")
+      .update({
+        status,
+        is_paid: paymentResult.status === "approved",
+        mp_preference_id: preferenceId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", appointment.id)
+      .eq("shop_id", appointment.shop_id);
+
+    if (updateError) throw updateError;
+
+    // Insert billing event after successful appointment update
     if (paymentResult.status === "approved") {
       const { error: lockError } = await admin.from("shop_billing_events").insert({
         shop_id: appointment.shop_id,
@@ -355,25 +422,12 @@ export async function POST(request: NextRequest) {
       });
 
       if (lockError) {
-        if (isUniqueViolation(lockError)) {
-          return NextResponse.json({ ok: true });
+        if (!isUniqueViolation(lockError)) {
+          throw lockError;
         }
-        throw lockError;
+        // Unique violation means billing event already recorded — appointment is already updated, safe to return OK
       }
     }
-
-    const preferenceId = (paymentResult.order?.id as string | undefined) || (paymentResult.metadata?.preference_id as string | undefined) || undefined;
-
-    await admin
-      .from("appointments")
-      .update({
-        status,
-        is_paid: paymentResult.status === "approved",
-        mp_preference_id: preferenceId,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", appointment.id)
-      .eq("shop_id", appointment.shop_id);
 
     await admin.from("mercadopago_logs").insert({
       shop_id: appointment.shop_id,
@@ -394,6 +448,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
-  return POST(request);
+export async function GET() {
+  // MP sends GET for endpoint validation — just confirm the endpoint exists
+  return NextResponse.json({ ok: true });
 }

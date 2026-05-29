@@ -82,7 +82,7 @@ export async function createPendingBooking(
       return { success: false, error: "slot_taken" };
     }
 
-    // Insert pending booking
+    // Insert pending booking (atomic with unique constraint as safety net against race condition)
     const { data: booking, error: insertError } = await admin
       .from("pending_bookings")
       .insert({
@@ -101,8 +101,15 @@ export async function createPendingBooking(
       .select("id")
       .single();
 
-    if (insertError || !booking) {
-      return { success: false, error: insertError?.message || "Error al crear reserva pendiente" };
+    if (insertError) {
+      if (insertError.code === "23505") {
+        return { success: false, error: "slot_taken" };
+      }
+      return { success: false, error: insertError.message || "Error al crear reserva pendiente" };
+    }
+
+    if (!booking) {
+      return { success: false, error: "Error al crear reserva pendiente" };
     }
 
     // Create MP preference with booking ID as external_reference
