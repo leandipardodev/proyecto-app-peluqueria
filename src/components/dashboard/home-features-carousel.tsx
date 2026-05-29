@@ -130,7 +130,7 @@ export default function HomeFeaturesCarousel() {
           </div>
         </div>
 
-        <div className="order-1 md:order-2 md:col-span-7">
+        <div className="order-1 md:order-2 md:col-span-7 relative z-10">
           <div className="relative h-[380px] overflow-visible md:h-[560px]">
             <div className={`pointer-events-none absolute -inset-x-16 inset-y-4 bg-gradient-to-br ${imageStyles.glow} blur-3xl`} />
             <AnimatePresence mode="wait">
@@ -156,7 +156,7 @@ export default function HomeFeaturesCarousel() {
                   filter: "drop-shadow(0 20px 40px rgba(15,23,42,0.18))",
                 }}
               >
-                <div className="absolute inset-0 carousel-image-zoom scale-[1.12]">
+                <div className="absolute inset-0 carousel-image-zoom scale-[1.06]">
                   <Image src={slide.image} alt={slide.alt} fill sizes="(max-width: 768px) 100vw, 60vw" className="object-cover" priority={active === 0} />
                 </div>
                 <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,rgba(255,255,255,0.08)_0%,transparent_42%,rgba(14,165,233,0.08)_100%)]" />
