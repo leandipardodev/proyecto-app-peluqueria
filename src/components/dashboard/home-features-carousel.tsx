@@ -22,8 +22,16 @@ const SLIDES: Slide[] = [
     kicker: "Multi dispositivo",
     title: "La app funciona en todos tus dispositivos y se adapta a tu estilo.",
     text: "Usala en celular, tablet o escritorio con la misma experiencia. Todo se mantiene personalizable para que refleje la identidad de tu negocio.",
-    image: "/landing/carousel/1.png",
+    image: "/landing/carousel/aa1.webp",
     alt: "Klip en varios dispositivos con interfaz personalizable",
+  },
+  {
+    id: "ai",
+    kicker: "Inteligencia artificial",
+    title: "IA integrada trabaja codo a codo con vos dándote recomendaciones e información en tiempo real de tu local.",
+    text: "Analizamos el comportamiento de tu negocio para sugerirte los mejores horarios, servicios más rentables y alertas inteligentes. Todo sin que tengas que hacer nada extra.",
+    image: "/landing/carousel/aa2.webp",
+    alt: "Klip con inteligencia artificial integrada",
   },
   {
     id: "dashboard",
