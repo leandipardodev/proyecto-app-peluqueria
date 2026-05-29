@@ -19,6 +19,7 @@ export default function RegisterPage() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
   const [code, setCode] = useState("");
+  const [pendingPassword, setPendingPassword] = useState("");
   const [resent, setResent] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -41,6 +42,7 @@ export default function RegisterPage() {
         setPendingEmail(email);
         setPendingShopName(name);
         setPendingIndustry(ind);
+        setPendingPassword(formData.get("password") as string);
         setStep("code");
         addToast("Te enviamos un código de 6 dígitos", "success");
       }
@@ -62,7 +64,7 @@ export default function RegisterPage() {
       formData.set("code", code);
       formData.set("shop_name", pendingShopName);
       formData.set("industry", pendingIndustry);
-      formData.set("password", (document.getElementById("reg-password") as HTMLInputElement)?.value || "");
+      formData.set("password", pendingPassword);
 
       const result = await completeRegistration(formData);
       if (!result.success) {
