@@ -1,12 +1,14 @@
-import { createServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
+import dynamicImport from "next/dynamic";
 import DashboardSidebar from "@/components/dashboard/dashboard-sidebar";
 import DashboardHeaderLoader from "@/components/dashboard/dashboard-header-loader";
-import DashboardPageTransition from "@/components/dashboard/dashboard-page-transition";
-import ReleaseNotesModal from "@/components/dashboard/release-notes-modal";
-import BugReportModal from "@/components/dashboard/bug-report-modal";
 import { logout } from "@/lib/dashboard/logout-action";
+import { getCachedUser } from "@/lib/dashboard/auth-server";
+
+const DashboardPageTransition = dynamicImport(() => import("@/components/dashboard/dashboard-page-transition"));
+const ReleaseNotesModal = dynamicImport(() => import("@/components/dashboard/release-notes-modal"));
+const BugReportModal = dynamicImport(() => import("@/components/dashboard/bug-report-modal"));
 
 export const dynamic = "force-dynamic";
 
@@ -17,26 +19,13 @@ export const metadata: Metadata = {
   },
 };
 
-async function getUserOrRedirect() {
-  const supabase = await createServerClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
-  return user;
-}
-
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getUserOrRedirect();
+  const user = await getCachedUser();
+  if (!user) redirect("/login");
   const userName = user.email || "Usuario";
 
   return (

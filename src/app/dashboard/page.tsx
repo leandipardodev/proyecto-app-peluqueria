@@ -105,11 +105,14 @@ function seasonalMomentLabel(now: Date, customerPlural: string): string | null {
 }
 
 export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOverride?: string) {
-  const [summaryResult, metricsResult, whatsappTemplateResult, voucherAlertsResult] = await Promise.all([
+  const [summaryResult, metricsResult, whatsappTemplateResult, voucherAlertsResult, socialLinks, industry, features] = await Promise.all([
     fetchDashboardSummary(shopIdOverride),
     fetchDashboardMetrics(shopIdOverride),
     fetchWhatsappTemplate(shopIdOverride),
     fetchTodayVoucherAlerts(shopIdOverride),
+    fetchShopLinks(shopIdOverride),
+    fetchShopIndustry(shopIdOverride, shopSlugOverride || null),
+    getShopFeatures(shopIdOverride as string),
   ]);
   const whatsappTemplate = whatsappTemplateResult.success ? (whatsappTemplateResult.data ?? DEFAULT_WHATSAPP_TEMPLATE) : DEFAULT_WHATSAPP_TEMPLATE;
 
@@ -125,10 +128,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
     );
   }
   const summary = summaryResult.data;
-  const socialLinks = await fetchShopLinks(shopIdOverride);
-  const industry = await fetchShopIndustry(shopIdOverride, shopSlugOverride || summary.shopSlug || null);
   const labels = INDUSTRY_CONFIG[industry].labels;
-  const features = await getShopFeatures(shopIdOverride);
   const customerPlural = labels.customerPlural;
   const servicePlural = labels.servicePlural;
   const metrics = metricsResult.success && metricsResult.data ? metricsResult.data : null;

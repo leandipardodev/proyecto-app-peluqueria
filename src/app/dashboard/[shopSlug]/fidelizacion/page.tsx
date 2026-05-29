@@ -1,4 +1,4 @@
-import { getAuthSession, getShopIdBySlug } from "@/lib/dashboard/auth-server";
+import { getCachedUser, getCachedShopIdBySlug } from "@/lib/dashboard/auth-server";
 import { createServerClient } from "@/lib/supabase/server";
 import { fetchVouchers, fetchVoucherWhatsappTemplate } from "@/lib/dashboard/voucher-actions";
 import { fetchBusinessData } from "@/lib/dashboard/business-actions";
@@ -15,10 +15,9 @@ type LoyaltyRewardCustomer = {
 export const dynamic = "force-dynamic";
 
 export default async function DashboardShopFidelizacionPage({ params }: { params: Promise<{ shopSlug: string }> }) {
-  const session = await getAuthSession();
-  if (!session) redirect("/login");
-  const { shopSlug } = await params;
-  const shopId = await getShopIdBySlug(shopSlug, session.user.id);
+  const [user, { shopSlug }] = await Promise.all([getCachedUser(), params]);
+  if (!user) redirect("/login");
+  const shopId = await getCachedShopIdBySlug(shopSlug, user.id);
   if (!shopId) redirect("/dashboard");
 
   const features = await getShopFeatures(shopId);

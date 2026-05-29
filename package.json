@@ -22,7 +22,10 @@
   "license": "ISC",
   "type": "module",
   "lint-staged": {
-    "*.{ts,tsx}": ["eslint --fix", "bash -c 'tsc --noEmit --pretty 2>&1 | head -50'"]
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "bash -c 'tsc --noEmit --pretty 2>&1 | head -50'"
+    ]
   },
   "devDependencies": {
     "@playwright/test": "^1.54.2",
@@ -51,7 +54,6 @@
     "@supabase/supabase-js": "^2.105.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
-    "emoji-picker-react": "^4.19.1",
     "framer-motion": "^12.38.0",
     "lucide-react": "^1.14.0",
     "mercadopago": "^2.12.0",

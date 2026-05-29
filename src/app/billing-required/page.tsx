@@ -107,8 +107,9 @@ export default async function BillingRequiredPage({
           alt="Ilustración de pago de membresía"
           width={2200}
           height={900}
+          sizes="100vw"
           className="block h-auto w-full object-cover"
-          priority
+          loading="lazy"
         />
       </div>
     </div>

@@ -3,23 +3,22 @@ import { fetchDashboardSummary, fetchDashboardMetrics } from "@/lib/dashboard/da
 import { fetchServices } from "@/lib/dashboard/service-actions";
 import BusinessClient from "@/app/dashboard/business/business-client";
 import { createServerClient } from "@/lib/supabase/server";
-import { getAuthSession, getShopIdBySlug } from "@/lib/dashboard/auth-server";
+import { getCachedUser, getCachedShopIdBySlug } from "@/lib/dashboard/auth-server";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardShopBusinessPage({ params }: { params: Promise<{ shopSlug: string }> }) {
-  const session = await getAuthSession();
-  if (!session) redirect("/login");
-  const { shopSlug } = await params;
-  const shopId = await getShopIdBySlug(shopSlug, session.user.id);
+  const [user, { shopSlug }] = await Promise.all([getCachedUser(), params]);
+  if (!user) redirect("/login");
+  const shopId = await getCachedShopIdBySlug(shopSlug, user.id);
   if (!shopId) redirect("/dashboard");
 
   const supabase = await createServerClient();
   const { data: membership } = await supabase
     .from("shop_memberships")
     .select("role, is_active")
-    .eq("user_id", session.user.id)
+    .eq("user_id", user.id)
     .eq("shop_id", shopId)
     .maybeSingle();
   const canManageBilling = Boolean(membership?.is_active && membership.role === "owner");

@@ -735,6 +735,8 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
                         alt={`Logo ${shop.name}`}
                         width={120}
                         height={120}
+                        sizes="64px"
+                        priority
                         className="h-full w-full object-contain"
                       />
                     ) : (

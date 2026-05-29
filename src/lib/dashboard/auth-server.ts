@@ -4,17 +4,50 @@ import { redirect } from "next/navigation";
 import type { ActionResult } from "@/lib/types";
 import { headers } from "next/headers";
 import { cookies } from "next/headers";
+import { cache } from "react";
 
 const ACTIVE_SHOP_ID_COOKIE = "klip_active_shop_id";
 
-export async function getAuthSession(): Promise<{ user: { id: string } } | null> {
+async function fetchUser() {
   const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  return user;
+}
+
+export const getCachedUser = cache(fetchUser);
+
+export async function getAuthSession(): Promise<{ user: { id: string } } | null> {
+  const user = await getCachedUser();
   if (!user) return null;
   return { user };
 }
+
+export const getCachedShopIdBySlug = cache(async function (slug: string, userId: string) {
+  const normalizedSlug = slug.trim().toLowerCase();
+  if (!normalizedSlug || !userId) return null;
+
+  const admin = await createServiceRoleClient();
+  const { data: shop } = await admin
+    .from("shops")
+    .select("id, slug")
+    .eq("slug", normalizedSlug)
+    .maybeSingle();
+
+  if (!shop?.id) return null;
+
+  const { data: membership } = await admin
+    .from("shop_memberships")
+    .select("shop_id")
+    .eq("user_id", userId)
+    .eq("shop_id", shop.id)
+    .eq("is_active", true)
+    .in("role", ["owner", "admin", "staff"])
+    .maybeSingle();
+
+  return membership?.shop_id || null;
+});
 
 export async function getShopId(session: { user: { id: string } }): Promise<string | null> {
   const supabase = await createServerClient();

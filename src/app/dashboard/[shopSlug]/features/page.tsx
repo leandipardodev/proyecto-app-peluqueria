@@ -1,9 +1,7 @@
-import { getAuthSession, getShopIdBySlug } from "@/lib/dashboard/auth-server";
-import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
+import { getCachedUser, getCachedShopIdBySlug, createServiceRoleClient } from "@/lib/dashboard/auth-server";
 import { redirect } from "next/navigation";
 import { resolveIndustry } from "@/lib/industry/resolve";
 import { getFeatures, getShopFeatures, updateShopFeatureOverride } from "@/lib/industry/features";
-import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { FEATURE_LABELS } from "./constants";
 import FeaturesToggle from "./features-toggle";
 import { revalidatePath } from "next/cache";
@@ -11,10 +9,9 @@ import { revalidatePath } from "next/cache";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardShopFeaturesPage({ params }: { params: Promise<{ shopSlug: string }> }) {
-  const session = await getAuthSession();
-  if (!session) redirect("/login");
-  const { shopSlug } = await params;
-  const shopId = await getShopIdBySlug(shopSlug, session.user.id);
+  const [user, { shopSlug }] = await Promise.all([getCachedUser(), params]);
+  if (!user) redirect("/login");
+  const shopId = await getCachedShopIdBySlug(shopSlug, user.id);
   if (!shopId) redirect("/dashboard");
 
   const admin = await createServiceRoleClient();

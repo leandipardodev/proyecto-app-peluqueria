@@ -149,7 +149,7 @@ export default function BookingTemplateCarousel({ selectedTemplateId, onSelect }
               }`}
             >
               <div className="overflow-hidden rounded-2xl border border-white/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
-                <Image src={template.previewSrc} alt={template.name} width={220} height={390} className="h-[220px] w-full object-cover" />
+                <Image src={template.previewSrc} alt={template.name} width={220} height={390} sizes="220px" className="h-[220px] w-full object-cover" />
               </div>
               <p className="mt-3 text-sm font-semibold text-zinc-900 dark:text-white">{template.name}</p>
               <p className="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">{template.description}</p>

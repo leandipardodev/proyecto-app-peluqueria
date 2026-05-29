@@ -1,7 +1,7 @@
 import { fetchFinanceData } from "@/lib/dashboard/finances-actions";
 import FinancesClient from "@/app/dashboard/finances/finances-client";
 import { getArgentinaDateString } from "@/lib/argentina-time";
-import { getAuthSession, getShopIdBySlug } from "@/lib/dashboard/auth-server";
+import { getCachedUser, getCachedShopIdBySlug } from "@/lib/dashboard/auth-server";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -13,10 +13,9 @@ export default async function DashboardShopFinancesPage({
   params: Promise<{ shopSlug: string }>;
   searchParams?: Promise<{ from?: string; to?: string }>;
 }) {
-  const session = await getAuthSession();
-  if (!session) redirect("/login");
-  const { shopSlug } = await params;
-  const shopId = await getShopIdBySlug(shopSlug, session.user.id);
+  const [user, { shopSlug }] = await Promise.all([getCachedUser(), params]);
+  if (!user) redirect("/login");
+  const shopId = await getCachedShopIdBySlug(shopSlug, user.id);
   if (!shopId) redirect("/dashboard");
 
   const query = await searchParams;

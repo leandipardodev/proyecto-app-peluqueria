@@ -52,7 +52,9 @@ export async function fetchDashboardSummary(shopIdOverride?: string): Promise<Ac
     const todayStartIso = todayStart.toISOString();
     const todayEndIso = todayEnd.toISOString();
 
-    const [appointmentsToday, revenueToday, lowStock, loyaltyReady, loyaltyRewardCustomers] = await Promise.all([
+    const nowIso = getArgentinaNow().toISOString();
+
+    const [appointmentsToday, revenueToday, lowStock, loyaltyReady, loyaltyRewardCustomers, nextResult, shop] = await Promise.all([
       supabase
         .from("appointments")
         .select("id, start_time, status")
@@ -91,6 +93,22 @@ export async function fetchDashboardSummary(shopIdOverride?: string): Promise<Ac
         .order("loyalty_rewards_available", { ascending: false })
         .order("updated_at", { ascending: false })
         .limit(3),
+
+      supabase
+        .from("appointments")
+        .select("*, customers(nombre, telefono), services(name, price)")
+        .eq("shop_id", shopId)
+        .gte("start_time", nowIso)
+        .lte("start_time", todayEndIso)
+        .in("status", APPOINTMENT_STATUS_UPCOMING as unknown as string[])
+        .order("start_time", { ascending: true })
+        .limit(5),
+
+      supabase
+        .from("shops")
+        .select("nombre, slug")
+        .eq("id", shopId)
+        .single(),
     ]);
 
     if (appointmentsToday.error) return { success: false, error: appointmentsToday.error.message };
@@ -98,6 +116,8 @@ export async function fetchDashboardSummary(shopIdOverride?: string): Promise<Ac
     if (lowStock.error) return { success: false, error: lowStock.error.message };
     if (loyaltyReady.error) return { success: false, error: loyaltyReady.error.message };
     if (loyaltyRewardCustomers.error) return { success: false, error: loyaltyRewardCustomers.error.message };
+    if (nextResult.error) return { success: false, error: nextResult.error.message };
+    if (shop.error) return { success: false, error: shop.error.message };
 
     const loyaltyRewardCustomerNames = (loyaltyRewardCustomers.data ?? [])
       .map((c) => (c.nombre || "").trim())
@@ -108,20 +128,6 @@ export async function fetchDashboardSummary(shopIdOverride?: string): Promise<Ac
       const price = serviceData ? (Array.isArray(serviceData) ? serviceData[0]?.price : serviceData.price) : 0;
       return sum + (Number(price) || 0);
     }, 0);
-
-    const nowIso = getArgentinaNow().toISOString();
-
-    const nextResult = await supabase
-      .from("appointments")
-      .select("*, customers(nombre, telefono), services(name, price)")
-      .eq("shop_id", shopId)
-      .gte("start_time", nowIso)
-      .lte("start_time", todayEndIso)
-      .in("status", APPOINTMENT_STATUS_UPCOMING as unknown as string[])
-      .order("start_time", { ascending: true })
-      .limit(5);
-
-    if (nextResult.error) return { success: false, error: nextResult.error.message };
 
     const nextAppointments: NextAppointment[] = (nextResult.data ?? []).map((a: Record<string, unknown>) => ({
         id: a.id as string,
@@ -136,12 +142,6 @@ export async function fetchDashboardSummary(shopIdOverride?: string): Promise<Ac
           : (a.services as { name: string; price: number } | null),
       }));
 
-    const { data: shop } = await supabase
-      .from("shops")
-      .select("nombre, slug")
-      .eq("id", shopId)
-      .single();
-
     return {
       success: true,
       data: {
@@ -151,8 +151,8 @@ export async function fetchDashboardSummary(shopIdOverride?: string): Promise<Ac
         nextAppointments,
         loyaltyRewardsReadyCount: (loyaltyReady.data ?? []).length,
         loyaltyRewardCustomerNames,
-        shopName: shop?.nombre || "",
-        shopSlug: shop?.slug || "",
+        shopName: (shop.data as { nombre: string } | null)?.nombre || "",
+        shopSlug: (shop.data as { slug: string } | null)?.slug || "",
       },
     };
   } catch (e) {

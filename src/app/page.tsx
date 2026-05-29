@@ -711,7 +711,7 @@ export default function Home() {
             </Link>
             <span className="text-xs text-[#a1a1aa]">-</span>
             <span className="inline-flex items-center gap-2 rounded-full bg-white/80 px-2 py-1 text-xs text-[#4b5563] ring-1 ring-slate-200">
-              <Image src="/dix-logo.svg" alt="di.X" width={64} height={20} className="h-5 w-auto object-contain" />
+              <Image src="/dix-logo.svg" alt="di.X" width={64} height={20} sizes="64px" className="h-5 w-auto object-contain" />
               Powered by di.X
             </span>
           </div>
