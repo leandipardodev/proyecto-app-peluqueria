@@ -164,7 +164,7 @@ export default function BookingThemeLivePreview({
             <div className={`rounded-[1.4rem] border shadow-[0_24px_60px_-36px_rgba(15,23,42,0.45)] ${styles.page} ${styles.shell} ${isDesktopPreview ? "p-4 sm:p-5" : "p-3 sm:p-4"}`}>
               <div className="flex items-center gap-3 border-b border-white/15 pb-3">
                 <div className="h-14 w-14 overflow-hidden">
-                  {logoUrl ? <Image src={logoUrl} alt="Logo preview" width={112} height={112} quality={100} className="h-full w-full object-contain" /> : null}
+                  {logoUrl ? <Image src={logoUrl} alt="Logo preview" width={112} height={112} className="h-full w-full object-contain" /> : null}
                 </div>
                 <div className="min-w-0">
                   <h3 className={`truncate text-sm font-semibold ${styles.heading}`}>{heroTitle || shopName || "Reserva online"}</h3>

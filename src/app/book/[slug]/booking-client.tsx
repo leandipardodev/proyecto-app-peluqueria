@@ -735,7 +735,6 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
                         alt={`Logo ${shop.name}`}
                         width={120}
                         height={120}
-                        quality={100}
                         className="h-full w-full object-contain"
                       />
                     ) : (
@@ -1025,10 +1024,11 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
 
                             {requiresManualPhone && (
                               <div>
-                                <label className={`block text-sm font-medium mb-1.5 ${templateStyles.label}`}>WhatsApp / Telefono</label>
+                                 <label htmlFor="customer-phone-auth" className={`block text-sm font-medium mb-1.5 ${templateStyles.label}`}>WhatsApp / Telefono</label>
                                 <div className="relative">
                                   <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
                                   <input
+                                    id="customer-phone-auth"
                                     type="tel"
                                     inputMode="numeric"
                                     autoComplete="tel"
@@ -1052,10 +1052,11 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
                             </div>
 
                             <div>
-                              <label className={`block text-sm font-medium mb-1.5 ${templateStyles.label}`}>Nombre</label>
+                              <label htmlFor="customer-name" className={`block text-sm font-medium mb-1.5 ${templateStyles.label}`}>Nombre</label>
                               <div className="relative">
                                 <UserRound className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
                                 <input
+                                  id="customer-name"
                                   value={customerName}
                                   onChange={(e) => setCustomerName(e.target.value)}
                                   className={templateStyles.input}
@@ -1065,10 +1066,11 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
                             </div>
 
                             <div>
-                              <label className={`block text-sm font-medium mb-1.5 ${templateStyles.label}`}>Email</label>
+                              <label htmlFor="customer-email" className={`block text-sm font-medium mb-1.5 ${templateStyles.label}`}>Email</label>
                               <div className="relative">
                                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
                                 <input
+                                  id="customer-email"
                                   type="email"
                                   value={customerEmail}
                                   onChange={(e) => setCustomerEmail(e.target.value)}
@@ -1079,10 +1081,11 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
                             </div>
 
                             <div>
-                              <label className={`block text-sm font-medium mb-1.5 ${templateStyles.label}`}>WhatsApp / Telefono</label>
+                              <label htmlFor="customer-phone" className={`block text-sm font-medium mb-1.5 ${templateStyles.label}`}>WhatsApp / Telefono</label>
                               <div className="relative">
                                 <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
                                 <input
+                                  id="customer-phone"
                                   type="tel"
                                   inputMode="numeric"
                                   autoComplete="tel"

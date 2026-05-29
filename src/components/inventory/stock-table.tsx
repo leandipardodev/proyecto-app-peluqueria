@@ -248,7 +248,7 @@ export default function StockTable({ shopId, items }: StockTableProps) {
                     type="button"
                     onClick={() => handleBulkAdjust(item.id, 1)}
                     disabled={pending}
-                    className="px-2 py-1 rounded-md text-xs bg-emerald-600 text-white disabled:opacity-40"
+                    className="px-3 py-2.5 min-h-[44px] rounded-md text-xs bg-emerald-600 text-white disabled:opacity-40"
                   >
                     + cantidad
                   </button>
@@ -256,7 +256,7 @@ export default function StockTable({ shopId, items }: StockTableProps) {
                     type="button"
                     onClick={() => handleBulkAdjust(item.id, -1)}
                     disabled={pending || item.quantity <= 0}
-                    className="px-2 py-1 rounded-md text-xs bg-amber-600 text-white disabled:opacity-40"
+                    className="px-3 py-2.5 min-h-[44px] rounded-md text-xs bg-amber-600 text-white disabled:opacity-40"
                   >
                     - cantidad
                   </button>
@@ -264,7 +264,7 @@ export default function StockTable({ shopId, items }: StockTableProps) {
                     type="button"
                     onClick={() => handleDelete(item.id)}
                     disabled={pending}
-                    className="ml-auto p-1.5 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
+                    className="ml-auto p-2.5 min-h-[44px] min-w-[44px] rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer select-none flex items-center justify-center"
                     title="Eliminar"
                     aria-label={`Eliminar ${item.nombre_producto}`}
                   >
@@ -369,7 +369,7 @@ export default function StockTable({ shopId, items }: StockTableProps) {
                             type="button"
                             onClick={() => handleBulkAdjust(item.id, 1)}
                             disabled={pending}
-                            className="px-2 py-1 rounded-md text-[11px] bg-emerald-600 text-white disabled:opacity-40"
+                            className="px-3 py-2.5 min-h-[44px] rounded-md text-xs bg-emerald-600 text-white disabled:opacity-40"
                           >
                             +
                           </button>
@@ -377,7 +377,7 @@ export default function StockTable({ shopId, items }: StockTableProps) {
                             type="button"
                             onClick={() => handleBulkAdjust(item.id, -1)}
                             disabled={pending || item.quantity <= 0}
-                            className="px-2 py-1 rounded-md text-[11px] bg-amber-600 text-white disabled:opacity-40"
+                            className="px-3 py-2.5 min-h-[44px] rounded-md text-xs bg-amber-600 text-white disabled:opacity-40"
                           >
                             -
                           </button>
@@ -385,7 +385,7 @@ export default function StockTable({ shopId, items }: StockTableProps) {
                             type="button"
                             onClick={() => handleDelete(item.id)}
                             disabled={pending}
-                            className="p-1.5 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
+                            className="p-2.5 min-h-[44px] min-w-[44px] rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer select-none flex items-center justify-center"
                             title="Eliminar"
                             aria-label={`Eliminar ${item.nombre_producto}`}
                           >

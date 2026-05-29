@@ -46,6 +46,8 @@ export default function AddProductModal({ shopId, open, onClose }: AddProductMod
     <div
       ref={backdropRef}
       className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-y-contain backdrop-blur-sm p-3 sm:p-4"
+      role="dialog"
+      aria-modal="true"
       onClick={(e) => {
         if (e.target === backdropRef.current) onClose();
       }}

@@ -1264,7 +1264,7 @@ export default function BusinessClient({
                 {uploadingLogo ? "Subiendo..." : "Subir logo"}
                 <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="hidden" onChange={handleLogoUpload} />
               </label>
-              {logoUrl ? <Image src={logoUrl} alt="Logo" width={80} height={80} quality={100} className="h-20 w-20 rounded-2xl object-contain border border-white/20 bg-white/50 p-1.5 dark:bg-zinc-900/40" /> : null}
+              {logoUrl ? <Image src={logoUrl} alt="Logo" width={80} height={80} className="h-20 w-20 rounded-2xl object-contain border border-white/20 bg-white/50 p-1.5 dark:bg-zinc-900/40" /> : null}
               {bookingTheme?.logo_url && !logoUrl ? <span className="text-xs text-zinc-500">Logo configurado</span> : null}
             </div>
           </div>

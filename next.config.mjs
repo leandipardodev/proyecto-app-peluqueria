@@ -54,7 +54,6 @@ const nextConfig = {
     },
   },
   images: {
-    qualities: [100, 75],
     remotePatterns: [
       {
         protocol: "https",

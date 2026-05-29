@@ -26,7 +26,7 @@ export default function ConfirmDialog({
   if (!open || typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" role="dialog" aria-modal="true">
       <div className="w-full max-w-sm rounded-[1.75rem] border border-white/10 dark:border-white/5 bg-white/30 dark:bg-black/30 backdrop-blur-2xl p-5 shadow-2xl shadow-black/[0.08]">
         <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
         <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{message}</p>

@@ -89,8 +89,7 @@ export async function fetchStaffMembers(shopIdOverride?: string): Promise<Action
       if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
     }
 
-    const supabase = await createServerClient();
-    const admin = await createAdminClient();
+    const [supabase, admin] = await Promise.all([createServerClient(), createAdminClient()]);
 
     const { data: memberships, error: membershipsError } = await admin
       .from("shop_memberships")
@@ -398,8 +397,7 @@ export async function updateStaffRole(id: string, role: "staff" | "owner", shopI
     const ownerAccess = await requireOwnerAccessForShop(shopId);
     if (!ownerAccess.success) return ownerAccess;
 
-    const supabase = await createServerClient();
-    const admin = await createAdminClient();
+    const [supabase, admin] = await Promise.all([createServerClient(), createAdminClient()]);
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -477,8 +475,7 @@ export async function removeStaff(id: string, shopIdOverride?: string): Promise<
     const ownerAccess = await requireOwnerAccessForShop(shopId);
     if (!ownerAccess.success) return ownerAccess;
 
-    const supabase = await createServerClient();
-    const admin = await createAdminClient();
+    const [supabase, admin] = await Promise.all([createServerClient(), createAdminClient()]);
     const {
       data: { user },
     } = await supabase.auth.getUser();

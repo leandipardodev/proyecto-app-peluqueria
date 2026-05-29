@@ -155,6 +155,8 @@ export default function AppointmentFormModal({
         <motion.div
           ref={backdropRef}
           className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-y-contain bg-white/40 p-3 dark:bg-black/40 backdrop-blur-sm sm:p-4"
+          role="dialog"
+          aria-modal="true"
           onPointerDown={(e) => {
             backdropPointerDownRef.current = e.target === backdropRef.current;
           }}
