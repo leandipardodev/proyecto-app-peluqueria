@@ -46,7 +46,7 @@ const SLIDES: Slide[] = [
     kicker: "Calendario completo",
     title: "Gestioná turnos con una vista potente y súper práctica.",
     text: "Editá, reprogramá y controlá toda la agenda desde un solo lugar, con estados visuales claros y flujo operativo en tiempo real.",
-    image: "/landing/carousel/1.png",
+    image: "/landing/carousel/aa3.webp",
     alt: "Calendario de Klip con funcionalidades de agenda",
   },
 ];
