@@ -3,13 +3,17 @@
 import { useState, useTransition, useEffect, useMemo, useRef, type DragEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
-import { Store, Eye, EyeOff, CreditCard, MessageSquareText, Smartphone, Link2, MapPin, Phone, Clock, Share2, AlertTriangle, Trash2 } from "lucide-react";
+import { Store, CreditCard, MessageSquareText, Smartphone, Link2, MapPin, Phone, Clock, Share2, AlertTriangle, Trash2 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { withDashboardBase } from "@/lib/dashboard/dashboard-base";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import BookingTemplateCarousel from "@/components/dashboard/booking-template-carousel";
 import BookingThemeLivePreview from "@/components/dashboard/booking-theme-live-preview";
+import BusinessStatsSection from "@/components/dashboard/business-stats-section";
+import CreateShopModal from "@/components/dashboard/create-shop-modal";
+import CloseShopModal from "@/components/dashboard/close-shop-modal";
 import { bulkUpdateServiceCategories } from "@/lib/dashboard/service-actions";
 import { createAdditionalShop } from "@/lib/dashboard/auth-actions";
 import {
@@ -195,12 +199,6 @@ export default function BusinessClient({
   const mpReturnScrollKey = getMpReturnScrollKey(shopSlug);
 
   const maskValue = (value: string) => (showStats ? value : "••••");
-
-  const withDashboardBase = (href: string) => {
-    if (!href.startsWith("/dashboard")) return href;
-    const tail = href.slice("/dashboard".length);
-    return `${dashboardBasePath}${tail}`;
-  };
 
   useEffect(() => {
     fetchBusinessHours()
@@ -773,8 +771,8 @@ export default function BusinessClient({
 
   function handleCloseShop() {
     if (!canManageBilling) return;
-    if (closeConfirm.trim().toUpperCase() !== "CERRAR") {
-      showError("Escribí CERRAR para confirmar el cierre del local.");
+    if (closeConfirm.trim().toUpperCase() !== "CONFIRMAR") {
+      showError("Escribí CONFIRMAR para confirmar el cierre del local.");
       playError();
       return;
     }
@@ -836,14 +834,14 @@ export default function BusinessClient({
           </button>
           <Link
             id="setup-staff"
-            href={withDashboardBase("/dashboard/staff")}
+            href={withDashboardBase("/dashboard/staff", dashboardBasePath)}
             className="ui-btn-ghost inline-flex items-center rounded-full border-emerald-300/60 dark:border-emerald-500/30 bg-emerald-100/80 dark:bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-800 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-500/25 shadow-sm"
           >
             Gestionar {staffPlural.toLowerCase()}
           </Link>
           <Link
             id="setup-services"
-            href={withDashboardBase("/dashboard/services")}
+            href={withDashboardBase("/dashboard/services", dashboardBasePath)}
             className="ui-btn-ghost inline-flex items-center rounded-full border-sky-300/60 dark:border-sky-500/30 bg-sky-100/80 dark:bg-sky-500/15 px-4 py-2 text-sm font-semibold text-sky-800 dark:text-sky-200 hover:bg-sky-100 dark:hover:bg-sky-500/25 shadow-sm"
           >
             Gestionar {servicePlural.toLowerCase()}
@@ -859,171 +857,20 @@ export default function BusinessClient({
         </div>
       </div>
 
-      <section id="estadisticas" className="glass-sheen-card bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden transition-colors">
-        <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Estadísticas del Negocio</h2>
-            <p className="text-xs text-zinc-400 dark:text-zinc-500">Indicadores acumulados desde el inicio del local</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setShowStats((prev) => !prev)}
-              className="inline-flex items-center gap-2 rounded-full border border-white/20 dark:border-white/10 bg-white/40 dark:bg-white/[0.06] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-300 transition hover:bg-white/60 dark:hover:bg-white/[0.11]"
-              aria-label={showStats ? "Ocultar estadísticas" : "Mostrar estadísticas"}
-            >
-              {showStats ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-              {showStats ? "Visible" : "Oculto"}
-            </button>
-            <span className="text-[11px] uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Histórico</span>
-          </div>
-        </div>
-
-        <AnimatePresence initial={false}>
-          {showStats && (
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.22, ease: "easeOut" }}
-          className="glass-sheen-stagger p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-        >
-          <div className="glass-sheen-card sm:col-span-2 lg:col-span-3 rounded-2xl bg-white/40 dark:bg-white/[0.03] border border-white/30 dark:border-white/10 p-4">
-            <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 mb-3">
-              <span>Flujo financiero</span>
-              <span>Ingresos vs Gastos</span>
-            </div>
-
-            <div className="group/flow space-y-3">
-              <div>
-                <div className="flex items-center justify-between text-xs mb-1.5">
-                  <span className="text-emerald-700 dark:text-emerald-300 font-medium">Ingresos</span>
-                  <span className="text-zinc-600 dark:text-zinc-300">{maskValue(`$${incomeValue.toFixed(2)}`)}</span>
-                </div>
-                <div className="h-3 rounded-full bg-emerald-100/55 dark:bg-emerald-900/20 overflow-hidden">
-                  <div
-                    className="h-full rounded-full flow-bar flow-bar-emerald opacity-70 group-hover/flow:opacity-95 transition-opacity duration-300"
-                    style={{ width: `${incomePct}%` }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between text-xs mb-1.5">
-                  <span className="text-rose-700 dark:text-rose-300 font-medium">Gastos</span>
-                  <span className="text-zinc-600 dark:text-zinc-300">{maskValue(`$${expenseValue.toFixed(2)}`)}</span>
-                </div>
-                <div className="h-3 rounded-full bg-rose-100/55 dark:bg-rose-900/20 overflow-hidden">
-                  <div
-                    className="h-full rounded-full flow-bar flow-bar-rose opacity-70 group-hover/flow:opacity-95 transition-opacity duration-300"
-                    style={{ width: `${expensePct}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="glass-sheen-card h-full min-h-[118px] md:min-h-[124px] rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4 flex flex-col">
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Turnos totales</p>
-            <p className="mt-1 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{maskValue(String(metricStats?.totalAppointments ?? "-"))}</p>
-            <div className="mt-auto pt-3 h-1.5 rounded-full bg-sky-100 dark:bg-sky-900/30 overflow-hidden">
-              <div className="h-full w-3/4 bg-gradient-to-r from-sky-400 to-sky-300 dark:from-sky-500 dark:to-sky-400" />
-            </div>
-          </div>
-
-          <div className="glass-sheen-card h-full min-h-[118px] md:min-h-[124px] rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4 flex flex-col">
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Ingresos totales</p>
-            <p className="mt-1 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{maskValue(`$${incomeValue.toFixed(2)}`)}</p>
-            <div className="mt-auto pt-3 h-1.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 overflow-hidden">
-              <div className="h-full w-4/5 bg-gradient-to-r from-emerald-400 to-emerald-300 dark:from-emerald-500 dark:to-emerald-400" />
-            </div>
-          </div>
-
-          <div className="glass-sheen-card h-full min-h-[118px] md:min-h-[124px] rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4 flex flex-col">
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">{customerPlural} totales</p>
-            <p className="mt-1 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{maskValue(String(metricStats?.totalClients ?? "-"))}</p>
-            <div className="mt-auto pt-3 h-1.5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 overflow-hidden">
-              <div className="h-full w-2/3 bg-gradient-to-r from-indigo-400 to-indigo-300 dark:from-indigo-500 dark:to-indigo-400" />
-            </div>
-          </div>
-
-          <div className="glass-sheen-card h-full min-h-[118px] md:min-h-[124px] rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4 flex flex-col">
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Crecimiento mensual</p>
-            <p className={`mt-1 text-2xl font-bold tracking-tight ${metricStats?.growth === null ? "text-zinc-600 dark:text-zinc-300" : (metricStats?.growth ?? 0) >= 0 ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300"}`}>
-              {maskValue(metricStats?.growth === null ? "N/D" : `${(metricStats?.growth ?? 0) >= 0 ? "+" : ""}${metricStats?.growth ?? 0}%`)}
-            </p>
-            <div className="mt-auto pt-3 h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
-              <div className={`h-full ${metricStats?.growth === null || (metricStats?.growth ?? 0) >= 0 ? "bg-gradient-to-r from-emerald-400 to-emerald-300 dark:from-emerald-500 dark:to-emerald-400" : "bg-gradient-to-r from-rose-400 to-rose-300 dark:from-rose-500 dark:to-rose-400"}`} style={{ width: `${metricStats?.growth === null ? 18 : Math.min(Math.max(Math.abs(metricStats?.growth ?? 0), 10), 100)}%` }} />
-            </div>
-          </div>
-
-          <div className="glass-sheen-card h-full min-h-[118px] md:min-h-[124px] rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4 flex flex-col">
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Alertas de stock</p>
-            <p className="mt-1 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{maskValue(String(summaryStats?.lowStockCount ?? "-"))}</p>
-            <div className="mt-auto pt-3 h-1.5 rounded-full bg-amber-100 dark:bg-amber-900/30 overflow-hidden">
-              <div className="h-full w-1/2 bg-gradient-to-r from-amber-400 to-amber-300 dark:from-amber-500 dark:to-amber-400" />
-            </div>
-          </div>
-
-          <div className="glass-sheen-card h-full min-h-[118px] md:min-h-[124px] rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4 flex flex-col">
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">{servicePlural} activos</p>
-            <p className="mt-1 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{maskValue(String(metricStats?.topServicesCount ?? "-"))}</p>
-            <div className="mt-auto pt-3 h-1.5 rounded-full bg-cyan-100 dark:bg-cyan-900/30 overflow-hidden">
-              <div className="h-full w-3/5 bg-gradient-to-r from-cyan-400 to-cyan-300 dark:from-cyan-500 dark:to-cyan-400" />
-            </div>
-          </div>
-
-          <div className="glass-sheen-card h-full min-h-[118px] md:min-h-[124px] rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4 flex flex-col sm:col-span-2 lg:col-span-3">
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Balance neto histórico</p>
-            <p className={`mt-1 text-2xl font-bold tracking-tight ${netValue >= 0 ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300"}`}>
-              {maskValue(`${netValue >= 0 ? "+" : "-"}$${Math.abs(netValue).toFixed(2)}`)}
-            </p>
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Ingresos acumulados menos gastos acumulados.</p>
-          </div>
-        </motion.div>
-          )}
-        </AnimatePresence>
-      </section>
-      <style>{`
-        .flow-bar {
-          position: relative;
-          overflow: hidden;
-          isolation: isolate;
-        }
-        .flow-bar::before {
-          content: "";
-          position: absolute;
-          inset: -35%;
-          border-radius: inherit;
-          background:
-            linear-gradient(112deg, transparent 24%, rgba(255,255,255,0.3) 50%, transparent 76%),
-            linear-gradient(180deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.02) 52%, rgba(0,0,0,0.12) 100%);
-          background-size: 220% 100%, 100% 100%;
-          animation: flowBarSheen 5.6s cubic-bezier(0.28, 0.16, 0.2, 1) infinite;
-          mix-blend-mode: screen;
-          pointer-events: none;
-        }
-        .flow-bar::after {
-          content: "";
-          position: absolute;
-          inset: 0;
-          border-radius: inherit;
-          background: linear-gradient(90deg, rgba(255,255,255,0.12), rgba(255,255,255,0));
-          opacity: 0.38;
-          pointer-events: none;
-        }
-        .flow-bar-emerald {
-          background: linear-gradient(90deg, rgba(52,211,153,0.7) 0%, rgba(16,185,129,0.82) 100%);
-        }
-        .flow-bar-rose {
-          background: linear-gradient(90deg, rgba(251,146,160,0.7) 0%, rgba(244,114,182,0.8) 100%);
-        }
-        @keyframes flowBarSheen {
-          0% { background-position: 170% 0, 0 0; }
-          55% { background-position: 18% 0, 0 0; }
-          100% { background-position: -90% 0, 0 0; }
-        }
-      `}</style>
+      <BusinessStatsSection
+        showStats={showStats}
+        setShowStats={setShowStats}
+        maskValue={maskValue}
+        incomeValue={incomeValue}
+        expenseValue={expenseValue}
+        incomePct={incomePct}
+        expensePct={expensePct}
+        netValue={netValue}
+        metricStats={metricStats}
+        summaryStats={summaryStats}
+        customerPlural={customerPlural}
+        servicePlural={servicePlural}
+      />
 
       {error && (
         <div className="bg-red-50/80 backdrop-blur-md text-red-700 dark:text-red-300 text-sm px-5 py-3 rounded-full border border-red-200/30 dark:border-red-500/20">
@@ -1891,7 +1738,7 @@ export default function BusinessClient({
             <input
               value={closeConfirm}
               onChange={(e) => setCloseConfirm(e.target.value)}
-              placeholder="Escribi CERRAR para confirmar"
+              placeholder='Escribí "CONFIRMAR"'
               className="w-full sm:max-w-xs rounded-full border border-red-200 dark:border-red-700 bg-white/70 dark:bg-black/30 px-4 py-2 text-sm text-red-800 dark:text-red-200 outline-none"
             />
             <button
@@ -1908,126 +1755,25 @@ export default function BusinessClient({
         </div>
       )}
 
-      {portalReady && createPortal(
-      <AnimatePresence>
-        {showCreateShopModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[80] bg-black/45 backdrop-blur-[2px] flex items-center justify-center p-4"
-            onClick={() => {
-              if (creatingShop) return;
-              setShowCreateShopModal(false);
-            }}
-          >
-            <motion.div
-              initial={{ opacity: 0, y: 16, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 12, scale: 0.98 }}
-              transition={{ duration: 0.18 }}
-              className="w-full max-w-md rounded-3xl border border-violet-200/80 dark:border-violet-700/40 bg-white dark:bg-zinc-950 p-6 shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h4 className="text-base font-semibold text-violet-700 dark:text-violet-300">Crear nuevo local</h4>
-              <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
-                Elegi un nombre para el local. Luego podras editarlo desde configuracion.
-              </p>
-              <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
-                El trial de 15 dias aplica solo a la primera tienda de la cuenta. Las tiendas adicionales ingresan sin trial.
-              </p>
-              <div className="mt-4">
-                <input
-                  value={newShopName}
-                  onChange={(e) => setNewShopName(e.target.value)}
-                  placeholder="Nombre del nuevo local"
-                  className="w-full rounded-xl border border-violet-200 dark:border-violet-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm outline-none"
-                  autoFocus
-                />
-              </div>
-              <div className="mt-5 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  className="rounded-full px-4 py-2 text-sm text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-900"
-                  onClick={() => setShowCreateShopModal(false)}
-                  disabled={creatingShop}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCreateNewShop}
-                  disabled={creatingShop || !newShopName.trim()}
-                  className="inline-flex items-center gap-2 rounded-full bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
-                >
-                  {creatingShop ? "Creando..." : "Crear local"}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>, document.body)}
+      <CreateShopModal
+        isOpen={showCreateShopModal}
+        onClose={() => setShowCreateShopModal(false)}
+        shopName={newShopName}
+        onShopNameChange={setNewShopName}
+        onCreate={handleCreateNewShop}
+        creating={creatingShop}
+        portalReady={portalReady}
+      />
 
-      {portalReady && createPortal(
-      <AnimatePresence>
-        {showCloseModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[80] bg-black/45 backdrop-blur-[2px] flex items-center justify-center p-4"
-            onClick={() => setShowCloseModal(false)}
-          >
-            <motion.div
-              initial={{ opacity: 0, y: 16, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 12, scale: 0.98 }}
-              transition={{ duration: 0.18 }}
-              className="w-full max-w-md rounded-3xl border border-red-200/80 dark:border-red-700/40 bg-white dark:bg-zinc-950 p-6 shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h4 className="text-base font-semibold text-red-700 dark:text-red-300">Confirmar cierre definitivo</h4>
-              <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
-                Vas a eliminar el local y datos asociados. Esta accion no se puede deshacer.
-              </p>
-              <p className="mt-3 text-xs text-zinc-500">Para confirmar, escribi <strong>CERRAR</strong> y luego presiona el boton rojo.</p>
-
-              <div className="mt-4 flex flex-col gap-2">
-                <input
-                  value={closeConfirm}
-                  onChange={(e) => setCloseConfirm(e.target.value)}
-                  placeholder="CERRAR"
-                  className="rounded-xl border border-red-200 dark:border-red-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm outline-none"
-                />
-              </div>
-
-              <div className="mt-5 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  className="rounded-full px-4 py-2 text-sm text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-900"
-                  onClick={() => setShowCloseModal(false)}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    await handleCloseShop();
-                    if (closeConfirm.trim().toUpperCase() === "CERRAR") {
-                      setShowCloseModal(false);
-                    }
-                  }}
-                  disabled={pending || closeConfirm.trim().toUpperCase() !== "CERRAR"}
-                  className="inline-flex items-center gap-2 rounded-full bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Confirmar cierre
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>, document.body)}
+      <CloseShopModal
+        isOpen={showCloseModal}
+        onClose={() => setShowCloseModal(false)}
+        confirmText={closeConfirm}
+        onConfirmTextChange={setCloseConfirm}
+        onConfirm={handleCloseShop}
+        pending={pending}
+        portalReady={portalReady}
+      />
 
       <p className="text-xs text-center text-zinc-400 dark:text-zinc-600 pt-2">
         Los tokens de Mercado Pago se almacenan de forma segura en la base de datos.

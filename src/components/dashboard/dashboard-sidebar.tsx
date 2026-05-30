@@ -23,6 +23,7 @@ import { useAuth } from "@/lib/auth-context";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { resolveIndustry } from "@/lib/industry/resolve";
 import { useShopFeatures } from "@/lib/industry/use-features";
+import { getDashboardBasePath } from "@/lib/dashboard/dashboard-base";
 
 const navItems = [
   { label: "Inicio", href: "/dashboard", icon: Home },
@@ -33,30 +34,6 @@ const navItems = [
   { label: "__CUSTOMERS_LABEL__", href: "/dashboard/customers", icon: UserRound },
   { label: "Mi Negocio", href: "/dashboard/business", icon: Store },
 ];
-
-const DASHBOARD_LEGACY_SEGMENTS = new Set([
-  "appointments",
-  "business",
-  "calendar",
-  "customers",
-  "finances",
-  "fidelizacion",
-  "inventory",
-  "profile",
-  "services",
-  "settings",
-  "staff",
-  "vouchers",
-]);
-
-function getDashboardBasePath(pathname: string): string {
-  const parts = pathname.split("/").filter(Boolean);
-  const slug = parts[1];
-  if (parts[0] === "dashboard" && slug && !DASHBOARD_LEGACY_SEGMENTS.has(slug)) {
-    return `/dashboard/${slug}`;
-  }
-  return "/dashboard";
-}
 
 const containerVariants = {
   hidden: {},

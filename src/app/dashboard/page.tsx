@@ -10,6 +10,7 @@ import { createServiceRoleClient, getAuthSession, getShopId } from "@/lib/dashbo
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { resolveIndustry } from "@/lib/industry/resolve";
 import { getShopFeatures } from "@/lib/industry/features";
+import { withDashboardBase } from "@/lib/dashboard/dashboard-base";
 import Link from "next/link";
 import dynamicImport from "next/dynamic";
 import { redirect } from "next/navigation";
@@ -134,12 +135,6 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
   const metrics = metricsResult.success && metricsResult.data ? metricsResult.data : null;
   const dashboardBasePath = summary.shopSlug ? `/dashboard/${summary.shopSlug}` : "/dashboard";
 
-  const withDashboardBase = (href: string) => {
-    if (!href.startsWith("/dashboard")) return href;
-    const tail = href.slice("/dashboard".length);
-    return `${dashboardBasePath}${tail}`;
-  };
-
   const growthValue = metrics?.stats.growth ?? null;
   const growthColor = growthValue === null ? "text-zinc-500 dark:text-zinc-400" : growthValue >= 0 ? "text-green-600" : "text-red-600";
   const growthBg = growthValue === null ? "bg-zinc-500/10" : growthValue >= 0 ? "bg-green-500/10" : "bg-red-500/10";
@@ -160,7 +155,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
       title: "Fecha importante detectada",
       body: `${seasonalLabel}. Te recomiendo campaña y contenido hoy mismo.`,
       tone: "insight",
-      href: withDashboardBase("/dashboard/business"),
+      href: withDashboardBase("/dashboard/business", dashboardBasePath),
     });
   }
 
@@ -170,7 +165,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
       title: "Agenda en movimiento",
       body: `Tenés un turno en ${Math.max(1, minutesToNextAppointment)} min${nextAppointment?.customers?.nombre ? ` (${nextAppointment.customers.nombre})` : ""}.`,
       tone: "urgent",
-      href: withDashboardBase("/dashboard/calendar"),
+      href: withDashboardBase("/dashboard/calendar", dashboardBasePath),
     });
   }
 
@@ -180,7 +175,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
       title: "Oportunidad del día",
       body: "La agenda está tranquila. Es un buen momento para activar recordatorios por WhatsApp.",
       tone: "action",
-      href: withDashboardBase("/dashboard/calendar"),
+      href: withDashboardBase("/dashboard/calendar", dashboardBasePath),
     });
   } else {
     aiMessages.push({
@@ -188,7 +183,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
       title: "Pulso de agenda",
       body: `Hoy tenés ${summary.appointmentsCount} turno(s) cargado(s).`,
       tone: "insight",
-      href: withDashboardBase("/dashboard/calendar"),
+      href: withDashboardBase("/dashboard/calendar", dashboardBasePath),
     });
   }
 
@@ -198,7 +193,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
       title: "Stock en alerta",
       body: `${summary.lowStockCount} producto(s) están bajos. Conviene reponer antes de hora pico.`,
       tone: "urgent",
-      href: withDashboardBase("/dashboard/inventory"),
+      href: withDashboardBase("/dashboard/inventory", dashboardBasePath),
     });
   }
 
@@ -208,7 +203,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
       title: "Cumpleaños detectados",
       body: `Hay ${todayVouchersCount} voucher(s) de cumple listos para enviar hoy.`,
       tone: "action",
-      href: withDashboardBase("/dashboard/vouchers"),
+      href: withDashboardBase("/dashboard/vouchers", dashboardBasePath),
     });
   }
 
@@ -220,7 +215,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
         ? `${firstLoyaltyCustomer}${extraLoyaltyCustomers > 0 ? ` y ${extraLoyaltyCustomers} más` : ""} tienen canje disponible.`
         : `${customerPlural} tienen canjes disponibles.`,
       tone: "action",
-      href: withDashboardBase("/dashboard/fidelizacion"),
+      href: withDashboardBase("/dashboard/fidelizacion", dashboardBasePath),
     });
   }
 
@@ -231,7 +226,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
       title: "Caja en tiempo real",
       body: `Hoy ingresan $${Math.round(todayFlow.income).toLocaleString("es-AR")} y egresan $${Math.round(todayFlow.expenses).toLocaleString("es-AR")}.`,
       tone: "insight",
-      href: withDashboardBase("/dashboard/finances"),
+      href: withDashboardBase("/dashboard/finances", dashboardBasePath),
     });
   }
 
@@ -242,7 +237,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
       title: "Servicio estrella",
       body: `${topService.name} lidera hoy con ${topService.count} reserva(s).`,
       tone: "insight",
-      href: withDashboardBase("/dashboard/business"),
+      href: withDashboardBase("/dashboard/business", dashboardBasePath),
     });
   }
 
@@ -252,11 +247,11 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
       title: "Todo en orden",
       body: "No hay alertas urgentes ahora. Me quedo monitoreando tu local en vivo.",
       tone: "insight",
-      href: withDashboardBase("/dashboard/calendar"),
+      href: withDashboardBase("/dashboard/calendar", dashboardBasePath),
     });
   }
 
-  const aiCardHref = aiMessages[0]?.href || withDashboardBase("/dashboard/calendar");
+  const aiCardHref = aiMessages[0]?.href || withDashboardBase("/dashboard/calendar", dashboardBasePath);
 
   const cards = [
     {
@@ -285,9 +280,9 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
   ];
 
   const cardHrefByLabel: Record<string, string> = {
-    "Turnos hoy": withDashboardBase("/dashboard/calendar"),
-    ...(features.inventory ? { "Alertas de stock": withDashboardBase("/dashboard/inventory") } : {}),
-    "Crecimiento": withDashboardBase("/dashboard/business#estadisticas"),
+    "Turnos hoy": withDashboardBase("/dashboard/calendar", dashboardBasePath),
+    ...(features.inventory ? { "Alertas de stock": withDashboardBase("/dashboard/inventory", dashboardBasePath) } : {}),
+    "Crecimiento": withDashboardBase("/dashboard/business#estadisticas", dashboardBasePath),
   };
 
   const today = new Date().toLocaleDateString("es-AR", {

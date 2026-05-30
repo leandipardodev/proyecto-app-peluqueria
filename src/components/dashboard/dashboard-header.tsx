@@ -1,9 +1,9 @@
 "use client";
 
-import { Menu, X, Search, Moon, Sun, Gauge, Repeat2, Check, Volume2, VolumeX, SlidersHorizontal } from "lucide-react";
+import { Menu, Search, Moon, Sun, Gauge, Repeat2, Check, Volume2, VolumeX, SlidersHorizontal } from "lucide-react";
 import { useState, useRef, useEffect, useTransition, useMemo, type KeyboardEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import DashboardSidebar from "./dashboard-sidebar";
+import DashboardMobileSidebar from "./dashboard-mobile-sidebar";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
@@ -16,6 +16,10 @@ import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { resolveIndustry } from "@/lib/industry/resolve";
 import { useShopFeatures } from "@/lib/industry/use-features";
 import { isMuted, setMuted } from "@/lib/sound";
+import { getDashboardBasePath, withDashboardBase } from "@/lib/dashboard/dashboard-base";
+import { DASHBOARD_LEGACY_SEGMENTS_SET } from "@/lib/dashboard/legacy-segments";
+import { NAV_COMMANDS, ACTION_COMMANDS, type CommandItem, type CommandNav, type CommandAction, type CommandData } from "@/lib/dashboard/search-commands";
+import { getIndustrySearchKeywords, getInitials, normalizeSearchText, scoreQueryAgainstTerms, formatDataLabel, formatDataHint } from "@/lib/dashboard/search-utils";
 
 interface DashboardHeaderProps {
   shopName: string;
@@ -32,215 +36,11 @@ interface DashboardHeaderProps {
   };
 }
 
-type CommandNav = { id: string; kind: "nav"; label: string; hint: string; to: string; keywords: string[] };
-type CommandAction = { id: string; kind: "action"; label: string; hint: string; action: "toggleTheme" | "togglePerformance" | "logout"; keywords: string[] };
-type CommandData = { id: string; kind: "data"; value: OmniSearchResult };
-type CommandItem = CommandNav | CommandAction | CommandData;
-
-const NAV_COMMANDS: CommandNav[] = [
-  { id: "nav-home", kind: "nav", label: "Ir a Inicio", hint: "Resumen del negocio", to: "/dashboard", keywords: ["inicio", "home", "panel", "dashboard", "resumen", "principal", "portada", "tablero", "estadisticas", "metricas", "metrcas"] },
-  { id: "nav-calendar", kind: "nav", label: "Ir a Calendario", hint: "Agenda de turnos", to: "/dashboard/calendar", keywords: ["calendario", "agenda", "turnos", "citas", "reservas", "horarios", "proximos", "proximo", "agendar", "agendaa", "calendaario"] },
-  { id: "nav-cash", kind: "nav", label: "Ir a Caja", hint: "Ingresos, egresos y liquidaciones", to: "/dashboard/finances", keywords: ["caja", "finanzas", "plata", "dinero", "cobros", "gastos", "ingresos", "egresos", "movimientos", "arqueo", "cierres", "liquidaciones", "comisiones", "balance", "contabilidad", "tesoreria"] },
-  { id: "nav-stock", kind: "nav", label: "Ir a Stock", hint: "Inventario y productos", to: "/dashboard/inventory", keywords: ["stock", "inventario", "productos", "insumos", "deposito", "existencias", "reposicion", "bajo stock", "almacen", "almacen", "materiales", "inventrio"] },
-  { id: "nav-marketing", kind: "nav", label: "Ir a Marketing", hint: "Fidelizacion, canjes y vouchers", to: "/dashboard/fidelizacion", keywords: ["marketing", "fidelizacion", "fidelidad", "puntos", "canjes", "voucher", "vouchers", "descuentos", "promos", "cupones", "campanas", "campanias", "cumpleanos", "retencion"] },
-  { id: "nav-customers", kind: "nav", label: "Ir a __CUSTOMERS_LABEL__", hint: "Base de clientes", to: "/dashboard/customers", keywords: ["clientes", "clientela", "contactos", "whatsapp", "telefonos", "historial", "ficha cliente", "pacientes", "paciente", "usuario", "usuarios", "clientse", "clietnes"] },
-  { id: "nav-business", kind: "nav", label: "Ir a Mi Negocio", hint: "Datos, horarios y cobros", to: "/dashboard/business", keywords: ["mi negocio", "negocio", "local", "empresa", "perfil negocio", "datos publicos", "horarios", "mercado pago", "cobro", "seña", "sena", "whatsapp template", "configuracion", "personalizacion", "branding", "book"] },
-  { id: "nav-services", kind: "nav", label: "Ir a __SERVICES_LABEL__", hint: "Catalogo y duraciones", to: "/dashboard/services", keywords: ["servicios", "catalogo", "precios", "duracion", "duraciones", "barba", "corte", "tratamientos", "sesiones", "menu", "prestaciones", "servicois"] },
-  { id: "nav-staff", kind: "nav", label: "Ir a __STAFF_LABEL__", hint: "Equipo y roles", to: "/dashboard/staff", keywords: ["staff", "equipo", "empleados", "barberos", "roles", "personal", "terapeutas", "profesionales", "colaboradores", "agenda staff", "staf", "empleado"] },
-  { id: "nav-billing", kind: "nav", label: "Ir a Pagos", hint: "Pagar mensualidad", to: "/billing-required", keywords: ["pago", "pagos", "mensualidad", "membresia", "suscripcion", "renovar", "plan", "vencimiento", "factura", "abono", "precio", "cobro plan"] },
-];
-
-const DASHBOARD_LEGACY_SEGMENTS = new Set([
-  "appointments",
-  "business",
-  "calendar",
-  "customers",
-  "finances",
-  "fidelizacion",
-  "inventory",
-  "profile",
-  "services",
-  "settings",
-  "staff",
-  "vouchers",
-]);
-
-function getDashboardBasePath(pathname: string): string {
-  const parts = pathname.split("/").filter(Boolean);
-  const slug = parts[1];
-  if (parts[0] === "dashboard" && slug && !DASHBOARD_LEGACY_SEGMENTS.has(slug)) {
-    return `/dashboard/${slug}`;
-  }
-  return "/dashboard";
-}
-
-function withDashboardBase(basePath: string, to: string): string {
-  if (!to.startsWith("/dashboard")) return to;
-  if (to === "/dashboard") return basePath;
-  return `${basePath}${to.replace("/dashboard", "")}`;
-}
-
-const ACTION_COMMANDS: CommandAction[] = [
-  { id: "act-theme", kind: "action", label: "Cambiar tema", hint: "oscuro o claro", action: "toggleTheme", keywords: ["tema", "oscuro", "claro", "dark", "light", "colores", "apariencia", "modo noche", "modo dia", "paleta", "contraste"] },
-  { id: "act-performance", kind: "action", label: "Desactivar animaciones", hint: "interfaz estatica", action: "togglePerformance", keywords: ["rendimiento", "performance", "lag", "animaciones", "fluidez", "rapido", "optimizar", "modo liviano", "bateria", "andar lento", "traba", "sin animaciones", "estatico", "estática"] },
-  { id: "act-logout", kind: "action", label: "Cerrar sesion", hint: "salir", action: "logout", keywords: ["cerrar", "salir", "logout", "desconectar", "terminar sesion", "salirme", "desloguear"] },
-];
-
 const SEARCH_COLLAPSED_WIDTH = 280;
 const SEARCH_EXPANDED_WIDTH = 640;
 
-function getIndustrySearchKeywords(industry: ReturnType<typeof resolveIndustry>) {
-  const byIndustry: Record<string, Partial<Record<CommandNav["id"], string[]>>> = {
-    peluqueria: {
-      "nav-services": ["corte", "cortes", "brushing", "tintura", "alisado", "peinado"],
-      "nav-staff": ["peluquero", "peluquera", "colorista"],
-      "nav-customers": ["clienta", "clientas"],
-    },
-    barberia: {
-      "nav-services": ["fade", "degrade", "barba", "perfilado", "navaja"],
-      "nav-staff": ["barbero", "barbera"],
-      "nav-customers": ["caballeros"],
-    },
-    estetica: {
-      "nav-services": ["limpieza facial", "facial", "depilacion", "cejas", "pestañas", "pestanas"],
-      "nav-staff": ["cosmiatra", "esteticista"],
-      "nav-customers": ["paciente estetica"],
-    },
-    unas: {
-      "nav-services": ["manicuria", "manicura", "pedicuria", "pedicura", "semipermanente", "kapping", "esculpidas"],
-      "nav-staff": ["manicura", "nail artist"],
-      "nav-customers": ["turno uñas", "turno unas"],
-    },
-    masajes: {
-      "nav-services": ["masaje", "descontracturante", "relajante", "drenaje", "piedras calientes"],
-      "nav-staff": ["masajista", "terapeuta corporal"],
-      "nav-customers": ["paciente", "consultante"],
-    },
-    tattoo: {
-      "nav-services": ["tatuaje", "tattoo", "flash", "sesion", "sesión", "retoque"],
-      "nav-staff": ["tatuador", "tattoo artist"],
-      "nav-customers": ["cliente tattoo"],
-    },
-    piercing: {
-      "nav-services": ["piercing", "perforacion", "perforación", "labret", "septum", "helix"],
-      "nav-staff": ["perforador", "piercer"],
-      "nav-customers": ["curacion", "curación"],
-    },
-  };
-
-  return byIndustry[industry] || {};
-}
-
-function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map((w) => w[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-}
-
-function normalizeSearchText(value: string): string {
-  return value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function levenshteinDistance(a: string, b: string): number {
-  if (a === b) return 0;
-  if (!a.length) return b.length;
-  if (!b.length) return a.length;
-  const prev = new Array<number>(b.length + 1);
-  const curr = new Array<number>(b.length + 1);
-  for (let j = 0; j <= b.length; j++) prev[j] = j;
-  for (let i = 1; i <= a.length; i++) {
-    curr[0] = i;
-    for (let j = 1; j <= b.length; j++) {
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      curr[j] = Math.min(
-        prev[j] + 1,
-        curr[j - 1] + 1,
-        prev[j - 1] + cost,
-      );
-    }
-    for (let j = 0; j <= b.length; j++) prev[j] = curr[j];
-  }
-  return prev[b.length];
-}
-
-function getAllowedDistance(a: string, b: string): number {
-  const minLen = Math.min(a.length, b.length);
-  if (minLen <= 4) return 1;
-  if (minLen <= 8) return 2;
-  return 3;
-}
-
-function scoreTokenMatch(token: string, termToken: string): number {
-  if (!token || !termToken) return 0;
-  if (termToken === token) return 140;
-  if (termToken.startsWith(token)) return 120;
-  if (termToken.includes(token)) return 95;
-  if (token.startsWith(termToken) && termToken.length >= 3) return 84;
-  const dist = levenshteinDistance(token, termToken);
-  const allowed = getAllowedDistance(token, termToken);
-  if (dist <= allowed) return Math.max(55, 86 - dist * 12);
-  return 0;
-}
-
-function scoreQueryAgainstTerms(query: string, terms: string[]): number {
-  const normalizedQuery = normalizeSearchText(query);
-  if (!normalizedQuery) return 1;
-  const queryTokens = normalizedQuery.split(" ").filter(Boolean);
-  if (queryTokens.length === 0) return 1;
-
-  let best = 0;
-  for (const rawTerm of terms) {
-    const term = normalizeSearchText(rawTerm);
-    if (!term) continue;
-    if (term.includes(normalizedQuery)) best = Math.max(best, 130);
-    const termTokens = term.split(" ").filter(Boolean);
-    if (termTokens.length === 0) continue;
-    let score = 0;
-    let matchedTokens = 0;
-    for (const token of queryTokens) {
-      let tokenBest = 0;
-      for (const t of termTokens) {
-        tokenBest = Math.max(tokenBest, scoreTokenMatch(token, t));
-        if (tokenBest >= 140) break;
-      }
-      if (tokenBest > 0) {
-        score += tokenBest;
-        matchedTokens += 1;
-      }
-    }
-    if (matchedTokens === queryTokens.length) {
-      score += 18 + matchedTokens * 2;
-      best = Math.max(best, score);
-    }
-  }
-  return best;
-}
-
-function formatDataLabel(item: OmniSearchResult) {
-  if (item.type === "stock") return item.nombre_producto;
-  if (item.type === "service") return item.name;
-  if (item.type === "customer") return item.nombre || item.telefono || "Persona";
-  return item.name || item.email || "Miembro";
-}
-
-function formatDataHint(item: OmniSearchResult) {
-  if (item.type === "stock") return `Cantidad disponible: ${item.quantity}`;
-  if (item.type === "service") return `Duracion: ${item.duration_minutes} min`;
-  if (item.type === "customer") return `Telefono: ${item.telefono || "Sin telefono"}`;
-  return `${item.role === "owner" ? "Administrador" : "Miembro"} - ${item.email || "Sin email"}`;
-}
-
 export default function DashboardHeader({ shopName, userName, userEmail, onLogout, activeShopSlug, managedShops, billingStatus }: DashboardHeaderProps) {
+
   const { shop } = useAuth();
   const industry = resolveIndustry(shop?.industry);
   const customerPlural = INDUSTRY_CONFIG[industry].labels.customerPlural;
@@ -258,7 +58,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
   const pathnameShopSlug = useMemo(() => {
     const parts = pathname.split("/").filter(Boolean);
     const slug = parts[1];
-    if (parts[0] === "dashboard" && slug && !DASHBOARD_LEGACY_SEGMENTS.has(slug)) return slug;
+    if (parts[0] === "dashboard" && slug && !DASHBOARD_LEGACY_SEGMENTS_SET.has(slug)) return slug;
     return null;
   }, [pathname]);
   const selectedShopSlug = pathnameShopSlug || activeShopSlug || managedShops[0]?.slug || "";
@@ -456,7 +256,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
     const nav = navCommandsResolved
       .map((c) => {
         if (c.id === "nav-billing") return { ...c, to: billingUrl };
-        return { ...c, to: withDashboardBase(dashboardBasePath, c.to) };
+        return { ...c, to: withDashboardBase(c.to, dashboardBasePath) };
       })
       .map((c) => {
         const extraKeywords = industryKeywords[c.id] || [];
@@ -519,19 +319,19 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
       const result = item.value;
       closeSearch(true);
       if (result.type === "customer") {
-        navigateWithTransition(`${withDashboardBase(dashboardBasePath, "/dashboard/customers")}?q=${encodeURIComponent(result.nombre || result.telefono || "")}&customerId=${result.id}`);
+        navigateWithTransition(`${withDashboardBase("/dashboard/customers", dashboardBasePath)}?q=${encodeURIComponent(result.nombre || result.telefono || "")}&customerId=${result.id}`);
         return;
       }
       if (result.type === "stock") {
         if (!features.inventory) return;
-        navigateWithTransition(withDashboardBase(dashboardBasePath, "/dashboard/inventory"));
+        navigateWithTransition(withDashboardBase("/dashboard/inventory", dashboardBasePath));
         return;
       }
       if (result.type === "service") {
-        navigateWithTransition(withDashboardBase(dashboardBasePath, "/dashboard/services"));
+        navigateWithTransition(withDashboardBase("/dashboard/services", dashboardBasePath));
         return;
       }
-      navigateWithTransition(withDashboardBase(dashboardBasePath, "/dashboard/staff"));
+      navigateWithTransition(withDashboardBase("/dashboard/staff", dashboardBasePath));
       return;
     }
 
@@ -1046,53 +846,15 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
         </div>
       </header>
 
-      <AnimatePresence>
-        {mobileOpen && (
-          <motion.div
-            className="fixed inset-0 z-50 lg:hidden"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            <motion.div
-              className="fixed inset-0 backdrop-blur-sm"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              onClick={() => setMobileOpen(false)}
-            />
-            <motion.div
-              className="fixed inset-y-0 left-0 w-64 shadow-xl dark:shadow-black/40"
-              initial={{ x: -300 }}
-              animate={{ x: 0 }}
-              exit={{ x: -300, transition: { duration: 0.2, ease: "easeIn" } }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            >
-              <div className="flex items-center justify-between px-4 pb-3 pt-[max(env(safe-area-inset-top),0.75rem)] border-b border-white/20 dark:border-white/10 bg-white/30 dark:bg-black/30 backdrop-blur-3xl">
-                <div className="inline-flex items-center gap-2">
-                  <span className="text-xl font-bold tracking-tight text-[#0071E3]">Klip</span>
-                </div>
-                <button
-                  onClick={() => setMobileOpen(false)}
-                  className="p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-white/60 transition-all cursor-pointer select-none"
-                >
-                  <X className="w-5 h-5" strokeWidth={1.5} />
-                </button>
-              </div>
-              <DashboardSidebar
-                userName={userName}
-                showBrand={false}
-                onLogout={() => {
-                  setMobileOpen(false);
-                  void onLogout();
-                }}
-              />
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <DashboardMobileSidebar
+        open={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        userName={userName}
+        onLogout={() => {
+          setMobileOpen(false);
+          void onLogout();
+        }}
+      />
 
       <style jsx global>{`
         #search-input-klip::-webkit-search-decoration,
