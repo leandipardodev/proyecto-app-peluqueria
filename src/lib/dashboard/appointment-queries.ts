@@ -44,7 +44,7 @@ export async function fetchAppointments(startDate: string, endDate: string, shop
     ]);
 
     const customersMap = new Map((customersData.data || []).map(c => [c.id, c]));
-    const staffMap = buildStaffMapFromRpc(staffRows as StaffRpcRow[], staffIds);
+    const staffMap = await buildStaffMapFromRpc(staffRows as StaffRpcRow[], staffIds);
     const servicesMap = new Map((servicesData.data || []).map(s => [s.id, s]));
 
     const enriched = appointments.map(apt => ({
@@ -162,7 +162,7 @@ export async function fetchAllAppointmentsForTable(
     const customerRows = (customersRes.data || []) as Array<{ id: string; nombre: string | null; email: string; telefono: string | null; loyalty_rewards_available?: number | null }>;
     const customerMap = new Map(customerRows.map((c) => [c.id, c]));
     const staffMap = new Map(
-      Array.from(buildStaffMapFromRpc(staffRows as StaffRpcRow[], staffIds)).map(([userId, row]) => [
+      Array.from(await buildStaffMapFromRpc(staffRows as StaffRpcRow[], staffIds)).map(([userId, row]) => [
         userId,
         { user_id: row.user_id, name: row.name },
       ])

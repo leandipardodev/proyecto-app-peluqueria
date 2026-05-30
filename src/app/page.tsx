@@ -701,9 +701,13 @@ export default function Home() {
         </Section>
 
         <Section className="pb-12">
-          <div className="flex items-center justify-center gap-4">
+          <div className="flex items-center justify-center gap-4 flex-wrap">
             <Link href="/terminos" className="text-xs text-[#86868B] underline-offset-2 hover:underline">
-              Terminos y Condiciones
+              Términos y Condiciones
+            </Link>
+            <span className="text-xs text-[#a1a1aa]">-</span>
+            <Link href="/privacidad" className="text-xs text-[#86868B] underline-offset-2 hover:underline">
+              Privacidad
             </Link>
             <span className="text-xs text-[#a1a1aa]">-</span>
             <Link href="mailto:soporte@klip.com.ar" className="text-xs text-[#86868B] underline-offset-2 hover:underline">

@@ -98,7 +98,7 @@ export type AppointmentEnriched = {
 
 export type ServiceInfo = { id: string; name: string; price: number; duration_minutes: number };
 
-export function toArgentinaStartEnd(dateStr: string, timeStr: string, durationMinutes: number): { start: Date; end: Date } {
+export async function toArgentinaStartEnd(dateStr: string, timeStr: string, durationMinutes: number): Promise<{ start: Date; end: Date }> {
   const [y, m, d] = dateStr.split("-").map(Number);
   const [h, min] = timeStr.split(":").map(Number);
   const start = createArgentinaDate(y, m, d, h, min);
@@ -118,7 +118,7 @@ function addMonths(base: Date, months: number): Date {
   return d;
 }
 
-export function buildRecurringStarts(start: Date, frequency: RecurringFrequency, untilDate: string | null): Date[] {
+export async function buildRecurringStarts(start: Date, frequency: RecurringFrequency, untilDate: string | null): Promise<Date[]> {
   if (frequency === "none" || !untilDate) return [start];
   const until = new Date(`${untilDate}T23:59:59.999-03:00`);
   if (Number.isNaN(until.getTime()) || until <= start) return [start];
@@ -147,7 +147,7 @@ export type StaffRpcRow = {
   email: string | null;
 };
 
-export function buildStaffMapFromRpc(rows: StaffRpcRow[], staffIds: string[]) {
+export async function buildStaffMapFromRpc(rows: StaffRpcRow[], staffIds: string[]) {
   const allowedIds = new Set(staffIds.filter(Boolean));
   return new Map(
     rows

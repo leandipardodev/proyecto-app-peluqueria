@@ -2,14 +2,16 @@
 
 import { registerShop, completeRegistration, resendVerificationCode } from "@/lib/dashboard/auth-actions";
 import Link from "next/link";
-import { Suspense, useState, useTransition } from "react";
+import { Suspense, useState, useTransition, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
 import { resolveIndustry } from "@/lib/industry/resolve";
 import type { Industry } from "@/lib/industry/types";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
+import { supabase } from "@/lib/supabase";
 
 function RegisterPageContent({ industry }: { industry: Industry }) {
+  const [checkingSession, setCheckingSession] = useState(true);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState<"form" | "code">("form");
@@ -24,6 +26,17 @@ function RegisterPageContent({ industry }: { industry: Industry }) {
   const [resent, setResent] = useState(false);
   const router = useRouter();
   const { addToast } = useToast();
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        window.location.href = "/dashboard";
+      } else {
+        setCheckingSession(false);
+      }
+    });
+    return () => subscription?.unsubscribe();
+  }, []);
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -89,7 +102,15 @@ function RegisterPageContent({ industry }: { industry: Industry }) {
   }
 
   if (step === "code") {
+  if (checkingSession) {
     return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-violet-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return (
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, memo } from "react";
+import { useEffect, useMemo, useState, memo, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import {
@@ -79,6 +79,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [phoneError, setPhoneError] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
   const [creatingPreference, setCreatingPreference] = useState(false);
@@ -86,6 +87,8 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
   const [paymentInitPoint, setPaymentInitPoint] = useState<string | null>(null);
   const [chargedAmount, setChargedAmount] = useState<number | null>(null);
   const [isDepositPayment, setIsDepositPayment] = useState(false);
+
+  const recaptchaLoadedRef = useRef(false);
 
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -181,6 +184,13 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
     setCustomerPhone(user.phone?.trim() || "");
   }, [isLoggedIn, user]);
 
+  useEffect(() => {
+    const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
+    if (!siteKey || recaptchaLoadedRef.current) return;
+    recaptchaLoadedRef.current = true;
+    import("@/lib/recaptcha").then(({ loadRecaptchaScript }) => loadRecaptchaScript(siteKey));
+  }, []);
+
   const googleCalendarUrl = useMemo(() => {
     if (!selectedSlot || !selectedService) return null;
     const toGoogleDate = (iso: string) => {
@@ -232,15 +242,43 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
     }
   })();
 
+  function validatePhone(phone: string): string {
+    if (!phone.trim()) return "El teléfono es obligatorio";
+    const digits = phone.replace(/\D/g, "");
+    if (digits.length < 8 || digits.length > 13) return "Ingresá un teléfono argentino válido, ej: 11 1234 5678";
+    if (!digits.match(/^(54|0)?\d{6,11}$/)) return "Formato de teléfono inválido";
+    return "";
+  }
+
+  function handlePhoneChange(value: string) {
+    setCustomerPhone(value);
+    if (phoneError) setPhoneError("");
+  }
+
   async function handleConfirm() {
     if (!selectedService || !selectedSlot || !customerName || !customerPhone) return;
     if (!isLoggedIn && !customerEmail.trim()) return;
+
+    const phoneErr = validatePhone(customerPhone);
+    if (phoneErr) {
+      setPhoneError(phoneErr);
+      return;
+    }
 
     setSubmitting(true);
     setCreatingPreference(true);
     setError(null);
 
+    const [{ formatArgentinePhone }, { getRecaptchaToken }] = await Promise.all([
+      import("@/lib/validation"),
+      import("@/lib/recaptcha"),
+    ]);
+    const formattedPhone = formatArgentinePhone(customerPhone);
+
+    const recaptchaToken = await getRecaptchaToken(process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || "");
+
     const bookingResult = await createPendingBooking({
+      recaptchaToken: recaptchaToken || undefined,
       shopId: shop.id,
       shopSlug: shop.slug,
       serviceId: selectedService.id,
@@ -249,7 +287,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
       staffId: selectedStaff?.id,
       customerName: customerName.trim(),
       customerEmail: customerEmail.trim() || undefined,
-      customerPhone: customerPhone.trim(),
+      customerPhone: formattedPhone,
       authenticatedUserId: user?.id,
       startTime: selectedSlot.start,
       endTime: selectedSlot.end,
@@ -944,10 +982,12 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
                                     inputMode="numeric"
                                     autoComplete="tel"
                                     value={customerPhone}
-                                    onChange={(e) => setCustomerPhone(e.target.value)}
-                                    className={templateStyles.input}
+                                    onChange={(e) => handlePhoneChange(e.target.value)}
+                                    onBlur={() => setPhoneError(validatePhone(customerPhone))}
+                                    className={`${templateStyles.input} ${phoneError ? "ring-2 ring-red-500" : ""}`}
                                     placeholder="11 1234-5678"
                                   />
+                                  {phoneError && <p className="text-xs text-red-500 mt-1">{phoneError}</p>}
                                 </div>
                               </div>
                             )}
@@ -1001,10 +1041,12 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
                                   inputMode="numeric"
                                   autoComplete="tel"
                                   value={customerPhone}
-                                  onChange={(e) => setCustomerPhone(e.target.value)}
-                                  className={templateStyles.input}
+                                  onChange={(e) => handlePhoneChange(e.target.value)}
+                                  onBlur={() => setPhoneError(validatePhone(customerPhone))}
+                                  className={`${templateStyles.input} ${phoneError ? "ring-2 ring-red-500" : ""}`}
                                   placeholder="11 1234-5678"
                                 />
+                                {phoneError && <p className="text-xs text-red-500 mt-1">{phoneError}</p>}
                               </div>
                             </div>
                           </>

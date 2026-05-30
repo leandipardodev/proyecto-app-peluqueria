@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/billing-expiry",
       "schedule": "10 6 * * *"
+    },
+    {
+      "path": "/api/cron/billing-dunning",
+      "schedule": "30 6 * * *"
     }
   ]
 }

@@ -1,12 +1,29 @@
+import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
 import { trackProductEvent } from "@/lib/analytics/product-events";
+import { createLogContext, logInfo, logError } from "@/lib/api-logger";
 
 export async function GET(request: Request) {
+  const log = createLogContext("GET", "/api/cron/billing-expiry");
   const auth = request.headers.get("authorization");
   const secret = process.env.CRON_SECRET;
 
-  if (!secret || auth !== `Bearer ${secret}`) {
+  if (!secret) {
+    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  }
+
+  if (!auth) {
+    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  }
+
+  const expected = `Bearer ${secret}`;
+  const actual = auth;
+
+  if (
+    expected.length !== actual.length ||
+    !crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(actual))
+  ) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 
@@ -28,8 +45,11 @@ export async function GET(request: Request) {
     const shopIds = (expiredShops || []).map((shop) => shop.id);
 
     if (shopIds.length === 0) {
+      logInfo(log, "No expired shops found");
       return NextResponse.json({ ok: true, updated: 0 });
     }
+
+    logInfo(log, `Found ${shopIds.length} expired shops`, { shopIds });
 
     const { error: updateError } = await admin
       .from("shops")
@@ -60,8 +80,10 @@ export async function GET(request: Request) {
       )
     );
 
+    logInfo(log, `Deactivated ${shopIds.length} shops`, { updated: shopIds.length });
     return NextResponse.json({ ok: true, updated: shopIds.length });
   } catch (error) {
+    logError(log, "Billing expiry cron failed", error);
     return NextResponse.json(
       { ok: false, error: error instanceof Error ? error.message : "cron_failed" },
       { status: 500 }

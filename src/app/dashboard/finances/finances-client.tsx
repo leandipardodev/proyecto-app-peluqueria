@@ -7,6 +7,7 @@ import {
   Vault,
   RefreshCw,
   ChevronDown,
+  Download,
 } from "lucide-react";
 import {
   fetchFinanceData,
@@ -29,6 +30,7 @@ import {
   type StaffLiquidationDetailItem,
 } from "@/lib/dashboard/finances-actions";
 import CustomSelect from "@/components/ui/custom-select";
+import { downloadCsv } from "@/lib/csv-export";
 
 type Movement = {
   id: string;
@@ -313,6 +315,16 @@ export default function FinancesClient({
         <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Finanzas</h1>
         {uiMessage && <span className="ui-badge">{uiMessage}</span>}
         {error && <span className="rounded-full bg-red-500/15 px-3 py-1 text-xs font-semibold text-red-700 dark:text-red-300">{error}</span>}
+        {data && (
+          <button onClick={() => downloadCsv([{ ingresos: data.totalIncome, gastos: data.totalExpenses, balance: data.netBalance }], [
+            { key: "ingresos", label: "Ingresos" },
+            { key: "gastos", label: "Gastos" },
+            { key: "balance", label: "Balance" },
+          ], "finanzas")} className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-zinc-600 px-2.5 py-1.5 text-xs font-medium text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+            <Download className="w-3.5 h-3.5" />
+            CSV
+          </button>
+        )}
       </header>
 
       <div className="ui-card inline-flex max-w-full flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-2.5 dark:border-zinc-700 dark:bg-zinc-900/65">
@@ -475,11 +487,24 @@ export default function FinancesClient({
             <button onClick={() => { setBusyKey("load-team"); triggerLoads(from, to).finally(() => setBusyKey(null)); }} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white">{busyKey === "load-team" ? "Cargando..." : "+ Cargar equipo"}</button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead><tr className="text-left text-slate-500"><th className="py-2">Empleado</th><th>Turnos</th><th>Cobrado</th><th>Ticket</th></tr></thead>
-              <tbody>{staffProduction.map((s) => <tr key={s.staffId} className="border-t border-slate-100 dark:border-zinc-800"><td className="py-2 font-medium">{s.staffName}</td><td>{s.appointmentsCount}</td><td className="text-emerald-600">${s.paidRevenue.toFixed(2)}</td><td>${s.avgTicketPaid.toFixed(2)}</td></tr>)}</tbody>
-            </table>
+          <div>
+            <div className="flex justify-end mb-2">
+              <button onClick={() => downloadCsv(staffProduction, [
+                { key: "staffName", label: "Empleado" },
+                { key: "appointmentsCount", label: "Turnos" },
+                { key: (s) => s.paidRevenue.toFixed(2), label: "Cobrado" },
+                { key: (s) => s.avgTicketPaid.toFixed(2), label: "Ticket" },
+              ], "produccion-empleados")} className="inline-flex items-center gap-1 rounded-lg border border-slate-300 dark:border-zinc-600 px-2 py-1 text-xs font-medium text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+                <Download className="w-3 h-3" />
+                CSV
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="text-left text-slate-500"><th className="py-2">Empleado</th><th>Turnos</th><th>Cobrado</th><th>Ticket</th></tr></thead>
+                <tbody>{staffProduction.map((s) => <tr key={s.staffId} className="border-t border-slate-100 dark:border-zinc-800"><td className="py-2 font-medium">{s.staffName}</td><td>{s.appointmentsCount}</td><td className="text-emerald-600">${s.paidRevenue.toFixed(2)}</td><td>${s.avgTicketPaid.toFixed(2)}</td></tr>)}</tbody>
+              </table>
+            </div>
           </div>
         )}
       </Card>

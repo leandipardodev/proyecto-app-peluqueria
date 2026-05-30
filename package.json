@@ -13,13 +13,15 @@
     "audit:product-events": "node scripts/check-product-events.mjs",
     "perf:budget": "node scripts/perf-budget-check.mjs",
     "perf:budget:auth": "node scripts/perf-auth-budget-check.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "prepare": "husky"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "UNLICENSED",
   "type": "module",
   "lint-staged": {
     "*.{ts,tsx}": [
@@ -35,6 +37,7 @@
     "@types/react-dom": "^19.2.2",
     "@typescript-eslint/eslint-plugin": "^8.59.3",
     "@typescript-eslint/parser": "^8.59.3",
+    "@vitest/coverage-v8": "^4.1.7",
     "autoprefixer": "^10.5.0",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.6",
@@ -42,7 +45,8 @@
     "lint-staged": "^17.0.5",
     "supabase": "^2.98.2",
     "tailwindcss": "^4.2.4",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.7"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",
@@ -52,9 +56,12 @@
     "@sentry/nextjs": "^10.22.0",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.105.1",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.38.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.38.0",
+    "lru-cache": "^11.5.1",
     "lucide-react": "^1.14.0",
     "mercadopago": "^2.12.0",
     "next": "^16.2.4",

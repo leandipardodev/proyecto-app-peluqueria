@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { MessageCircle, Bell } from "lucide-react";
+import { MessageCircle, Bell, Download } from "lucide-react";
 import AppointmentFormModal from "@/components/calendar/appointment-form-modal";
 import { Button } from "@/components/ui/button";
+import { downloadCsv } from "@/lib/csv-export";
 import { useAppointmentAlarm } from "@/lib/use-appointment-alarm";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
@@ -154,7 +155,23 @@ export default function AppointmentsTable({ shopId, initialAppointments, service
     <div className="p-3 sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-6">
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Proximos turnos</h1>
-        <Button onClick={() => setShowForm(true)}>Nuevo Turno</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => {
+            downloadCsv(appointments, [
+              { key: (a) => new Date(a.start_time).toLocaleDateString("es-AR"), label: "Fecha" },
+              { key: (a) => `${new Date(a.start_time).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })} - ${new Date(a.end_time).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}`, label: "Horario" },
+              { key: (a) => a.customers?.nombre || "", label: customerWord },
+              { key: (a) => a.services?.name || "", label: serviceWord },
+              { key: (a) => a.staff?.name || "", label: staffWord },
+              { key: (a) => getTurnoStatusLabel(a.status, a.is_paid), label: "Estado" },
+              { key: (a) => a.is_paid ? "Pagado" : "Pendiente", label: "Pago" },
+              { key: (a) => a.deposit_amount ? `$${a.deposit_amount.toFixed(2)}` : "", label: "Seña" },
+            ], "turnos");
+          }}>
+            <Download className="w-4 h-4" />
+          </Button>
+          <Button onClick={() => setShowForm(true)}>Nuevo Turno</Button>
+        </div>
       </div>
 
       {showForm && (

@@ -23,6 +23,7 @@ function isRateLimitError(message: string | null | undefined): boolean {
 
 export default function LoginPage() {
   const router = useRouter();
+  const [checkingSession, setCheckingSession] = useState(true);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [resetMode, setResetMode] = useState(false);
@@ -31,6 +32,21 @@ export default function LoginPage() {
   const [now, setNow] = useState(() => Date.now());
   const { addToast } = useToast();
   const [redirectPath, setRedirectPath] = useState("/dashboard");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const redirect = params.get("redirect");
+    const target = redirect?.startsWith("/") ? redirect : "/dashboard";
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        window.location.href = target;
+      } else {
+        setCheckingSession(false);
+      }
+    });
+    return () => subscription?.unsubscribe();
+  }, []);
 
   useEffect(() => {
     const stored = Number(window.localStorage.getItem(RESET_COOLDOWN_KEY) || "0");
@@ -149,25 +165,15 @@ export default function LoginPage() {
       options: { redirectTo, skipBrowserRedirect: true },
     });
     if (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.error("[oauth-debug][login] signInWithOAuth error", error);
-      }
       setError(error.message);
       setLoading(false);
       return;
     }
 
     if (!data?.url) {
-      if (process.env.NODE_ENV !== "production") {
-        console.error("[oauth-debug][login] missing oauth url", data);
-      }
       setError("No se pudo iniciar Google OAuth. Intenta de nuevo.");
       setLoading(false);
       return;
-    }
-
-    if (process.env.NODE_ENV !== "production") {
-      console.info("[oauth-debug][login] oauth url", data.url);
     }
 
     try {
@@ -189,7 +195,11 @@ export default function LoginPage() {
     window.location.assign(data.url);
   };
 
-  return (
+  return checkingSession ? (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="w-6 h-6 border-2 border-violet-600 border-t-transparent rounded-full animate-spin" />
+    </div>
+  ) : (
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">

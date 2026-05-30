@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import WebVitalsReporter from "@/components/perf/web-vitals-reporter";
+import { GoogleAnalytics } from "@/components/google-analytics";
 import { absoluteUrl, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE } from "@/lib/seo";
 
 const softwareJsonLd = {
@@ -147,6 +148,7 @@ export default function RootLayout({
         </div>
         <div className="relative z-10" id="main-content">
           <Providers>
+            <GoogleAnalytics />
             <WebVitalsReporter />
             {children}
           </Providers>

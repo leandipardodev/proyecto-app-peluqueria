@@ -14,6 +14,7 @@ import {
   Store,
   Gift,
   Bug,
+  CreditCard,
 } from "lucide-react";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { APP_VERSION } from "@/lib/app-version";
@@ -32,6 +33,7 @@ const navItems = [
   { label: "Stock", href: "/dashboard/inventory", icon: Package },
   { label: "Marketing", href: "/dashboard/fidelizacion", icon: Gift },
   { label: "__CUSTOMERS_LABEL__", href: "/dashboard/customers", icon: UserRound },
+  { label: "Facturación", href: "/dashboard/billing", icon: CreditCard },
   { label: "Mi Negocio", href: "/dashboard/business", icon: Store },
 ];
 

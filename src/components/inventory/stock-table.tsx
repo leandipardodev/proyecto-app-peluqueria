@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   Trash2,
   Search,
+  Download,
 } from "lucide-react";
 import { useTransition } from "react";
 import { applyStockBatchAdjustments, deleteProduct } from "@/lib/dashboard/inventory-actions";
@@ -13,6 +14,7 @@ import { supabase } from "@/lib/supabase";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { StatePanel } from "@/components/ui/state-panel";
+import { downloadCsv } from "@/lib/csv-export";
 
 type StockItem = {
   id: string;
@@ -204,6 +206,15 @@ export default function StockTable({ shopId, items }: StockTableProps) {
             Guardando {pendingQueueCount} ajuste{pendingQueueCount > 1 ? "s" : ""}...
           </div>
         )}
+        <button onClick={() => downloadCsv(filtered, [
+          { key: "nombre_producto", label: "Producto" },
+          { key: "quantity", label: "Cantidad" },
+          { key: (i) => `$${i.unit_cost.toFixed(2)}`, label: "Costo unit." },
+          { key: (i) => `$${(i.quantity * i.unit_cost).toFixed(2)}`, label: "Valor total" },
+        ], "inventario")} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 dark:border-zinc-600 px-3 py-2 text-sm font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 transition">
+          <Download className="w-4 h-4" />
+          CSV
+        </button>
       </div>
 
       <div className="md:hidden space-y-3">

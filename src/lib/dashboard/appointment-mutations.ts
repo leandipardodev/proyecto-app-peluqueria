@@ -58,8 +58,8 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
 
     if (!service) return { success: false, error: "Servicio no encontrado" };
 
-    const { start } = toArgentinaStartEnd(startDate, startTime, service.duration_minutes);
-    const recurringStarts = buildRecurringStarts(start, recurringFrequency, recurringUntil);
+    const { start } = await toArgentinaStartEnd(startDate, startTime, service.duration_minutes);
+    const recurringStarts = await buildRecurringStarts(start, recurringFrequency, recurringUntil);
 
     const rowsToInsert = recurringStarts.map((startAt) => {
       const endAt = new Date(startAt.getTime() + service.duration_minutes * 60000);
@@ -190,7 +190,7 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
     if (customerInsertError) return { success: false, error: `Error al crear cliente: ${customerInsertError.message}` };
     const customerId = newCustomer.id;
 
-    const { start } = toArgentinaStartEnd(startDate, startTime, service.duration_minutes);
+    const { start } = await toArgentinaStartEnd(startDate, startTime, service.duration_minutes);
     const end = new Date(start.getTime() + service.duration_minutes * 60000);
     const startIso = start.toISOString();
 

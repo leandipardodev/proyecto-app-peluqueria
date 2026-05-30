@@ -646,7 +646,7 @@ export default async function DashboardPage() {
   const needsTutorial = !shop?.nombre?.trim() || !shop?.address?.trim() || !servicesCount;
 
   if (needsTutorial) {
-    redirect(`/dashboard/${shop.slug}/business`);
+    redirect(`/onboarding/wizard`);
   }
 
   redirect(`/dashboard/${shop.slug}`);

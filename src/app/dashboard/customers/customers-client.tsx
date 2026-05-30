@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Gift, Loader2, MessageCircle, Search, X } from "lucide-react";
+import { Gift, Loader2, MessageCircle, Search, X, Download } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { supabase } from "@/lib/supabase";
@@ -10,6 +10,7 @@ import { resolveDashboardShopIdBySlug } from "@/lib/dashboard/auth-actions";
 import { useAuth } from "@/lib/auth-context";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { resolveIndustry } from "@/lib/industry/resolve";
+import { downloadCsv } from "@/lib/csv-export";
 
 type Customer = {
   id: string;
@@ -375,13 +376,27 @@ export default function CustomersPage() {
         <p className="mt-1 text-sm text-slate-500 dark:text-zinc-400">Gestión de fichas técnicas y datos de contacto.</p>
       </div>
 
-      <div>
+      <div className="flex gap-2">
         <button
           onMouseDown={playClick}
           onClick={openCreate}
           className="bg-blue-600 text-white rounded-full px-6 py-2 text-sm font-medium hover:bg-blue-700 transition"
         >
           + Nuevo {customerWord}
+        </button>
+        <button onClick={() => {
+          downloadCsv(filteredCustomers, [
+            { key: "nombre", label: customerWord },
+            { key: "email", label: "Email" },
+            { key: "telefono", label: "Teléfono" },
+            { key: (c) => formatDate(c.cumpleaños), label: "Cumpleaños" },
+            { key: "observaciones_tecnicas", label: "Observaciones" },
+            { key: (c) => c.es_vip ? "Sí" : "No", label: "VIP" },
+            { key: (c) => c.loyalty_cuts_count != null ? `${c.loyalty_cuts_count} cortes` : "", label: "Fidelización" },
+          ], "clientes");
+        }} className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 dark:border-zinc-600 px-4 py-2 text-sm font-medium text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+          <Download className="w-4 h-4" />
+          CSV
         </button>
       </div>
 

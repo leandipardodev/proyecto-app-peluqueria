@@ -365,11 +365,9 @@ export default function BusinessClient({
       }
     } catch {}
     if (!done) {
-      setTourOpen(true);
-      window.localStorage.setItem(key, JSON.stringify({ active: true, step: startStep }));
-      window.setTimeout(() => {
-        document.getElementById(tourSteps[startStep].id)?.scrollIntoView({ behavior: "smooth", block: "center" });
-      }, 140);
+      // Redirect to onboarding wizard instead of showing inline tour
+      window.location.href = `/onboarding/wizard`;
+      return;
     }
   }, [shopSlug, tourSteps, initialData, initialServices]);
 

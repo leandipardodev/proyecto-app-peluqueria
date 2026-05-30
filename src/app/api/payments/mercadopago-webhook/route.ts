@@ -5,7 +5,11 @@ import { MercadoPagoConfig, Payment } from "mercadopago";
 import { cycleMonths, type BillingCycle } from "@/lib/billing/plans";
 import { getArgentinaDateKey } from "@/lib/argentina-time";
 import { sendAppointmentConfirmationEmail } from "@/lib/email/booking-emails";
+import { createRateLimiter, getClientIp } from "@/lib/rate-limiter";
+import { createLogContext, logInfo, logWarn, logError } from "@/lib/api-logger";
 import crypto from "crypto";
+
+const webhookLimiter = createRateLimiter({ intervalMs: 60_000, maxRequests: 30 });
 
 async function createAdminClient() {
   return createServiceRoleClient();
@@ -45,7 +49,14 @@ function verifyMercadoPagoSignature(
   xSignature: string | null,
   secret: string
 ): boolean {
-  if (!xSignature || !secret) return process.env.NODE_ENV === "development";
+  if (!xSignature || !secret) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn(
+        "[mercadopago-webhook] WARNING: x-signature header missing or MP_WEBHOOK_SECRET not configured. Rejecting — set MP_WEBHOOK_SECRET to test webhooks."
+      );
+    }
+    return false;
+  }
 
   const tsMatch = xSignature.match(/ts=(\d+)/);
   const v1Match = xSignature.match(/v1=([a-f0-9]+)/);
@@ -80,7 +91,15 @@ function formatDateInArgentina(value: Date | string): string {
 }
 
 export async function POST(request: NextRequest) {
+  const log = createLogContext("POST", "/api/payments/mercadopago-webhook");
   try {
+    const ip = getClientIp(request);
+    const rateCheck = await webhookLimiter.check(`webhook:${ip}`);
+    if (!rateCheck.allowed) {
+      logWarn(log, "Rate limit exceeded", { ip });
+      return NextResponse.json({ ok: false, error: "too_many_requests" }, { status: 429 });
+    }
+
     const rawBody = await request.text();
     let payload: { type?: string; data?: { id?: string }; action?: string } | null = null;
     try {
@@ -443,7 +462,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error("[mercadopago-webhook] error:", error);
+    logError(log, "Webhook processing failed", error);
     return NextResponse.json({ ok: false }, { status: 500 });
   }
 }

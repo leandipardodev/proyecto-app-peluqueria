@@ -101,8 +101,8 @@ test.describe("Payment flows", () => {
     test.skip(!email || !password, "Define E2E_LOGIN_EMAIL and E2E_LOGIN_PASSWORD for auth");
 
     await page.goto("/login");
-    await page.getByLabel(/email/i).fill(email);
-    await page.getByLabel(/contrasena|contraseña|password/i).fill(password);
+    await page.getByLabel(/email/i).fill(email!);
+    await page.getByLabel(/contrasena|contraseña|password/i).fill(password!);
     await page.getByRole("button", { name: /ingresar|entrar|iniciar/i }).click();
     await page.waitForURL(/\/dashboard(\/.*)?$/i, { timeout: 30_000 });
 
@@ -127,8 +127,8 @@ test.describe("Payment flows", () => {
     test.skip(!email || !password, "Define E2E_LOGIN_EMAIL and E2E_LOGIN_PASSWORD for auth");
 
     await page.goto("/login");
-    await page.getByLabel(/email/i).fill(email);
-    await page.getByLabel(/contrasena|contraseña|password/i).fill(password);
+    await page.getByLabel(/email/i).fill(email!);
+    await page.getByLabel(/contrasena|contraseña|password/i).fill(password!);
     await page.getByRole("button", { name: /ingresar|entrar|iniciar/i }).click();
     await page.waitForURL(/\/dashboard(\/.*)?$/i, { timeout: 30_000 });
 

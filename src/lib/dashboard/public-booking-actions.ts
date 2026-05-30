@@ -12,7 +12,11 @@ import {
 import { MercadoPagoConfig, Preference } from "mercadopago";
 import type { ActionResult } from "@/lib/types";
 import { sendAppointmentConfirmationEmail, scheduleAppointmentReminderEmail } from "@/lib/email/booking-emails";
+import { createRateLimiter } from "@/lib/rate-limiter";
+import { headers } from "next/headers";
 import "server-only";
+
+const slotsLimiter = createRateLimiter({ intervalMs: 60_000, maxRequests: 30 });
 
 async function createAdminClient() {
   return createServiceRoleClient();
@@ -99,6 +103,13 @@ export async function fetchPublicAvailableSlots(
   staffId?: string
 ): Promise<ActionResult<Slot[]>> {
   try {
+    const headersList = await headers();
+    const ip = headersList.get("x-forwarded-for")?.split(",")[0]?.trim() || headersList.get("x-real-ip") || "unknown";
+    const rateCheck = await slotsLimiter.check(`fetch-slots:${ip}:${shopId}`);
+    if (!rateCheck.allowed) {
+      return { success: true, data: [] };
+    }
+
     const admin = await createAdminClient();
 
     const safeDuration = (!serviceDuration || serviceDuration <= 0) ? 60 : serviceDuration;

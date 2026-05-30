@@ -3,6 +3,7 @@
 import { X, Check, XCircle, Trash2, MessageCircle, UserRoundPen } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { deleteAppointment, patchAppointmentQuick, redeemLoyaltyReward, updateCustomerQuick } from "@/lib/dashboard/appointment-actions";
+import { refundMpPayment } from "@/lib/payments/mercadopago-actions";
 import { AnimatePresence, motion } from "framer-motion";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
@@ -88,6 +89,7 @@ export default function AppointmentDetailModal({
   const [error, setError] = useState<string | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+  const [refundConfirmOpen, setRefundConfirmOpen] = useState(false);
   const [selectedStaffId, setSelectedStaffId] = useState(appointment?.staff_id || "");
   const [localRewardsAvailable, setLocalRewardsAvailable] = useState(
     Math.max(0, Number(appointment?.customers?.loyalty_rewards_available || 0))
@@ -210,6 +212,27 @@ export default function AppointmentDetailModal({
   function handleDeleteAppointment() {
     if (!appointment) return;
     setDeleteConfirmOpen(true);
+  }
+
+  function handleRefundClick() {
+    if (!appointment) return;
+    setRefundConfirmOpen(true);
+  }
+
+  async function handleConfirmRefund() {
+    if (!appointment) return;
+    setError(null);
+    setRefundConfirmOpen(false);
+    startTransition(async () => {
+      const result = await refundMpPayment(appointment.id);
+      if (result.success) {
+        setLocalPaid(false);
+        addToast("Reembolso procesado", "success");
+      } else {
+        setError(result.error);
+        addToast(result.error || "Error al reembolsar", "error");
+      }
+    });
   }
 
   function handleStaffChange(value: string) {
@@ -463,19 +486,30 @@ export default function AppointmentDetailModal({
 
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-700 dark:text-gray-300">Pago</span>
-              <button
-                onClick={handleTogglePaid}
-                disabled={pending}
-                className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer select-none ${
-                  localPaid ? "bg-green-500" : "bg-gray-300"
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                    localPaid ? "translate-x-5" : "translate-x-0"
+              <div className="flex items-center gap-2">
+                {localPaid && (
+                  <button
+                    onClick={handleRefundClick}
+                    disabled={pending}
+                    className="text-xs text-red-600 dark:text-red-400 hover:underline disabled:opacity-50 cursor-pointer select-none"
+                  >
+                    Reembolsar
+                  </button>
+                )}
+                <button
+                  onClick={handleTogglePaid}
+                  disabled={pending}
+                  className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer select-none ${
+                    localPaid ? "bg-green-500" : "bg-gray-300"
                   }`}
-                />
-              </button>
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                      localPaid ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
 
             {actions.length > 0 && (
@@ -574,6 +608,16 @@ export default function AppointmentDetailModal({
               setHasPendingChanges(false);
               onClose();
             }}
+          />
+
+          <ConfirmDialog
+            open={refundConfirmOpen}
+            title="Reembolsar pago"
+            message="Se reembolsara el p completo de Mercado Pago al cliente y el turno quedara como no pagado."
+            confirmLabel="Reembolsar"
+            danger
+            onCancel={() => setRefundConfirmOpen(false)}
+            onConfirm={handleConfirmRefund}
           />
         </motion.div>
       )}

@@ -106,7 +106,7 @@ export default async function BookPage({ params }: BookPageProps) {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessJsonLd).replace(/</g, "\\u003C") }}
       />
       <BookingClient
         shop={{

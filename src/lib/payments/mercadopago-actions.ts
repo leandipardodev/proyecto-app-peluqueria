@@ -2,7 +2,7 @@
 
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient, requireOwnerShopId } from "@/lib/dashboard/auth-server";
-import { MercadoPagoConfig, Preference } from "mercadopago";
+import { MercadoPagoConfig, Preference, PaymentRefund } from "mercadopago";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
 
@@ -200,5 +200,77 @@ export async function createPaymentLink(appointmentId: string): Promise<ActionRe
     console.error("[createPaymentLink] error:", e);
     const message = e instanceof Error ? e.message : "Error al crear el link de pago";
     return { success: false, error: message };
+  }
+}
+
+export async function refundMpPayment(appointmentId: string): Promise<ActionResult> {
+  try {
+    const shopIdResult = await requireOwnerShopId();
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
+    const supabase = await createServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const admin = await createAdminClient();
+
+    const { data: appointment } = await admin
+      .from("appointments")
+      .select("id, is_paid, mp_preference_id, shop_id")
+      .eq("id", appointmentId)
+      .eq("shop_id", shopId)
+      .single();
+
+    if (!appointment) return { success: false, error: "Turno no encontrado" };
+    if (!appointment.is_paid) return { success: false, error: "Este turno no tiene pagos para reembolsar" };
+
+    const { data: mpKeys } = await admin
+      .from("shops")
+      .select("mp_access_token")
+      .eq("id", shopId)
+      .single();
+
+    if (!mpKeys?.mp_access_token) {
+      return { success: false, error: "Mercado Pago no esta configurado para este local" };
+    }
+
+    const accessToken = mpKeys.mp_access_token as string;
+
+    const { data: logs } = await admin
+      .from("mercadopago_logs")
+      .select("payload")
+      .eq("appointment_id", appointmentId)
+      .eq("event_type", "payment_webhook")
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    const mpPaymentId = logs?.[0]?.payload?.payment_id as string | undefined;
+    if (!mpPaymentId) {
+      return { success: false, error: "No se encontro el pago en Mercado Pago para reembolsar" };
+    }
+
+    const client = new MercadoPagoConfig({ accessToken });
+    const refund = new PaymentRefund(client);
+    await refund.total({ payment_id: mpPaymentId });
+
+    await admin
+      .from("appointments")
+      .update({ is_paid: false, updated_at: new Date().toISOString() })
+      .eq("id", appointmentId)
+      .eq("shop_id", shopId);
+
+    await admin.from("mercadopago_logs").insert({
+      shop_id: shopId,
+      appointment_id: appointmentId,
+      mp_preference_id: appointment.mp_preference_id,
+      event_type: "refund_processed",
+      payload: { mp_payment_id: mpPaymentId, refunded_by: user?.id },
+    });
+
+    return { success: true };
+  } catch (e) {
+    console.error("[refundMpPayment] error:", e);
+    const message = e instanceof Error ? e.message : "Error al procesar reembolso";
+    return { success: false, error: `Error al reembolsar: ${message}` };
   }
 }

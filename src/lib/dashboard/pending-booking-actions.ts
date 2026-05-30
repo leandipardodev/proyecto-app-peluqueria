@@ -7,9 +7,15 @@ import {
   getArgentinaMinutesSinceMidnight,
 } from "@/lib/argentina-time";
 import type { ActionResult } from "@/lib/types";
+import { createRateLimiter } from "@/lib/rate-limiter";
+import { verifyRecaptcha } from "@/lib/recaptcha";
+import { headers } from "next/headers";
 import "server-only";
 
+const createBookingLimiter = createRateLimiter({ intervalMs: 60_000, maxRequests: 10 });
+
 type PendingBookingInput = {
+  recaptchaToken?: string;
   shopId: string;
   shopSlug: string;
   serviceId: string;
@@ -36,6 +42,20 @@ export async function createPendingBooking(
   input: PendingBookingInput
 ): Promise<ActionResult<CreatePendingBookingOutput>> {
   try {
+    const headersList = await headers();
+    const ip = headersList.get("x-forwarded-for")?.split(",")[0]?.trim() || headersList.get("x-real-ip") || "unknown";
+    const rateCheck = await createBookingLimiter.check(`create-pending-booking:${ip}`);
+    if (!rateCheck.allowed) {
+      return { success: false, error: "Demasiadas solicitudes. Intenta de nuevo en unos segundos." };
+    }
+
+    if (input.recaptchaToken) {
+      const recaptchaResult = await verifyRecaptcha(input.recaptchaToken);
+      if (!recaptchaResult.success) {
+        return { success: false, error: "Verificacion de seguridad fallida. Intenta de nuevo." };
+      }
+    }
+
     const admin = await createServiceRoleClient();
 
     // Validate times
