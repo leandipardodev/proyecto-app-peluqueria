@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import DashboardHeader from "@/components/dashboard/dashboard-header";
 import DashboardHeaderLite from "@/components/dashboard/dashboard-header-lite";
 
@@ -14,18 +15,21 @@ export default function DashboardHeaderLoader({
   userEmail: string;
   onLogout: () => Promise<void>;
 }) {
+  const pathname = usePathname();
   const [state, setState] = useState<{
     loading: boolean;
     shopName: string;
     userName: string;
     managedShops: ManagedShop[];
     billingStatus: BillingStatus;
+    lastPaymentDate: string | null;
   }>({
     loading: true,
     shopName: "Mi Negocio",
     userName: userEmail || "Usuario",
     managedShops: [],
     billingStatus: { daysRemaining: null, graceDaysRemaining: null, isExpired: false, inGrace: false },
+    lastPaymentDate: null,
   });
 
   useEffect(() => {
@@ -43,6 +47,7 @@ export default function DashboardHeaderLoader({
           userName?: string;
           managedShops?: ManagedShop[];
           billingStatus?: BillingStatus;
+          lastPaymentDate?: string | null;
         };
         if (!mounted) return;
         setState({
@@ -51,6 +56,7 @@ export default function DashboardHeaderLoader({
           userName: data.userName || userEmail || "Usuario",
           managedShops: data.managedShops || [],
           billingStatus: data.billingStatus || { daysRemaining: null, graceDaysRemaining: null, isExpired: false, inGrace: false },
+          lastPaymentDate: data.lastPaymentDate ?? null,
         });
       } catch {
         if (!mounted) return;
@@ -62,19 +68,20 @@ export default function DashboardHeaderLoader({
     return () => {
       mounted = false;
     };
-  }, [userEmail]);
+  }, [userEmail, pathname]);
 
   if (state.loading) return <DashboardHeaderLite />;
 
   return (
-    <DashboardHeader
-      shopName={state.shopName}
-      userName={state.userName}
-      userEmail={userEmail}
-      onLogout={onLogout}
-      activeShopSlug={null}
-      managedShops={state.managedShops}
-      billingStatus={state.billingStatus}
-    />
+      <DashboardHeader
+        shopName={state.shopName}
+        userName={state.userName}
+        userEmail={userEmail}
+        onLogout={onLogout}
+        activeShopSlug={null}
+        managedShops={state.managedShops}
+        billingStatus={state.billingStatus}
+        lastPaymentDate={state.lastPaymentDate}
+      />
   );
 }

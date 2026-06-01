@@ -625,7 +625,7 @@ export default async function DashboardPage() {
 
   const firstShopId = memberships?.[0]?.shop_id;
   if (!firstShopId) {
-    redirect("/landing");
+    redirect("/register");
   }
 
   const { data: shop } = await admin
@@ -635,7 +635,7 @@ export default async function DashboardPage() {
     .maybeSingle();
 
   if (!shop?.slug) {
-    redirect("/landing");
+    redirect("/register");
   }
 
   const { count: servicesCount } = await admin

@@ -4,7 +4,7 @@ import { format, startOfWeek, addDays, isToday } from "date-fns";
 import { es } from "date-fns/locale";
 import { Check, CheckCheck, ChevronLeft, ChevronRight, Hourglass, MessageCircle, X } from "lucide-react";
 import { useRef, useState, useEffect, useMemo, memo } from "react";
-import { AnimatePresence, motion, useMotionValue, useSpring } from "framer-motion";
+import { AnimatePresence, motion, useMotionValue } from "framer-motion";
 import { createPortal } from "react-dom";
 import { GRID_END_HOUR, GRID_START_HOUR, HOUR_HEIGHT } from "@/lib/calendar-constants";
 import {
@@ -87,7 +87,6 @@ const STAFF_COLORS = [
 const STATUS_FINAL = new Set(["completed", "cancelled", "no_show"]);
 const MOTION_PRESET = {
   pill: { stiffness: 460, damping: 30, mass: 0.55 },
-  tooltipFollow: { stiffness: 340, damping: 36, mass: 0.58 },
   tooltipInOut: { stiffness: 430, damping: 34, mass: 0.56 },
 };
 
@@ -147,15 +146,13 @@ export default memo(function CalendarView({
   const [isCoarsePointer, setIsCoarsePointer] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [hoverTooltip, setHoverTooltip] = useState<HoverTooltipState | null>(null);
+  const tooltipX = useMotionValue(-9999);
+  const tooltipY = useMotionValue(-9999);
   const [portalReady, setPortalReady] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const startX = useRef(0);
   const scrollLeft = useRef(0);
-  const tooltipTargetX = useMotionValue(0);
-  const tooltipTargetY = useMotionValue(0);
-  const tooltipX = useSpring(tooltipTargetX, MOTION_PRESET.tooltipFollow);
-  const tooltipY = useSpring(tooltipTargetY, MOTION_PRESET.tooltipFollow);
 
   const filteredAppointments = useMemo(() => {
     if (!staffFilter) return appointments;
@@ -697,6 +694,14 @@ export default memo(function CalendarView({
                             const displayLabel = getTurnoStatusLabel(appt.status, appt.is_paid);
                             const showStatusBadge = !isWeekMode || isMobileViewport;
 
+                            const hoverShadow = isCancelled
+                              ? "inset 2px 0 0 rgba(220,38,38,0.6), 0 12px 24px rgba(15,23,42,0.12)"
+                              : needsAttention
+                                ? "inset 2px 0 0 rgba(245,158,11,0.85), 0 0 0 1px rgba(245,158,11,0.22), 0 12px 24px rgba(15,23,42,0.12)"
+                                : isConfirmed && isMobileViewport
+                                  ? "inset 2px 0 0 rgba(14,165,233,0.85), 0 0 0 1px rgba(14,165,233,0.22), 0 12px 24px rgba(15,23,42,0.12)"
+                                  : `inset 2px 0 0 ${hexToRgba(staffColor.border, 0.32)}, 0 12px 24px rgba(15,23,42,0.12)`;
+
                             return (
                               <motion.div
                                 key={appt.id}
@@ -725,7 +730,7 @@ export default memo(function CalendarView({
                                 initial={{ opacity: 0, scale: 0.96 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 transition={{ type: "spring", ...MOTION_PRESET.pill }}
-                                whileHover={{ y: -1, boxShadow: "0 12px 24px rgba(15, 23, 42, 0.12)" }}
+                                whileHover={{ y: -1, boxShadow: hoverShadow, transition: { boxShadow: { duration: 0.2 }, y: { type: "spring", stiffness: 400, damping: 28 } } }}
                                 whileTap={{ scale: 0.985 }}
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -733,19 +738,16 @@ export default memo(function CalendarView({
                                 }}
                                 onMouseEnter={(e) => {
                                   if (isCoarsePointer) return;
-                                  const pos = { x: e.clientX, y: e.clientY };
-                                  const adjusted = getTooltipPosition(pos.x, pos.y);
-                                  tooltipTargetX.set(adjusted.left);
-                                  tooltipTargetY.set(adjusted.top);
-                                  tooltipX.set(adjusted.left);
-                                  tooltipY.set(adjusted.top);
+                                  const pos = getTooltipPosition(e.clientX, e.clientY);
+                                  tooltipX.set(pos.left);
+                                  tooltipY.set(pos.top);
                                   setHoverTooltip({ appointment: appt });
                                 }}
                                 onMouseMove={(e) => {
                                   if (isCoarsePointer) return;
-                                  const adjusted = getTooltipPosition(e.clientX, e.clientY);
-                                  tooltipTargetX.set(adjusted.left);
-                                  tooltipTargetY.set(adjusted.top);
+                                  const pos = getTooltipPosition(e.clientX, e.clientY);
+                                  tooltipX.set(pos.left);
+                                  tooltipY.set(pos.top);
                                 }}
                                 onMouseLeave={() => {
                                   setHoverTooltip(null);

@@ -22,12 +22,26 @@ export async function GET() {
 
     const billingStatus = getSelectedShopBilling(managedShops, currentShop?.slug ?? null);
 
+    let lastPaymentDate: string | null = null;
+    if (currentShop) {
+      const { data: lastEvent } = await admin
+        .from("shop_billing_events")
+        .select("created_at")
+        .eq("shop_id", currentShop.id)
+        .eq("event_type", "subscription_payment_applied")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      lastPaymentDate = lastEvent?.created_at ?? null;
+    }
+
     return NextResponse.json(
       {
         shopName,
         userName,
         managedShops,
         billingStatus,
+        lastPaymentDate,
       },
       { status: 200 },
     );
@@ -97,12 +111,15 @@ function getSelectedShopBilling(
 }
 
 function formatDateInArgentina(value: string): string {
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? new Date(value + "T00:00:00-03:00")
+    : new Date(value);
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Argentina/Buenos_Aires",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).formatToParts(new Date(value));
+  }).formatToParts(date);
 
   const y = parts.find((p) => p.type === "year")?.value || "1970";
   const m = parts.find((p) => p.type === "month")?.value || "01";

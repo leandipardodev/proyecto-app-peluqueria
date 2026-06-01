@@ -140,8 +140,17 @@ export async function createPendingBooking(
       return { success: false, error: "Mercado Pago no esta configurado" };
     }
 
-    const depositEnabled = true; // public booking always goes through MP
-    const chargeAmount = Math.max(1, input.servicePrice);
+    const { data: shopPolicy } = await admin
+      .from("shops")
+      .select("booking_deposit_enabled, booking_deposit_amount")
+      .eq("id", input.shopId)
+      .single();
+
+    const depositEnabled = shopPolicy?.booking_deposit_enabled !== false;
+    const configuredDeposit = Math.max(0, Number(shopPolicy?.booking_deposit_amount ?? 0));
+    const chargeAmount = depositEnabled
+      ? Math.max(1, Math.min(input.servicePrice, configuredDeposit > 0 ? configuredDeposit : input.servicePrice))
+      : Math.max(1, input.servicePrice);
 
     const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || "https://klip.com.ar").replace(/\/+$/, "");
     const successUrl = `${baseUrl}/confirmacion?status=success&slug=${encodeURIComponent(input.shopSlug)}`;

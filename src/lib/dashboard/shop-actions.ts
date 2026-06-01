@@ -44,17 +44,42 @@ export async function updateShopInfo(data: {
   }
 }
 
-export async function deleteCurrentShop(): Promise<ActionResult> {
+export async function deleteCurrentShop(shopSlug?: string): Promise<ActionResult> {
   try {
     const supabase = await createServerClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    const shopIdResult = await requireOwnerShopId();
-    if (!shopIdResult.success) return shopIdResult;
-    const shopId = shopIdResult.data;
     const admin = await createAdminClient();
+
+    let shopId: string | null = null;
+
+    if (shopSlug) {
+      const { data: shop } = await admin
+        .from("shops")
+        .select("id")
+        .eq("slug", shopSlug)
+        .maybeSingle();
+
+      if (!shop) return { success: false, error: "LOCAL_INVALIDO" };
+      shopId = shop.id;
+
+      const { data: membership } = await supabase
+        .from("shop_memberships")
+        .select("role, is_active")
+        .eq("user_id", user?.id)
+        .eq("shop_id", shopId)
+        .maybeSingle();
+
+      if (!membership?.is_active || membership.role !== "owner") {
+        return { success: false, error: "Solo el owner del local puede realizar esta accion" };
+      }
+    } else {
+      const shopIdResult = await requireOwnerShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data ?? null;
+    }
 
     await admin.from("shop_billing_events").insert({
       shop_id: shopId,

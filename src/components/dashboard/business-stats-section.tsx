@@ -38,7 +38,7 @@ export default function BusinessStatsSection({
   servicePlural,
 }: Props) {
   return (
-    <section className="glass-sheen-card bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden transition-colors">
+    <section id="estadisticas" className="glass-sheen-card bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden transition-colors">
       <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Estadísticas del Negocio</h2>

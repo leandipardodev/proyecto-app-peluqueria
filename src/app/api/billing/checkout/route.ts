@@ -84,7 +84,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ init_point: created.init_point || "", preference_id: created.id || "" });
   } catch (error) {
-    console.error("[billing-checkout] error", error);
-    return NextResponse.json({ error: "Error al crear checkout de membresía" }, { status: 500 });
+    const msg = error instanceof Error ? error.message : "Error desconocido";
+    console.error("[billing-checkout] error", msg, error);
+    return NextResponse.json({ error: `Error al crear checkout de membresía: ${msg}` }, { status: 500 });
   }
 }

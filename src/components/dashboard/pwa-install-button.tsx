@@ -17,7 +17,7 @@ function isRunningStandalone(): boolean {
 
 export default function PwaInstallButton() {
   const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isInstalled, setIsInstalled] = useState(true);
+  const [isInstalled, setIsInstalled] = useState(false);
   const [isIosFallbackVisible, setIsIosFallbackVisible] = useState(false);
 
   useEffect(() => {

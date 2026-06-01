@@ -22,7 +22,7 @@ export default function CanchasLandingPage() {
         <Link href="/register?rubro=canchas" className="rounded-full bg-[#0071E3] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#0062c6]">
           Crear cuenta para canchas
         </Link>
-        <Link href="/landing" className="rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+        <Link href="/" className="rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
           Ver plataforma
         </Link>
       </div>

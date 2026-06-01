@@ -369,7 +369,7 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
     const prevMonthClients =
       clientsRes.data?.filter((c) => toMonthKey(c.created_at) === prevMonth).length ?? 0;
 
-    const growth = prevMonthClients > 0 ? Math.round(((currentMonthClients - prevMonthClients) / prevMonthClients) * 100) : null;
+    const growth = prevMonthClients > 0 && currentMonthClients > 0 ? Math.round(((currentMonthClients - prevMonthClients) / prevMonthClients) * 100) : null;
 
     const clientsByMonth = new Map<string, number>();
     for (const client of clientsRes.data ?? []) {

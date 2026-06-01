@@ -100,6 +100,7 @@ export default function BusinessClient({
   const [error] = useState(initialError);
   const [pending, startTransition] = useTransition();
   const [creatingShop, startCreateShopTransition] = useTransition();
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [name, setName] = useState(data?.nombre || "");
   const [address, setAddress] = useState(data?.address || "");
@@ -151,6 +152,34 @@ export default function BusinessClient({
   const [dragOverSection, setDragOverSection] = useState<string | null>(null);
   const [mobileDropFlashSection, setMobileDropFlashSection] = useState<string | null>(null);
   const [serviceOrderIds, setServiceOrderIds] = useState<string[]>(initialServices.map((service) => service.id));
+
+  useEffect(() => {
+    setServiceCategoryDraft((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const service of initialServices) {
+        if (!(service.id in prev)) {
+          next[service.id] = (service.category || "General").trim() || "General";
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+
+    setServiceOrderIds((prev) => {
+      const existing = new Set(prev);
+      const newIds = initialServices.map((s) => s.id).filter((id) => !existing.has(id));
+      return newIds.length > 0 ? [...prev, ...newIds] : prev;
+    });
+
+    setSectionCatalog((prev) => {
+      const fromServices = Array.from(new Set(initialServices.map((s) => (s.category || "General").trim() || "General")));
+      const merged = [...prev, ...fromServices].filter((item, index, arr) => Boolean(item) && arr.indexOf(item) === index);
+      if (!merged.includes("General")) merged.unshift("General");
+      return merged;
+    });
+  }, [initialServices]);
+
   const orderedServices = useMemo(() => {
     const rank = new Map(serviceOrderIds.map((id, index) => [id, index]));
     return [...initialServices].sort((a, b) => {
@@ -365,9 +394,12 @@ export default function BusinessClient({
       }
     } catch {}
     if (!done) {
-      // Redirect to onboarding wizard instead of showing inline tour
-      window.location.href = `/onboarding/wizard`;
-      return;
+      if (shopSlug) {
+        setTourOpen(true);
+      } else {
+        window.location.href = `/onboarding/wizard`;
+        return;
+      }
     }
   }, [shopSlug, tourSteps, initialData, initialServices]);
 
@@ -767,25 +799,30 @@ export default function BusinessClient({
   }
 
 
-  function handleCloseShop() {
-    if (!canManageBilling) return;
+  async function handleCloseShop() {
+    if (!canManageBilling || isDeleting) return;
     if (closeConfirm.trim().toUpperCase() !== "CONFIRMAR") {
       showError("Escribí CONFIRMAR para confirmar el cierre del local.");
       playError();
       return;
     }
 
-    startTransition(async () => {
-      const result = await deleteCurrentShop();
+    setIsDeleting(true);
+    try {
+      const result = await deleteCurrentShop(shopSlug ?? undefined);
       if (!result.success) {
         playError();
         showError(result.error);
+        setIsDeleting(false);
         return;
       }
       playSuccess();
-      router.push("/landing");
-      router.refresh();
-    });
+      window.location.href = "/";
+    } catch (e) {
+      playError();
+      showError(e instanceof Error ? e.message : "Error inesperado");
+      setIsDeleting(false);
+    }
   }
 
   function handleCreateNewShop() {
@@ -1743,11 +1780,11 @@ export default function BusinessClient({
               type="button"
               onMouseDown={playClick}
               onClick={() => setShowCloseModal(true)}
-              disabled={pending}
+              disabled={isDeleting}
               className="inline-flex items-center justify-center gap-2 rounded-full bg-red-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
             >
               <Trash2 className="w-4 h-4" />
-              {pending ? "Cerrando local..." : "Continuar cierre"}
+              {isDeleting ? "Cerrando local..." : "Continuar cierre"}
             </button>
           </div>
         </div>
@@ -1769,7 +1806,7 @@ export default function BusinessClient({
         confirmText={closeConfirm}
         onConfirmTextChange={setCloseConfirm}
         onConfirm={handleCloseShop}
-        pending={pending}
+        pending={isDeleting}
         portalReady={portalReady}
       />
 

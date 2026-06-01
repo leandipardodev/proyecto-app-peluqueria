@@ -44,7 +44,7 @@ export default function CreateShopRecoveryClient({ userEmail }: { userEmail: str
               }
               const target = result.data.isFirstShop
                 ? `/dashboard/${result.data.slug}/business`
-                : `/dashboard/${result.data.slug}`;
+                : `/dashboard/${result.data.slug}/billing`;
               window.location.assign(target);
             });
           }}

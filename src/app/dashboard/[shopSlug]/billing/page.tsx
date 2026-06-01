@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
 import { getAuthSession } from "@/lib/dashboard/auth-server";
+import { BILLING_PRICES } from "@/lib/billing/plans";
 import BillingClient from "./billing-client";
 
 export default async function BillingPage({ params }: { params: Promise<{ shopSlug: string }> }) {
@@ -10,10 +11,19 @@ export default async function BillingPage({ params }: { params: Promise<{ shopSl
 
   const admin = await createServiceRoleClient();
 
+  const { data: shopBySlug } = await admin
+    .from("shops")
+    .select("id")
+    .eq("slug", shopSlug)
+    .maybeSingle();
+
+  if (!shopBySlug) redirect(`/dashboard/${shopSlug}`);
+
   const { data: membership } = await admin
     .from("shop_memberships")
     .select("shop_id, role")
     .eq("user_id", session.user.id)
+    .eq("shop_id", shopBySlug.id)
     .eq("is_active", true)
     .in("role", ["owner", "admin"])
     .maybeSingle();
@@ -38,13 +48,14 @@ export default async function BillingPage({ params }: { params: Promise<{ shopSl
 
   return (
     <BillingClient
+      shopId={shopId}
       shopName={shop.nombre || ""}
       planExpiry={shop.plan_expiry}
       active={shop.active ?? false}
       events={(eventsResult.data || []).map((e) => ({
         id: e.id,
         type: e.event_type,
-        amount: (e.payload as any)?.amount ?? 500,
+        amount: (e.payload as any)?.amount ?? BILLING_PRICES.monthly,
         paymentId: (e.payload as any)?.payment_id ?? null,
         createdAt: e.created_at,
       }))}

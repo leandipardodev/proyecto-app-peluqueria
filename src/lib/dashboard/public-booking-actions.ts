@@ -549,9 +549,9 @@ export async function createPaymentPreference(
 
     const servicePrice = Math.max(0, Number(service.price) || 0);
     const depositEnabled = resolvedShopPolicy?.booking_deposit_enabled !== false;
-    const configuredDeposit = Math.max(0, Number(resolvedShopPolicy?.booking_deposit_amount || 0));
+    const configuredDeposit = Math.max(0, Number(resolvedShopPolicy?.booking_deposit_amount ?? 0));
     const chargeAmount = depositEnabled
-      ? Math.max(1, Math.min(servicePrice, configuredDeposit || servicePrice))
+      ? Math.max(1, Math.min(servicePrice, configuredDeposit > 0 ? configuredDeposit : servicePrice))
       : Math.max(1, servicePrice);
 
     await admin

@@ -17,7 +17,7 @@ export default async function OnboardingWizardPage() {
     .limit(1);
 
   const shopId = memberships?.[0]?.shop_id;
-  if (!shopId) redirect("/landing");
+  if (!shopId) redirect("/register");
   const role = memberships[0]?.role;
 
   const { data: shop } = await admin
@@ -26,7 +26,7 @@ export default async function OnboardingWizardPage() {
     .eq("id", shopId)
     .maybeSingle();
 
-  if (!shop) redirect("/landing");
+  if (!shop) redirect("/register");
 
   const hasBasicInfo = Boolean(shop.nombre?.trim() && shop.address?.trim() && shop.phone?.trim());
 

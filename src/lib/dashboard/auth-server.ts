@@ -54,7 +54,15 @@ export async function getShopId(session: { user: { id: string } }): Promise<stri
   const requestHeaders = await headers();
   const shopIdFromHeader = requestHeaders.get("x-shop-id");
   if (shopIdFromHeader) {
-    return shopIdFromHeader;
+    const { data: headerMembership } = await supabase
+      .from("shop_memberships")
+      .select("shop_id")
+      .eq("user_id", session.user.id)
+      .eq("shop_id", shopIdFromHeader)
+      .eq("is_active", true)
+      .in("role", ["owner", "admin", "staff"])
+      .maybeSingle();
+    if (headerMembership?.shop_id) return headerMembership.shop_id;
   }
 
   const shopSlugFromHeader = requestHeaders.get("x-shop-slug");

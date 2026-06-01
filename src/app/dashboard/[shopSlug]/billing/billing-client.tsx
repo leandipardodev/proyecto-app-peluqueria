@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CreditCard, Download, CheckCircle, XCircle, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,30 +13,34 @@ interface BillingEvent {
 }
 
 interface Props {
+  shopId: string;
   shopName: string;
   planExpiry: string | null;
   active: boolean;
   events: BillingEvent[];
 }
 
-export default function BillingClient({ shopName, planExpiry, active, events }: Props) {
-  const router = useRouter();
+export default function BillingClient({ shopId, shopName, planExpiry, active, events }: Props) {
   const [loading, setLoading] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
 
   const handlePay = async () => {
+    setPayError(null);
     setLoading(true);
     try {
       const res = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cycle: "monthly", returnPath: window.location.pathname }),
+        body: JSON.stringify({ shopId, cycle: "monthly" }),
       });
       const data = await res.json();
       if (data.init_point) {
         window.location.href = data.init_point;
+      } else {
+        setPayError(data?.error || "Error al iniciar el pago");
       }
     } catch {
-      console.error("Error al crear checkout");
+      setPayError("Error de red al conectar con el servidor");
     } finally {
       setLoading(false);
     }
@@ -66,7 +69,7 @@ export default function BillingClient({ shopName, planExpiry, active, events }: 
           </div>
           <div>
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Plan Mensual</h2>
-            <p className="text-sm text-gray-500 dark:text-zinc-400">$500 ARS / mes</p>
+            <p className="text-sm text-gray-500 dark:text-zinc-400">$25.000 ARS / mes</p>
           </div>
           <div className="ml-auto">
             {active && !isExpired ? (
@@ -101,6 +104,7 @@ export default function BillingClient({ shopName, planExpiry, active, events }: 
             {loading ? "Generando link..." : "Pagar suscripción"}
           </Button>
         )}
+        {payError && <p className="mt-2 text-xs text-red-600">{payError}</p>}
       </div>
 
       {/* Payment history */}

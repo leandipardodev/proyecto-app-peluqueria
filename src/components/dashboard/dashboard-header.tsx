@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, Search, Moon, Sun, Gauge, Repeat2, Check, Volume2, VolumeX, SlidersHorizontal } from "lucide-react";
+import { Menu, Search, Moon, Sun, Gauge, Repeat2, Check, Volume2, VolumeX, SlidersHorizontal, Sparkles } from "lucide-react";
 import { useState, useRef, useEffect, useTransition, useMemo, type KeyboardEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import DashboardMobileSidebar from "./dashboard-mobile-sidebar";
@@ -34,12 +34,13 @@ interface DashboardHeaderProps {
     isExpired: boolean;
     inGrace: boolean;
   };
+  lastPaymentDate: string | null;
 }
 
 const SEARCH_COLLAPSED_WIDTH = 280;
 const SEARCH_EXPANDED_WIDTH = 640;
 
-export default function DashboardHeader({ shopName, userName, userEmail, onLogout, activeShopSlug, managedShops, billingStatus }: DashboardHeaderProps) {
+export default function DashboardHeader({ shopName, userName, userEmail, onLogout, activeShopSlug, managedShops, billingStatus, lastPaymentDate }: DashboardHeaderProps) {
 
   const { shop } = useAuth();
   const industry = resolveIndustry(shop?.industry);
@@ -100,19 +101,20 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
     ...(features.marketing ? ["marketing..."] : []),
     "comandos...",
   ];
+  const gracePosition = 2 - Math.max(0, billingStatus.graceDaysRemaining ?? 0) + 1;
   const daysBadgeLabel = billingStatus.daysRemaining === null
     ? "--"
     : billingStatus.daysRemaining > 0
       ? `${billingStatus.daysRemaining}d`
       : billingStatus.inGrace
-        ? `G${Math.max(0, billingStatus.graceDaysRemaining ?? 0)}d`
+        ? `${gracePosition}!/2`
         : "0d";
   const planSummary = billingStatus.daysRemaining === null
     ? "PLAN PRO"
     : billingStatus.daysRemaining > 0
       ? `PLAN PRO • ${billingStatus.daysRemaining} DIAS RESTANTES`
       : billingStatus.inGrace
-        ? `PLAN VENCIDO • EN GRACIA (${Math.max(0, billingStatus.graceDaysRemaining ?? 0)} DIAS)`
+        ? `PLAN VENCIDO • DÍA ${gracePosition} de 2 DE CORTESÍA`
         : "PLAN VENCIDO";
   const showBillingCta =
     billingStatus.daysRemaining !== null && billingStatus.daysRemaining <= 3;
@@ -354,7 +356,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
     }
 
     startLogoutTransition(async () => {
-      await onLogout();
+      try { await onLogout(); } catch { /* ignore */ }
       router.refresh();
       closeSearch(true);
     });
@@ -393,7 +395,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
 
   function handleLogoutClick() {
     startLogoutTransition(async () => {
-      await onLogout();
+      try { await onLogout(); } catch { /* ignore */ }
       router.refresh();
     });
   }
@@ -401,6 +403,11 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
   function handleShopSwitch(nextSlug: string) {
     if (!nextSlug) return;
     if (nextSlug === selectedShopSlug) return;
+    const shop = managedShops.find((s) => s.slug === nextSlug);
+    if (shop?.id) {
+      const isSecure = window.location.protocol === "https:";
+      document.cookie = `klip_active_shop_id=${shop.id}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${isSecure ? "; Secure" : ""}`;
+    }
     const parts = pathname.split("/").filter(Boolean);
     const tail = parts[0] === "dashboard" ? parts.slice(2).join("/") : "";
     const nextPath = tail ? `/dashboard/${nextSlug}/${tail}` : `/dashboard/${nextSlug}`;
@@ -739,17 +746,47 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
         <div className="flex items-center gap-3 ml-auto">
           <div ref={avatarMenuRef} className="relative">
             <div className="flex flex-col items-end gap-1">
-              <button
-                type="button"
-                onClick={() => setMenuOpen((v) => !v)}
-                className="relative h-10 w-10 rounded-full bg-[#0071E3] border border-[#0b7ff2] flex items-center justify-center text-sm font-semibold text-white shrink-0 select-none hover:bg-[#0b7ff2] transition-colors"
-                title={userName}
-              >
-                <span className="-translate-y-[2px]">{getInitials(userName)}</span>
-                <span className={`absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-[30%] rounded-full px-1.5 py-[1px] text-[9px] font-semibold leading-none text-white border ${billingStatus.isExpired ? "bg-rose-600 border-rose-400 shadow-[0_2px_6px_rgba(225,29,72,0.5)]" : "bg-[#0071E3] border-[#5da9f4] shadow-[0_2px_6px_rgba(0,113,227,0.45)]"}`}>
-                  {daysBadgeLabel}
-                </span>
-              </button>
+              <div className="relative">
+                {billingStatus.isExpired && (
+                  <motion.div
+                    className="pointer-events-none absolute -inset-[6px] rounded-full border-2 border-rose-500/60"
+                    animate={{
+                      opacity: [0.3, 1, 0.3],
+                      scale: [1, 1.08, 1],
+                    }}
+                    transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+                  />
+                )}
+                <motion.button
+                  type="button"
+                  onClick={() => setMenuOpen((v) => !v)}
+                  className="relative h-10 w-10 rounded-full bg-[#0071E3] border border-[#0b7ff2] flex items-center justify-center text-sm font-semibold text-white shrink-0 select-none hover:bg-[#0b7ff2] transition-colors"
+                  title={userName}
+                  animate={billingStatus.isExpired ? {
+                    boxShadow: [
+                      "0 0 6px rgba(225,29,72,0.4)",
+                      "0 0 24px rgba(225,29,72,0.7), 0 0 40px rgba(225,29,72,0.25)",
+                      "0 0 6px rgba(225,29,72,0.4)",
+                    ],
+                  } : {}}
+                  transition={billingStatus.isExpired ? { duration: 1.2, repeat: Infinity, ease: "easeInOut" } : { duration: 0 }}
+                >
+                  <span className="-translate-y-[2px]">{getInitials(userName)}</span>
+                  {billingStatus.isExpired ? (
+                    <motion.span
+                      className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-[30%] rounded-full px-1.5 py-[1px] text-[9px] font-semibold leading-none text-white border border-rose-400 bg-rose-600 shadow-[0_2px_8px_rgba(225,29,72,0.6)]"
+                      animate={{ scale: [1, 1.08, 1], opacity: [0.8, 1, 0.8] }}
+                      transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+                    >
+                      {daysBadgeLabel}
+                    </motion.span>
+                  ) : (
+                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-[30%] rounded-full px-1.5 py-[1px] text-[9px] font-semibold leading-none text-white border border-[#5da9f4] bg-[#0071E3] shadow-[0_2px_6px_rgba(0,113,227,0.45)]">
+                      {daysBadgeLabel}
+                    </span>
+                  )}
+                </motion.button>
+              </div>
             </div>
 
             {menuOpen && (
@@ -758,18 +795,51 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
                   <p className="text-xs text-zinc-500">Cuenta</p>
                   <p className="text-sm text-gray-900 dark:text-white truncate">{userEmail || userName}</p>
                   <p className="text-[10px] font-medium text-slate-400 mt-1">{planSummary}</p>
-                  {showBillingCta && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMenuOpen(false);
-                        navigateWithTransition(billingUrl);
-                      }}
-                      className={billingCtaClass}
-                    >
-                      {billingCtaLabel}
-                    </button>
+                  {lastPaymentDate ? (
+                    <p className="text-[10px] text-slate-400 mt-0.5">
+                      Último pago: {new Intl.DateTimeFormat("es-AR", { timeZone: "America/Argentina/Buenos_Aires", day: "2-digit", month: "short", year: "numeric" }).format(new Date(lastPaymentDate))}
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-rose-400 mt-0.5 font-medium">Sin pagos registrados</p>
                   )}
+                  <motion.button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      const w = Math.min(400, Math.round(window.screen.width * 0.35));
+                      const h = Math.round(w * 16 / 9);
+                      const left = Math.round((window.screen.width - w) / 2);
+                      const top = Math.round((window.screen.height - h) / 2);
+                      window.open(
+                        billingUrl,
+                        "klip-subscription",
+                        `width=${w},height=${h},left=${left},top=${top},menubar=no,toolbar=no,location=no`
+                      );
+                    }}
+                    className="relative mt-3 flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl border border-violet-200/60 bg-gradient-to-r from-violet-600 to-amber-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition-shadow hover:shadow-violet-400/40"
+                    whileTap={{ scale: 0.97 }}
+                  >
+                    <motion.div
+                      className="pointer-events-none absolute inset-0 rounded-2xl"
+                      animate={{
+                        boxShadow: [
+                          "inset 0 0 12px rgba(255,255,255,0.3), 0 0 8px rgba(139,92,246,0.2)",
+                          "inset 0 0 24px rgba(255,255,255,0.5), 0 0 20px rgba(139,92,246,0.5)",
+                          "inset 0 0 12px rgba(255,255,255,0.3), 0 0 8px rgba(139,92,246,0.2)",
+                        ],
+                      }}
+                      transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+                    />
+                    <Sparkles className="relative z-10 h-4 w-4" />
+                    <span className="relative z-10">Suscripción</span>
+                    <motion.span
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wider text-amber-200"
+                      animate={{ opacity: [0.5, 1, 0.5] }}
+                      transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                    >
+                      Plan
+                    </motion.span>
+                  </motion.button>
                 </div>
                 <div className="p-3 space-y-3">
                   <div className="flex items-center justify-between rounded-xl border border-white/20 dark:border-white/10 px-3 py-2">
@@ -850,9 +920,9 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
         open={mobileOpen}
         onClose={() => setMobileOpen(false)}
         userName={userName}
-        onLogout={() => {
+        onLogout={async () => {
           setMobileOpen(false);
-          void onLogout();
+          try { await onLogout(); } catch { /* ignore */ }
         }}
       />
 

@@ -43,7 +43,7 @@ export async function middleware(request: NextRequest) {
     .from("user_profiles")
     .select("role, platform_role")
     .eq("user_id", user.id)
-    .single();
+    .maybeSingle();
 
   if (profileError || !userProfile) {
     const billingUrl = request.nextUrl.clone();
@@ -106,8 +106,10 @@ export async function middleware(request: NextRequest) {
       .from("shops")
       .select("id, slug, active, plan_expiry")
       .in("id", shopIds);
-    accessibleShops = data;
-  } else {
+    accessibleShops = data ?? null;
+  }
+
+  if (!accessibleShops) {
     const { data } = await supabase
       .from("shops")
       .select("id, slug, active, plan_expiry")
@@ -174,18 +176,6 @@ export async function middleware(request: NextRequest) {
         ? `/dashboard/${targetShop.slug}/${tail}`
         : `/dashboard/${targetShop.slug}`;
       return NextResponse.redirect(canonicalUrl);
-    }
-
-    const now = new Date();
-    const planExpiry = targetShop.plan_expiry ? new Date(targetShop.plan_expiry) : null;
-    const graceUntil = planExpiry ? new Date(planExpiry.getTime() + 2 * 24 * 60 * 60 * 1000) : null;
-    const outOfBilling = !targetShop.active || (graceUntil ? graceUntil <= now : false);
-
-    if (outOfBilling) {
-      const billingUrl = request.nextUrl.clone();
-      billingUrl.pathname = BILLING_REQUIRED_PATH;
-      billingUrl.searchParams.set("shop_id", targetShop.id);
-      return NextResponse.redirect(billingUrl);
     }
 
     const requestHeaders = new Headers(request.headers);

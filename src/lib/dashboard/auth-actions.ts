@@ -31,6 +31,24 @@ async function resolveUniqueShopSlug(baseSlug: string): Promise<string> {
   return `${normalized}-${Date.now().toString().slice(-6)}`;
 }
 
+async function findUserByEmail(
+  admin: Awaited<ReturnType<typeof createServiceRoleClient>>,
+  email: string,
+): Promise<{ id: string; email?: string | null } | null> {
+  const pageSize = 1000;
+  let page = 1;
+  while (true) {
+    const { data } = await admin.auth.admin.listUsers({ page, perPage: pageSize });
+    const users = data?.users;
+    if (!users || users.length === 0) break;
+    const found = users.find((u) => u.email === email);
+    if (found) return found;
+    if (users.length < pageSize) break;
+    page++;
+  }
+  return null;
+}
+
 function mapAuthError(message: string): string {
   const normalized = message.toLowerCase();
   if (normalized.includes("rate limit") || normalized.includes("too many requests") || normalized.includes("too many")) {
@@ -114,12 +132,6 @@ export async function registerShop(
 
     const admin = await createServiceRoleClient();
 
-    const { data: existingUser } = await admin.auth.admin.listUsers();
-    const alreadyExists = existingUser?.users?.some((u) => u.email === normalizedEmail);
-    if (alreadyExists) {
-      return { success: false, error: "Ya existe una cuenta con ese email. Inicia sesión o usa otro email." };
-    }
-
     const { data: createdUser, error: createError } = await admin.auth.admin.createUser({
       email: normalizedEmail,
       password,
@@ -127,6 +139,10 @@ export async function registerShop(
     });
 
     if (createError || !createdUser?.user) {
+      const msg = createError?.message?.toLowerCase() || "";
+      if (msg.includes("already") || msg.includes("exists") || msg.includes("registered")) {
+        return { success: false, error: "Ya existe una cuenta con ese email. Inicia sesión o usa otro email." };
+      }
       return { success: false, error: mapAuthError(createError?.message || "No se pudo crear el usuario") };
     }
 
@@ -189,8 +205,7 @@ export async function completeRegistration(
 
     const admin = await createServiceRoleClient();
 
-    const { data: userList } = await admin.auth.admin.listUsers();
-    const user = userList?.users?.find((u) => u.email === normalizedEmail);
+    const user = await findUserByEmail(admin, normalizedEmail);
     if (!user) {
       return { success: false, error: "Usuario no encontrado" };
     }
@@ -400,8 +415,20 @@ export async function createAdditionalShop(shopName: string): Promise<ActionResu
       .eq("role", "owner");
     const isFirstShop = !existingMemberships || existingMemberships.length === 0;
 
+    let planExpiry: string;
+    if (isFirstShop) {
+      planExpiry = getTrialExpiryIso();
+    } else {
+      const firstShopId = existingMemberships![0].shop_id;
+      const { data: mainShop } = await admin
+        .from("shops")
+        .select("plan_expiry")
+        .eq("id", firstShopId)
+        .maybeSingle();
+      planExpiry = mainShop?.plan_expiry ?? getTrialExpiryIso();
+    }
+
     const slug = await resolveUniqueShopSlug(generateShopSlug(trimmedName));
-    const trialEnd = isFirstShop ? getTrialExpiryIso() : null;
 
     const { data: createdShop, error: shopError } = await admin
       .from("shops")
@@ -409,8 +436,8 @@ export async function createAdditionalShop(shopName: string): Promise<ActionResu
         nombre: trimmedName,
         slug,
         industry: "peluqueria",
-        active: isFirstShop,
-        plan_expiry: trialEnd,
+        active: true,
+        plan_expiry: planExpiry,
       })
       .select("id, slug")
       .single();
@@ -452,7 +479,7 @@ export async function createAdditionalShop(shopName: string): Promise<ActionResu
       return { success: false, error: "No se pudo vincular el nuevo local al usuario" };
     }
 
-    if (isFirstShop && trialEnd) {
+    if (isFirstShop) {
       await trackProductEvent(createdShop.id, "trial_started", {
         actorUserId: user.id,
         metadata: { source: "create_additional_shop", trial_days: 15 },
@@ -462,7 +489,6 @@ export async function createAdditionalShop(shopName: string): Promise<ActionResu
     const { error: profileSyncError } = await admin
       .from("user_profiles")
       .update({
-        shop_id: createdShop.id,
         role: "owner",
         is_active: true,
         updated_at: new Date().toISOString(),

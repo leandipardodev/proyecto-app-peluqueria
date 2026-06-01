@@ -40,26 +40,6 @@ function toDisplayCategory(value: string): string {
     .join(" ");
 }
 
-function levenshteinDistance(a: string, b: string): number {
-  if (a === b) return 0;
-  if (!a.length) return b.length;
-  if (!b.length) return a.length;
-  const matrix: number[][] = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
-  for (let i = 0; i <= a.length; i++) matrix[i][0] = i;
-  for (let j = 0; j <= b.length; j++) matrix[0][j] = j;
-  for (let i = 1; i <= a.length; i++) {
-    for (let j = 1; j <= b.length; j++) {
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      matrix[i][j] = Math.min(
-        matrix[i - 1][j] + 1,
-        matrix[i][j - 1] + 1,
-        matrix[i - 1][j - 1] + cost,
-      );
-    }
-  }
-  return matrix[a.length][b.length];
-}
-
 async function resolveCanonicalCategory(admin: Awaited<ReturnType<typeof createAdminClient>>, shopId: string, rawCategory: string): Promise<string> {
   const candidate = toDisplayCategory(rawCategory || "General") || "General";
   const candidateKey = normalizeCategoryKey(candidate);
@@ -70,17 +50,6 @@ async function resolveCanonicalCategory(admin: Awaited<ReturnType<typeof createA
     if (normalizeCategoryKey(current) === candidateKey) return current;
   }
 
-  let best: string | null = null;
-  let bestDistance = Number.MAX_SAFE_INTEGER;
-  for (const current of existing) {
-    const dist = levenshteinDistance(candidateKey, normalizeCategoryKey(current));
-    if (dist < bestDistance) {
-      bestDistance = dist;
-      best = current;
-    }
-  }
-
-  if (best && bestDistance <= 1) return best;
   return candidate;
 }
 
