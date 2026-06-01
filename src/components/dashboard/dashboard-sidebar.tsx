@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, LayoutGroup, motion, useMotionValue, useSpring } from "framer-motion";
 import {
   Home,
   CalendarDays,
@@ -78,6 +78,7 @@ export default function DashboardSidebar({
   const dashboardBasePath = getDashboardBasePath(pathname);
   const { playClick } = useKlipSounds();
   const { performanceMode } = usePerformanceMode();
+  const [needsSetup, setNeedsSetup] = useState(false);
   const [liveNotifications, setLiveNotifications] = useState({
     urgentAppointments: Boolean(notifications?.urgentAppointments),
     lowStock: Boolean(notifications?.lowStock),
@@ -111,6 +112,23 @@ export default function DashboardSidebar({
       window.clearInterval(id);
     };
   }, [pathname]);
+
+  useEffect(() => {
+    const slug = shop?.slug;
+    if (!slug) { setNeedsSetup(false); return; }
+    const key = `klip-business-onboarding-v1:${slug}`;
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        if (raw === "1") { setNeedsSetup(false); return; }
+        const parsed = JSON.parse(raw);
+        if (parsed?.doneAt || parsed?.active === false) setNeedsSetup(false);
+        else setNeedsSetup(true);
+      } else {
+        setNeedsSetup(true);
+      }
+    } catch { setNeedsSetup(true); }
+  }, [shop?.slug, pathname]);
 
   useEffect(() => {
     const targets = resolvedNavItems
@@ -154,9 +172,7 @@ export default function DashboardSidebar({
       >
       {showBrand && (
         <div className="px-6 pt-9 pb-7">
-          <motion.div whileHover={performanceMode ? undefined : { scale: 1.02 }} transition={performanceMode ? { duration: 0.1 } : { type: "spring", stiffness: 360, damping: 22 }} className="inline-flex items-center gap-2">
-            <span className="text-2xl font-bold tracking-tight text-[#0071E3]">Klip</span>
-          </motion.div>
+          <KlipLogo performanceMode={performanceMode} />
           <div className="mt-5 h-px bg-black/5 dark:bg-white/10" />
         </div>
       )}
@@ -174,6 +190,7 @@ export default function DashboardSidebar({
               pathname === targetHref ||
               (href !== "/dashboard" && pathname.startsWith(targetHref));
 
+            const isBusiness = href === "/dashboard/business";
             const showAlert =
               (href === "/dashboard/calendar" && liveNotifications.urgentAppointments) ||
               (href === "/dashboard/inventory" && liveNotifications.lowStock);
@@ -211,9 +228,12 @@ export default function DashboardSidebar({
                     }`}
                     strokeWidth={1.5}
                   />
-                  <span className="flex-1 relative z-10">{label}</span>
+                  <span className={`flex-1 relative z-10 ${isBusiness && needsSetup ? "text-amber-600 dark:text-amber-400 font-semibold" : ""}`}>{label}</span>
                   {showAlert && (
                     <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 relative z-10" title={href === "/dashboard/calendar" ? "Turnos próximos urgentes" : "Stock bajo"} />
+                  )}
+                  {isBusiness && needsSetup && (
+                    <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0 relative z-10 animate-pulse" title="Configuración pendiente" />
                   )}
                 </Link>
               </motion.div>
@@ -257,5 +277,77 @@ export default function DashboardSidebar({
       </div>
     </motion.aside>
     </AnimatePresence>
+  );
+}
+
+const letters = "Klip".split("");
+
+function KlipLogo({ performanceMode }: { performanceMode: boolean }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const rotateX = useMotionValue(0);
+  const rotateY = useMotionValue(0);
+  const springX = useSpring(rotateX, { stiffness: 200, damping: 20 });
+  const springY = useSpring(rotateY, { stiffness: 200, damping: 20 });
+
+  function handleMouseMove(e: React.MouseEvent) {
+    if (performanceMode) return;
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    rotateX.set((y - 0.5) * -24);
+    rotateY.set((x - 0.5) * 24);
+  }
+
+  function handleMouseLeave() {
+    if (performanceMode) return;
+    rotateX.set(0);
+    rotateY.set(0);
+  }
+
+  if (performanceMode) {
+    return (
+      <div className="inline-flex items-center gap-2">
+        <span className="text-2xl font-bold tracking-tight text-[#0071E3]">Klip</span>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={ref}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      className="inline-flex items-center gap-2"
+      style={{ perspective: "500px", transformStyle: "preserve-3d" }}
+    >
+      <motion.span
+        className="text-2xl font-bold tracking-tight text-[#0071E3] inline-flex"
+        style={{
+          rotateX: springX,
+          rotateY: springY,
+          transformStyle: "preserve-3d",
+        }}
+      >
+        {letters.map((letter, i) => (
+          <motion.span
+            key={i}
+            className="inline-block cursor-default"
+            whileHover={{ y: -6, color: "#4a9eff" }}
+            whileTap={{ scale: 0.85, y: 0 }}
+            transition={{
+              type: "spring",
+              stiffness: 500,
+              damping: 8,
+              delay: i * 0.04,
+            }}
+            style={{ transformStyle: "preserve-3d" }}
+          >
+            {letter}
+          </motion.span>
+        ))}
+      </motion.span>
+    </div>
   );
 }

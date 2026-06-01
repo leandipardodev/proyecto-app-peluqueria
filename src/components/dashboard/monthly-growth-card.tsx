@@ -1,17 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { motion } from "framer-motion";
 
 type ClientPoint = { month: string; clients: number; growthPct: number | null };
 type RevenuePoint = { month: string; income: number };
-
-type GrowthMode = "clients" | "revenue";
-
-type DisplayPoint = {
-  month: string;
-  value: number;
-  growthPct: number | null;
-};
+type HealthBreakdown = { revenue: number; clients: number; appointments: number };
 
 function formatMonth(monthKey: string): string {
   const [year, month] = monthKey.split("-");
@@ -19,95 +13,141 @@ function formatMonth(monthKey: string): string {
   return date.toLocaleDateString("es-AR", { month: "short" });
 }
 
-function computeRevenueGrowth(data: RevenuePoint[]): DisplayPoint[] {
-  const ordered = data
-    .slice()
-    .sort((a, b) => a.month.localeCompare(b.month))
-    .slice(-6);
-
-  return ordered.map((point, index, arr) => {
-    if (index === 0) return { month: point.month, value: point.income, growthPct: null };
-    const prev = arr[index - 1].income;
-    const growthPct = prev > 0 ? Math.round(((point.income - prev) / prev) * 100) : null;
-    return { month: point.month, value: point.income, growthPct };
-  });
+function formatMoney(value: number): string {
+  return new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    maximumFractionDigits: 0,
+  }).format(value);
 }
+
+const healthLabel = (score: number) => {
+  if (score >= 80) return "Excelente";
+  if (score >= 60) return "Bueno";
+  if (score >= 40) return "Estable";
+  if (score >= 20) return "Atención";
+  return "Crítico";
+};
+
+const healthColor = (score: number) => {
+  if (score >= 80) return "text-green-600 dark:text-green-400";
+  if (score >= 60) return "text-emerald-600 dark:text-emerald-400";
+  if (score >= 40) return "text-amber-600 dark:text-amber-400";
+  if (score >= 20) return "text-orange-600 dark:text-orange-400";
+  return "text-red-600 dark:text-red-400";
+};
 
 export default function MonthlyGrowthCard({
   clientsData,
   revenueData,
+  healthScore,
+  healthBreakdown,
+  totalClients,
 }: {
   clientsData: ClientPoint[];
   revenueData: RevenuePoint[];
+  healthScore: number | null;
+  healthBreakdown: HealthBreakdown | null;
+  totalClients: number;
 }) {
-  const [mode, setMode] = useState<GrowthMode>("clients");
+  const latestClients = clientsData[clientsData.length - 1]?.clients ?? 0;
+  const latestRevenue = revenueData[revenueData.length - 1]?.income ?? 0;
 
-  const clientSeries = useMemo<DisplayPoint[]>(
-    () => clientsData.slice(-6).map((item) => ({ month: item.month, value: item.clients, growthPct: item.growthPct })),
-    [clientsData],
-  );
+  const prevClients = clientsData.length >= 2 ? clientsData[clientsData.length - 2]?.clients ?? 0 : 0;
 
-  const revenueSeries = useMemo<DisplayPoint[]>(() => computeRevenueGrowth(revenueData), [revenueData]);
+  const revenueGrowth = useMemo(() => {
+    const sorted = [...revenueData].sort((a, b) => a.month.localeCompare(b.month));
+    if (sorted.length < 2) return null;
+    const last2 = sorted.slice(-2);
+    const [prev, curr] = last2;
+    if (!prev || prev.income <= 0) return null;
+    return Math.round(((curr.income - prev.income) / prev.income) * 100);
+  }, [revenueData]);
 
-  const activeSeries = mode === "clients" ? clientSeries : revenueSeries;
-  const latest = activeSeries[activeSeries.length - 1];
-  const maxValue = Math.max(1, ...activeSeries.map((item) => item.value));
-  const latestGrowth = latest?.growthPct ?? null;
+  const components = useMemo(() => {
+    if (!healthBreakdown) return null;
+    return [
+      { label: "Dinero", value: healthBreakdown.revenue, weight: 40, color: "bg-blue-500" },
+      { label: "Clientes", value: healthBreakdown.clients, weight: 30, color: "bg-violet-500" },
+      { label: "Turnos", value: healthBreakdown.appointments, weight: 30, color: "bg-cyan-500" },
+    ];
+  }, [healthBreakdown]);
 
   return (
-    <div className="glass-sheen-card relative z-10 min-h-[290px] bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-6">
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-gray-900 dark:text-white">Crecimiento mensual</p>
-          <p className="text-xl font-bold tracking-tighter text-gray-900 dark:text-white">
-            {latestGrowth === null ? "N/D" : `${latestGrowth >= 0 ? "+" : ""}${latestGrowth}%`}
-          </p>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">Comparado contra el mes anterior</p>
-        </div>
-
-        <div className="inline-flex rounded-full border border-white/40 bg-white/50 p-1 dark:border-white/10 dark:bg-black/30">
-          <button
-            type="button"
-            onClick={() => setMode("clients")}
-            className={`rounded-full px-3 py-1 text-[11px] font-semibold transition ${mode === "clients" ? "bg-violet-600 text-white" : "text-zinc-600 hover:bg-white/70 dark:text-zinc-300 dark:hover:bg-white/10"}`}
-          >
-            Clientes
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("revenue")}
-            className={`rounded-full px-3 py-1 text-[11px] font-semibold transition ${mode === "revenue" ? "bg-violet-600 text-white" : "text-zinc-600 hover:bg-white/70 dark:text-zinc-300 dark:hover:bg-white/10"}`}
-          >
-            Dinero
-          </button>
-        </div>
-      </div>
-
-      {activeSeries.length === 0 ? (
-        <div className="flex h-[190px] items-center justify-center text-sm text-zinc-500 dark:text-zinc-400">Sin datos mensuales aun</div>
-      ) : (
-        <div className="mt-4 flex h-[190px] items-end gap-2">
-          {activeSeries.map((point) => {
-            const barHeight = Math.max(14, Math.round((point.value / maxValue) * 100));
-            const positive = (point.growthPct ?? 0) >= 0;
-            return (
-              <div key={`${mode}-${point.month}`} className="flex flex-1 flex-col items-center gap-2">
-                <div className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                  {point.growthPct === null ? "-" : `${point.growthPct >= 0 ? "+" : ""}${point.growthPct}%`}
-                </div>
-                <div className="relative flex w-full items-end justify-center rounded-xl bg-zinc-100/70 px-1 dark:bg-zinc-800/50" style={{ height: 120 }}>
-                  <div
-                    className={`w-full rounded-lg ${positive ? "bg-gradient-to-t from-emerald-500 to-emerald-300" : "bg-gradient-to-t from-rose-500 to-rose-300"}`}
-                    style={{ height: `${barHeight}%` }}
-                  />
-                </div>
-                <div className="text-[10px] font-medium uppercase text-zinc-500 dark:text-zinc-400">{formatMonth(point.month)}</div>
-                <div className="text-[10px] text-zinc-600 dark:text-zinc-300">
-                  {mode === "revenue" ? `$${Math.round(point.value).toLocaleString("es-AR")}` : point.value}
-                </div>
+    <div className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+      {healthScore !== null ? (
+        <div className="space-y-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Rendimiento</p>
+              <div className="flex items-baseline gap-2">
+                <span className={`text-2xl font-bold tracking-tight ${healthColor(healthScore)}`}>
+                  {healthScore}
+                  <span className="text-sm font-normal text-zinc-400">/100</span>
+                </span>
+                <span className={`text-xs font-medium ${healthColor(healthScore)}`}>
+                  {healthLabel(healthScore)}
+                </span>
               </div>
-            );
-          })}
+            </div>
+          </div>
+
+          {components && (
+            <div className="space-y-2.5">
+              {components.map((c) => (
+                <div key={c.label} className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-zinc-500 dark:text-zinc-400">{c.label}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold text-zinc-700 dark:text-zinc-300">
+                        {Math.min(c.value, 100)}%
+                      </span>
+                      <span className="text-zinc-400">({c.weight}%)</span>
+                    </div>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-800">
+                    <motion.div
+                      className={`h-full rounded-full ${c.color}`}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(c.value, 100)}%` }}
+                      transition={{ duration: 0.6, ease: "easeOut" }}
+                      style={{ opacity: 0.8 }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="grid grid-cols-3 gap-3 pt-1">
+            <div className="rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-800/50">
+              <p className="text-[10px] font-semibold tracking-wider text-zinc-500 dark:text-zinc-400 uppercase">Base clientes</p>
+              <p className="text-sm font-bold text-zinc-800 dark:text-zinc-100">{totalClients}</p>
+              {latestClients > 0 && (
+                <p className="text-[10px] font-medium text-green-600">
+                  +{latestClients} este mes
+                </p>
+              )}
+            </div>
+            <div className="rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-800/50">
+              <p className="text-[10px] font-semibold tracking-wider text-zinc-500 dark:text-zinc-400 uppercase">Ingresos</p>
+              <p className="text-sm font-bold text-zinc-800 dark:text-zinc-100">{formatMoney(latestRevenue).replace("ARS", "").trim()}</p>
+              {revenueGrowth !== null && (
+                <p className={`text-[10px] font-medium ${revenueGrowth >= 0 ? "text-green-600" : "text-red-500"}`}>
+                  {revenueGrowth >= 0 ? "+" : ""}{revenueGrowth}%
+                </p>
+              )}
+            </div>
+            <div className="rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-800/50">
+              <p className="text-[10px] font-semibold tracking-wider text-zinc-500 dark:text-zinc-400 uppercase">Score</p>
+              <p className={`text-sm font-bold ${healthColor(healthScore)}`}>{healthScore}/100</p>
+              <p className={`text-[10px] font-medium ${healthColor(healthScore)}`}>{healthLabel(healthScore)}</p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="flex h-[220px] items-center justify-center text-sm text-zinc-500">
+          Sin datos suficientes aun
         </div>
       )}
     </div>

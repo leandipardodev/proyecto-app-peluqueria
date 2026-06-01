@@ -45,6 +45,8 @@ export default function CreateShopRecoveryClient({ userEmail }: { userEmail: str
               const target = result.data.isFirstShop
                 ? `/dashboard/${result.data.slug}/business`
                 : `/dashboard/${result.data.slug}/billing`;
+              const oldKey = `klip-business-onboarding-v1:${result.data.slug}`;
+              try { window.localStorage.removeItem(oldKey); } catch {}
               window.location.assign(target);
             });
           }}

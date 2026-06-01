@@ -1,4 +1,4 @@
-import { fetchFinanceData } from "@/lib/dashboard/finances-actions";
+import { fetchFinanceData, fetchStaffProduction } from "@/lib/dashboard/finances-actions";
 import FinancesClient from "@/app/dashboard/finances/finances-client";
 import { getArgentinaDateString } from "@/lib/argentina-time";
 import { getCachedUser, getCachedShopIdBySlug } from "@/lib/dashboard/auth-server";
@@ -27,12 +27,16 @@ export default async function DashboardShopFinancesPage({
   const from = fromRaw <= toRaw ? fromRaw : toRaw;
   const to = fromRaw <= toRaw ? toRaw : fromRaw;
 
-  const result = await fetchFinanceData(from, to, shopId);
+  const [result, staffResult] = await Promise.all([
+    fetchFinanceData(from, to, shopId),
+    fetchStaffProduction(from, to, shopId),
+  ]);
 
   return (
     <FinancesClient
       shopId={shopId}
       initialData={result.success ? result.data ?? null : null}
+      initialStaffProduction={staffResult.success ? staffResult.data ?? [] : []}
       initialFrom={from}
       initialTo={to}
       initialError={result.success ? null : result.error}

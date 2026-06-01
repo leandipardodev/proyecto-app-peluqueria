@@ -2,7 +2,7 @@
 
 import { format, startOfWeek, addDays, isToday } from "date-fns";
 import { es } from "date-fns/locale";
-import { Check, CheckCheck, ChevronLeft, ChevronRight, Hourglass, MessageCircle, X } from "lucide-react";
+import { Check, CheckCheck, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Hourglass, MessageCircle, X } from "lucide-react";
 import { useRef, useState, useEffect, useMemo, memo } from "react";
 import { AnimatePresence, motion, useMotionValue } from "framer-motion";
 import { createPortal } from "react-dom";
@@ -261,6 +261,13 @@ export default memo(function CalendarView({
     setFocusedDayKey(getArgentinaDateKey(currentDate));
   }
 
+  function handleTodayClick() {
+    onToday();
+    if (viewMode === "day") {
+      setFocusedDayKey(getArgentinaDateKey(new Date()));
+    }
+  }
+
   function handlePrevPeriod() {
     if (viewMode === "week") {
       onPrevWeek();
@@ -430,7 +437,7 @@ export default memo(function CalendarView({
             <ChevronRight className="w-4 h-4" />
           </button>
           <button
-            onClick={onToday}
+            onClick={handleTodayClick}
             className="px-3 py-1.5 text-sm font-medium border border-white/50 dark:border-white/10 bg-white/40 dark:bg-black/30 hover:bg-white/70 dark:hover:bg-white/10 backdrop-blur-md rounded-2xl shadow-sm transition-all cursor-pointer select-none"
           >
             Hoy
@@ -501,19 +508,17 @@ export default memo(function CalendarView({
               >
                 <div
                   className={`group border-b border-zinc-200/30 dark:border-white/10 flex flex-col items-center justify-center shrink-0 transition-all ${
-                    isToday(day)
+                    isToday(day) || viewMode === "day"
                       ? "bg-sky-100/50 dark:bg-slate-800/40 cursor-pointer hover:bg-sky-100/70 dark:hover:bg-slate-800/55"
                       : ""
                   }`}
                   style={{ height: `${slotHeight}px` }}
                   onClick={() => {
-                    if (isToday(day)) {
-                      if (viewMode === "day" && focusedDayKey === dayStr) {
-                        handleBackToWeek();
-                      } else {
-                        setFocusedDayKey(dayStr);
-                        setViewMode("day");
-                      }
+                    if (viewMode === "day") {
+                      handleBackToWeek();
+                    } else if (isToday(day)) {
+                      setFocusedDayKey(dayStr);
+                      setViewMode("day");
                     }
                   }}
                 >
@@ -541,6 +546,18 @@ export default memo(function CalendarView({
                   )}
                   {dayFullyClosed && (
                     <span className="text-[9px] text-zinc-400 dark:text-zinc-600 uppercase tracking-wider mt-0.5">Cerrado</span>
+                  )}
+                  {(isToday(day) || viewMode === "day") && (
+                    <div className="flex items-center justify-center gap-0.5 mt-0.5 opacity-60 group-hover:opacity-100 transition-opacity duration-200">
+                      <motion.div
+                        animate={{ y: [0, 2, 0] }}
+                        transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+                        className="flex items-center gap-0.5 text-[9px] text-zinc-400 dark:text-zinc-500"
+                      >
+                        {viewMode === "day" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                        <span>{viewMode === "day" ? "semana" : "día"}</span>
+                      </motion.div>
+                    </div>
                   )}
                 </div>
 

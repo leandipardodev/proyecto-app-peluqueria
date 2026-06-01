@@ -28,8 +28,14 @@ function RegisterPageContent({ industry }: { industry: Industry }) {
   const { addToast } = useToast();
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session) {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (!user || error) {
+          await supabase.auth.signOut();
+          setCheckingSession(false);
+          return;
+        }
         window.location.href = "/dashboard";
       } else {
         setCheckingSession(false);

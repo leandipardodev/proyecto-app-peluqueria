@@ -38,8 +38,14 @@ export default function LoginPage() {
     const redirect = params.get("redirect");
     const target = redirect?.startsWith("/") ? redirect : "/dashboard";
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session) {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (!user || error) {
+          await supabase.auth.signOut();
+          setCheckingSession(false);
+          return;
+        }
         window.location.href = target;
       } else {
         setCheckingSession(false);

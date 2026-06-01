@@ -178,6 +178,7 @@ export default function AppointmentDetailModal({
         return;
       }
       addToast("Turno guardado", "success");
+      onClose();
     });
   }
 

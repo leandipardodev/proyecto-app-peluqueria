@@ -133,6 +133,7 @@ export default function BusinessClient({
   const [selectedTemplateId, setSelectedTemplateId] = useState<BookingTemplateId>(DEFAULT_BOOKING_TEMPLATE);
   const templateTouchedRef = useRef(false);
   const bookingCopyTouchedRef = useRef(false);
+  const sectionTouchedRef = useRef(false);
   const [logoUrl, setLogoUrl] = useState<string>("");
   const [heroTitle, setHeroTitle] = useState("");
   const [heroSubtitle, setHeroSubtitle] = useState("");
@@ -258,7 +259,7 @@ export default function BusinessClient({
         setAboutTitle(theme.about_title || "");
         setAboutText(theme.about_text || "");
       }
-      if (Array.isArray(theme.section_order) && theme.section_order.length > 0) {
+      if (!sectionTouchedRef.current && Array.isArray(theme.section_order) && theme.section_order.length > 0) {
         const fromServices = Array.from(new Set(initialServices.map((service) => (service.category || "General").trim() || "General")));
         const merged = [...theme.section_order, ...fromServices].filter((item, index, arr) => Boolean(item) && arr.indexOf(item) === index);
         if (!merged.includes("General")) merged.unshift("General");
@@ -396,9 +397,6 @@ export default function BusinessClient({
     if (!done) {
       if (shopSlug) {
         setTourOpen(true);
-      } else {
-        window.location.href = `/onboarding/wizard`;
-        return;
       }
     }
   }, [shopSlug, tourSteps, initialData, initialServices]);
@@ -408,6 +406,27 @@ export default function BusinessClient({
     const target = tourSteps[tourStep];
     if (!target) return;
     document.getElementById(target.id)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [tourOpen, tourStep, tourSteps]);
+
+  useEffect(() => {
+    if (!tourOpen) return;
+    const target = tourSteps[tourStep];
+    if (!target) return;
+    let isAutoScrolling = false;
+    const onScroll = () => {
+      if (isAutoScrolling) return;
+      const el = document.getElementById(target.id);
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const inView = r.top < window.innerHeight && r.bottom > 0;
+      if (!inView) {
+        isAutoScrolling = true;
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        setTimeout(() => { isAutoScrolling = false; }, 600);
+      }
+    };
+    document.addEventListener("scroll", onScroll, true);
+    return () => document.removeEventListener("scroll", onScroll, true);
   }, [tourOpen, tourStep, tourSteps]);
 
   useEffect(() => {
@@ -535,6 +554,7 @@ export default function BusinessClient({
     });
     if (!theme.success) return showError(theme.error), false;
 
+    sectionTouchedRef.current = false;
     playSuccess();
     showSuccess("Todo guardado correctamente");
     return true;
@@ -673,12 +693,14 @@ export default function BusinessClient({
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join(" ");
 
+    sectionTouchedRef.current = true;
     setSectionCatalog((prev) => [...prev, display]);
     setNewSectionName("");
   }
 
   function handleRemoveSection(sectionToRemove: string) {
     if (sectionToRemove === "General") return;
+    sectionTouchedRef.current = true;
     setSectionCatalog((prev) => prev.filter((section) => section !== sectionToRemove));
     setServiceCategoryDraft((prev) => {
       const next = { ...prev };

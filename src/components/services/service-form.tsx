@@ -15,7 +15,7 @@ interface ServiceFormProps {
   onSuccess: () => void;
 }
 
-const durationOptions = [15, 30, 45, 60, 90, 120];
+const durationOptions = [5, 10, 15, 20, 30, 45, 60, 90, 120, 150, 180, 240, 300];
 
 export default function ServiceForm({ shopId, service, onSuccess }: ServiceFormProps) {
   const [pending, startTransition] = useTransition();

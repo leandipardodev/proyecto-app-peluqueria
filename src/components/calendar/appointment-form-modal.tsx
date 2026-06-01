@@ -1,8 +1,8 @@
 "use client";
 
 import { useToast } from "@/components/ui/toast";
-import { X, Plus, UserPlus } from "lucide-react";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { X, Plus, UserPlus, Search } from "lucide-react";
+import { useEffect, useRef, useState, useTransition, useMemo } from "react";
 import { createAppointment, createCustomerAndAppointment } from "@/lib/dashboard/appointment-actions";
 import { playPop } from "@/lib/sound";
 import { getArgentinaDateString } from "@/lib/argentina-time";
@@ -75,6 +75,8 @@ export default function AppointmentFormModal({
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerEmail, setNewCustomerEmail] = useState("");
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
+  const [customerSearchQuery, setCustomerSearchQuery] = useState("");
+  const [customerSearchOpen, setCustomerSearchOpen] = useState(false);
   const [portalReady, setPortalReady] = useState(false);
   const { addToast } = useToast();
 
@@ -102,11 +104,21 @@ export default function AppointmentFormModal({
       setNewCustomerName("");
       setNewCustomerEmail("");
       setNewCustomerPhone("");
+      setCustomerSearchQuery("");
+      setCustomerSearchOpen(false);
       setError(null);
     }
   }, [open]);
 
   const selectedService = services.find((s) => s.id === selectedServiceId);
+
+  const filteredCustomers = useMemo(() => {
+    if (!customerSearchQuery.trim()) return customers;
+    const q = customerSearchQuery.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return customers.filter((c) =>
+      (c.nombre || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(q)
+    );
+  }, [customers, customerSearchQuery]);
 
   function getDefaultDateTime() {
     const today = initialDate || getArgentinaDateString();
@@ -211,17 +223,47 @@ export default function AppointmentFormModal({
                 </label>
                 {!showNewCustomer ? (
                   <div className="flex gap-2">
-                    <GlassSelect
-                      options={customers.map((c) => ({ value: c.id, label: c.nombre || "Sin nombre" }))}
-                      value={selectedCustomerId}
-                      onChange={setSelectedCustomerId}
-                      placeholder="Seleccionar cliente..."
-                      searchable
-                      searchPlaceholder="Buscar cliente por nombre..."
-                      name="customer_id"
-                      required
-                      className="flex-1"
-                    />
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                      <input
+                        type="text"
+                        placeholder="Buscar cliente por nombre..."
+                        value={customerSearchQuery}
+                        onChange={(e) => {
+                          setCustomerSearchQuery(e.target.value);
+                          setCustomerSearchOpen(true);
+                        }}
+                        onFocus={() => setCustomerSearchOpen(true)}
+                        onBlur={() => setTimeout(() => setCustomerSearchOpen(false), 200)}
+                        className="w-full pl-9 pr-3 py-2 rounded-2xl text-sm border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 backdrop-blur-md text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-violet-500/20 transition-all"
+                      />
+                      {customerSearchOpen && filteredCustomers.length > 0 && (
+                        <div className="absolute z-50 mt-1 w-full bg-white/70 dark:bg-black/70 backdrop-blur-xl rounded-2xl shadow-lg border border-white/20 dark:border-white/10 overflow-hidden py-1 max-h-48 overflow-y-auto">
+                          {filteredCustomers.map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onMouseDown={() => {
+                                setSelectedCustomerId(c.id);
+                                setCustomerSearchQuery(c.nombre || "Sin nombre");
+                                setCustomerSearchOpen(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 text-sm transition-colors cursor-pointer select-none ${
+                                c.id === selectedCustomerId
+                                  ? "text-violet-700 dark:text-violet-300 bg-violet-500/10"
+                                  : "text-gray-700 dark:text-gray-300 hover:bg-violet-500/10"
+                              }`}
+                            >
+                              <span className="font-medium">{c.nombre || "Sin nombre"}</span>
+                              {c.telefono && (
+                                <span className="ml-2 text-xs text-zinc-400">{c.telefono}</span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <input type="hidden" name="customer_id" value={selectedCustomerId} required />
+                    </div>
                     <button
                       type="button"
                       onClick={() => setShowNewCustomer(true)}
@@ -237,7 +279,10 @@ export default function AppointmentFormModal({
                       <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Nuevo cliente</span>
                       <button
                         type="button"
-                        onClick={() => setShowNewCustomer(false)}
+                        onClick={() => {
+                          setShowNewCustomer(false);
+                          setCustomerSearchQuery("");
+                        }}
                         className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-white cursor-pointer select-none"
                       >
                         Cancelar

@@ -107,12 +107,14 @@ export default function FinancesClient({
   initialFrom,
   initialTo,
   initialError,
+  initialStaffProduction = [],
 }: {
   shopId: string;
   initialData: FinanceData | null;
   initialFrom: string;
   initialTo: string;
   initialError: string | null;
+  initialStaffProduction: StaffProduction[];
 }) {
   const today = getArgentinaDate();
   const monthBounds = getMonthBounds(today);
@@ -123,7 +125,7 @@ export default function FinancesClient({
   const [error, setError] = useState<string | null>(initialError);
   const [isPending, startTransition] = useTransition();
 
-  const [staffProduction, setStaffProduction] = useState<StaffProduction[]>([]);
+  const [staffProduction, setStaffProduction] = useState<StaffProduction[]>(initialStaffProduction);
   const [liquidationResult, setLiquidationResult] = useState<StaffLiquidationPreview | null>(null);
   const [liquidations, setLiquidations] = useState<StaffLiquidationListItem[]>([]);
   const [liquidationItems, setLiquidationItems] = useState<StaffLiquidationDetailItem[]>([]);

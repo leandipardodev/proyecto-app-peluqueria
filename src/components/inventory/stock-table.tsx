@@ -7,6 +7,8 @@ import {
   Trash2,
   Search,
   Download,
+  Plus,
+  Minus,
 } from "lucide-react";
 import { useTransition } from "react";
 import { applyStockBatchAdjustments, deleteProduct } from "@/lib/dashboard/inventory-actions";
@@ -259,17 +261,21 @@ export default function StockTable({ shopId, items }: StockTableProps) {
                     type="button"
                     onClick={() => handleBulkAdjust(item.id, 1)}
                     disabled={pending}
-                    className="px-3 py-2.5 min-h-[44px] rounded-md text-xs bg-emerald-600 text-white disabled:opacity-40"
+                    className="w-10 h-10 rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 backdrop-blur-md hover:bg-emerald-100 dark:hover:bg-emerald-900/40 hover:text-emerald-700 dark:hover:text-emerald-300 hover:border-emerald-300/50 dark:hover:border-emerald-700/50 hover:shadow-sm disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer select-none active:scale-95"
+                    title="Aumentar cantidad"
+                    aria-label={`Aumentar cantidad de ${item.nombre_producto}`}
                   >
-                    + cantidad
+                    <Plus className="w-4 h-4" />
                   </button>
                   <button
                     type="button"
                     onClick={() => handleBulkAdjust(item.id, -1)}
                     disabled={pending || item.quantity <= 0}
-                    className="px-3 py-2.5 min-h-[44px] rounded-md text-xs bg-amber-600 text-white disabled:opacity-40"
+                    className="w-10 h-10 rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 backdrop-blur-md hover:bg-rose-100 dark:hover:bg-rose-900/40 hover:text-rose-700 dark:hover:text-rose-300 hover:border-rose-300/50 dark:hover:border-rose-700/50 hover:shadow-sm disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer select-none active:scale-95"
+                    title="Disminuir cantidad"
+                    aria-label={`Disminuir cantidad de ${item.nombre_producto}`}
                   >
-                    - cantidad
+                    <Minus className="w-4 h-4" />
                   </button>
                   <button
                     type="button"
@@ -380,17 +386,21 @@ export default function StockTable({ shopId, items }: StockTableProps) {
                             type="button"
                             onClick={() => handleBulkAdjust(item.id, 1)}
                             disabled={pending}
-                            className="px-3 py-2.5 min-h-[44px] rounded-md text-xs bg-emerald-600 text-white disabled:opacity-40"
+                            className="w-9 h-9 rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 backdrop-blur-md hover:bg-emerald-100 dark:hover:bg-emerald-900/40 hover:text-emerald-700 dark:hover:text-emerald-300 hover:border-emerald-300/50 dark:hover:border-emerald-700/50 hover:shadow-sm disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer select-none active:scale-95"
+                            title="Aumentar cantidad"
+                            aria-label={`Aumentar cantidad de ${item.nombre_producto}`}
                           >
-                            +
+                            <Plus className="w-4 h-4" />
                           </button>
                           <button
                             type="button"
                             onClick={() => handleBulkAdjust(item.id, -1)}
                             disabled={pending || item.quantity <= 0}
-                            className="px-3 py-2.5 min-h-[44px] rounded-md text-xs bg-amber-600 text-white disabled:opacity-40"
+                            className="w-9 h-9 rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 backdrop-blur-md hover:bg-rose-100 dark:hover:bg-rose-900/40 hover:text-rose-700 dark:hover:text-rose-300 hover:border-rose-300/50 dark:hover:border-rose-700/50 hover:shadow-sm disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer select-none active:scale-95"
+                            title="Disminuir cantidad"
+                            aria-label={`Disminuir cantidad de ${item.nombre_producto}`}
                           >
-                            -
+                            <Minus className="w-4 h-4" />
                           </button>
                           <button
                             type="button"

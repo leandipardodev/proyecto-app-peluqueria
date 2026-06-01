@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bar, BarChart, Cell, LabelList, ResponsiveContainer, XAxis, YAxis } from "recharts";
+import { createPortal } from "react-dom";
+import { Bar, BarChart, Cell, ResponsiveContainer, XAxis, YAxis, LabelList } from "recharts";
 
 type RevenueChartProps = {
   data: Array<{ month: string; income: number; expenses: number }>;
@@ -26,41 +27,19 @@ function formatMonthLabel(value: string): string {
   return `${months[parseInt(m, 10) - 1]} ${y.slice(2)}`;
 }
 
-type CompactLabelProps = {
-  x?: number;
-  y?: number;
-  value?: number | string;
-};
-
-function CompactLabel({ x, y, value }: CompactLabelProps) {
-  if (typeof x !== "number" || typeof y !== "number") return null;
-  const txt = new Intl.NumberFormat("es-AR", {
-    notation: "compact",
-    compactDisplay: "short",
-    maximumFractionDigits: 1,
-  }).format(Number(value || 0));
-
-  return (
-    <text
-      x={x}
-      y={y - 10}
-      textAnchor="middle"
-      fill="#64748b"
-      fontFamily="Inter, sans-serif"
-      fontSize={12}
-      fontWeight={600}
-      style={{ fontVariantNumeric: "tabular-nums" }}
-    >
-      {txt}
-    </text>
-  );
-}
-
 export default function RevenueChart({ data, flowByPeriod }: RevenueChartProps) {
   const [hoveredBar, setHoveredBar] = useState<string | null>(null);
   const [period, setPeriod] = useState<"today" | "week" | "month">("today");
   const chartHostRef = useRef<HTMLDivElement | null>(null);
   const [canRenderChart, setCanRenderChart] = useState(false);
+  const [tooltip, setTooltip] = useState<{
+    x: number;
+    y: number;
+    month: string;
+    income: number;
+    expenses: number;
+  } | null>(null);
+  const tooltipRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const node = chartHostRef.current;
@@ -86,11 +65,9 @@ export default function RevenueChart({ data, flowByPeriod }: RevenueChartProps) 
       week: { income: lastMonth?.income ?? 0, expenses: lastMonth?.expenses ?? 0 },
       month: { income: lastMonth?.income ?? 0, expenses: lastMonth?.expenses ?? 0 },
     };
-    const source = flowByPeriod ?? fallback;
-
     return {
-      income: source[period].income,
-      expenses: source[period].expenses,
+      income: (flowByPeriod ?? fallback)[period].income,
+      expenses: (flowByPeriod ?? fallback)[period].expenses,
     };
   }, [data, flowByPeriod, period]);
 
@@ -98,24 +75,18 @@ export default function RevenueChart({ data, flowByPeriod }: RevenueChartProps) 
 
   if (data.length === 0) {
     return (
-      <div
-        className="rounded-[2.5rem] border border-white/20 bg-white/40 p-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3),0_20px_40px_rgba(0,0,0,0.2)] backdrop-blur-2xl dark:border-slate-700/30 dark:bg-slate-800/40 dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_20px_40px_rgba(0,0,0,0.4)]"
-        style={{ fontFamily: "Inter, sans-serif" }}
-      >
-        <p className="py-12 text-center text-sm text-slate-500">Sin datos de ingresos aun</p>
+      <div className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+        <p className="py-12 text-center text-sm text-zinc-500">Sin datos de ingresos aun</p>
       </div>
     );
   }
 
   return (
-    <div
-      className="rounded-[2.5rem] border border-white/20 bg-white/40 p-6 shadow-[inset_0_1px_2px_rgba(255,255,255,0.8),0_10px_30px_rgba(0,0,0,0.03)] backdrop-blur-2xl dark:border-slate-700/30 dark:bg-slate-900/80 dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_10px_30px_rgba(0,0,0,0.2)]"
-      style={{ fontFamily: "Inter, sans-serif" }}
-    >
-      <h3 className="mb-1 text-sm font-medium text-slate-900 dark:text-white">Ingresos vs Gastos</h3>
+    <div className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+      <h3 className="mb-1 text-sm font-semibold text-zinc-800 dark:text-zinc-100">Ingresos vs Gastos</h3>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs text-slate-500">Resultado neto por periodo</p>
-        <div className="inline-flex rounded-full border border-white/20 bg-white/50 p-1 dark:border-slate-700/40 dark:bg-slate-900/45">
+        <p className="text-xs text-zinc-500">Resultado neto por periodo</p>
+        <div className="inline-flex rounded-lg border border-zinc-200 bg-zinc-50 p-0.5 dark:border-zinc-700 dark:bg-zinc-800">
           {([
             ["today", "Hoy"],
             ["week", "Semana"],
@@ -125,10 +96,10 @@ export default function RevenueChart({ data, flowByPeriod }: RevenueChartProps) 
               key={key}
               type="button"
               onClick={() => setPeriod(key)}
-              className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
                 period === key
-                  ? "bg-[#0071E3] text-white"
-                  : "text-slate-600 hover:bg-white/70 dark:text-slate-300 dark:hover:bg-slate-800/70"
+                  ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-100"
+                  : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
               }`}
             >
               {label}
@@ -137,238 +108,245 @@ export default function RevenueChart({ data, flowByPeriod }: RevenueChartProps) 
         </div>
       </div>
 
-      <div className="mb-14 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6">
-        <div className="rounded-3xl border border-white/20 bg-white/40 px-4 py-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3),0_20px_40px_rgba(0,0,0,0.2)] backdrop-blur-2xl dark:border-slate-700/30 dark:bg-slate-800/40 dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_20px_40px_rgba(0,0,0,0.4)]">
-          <p className="text-[10px] font-bold tracking-[0.1em] text-slate-500 dark:text-slate-300">INGRESOS</p>
-          <p className="mt-1 text-4xl font-black text-emerald-500" style={{ fontWeight: 900, letterSpacing: "-0.05em", fontVariantNumeric: "tabular-nums" }}>
-            <span className="mr-0.5 align-top text-[60%] opacity-40">$</span>
-            {formatMoney(totals.income).replace("ARS", "").replace("$", "").trim()}
+      <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50/60 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-800/40">
+          <p className="text-[10px] font-semibold tracking-widest text-zinc-500 dark:text-zinc-400">INGRESOS</p>
+          <p className="mt-0.5 text-2xl font-bold text-blue-600 dark:text-blue-400" style={{ fontVariantNumeric: "tabular-nums" }}>
+            {formatMoney(totals.income).replace("ARS", "").trim()}
           </p>
         </div>
 
-        <div className="rounded-3xl border border-white/20 bg-white/40 px-4 py-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3),0_20px_40px_rgba(0,0,0,0.2)] backdrop-blur-2xl dark:border-slate-700/30 dark:bg-slate-800/40 dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_20px_40px_rgba(0,0,0,0.4)]">
-          <p className="text-[10px] font-bold tracking-[0.1em] text-slate-500 dark:text-slate-300">GASTOS</p>
-          <p className="mt-1 text-4xl font-black text-rose-500" style={{ fontWeight: 900, letterSpacing: "-0.05em", fontVariantNumeric: "tabular-nums" }}>
-            <span className="mr-0.5 align-top text-[60%] opacity-40">$</span>
-            {formatMoney(totals.expenses).replace("ARS", "").replace("$", "").trim()}
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50/60 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-800/40">
+          <p className="text-[10px] font-semibold tracking-widest text-zinc-500 dark:text-zinc-400">GASTOS</p>
+          <p className="mt-0.5 text-2xl font-bold text-slate-600 dark:text-slate-400" style={{ fontVariantNumeric: "tabular-nums" }}>
+            {formatMoney(totals.expenses).replace("ARS", "").trim()}
           </p>
         </div>
 
-        <div className="rounded-3xl border border-white/20 bg-white/40 px-4 py-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3),0_20px_40px_rgba(0,0,0,0.2)] backdrop-blur-2xl dark:border-slate-700/30 dark:bg-slate-800/40 dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_20px_40px_rgba(0,0,0,0.4)]">
-          <p className="text-[10px] font-bold tracking-[0.1em] text-slate-500 dark:text-slate-300">RESULTADO</p>
-          <p className={`mt-1 text-4xl font-black ${netResult >= 0 ? "text-emerald-500" : "text-rose-500"}`} style={{ fontWeight: 900, letterSpacing: "-0.05em", fontVariantNumeric: "tabular-nums" }}>
-            <span className="mr-0.5 align-top text-[60%] opacity-40">$</span>
-            {formatMoney(Math.abs(netResult)).replace("ARS", "").replace("$", "").trim()}
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50/60 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-800/40">
+          <p className="text-[10px] font-semibold tracking-widest text-zinc-500 dark:text-zinc-400">RESULTADO</p>
+          <p className={`mt-0.5 text-2xl font-bold ${netResult >= 0 ? "text-blue-600 dark:text-blue-400" : "text-slate-600 dark:text-slate-400"}`} style={{ fontVariantNumeric: "tabular-nums" }}>
+            {formatMoney(Math.abs(netResult)).replace("ARS", "").trim()}
           </p>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{netResult >= 0 ? "Superavit" : "Deficit"}</p>
+          <p className="text-[11px] text-zinc-500">{netResult >= 0 ? "Superavit" : "Deficit"}</p>
         </div>
       </div>
 
       <div
         ref={chartHostRef}
-        className="analytics-chart-wave h-72 min-h-[18rem] min-w-0 w-full overflow-hidden rounded-3xl px-2 pt-2 pb-1"
-        style={{
-          background: "transparent",
-          backdropFilter: "blur(40px)",
-          WebkitBackdropFilter: "blur(40px)",
-          border: "none",
-          boxShadow: "none",
-        }}
+        className="analytics-bg relative h-64 min-h-[16rem] min-w-0 w-full overflow-hidden rounded-xl bg-zinc-100 p-3 dark:bg-zinc-800/60"
       >
-        <div className="analytics-metric-waves" aria-hidden="true">
-          <svg viewBox="0 0 1000 260" preserveAspectRatio="none" className="analytics-metric-wave-svg analytics-metric-wave-svg-a">
-            <path d="M0,170 C90,152 180,184 270,166 C360,148 450,188 540,170 C630,152 720,190 810,168 C890,150 950,176 1000,164" />
-          </svg>
-          <svg viewBox="0 0 1000 260" preserveAspectRatio="none" className="analytics-metric-wave-svg analytics-metric-wave-svg-b">
-            <path d="M0,194 C100,176 200,208 300,190 C400,172 500,212 600,194 C700,176 800,214 900,192 C950,182 980,188 1000,186" />
-          </svg>
+        <div className="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
+          <div className="analytics-grid size-full" />
+          <div className="analytics-scan size-full" />
         </div>
-        {canRenderChart && <ResponsiveContainer width="100%" height={260} minWidth={280} minHeight={220}>
-          <BarChart data={data} margin={{ top: 20, right: 8, left: -8, bottom: 0 }} barGap={8} barCategoryGap="20%">
-            <defs>
-              <linearGradient id="income-grad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="rgba(52,211,153,0.9)" />
-                <stop offset="50%" stopColor="rgba(16,185,129,0.75)" />
-                <stop offset="100%" stopColor="rgba(5,150,105,0.72)" />
-              </linearGradient>
-              <linearGradient id="expense-grad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="rgba(251,146,160,0.88)" />
-                <stop offset="50%" stopColor="rgba(244,114,182,0.74)" />
-                <stop offset="100%" stopColor="rgba(225,29,72,0.72)" />
-              </linearGradient>
-            </defs>
+        {canRenderChart && (
+          <ResponsiveContainer width="100%" height={220} minWidth={280} minHeight={180}>
+            <BarChart data={data} margin={{ top: 20, right: 4, left: -8, bottom: 0 }} barGap={2} barCategoryGap="8%">
+              <XAxis
+                dataKey="month"
+                axisLine={false}
+                tickLine={false}
+                tickMargin={8}
+                tick={{ fontSize: 11, fill: "#a1a1aa", fontWeight: 500, fontFamily: "Inter" }}
+                tickFormatter={formatMonthLabel}
+              />
+              <YAxis hide />
 
-            <XAxis
-              dataKey="month"
-              axisLine={false}
-              tickLine={false}
-              tickMargin={15}
-              tick={{ fontSize: 11, fill: "#94a3b8", fontWeight: 500, fontFamily: "Inter" }}
-              tickFormatter={formatMonthLabel}
-            />
+              <Bar
+                dataKey="income"
+                fill="#3b82f6"
+                radius={[2, 2, 0, 0]}
+                barSize={10}
+                isAnimationActive
+                animationBegin={0}
+                animationDuration={500}
+                animationEasing="ease-out"
+              >
+                <LabelList
+                  dataKey="income"
+                  position="top"
+                  formatter={(value) => formatMoney(Number(value)).replace("ARS", "").trim()}
+                  style={{ fontSize: 10, fill: "#3b82f6", fontWeight: 600, fontFamily: "Inter" }}
+                />
+                {data.map((entry, index) => {
+                  const key = `income-${index}`;
+                  const isHovered = hoveredBar === key;
+                  const hasHover = hoveredBar !== null;
+                  return (
+                    <Cell
+                      key={`${entry.month}-income-${index}`}
+                      onMouseEnter={(e) => {
+                        setHoveredBar(key);
+                        setTooltip({
+                          x: e.clientX,
+                          y: e.clientY,
+                          month: entry.month,
+                          income: entry.income,
+                          expenses: entry.expenses,
+                        });
+                      }}
+                      onMouseMove={(e) => {
+                        if (tooltipRef.current) {
+                          tooltipRef.current.style.left = `${e.clientX + 12}px`;
+                          tooltipRef.current.style.top = `${e.clientY - 10}px`;
+                        }
+                      }}
+                      onMouseLeave={() => {
+                        setHoveredBar(null);
+                        setTooltip(null);
+                      }}
+                      fill={isHovered ? "#2563eb" : "#3b82f6"}
+                      fillOpacity={hasHover ? (isHovered ? 1 : 0.25) : 0.85}
+                      style={{
+                        transition: "fill 200ms, fill-opacity 200ms",
+                        cursor: "pointer",
+                      }}
+                    />
+                  );
+                })}
+              </Bar>
 
-            <YAxis hide />
-
-            <Bar
-              dataKey="income"
-              fill="url(#income-grad)"
-              radius={[10, 10, 0, 0]}
-              barSize={34}
-              isAnimationActive
-              animationBegin={0}
-              animationDuration={700}
-              animationEasing="ease-out"
-            >
-              <LabelList dataKey="income" position="top" content={<CompactLabel />} />
-              {data.map((entry, index) => {
-                const key = `income-${index}`;
-                const isHovered = hoveredBar === key;
-                const hasHover = hoveredBar !== null;
-                return (
-                  <Cell
-                    key={`${entry.month}-income-${index}`}
-                    onMouseEnter={() => setHoveredBar(key)}
-                    onMouseLeave={() => setHoveredBar(null)}
-                    fillOpacity={hasHover ? (isHovered ? 1 : 0.4) : 1}
-                    style={{
-                      filter: isHovered ? "brightness(1.2)" : "brightness(1)",
-                      transform: isHovered ? "translateY(-5px)" : "translateY(0)",
-                      transformOrigin: "center bottom",
-                      animation: isHovered ? "none" : `premiumFlow 2.8s ease-in-out ${index * 140}ms infinite`,
-                      transition: "transform 240ms cubic-bezier(.43,.13,.23,.96), opacity 240ms cubic-bezier(.43,.13,.23,.96), filter 240ms cubic-bezier(.43,.13,.23,.96)",
-                    }}
-                  />
-                );
-              })}
-            </Bar>
-
-            <Bar
-              dataKey="expenses"
-              fill="url(#expense-grad)"
-              radius={[10, 10, 0, 0]}
-              barSize={34}
-              isAnimationActive
-              animationBegin={0}
-              animationDuration={700}
-              animationEasing="ease-out"
-            >
-              <LabelList dataKey="expenses" position="top" content={<CompactLabel />} />
-              {data.map((entry, index) => {
-                const key = `expenses-${index}`;
-                const isHovered = hoveredBar === key;
-                const hasHover = hoveredBar !== null;
-                return (
-                  <Cell
-                    key={`${entry.month}-expenses-${index}`}
-                    onMouseEnter={() => setHoveredBar(key)}
-                    onMouseLeave={() => setHoveredBar(null)}
-                    fillOpacity={hasHover ? (isHovered ? 1 : 0.4) : 1}
-                    style={{
-                      filter: isHovered ? "brightness(1.2)" : "brightness(1)",
-                      transform: isHovered ? "translateY(-5px)" : "translateY(0)",
-                      transformOrigin: "center bottom",
-                      animation: isHovered ? "none" : `premiumFlow 3.1s ease-in-out ${index * 170}ms infinite`,
-                      transition: "transform 240ms cubic-bezier(.43,.13,.23,.96), opacity 240ms cubic-bezier(.43,.13,.23,.96), filter 240ms cubic-bezier(.43,.13,.23,.96)",
-                    }}
-                  />
-                );
-              })}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>}
+              <Bar
+                dataKey="expenses"
+                fill="#64748b"
+                radius={[2, 2, 0, 0]}
+                barSize={10}
+                isAnimationActive
+                animationBegin={0}
+                animationDuration={500}
+                animationEasing="ease-out"
+              >
+                <LabelList
+                  dataKey="expenses"
+                  position="top"
+                  formatter={(value) => formatMoney(Number(value)).replace("ARS", "").trim()}
+                  style={{ fontSize: 10, fill: "#64748b", fontWeight: 600, fontFamily: "Inter" }}
+                />
+                {data.map((entry, index) => {
+                  const key = `expenses-${index}`;
+                  const isHovered = hoveredBar === key;
+                  const hasHover = hoveredBar !== null;
+                  return (
+                    <Cell
+                      key={`${entry.month}-expenses-${index}`}
+                      onMouseEnter={(e) => {
+                        setHoveredBar(key);
+                        setTooltip({
+                          x: e.clientX,
+                          y: e.clientY,
+                          month: entry.month,
+                          income: entry.income,
+                          expenses: entry.expenses,
+                        });
+                      }}
+                      onMouseMove={(e) => {
+                        if (tooltipRef.current) {
+                          tooltipRef.current.style.left = `${e.clientX + 12}px`;
+                          tooltipRef.current.style.top = `${e.clientY - 10}px`;
+                        }
+                      }}
+                      onMouseLeave={() => {
+                        setHoveredBar(null);
+                        setTooltip(null);
+                      }}
+                      fill={isHovered ? "#475569" : "#64748b"}
+                      fillOpacity={hasHover ? (isHovered ? 1 : 0.25) : 0.85}
+                      style={{
+                        transition: "fill 200ms, fill-opacity 200ms",
+                        cursor: "pointer",
+                      }}
+                    />
+                  );
+                })}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        )}
       </div>
       <style>{`
-        .analytics-chart-wave {
-          position: relative;
-          overflow: hidden;
+        .analytics-bg {
           isolation: isolate;
         }
-        .analytics-metric-waves {
-          position: absolute;
-          inset: 14px 8px 8px;
-          border-radius: 1.1rem;
-          pointer-events: none;
-          z-index: 0;
-          opacity: 0.62;
+        .analytics-grid {
+          background-image:
+            linear-gradient(rgba(0,0,0,0.035) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0,0,0,0.035) 1px, transparent 1px);
+          background-size: 24px 24px;
+          animation: analyticsGridDrift 40s linear infinite;
+          opacity: 0.6;
         }
-        .analytics-metric-wave-svg {
-          position: absolute;
-          inset: 0;
-          width: 100%;
-          height: 100%;
-          fill: none;
-          stroke-linecap: round;
-          stroke-linejoin: round;
-          transform: translate3d(0, 0, 0);
-          will-change: transform, opacity;
+        .analytics-scan {
+          background: linear-gradient(
+            120deg,
+            transparent 0%,
+            transparent 30%,
+            rgba(59,130,246,0.04) 45%,
+            rgba(99,102,241,0.06) 50%,
+            rgba(59,130,246,0.04) 55%,
+            transparent 70%,
+            transparent 100%
+          );
+          background-size: 200% 100%;
+          animation: analyticsScan 8s ease-in-out infinite;
         }
-        .analytics-metric-wave-svg-a {
-          stroke: rgba(16,185,129,0.2);
-          stroke-width: 2.1;
-          filter: drop-shadow(0 0 4px rgba(16,185,129,0.08));
-          animation: metricWaveFloatA 12.8s ease-in-out infinite;
+        @keyframes analyticsGridDrift {
+          0% { background-position: 0 0; }
+          100% { background-position: 48px 48px; }
         }
-        .analytics-metric-wave-svg-b {
-          stroke: rgba(244,114,182,0.18);
-          stroke-width: 1.9;
-          filter: drop-shadow(0 0 4px rgba(244,114,182,0.07));
-          animation: metricWaveFloatB 14.4s ease-in-out infinite;
+        @keyframes analyticsScan {
+          0% { background-position: 200% 0; }
+          50% { background-position: -50% 0; }
+          100% { background-position: 200% 0; }
         }
-        .analytics-chart-wave::before {
-          content: "";
-          position: absolute;
-          inset: -10% -12%;
-          pointer-events: none;
-          border-radius: inherit;
-          background:
-            radial-gradient(90% 55% at 8% 100%, rgba(16,185,129,0.14) 0%, rgba(16,185,129,0.03) 48%, transparent 72%),
-            radial-gradient(92% 56% at 92% 0%, rgba(244,114,182,0.14) 0%, rgba(244,114,182,0.03) 48%, transparent 72%);
-          background-size: 160% 120%, 160% 120%;
-          background-position: 0% 100%, 100% 0%;
-          animation: chartWaveDrift 14s linear infinite;
-          opacity: 0.42;
-          z-index: 0;
+        .dark .analytics-grid {
+          background-image:
+            linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
         }
-        .analytics-chart-wave::after {
-          content: "";
-          position: absolute;
-          inset: 0;
-          pointer-events: none;
-          border-radius: inherit;
-          background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.12) 48%, transparent 100%);
-          background-size: 220% 100%;
-          animation: chartSheenPass 17s linear infinite;
-          opacity: 0.16;
-          z-index: 0;
-        }
-        .analytics-chart-wave :global(.recharts-wrapper) {
-          position: relative;
-          z-index: 1;
-        }
-        @keyframes premiumFlow {
-          0% { filter: brightness(0.96) saturate(0.96); }
-          50% { filter: brightness(1.08) saturate(1.02); }
-          100% { filter: brightness(0.96) saturate(0.96); }
-        }
-        @keyframes chartWaveDrift {
-          0% { background-position: 0% 100%, 100% 0%; }
-          100% { background-position: 100% 100%, 0% 0%; }
-        }
-        @keyframes chartSheenPass {
-          0% { background-position: 150% 0; }
-          100% { background-position: -130% 0; }
-        }
-        @keyframes metricWaveFloatA {
-          0% { transform: translateY(1px); opacity: 0.5; }
-          50% { transform: translateY(-2px); opacity: 0.72; }
-          100% { transform: translateY(1px); opacity: 0.5; }
-        }
-        @keyframes metricWaveFloatB {
-          0% { transform: translateY(-1px); opacity: 0.42; }
-          50% { transform: translateY(2px); opacity: 0.62; }
-          100% { transform: translateY(-1px); opacity: 0.42; }
+        .dark .analytics-scan {
+          background: linear-gradient(
+            120deg,
+            transparent 0%,
+            transparent 30%,
+            rgba(96,165,250,0.06) 45%,
+            rgba(129,140,248,0.08) 50%,
+            rgba(96,165,250,0.06) 55%,
+            transparent 70%,
+            transparent 100%
+          );
+          background-size: 200% 100%;
         }
       `}</style>
+
+      {tooltip && typeof window !== "undefined" && createPortal(
+        <div
+          ref={tooltipRef}
+          style={{ position: "fixed", left: tooltip.x + 12, top: tooltip.y - 10, zIndex: 9999, pointerEvents: "none" }}
+          className="rounded-xl border border-zinc-200 bg-white px-4 py-3 shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
+        >
+          <p className="mb-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+            {formatMonthLabel(tooltip.month)}
+          </p>
+          <div className="space-y-1 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-sm bg-blue-500" />
+              <span className="text-zinc-600 dark:text-zinc-400">Ingresos:</span>
+              <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                {formatMoney(tooltip.income).replace("ARS", "").trim()}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-sm bg-slate-500" />
+              <span className="text-zinc-600 dark:text-zinc-400">Gastos:</span>
+              <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                {formatMoney(tooltip.expenses).replace("ARS", "").trim()}
+              </span>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

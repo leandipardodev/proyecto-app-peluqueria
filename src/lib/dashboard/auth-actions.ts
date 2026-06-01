@@ -132,6 +132,14 @@ export async function registerShop(
 
     const admin = await createServiceRoleClient();
 
+    const staleUser = await findUserByEmail(admin, normalizedEmail);
+    if (staleUser) {
+      const { error: deleteError } = await admin.auth.admin.deleteUser(staleUser.id);
+      if (deleteError) {
+        return { success: false, error: "Ya existe una cuenta con ese email. Iniciá sesión o usá otro email." };
+      }
+    }
+
     const { data: createdUser, error: createError } = await admin.auth.admin.createUser({
       email: normalizedEmail,
       password,
@@ -139,10 +147,6 @@ export async function registerShop(
     });
 
     if (createError || !createdUser?.user) {
-      const msg = createError?.message?.toLowerCase() || "";
-      if (msg.includes("already") || msg.includes("exists") || msg.includes("registered")) {
-        return { success: false, error: "Ya existe una cuenta con ese email. Inicia sesión o usa otro email." };
-      }
       return { success: false, error: mapAuthError(createError?.message || "No se pudo crear el usuario") };
     }
 

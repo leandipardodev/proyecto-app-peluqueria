@@ -167,6 +167,8 @@ async function createAdminClient() {
 export type DashboardMetrics = {
   revenueChart: Array<{ month: string; income: number; expenses: number }>;
   monthlyGrowth: Array<{ month: string; clients: number; growthPct: number | null }>;
+  healthScore: number;
+  healthBreakdown: { revenue: number; clients: number; appointments: number };
   flowByPeriod: {
     today: { income: number; expenses: number };
     week: { income: number; expenses: number };
@@ -391,11 +393,51 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
         return { month, clients, growthPct };
       });
 
+    const apptsByMonth = new Map<string, number>();
+    for (const apt of apptsRevenueRes.data ?? []) {
+      const month = typeof apt.date_key_ar === "string" ? apt.date_key_ar.slice(0, 7) : null;
+      if (!month) continue;
+      apptsByMonth.set(month, (apptsByMonth.get(month) || 0) + 1);
+    }
+
+    const trailingMonths = (n: number) => {
+      const months: string[] = [];
+      const d = new Date(nowAr.getFullYear(), nowAr.getMonth(), 1);
+      for (let i = 0; i < n; i++) {
+        d.setMonth(d.getMonth() - 1);
+        months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+      }
+      return months;
+    };
+
+    const compRatio = (current: number, avg: number) => {
+      if (avg <= 0) return current > 0 ? 150 : 100;
+      return Math.min(Math.round((current / avg) * 100), 200);
+    };
+
+    const toScore = (ratio: number) => Math.round(ratio / 2);
+
+    const [m1, m2, m3] = trailingMonths(3);
+    const avgRevenue = ([m1, m2, m3].reduce((s, m) => s + (incomeByMonth.get(m) ?? 0), 0) / 3);
+    const avgClients = ([m1, m2, m3].reduce((s, m) => s + (clientsByMonth.get(m) ?? 0), 0) / 3);
+    const avgAppts = ([m1, m2, m3].reduce((s, m) => s + (apptsByMonth.get(m) ?? 0), 0) / 3);
+
+    const revScore = toScore(compRatio(incomeByMonth.get(currentMonth) ?? 0, avgRevenue));
+    const cliScore = toScore(compRatio(clientsByMonth.get(currentMonth) ?? 0, avgClients));
+    const apptScore = toScore(compRatio(apptsByMonth.get(currentMonth) ?? 0, avgAppts));
+
+    const healthScore = Math.min(
+      Math.round(revScore * 0.4 + cliScore * 0.3 + apptScore * 0.3),
+      100
+    );
+
     return {
       success: true,
       data: {
         revenueChart,
         monthlyGrowth,
+        healthScore,
+        healthBreakdown: { revenue: revScore, clients: cliScore, appointments: apptScore },
         flowByPeriod: {
           today: flowToday,
           week: flowWeek,

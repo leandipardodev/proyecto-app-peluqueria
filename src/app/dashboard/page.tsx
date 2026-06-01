@@ -75,10 +75,9 @@ function stringToColor(name: string): string {
   return colors[Math.abs(hash) % colors.length];
 }
 
-function formatGrowth(value: number | null): string {
+function formatHealth(value: number | null): string {
   if (value === null) return "N/D";
-  const sign = value >= 0 ? "+" : "";
-  return `${sign}${value}%`;
+  return `${value}/100`;
 }
 
 function sameMonthDay(date: Date, monthIndex: number, day: number): boolean {
@@ -135,9 +134,9 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
   const metrics = metricsResult.success && metricsResult.data ? metricsResult.data : null;
   const dashboardBasePath = summary.shopSlug ? `/dashboard/${summary.shopSlug}` : "/dashboard";
 
-  const growthValue = metrics?.stats.growth ?? null;
-  const growthColor = growthValue === null ? "text-zinc-500 dark:text-zinc-400" : growthValue >= 0 ? "text-green-600" : "text-red-600";
-  const growthBg = growthValue === null ? "bg-zinc-500/10" : growthValue >= 0 ? "bg-green-500/10" : "bg-red-500/10";
+  const healthScore = metrics?.healthScore ?? null;
+  const healthColor = healthScore === null ? "text-zinc-500 dark:text-zinc-400" : healthScore >= 75 ? "text-green-600" : healthScore >= 50 ? "text-amber-600" : "text-red-600";
+  const healthBg = healthScore === null ? "bg-zinc-500/10" : healthScore >= 75 ? "bg-green-500/10" : healthScore >= 50 ? "bg-amber-500/10" : "bg-red-500/10";
   const nextAppointment = summary.nextAppointments[0];
   const minutesToNextAppointment = nextAppointment
     ? Math.round((new Date(nextAppointment.start_time).getTime() - Date.now()) / 60000)
@@ -251,8 +250,6 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
     });
   }
 
-  const aiCardHref = aiMessages[0]?.href || withDashboardBase("/dashboard/calendar", dashboardBasePath);
-
   const cards = [
     {
       label: "Turnos hoy",
@@ -271,18 +268,18 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
         }]
       : []),
     {
-      label: "Crecimiento",
-      value: formatGrowth(growthValue),
+      label: "Rendimiento",
+      value: formatHealth(healthScore),
       icon: TrendingUp,
-      color: growthColor,
-      bg: growthBg,
+      color: healthColor,
+      bg: healthBg,
     },
   ];
 
   const cardHrefByLabel: Record<string, string> = {
     "Turnos hoy": withDashboardBase("/dashboard/calendar", dashboardBasePath),
     ...(features.inventory ? { "Alertas de stock": withDashboardBase("/dashboard/inventory", dashboardBasePath) } : {}),
-    "Crecimiento": withDashboardBase("/dashboard/business#estadisticas", dashboardBasePath),
+    "Rendimiento": withDashboardBase("/dashboard/business#estadisticas", dashboardBasePath),
   };
 
   const today = new Date().toLocaleDateString("es-AR", {
@@ -371,9 +368,9 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map(({ label, value, icon: Icon, color, bg }, idx) => {
-          const isGrowthCard = label === "Crecimiento";
-          const growthFill = growthValue === null ? 18 : Math.min(Math.max(Math.abs(growthValue), 8), 100);
-          const hasProgress = isGrowthCard;
+          const isHealthCard = label === "Rendimiento";
+          const healthFill = healthScore === null ? 18 : Math.min(Math.max(healthScore, 8), 100);
+          const hasProgress = isHealthCard;
           const sheenStyle: CSSProperties & Record<"--sheen-delay" | "--sheen-duration", string> = {
             "--sheen-delay": `${-0.5 - idx * 2.1}s`,
             "--sheen-duration": `${13.6 + (idx % 3) * 0.8}s`,
@@ -391,12 +388,12 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
                 <div className="relative z-10 flex-1 min-w-0 flex flex-col">
                   <p className="text-sm text-gray-500 dark:text-zinc-400">{label}</p>
                   <p className="text-xl font-bold tracking-tighter text-gray-900 dark:text-white">{value}</p>
-                  {isGrowthCard && (
+                  {isHealthCard && (
                     <div className="mt-2.5">
-                      <div className="h-2 w-full rounded-full bg-zinc-200/70 dark:bg-zinc-700/60 overflow-hidden">
+                      <div className="h-2 w-full rounded-full overflow-hidden bg-zinc-200/70 dark:bg-zinc-700/60">
                         <div
-                          className={`h-full rounded-full flow-mini ${growthValue === null || growthValue >= 0 ? "flow-mini-pos" : "flow-mini-neg"}`}
-                          style={{ width: `${growthFill}%` }}
+                          className="h-full rounded-full bg-blue-500 dark:bg-blue-400 transition-all duration-500 ease-out"
+                          style={{ width: `${healthFill}%` }}
                         />
                       </div>
                     </div>
@@ -409,8 +406,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
           );
         })}
         <AINotificationCard
-          href={aiCardHref}
-          messages={aiMessages.map((item) => ({ id: item.id, title: item.title, body: item.body, tone: item.tone }))}
+          messages={aiMessages.map((item) => ({ id: item.id, title: item.title, body: item.body, tone: item.tone, href: item.href }))}
         />
       </div>
 
@@ -420,7 +416,13 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
         </div>
         <div className="lg:col-span-1 space-y-4 min-w-0">
           <TopServices data={metrics?.topServices ?? []} serviceLabelPlural={servicePlural} />
-          <MonthlyGrowthCard clientsData={metrics?.monthlyGrowth ?? []} revenueData={metrics?.revenueChart ?? []} />
+          <MonthlyGrowthCard
+            clientsData={metrics?.monthlyGrowth ?? []}
+            revenueData={metrics?.revenueChart ?? []}
+            healthScore={metrics?.healthScore ?? null}
+            healthBreakdown={metrics?.healthBreakdown ?? null}
+            totalClients={metrics?.stats.totalClients ?? 0}
+          />
         </div>
       </div>
 
@@ -625,7 +627,7 @@ export default async function DashboardPage() {
 
   const firstShopId = memberships?.[0]?.shop_id;
   if (!firstShopId) {
-    redirect("/register");
+    redirect("/onboarding/create-shop");
   }
 
   const { data: shop } = await admin
@@ -635,7 +637,7 @@ export default async function DashboardPage() {
     .maybeSingle();
 
   if (!shop?.slug) {
-    redirect("/register");
+    redirect("/onboarding/create-shop");
   }
 
   const { count: servicesCount } = await admin
@@ -646,7 +648,7 @@ export default async function DashboardPage() {
   const needsTutorial = !shop?.nombre?.trim() || !shop?.address?.trim() || !servicesCount;
 
   if (needsTutorial) {
-    redirect(`/onboarding/wizard`);
+    redirect(`/dashboard/${shop.slug}/business`);
   }
 
   redirect(`/dashboard/${shop.slug}`);

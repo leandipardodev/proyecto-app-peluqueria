@@ -8,6 +8,8 @@ import BillingRequiredClient from "./billing-required-client";
 
 const nunito = Nunito({ subsets: ["latin"], weight: ["700", "800"] });
 
+export const dynamic = "force-dynamic";
+
 export default async function BillingRequiredPage({
   searchParams,
 }: {
@@ -55,6 +57,8 @@ export default async function BillingRequiredPage({
 
   const expiry = shop?.plan_expiry ? new Date(shop.plan_expiry) : null;
   const graceUntil = expiry ? new Date(expiry.getTime() + 2 * 24 * 60 * 60 * 1000) : null;
+  const now = new Date();
+  const isActuallyExpired = expiry && expiry < now;
 
   return (
     <div className="min-h-screen bg-white pt-8 md:pt-12">
@@ -84,7 +88,10 @@ export default async function BillingRequiredPage({
               <div className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-white/45" />
               <p className="font-black tracking-wide text-base">Renová tu plan</p>
               <p className="mt-1 text-xs text-orange-900">
-                Se venció el {expiry.toLocaleDateString("es-AR")} y te segundeamos con unos días hasta el {graceUntil?.toLocaleDateString("es-AR")}.
+                {isActuallyExpired
+                  ? `Se venció el ${expiry.toLocaleDateString("es-AR")} y te segundeamos con unos días hasta el ${graceUntil?.toLocaleDateString("es-AR")}.`
+                  : `Vence el ${expiry.toLocaleDateString("es-AR")}. Todavía estás a tiempo de renovar.`
+                }
               </p>
             </div>
           )}

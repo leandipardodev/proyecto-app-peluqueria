@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Bot, Sparkles } from "lucide-react";
 
 type Message = {
@@ -9,15 +9,15 @@ type Message = {
   title: string;
   body: string;
   tone: "urgent" | "action" | "insight";
+  href?: string;
 };
 
 export default function AINotificationCard({
-  href,
   messages,
 }: {
-  href: string;
   messages: Message[];
 }) {
+  const router = useRouter();
   const [activeIndex, setActiveIndex] = useState(0);
   const [thinking, setThinking] = useState(true);
 
@@ -25,9 +25,14 @@ export default function AINotificationCard({
     () =>
       (messages.length > 0
         ? messages.slice(0, 20)
-        : [{ id: "fallback", title: "Todo en orden", body: "Sin novedades urgentes.", tone: "insight" as const }]),
+        : [{ id: "fallback", title: "Todo en orden", body: "Sin novedades urgentes.", tone: "insight" as const, href: undefined }]),
     [messages]
   );
+
+  const handleClick = useCallback(() => {
+    const target = feed[activeIndex]?.href;
+    if (target) router.push(target);
+  }, [feed, activeIndex, router]);
 
   useEffect(() => {
     setActiveIndex(0);
@@ -74,7 +79,7 @@ export default function AINotificationCard({
   const toneLabel = active.tone === "urgent" ? "Urgente" : active.tone === "action" ? "Accion" : "Insight";
 
   return (
-    <Link href={href} className="group block h-full">
+    <button type="button" onClick={handleClick} className="group block h-full w-full text-left">
       <div className="relative h-[148px] md:h-[156px]">
         <div className="absolute inset-0 rounded-[2rem]" />
         <div className="ai-orb-wrap relative h-full overflow-hidden rounded-[2rem] border border-cyan-300/30 bg-white p-4 text-cyan-950 shadow-[0_20px_48px_rgba(8,145,178,0.28)] transition-transform duration-300 group-hover:-translate-y-0.5 dark:bg-slate-950/92 dark:text-cyan-50">
@@ -311,6 +316,6 @@ export default function AINotificationCard({
         `}</style>
       </div>
       </div>
-    </Link>
+    </button>
   );
 }

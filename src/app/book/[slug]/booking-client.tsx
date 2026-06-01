@@ -245,10 +245,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
   function validatePhone(phone: string): string {
     if (!phone.trim()) return "El teléfono es obligatorio";
     const digits = phone.replace(/\D/g, "");
-    if (!digits.match(/^(?:(?:54)|(?:0))?\d{6,11}$/)) return "Formato de teléfono inválido";
     if (digits.length < 10 || digits.length > 13) return "Ingresá un teléfono argentino válido, ej: 11 1234 5678";
-    if (digits.length === 10 && !digits.startsWith("11")) return "Teléfono debe incluir código de área, ej: 11 1234 5678";
-    if (digits.length === 11 && !digits.startsWith("9")) return "Formato inválido. Ej con 9: 911 1234 5678";
     return "";
   }
 
@@ -1089,7 +1086,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
                                 </div>
                               )}
 
-                              {paymentInitPoint && (
+                              {shop.mpPublicKey && paymentInitPoint && (
                                 <a
                                   href={paymentInitPoint}
                                   target="_blank"

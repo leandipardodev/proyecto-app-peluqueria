@@ -5,7 +5,7 @@ import { DASHBOARD_LEGACY_SEGMENTS_SET } from "@/lib/dashboard/legacy-segments";
 
 const LOGIN_PATH = "/login";
 const BILLING_REQUIRED_PATH = "/billing-required";
-const LANDING_PATH = "/landing";
+const LANDING_PATH = "/";
 const ACTIVE_SHOP_ID_COOKIE = "klip_active_shop_id";
 const ACTIVE_SHOP_SLUG_COOKIE = "klip_active_shop_slug";
 
@@ -89,7 +89,7 @@ export async function middleware(request: NextRequest) {
   const activeMemberships = memberships ?? [];
   if (activeMemberships.length === 0) {
     const landingUrl = request.nextUrl.clone();
-    landingUrl.pathname = LANDING_PATH;
+    landingUrl.pathname = "/onboarding/create-shop";
     return NextResponse.redirect(landingUrl);
   }
 
@@ -164,9 +164,9 @@ export async function middleware(request: NextRequest) {
       targetShop = shops.find((s) => s.slug.toLowerCase() === normalized) || null;
     }
     if (!targetShop) {
-      const landingUrl = request.nextUrl.clone();
-      landingUrl.pathname = LANDING_PATH;
-      return NextResponse.redirect(landingUrl);
+      const destUrl = request.nextUrl.clone();
+      destUrl.pathname = "/dashboard";
+      return NextResponse.redirect(destUrl);
     }
 
     if (slugCandidate && slugCandidate !== targetShop.slug) {
