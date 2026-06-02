@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createMiddlewareClient } from "@/lib/supabase/middleware";
-import { createClient } from "@supabase/supabase-js";
 import { DASHBOARD_LEGACY_SEGMENTS_SET } from "@/lib/dashboard/legacy-segments";
 
 const LOGIN_PATH = "/login";
@@ -17,13 +16,21 @@ function isProtectedPath(pathname: string): boolean {
 }
 
 export async function middleware(request: NextRequest) {
+  try {
+    return await middlewareHandler(request);
+  } catch (err) {
+    console.error("[middleware] Unhandled error — allowing request through:", err);
+    return NextResponse.next();
+  }
+}
+
+async function middlewareHandler(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isSlugRewriteRequest = request.headers.get("x-klip-slug-rewrite") === "1";
 
   if (!isProtectedPath(pathname)) {
     return NextResponse.next();
   }
-
 
   let response = NextResponse.next();
   const supabase = createMiddlewareClient(request, response);
@@ -99,14 +106,23 @@ export async function middleware(request: NextRequest) {
   let accessibleShops: Array<{ id: string; slug: string; active: boolean; plan_expiry: string | null }> | null = null;
 
   if (serviceRoleKey && supabaseUrl) {
-    const admin = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-    const { data } = await admin
-      .from("shops")
-      .select("id, slug, active, plan_expiry")
-      .in("id", shopIds);
-    accessibleShops = data ?? null;
+    try {
+      const ids = shopIds.map((id) => `"${id}"`).join(",");
+      const res = await fetch(
+        `${supabaseUrl}/rest/v1/shops?select=id,slug,active,plan_expiry&id=in.(${ids})`,
+        {
+          headers: {
+            apikey: serviceRoleKey,
+            Authorization: `Bearer ${serviceRoleKey}`,
+          },
+        }
+      );
+      if (res.ok) {
+        accessibleShops = (await res.json()) as typeof accessibleShops;
+      }
+    } catch {
+      accessibleShops = null;
+    }
   }
 
   if (!accessibleShops) {
@@ -167,6 +183,16 @@ export async function middleware(request: NextRequest) {
       const destUrl = request.nextUrl.clone();
       destUrl.pathname = "/dashboard";
       return NextResponse.redirect(destUrl);
+    }
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const planExpiryStr = targetShop.plan_expiry?.slice(0, 10);
+    const planExpired = Boolean(planExpiryStr && planExpiryStr <= todayStr);
+    if (!targetShop.active || planExpired) {
+      const billingUrl = request.nextUrl.clone();
+      billingUrl.pathname = BILLING_REQUIRED_PATH;
+      billingUrl.searchParams.set("shop_id", targetShop.id);
+      return NextResponse.redirect(billingUrl);
     }
 
     if (slugCandidate && slugCandidate !== targetShop.slug) {

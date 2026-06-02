@@ -7,6 +7,7 @@ import { getArgentinaDateKey } from "@/lib/argentina-time";
 import { sendAppointmentConfirmationEmail } from "@/lib/email/booking-emails";
 import { createRateLimiter, getClientIp } from "@/lib/rate-limiter";
 import { createLogContext, logInfo, logWarn, logError } from "@/lib/api-logger";
+import { withRetry } from "@/lib/retry";
 import crypto from "crypto";
 
 const webhookLimiter = createRateLimiter({ intervalMs: 60_000, maxRequests: 30 });
@@ -148,7 +149,10 @@ export async function POST(request: NextRequest) {
 
     const client = new MercadoPagoConfig({ accessToken });
     const payment = new Payment(client);
-    const paymentResult = await payment.get({ id: paymentId });
+    const paymentResult = await withRetry(
+      () => payment.get({ id: paymentId }),
+      { retries: 1, delayMs: 800, onRetry: (attempt) => logWarn(log, `MP API retry ${attempt}`) }
+    );
 
     const externalReference = (paymentResult.external_reference as string | undefined) || "";
     if (scope === "billing" || externalReference.startsWith("shop_sub:")) {
@@ -413,32 +417,39 @@ export async function POST(request: NextRequest) {
     const preferenceId = (paymentResult.order?.id as string | undefined) || (paymentResult.metadata?.preference_id as string | undefined) || undefined;
 
     // Update appointment first (idempotent — setting same values on retry)
-    const { error: updateError } = await admin
-      .from("appointments")
-      .update({
-        status,
-        is_paid: paymentResult.status === "approved",
-        mp_preference_id: preferenceId,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", appointment.id)
-      .eq("shop_id", appointment.shop_id);
+    const { error: updateError } = await withRetry(
+      () => admin
+        .from("appointments")
+        .update({
+          status,
+          is_paid: paymentResult.status === "approved",
+          mp_preference_id: preferenceId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", appointment.id)
+        .eq("shop_id", appointment.shop_id)
+        .then((r) => r as { error: unknown }),
+      { retries: 1, delayMs: 500 }
+    );
 
     if (updateError) throw updateError;
 
     // Insert billing event after successful appointment update
     if (paymentResult.status === "approved") {
-      const { error: lockError } = await admin.from("shop_billing_events").insert({
-        shop_id: appointment.shop_id,
-        actor_user_id: null,
-        event_type: "appointment_payment_applied",
-        payload: {
-          payment_id: normalizedPaymentId,
-          appointment_id: appointment.id,
-          status: paymentResult.status,
-          external_reference: paymentResult.external_reference,
-        },
-      });
+      const { error: lockError } = await withRetry(
+        () => admin.from("shop_billing_events").insert({
+          shop_id: appointment.shop_id,
+          actor_user_id: null,
+          event_type: "appointment_payment_applied",
+          payload: {
+            payment_id: normalizedPaymentId,
+            appointment_id: appointment.id,
+            status: paymentResult.status,
+            external_reference: paymentResult.external_reference,
+          },
+        }).then((r) => r as { error: unknown }),
+        { retries: 1, delayMs: 500 }
+      );
 
       if (lockError) {
         if (!isUniqueViolation(lockError)) {

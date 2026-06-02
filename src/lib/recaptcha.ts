@@ -1,6 +1,11 @@
 export async function verifyRecaptcha(token: string): Promise<{ success: boolean; score?: number }> {
   const secret = process.env.RECAPTCHA_SECRET_KEY;
   if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      console.error("[recaptcha] RECAPTCHA_SECRET_KEY is not set — verification blocked in production");
+      return { success: false };
+    }
+    console.warn("[recaptcha] RECAPTCHA_SECRET_KEY is not set — skipping verification (dev mode)");
     return { success: true };
   }
 
@@ -13,7 +18,8 @@ export async function verifyRecaptcha(token: string): Promise<{ success: boolean
 
     const data = await response.json();
     return { success: data.success === true, score: data.score };
-  } catch {
+  } catch (err) {
+    console.error("[recaptcha] Verification request failed:", err);
     return { success: true };
   }
 }

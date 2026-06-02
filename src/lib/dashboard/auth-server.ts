@@ -201,6 +201,27 @@ export async function requireOwnerShopId(): Promise<ActionResult<string>> {
   return { success: false, error: "Solo el owner del local puede realizar esta accion" };
 }
 
+export async function checkShopExpired(shopId: string): Promise<{ expired: boolean; active: boolean }> {
+  const admin = await createServiceRoleClient();
+  const { data: shop } = await admin
+    .from("shops")
+    .select("active, plan_expiry")
+    .eq("id", shopId)
+    .maybeSingle();
+
+  if (!shop) return { expired: false, active: true };
+
+  if (!shop.active) return { expired: true, active: false };
+
+  if (shop.plan_expiry) {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const planExpiryStr = shop.plan_expiry.slice(0, 10);
+    if (planExpiryStr <= todayStr) return { expired: true, active: true };
+  }
+
+  return { expired: false, active: true };
+}
+
 export async function createServiceRoleClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

@@ -4,23 +4,12 @@ import { createServiceRoleClient, requireOwnerShopId, requireShopId } from "@/li
 import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
 import type { ActionResult } from "@/lib/types";
 import { revalidateDashboardSegments } from "@/lib/dashboard/revalidate-dashboard";
+import { withRetry } from "@/lib/retry";
 import crypto from "crypto";
 import "server-only";
 
 async function createAdminClient() {
   return createServiceRoleClient();
-}
-
-async function withRetry<T>(fn: () => Promise<T>, retries = 2): Promise<T> {
-  for (let i = 0; i <= retries; i++) {
-    try {
-      return await fn();
-    } catch (err) {
-      if (i === retries) throw err;
-      console.warn(`[withRetry] intento ${i + 1} falló, reintentando...`);
-    }
-  }
-  throw new Error("unreachable");
 }
 
 export type BusinessData = {

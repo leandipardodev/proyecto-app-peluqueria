@@ -114,6 +114,11 @@ vi.mock("next/navigation", () => ({
   revalidatePath: vi.fn(),
 }));
 
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
+  revalidateTag: vi.fn(),
+}));
+
 vi.mock("next/headers", () => ({
   cookies: vi.fn().mockResolvedValue({
     get: vi.fn(),
@@ -178,10 +183,66 @@ export function supabaseStub(): any {
   };
 }
 
+// Create a Supabase client stub that passes the owner access check
+// (requireOwnerAccessForShop calls getUser() then looks up shop_memberships)
+export function makeOwnerCheckClient(userId = "test-owner") {
+  return {
+    auth: {
+      getUser: vi.fn().mockResolvedValue({ data: { user: { id: userId } }, error: null }),
+    },
+    from: vi.fn((table: string) => {
+      if (table === "shop_memberships") {
+        const chain = chainableQuery();
+        chain.maybeSingle = vi.fn().mockResolvedValue({
+          data: { role: "owner", is_active: true },
+          error: null,
+        });
+        chain.then = ((onfulfilled, onrejected) =>
+          Promise.resolve({ data: null, error: null }).then(onfulfilled, onrejected)) as Promise<SupabaseResult>["then"];
+        return chain;
+      }
+      return chainableQuery();
+    }),
+  } as never;
+}
+
 vi.mock("@/lib/dashboard/auth-server", () => ({
   requireShopId: vi.fn(),
+  requireOwnerShopId: vi.fn(),
   canAccessShopId: vi.fn(),
   createServiceRoleClient: vi.fn(),
   getAuthSession: vi.fn(),
   getCachedUser: vi.fn(),
+  getShopIdBySlug: vi.fn(),
+}));
+
+vi.mock("@/lib/retry", () => ({
+  withRetry: vi.fn((fn: () => unknown) => fn()),
+}));
+
+vi.mock("@/lib/argentina-time", () => ({
+  getArgentinaNow: vi.fn(() => new Date("2030-06-15T10:00:00.000-03:00")),
+  getArgentinaWeekStart: vi.fn(() => new Date("2030-06-10T00:00:00.000-03:00")),
+  getArgentinaDateString: vi.fn(() => "2030-06-15"),
+  getArgentinaDayBounds: vi.fn(() => ({
+    start: new Date("2030-06-15T03:00:00.000Z"),
+    end: new Date("2030-06-15T02:59:59.999Z"),
+  })),
+  createArgentinaDate: vi.fn((year: number, month: number, day: number, hour = 0, minute = 0) => {
+    const ds = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    return new Date(`${ds}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00-03:00`);
+  }),
+  getArgentinaDateKey: vi.fn(() => "2030-06-15"),
+  getArgentinaMinutesSinceMidnight: vi.fn(() => 600),
+  extractArgentinaTimeHHmm: vi.fn(() => "10:00"),
+  formatArgentinaTime: vi.fn(() => "10:00"),
+  toArgentinaLocalIsoString: vi.fn((d: Date | string) => new Date(d).toISOString()),
+  getTodayArgentinaBounds: vi.fn(() => ({
+    start: new Date("2030-06-15T03:00:00.000Z"),
+    end: new Date("2030-06-15T02:59:59.999Z"),
+  })),
+  minutesFromHHmm: vi.fn((hhmm: string) => {
+    const [h, m] = hhmm.split(":").map(Number);
+    return h * 60 + m;
+  }),
 }));

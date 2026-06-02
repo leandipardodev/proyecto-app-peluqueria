@@ -19,14 +19,12 @@ type RateLimiterEntry = {
   resetAt: number;
 };
 
-const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
-const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
-const useUpstash = !!(upstashUrl && upstashToken);
-
 let upstashImpl: ReturnType<typeof createUpstashLimiter> | null = null;
 
 function createUpstashLimiter(options: RateLimiterOptions) {
-  const redis = new Redis({ url: upstashUrl!, token: upstashToken! });
+  const url = process.env.UPSTASH_REDIS_REST_URL!;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN!;
+  const redis = new Redis({ url, token });
   const ratelimit = new Ratelimit({
     redis,
     limiter: Ratelimit.slidingWindow(options.maxRequests, `${options.intervalMs}ms`),
@@ -79,11 +77,21 @@ function createMemoryLimiter(options: RateLimiterOptions) {
 }
 
 export function createRateLimiter(options: RateLimiterOptions) {
-  if (useUpstash) {
+  const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
+  const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+  if (upstashUrl && upstashToken) {
     if (!upstashImpl) {
       upstashImpl = createUpstashLimiter(options);
     }
     return { check: (key: string) => upstashImpl!.check(key) };
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    console.warn(
+      "[rate-limiter] UPSTASH_REDIS_REST_URL/TOKEN not configured — falling back to in-memory limiter. " +
+      "Rate limiting will NOT work across multiple instances.",
+    );
   }
 
   return createMemoryLimiter(options);
