@@ -16,6 +16,7 @@ import {
   Bug,
 } from "lucide-react";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
+import { haptic } from "@/lib/haptic";
 import { APP_VERSION } from "@/lib/app-version";
 import { usePerformanceMode } from "@/lib/use-performance-mode";
 import { triggerDashboardNavTransition } from "@/lib/dashboard/nav-transition";
@@ -207,6 +208,7 @@ export default function DashboardSidebar({
                     prefetch={true}
                     onMouseDown={() => {
                       playClick();
+                      haptic(6);
                       startNavTransition();
                     }}
                     className={`relative flex items-center gap-3 px-3 py-3 rounded-2xl text-sm font-medium transition-colors cursor-pointer select-none ${

@@ -7,6 +7,7 @@ import { logout } from "@/lib/dashboard/logout-action";
 import { getCachedUser } from "@/lib/dashboard/auth-server";
 
 const DashboardPageTransition = dynamicImport(() => import("@/components/dashboard/dashboard-page-transition"));
+const PullToRefresh = dynamicImport(() => import("@/components/dashboard/pull-to-refresh"));
 const ReleaseNotesModal = dynamicImport(() => import("@/components/dashboard/release-notes-modal"));
 const BugReportModal = dynamicImport(() => import("@/components/dashboard/bug-report-modal"));
 
@@ -45,7 +46,9 @@ export default async function DashboardLayout({
         <DashboardHeaderLoader userEmail={user.email ?? ""} onLogout={logout} />
 
         <main className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain p-3 sm:p-6 lg:p-8">
-          <DashboardPageTransition>{children}</DashboardPageTransition>
+          <PullToRefresh>
+            <DashboardPageTransition>{children}</DashboardPageTransition>
+          </PullToRefresh>
         </main>
       </div>
     </div>

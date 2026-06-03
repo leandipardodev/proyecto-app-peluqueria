@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Bar, BarChart, Cell, ResponsiveContainer, XAxis, YAxis, LabelList } from "recharts";
+import { StatePanel } from "@/components/ui/state-panel";
 
 type RevenueChartProps = {
   data: Array<{ month: string; income: number; expenses: number }>;
@@ -76,7 +77,7 @@ export default function RevenueChart({ data, flowByPeriod }: RevenueChartProps) 
   if (data.length === 0) {
     return (
       <div className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-        <p className="py-12 text-center text-sm text-zinc-500">Sin datos de ingresos aun</p>
+        <StatePanel title="Sin datos de ingresos" description="Todavía no hay datos de ingresos para mostrar." />
       </div>
     );
   }

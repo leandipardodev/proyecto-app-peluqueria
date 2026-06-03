@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { StatePanel } from "@/components/ui/state-panel";
 
 type TopServicesProps = {
   data: Array<{ name: string; count: number }>;
@@ -13,9 +14,7 @@ export default function TopServices({ data, serviceLabelPlural = "Servicios" }: 
   if (data.length === 0) {
     return (
       <div className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-        <p className="py-12 text-center text-sm text-zinc-500">
-          Sin {serviceLabelPlural.toLowerCase()} aun
-        </p>
+        <StatePanel title={`Sin ${serviceLabelPlural.toLowerCase()}`} description={`Todavía no hay ${serviceLabelPlural.toLowerCase()} registrados.`} />
       </div>
     );
   }

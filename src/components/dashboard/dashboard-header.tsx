@@ -5,6 +5,7 @@ import { useState, useRef, useEffect, useTransition, useMemo, type KeyboardEvent
 import { AnimatePresence, motion } from "framer-motion";
 import DashboardMobileSidebar from "./dashboard-mobile-sidebar";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
+import { haptic } from "@/lib/haptic";
 import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
 import { globalSearch, type OmniSearchResult } from "@/lib/dashboard/global-search-actions";
@@ -17,6 +18,7 @@ import { resolveIndustry } from "@/lib/industry/resolve";
 import { useShopFeatures } from "@/lib/industry/use-features";
 import { isMuted, setMuted } from "@/lib/sound";
 import { getDashboardBasePath, withDashboardBase } from "@/lib/dashboard/dashboard-base";
+import { StatePanel } from "@/components/ui/state-panel";
 import { DASHBOARD_LEGACY_SEGMENTS_SET } from "@/lib/dashboard/legacy-segments";
 import { NAV_COMMANDS, ACTION_COMMANDS, type CommandItem, type CommandNav, type CommandAction, type CommandData } from "@/lib/dashboard/search-commands";
 import { getIndustrySearchKeywords, getInitials, normalizeSearchText, scoreQueryAgainstTerms, formatDataLabel, formatDataHint } from "@/lib/dashboard/search-utils";
@@ -749,7 +751,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
                     )}
 
                     {!isPending && commandItems.flat.length === 0 && !searchError && query.trim().length > 0 && (
-                      <p className="px-3 py-6 text-sm text-zinc-500 text-center">Sin resultados</p>
+                      <StatePanel title="Sin resultados" description="No encontramos nada con ese criterio de búsqueda." />
                     )}
                   </div>
                 </motion.div>
@@ -864,7 +866,10 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
                     </div>
                     <button
                       type="button"
-                      onClick={toggleDark}
+                      onClick={() => {
+                        haptic(8);
+                        toggleDark();
+                      }}
                       className={`relative w-10 h-5 rounded-full transition-colors ${dark ? "bg-violet-600" : "bg-gray-300"}`}
                     >
                       <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${dark ? "translate-x-5" : "translate-x-0"}`} />
@@ -878,7 +883,10 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
                     </div>
                     <button
                       type="button"
-                      onClick={togglePerformanceMode}
+                      onClick={() => {
+                        haptic(6);
+                        togglePerformanceMode();
+                      }}
                       className={`relative w-10 h-5 rounded-full transition-colors ${performanceMode ? "bg-emerald-600" : "bg-gray-300"}`}
                       title="Atajo: tecla L"
                     >
@@ -894,6 +902,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
                     <button
                       type="button"
                       onClick={() => {
+                        haptic(6);
                         const nextMuted = !soundMuted;
                         setMuted(nextMuted);
                         setSoundMuted(nextMuted);

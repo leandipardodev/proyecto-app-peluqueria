@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { haptic } from "@/lib/haptic";
 
 const STORAGE_KEY = "klip_dark_mode";
 const OVERLAY_ID = "klip-theme-overlay";
@@ -65,6 +66,7 @@ export function useDarkMode() {
   }, []);
 
   const toggle = useCallback(() => {
+    haptic(10);
     const next = !dark;
     setDarkState(next);
     applyDarkWithOverlay(next);

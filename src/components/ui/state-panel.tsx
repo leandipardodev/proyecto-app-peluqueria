@@ -1,10 +1,13 @@
+import type { ReactNode } from "react";
+
 type StatePanelProps = {
   title: string;
   description: string;
   variant?: "empty" | "error";
+  action?: ReactNode;
 };
 
-export function StatePanel({ title, description, variant = "empty" }: StatePanelProps) {
+export function StatePanel({ title, description, variant = "empty", action }: StatePanelProps) {
   const tone =
     variant === "error"
       ? "border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/30 text-rose-900 dark:text-rose-200"
@@ -14,6 +17,7 @@ export function StatePanel({ title, description, variant = "empty" }: StatePanel
     <div className={`rounded-2xl border p-6 text-center ${tone}`} role={variant === "error" ? "alert" : "status"}>
       <p className="text-sm font-semibold">{title}</p>
       <p className="mt-1 text-sm opacity-80">{description}</p>
+      {action && <div className="mt-4 flex justify-center">{action}</div>}
     </div>
   );
 }
