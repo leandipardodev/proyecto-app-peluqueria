@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, Search, Moon, Sun, Gauge, Repeat2, Check, Volume2, VolumeX, SlidersHorizontal, Sparkles, Package, Scissors, Users } from "lucide-react";
+import { Menu, Search, Moon, Sun, Gauge, Repeat2, Check, Volume2, VolumeX, SlidersHorizontal, Sparkles, Package, Scissors, UserCheck } from "lucide-react";
 import { useState, useRef, useEffect, useTransition, useMemo, type KeyboardEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import DashboardMobileSidebar from "./dashboard-mobile-sidebar";
@@ -720,7 +720,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
 
                     {commandItems.people.length > 0 && (
                       <>
-                        <p className="px-3 pt-2 pb-1 text-[11px] uppercase tracking-wide text-zinc-500 flex items-center gap-1.5"><Users className="h-3 w-3" /> Personas</p>
+                        <p className="px-3 pt-2 pb-1 text-[11px] uppercase tracking-wide text-zinc-500 flex items-center gap-1.5"><UserCheck className="h-3 w-3" /> Personas</p>
                         {commandItems.people.map((item) => {
                           const flatIndex = commandItems.flat.findIndex((x) => x.id === item.id);
                           return (
