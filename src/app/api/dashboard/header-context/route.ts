@@ -19,11 +19,15 @@ export async function GET(request: Request) {
     const [shopId, managedShops] = await Promise.all([getShopId({ user: { id: authUser.id } }), getManagedShops(admin, authUser.id)]);
 
     let activeSlug = urlShopSlug;
-    if (!activeSlug) {
-      const currentShop = shopId ? managedShops.find((s) => s.id === shopId) : managedShops[0] || null;
+    let currentShop: (typeof managedShops)[number] | null = null;
+    if (activeSlug) {
+      currentShop = managedShops.find((s) => s.slug === activeSlug) || null;
+    }
+    if (!currentShop) {
+      currentShop = shopId ? managedShops.find((s) => s.id === shopId) : managedShops[0] || null;
       activeSlug = currentShop?.slug ?? null;
     }
-    const shopName = managedShops.find((s) => s.slug === activeSlug)?.nombre || "Mi Peluqueria";
+    const shopName = currentShop?.nombre || "Mi Peluqueria";
     const userName = authUser.email || "Usuario";
 
     const billingStatus = getSelectedShopBilling(managedShops, activeSlug);
