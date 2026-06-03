@@ -214,6 +214,7 @@ export default function DashboardSidebar({
                       ? "text-violet-700 dark:text-white"
                       : "text-zinc-500 dark:text-zinc-400 hover:bg-white/50 dark:hover:bg-white/5 hover:text-zinc-700 dark:hover:text-white"
                   }`}
+                  aria-current={isActive ? "page" : undefined}
                 >
                   {isActive && (
                     <motion.div

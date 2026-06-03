@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import DashboardSidebar from "./dashboard-sidebar";
@@ -12,6 +13,14 @@ type Props = {
 };
 
 export default function DashboardMobileSidebar({ open, onClose, userName, onLogout }: Props) {
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [open]);
   return (
     <AnimatePresence>
       {open && (

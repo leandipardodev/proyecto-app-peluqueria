@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, Search, Moon, Sun, Gauge, Repeat2, Check, Volume2, VolumeX, SlidersHorizontal, Sparkles } from "lucide-react";
+import { Menu, Search, Moon, Sun, Gauge, Repeat2, Check, Volume2, VolumeX, SlidersHorizontal, Sparkles, Package, Scissors, Users } from "lucide-react";
 import { useState, useRef, useEffect, useTransition, useMemo, type KeyboardEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import DashboardMobileSidebar from "./dashboard-mobile-sidebar";
@@ -195,24 +195,38 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
 
   useEffect(() => {
     if (!menuOpen) return;
+    function handleKeyDown(e: globalThis.KeyboardEvent) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
     function handleClickOutside(e: MouseEvent) {
       if (!avatarMenuRef.current) return;
       if (!avatarMenuRef.current.contains(e.target as Node)) setMenuOpen(false);
     }
+    document.addEventListener("keydown", handleKeyDown);
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
   }, [menuOpen]);
 
   useEffect(() => {
     if (!shopMenuOpen) return;
+    function handleKeyDown(e: globalThis.KeyboardEvent) {
+      if (e.key === "Escape") setShopMenuOpen(false);
+    }
     function handleClickOutside(e: MouseEvent) {
       if (!shopMenuRef.current) return;
       if (!shopMenuRef.current.contains(e.target as Node)) {
         setShopMenuOpen(false);
       }
     }
+    document.addEventListener("keydown", handleKeyDown);
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
   }, [shopMenuOpen]);
 
   useEffect(() => {
@@ -394,6 +408,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
   }
 
   function handleLogoutClick() {
+    if (typeof window !== "undefined" && !window.confirm("¿Cerrar sesión?")) return;
     startLogoutTransition(async () => {
       try { await onLogout(); } catch { /* ignore */ }
       router.refresh();
@@ -645,7 +660,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
 
                     {commandItems.stock.length > 0 && (
                       <>
-                        <p className="px-3 pt-2 pb-1 text-[11px] uppercase tracking-wide text-zinc-500">📦 Stock</p>
+                        <p className="px-3 pt-2 pb-1 text-[11px] uppercase tracking-wide text-zinc-500 flex items-center gap-1.5"><Package className="h-3 w-3" /> Stock</p>
                         {commandItems.stock.map((item) => {
                           const flatIndex = commandItems.flat.findIndex((x) => x.id === item.id);
                           return (
@@ -675,7 +690,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
 
                     {commandItems.services.length > 0 && (
                       <>
-                        <p className="px-3 pt-2 pb-1 text-[11px] uppercase tracking-wide text-zinc-500">✂️ Servicios</p>
+                        <p className="px-3 pt-2 pb-1 text-[11px] uppercase tracking-wide text-zinc-500 flex items-center gap-1.5"><Scissors className="h-3 w-3" /> Servicios</p>
                         {commandItems.services.map((item) => {
                           const flatIndex = commandItems.flat.findIndex((x) => x.id === item.id);
                           return (
@@ -705,7 +720,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
 
                     {commandItems.people.length > 0 && (
                       <>
-                        <p className="px-3 pt-2 pb-1 text-[11px] uppercase tracking-wide text-zinc-500">👤 Personas</p>
+                        <p className="px-3 pt-2 pb-1 text-[11px] uppercase tracking-wide text-zinc-500 flex items-center gap-1.5"><Users className="h-3 w-3" /> Personas</p>
                         {commandItems.people.map((item) => {
                           const flatIndex = commandItems.flat.findIndex((x) => x.id === item.id);
                           return (
