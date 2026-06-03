@@ -5,7 +5,7 @@ import { getArgentinaDateString } from "@/lib/argentina-time";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const supabase = await createServerClient();
     const authUser = (await supabase.auth.getUser()).data?.user;
@@ -14,13 +14,19 @@ export async function GET() {
     }
 
     const admin = await createServiceRoleClient();
+    const { searchParams } = new URL(request.url);
+    const urlShopSlug = searchParams.get("shop_slug")?.trim().toLowerCase() || null;
     const [shopId, managedShops] = await Promise.all([getShopId({ user: { id: authUser.id } }), getManagedShops(admin, authUser.id)]);
 
-    const currentShop = shopId ? managedShops.find((s) => s.id === shopId) : managedShops[0] || null;
-    const shopName = currentShop?.nombre || "Mi Peluqueria";
+    let activeSlug = urlShopSlug;
+    if (!activeSlug) {
+      const currentShop = shopId ? managedShops.find((s) => s.id === shopId) : managedShops[0] || null;
+      activeSlug = currentShop?.slug ?? null;
+    }
+    const shopName = managedShops.find((s) => s.slug === activeSlug)?.nombre || "Mi Peluqueria";
     const userName = authUser.email || "Usuario";
 
-    const billingStatus = getSelectedShopBilling(managedShops, currentShop?.slug ?? null);
+    const billingStatus = getSelectedShopBilling(managedShops, activeSlug);
 
     let lastPaymentDate: string | null = null;
     if (currentShop) {

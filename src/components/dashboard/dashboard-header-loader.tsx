@@ -36,7 +36,10 @@ export default function DashboardHeaderLoader({
     let mounted = true;
     const load = async () => {
       try {
-        const res = await fetch("/api/dashboard/header-context", {
+        const slugMatch = pathname.match(/^\/dashboard\/([^\/]+)/);
+        const shopSlug = slugMatch?.[1] || "";
+        const url = `/api/dashboard/header-context${shopSlug ? `?shop_slug=${encodeURIComponent(shopSlug)}` : ""}`;
+        const res = await fetch(url, {
           method: "GET",
           credentials: "include",
           cache: "no-store",
