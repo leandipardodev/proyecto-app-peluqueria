@@ -89,6 +89,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
   const [isDepositPayment, setIsDepositPayment] = useState(false);
 
   const recaptchaLoadedRef = useRef(false);
+  const [mpReady, setMpReady] = useState(false);
 
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -136,8 +137,11 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
 
   useEffect(() => {
     const publicKey = shop.mpPublicKey || process.env.NEXT_PUBLIC_MP_PUBLIC_KEY || process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY;
-    if (!publicKey) return;
-    initMercadoPago(publicKey, { locale: "es-AR" });
+    if (!publicKey) { setMpReady(false); return; }
+    setMpReady(false);
+    initMercadoPago(publicKey, { locale: "es-AR" })
+      .then(() => setMpReady(true))
+      .catch(() => setMpReady(true));
   }, [shop.mpPublicKey]);
 
   useEffect(() => {
@@ -1076,7 +1080,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
                                 </div>
                               )}
 
-                              {shop.mpPublicKey ? (
+                              {shop.mpPublicKey && mpReady ? (
                                 <div className={`rounded-2xl overflow-hidden border ${templateStyles.checkoutWallet}`}>
                                   <Wallet initialization={{ preferenceId: paymentPreferenceId }} />
                                 </div>
