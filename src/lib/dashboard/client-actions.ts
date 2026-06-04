@@ -271,28 +271,30 @@ export async function createClientAppointment(formData: FormData): Promise<Actio
 
     const serviceIds = parsedServiceIds.length > 0 ? parsedServiceIds : [serviceId];
 
-    const { data: serviceDurations, error: durationError } = await supabase
+    const { data: serviceRows, error: durationError } = await supabase
       .from("services")
-      .select("id, duration_minutes")
+      .select("id, duration_minutes, price")
       .in("id", serviceIds);
 
     if (durationError) return { success: false, error: durationError.message };
 
-    const durationMap = new Map((serviceDurations || []).map((s) => [s.id, s.duration_minutes]));
-    const missingServiceId = serviceIds.find((id) => !durationMap.has(id));
+    const serviceMap = new Map((serviceRows || []).map((s) => [s.id, { duration: s.duration_minutes, price: s.price }]));
+    const missingServiceId = serviceIds.find((id) => !serviceMap.has(id));
     if (missingServiceId) {
       return { success: false, error: "Uno de los servicios seleccionados no existe" };
     }
 
     let currentStart = new Date(startDate);
     const payload = serviceIds.map((id, index) => {
-      const duration = durationMap.get(id) || 0;
+      const svc = serviceMap.get(id)!;
+      const duration = svc.duration;
       const currentEnd = new Date(currentStart.getTime() + duration * 60000);
       const appointment = {
         shop_id: shopId,
         customer_id: session.user.id,
         staff_id: staffId || null,
         service_id: id,
+        service_price: svc.price ?? null,
         start_time: currentStart.toISOString(),
         end_time: currentEnd.toISOString(),
         date_key_ar: getArgentinaDateKey(currentStart.toISOString()),

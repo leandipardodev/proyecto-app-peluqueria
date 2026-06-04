@@ -131,13 +131,14 @@ export async function fetchStaffMembers(shopIdOverride?: string): Promise<Action
       staffRows.map(async (member) => {
         const { data: revenueData } = await supabase
           .from("appointments")
-          .select("is_paid, status, services!appointments_service_id_fkey(price)")
+          .select("is_paid, status, service_price, services!appointments_service_id_fkey(price)")
           .eq("shop_id", shopId)
           .eq("staff_id", member.user_id)
           .eq("status", "completed")
           .eq("is_paid", true);
 
         const revenue = (revenueData || []).reduce((sum, apt) => {
+          if (apt.service_price != null) return sum + Number(apt.service_price);
           return sum + (apt.services?.[0]?.price || 0);
         }, 0);
         const rule = ruleMap.get(member.user_id);

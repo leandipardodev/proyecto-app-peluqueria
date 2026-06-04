@@ -411,6 +411,14 @@ export async function createPublicAppointment(data: {
       return { success: false, error: "slot_taken" };
     }
 
+    const { data: serviceRow } = await admin
+      .from("services")
+      .select("price")
+      .eq("id", data.serviceId)
+      .maybeSingle();
+
+    const servicePrice = serviceRow?.price ?? null;
+
     const { data: createdAppointment, error: aptError } = await admin
       .from("appointments")
       .insert({
@@ -418,6 +426,7 @@ export async function createPublicAppointment(data: {
         customer_id: customerId,
         staff_id: data.staffId || null,
         service_id: data.serviceId,
+        service_price: servicePrice,
         start_time: data.startTime,
         end_time: data.endTime,
         date_key_ar: getArgentinaDateKey(data.startTime),

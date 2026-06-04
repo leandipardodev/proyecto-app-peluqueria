@@ -20,6 +20,7 @@ type AppointmentIncomeRow = {
   id: string;
   start_time: string;
   status: string;
+  service_price: number | null;
   services: { price: number | null; name: string | null } | Array<{ price: number | null; name: string | null }> | null;
 };
 
@@ -29,6 +30,7 @@ type ExpenseRow = {
   category: string;
   description: string | null;
   created_at: string;
+  happened_at: string | null;
 };
 
 type StaffProfileRow = {
@@ -44,6 +46,7 @@ type StaffAppointmentRow = {
   start_time: string;
   status: string;
   is_paid: boolean | null;
+  service_price: number | null;
   services: { price: number | null; name: string | null } | Array<{ price: number | null; name: string | null }> | null;
 };
 
@@ -206,7 +209,7 @@ export async function fetchStaffProduction(fromDate?: string, toDate?: string, s
       fetchShopStaff(admin, shopId),
       admin
         .from("appointments")
-        .select("id, staff_id, service_id, start_time, status, is_paid, services:service_id(price, name)")
+        .select("id, staff_id, service_id, start_time, status, is_paid, service_price, services:service_id(price, name)")
         .eq("shop_id", shopId)
         .in("status", ["completed", "confirmed", "scheduled"])
         .not("staff_id", "is", null)
@@ -238,7 +241,7 @@ export async function fetchStaffProduction(fromDate?: string, toDate?: string, s
       if (!appt.staff_id) continue;
       const row = stats.get(appt.staff_id);
       if (!row) continue;
-      const amount = toService(appt)?.price || 0;
+      const amount = appt.service_price != null ? Number(appt.service_price) : (toService(appt)?.price || 0);
 
       row.appointmentsCount += 1;
       row.generatedRevenue += amount;
@@ -349,7 +352,7 @@ export async function createStaffPreLiquidation(formData: FormData, shopIdOverri
         .maybeSingle(),
       admin
         .from("appointments")
-        .select("id, staff_id, service_id, start_time, status, is_paid, services:service_id(price, name)")
+        .select("id, staff_id, service_id, start_time, status, is_paid, service_price, services:service_id(price, name)")
         .eq("shop_id", shopId)
         .eq("staff_id", staffUserId)
         .eq("status", "completed")
@@ -366,7 +369,10 @@ export async function createStaffPreLiquidation(formData: FormData, shopIdOverri
     const fixed = rule?.fixed_amount ?? 0;
     const appointments = (apptsRes.data || []) as StaffAppointmentRow[];
 
-    const grossRevenue = appointments.reduce((sum, appt) => sum + (toService(appt)?.price || 0), 0);
+    const grossRevenue = appointments.reduce((sum, appt) => {
+      const price = appt.service_price != null ? Number(appt.service_price) : (toService(appt)?.price || 0);
+      return sum + price;
+    }, 0);
     const commissionAmount = (grossRevenue * rate) / 100 + fixed;
     const finalPayable = Math.max(0, commissionAmount + bonuses - deductions);
 
@@ -392,7 +398,7 @@ export async function createStaffPreLiquidation(formData: FormData, shopIdOverri
     if (appointments.length > 0) {
       const items = appointments.map((appt) => {
         const service = toService(appt);
-        const gross = service?.price || 0;
+        const gross = appt.service_price != null ? Number(appt.service_price) : (service?.price || 0);
         const commission = (gross * rate) / 100;
         return {
           shop_id: shopId,
@@ -539,8 +545,24 @@ export async function fetchCashSession(shopIdOverride?: string): Promise<ActionR
       const amt = Number(m.amount || 0);
       return sum + (m.movement_type === "expense" || m.movement_type === "withdrawal" ? -amt : amt);
     }, 0);
+
+    let appointmentIncome = 0;
+    if (data.status === "open") {
+      const { data: sessionAppts } = await admin
+        .from("appointments")
+        .select("service_price")
+        .eq("shop_id", shopId)
+        .eq("status", "completed")
+        .eq("is_paid", true)
+        .gte("start_time", data.opened_at)
+        .lte("start_time", new Date().toISOString());
+      appointmentIncome = (sessionAppts || []).reduce((sum, a) => {
+        return sum + (a.service_price != null ? Number(a.service_price) : 0);
+      }, 0);
+    }
+
     const expectedAmount = data.status === "open"
-      ? Number(data.opening_amount || 0) + movementNet
+      ? Number(data.opening_amount || 0) + movementNet + appointmentIncome
       : Number(data.expected_amount || 0);
 
     return {
@@ -617,17 +639,30 @@ export async function closeCashSession(formData: FormData, shopIdOverride?: stri
 
     const { data: session, error: sessionErr } = await admin
       .from("cash_sessions")
-      .select("opening_amount")
+      .select("opening_amount, opened_at")
       .eq("id", sessionId)
       .eq("shop_id", shopId)
       .single();
     if (sessionErr) return { success: false, error: sessionErr.message };
 
+    const { data: sessionAppts } = await admin
+      .from("appointments")
+      .select("service_price")
+      .eq("shop_id", shopId)
+      .eq("status", "completed")
+      .eq("is_paid", true)
+      .gte("start_time", session.opened_at)
+      .lte("start_time", new Date().toISOString());
+
+    const appointmentIncome = (sessionAppts || []).reduce((sum, a) => {
+      return sum + (a.service_price != null ? Number(a.service_price) : 0);
+    }, 0);
+
     const movementNet = (moves || []).reduce((sum, m) => {
       const amt = Number(m.amount || 0);
       return sum + (m.movement_type === "expense" || m.movement_type === "withdrawal" ? -amt : amt);
     }, 0);
-    const expected = Number(session.opening_amount || 0) + movementNet;
+    const expected = Number(session.opening_amount || 0) + movementNet + appointmentIncome;
     const diff = countedAmount - expected;
 
     const { error } = await admin
@@ -662,11 +697,17 @@ export async function createCashMovement(formData: FormData, shopIdOverride?: st
       if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
     }
 
-    const amount = Number(formData.get("amount") || 0);
+    const rawAmount = formData.get("amount");
+    const amount = Number(rawAmount || 0);
+    if (Number.isNaN(amount) || amount <= 0) {
+      return { success: false, error: "El monto debe ser un número positivo" };
+    }
     const movementType = String(formData.get("movement_type") || "income");
     const paymentMethod = String(formData.get("payment_method") || "cash");
     const category = String(formData.get("category") || "General");
     const description = String(formData.get("description") || "") || null;
+    const happenedAtRaw = formData.get("happened_at") as string | null;
+    const happenedAt = happenedAtRaw?.trim() ? new Date(happenedAtRaw.trim()).toISOString() : new Date().toISOString();
     const actorResult = await requireActorUserId();
     if (!actorResult.success || !actorResult.data) {
       return { success: false, error: actorResult.success ? "ACTOR_INVALIDO" : actorResult.error };
@@ -689,6 +730,7 @@ export async function createCashMovement(formData: FormData, shopIdOverride?: st
       payment_method: paymentMethod,
       category,
       description,
+      happened_at: happenedAt,
     });
     if (error) return { success: false, error: error.message };
     await revalidateDashboardSegments(shopId, ["/finances", "", "/business"]);
@@ -763,7 +805,7 @@ export async function fetchFinanceData(fromDate?: string, toDate?: string, shopI
     const [incomeAppts, expensesResult, cashMovesResult] = await Promise.all([
       admin
         .from("appointments")
-        .select("id, start_time, status, services:service_id(price, name)")
+        .select("id, start_time, status, service_price, services:service_id(price, name)")
         .eq("shop_id", shopId)
         .eq("status", "completed")
         .eq("is_paid", true)
@@ -771,12 +813,12 @@ export async function fetchFinanceData(fromDate?: string, toDate?: string, shopI
         .lte("start_time", toBounds.end.toISOString()),
       admin
         .from("finances")
-        .select("id, amount, category, description, created_at")
+        .select("id, amount, category, description, created_at, happened_at")
         .eq("shop_id", shopId)
         .eq("type", "expense")
-        .gte("created_at", fromBounds.start.toISOString())
-        .lte("created_at", toBounds.end.toISOString())
-        .order("created_at", { ascending: true }),
+        .gte("happened_at", fromBounds.start.toISOString())
+        .lte("happened_at", toBounds.end.toISOString())
+        .order("happened_at", { ascending: true }),
       admin
         .from("cash_movements")
         .select("id, movement_type, amount, category, description, happened_at")
@@ -804,9 +846,10 @@ export async function fetchFinanceData(fromDate?: string, toDate?: string, shopI
 
     const incomeMovements: Movement[] = incomeRows.map((a) => {
       const svc = Array.isArray(a.services) ? a.services[0] : a.services;
+      const amount = a.service_price != null ? Number(a.service_price) : (svc?.price ?? 0);
       return {
         id: a.id,
-        amount: svc?.price ?? 0,
+        amount,
         description: svc?.name || "Servicio",
         created_at: a.start_time,
         type: "income" as const,
@@ -818,7 +861,7 @@ export async function fetchFinanceData(fromDate?: string, toDate?: string, shopI
       id: e.id,
       amount: e.amount,
       description: e.description || e.category || "Gasto",
-      created_at: e.created_at,
+      created_at: e.happened_at || e.created_at,
       type: "expense" as const,
       status: null,
     }));

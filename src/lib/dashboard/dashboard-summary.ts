@@ -66,7 +66,7 @@ export async function fetchDashboardSummary(shopIdOverride?: string): Promise<Ac
 
       supabase
         .from("appointments")
-        .select("id, status, is_paid, services(price)")
+        .select("id, status, is_paid, service_price, services(price)")
         .eq("shop_id", shopId)
         .gte("start_time", todayStartIso)
         .lte("start_time", todayEndIso)
@@ -124,6 +124,7 @@ export async function fetchDashboardSummary(shopIdOverride?: string): Promise<Ac
       .filter(Boolean);
 
     const revenue = (revenueToday.data ?? []).reduce((sum, a) => {
+      if (a.service_price != null) return sum + Number(a.service_price);
       const serviceData = a.services as { price?: number } | Array<{ price?: number }> | null;
       const price = serviceData ? (Array.isArray(serviceData) ? serviceData[0]?.price : serviceData.price) : 0;
       return sum + (Number(price) || 0);
@@ -187,17 +188,17 @@ async function fetchFlowRange(
   const [appointmentsRes, financesRes, cashMovesRes] = await Promise.all([
     admin
       .from("appointments")
-      .select("is_paid, services!appointments_service_id_fkey(price)")
+      .select("is_paid, service_price, services!appointments_service_id_fkey(price)")
       .eq("shop_id", shopId)
       .gte("start_time", startIso)
       .lte("start_time", endIso)
       .eq("status", "completed"),
     admin
       .from("finances")
-      .select("amount, type")
+      .select("amount, type, happened_at")
       .eq("shop_id", shopId)
-      .gte("created_at", startIso)
-      .lte("created_at", endIso),
+      .gte("happened_at", startIso)
+      .lte("happened_at", endIso),
     admin
       .from("cash_movements")
       .select("amount, movement_type")
@@ -212,6 +213,7 @@ async function fetchFlowRange(
 
   const appointmentsIncome = (appointmentsRes.data ?? []).reduce((sum, row) => {
     if (!row.is_paid) return sum;
+    if (row.service_price != null) return sum + Number(row.service_price);
     const svc = Array.isArray(row.services) ? row.services[0] : row.services;
     return sum + Number(svc?.price || 0);
   }, 0);
@@ -261,7 +263,7 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
     const [apptsRevenueRes, apptsCountRes, financesRes, cashMovesRes, clientsRes, flowToday, flowWeek, flowMonth] = await Promise.all([
       admin
         .from("appointments")
-        .select("date_key_ar, service_id, is_paid, services!appointments_service_id_fkey(price)")
+        .select("date_key_ar, service_id, is_paid, service_price, services!appointments_service_id_fkey(price)")
         .eq("shop_id", shopId)
         .eq("status", "completed"),
       admin
@@ -271,7 +273,7 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
         .in("status", ["scheduled", "confirmed", "pending_payment", "in_progress", "completed"]),
       admin
         .from("finances")
-        .select("amount, type, created_at")
+        .select("amount, type, created_at, happened_at")
         .eq("shop_id", shopId),
       admin
         .from("cash_movements")
@@ -299,12 +301,16 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
       if (!apt.is_paid) continue;
       const month = typeof apt.date_key_ar === "string" ? apt.date_key_ar.slice(0, 7) : null;
       if (!month) continue;
-      const svc = Array.isArray(apt.services) ? apt.services[0] : apt.services;
-      incomeByMonth.set(month, (incomeByMonth.get(month) ?? 0) + (svc?.price ?? 0));
+      const price = apt.service_price != null ? Number(apt.service_price) : (() => {
+        const svc = Array.isArray(apt.services) ? apt.services[0] : apt.services;
+        return svc?.price ?? 0;
+      })();
+      incomeByMonth.set(month, (incomeByMonth.get(month) ?? 0) + price);
     }
 
     for (const fin of financesRes.data ?? []) {
-      const month = fin.created_at ? getArgentinaDateKey(fin.created_at).slice(0, 7) : null;
+      const dateKey = fin.happened_at || fin.created_at;
+      const month = dateKey ? getArgentinaDateKey(dateKey).slice(0, 7) : null;
       if (!month) continue;
       if (fin.type === "income") {
         incomeByMonth.set(month, (incomeByMonth.get(month) ?? 0) + fin.amount);

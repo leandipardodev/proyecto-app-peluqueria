@@ -323,7 +323,7 @@ export async function POST(request: NextRequest) {
         // Create appointment
         const { data: service } = await admin
           .from("services")
-          .select("name")
+          .select("name, price")
           .eq("id", booking.service_id)
           .maybeSingle();
 
@@ -340,6 +340,7 @@ export async function POST(request: NextRequest) {
             customer_id: customerId,
             staff_id: booking.staff_id || null,
             service_id: booking.service_id,
+            service_price: service?.price ?? null,
             start_time: booking.start_time,
             end_time: booking.end_time,
             date_key_ar: getArgentinaDateKey(booking.start_time),

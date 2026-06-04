@@ -52,7 +52,7 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
 
     const { data: service } = await supabase
       .from("services")
-      .select("duration_minutes")
+      .select("duration_minutes, price")
       .eq("id", serviceId)
       .single();
 
@@ -69,6 +69,7 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
         customer_id: customerId,
         staff_id: staffId || null,
         service_id: serviceId,
+        service_price: service.price ?? null,
         start_time: startIso,
         end_time: endAt.toISOString(),
         date_key_ar: getArgentinaDateKey(startIso),
@@ -172,7 +173,7 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
 
     const { data: service } = await supabase
       .from("services")
-      .select("duration_minutes")
+      .select("duration_minutes, price")
       .eq("id", serviceId)
       .single();
     if (!service) return { success: false, error: "Servicio no encontrado" };
@@ -214,6 +215,7 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
       customer_id: customerId,
       staff_id: staffId || null,
       service_id: serviceId,
+      service_price: service.price ?? null,
       start_time: startIso,
       end_time: end.toISOString(),
       date_key_ar: getArgentinaDateKey(startIso),
