@@ -113,6 +113,7 @@ export default function BusinessClient({
   const [showStats, setShowStats] = useState(false);
   const [bookingDepositEnabled, setBookingDepositEnabled] = useState(data?.booking_deposit_enabled ?? true);
   const [bookingDepositAmount, setBookingDepositAmount] = useState(String(data?.booking_deposit_amount ?? 3000));
+  const [payAtShop, setPayAtShop] = useState(data?.pay_at_shop ?? false);
   const [message, setMessage] = useState<MessageType>(null);
   const [businessHours, setBusinessHours] = useState<BusinessHoursData | null>(null);
   const [tourAdvancing, setTourAdvancing] = useState(false);
@@ -527,7 +528,7 @@ export default function BusinessClient({
     }
 
     const amount = Math.max(0, Number(bookingDepositAmount) || 0);
-    const policy = await updateBookingDepositPolicyAction(bookingDepositEnabled, amount);
+    const policy = await updateBookingDepositPolicyAction(bookingDepositEnabled, amount, payAtShop);
     if (!policy.success) return showError(policy.error), false;
 
     const wa = await updateWhatsappTemplateAction(whatsappTemplate);
@@ -553,6 +554,15 @@ export default function BusinessClient({
       aboutText,
     });
     if (!theme.success) return showError(theme.error), false;
+
+    const fresh = await fetchBusinessData();
+    if (fresh.success && fresh.data) {
+      setData(fresh.data);
+      setBookingDepositEnabled(fresh.data.booking_deposit_enabled);
+      setBookingDepositAmount(String(fresh.data.booking_deposit_amount ?? 3000));
+      setPayAtShop(fresh.data.pay_at_shop);
+      setWhatsappTemplate(fresh.data.whatsapp_template);
+    }
 
     sectionTouchedRef.current = false;
     playSuccess();
@@ -870,25 +880,13 @@ export default function BusinessClient({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
-      className="space-y-6"
+      className="space-y-6 pb-20"
     >
       {/* Header */}
       <div>
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Mi Negocio</h1>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Información pública y configuración técnica de tu local</p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              startTransition(async () => {
-                await saveAllSections();
-              });
-            }}
-            disabled={pending}
-            className="ui-btn-primary inline-flex items-center rounded-full px-4 py-2 text-sm font-semibold disabled:opacity-60"
-          >
-            {pending ? "Guardando todo..." : "Guardar todo"}
-          </button>
           <Link
             id="setup-staff"
             href={withDashboardBase("/dashboard/staff", dashboardBasePath)}
@@ -1546,6 +1544,15 @@ export default function BusinessClient({
                     placeholder="Monto de seña (ARS)"
                   />
                 </div>
+                <label className="flex items-center gap-2 cursor-pointer mt-3">
+                  <input
+                    type="checkbox"
+                    checked={payAtShop}
+                    onChange={(e) => setPayAtShop(e.target.checked)}
+                    className="w-4 h-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                  />
+                  <span className="text-sm text-rose-800 dark:text-rose-200 font-medium">Forzar pago en el local</span>
+                </label>
                 <div />
               </div>
             </div>
@@ -1780,6 +1787,25 @@ export default function BusinessClient({
         document.body,
       )}
       </div>
+
+      {/* Fixed bottom bar - Guardar todo siempre visible */}
+      {portalReady && typeof document !== "undefined" && createPortal(
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/20 dark:border-white/10 bg-white/85 dark:bg-gray-950/85 backdrop-blur-xl px-4 sm:px-6 py-3 flex items-center justify-end gap-4 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
+          <button
+            type="button"
+            onClick={() => {
+              startTransition(async () => {
+                await saveAllSections();
+              });
+            }}
+            disabled={pending}
+            className="ui-btn-primary inline-flex items-center rounded-full px-6 py-2.5 text-sm font-semibold disabled:opacity-60 shadow-lg"
+          >
+            {pending ? "Guardando todo..." : "Guardar todo"}
+          </button>
+        </div>,
+        document.body
+      )}
 
       {/* Footer hint */}
       {canManageBilling && (

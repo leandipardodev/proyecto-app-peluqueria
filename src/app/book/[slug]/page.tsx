@@ -20,7 +20,7 @@ export default async function BookPage({ params }: BookPageProps) {
 
   const { data: shop, error: shopError } = await admin
     .from("shops")
-    .select("id, nombre, description, address, phone, instagram_url, business_hours, slug, mp_public_key, industry")
+    .select("id, nombre, description, address, phone, instagram_url, business_hours, slug, mp_public_key, industry, pay_at_shop")
     .eq("slug", slug)
     .maybeSingle();
 
@@ -42,7 +42,7 @@ export default async function BookPage({ params }: BookPageProps) {
   const [servicesRes, membershipsRes] = await Promise.all([
     admin
       .from("services")
-      .select("id, name, price, duration_minutes, category")
+      .select("id, name, price, duration_minutes, category, pay_at_shop")
       .eq("shop_id", shop.id)
       .order("name", { ascending: true }),
     admin
@@ -119,6 +119,7 @@ export default async function BookPage({ params }: BookPageProps) {
           slug: shop.slug || "",
           industry: resolveIndustry((shop as { industry?: string | null }).industry || null),
           mpPublicKey: shop.mp_public_key || "",
+          payAtShop: shop.pay_at_shop ?? false,
           logoUrl: (bookingTheme?.logo_url as string | null) || "",
           heroTitle: (bookingTheme?.hero_title as string | null) || "",
           heroSubtitle: (bookingTheme?.hero_subtitle as string | null) || "",

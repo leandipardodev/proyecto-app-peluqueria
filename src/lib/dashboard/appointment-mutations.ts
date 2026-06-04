@@ -104,24 +104,25 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
       const [{ data: customer }, { data: serviceData }, { data: shopData }] = await Promise.all([
         supabase.from("customers").select("nombre, email").eq("id", customerId).maybeSingle(),
         supabase.from("services").select("name").eq("id", serviceId).maybeSingle(),
-        admin.from("shops").select("nombre, email, address").eq("id", shopId).maybeSingle(),
+        admin.from("shops").select("nombre, email, address, localidad").eq("id", shopId).maybeSingle(),
       ]);
 
       const emailTo = customer?.email?.trim();
       if (emailTo) {
+        const sd = shopData as { nombre?: string | null; email?: string | null; address?: string | null; localidad?: string | null } | null;
+        const locationParts = [sd?.address?.trim(), sd?.localidad?.trim()].filter(Boolean);
+        const shopAddress = locationParts.length > 0 ? locationParts.join(", ") : undefined;
+        const replyTo = sd?.email && sd.email.includes("@") ? sd.email : undefined;
         await Promise.allSettled(
           rowsToInsert.map((row) =>
             sendAppointmentAutomationEmails({
               to: emailTo,
               customerName: customer?.nombre || "Cliente",
-              shopName: (shopData as { nombre?: string | null } | null)?.nombre || "Klip",
+              shopName: sd?.nombre || "Klip",
               serviceName: serviceData?.name || "Servicio",
               startTime: row.start_time,
-              shopAddress: (shopData as { address?: string | null } | null)?.address || undefined,
-              replyTo:
-                (shopData as { email?: string | null } | null)?.email && (shopData as { email?: string | null }).email?.includes("@")
-                  ? (shopData as { email?: string | null }).email || undefined
-                  : undefined,
+              shopAddress,
+              replyTo,
             })
           )
         );
@@ -230,21 +231,22 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
       const admin = await createAdminClient();
       const [{ data: serviceData }, { data: shopData }] = await Promise.all([
         supabase.from("services").select("name").eq("id", serviceId).maybeSingle(),
-        admin.from("shops").select("nombre, email, address").eq("id", shopId).maybeSingle(),
+        admin.from("shops").select("nombre, email, address, localidad").eq("id", shopId).maybeSingle(),
       ]);
 
       if (customerEmail?.trim()) {
+        const sd = shopData as { nombre?: string | null; email?: string | null; address?: string | null; localidad?: string | null } | null;
+        const locationParts = [sd?.address?.trim(), sd?.localidad?.trim()].filter(Boolean);
+        const shopAddress = locationParts.length > 0 ? locationParts.join(", ") : undefined;
+        const replyTo = sd?.email && sd.email.includes("@") ? sd.email : undefined;
         await sendAppointmentAutomationEmails({
           to: customerEmail.trim(),
           customerName: customerName,
-          shopName: (shopData as { nombre?: string | null } | null)?.nombre || "Klip",
+          shopName: sd?.nombre || "Klip",
           serviceName: serviceData?.name || "Servicio",
           startTime: startIso,
-          shopAddress: (shopData as { address?: string | null } | null)?.address || undefined,
-          replyTo:
-            (shopData as { email?: string | null } | null)?.email && (shopData as { email?: string | null }).email?.includes("@")
-              ? (shopData as { email?: string | null }).email || undefined
-              : undefined,
+          shopAddress,
+          replyTo,
         });
       }
     } catch (mailError) {

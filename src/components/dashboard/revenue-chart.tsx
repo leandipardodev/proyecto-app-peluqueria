@@ -281,7 +281,6 @@ export default function RevenueChart({ data, flowByPeriod }: RevenueChartProps) 
             linear-gradient(rgba(0,0,0,0.035) 1px, transparent 1px),
             linear-gradient(90deg, rgba(0,0,0,0.035) 1px, transparent 1px);
           background-size: 24px 24px;
-          animation: analyticsGridDrift 40s linear infinite;
           opacity: 0.6;
         }
         .analytics-scan {
@@ -295,17 +294,7 @@ export default function RevenueChart({ data, flowByPeriod }: RevenueChartProps) 
             transparent 70%,
             transparent 100%
           );
-          background-size: 200% 100%;
-          animation: analyticsScan 8s ease-in-out infinite;
-        }
-        @keyframes analyticsGridDrift {
-          0% { background-position: 0 0; }
-          100% { background-position: 48px 48px; }
-        }
-        @keyframes analyticsScan {
-          0% { background-position: 200% 0; }
-          50% { background-position: -50% 0; }
-          100% { background-position: 200% 0; }
+          background-size: 100% 100%;
         }
         .dark .analytics-grid {
           background-image:
@@ -323,7 +312,7 @@ export default function RevenueChart({ data, flowByPeriod }: RevenueChartProps) 
             transparent 70%,
             transparent 100%
           );
-          background-size: 200% 100%;
+          background-size: 100% 100%;
         }
       `}</style>
 

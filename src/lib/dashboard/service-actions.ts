@@ -95,6 +95,7 @@ export async function createService(formData: FormData, shopIdOverride?: string)
     const price = parseFloat(formData.get("price") as string);
     const rawCategory = String(formData.get("category") || "General");
     const durationMinutes = parseInt(formData.get("duration_minutes") as string);
+    const payAtShop = formData.get("pay_at_shop") === "on";
 
     if (!name || isNaN(price) || isNaN(durationMinutes)) {
       return { success: false, error: "Todos los campos son obligatorios" };
@@ -114,6 +115,7 @@ export async function createService(formData: FormData, shopIdOverride?: string)
       category,
       price,
       duration_minutes: durationMinutes,
+      pay_at_shop: payAtShop,
     });
 
     if (error) {
@@ -144,6 +146,7 @@ export async function updateService(id: string, formData: FormData, shopIdOverri
     const rawCategory = String(formData.get("category") || "General");
     const price = parseFloat(formData.get("price") as string);
     const durationMinutes = parseInt(formData.get("duration_minutes") as string);
+    const payAtShop = formData.get("pay_at_shop") === "on";
 
     if (!name || isNaN(price) || isNaN(durationMinutes)) {
       return { success: false, error: "Todos los campos son obligatorios" };
@@ -155,7 +158,7 @@ export async function updateService(id: string, formData: FormData, shopIdOverri
 
     const { error } = await admin
       .from("services")
-      .update({ name, category, price, duration_minutes: durationMinutes, updated_at: new Date().toISOString() })
+      .update({ name, category, price, duration_minutes: durationMinutes, pay_at_shop: payAtShop, updated_at: new Date().toISOString() })
       .eq("id", id)
       .eq("shop_id", shopId);
 

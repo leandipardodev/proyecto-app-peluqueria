@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/toast";
 
@@ -22,7 +21,6 @@ function isRateLimitError(message: string | null | undefined): boolean {
 }
 
 export default function LoginPage() {
-  const router = useRouter();
   const [checkingSession, setCheckingSession] = useState(true);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -33,25 +31,43 @@ export default function LoginPage() {
   const { addToast } = useToast();
   const [redirectPath, setRedirectPath] = useState("/dashboard");
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const redirect = params.get("redirect");
-    const target = redirect?.startsWith("/") ? redirect : "/dashboard";
+  const redirectTo = useCallback((path: string) => {
+    window.location.href = path;
+  }, []);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkExistingSession() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (cancelled) return;
       if (session) {
-        const { data: { user }, error } = await supabase.auth.getUser();
-        if (!user || error) {
-          await supabase.auth.signOut();
-          setCheckingSession(false);
-          return;
-        }
+        const params = new URLSearchParams(window.location.search);
+        const target = params.get("redirect")?.startsWith("/")
+          ? params.get("redirect")!
+          : "/dashboard";
         window.location.href = target;
-      } else {
-        setCheckingSession(false);
+        return;
+      }
+      setCheckingSession(false);
+    }
+
+    checkExistingSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session && !cancelled) {
+        const params = new URLSearchParams(window.location.search);
+        const target = params.get("redirect")?.startsWith("/")
+          ? params.get("redirect")!
+          : "/dashboard";
+        window.location.href = target;
       }
     });
-    return () => subscription?.unsubscribe();
+
+    return () => {
+      cancelled = true;
+      subscription?.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -108,14 +124,12 @@ export default function LoginPage() {
         .limit(1);
 
       if (!memberships || memberships.length === 0) {
-        router.push("/onboarding/create-shop");
-        router.refresh();
+        redirectTo("/onboarding/create-shop");
         return;
       }
     }
 
-    router.push(redirectPath);
-    router.refresh();
+    redirectTo(redirectPath);
   };
 
   const handleResetPassword = async (e: React.FormEvent<HTMLFormElement>) => {

@@ -59,20 +59,30 @@ export async function sendAppointmentAutomationEmails(params: {
   const mapsUrl = params.shopAddress
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(params.shopAddress)}`
     : null;
+  const locationLine = params.shopAddress
+    ? `<p style="font-size:14px;line-height:1.6;margin:4px 0 14px;"><strong>Direccion:</strong> ${params.shopAddress}</p>`
+    : "";
+  const mapsButton = mapsUrl
+    ? `<a href="${mapsUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#0071E3;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:999px;font-size:13px;font-weight:600;">Ver ubicacion en Google Maps</a>`
+    : "";
 
   await sendEmailWithResend({
     to: params.to,
-    subject: `⏰ Recordatorio: Tenes un turno en ${params.shopName}`,
+    subject: `Recordatorio: Tu turno es el ${dateLabel} a las ${timeLabel}`,
     scheduledAt: reminderDate.toISOString(),
     replyTo: params.replyTo,
     html: `
-      <div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#111827;background:#f8fafc;border:1px solid #e5e7eb;border-radius:16px;">
+      <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#111827;">
         <h1 style="font-size:22px;margin:0 0 12px;">Recordatorio de turno</h1>
-        <p style="font-size:15px;line-height:1.65;margin:0 0 16px;">Hola ${params.customerName}, te recordamos tu turno.</p>
-        <p style="font-size:14px;line-height:1.6;margin:0 0 4px;"><strong>Peluqueria:</strong> ${params.shopName}</p>
-        <p style="font-size:14px;line-height:1.6;margin:4px 0;"><strong>Servicio:</strong> ${params.serviceName}</p>
-        <p style="font-size:14px;line-height:1.6;margin:4px 0;"><strong>Hora:</strong> ${dateLabel} a las ${timeLabel}</p>
-        ${mapsUrl ? `<p style="font-size:14px;line-height:1.6;margin:4px 0 0;"><a href="${mapsUrl}" target="_blank" rel="noopener noreferrer">Ver ubicacion en Google Maps</a></p>` : ""}
+        <p style="font-size:15px;line-height:1.6;margin:0 0 8px;">Hola ${params.customerName}, te recordamos que tenes un turno proximamente.</p>
+        <p style="font-size:15px;line-height:1.6;margin:0;">
+          <strong>Local:</strong> ${params.shopName}<br/>
+          <strong>Servicio:</strong> ${params.serviceName}<br/>
+          <strong>Fecha y hora:</strong> ${dateLabel} a las ${timeLabel}
+        </p>
+        ${locationLine}
+        ${mapsButton}
+        <p style="font-size:12px;color:#6b7280;margin-top:18px;">Klip - no-reply@send.klip.com.ar</p>
       </div>
     `,
   });

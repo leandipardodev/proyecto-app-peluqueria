@@ -17,7 +17,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { initMercadoPago, Wallet } from "@mercadopago/sdk-react";
-import { fetchPublicAvailableSlots } from "@/lib/dashboard/public-booking-actions";
+import { fetchPublicAvailableSlots, createPublicAppointment } from "@/lib/dashboard/public-booking-actions";
 import { createPendingBooking, deletePendingBooking } from "@/lib/dashboard/pending-booking-actions";
 import GoogleSignInButton from "@/components/auth/google-sign-in-button";
 import { useAuth } from "@/lib/auth-context";
@@ -50,6 +50,7 @@ interface BookingClientProps {
     slug: string;
     industry: Industry;
     mpPublicKey: string;
+    payAtShop: boolean;
     logoUrl: string;
     heroTitle: string;
     heroSubtitle: string;
@@ -80,6 +81,8 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [phoneError, setPhoneError] = useState("");
+
+  const needsPayment = !shop.payAtShop && !(selectedService?.pay_at_shop ?? false);
 
   const [submitting, setSubmitting] = useState(false);
   const [creatingPreference, setCreatingPreference] = useState(false);
@@ -270,15 +273,41 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
     }
 
     setSubmitting(true);
-    setCreatingPreference(true);
     setError(null);
 
-    const [{ formatArgentinePhone }, { getRecaptchaToken }] = await Promise.all([
+    const [{ formatArgentinePhone }] = await Promise.all([
       import("@/lib/validation"),
-      import("@/lib/recaptcha"),
     ]);
     const formattedPhone = formatArgentinePhone(customerPhone);
 
+    if (!needsPayment) {
+      const result = await createPublicAppointment({
+        shopId: shop.id,
+        serviceId: selectedService.id,
+        staffId: selectedStaff?.id,
+        customerName: customerName.trim(),
+        customerEmail: customerEmail.trim() || undefined,
+        customerPhone: formattedPhone,
+        authenticatedUserId: user?.id,
+        startTime: selectedSlot.start,
+        endTime: selectedSlot.end,
+        status: "scheduled",
+      });
+
+      setSubmitting(false);
+
+      if (!result.success) {
+        setError(result.error || "No se pudo reservar el turno");
+        return;
+      }
+
+      setDone(true);
+      return;
+    }
+
+    setCreatingPreference(true);
+
+    const { getRecaptchaToken } = await import("@/lib/recaptcha");
     const recaptchaToken = await getRecaptchaToken(process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || "");
 
     const bookingResult = await createPendingBooking({

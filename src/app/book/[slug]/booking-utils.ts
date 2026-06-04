@@ -1,4 +1,4 @@
-export type Service = { id: string; name: string; price: number; duration_minutes: number; category: string | null };
+export type Service = { id: string; name: string; price: number; duration_minutes: number; category: string | null; pay_at_shop: boolean };
 export type StaffMember = { id: string; name: string };
 export type Slot = { start: string; end: string; time: string };
 

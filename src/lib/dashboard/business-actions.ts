@@ -30,6 +30,7 @@ export type BusinessData = {
   loyalty_discount_percent: number;
   booking_deposit_enabled: boolean;
   booking_deposit_amount: number;
+  pay_at_shop: boolean;
   mp_oauth_connected: boolean;
 };
 
@@ -47,7 +48,7 @@ export async function fetchBusinessData(shopIdOverride?: string): Promise<Action
       const admin = await createAdminClient();
       return admin
         .from("shops")
-        .select("id, nombre, description, address, localidad, phone, instagram_url, facebook_url, tiktok_url, mp_public_key, mp_access_token, whatsapp_template, loyalty_enabled, loyalty_cuts_required, loyalty_discount_percent, booking_deposit_enabled, booking_deposit_amount")
+        .select("id, nombre, description, address, localidad, phone, instagram_url, facebook_url, tiktok_url, mp_public_key, mp_access_token, whatsapp_template, loyalty_enabled, loyalty_cuts_required, loyalty_discount_percent, booking_deposit_enabled, booking_deposit_amount, pay_at_shop")
         .eq("id", shopId)
         .single();
     });
@@ -74,6 +75,7 @@ export async function fetchBusinessData(shopIdOverride?: string): Promise<Action
         loyalty_discount_percent: Number(data.loyalty_discount_percent || 10),
         booking_deposit_enabled: data.booking_deposit_enabled !== false,
         booking_deposit_amount: Number(data.booking_deposit_amount || 0),
+        pay_at_shop: data.pay_at_shop === true,
         mp_oauth_connected: Boolean(data.mp_access_token),
       },
     };
@@ -449,21 +451,26 @@ export async function runLoyaltyRaffleAction(prizeName: string, winnersCount: nu
   }
 }
 
-export async function updateBookingDepositPolicyAction(enabled: boolean, depositAmount: number): Promise<ActionResult> {
+export async function updateBookingDepositPolicyAction(enabled: boolean, depositAmount: number, forcePayAtShop?: boolean): Promise<ActionResult> {
   try {
     const shopIdResult = await requireOwnerShopId();
-    if (!shopIdResult.success) return shopIdResult;
+    if (!shopIdResult.success) return { success: false, error: shopIdResult.error };
     const shopId = shopIdResult.data;
     const admin = await createAdminClient();
 
     const safeAmount = Math.max(0, Number(depositAmount || 0));
 
+    const updateData: Record<string, unknown> = {
+      booking_deposit_enabled: Boolean(enabled),
+      booking_deposit_amount: safeAmount,
+    };
+    if (forcePayAtShop !== undefined) {
+      updateData.pay_at_shop = Boolean(forcePayAtShop);
+    }
+
     const { error } = await admin
       .from("shops")
-      .update({
-        booking_deposit_enabled: Boolean(enabled),
-        booking_deposit_amount: safeAmount,
-      })
+      .update(updateData)
       .eq("id", shopId);
 
     if (error) return { success: false, error: error.message };

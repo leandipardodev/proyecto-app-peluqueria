@@ -11,6 +11,7 @@ interface ServiceFormProps {
     category: string;
     price: number;
     duration_minutes: number;
+    pay_at_shop?: boolean;
   };
   onSuccess: () => void;
 }
@@ -91,6 +92,16 @@ export default function ServiceForm({ shopId, service, onSuccess }: ServiceFormP
           placeholder="0.00"
         />
       </div>
+
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          name="pay_at_shop"
+          defaultChecked={service?.pay_at_shop ?? false}
+          className="w-4 h-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+        />
+        <span className="text-sm text-gray-700">Pago en el local</span>
+      </label>
 
       <div>
         <label
