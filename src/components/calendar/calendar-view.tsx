@@ -95,19 +95,6 @@ const STAFF_COLORS: StaffColor[] = [
 
 const STATUS_FINAL = new Set(["completed", "cancelled", "no_show"]);
 
-
-function hexToRgba(hex: string, alpha: number): string {
-  const clean = hex.replace("#", "");
-  const normalized = clean.length === 3
-    ? clean.split("").map((c) => c + c).join("")
-    : clean;
-  const int = Number.parseInt(normalized, 16);
-  const r = (int >> 16) & 255;
-  const g = (int >> 8) & 255;
-  const b = int & 255;
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
 const NowLine = memo(function NowLine({ day, gridStartHour, gridEndHour }: { day: Date; gridStartHour: number; gridEndHour: number }) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -133,16 +120,6 @@ const NowLine = memo(function NowLine({ day, gridStartHour, gridEndHour }: { day
     && prev.gridEndHour === next.gridEndHour
     && getArgentinaDateKey(prev.day) === getArgentinaDateKey(next.day);
 });
-
-function getTurnoStatusLabel(status: string, isPaid: boolean): string {
-  if (status === "pending_payment") return "Pago pendiente";
-  if (status === "scheduled" && !isPaid) return "A confirmar";
-  if (status === "scheduled" && isPaid) return "Señado";
-  if (status === "confirmed" || status === "in_progress") return "Confirmado";
-  if (status === "completed") return "Completado";
-  if (status === "cancelled" || status === "no_show") return "Cancelado";
-  return status;
-}
 
 const DAY_MAP: Record<number, string> = {
   0: "sunday", 1: "monday", 2: "tuesday", 3: "wednesday",

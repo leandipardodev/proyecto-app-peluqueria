@@ -24,7 +24,7 @@ export async function GET(request: Request) {
       currentShop = managedShops.find((s) => s.slug === activeSlug) || null;
     }
     if (!currentShop) {
-      currentShop = shopId ? managedShops.find((s) => s.id === shopId) : managedShops[0] || null;
+      currentShop = shopId ? managedShops.find((s) => s.id === shopId) || null : managedShops[0] || null;
       activeSlug = currentShop?.slug ?? null;
     }
     const shopName = currentShop?.nombre || "Mi Peluqueria";

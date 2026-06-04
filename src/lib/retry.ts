@@ -3,7 +3,7 @@ function sleep(ms: number): Promise<void> {
 }
 
 export async function withRetry<T>(
-  fn: () => Promise<T>,
+  fn: () => PromiseLike<T>,
   options?: { retries?: number; onRetry?: (attempt: number, error: unknown) => void; delayMs?: number }
 ): Promise<T> {
   const retries = options?.retries ?? 2;
