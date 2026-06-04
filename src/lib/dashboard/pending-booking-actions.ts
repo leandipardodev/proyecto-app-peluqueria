@@ -72,21 +72,33 @@ export async function createPendingBooking(
 
     // Check for conflicts with existing appointments (including old pending_payment within hold window)
     // and other pending bookings
+    let aptConflictQuery = admin
+      .from("appointments")
+      .select("id, status, created_at")
+      .eq("shop_id", input.shopId)
+      .lt("start_time", input.endTime)
+      .gt("end_time", input.startTime)
+      .not("status", "eq", "cancelled");
+
+    if (input.staffId) {
+      aptConflictQuery = aptConflictQuery.eq("staff_id", input.staffId);
+    }
+
+    let pendingConflictQuery = admin
+      .from("pending_bookings")
+      .select("id")
+      .eq("shop_id", input.shopId)
+      .eq("status", "pending")
+      .lt("start_time", input.endTime)
+      .gt("end_time", input.startTime);
+
+    if (input.staffId) {
+      pendingConflictQuery = pendingConflictQuery.eq("staff_id", input.staffId);
+    }
+
     const [existingAppointments, existingPendingBookings] = await Promise.all([
-      admin
-        .from("appointments")
-        .select("id, status, created_at")
-        .eq("shop_id", input.shopId)
-        .lt("start_time", input.endTime)
-        .gt("end_time", input.startTime)
-        .not("status", "eq", "cancelled"),
-      admin
-        .from("pending_bookings")
-        .select("id")
-        .eq("shop_id", input.shopId)
-        .eq("status", "pending")
-        .lt("start_time", input.endTime)
-        .gt("end_time", input.startTime),
+      aptConflictQuery,
+      pendingConflictQuery,
     ]);
 
     const hasConflict = (existingAppointments.data || []).some((apt) => {

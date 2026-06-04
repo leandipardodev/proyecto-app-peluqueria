@@ -185,13 +185,19 @@ export async function fetchPublicAvailableSlots(
     );
 
     // Also block slots held by pending bookings (new flow)
-    const { data: pendingBookings } = await admin
+    let pendingQuery = admin
       .from("pending_bookings")
       .select("start_time, end_time, staff_id")
       .eq("shop_id", shopId)
       .eq("status", "pending")
       .gte("start_time", dayStart.toISOString())
       .lte("start_time", dayEnd.toISOString());
+
+    if (staffId) {
+      pendingQuery = pendingQuery.eq("staff_id", staffId);
+    }
+
+    const { data: pendingBookings } = await pendingQuery;
 
     const allBlocks = [
       ...appointments,
