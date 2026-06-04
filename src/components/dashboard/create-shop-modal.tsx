@@ -46,14 +46,14 @@ export default function CreateShopModal({ isOpen, onClose, shopName, onShopNameC
                 value={shopName}
                 onChange={(e) => onShopNameChange(e.target.value)}
                 placeholder="Nombre del nuevo local"
-                className="w-full rounded-xl border border-violet-200 dark:border-violet-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm outline-none"
+                className="w-full rounded-xl border border-violet-200 dark:border-violet-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
                 autoFocus
               />
             </div>
             <div className="mt-5 flex items-center justify-end gap-2">
               <button
                 type="button"
-                className="rounded-full px-4 py-2 text-sm text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                className="rounded-full px-4 py-2 text-sm text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
                 onClick={onClose}
                 disabled={creating}
               >
@@ -63,7 +63,7 @@ export default function CreateShopModal({ isOpen, onClose, shopName, onShopNameC
                 type="button"
                 onClick={onCreate}
                 disabled={creating || !shopName.trim()}
-                className="inline-flex items-center gap-2 rounded-full bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-full bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
               >
                 {creating ? "Creando..." : "Crear local"}
               </button>

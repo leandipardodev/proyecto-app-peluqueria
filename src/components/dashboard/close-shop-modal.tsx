@@ -47,14 +47,14 @@ export default function CloseShopModal({ isOpen, onClose, confirmText, onConfirm
                 value={confirmText}
                 onChange={(e) => onConfirmTextChange(e.target.value)}
                 placeholder='Escribí "CONFIRMAR"'
-                className="w-full rounded-xl border border-red-200 dark:border-red-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm outline-none"
+                className="w-full rounded-xl border border-red-200 dark:border-red-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
                 autoFocus
               />
             </div>
             <div className="mt-5 flex items-center justify-end gap-2">
               <button
                 type="button"
-                className="rounded-full px-4 py-2 text-sm text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                className="rounded-full px-4 py-2 text-sm text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
                 onClick={onClose}
                 disabled={pending}
               >
@@ -64,7 +64,7 @@ export default function CloseShopModal({ isOpen, onClose, confirmText, onConfirm
                 type="button"
                 onClick={onConfirm}
                 disabled={pending || confirmText.trim().toUpperCase() !== "CONFIRMAR"}
-                className="inline-flex items-center gap-2 rounded-full bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-full bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
               >
                 {pending ? "Cerrando..." : "Cerrar local"}
               </button>

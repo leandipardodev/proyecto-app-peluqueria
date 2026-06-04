@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Gift, Search } from "lucide-react";
+import { Gift, Mail, Phone, Search } from "lucide-react";
 import type { CustomerRow } from "@/lib/dashboard/customers-actions";
 import { StatePanel } from "@/components/ui/state-panel";
 
@@ -77,9 +77,10 @@ export default function CustomersPageClient({ initialCustomers }: { initialCusto
         />
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.03)]">
+      {/* Desktop table */}
+      <div className="hidden md:block bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.03)]">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px] text-sm" aria-label="Tabla de clientes">
+          <table className="w-full text-sm" aria-label="Tabla de clientes">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-left text-slate-500">
                 <th className="px-6 py-3 font-medium">Cliente</th>
@@ -140,6 +141,74 @@ export default function CustomersPageClient({ initialCustomers }: { initialCusto
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Mobile card layout */}
+      <div className="md:hidden space-y-3">
+        {filteredCustomers.length === 0 ? (
+          <StatePanel title="Sin resultados" description="No encontramos clientes con ese criterio de búsqueda." />
+        ) : (
+          filteredCustomers.map((customer) => {
+            const birthdayBadge = isBirthdayThisWeek(customer.birthday);
+            return (
+              <div key={customer.id} className="bg-white border border-slate-200 rounded-2xl p-4 space-y-2 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-slate-900">{customer.nombre}</p>
+                    {birthdayBadge && (
+                      <span title="Cumple esta semana">
+                        <Gift className="w-4 h-4 text-rose-500" />
+                      </span>
+                    )}
+                  </div>
+                  <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${loyaltyClass(customer.loyalty)}`}>
+                    {customer.loyalty}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 text-xs text-slate-500">
+                  {customer.email && (
+                    <span className="flex items-center gap-1">
+                      <Mail className="w-3 h-3" />
+                      {customer.email}
+                    </span>
+                  )}
+                  {customer.telefono && (
+                    <span className="flex items-center gap-1">
+                      <Phone className="w-3 h-3" />
+                      {customer.telefono}
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-slate-400">Cumpleaños</span>
+                    <p className="text-slate-700">{formatDate(customer.birthday)}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">Última visita</span>
+                    <p className="text-slate-700">{formatDate(customer.lastVisit)}</p>
+                  </div>
+                </div>
+                {customer.servicesHistory.length > 0 && (
+                  <div className="text-xs">
+                    <span className="text-slate-400">Servicios</span>
+                    <p className="text-slate-600 line-clamp-2">{customer.servicesHistory.join(", ")}</p>
+                  </div>
+                )}
+                {customer.observations && (
+                  <div className="text-xs">
+                    <span className="text-slate-400">Observaciones</span>
+                    <p className="text-slate-600 line-clamp-2">{customer.observations}</p>
+                  </div>
+                )}
+                <div className="text-right">
+                  <span className="text-sm font-bold text-slate-900">{formatMoney(customer.accumulatedSpend)}</span>
+                  <span className="text-xs text-slate-400 ml-1">gastados</span>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );

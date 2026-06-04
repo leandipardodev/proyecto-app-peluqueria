@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { Link, Copy, Check, ExternalLink } from "lucide-react";
 
 interface ShareLinkCardProps {
@@ -60,7 +60,7 @@ export default function ShareLinkCard({ slug }: ShareLinkCardProps) {
         <div className="flex items-center gap-2">
           <button
             onClick={handleCopy}
-            className="px-4 py-2 border border-white/40 dark:border-white/10 rounded-full text-sm text-zinc-500 dark:text-zinc-400 bg-white/40 dark:bg-black/30 backdrop-blur-sm hover:bg-white/70 dark:hover:bg-white/10 transition-all cursor-pointer select-none"
+            className="px-4 py-2 border border-white/40 dark:border-white/10 rounded-full text-sm text-zinc-500 dark:text-zinc-400 bg-white/40 dark:bg-black/30 backdrop-blur-sm hover:bg-white/70 dark:hover:bg-white/10 transition-all cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
             title="Copiar link"
           >
             {copied ? (
@@ -73,18 +73,25 @@ export default function ShareLinkCard({ slug }: ShareLinkCardProps) {
             onClick={handlePreview}
             whileHover={{ scale: 1.02 }}
             transition={{ type: "spring", stiffness: 300, damping: 20 }}
-            className="flex-1 sm:flex-none px-5 py-2.5 bg-violet-600 text-white rounded-full text-sm font-medium shadow-sm hover:bg-violet-700 transition-colors cursor-pointer select-none whitespace-nowrap"
+            className="flex-1 sm:flex-none px-5 py-2.5 bg-violet-600 text-white rounded-full text-sm font-medium shadow-sm hover:bg-violet-700 transition-colors cursor-pointer select-none whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
           >
             <span className="inline">Ver mi local</span>
             <ExternalLink className="w-4 h-4 ml-1.5 inline" />
           </motion.button>
         </div>
       </div>
-      {copied && (
-        <p className="mt-2 text-xs text-green-600 font-medium">
-          ¡Copiado!
-        </p>
-      )}
+      <AnimatePresence>
+        {copied && (
+          <motion.p
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            className="mt-2 text-xs text-green-600 font-medium"
+          >
+            ¡Copiado!
+          </motion.p>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

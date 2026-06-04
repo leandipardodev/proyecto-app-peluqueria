@@ -2,7 +2,7 @@
 
 import { Menu, Search, Moon, Sun, Gauge, Repeat2, Check, Volume2, VolumeX, SlidersHorizontal, Sparkles } from "lucide-react";
 import { useState, useRef, useEffect, useTransition, useMemo, type KeyboardEvent } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import DashboardMobileSidebar from "./dashboard-mobile-sidebar";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { haptic } from "@/lib/haptic";
@@ -73,6 +73,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
   const { dark, toggle: toggleDark } = useDarkMode();
   const { performanceMode, togglePerformanceMode } = usePerformanceMode();
   const { playClick, playSearchExpand } = useKlipSounds();
+  const shouldReduceMotion = useReducedMotion();
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -436,7 +437,8 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
       <header className="dashboard-mobile-header sticky top-0 z-50 shrink-0 flex items-center gap-4 bg-white/10 dark:bg-black/10 backdrop-blur-xl border-b border-white/20 dark:border-white/10 px-4 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.5rem)] touch-pan-x [overscroll-behavior-y:none] lg:px-6 lg:pt-2.5 transition-colors">
         <button
           onClick={handleMobileOpen}
-          className="lg:hidden p-2 rounded-xl text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/5 transition-all cursor-pointer select-none"
+          aria-label="Abrir menú de navegación"
+          className="lg:hidden p-2 rounded-xl text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/5 transition-all cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
         >
           <Menu className="w-5 h-5" strokeWidth={1.5} />
         </button>
@@ -446,19 +448,18 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
             <button
               type="button"
               onClick={() => managedShops.length > 1 && setShopMenuOpen((v) => !v)}
-              className={`inline-flex items-center gap-2 rounded-xl px-2 py-1 transition ${pathname === dashboardBasePath ? "" : ""} ${managedShops.length > 1 ? "hover:bg-white/35 dark:hover:bg-white/10" : "cursor-default"}`}
+              className={`inline-flex items-center gap-2 rounded-xl px-2 py-1 transition ${managedShops.length > 1 ? "hover:bg-white/35 dark:hover:bg-white/10" : "cursor-default"}`}
               aria-haspopup={managedShops.length > 1 ? "menu" : undefined}
               aria-expanded={managedShops.length > 1 ? shopMenuOpen : undefined}
               aria-label="Local actual"
             >
               <h2 className="text-base lg:text-lg font-semibold text-gray-800 dark:text-white tracking-tight">
-                {managedShops.find((shop) => shop.slug === selectedShopSlug)?.nombre || shopName}
+                {selectedShop?.nombre || shopName}
               </h2>
               {managedShops.length > 1 && (
                 <Repeat2 className={`h-4 w-4 text-gray-500 dark:text-zinc-400 transition-all ${shopMenuOpen ? "opacity-100 rotate-180" : "opacity-0 group-hover:opacity-100"}`} />
               )}
             </button>
-
             <AnimatePresence>
               {managedShops.length > 1 && shopMenuOpen && (
                 <motion.div
@@ -480,7 +481,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
                           setShopMenuOpen(false);
                           handleShopSwitch(shop.slug);
                         }}
-                        className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-sm transition ${
+                        className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${
                           isActive
                             ? "bg-violet-500/10 text-violet-700 dark:bg-violet-500/18 dark:text-violet-200"
                             : "text-gray-700 hover:bg-white/60 dark:text-zinc-200 dark:hover:bg-white/8"
@@ -611,7 +612,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
                               type="button"
                               onMouseEnter={() => setActiveIndex(flatIndex)}
                               onClick={() => void execute(item)}
-                              className={`w-full text-left px-3 py-2 rounded-lg border-l-4 transition-all ${
+                              className={`w-full text-left px-3 py-2 rounded-lg border-l-4 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${
                                 flatIndex === activeIndex
                                   ? "bg-[#E6F2FF] border-l-[#0071E3] text-[#0f2f57]"
                                   : "border-l-transparent hover:bg-white/70 dark:hover:bg-zinc-900/40"
@@ -641,7 +642,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
                               type="button"
                               onMouseEnter={() => setActiveIndex(flatIndex)}
                               onClick={() => void execute(item)}
-                              className={`w-full text-left px-3 py-2 rounded-lg border-l-4 transition-all ${
+                              className={`w-full text-left px-3 py-2 rounded-lg border-l-4 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${
                                 flatIndex === activeIndex
                                   ? "bg-[#E6F2FF] border-l-[#0071E3] text-[#0f2f57]"
                                   : "border-l-transparent hover:bg-white/70 dark:hover:bg-zinc-900/40"
@@ -671,7 +672,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
                               type="button"
                               onMouseEnter={() => setActiveIndex(flatIndex)}
                               onClick={() => void execute(item)}
-                              className={`w-full text-left px-3 py-2 rounded-lg border-l-4 transition-all ${
+                              className={`w-full text-left px-3 py-2 rounded-lg border-l-4 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${
                                 flatIndex === activeIndex
                                   ? "bg-[#E6F2FF] border-l-[#0071E3] text-[#0f2f57]"
                                   : "border-l-transparent hover:bg-white/70 dark:hover:bg-zinc-900/40"
@@ -701,7 +702,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
                               type="button"
                               onMouseEnter={() => setActiveIndex(flatIndex)}
                               onClick={() => void execute(item)}
-                              className={`w-full text-left px-3 py-2 rounded-lg border-l-4 transition-all ${
+                              className={`w-full text-left px-3 py-2 rounded-lg border-l-4 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${
                                 flatIndex === activeIndex
                                   ? "bg-[#E6F2FF] border-l-[#0071E3] text-[#0f2f57]"
                                   : "border-l-transparent hover:bg-white/70 dark:hover:bg-zinc-900/40"
@@ -731,7 +732,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
                               type="button"
                               onMouseEnter={() => setActiveIndex(flatIndex)}
                               onClick={() => void execute(item)}
-                              className={`w-full text-left px-3 py-2 rounded-lg border-l-4 transition-all ${
+                              className={`w-full text-left px-3 py-2 rounded-lg border-l-4 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${
                                 flatIndex === activeIndex
                                   ? "bg-[#E6F2FF] border-l-[#0071E3] text-[#0f2f57]"
                                   : "border-l-transparent hover:bg-white/70 dark:hover:bg-zinc-900/40"
@@ -764,7 +765,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
           <div ref={avatarMenuRef} className="relative">
             <div className="flex flex-col items-end gap-1">
               <div className="relative">
-                {billingStatus.isExpired && (
+                {billingStatus.isExpired && !shouldReduceMotion && (
                   <motion.div
                     className="pointer-events-none absolute -inset-[6px] rounded-full border-2 border-rose-500/60"
                     animate={{
@@ -774,26 +775,30 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
                     transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
                   />
                 )}
+                {billingStatus.isExpired && shouldReduceMotion && (
+                  <div className="pointer-events-none absolute -inset-[6px] rounded-full border-2 border-rose-500/30" />
+                )}
                 <motion.button
                   type="button"
                   onClick={() => setMenuOpen((v) => !v)}
-                  className="relative h-10 w-10 rounded-full bg-[#0071E3] border border-[#0b7ff2] flex items-center justify-center text-sm font-semibold text-white shrink-0 select-none hover:bg-[#0b7ff2] transition-colors"
+                  className="relative h-10 w-10 rounded-full bg-[#0071E3] border border-[#0b7ff2] flex items-center justify-center text-sm font-semibold text-white shrink-0 select-none hover:bg-[#0b7ff2] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
+                  aria-label="Menú de usuario"
                   title={userName}
-                  animate={billingStatus.isExpired ? {
+                  animate={billingStatus.isExpired && !shouldReduceMotion ? {
                     boxShadow: [
                       "0 0 6px rgba(225,29,72,0.4)",
                       "0 0 24px rgba(225,29,72,0.7), 0 0 40px rgba(225,29,72,0.25)",
                       "0 0 6px rgba(225,29,72,0.4)",
                     ],
                   } : {}}
-                  transition={billingStatus.isExpired ? { duration: 1.2, repeat: Infinity, ease: "easeInOut" } : { duration: 0 }}
+                  transition={billingStatus.isExpired && !shouldReduceMotion ? { duration: 1.2, repeat: Infinity, ease: "easeInOut" } : { duration: 0 }}
                 >
                   <span className="-translate-y-[2px]">{getInitials(userName)}</span>
                   {billingStatus.isExpired ? (
                     <motion.span
                       className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-[30%] rounded-full px-1.5 py-[1px] text-[9px] font-semibold leading-none text-white border border-rose-400 bg-rose-600 shadow-[0_2px_8px_rgba(225,29,72,0.6)]"
-                      animate={{ scale: [1, 1.08, 1], opacity: [0.8, 1, 0.8] }}
-                      transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+                      animate={!shouldReduceMotion ? { scale: [1, 1.08, 1], opacity: [0.8, 1, 0.8] } : {}}
+                      transition={!shouldReduceMotion ? { duration: 1.2, repeat: Infinity, ease: "easeInOut" } : { duration: 0 }}
                     >
                       {daysBadgeLabel}
                     </motion.span>
@@ -806,8 +811,15 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
               </div>
             </div>
 
-            {menuOpen && (
-              <div className="absolute right-0 mt-2 w-64 rounded-2xl border border-white/20 dark:border-white/10 bg-white/95 dark:bg-black/85 backdrop-blur-xl shadow-xl overflow-hidden z-50">
+            <AnimatePresence>
+              {menuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4, scale: 0.985 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -4, scale: 0.985 }}
+                  transition={{ duration: 0.08, ease: "easeOut" }}
+                  className="absolute right-0 mt-2 w-64 rounded-2xl border border-white/20 dark:border-white/10 bg-white/95 dark:bg-black/85 backdrop-blur-xl shadow-xl overflow-hidden z-50"
+                >
                 <div className="px-3 py-2 border-b border-white/20 dark:border-white/10">
                   <p className="text-xs text-zinc-500">Cuenta</p>
                   <p className="text-sm text-gray-900 dark:text-white truncate">{userEmail || userName}</p>
@@ -833,7 +845,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
                         `width=${w},height=${h},left=${left},top=${top},menubar=no,toolbar=no,location=no`
                       );
                     }}
-                    className="relative mt-3 flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl border border-violet-200/60 bg-gradient-to-r from-violet-600 to-amber-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition-shadow hover:shadow-violet-400/40"
+                    className="relative mt-3 flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl border border-violet-200/60 bg-gradient-to-r from-violet-600 to-amber-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition-shadow hover:shadow-violet-400/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
                     whileTap={{ scale: 0.97 }}
                   >
                     <motion.div
@@ -859,17 +871,11 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
                   </motion.button>
                 </div>
                 <div className="p-3 space-y-3">
-                  <div className="flex items-center justify-between rounded-xl border border-white/20 dark:border-white/10 px-3 py-2">
-                    <div className="flex items-center gap-2 text-sm text-gray-800 dark:text-gray-100">
-                      {dark ? <Moon className="w-4 h-4 text-violet-500" /> : <Sun className="w-4 h-4 text-amber-500" />}
-                      {dark ? "Modo oscuro" : "Modo claro"}
-                    </div>
+                    <div className="flex items-center justify-between rounded-xl border border-white/20 dark:border-white/10 px-3 py-2">
+                    <span className="text-sm text-gray-800 dark:text-gray-100">Modo oscuro</span>
                     <button
                       type="button"
-                      onClick={() => {
-                        haptic(8);
-                        toggleDark();
-                      }}
+                      onClick={toggleDark}
                       className={`relative w-10 h-5 rounded-full transition-colors ${dark ? "bg-violet-600" : "bg-gray-300"}`}
                     >
                       <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${dark ? "translate-x-5" : "translate-x-0"}`} />
@@ -915,27 +921,21 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
 
                   <button
                     type="button"
+                    aria-label="Funcionalidades del local"
                     onClick={() => {
                       setMenuOpen(false);
                       navigateWithTransition(`${dashboardBasePath}/features`);
                     }}
-                    className="flex w-full items-center gap-2 rounded-xl border border-white/20 dark:border-white/10 px-3 py-2 text-sm text-gray-800 dark:text-gray-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
+                    className="flex w-full items-center gap-2 rounded-xl border border-white/20 dark:border-white/10 px-3 py-2 text-sm text-gray-800 dark:text-gray-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
                   >
                     <SlidersHorizontal className="w-4 h-4 text-zinc-400" />
                     Funcionalidades del local
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={handleLogoutClick}
-                    disabled={logoutPending}
-                    className="block w-full text-left px-3 py-2 rounded-xl text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors disabled:opacity-60"
-                  >
-                    {logoutPending ? "Cerrando sesion..." : "Cerrar Sesion"}
-                  </button>
                 </div>
-              </div>
-            )}
+              </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </header>

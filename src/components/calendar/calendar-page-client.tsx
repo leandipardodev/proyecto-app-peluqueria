@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { addWeeks, subWeeks } from "date-fns";
 import { motion } from "framer-motion";
 import { Plus } from "lucide-react";
@@ -167,7 +167,7 @@ export default function CalendarPageClient({
       if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
       refreshTimerRef.current = setTimeout(() => {
         router.refresh();
-      }, 250);
+      }, 3000);
     };
 
     const channel = supabase
@@ -184,26 +184,30 @@ export default function CalendarPageClient({
     };
   }, [shopId, router]);
 
-  if (!hydrated) {
-    return <CalendarSkeleton />;
-  }
-
-  function handleSlotClick(date: Date, hour: number) {
+  const handleSlotClick = useCallback((date: Date, hour: number) => {
     setFormInitialDate(getArgentinaDateKey(date));
     setFormInitialHour(hour);
     setFormModalOpen(true);
-  }
+  }, []);
 
-  function handlePrevWeek() {
+  const handlePrevWeek = useCallback(() => {
     setCurrentDate((d) => subWeeks(d, 1));
-  }
+  }, []);
 
-  function handleNextWeek() {
+  const handleNextWeek = useCallback(() => {
     setCurrentDate((d) => addWeeks(d, 1));
-  }
+  }, []);
 
-  function handleToday() {
+  const handleToday = useCallback(() => {
     setCurrentDate(new Date());
+  }, []);
+
+  const handleAppointmentClick = useCallback((appt: Appointment | null) => {
+    setSelectedAppointment(appt);
+  }, []);
+
+  if (!hydrated) {
+    return <CalendarSkeleton />;
   }
 
   return (
@@ -290,7 +294,7 @@ export default function CalendarPageClient({
           onNextWeek={handleNextWeek}
           onToday={handleToday}
           onSlotClick={handleSlotClick}
-          onAppointmentClick={setSelectedAppointment}
+          onAppointmentClick={handleAppointmentClick}
           staffList={staff}
           staffFilter={staffFilter}
           businessHours={businessHours}

@@ -13,12 +13,14 @@ interface AddProductModalProps {
 
 export default function AddProductModal({ shopId, open, onClose }: AddProductModalProps) {
   const backdropRef = useRef<HTMLDivElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setError(null);
+    setTimeout(() => nameRef.current?.focus(), 50);
     function handleEscape(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
     }
@@ -80,6 +82,7 @@ export default function AddProductModal({ shopId, open, onClose }: AddProductMod
               Nombre del producto
             </label>
             <input
+              ref={nameRef}
               type="text"
               id="nombre_producto"
               name="nombre_producto"

@@ -33,6 +33,7 @@ export default function RevenueChart({ data, flowByPeriod }: RevenueChartProps) 
   const [period, setPeriod] = useState<"today" | "week" | "month">("today");
   const chartHostRef = useRef<HTMLDivElement | null>(null);
   const [canRenderChart, setCanRenderChart] = useState(false);
+  const [chartReady, setChartReady] = useState(false);
   const [tooltip, setTooltip] = useState<{
     x: number;
     y: number;
@@ -51,6 +52,9 @@ export default function RevenueChart({ data, flowByPeriod }: RevenueChartProps) 
       const hasWidth = rect.width > 0;
       const isVisible = node.offsetParent !== null;
       setCanRenderChart(hasWidth && isVisible);
+      if (hasWidth && isVisible) {
+        setChartReady(true);
+      }
     };
 
     update();
@@ -97,7 +101,7 @@ export default function RevenueChart({ data, flowByPeriod }: RevenueChartProps) 
               key={key}
               type="button"
               onClick={() => setPeriod(key)}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${
                 period === key
                   ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-100"
                   : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
@@ -141,6 +145,9 @@ export default function RevenueChart({ data, flowByPeriod }: RevenueChartProps) 
           <div className="analytics-grid size-full" />
           <div className="analytics-scan size-full" />
         </div>
+        {!chartReady && (
+          <div className="absolute inset-3 rounded-xl bg-zinc-200/50 dark:bg-zinc-700/30 animate-pulse" />
+        )}
         {canRenderChart && (
           <ResponsiveContainer width="100%" height={220} minWidth={280} minHeight={180}>
             <BarChart data={data} margin={{ top: 20, right: 4, left: -8, bottom: 0 }} barGap={2} barCategoryGap="8%">

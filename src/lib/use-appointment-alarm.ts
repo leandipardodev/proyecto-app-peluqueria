@@ -22,6 +22,8 @@ export function useAppointmentAlarm(
   appointments: { id: string; start_time: string; status: string }[]
 ): void {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const appointmentsRef = useRef(appointments);
+  appointmentsRef.current = appointments;
 
   useEffect(() => {
     function checkWindows() {
@@ -29,7 +31,7 @@ export function useAppointmentAlarm(
       const notified = getNotified();
       let changed = false;
 
-      for (const apt of appointments) {
+      for (const apt of appointmentsRef.current) {
         if (apt.status !== "scheduled") continue;
         if (notified.has(apt.id)) continue;
 
@@ -53,5 +55,5 @@ export function useAppointmentAlarm(
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [appointments]);
+  }, []);
 }

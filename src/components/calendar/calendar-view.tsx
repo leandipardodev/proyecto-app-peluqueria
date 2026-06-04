@@ -2,9 +2,9 @@
 
 import { format, startOfWeek, addDays, isToday } from "date-fns";
 import { es } from "date-fns/locale";
-import { Check, CheckCheck, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Hourglass, MessageCircle, X } from "lucide-react";
-import { useRef, useState, useEffect, useMemo, memo } from "react";
-import { AnimatePresence, motion, useMotionValue } from "framer-motion";
+import { Check, CheckCheck, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clock, MessageCircle, X } from "lucide-react";
+import { useRef, useState, useEffect, useMemo, useCallback, memo } from "react";
+import { motion, useMotionValue, type MotionValue } from "framer-motion";
 import { createPortal } from "react-dom";
 import { GRID_END_HOUR, GRID_START_HOUR, HOUR_HEIGHT } from "@/lib/calendar-constants";
 import {
@@ -73,30 +73,28 @@ function hourFromHHmm(v: string): number {
   return Number.isFinite(h) ? h : 0;
 }
 
-const STAFF_COLORS = [
-  { bg: "#f3e8ff", border: "#c084fc", text: "#6b21a8" },
-  { bg: "#d1fae5", border: "#34d399", text: "#065f46" },
-  { bg: "#fef3c7", border: "#fbbf24", text: "#92400e" },
-  { bg: "#ffe4e6", border: "#fb7185", text: "#9f1239" },
-  { bg: "#cffafe", border: "#22d3ee", text: "#155e75" },
-  { bg: "#ffedd5", border: "#fb923c", text: "#9a3412" },
-  { bg: "#e0e7ff", border: "#818cf8", text: "#3730a3" },
-  { bg: "#fce7f3", border: "#f472b6", text: "#9d174d" },
+type StaffColor = {
+  bg: string;
+  border: string;
+  text: string;
+  borderRgba32: string;
+  borderRgba85: string;
+  borderRgba45: string;
+};
+
+const STAFF_COLORS: StaffColor[] = [
+  { bg: "#ede9fe", border: "#7c3aed", text: "#4c1d95", borderRgba32: "rgba(124,58,237,0.32)", borderRgba85: "rgba(124,58,237,0.85)", borderRgba45: "rgba(124,58,237,0.45)" },
+  { bg: "#d1fae5", border: "#059669", text: "#064e3b", borderRgba32: "rgba(5,150,105,0.32)", borderRgba85: "rgba(5,150,105,0.85)", borderRgba45: "rgba(5,150,105,0.45)" },
+  { bg: "#fef9c3", border: "#d97706", text: "#78350f", borderRgba32: "rgba(217,119,6,0.32)", borderRgba85: "rgba(217,119,6,0.85)", borderRgba45: "rgba(217,119,6,0.45)" },
+  { bg: "#fce7f3", border: "#db2777", text: "#831843", borderRgba32: "rgba(219,39,119,0.32)", borderRgba85: "rgba(219,39,119,0.85)", borderRgba45: "rgba(219,39,119,0.45)" },
+  { bg: "#cffafe", border: "#0891b2", text: "#164e63", borderRgba32: "rgba(8,145,178,0.32)", borderRgba85: "rgba(8,145,178,0.85)", borderRgba45: "rgba(8,145,178,0.45)" },
+  { bg: "#fed7aa", border: "#ea580c", text: "#7c2d12", borderRgba32: "rgba(234,88,12,0.32)", borderRgba85: "rgba(234,88,12,0.85)", borderRgba45: "rgba(234,88,12,0.45)" },
+  { bg: "#c7d2fe", border: "#4f46e5", text: "#312e81", borderRgba32: "rgba(79,70,229,0.32)", borderRgba85: "rgba(79,70,229,0.85)", borderRgba45: "rgba(79,70,229,0.45)" },
+  { bg: "#fecaca", border: "#dc2626", text: "#7f1d1d", borderRgba32: "rgba(220,38,38,0.32)", borderRgba85: "rgba(220,38,38,0.85)", borderRgba45: "rgba(220,38,38,0.45)" },
 ];
 
 const STATUS_FINAL = new Set(["completed", "cancelled", "no_show"]);
-const MOTION_PRESET = {
-  pill: { stiffness: 460, damping: 30, mass: 0.55 },
-  tooltipInOut: { stiffness: 430, damping: 34, mass: 0.56 },
-};
 
-function extractEmoji(name: string): { emoji: string; label: string } {
-  const parts = name.split(/\s+/);
-  if (parts.length >= 2) {
-    return { emoji: parts[0], label: parts.slice(1).join(" ") };
-  }
-  return { emoji: "", label: name };
-}
 
 function hexToRgba(hex: string, alpha: number): string {
   const clean = hex.replace("#", "");
@@ -109,6 +107,32 @@ function hexToRgba(hex: string, alpha: number): string {
   const b = int & 255;
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
+
+const NowLine = memo(function NowLine({ day, gridStartHour, gridEndHour }: { day: Date; gridStartHour: number; gridEndHour: number }) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(id);
+  }, []);
+  const isCurrentDay = getArgentinaDateKey(day) === getArgentinaDateKey(now);
+  const nowMinutes = getArgentinaMinutesSinceMidnight(now);
+  const minMinutes = gridStartHour * 60;
+  const maxMinutes = (gridEndHour + 1) * 60;
+  const visible = isCurrentDay && nowMinutes >= minMinutes && nowMinutes <= maxMinutes;
+  if (!visible) return null;
+  const topPx = ((nowMinutes - minMinutes) / 60) * HOUR_HEIGHT;
+  return (
+    <div className="absolute pointer-events-none z-20 left-0 right-0" style={{ top: `${topPx}px` }}>
+      <div className="relative h-px bg-sky-500/90 shadow-[0_0_6px_rgba(56,189,248,0.45)]">
+        <span className="absolute left-0 -top-1.5 w-3 h-3 -translate-x-1/2 rounded-full bg-sky-500/90 shadow-[0_0_0_3px_rgba(56,189,248,0.18),0_0_8px_rgba(56,189,248,0.45)]" />
+      </div>
+    </div>
+  );
+}, (prev, next) => {
+  return prev.gridStartHour === next.gridStartHour
+    && prev.gridEndHour === next.gridEndHour
+    && getArgentinaDateKey(prev.day) === getArgentinaDateKey(next.day);
+});
 
 function getTurnoStatusLabel(status: string, isPaid: boolean): string {
   if (status === "pending_payment") return "Pago pendiente";
@@ -125,6 +149,174 @@ const DAY_MAP: Record<number, string> = {
   4: "thursday", 5: "friday", 6: "saturday",
 };
 
+function getTooltipPosition(x: number, y: number): { left: number; top: number } {
+  const offset = 15;
+  const tooltipWidth = 300;
+  const tooltipHeight = 165;
+  const padding = 8;
+  const vw = typeof window !== "undefined" ? window.innerWidth : 1280;
+  const vh = typeof window !== "undefined" ? window.innerHeight : 720;
+  let left = x + offset;
+  let top = y + offset;
+  if (left + tooltipWidth > vw - padding) {
+    left = x - tooltipWidth - offset;
+  }
+  if (top + tooltipHeight > vh - padding) {
+    top = y - tooltipHeight - offset;
+  }
+  left = Math.max(padding, left);
+  top = Math.max(padding, top);
+  return { left, top };
+}
+
+const AppointmentBlock = memo(function AppointmentBlock({
+  appt,
+  startMin,
+  durationMin,
+  col,
+  cols,
+  viewMode,
+  isMobileViewport,
+  staffColorMap,
+  isCoarsePointer,
+  tooltipX,
+  tooltipY,
+  gridStartHour,
+  onHover,
+  onLeave,
+  onAppointmentClick,
+}: {
+  appt: NormalizedAppointment;
+  startMin: number;
+  durationMin: number;
+  col: number;
+  cols: number;
+  viewMode: "week" | "day";
+  isMobileViewport: boolean;
+  staffColorMap: Record<string, (typeof STAFF_COLORS)[0]>;
+  isCoarsePointer: boolean;
+  tooltipX: MotionValue<number>;
+  tooltipY: MotionValue<number>;
+  gridStartHour: number;
+  onHover: (appt: NormalizedAppointment) => void;
+  onLeave: () => void;
+  onAppointmentClick: (appt: Appointment | null) => void;
+}) {
+  const isWeekMode = viewMode === "week";
+  const isCompact = cols >= 3 || durationMin <= 45;
+  const topPx = ((startMin - gridStartHour * 60) / 60) * HOUR_HEIGHT;
+  const heightPx = (durationMin / 60) * HOUR_HEIGHT;
+  const widthPct = 100 / cols;
+  const leftPct = col * widthPct;
+
+  const staffColor = appt.staff
+    ? staffColorMap[appt.staff_id || ""] || STAFF_COLORS[0]
+    : STAFF_COLORS[0];
+
+  const svcName = appt.services?.name || "";
+
+  const isFinalStatus = STATUS_FINAL.has(appt.status);
+  const isCancelled = appt.status === "cancelled" || appt.status === "no_show";
+  const isCompleted = appt.status === "completed";
+  const isConfirmed = appt.status === "confirmed" || appt.status === "in_progress";
+  const needsAttention = appt.status === "scheduled";
+  return (
+    <div
+      className={`absolute pointer-events-auto min-w-0 rounded-tl-xl rounded-bl-xl rounded-br-xl text-xs cursor-pointer bg-white/90 dark:bg-white/10 backdrop-blur-md border border-white/45 dark:border-white/20 shadow-sm group overflow-hidden ${isCancelled ? "opacity-30 saturate-0" : isCompleted ? "opacity-35 saturate-[0.70]" : isFinalStatus ? "opacity-50" : ""}`}
+      style={{
+        top: `${topPx}px`,
+        height: `${Math.max(heightPx - 2, 18)}px`,
+        width: `calc(${widthPct}% - 12px)`,
+        left: `calc(${leftPct}% + 8px)`,
+        fontFamily: "Inter, sans-serif",
+        boxShadow: isCompleted
+          ? "none"
+          : isCancelled
+            ? "inset 3px 0 0 rgba(220,38,38,0.6)"
+          : needsAttention
+            ? "inset 3px 0 0 rgba(190,160,210,0.80), 0 0 0 1px rgba(190,160,210,0.30)"
+          : isConfirmed && isMobileViewport
+            ? "inset 2px 0 0 rgba(14,165,233,0.85), 0 0 0 1px rgba(14,165,233,0.22)"
+            : `inset 2px 0 0 ${staffColor.borderRgba32}`,
+        background: isCancelled
+          ? "linear-gradient(180deg, rgba(254,202,202,0.68) 0%, rgba(254,226,226,0.36) 46%, rgba(255,255,255,0.22) 100%)"
+        : needsAttention
+            ? "linear-gradient(180deg, rgba(220,200,230,0.30) 0%, rgba(235,220,240,0.15) 48%, rgba(255,255,255,0.15) 100%)"
+        : isCompleted
+            ? undefined
+            : isConfirmed && isMobileViewport
+              ? "linear-gradient(180deg, rgba(186,230,253,0.66) 0%, rgba(224,242,254,0.34) 48%, rgba(255,255,255,0.24) 100%)"
+              : undefined,
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onAppointmentClick(appt);
+      }}
+      onMouseEnter={(e) => {
+        if (isCoarsePointer) return;
+        onHover(appt);
+        const pos = getTooltipPosition(e.clientX, e.clientY);
+        tooltipX.set(pos.left);
+        tooltipY.set(pos.top);
+      }}
+      onMouseMove={(e) => {
+        if (isCoarsePointer) return;
+        const pos = getTooltipPosition(e.clientX, e.clientY);
+        tooltipX.set(pos.left);
+        tooltipY.set(pos.top);
+      }}
+      onMouseLeave={onLeave}
+    >
+      <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent rounded-2xl pointer-events-none" />
+      <div
+        className="absolute inset-y-0 left-0 w-[3px] pointer-events-none"
+        style={{
+          background: `linear-gradient(180deg, ${staffColor.borderRgba85} 0%, ${staffColor.borderRgba45} 100%)`,
+        }}
+      />
+      <div className={`relative z-10 flex h-full ${isWeekMode ? "flex-col p-1 gap-0.5" : "flex-col justify-between p-1.5 gap-0.5"}`}>
+        <div className="min-w-0 space-y-0.5">
+          <div className="flex items-center justify-between gap-1">
+            <div className="min-w-0 flex items-center gap-1">
+              <span className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${isCompleted ? "bg-emerald-500 text-white" : isCancelled ? "bg-rose-500 text-white" : isConfirmed ? "bg-sky-500 text-white" : "bg-amber-500 text-white shadow-sm"}`}>
+                {isCompleted ? <Check className="h-2.5 w-2.5" /> : isCancelled ? <X className="h-2.5 w-2.5" /> : isConfirmed ? <CheckCheck className="h-2.5 w-2.5" /> : <Clock className="h-2.5 w-2.5" />}
+              </span>
+              <span className={`font-bold leading-tight truncate ${isWeekMode ? "text-[10px]" : isCompact ? "text-[11px]" : "text-xs"} ${isCancelled ? "line-through" : ""} text-gray-900 dark:text-gray-100`}>
+                {isWeekMode ? (appt.customers?.nombre?.split(/\s+/)[0] || "Sin") : (appt.customers?.nombre || "Sin cliente")}
+              </span>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              {appt.start_hhmm && (
+                <span className={`font-mono leading-none ${isWeekMode ? "text-[9px] text-gray-500 dark:text-gray-400" : "text-[10px] text-gray-500 dark:text-gray-400"}`}>{appt.start_hhmm}</span>
+              )}
+              {appt.customers?.telefono && !isWeekMode && !isMobileViewport && (
+                <a
+                  href={`https://wa.me/${appt.customers.telefono.replace(/\D/g, "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center justify-center rounded-full border border-emerald-300/70 bg-emerald-50/90 p-1 text-emerald-700 hover:bg-emerald-100"
+                  title="Enviar WhatsApp"
+                >
+                  <MessageCircle className="h-3 w-3" />
+                </a>
+              )}
+            </div>
+          </div>
+          {svcName && (
+            <div className={`flex items-center gap-1.5 leading-tight min-w-0 ${isWeekMode ? "text-[9px] text-gray-500 dark:text-gray-400" : "text-[10px] text-gray-500 dark:text-gray-400"}`}>
+              <span className="truncate">{svcName}</span>
+              {appt.services?.price != null && !isWeekMode && (
+                <span className="shrink-0 font-medium text-gray-700 dark:text-gray-300">${appt.services.price.toLocaleString("es-AR")}</span>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});
+
 export default memo(function CalendarView({
   appointments,
   currentDate,
@@ -137,9 +329,12 @@ export default memo(function CalendarView({
   staffFilter,
   businessHours,
 }: CalendarViewProps) {
-  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
-  const weekEnd = addDays(weekStart, 6);
-  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const { weekStart, weekEnd, weekDays } = useMemo(() => {
+    const ws = startOfWeek(currentDate, { weekStartsOn: 1 });
+    const we = addDays(ws, 6);
+    const wd = Array.from({ length: 7 }, (_, i) => addDays(ws, i));
+    return { weekStart: ws, weekEnd: we, weekDays: wd };
+  }, [currentDate]);
   const [viewMode, setViewMode] = useState<"week" | "day">("week");
   const [focusedDayKey, setFocusedDayKey] = useState(() => getArgentinaDateKey(new Date()));
   const [mounted, setMounted] = useState(false);
@@ -153,6 +348,13 @@ export default memo(function CalendarView({
   const isDragging = useRef(false);
   const startX = useRef(0);
   const scrollLeft = useRef(0);
+
+  const handleAppointmentHover = useCallback((appt: NormalizedAppointment) => {
+    setHoverTooltip({ appointment: appt });
+  }, []);
+  const handleAppointmentLeave = useCallback(() => {
+    setHoverTooltip(null);
+  }, []);
 
   const filteredAppointments = useMemo(() => {
     if (!staffFilter) return appointments;
@@ -182,6 +384,35 @@ export default memo(function CalendarView({
     for (let i = normalizedStart; i <= normalizedEnd; i += 1) rangeHours.push(i);
     return { gridStartHour: normalizedStart, gridEndHour: normalizedEnd, hours: rangeHours };
   }, [businessHours]);
+
+  const openSlotsByDay = useMemo(() => {
+    const map = new Map<string, Set<number>>();
+    if (!businessHours) return map;
+    for (const [dayKey, dayH] of Object.entries(businessHours)) {
+      const slots = new Set<number>();
+      if (!dayH?.open) { map.set(dayKey, slots); continue; }
+      const [sh, sm] = dayH.start.split(":").map(Number);
+      const [eh, em] = dayH.end.split(":").map(Number);
+      const blocks: Array<{ start: number; end: number }> = [];
+      if (dayH.break_start && dayH.break_end) {
+        const [bsh, bsm] = dayH.break_start.split(":").map(Number);
+        const [beh, bem] = dayH.break_end.split(":").map(Number);
+        blocks.push({ start: sh * 60 + sm, end: bsh * 60 + bsm });
+        blocks.push({ start: beh * 60 + bem, end: eh * 60 + em });
+      } else {
+        blocks.push({ start: sh * 60 + sm, end: eh * 60 + em });
+      }
+      for (const hour of hours) {
+        const slotStart = hour * 60;
+        const slotEnd = slotStart + 60;
+        if (blocks.some((b) => slotStart < b.end && slotEnd > b.start)) {
+          slots.add(hour);
+        }
+      }
+      map.set(dayKey, slots);
+    }
+    return map;
+  }, [businessHours, hours]);
 
   const normalizedAppointments = useMemo<NormalizedAppointment[]>(() => {
     const byId = new Map<string, Appointment>();
@@ -214,10 +445,10 @@ export default memo(function CalendarView({
   }, [filteredAppointments]);
 
   const staffColorMap = useMemo(() => {
-    const map = new Map<string, typeof STAFF_COLORS[0]>();
+    const map: Record<string, (typeof STAFF_COLORS)[0]> = {};
     if (!staffList) return map;
     staffList.forEach((s, i) => {
-      map.set(s.id, STAFF_COLORS[i % STAFF_COLORS.length]);
+      map[s.id] = STAFF_COLORS[i % STAFF_COLORS.length];
     });
     return map;
   }, [staffList]);
@@ -260,6 +491,87 @@ export default memo(function CalendarView({
     setViewMode("week");
     setFocusedDayKey(getArgentinaDateKey(currentDate));
   }
+
+  const eventLayoutByDay = useMemo(() => {
+    const computeLayout = (appts: NormalizedAppointment[]) => {
+      const dayEvents = appts
+        .filter((appt) => {
+          const startMin = minutesFromHHmm(appt.start_hhmm);
+          const endMin = minutesFromHHmm(appt.end_hhmm);
+          return endMin > gridStartHour * 60 && startMin < (gridEndHour + 1) * 60;
+        })
+        .map((appt) => {
+          const startMin = Math.max(minutesFromHHmm(appt.start_hhmm), gridStartHour * 60);
+          const rawEndMin = Math.min(minutesFromHHmm(appt.end_hhmm), (gridEndHour + 1) * 60);
+          const endMin = Math.max(rawEndMin, startMin + 15);
+          const durationMin = endMin - startMin;
+          return { appt, startMin, endMin, durationMin };
+        });
+
+      const sortedEvents = [...dayEvents].sort(
+        (a, b) => a.startMin - b.startMin || a.endMin - b.endMin || a.appt.id.localeCompare(b.appt.id)
+      );
+
+      const eventLayout: Array<{
+        appt: NormalizedAppointment;
+        startMin: number;
+        endMin: number;
+        durationMin: number;
+        col: number;
+        cols: number;
+      }> = [];
+
+      let i = 0;
+      while (i < sortedEvents.length) {
+        const group: typeof sortedEvents = [sortedEvents[i]];
+        let groupEnd = sortedEvents[i].endMin;
+        i += 1;
+
+        while (i < sortedEvents.length && sortedEvents[i].startMin < groupEnd) {
+          group.push(sortedEvents[i]);
+          groupEnd = Math.max(groupEnd, sortedEvents[i].endMin);
+          i += 1;
+        }
+
+        const activeCols: Array<{ endMin: number; col: number }> = [];
+        const placed: Array<{
+          appt: NormalizedAppointment;
+          startMin: number;
+          endMin: number;
+          durationMin: number;
+          col: number;
+        }> = [];
+        let maxCols = 1;
+
+        for (const event of group) {
+          for (let idx = activeCols.length - 1; idx >= 0; idx -= 1) {
+            if (activeCols[idx].endMin <= event.startMin) activeCols.splice(idx, 1);
+          }
+
+          let col = 0;
+          while (activeCols.some((slot) => slot.col === col)) col += 1;
+          activeCols.push({ endMin: event.endMin, col });
+          maxCols = Math.max(maxCols, activeCols.length);
+
+          placed.push({ ...event, col });
+        }
+
+        for (const event of placed) {
+          eventLayout.push({ ...event, cols: maxCols });
+        }
+      }
+
+      return eventLayout;
+    };
+
+    const map = new Map<string, ReturnType<typeof computeLayout>>();
+    for (const day of displayedDays) {
+      const dayKey = getArgentinaDateKey(day);
+      const appts = appointmentsByDay.get(dayKey) || [];
+      map.set(dayKey, computeLayout(appts));
+    }
+    return map;
+  }, [displayedDays, appointmentsByDay, gridStartHour, gridEndHour]);
 
   function handleTodayClick() {
     onToday();
@@ -376,6 +688,29 @@ export default memo(function CalendarView({
     };
   }, []);
 
+  const styleTag = useMemo(() => (
+    <style>{`
+      .closed-slot-pattern {
+        background-image: repeating-linear-gradient(
+          45deg,
+          transparent,
+          transparent 10px,
+          rgba(0, 0, 0, 0.08) 10px,
+          rgba(0, 0, 0, 0.08) 20px
+        );
+      }
+      .dark .closed-slot-pattern {
+        background-image: repeating-linear-gradient(
+          45deg,
+          transparent,
+          transparent 10px,
+          rgba(255, 255, 255, 0.16) 10px,
+          rgba(255, 255, 255, 0.16) 20px
+        );
+      }
+    `}</style>
+  ), []);
+
   if (!mounted) {
     return (
       <div className="flex flex-col h-full">
@@ -395,30 +730,6 @@ export default memo(function CalendarView({
   const isMobileDayMode = isMobileViewport && viewMode === "day";
   const hideHourColumnOnMobile = isMobileViewport;
   const hourColumnWidth = isMobileViewport ? 40 : 80;
-
-  function getTooltipPosition(x: number, y: number): { left: number; top: number } {
-    const offset = 15;
-    const tooltipWidth = 300;
-    const tooltipHeight = 165;
-    const padding = 8;
-    const vw = typeof window !== "undefined" ? window.innerWidth : 1280;
-    const vh = typeof window !== "undefined" ? window.innerHeight : 720;
-
-    let left = x + offset;
-    let top = y + offset;
-
-    if (left + tooltipWidth > vw - padding) {
-      left = x - tooltipWidth - offset;
-    }
-    if (top + tooltipHeight > vh - padding) {
-      top = y - tooltipHeight - offset;
-    }
-
-    left = Math.max(padding, left);
-    top = Math.max(padding, top);
-
-    return { left, top };
-  }
 
   return (
     <div className="calendar-shell flex flex-col h-full">
@@ -459,22 +770,18 @@ export default memo(function CalendarView({
         ref={scrollContainerRef}
         className="flex-1 min-h-0 overflow-auto"
       >
-        <motion.div
-          key={viewMode}
-          initial={{ opacity: 0, y: 8, scale: 0.995 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ type: "spring", stiffness: 320, damping: 28 }}
-          className="grid border border-white/10 dark:border-white/5 border-t border-l border-white/40 dark:border-t-white/20 dark:border-l-white/20 border-b border-r border-black/5 dark:border-b-white/5 dark:border-r-white/5 rounded-[2.5rem] overflow-hidden bg-white/20 dark:bg-black/10 backdrop-blur-3xl shadow-[0_20px_50px_rgba(0,0,0,0.03)] dark:shadow-none relative"
+        <div
+          className="grid border border-zinc-200/60 dark:border-white/10 rounded-2xl overflow-hidden bg-white/40 dark:bg-black/20 relative"
           style={{
             gridTemplateColumns:
               viewMode === "day"
                 ? isMobileDayMode
-                  ? "minmax(0, 1fr)"
+                  ? "1fr"
                   : `${hourColumnWidth}px minmax(0, 1fr)`
                 : hideHourColumnOnMobile
-                  ? `repeat(${Math.max(displayedDays.length, 1)}, minmax(0, 1fr))`
+                  ? `repeat(${Math.max(displayedDays.length, 1)}, 140px)`
                   : `${hourColumnWidth}px repeat(7, minmax(0, 1fr))`,
-            minWidth: "0px",
+            ...(hideHourColumnOnMobile ? { width: "max-content", minWidth: "100%" } : { minWidth: "0px" }),
           }}
         >
           {!hideHourColumnOnMobile && (
@@ -499,8 +806,6 @@ export default memo(function CalendarView({
             const dayKey = DAY_MAP[day.getDay()];
             const dayHours = businessHours?.[dayKey];
             const dayFullyClosed = dayHours && !dayHours.open;
-            const dayAppointments = appointmentsByDay.get(dayStr) || [];
-
             return (
               <div
                 key={dayStr}
@@ -525,16 +830,15 @@ export default memo(function CalendarView({
                   <span className="text-[11px] text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                     {format(day, "EEE", { locale: es })}
                   </span>
-                  <motion.span
+                  <span
                     className={`text-sm font-semibold ${
                       isToday(day)
-                        ? "text-sky-700 dark:text-sky-300 group-hover:scale-110"
+                        ? "text-sky-700 dark:text-sky-300"
                         : "text-gray-900 dark:text-gray-100"
                     }`}
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
                   >
                     {format(day, "d")}
-                  </motion.span>
+                  </span>
                   {isToday(day) && (
                     <span className="inline-flex items-center gap-1 mt-0.5">
                       <span className="relative flex w-1.5 h-1.5">
@@ -549,331 +853,96 @@ export default memo(function CalendarView({
                   )}
                   {(isToday(day) || viewMode === "day") && (
                     <div className="flex items-center justify-center gap-0.5 mt-0.5 opacity-60 group-hover:opacity-100 transition-opacity duration-200">
-                      <motion.div
-                        animate={{ y: [0, 2, 0] }}
-                        transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+                      <div
                         className="flex items-center gap-0.5 text-[9px] text-zinc-400 dark:text-zinc-500"
                       >
                         {viewMode === "day" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                         <span>{viewMode === "day" ? "semana" : "día"}</span>
-                      </motion.div>
+                      </div>
                     </div>
                   )}
                 </div>
 
-                {(() => {
-                  const dayEvents = dayAppointments
-                    .filter((appt) => {
-                      const startMin = minutesFromHHmm(appt.start_hhmm);
-                      const endMin = minutesFromHHmm(appt.end_hhmm);
-                      return endMin > gridStartHour * 60 && startMin < (gridEndHour + 1) * 60;
-                    })
-                    .map((appt) => {
-                      const startMin = Math.max(minutesFromHHmm(appt.start_hhmm), gridStartHour * 60);
-                      const rawEndMin = Math.min(minutesFromHHmm(appt.end_hhmm), (gridEndHour + 1) * 60);
-                      const endMin = Math.max(rawEndMin, startMin + 15);
-                      const durationMin = endMin - startMin;
-                      return { appt, startMin, endMin, durationMin };
-                    });
-
-                  const sortedEvents = [...dayEvents].sort(
-                    (a, b) => a.startMin - b.startMin || a.endMin - b.endMin || a.appt.id.localeCompare(b.appt.id)
-                  );
-                  const eventLayout: Array<{
-                    appt: NormalizedAppointment;
-                    startMin: number;
-                    endMin: number;
-                    durationMin: number;
-                    col: number;
-                    cols: number;
-                  }> = [];
-
-                  let i = 0;
-                  while (i < sortedEvents.length) {
-                    const group: typeof sortedEvents = [sortedEvents[i]];
-                    let groupEnd = sortedEvents[i].endMin;
-                    i += 1;
-
-                    while (i < sortedEvents.length && sortedEvents[i].startMin < groupEnd) {
-                      group.push(sortedEvents[i]);
-                      groupEnd = Math.max(groupEnd, sortedEvents[i].endMin);
-                      i += 1;
-                    }
-
-                    const activeCols: Array<{ endMin: number; col: number }> = [];
-                    const placed: Array<{
-                      appt: NormalizedAppointment;
-                      startMin: number;
-                      endMin: number;
-                      durationMin: number;
-                      col: number;
-                    }> = [];
-                    let maxCols = 1;
-
-                    for (const event of group) {
-                      for (let idx = activeCols.length - 1; idx >= 0; idx -= 1) {
-                        if (activeCols[idx].endMin <= event.startMin) activeCols.splice(idx, 1);
-                      }
-
-                      let col = 0;
-                      while (activeCols.some((slot) => slot.col === col)) col += 1;
-                      activeCols.push({ endMin: event.endMin, col });
-                      maxCols = Math.max(maxCols, activeCols.length);
-
-                      placed.push({ ...event, col });
-                    }
-
-                    for (const event of placed) {
-                      eventLayout.push({ ...event, cols: maxCols });
-                    }
-                  }
-
-                  return (
-                    <>
+                <>
+                  <div
+                    className="grid flex-1 relative"
+                    style={{
+                      gridTemplateRows: `repeat(${hours.length}, ${slotHeight}px)`,
+                    }}
+                  >
+                    {hours.map((hour) => {
+                      const isOpenSlot = openSlotsByDay.get(dayKey)?.has(hour) ?? false;
+                      return (
                       <div
-                        className="grid flex-1 relative"
-                        style={{
-                          gridTemplateRows: `repeat(${hours.length}, ${slotHeight}px)`,
-                        }}
+                        key={hour}
+                        className={`relative overflow-visible border-b border-zinc-200/30 dark:border-slate-800/40 last:border-b-0 transition-colors ${(isMobileDayMode || (isMobileViewport && viewMode === "week" && dayIndex === 0)) ? "pl-7 pr-1 py-1.5" : "p-1.5"} ${
+                          isOpenSlot
+                            ? "hover:bg-white/30 dark:hover:bg-white/5 cursor-pointer"
+                            : "bg-slate-200 dark:bg-zinc-950 border-y border-y-black/[0.08] dark:border-y-white/[0.03] closed-slot-pattern"
+                        }`}
+                        style={
+                          isOpenSlot
+                            ? undefined
+                            : {
+                                backgroundImage: undefined,
+                              }
+                        }
+                        onClick={isOpenSlot ? () => onSlotClick(day, hour) : undefined}
                       >
-                        {hours.map((hour) => {
-                          const hourNum = hour;
-                          const dayH = dayHours;
-                          const isOpenSlot = (() => {
-                            if (!dayH?.open) return false;
-                            const [sh, sm] = dayH.start.split(":").map(Number);
-                            const [eh, em] = dayH.end.split(":").map(Number);
-                            const slotStart = hourNum * 60;
-                            const slotEnd = slotStart + 60;
+                        {(isMobileDayMode || (isMobileViewport && viewMode === "week" && dayIndex === 0)) && (
+                          <span className="absolute left-1 top-1 text-[8px] font-medium text-gray-500 dark:text-gray-400 select-none pointer-events-none">
+                            {`${String(hour).padStart(2, "0")}:00`}
+                          </span>
+                        )}
+                      </div>
+                    );})}
 
-                            const blocks: Array<{ start: number; end: number }> = [];
-                            if (dayH.break_start && dayH.break_end) {
-                              const [bsh, bsm] = dayH.break_start.split(":").map(Number);
-                              const [beh, bem] = dayH.break_end.split(":").map(Number);
-                              blocks.push({ start: sh * 60 + sm, end: bsh * 60 + bsm });
-                              blocks.push({ start: beh * 60 + bem, end: eh * 60 + em });
-                            } else {
-                              blocks.push({ start: sh * 60 + sm, end: eh * 60 + em });
-                            }
+                    <div
+                      className="absolute inset-x-0 bottom-0 pointer-events-none z-10"
+                      style={{ top: 0 }}
+                    >
+                      {(eventLayoutByDay.get(dayStr) || []).map((event) => (
+                        <AppointmentBlock
+                          key={event.appt.id}
+                          appt={event.appt}
+                          startMin={event.startMin}
+                          durationMin={event.durationMin}
+                          col={event.col}
+                          cols={event.cols}
+                          viewMode={viewMode}
+                          isMobileViewport={isMobileViewport}
+                          staffColorMap={staffColorMap}
+                          isCoarsePointer={isCoarsePointer}
+                          tooltipX={tooltipX}
+                          tooltipY={tooltipY}
+                          gridStartHour={gridStartHour}
+                          onHover={handleAppointmentHover}
+                          onLeave={handleAppointmentLeave}
+                          onAppointmentClick={onAppointmentClick}
+                        />
+                      ))}
 
-                            return blocks.some((b) => slotStart < b.end && slotEnd > b.start);
-                          })();
-                          return (
-                          <div
-                            key={hour}
-                            className={`relative overflow-visible border-b border-zinc-200/30 dark:border-slate-800/40 last:border-b-0 transition-colors ${(isMobileDayMode || (isMobileViewport && viewMode === "week" && dayIndex === 0)) ? "pl-7 pr-1 py-1.5" : "p-1.5"} ${
-                              isOpenSlot
-                                ? "hover:bg-white/30 dark:hover:bg-white/5 cursor-pointer"
-                                : "bg-slate-200 dark:bg-zinc-950 border-y border-y-black/[0.08] dark:border-y-white/[0.03] closed-slot-pattern"
-                            }`}
-                            style={
-                              isOpenSlot
-                                ? undefined
-                                : {
-                                    backgroundImage: undefined,
-                                  }
-                            }
-                            onClick={isOpenSlot ? () => onSlotClick(day, hour) : undefined}
-                          >
-                            {(isMobileDayMode || (isMobileViewport && viewMode === "week" && dayIndex === 0)) && (
-                              <span className="absolute left-1 top-1 text-[8px] font-medium text-gray-500 dark:text-gray-400 select-none pointer-events-none">
-                                {`${String(hour).padStart(2, "0")}:00`}
-                              </span>
-                            )}
-                          </div>
-                        );})}
-
-                        <div
-                          className="absolute inset-x-0 bottom-0 pointer-events-none z-10"
-                          style={{ top: 0 }}
-                        >
-                          {eventLayout.map(({ appt, startMin, durationMin, col, cols }) => {
-                            const isWeekMode = viewMode === "week";
-                            const isCompact = cols >= 3 || durationMin <= 45;
-                            const topPx = ((startMin - gridStartHour * 60) / 60) * HOUR_HEIGHT;
-                            const heightPx = (durationMin / 60) * HOUR_HEIGHT;
-                            const widthPct = 100 / cols;
-                            const leftPct = col * widthPct;
-
-                            const staffColor = appt.staff
-                              ? staffColorMap.get(appt.staff_id || "") || STAFF_COLORS[0]
-                              : STAFF_COLORS[0];
-
-                            const svc = appt.services?.name
-                              ? extractEmoji(appt.services.name)
-                              : { emoji: "", label: "" };
-
-                            const isFinalStatus = STATUS_FINAL.has(appt.status);
-                            const isCancelled = appt.status === "cancelled" || appt.status === "no_show";
-                            const isCompleted = appt.status === "completed";
-                            const isConfirmed = appt.status === "confirmed" || appt.status === "in_progress";
-                            const needsAttention = appt.status === "scheduled";
-                            const displayLabel = getTurnoStatusLabel(appt.status, appt.is_paid);
-                            const showStatusBadge = !isWeekMode || isMobileViewport;
-
-                            const hoverShadow = isCancelled
-                              ? "inset 2px 0 0 rgba(220,38,38,0.6), 0 12px 24px rgba(15,23,42,0.12)"
-                              : needsAttention
-                                ? "inset 2px 0 0 rgba(245,158,11,0.85), 0 0 0 1px rgba(245,158,11,0.22), 0 12px 24px rgba(15,23,42,0.12)"
-                                : isConfirmed && isMobileViewport
-                                  ? "inset 2px 0 0 rgba(14,165,233,0.85), 0 0 0 1px rgba(14,165,233,0.22), 0 12px 24px rgba(15,23,42,0.12)"
-                                  : `inset 2px 0 0 ${hexToRgba(staffColor.border, 0.32)}, 0 12px 24px rgba(15,23,42,0.12)`;
-
-                            return (
-                              <motion.div
-                                key={appt.id}
-                                className={`absolute pointer-events-auto min-w-0 rounded-xl text-xs cursor-pointer bg-white/90 dark:bg-white/10 backdrop-blur-md border border-white/45 dark:border-white/20 shadow-sm group overflow-hidden ${isCancelled ? "opacity-30 saturate-0" : isCompleted ? "opacity-65 saturate-90" : isFinalStatus ? "opacity-50" : ""} ${needsAttention ? "animate-pulse-border" : ""}`}
-                                style={{
-                                  top: `${topPx}px`,
-                                  height: `${Math.max(heightPx - 2, 18)}px`,
-                                  width: `calc(${widthPct}% - 6px)`,
-                                  left: `calc(${leftPct}% + 3px)`,
-                                  fontFamily: "Inter, sans-serif",
-                                  boxShadow: isCancelled
-                                    ? "inset 2px 0 0 rgba(220,38,38,0.6)"
-                                    : needsAttention
-                                      ? "inset 2px 0 0 rgba(245,158,11,0.85), 0 0 0 1px rgba(245,158,11,0.22)"
-                                    : isConfirmed && isMobileViewport
-                                      ? "inset 2px 0 0 rgba(14,165,233,0.85), 0 0 0 1px rgba(14,165,233,0.22)"
-                                    : `inset 2px 0 0 ${hexToRgba(staffColor.border, 0.32)}`,
-                                  background: isCancelled
-                                    ? "linear-gradient(180deg, rgba(254,202,202,0.68) 0%, rgba(254,226,226,0.36) 46%, rgba(255,255,255,0.22) 100%)"
-                                  : isCompleted
-                                      ? "linear-gradient(180deg, rgba(187,247,208,0.62) 0%, rgba(220,252,231,0.36) 48%, rgba(255,255,255,0.25) 100%)"
-                                      : isConfirmed && isMobileViewport
-                                        ? "linear-gradient(180deg, rgba(186,230,253,0.66) 0%, rgba(224,242,254,0.34) 48%, rgba(255,255,255,0.24) 100%)"
-                                      : undefined,
-                                }}
-                                initial={{ opacity: 0, scale: 0.96 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                transition={{ type: "spring", ...MOTION_PRESET.pill }}
-                                whileHover={{ y: -1, boxShadow: hoverShadow, transition: { boxShadow: { duration: 0.2 }, y: { type: "spring", stiffness: 400, damping: 28 } } }}
-                                whileTap={{ scale: 0.985 }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onAppointmentClick(appt);
-                                }}
-                                onMouseEnter={(e) => {
-                                  if (isCoarsePointer) return;
-                                  const pos = getTooltipPosition(e.clientX, e.clientY);
-                                  tooltipX.set(pos.left);
-                                  tooltipY.set(pos.top);
-                                  setHoverTooltip({ appointment: appt });
-                                }}
-                                onMouseMove={(e) => {
-                                  if (isCoarsePointer) return;
-                                  const pos = getTooltipPosition(e.clientX, e.clientY);
-                                  tooltipX.set(pos.left);
-                                  tooltipY.set(pos.top);
-                                }}
-                                onMouseLeave={() => {
-                                  setHoverTooltip(null);
-                                }}
-                              >
-                                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent rounded-2xl pointer-events-none" />
-                                <div
-                                  className="absolute inset-y-0 left-0 w-[3px] pointer-events-none"
-                                  style={{
-                                    background: `linear-gradient(180deg, ${hexToRgba(staffColor.border, 0.85)} 0%, ${hexToRgba(staffColor.border, 0.45)} 100%)`,
-                                  }}
-                                />
-                                <div className={`relative z-10 flex h-full ${isWeekMode ? "flex-col justify-around p-1.5 gap-1" : "flex-col justify-between p-1.5 gap-0.5"}`}>
-                                  <div className="min-w-0 space-y-0.5">
-                                    <div className="flex items-center justify-between gap-1">
-                                      <div className="min-w-0 flex items-center gap-1">
-                                        <span className={`inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full ring-1 ${isCompleted ? "bg-emerald-500/18 text-emerald-700 dark:text-emerald-300 ring-emerald-500/25" : isCancelled ? "bg-rose-500/18 text-rose-700 dark:text-rose-300 ring-rose-500/25" : isConfirmed ? "bg-sky-500/18 text-sky-700 dark:text-sky-300 ring-sky-500/25" : "bg-amber-500/18 text-amber-700 dark:text-amber-200 ring-amber-500/25"}`}>
-                                          {isCompleted ? <Check className="h-2 w-2" /> : isCancelled ? <X className="h-2 w-2" /> : isConfirmed ? <CheckCheck className="h-2 w-2" /> : <Hourglass className="h-2 w-2" />}
-                                        </span>
-                                        <span className={`font-bold text-gray-900 dark:text-gray-100 leading-tight truncate ${isWeekMode ? "text-[10px]" : isCompact ? "text-[11px]" : "text-xs"} ${isCancelled ? "line-through" : ""}`}>
-                                          {appt.customers?.nombre || "Sin cliente"}
-                                        </span>
-                                      </div>
-                                      <div className="flex items-center gap-1 shrink-0">
-                                        {appt.customers?.telefono && !isWeekMode && (
-                                          <a
-                                            href={`https://wa.me/${appt.customers.telefono.replace(/\D/g, "")}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            onClick={(e) => e.stopPropagation()}
-                                            className="inline-flex items-center justify-center rounded-full border border-emerald-300/70 bg-emerald-50/90 p-1 text-emerald-700 hover:bg-emerald-100"
-                                            title="Enviar WhatsApp"
-                                          >
-                                            <MessageCircle className="h-3 w-3" />
-                                          </a>
-                                        )}
-                                        {!isWeekMode && svc.emoji && <span className="text-sm leading-none">{svc.emoji}</span>}
-                                      </div>
-                                    </div>
-                                    <span className={`text-gray-700 dark:text-gray-300 leading-tight truncate ${isWeekMode ? "text-[9px]" : isCompact ? "text-[10px]" : "text-[11px]"}`}>
-                                      {appt.start_hhmm} - {appt.end_hhmm}
-                                    </span>
-                                    {appt.services?.name && (
-                                      <span className={`text-gray-700/90 dark:text-gray-300/90 leading-tight truncate ${isWeekMode ? "text-[9px]" : isCompact ? "text-[10px]" : "text-[11px]"}`}>
-                                        {svc.emoji ? `${svc.emoji} ` : ""}
-                                        {svc.label || appt.services.name}
-                                      </span>
-                                    )}
-                                    {showStatusBadge && (
-                                      <span className="sr-only">{displayLabel}</span>
-                                    )}
-                                    {!isWeekMode && !appt.loyalty_reward_applied && Math.max(0, Number(appt.customers?.loyalty_rewards_available || 0)) > 0 && (
-                                      <span className="inline-flex items-center rounded-full bg-amber-100/90 text-amber-800 px-1.5 py-0.5 text-[9px] font-semibold w-fit">
-                                        Canje disponible
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              </motion.div>
-                            );
-                          })}
-
-                          {(() => {
-                            const now = new Date();
-                            const isCurrentDay = getArgentinaDateKey(day) === getArgentinaDateKey(now);
-                            const nowMinutes = getArgentinaMinutesSinceMidnight(now);
-                            const minMinutes = gridStartHour * 60;
-                            const maxMinutes = (gridEndHour + 1) * 60;
-                            const visible = isCurrentDay && nowMinutes >= minMinutes && nowMinutes <= maxMinutes;
-                            if (!visible) return null;
-                            const topPx = ((nowMinutes - minMinutes) / 60) * HOUR_HEIGHT;
-                            return (
-                              <div
-                                className="absolute pointer-events-none z-20 left-0 right-0"
-                                style={{ top: `${topPx}px` }}
-                              >
-                                <div className="relative h-px bg-sky-500/90 shadow-[0_0_6px_rgba(56,189,248,0.45)]">
-                                  <span className="absolute left-0 -top-1.5 w-3 h-3 -translate-x-1/2 rounded-full bg-sky-500/90 shadow-[0_0_0_3px_rgba(56,189,248,0.18),0_0_8px_rgba(56,189,248,0.45)]" />
-                                </div>
-                              </div>
-                            );
-                          })()}
-                        </div>
-
-                </div>
-              </>
-            );
-          })()}
+                      <NowLine day={day} gridStartHour={gridStartHour} gridEndHour={gridEndHour} />
+                    </div>
+                  </div>
+                </>
               </div>
             );
           })}
-        </motion.div>
+        </div>
       </div>
 
-      {portalReady && createPortal((
-      <AnimatePresence>
-        {!isCoarsePointer && hoverTooltip && (() => {
-          const tipAppt = hoverTooltip.appointment;
-          const humanDate = format(new Date(tipAppt.start_local_iso), "EEEE d MMMM", { locale: es });
-          return (
-            <motion.div
-              key={tipAppt.id}
-              className="fixed left-0 top-0 pointer-events-none z-[60] w-[300px] rounded-xl border border-black/5 dark:border-white/10 bg-white/90 dark:bg-black/80 shadow-[0_10px_30px_rgba(0,0,0,0.12)] backdrop-blur-[10px] px-4 py-3 text-gray-900 dark:text-white"
-              style={{ x: tooltipX, y: tooltipY }}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.97 }}
-              transition={{ type: "spring", ...MOTION_PRESET.tooltipInOut }}
-            >
+      {portalReady && !isCoarsePointer && createPortal((
+        <>
+          {hoverTooltip && (() => {
+            const tipAppt = hoverTooltip.appointment;
+            const humanDate = format(new Date(tipAppt.start_local_iso), "EEEE d MMMM", { locale: es });
+            return (
+              <motion.div
+                key={tipAppt.id}
+                className="fixed left-0 top-0 pointer-events-none z-[60] w-[300px] rounded-xl border border-zinc-200/70 dark:border-white/10 bg-white dark:bg-black/90 shadow-lg px-4 py-3 text-gray-900 dark:text-white"
+                style={{ x: tooltipX, y: tooltipY }}
+              >
               <div className="text-base font-semibold leading-tight">
                 👤 {tipAppt.customers?.nombre || "Sin cliente"}
               </div>
@@ -883,16 +952,11 @@ export default memo(function CalendarView({
               <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">
                 ⏰ {tipAppt.start_hhmm} - {tipAppt.end_hhmm}
               </div>
-              {(() => {
-                const tipSvc = tipAppt.services?.name
-                  ? extractEmoji(tipAppt.services.name)
-                  : null;
-                return tipSvc ? (
-                  <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">
-                    ✂️ {tipSvc.emoji} {tipSvc.label}
-                  </div>
-                ) : null;
-              })()}
+              {tipAppt.services?.name && (
+                <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">
+                  ✂️ {tipAppt.services.name}
+                </div>
+              )}
               {tipAppt.customers?.email && (
                 <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">
                   📧 {tipAppt.customers.email}
@@ -909,35 +973,16 @@ export default memo(function CalendarView({
             </motion.div>
           );
         })()}
-      </AnimatePresence>
+      </>
       ), document.body)}
 
       {businessHours && (
-        <div className="mt-4 inline-flex items-center gap-1.5 text-xs bg-white/30 dark:bg-black/20 backdrop-blur-2xl rounded-2xl px-4 py-2.5 border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-sm text-gray-600 dark:text-gray-400">
-          <div className="w-3 h-3 rounded-sm closed-slot-pattern" style={{ backgroundSize: "6px 6px" }} />
+        <div className="mt-3 inline-flex items-center gap-1.5 text-xs bg-zinc-50/60 dark:bg-white/5 rounded-xl px-3 py-1.5 border border-zinc-200/50 dark:border-white/10 text-zinc-500 dark:text-zinc-400">
+          <div className="w-3 h-3 rounded-sm closed-slot-pattern border border-zinc-300/40 dark:border-white/10" style={{ backgroundSize: "6px 6px" }} />
           <span>Cerrado</span>
         </div>
       )}
-      <style>{`
-        .closed-slot-pattern {
-          background-image: repeating-linear-gradient(
-            45deg,
-            transparent,
-            transparent 10px,
-            rgba(0, 0, 0, 0.08) 10px,
-            rgba(0, 0, 0, 0.08) 20px
-          );
-        }
-        .dark .closed-slot-pattern {
-          background-image: repeating-linear-gradient(
-            45deg,
-            transparent,
-            transparent 10px,
-            rgba(255, 255, 255, 0.16) 10px,
-            rgba(255, 255, 255, 0.16) 20px
-          );
-        }
-      `}</style>
+      {styleTag}
     </div>
   );
 })

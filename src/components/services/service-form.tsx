@@ -1,7 +1,7 @@
 "use client";
 
 import { createService, updateService } from "@/lib/dashboard/service-actions";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 interface ServiceFormProps {
   shopId: string;
@@ -20,6 +20,7 @@ const durationOptions = [5, 10, 15, 20, 30, 45, 60, 90, 120, 150, 180, 240, 300]
 export default function ServiceForm({ shopId, service, onSuccess }: ServiceFormProps) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -41,6 +42,10 @@ export default function ServiceForm({ shopId, service, onSuccess }: ServiceFormP
     });
   };
 
+  useEffect(() => {
+    nameRef.current?.focus();
+  }, []);
+
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       {error && (
@@ -54,6 +59,7 @@ export default function ServiceForm({ shopId, service, onSuccess }: ServiceFormP
           Nombre
         </label>
         <input
+          ref={nameRef}
           type="text"
           id="name"
           name="name"

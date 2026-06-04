@@ -1,4 +1,14 @@
 const AR_TZ = "America/Argentina/Buenos_Aires";
+const AR_FMT = new Intl.DateTimeFormat("en-US", {
+  timeZone: AR_TZ,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+});
 
 function getDatePartsInTimezone(tz: string): { year: number; month: number; day: number; weekday: number; hours: number; minutes: number } {
   const now = new Date();
@@ -74,16 +84,7 @@ export function toArgentinaLocalIsoString(value: Date | string): string {
   }
 
   const dt = typeof value === "string" ? new Date(value) : value;
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: AR_TZ,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  }).formatToParts(dt);
+  const parts = AR_FMT.formatToParts(dt);
   const get = (type: string) => parts.find((p) => p.type === type)?.value || "00";
   return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}:${get("second")}`;
 }
