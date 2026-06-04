@@ -138,6 +138,7 @@ export default function FinancesClient({
   const [cashSession, setCashSession] = useState<CashSessionSummary | null>(null);
   const [cashMovements, setCashMovements] = useState<CashMovementItem[]>([]);
   const [cashSessionsHistory, setCashSessionsHistory] = useState<CashSessionSummary[]>([]);
+  const [cashLoading, setCashLoading] = useState(false);
 
   const [uiMessage, setUiMessage] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
@@ -192,6 +193,7 @@ export default function FinancesClient({
     })();
 
     const cashPromise = (async () => {
+      setCashLoading(true);
       try {
         const [session, moves, history] = await Promise.all([
           fetchCashSession(sid),
@@ -203,6 +205,8 @@ export default function FinancesClient({
         if (history.success && history.data) setCashSessionsHistory(history.data);
       } catch {
         /* silently ignore */
+      } finally {
+        setCashLoading(false);
       }
     })();
 
@@ -218,7 +222,7 @@ export default function FinancesClient({
       window.clearInterval(refreshTimerRef.current);
     }
     refreshTimerRef.current = window.setInterval(() => {
-      triggerLoads(from, to);
+      if (!document.hidden) triggerLoads(from, to);
     }, 30000);
     return () => {
       if (refreshTimerRef.current) {
@@ -418,11 +422,31 @@ export default function FinancesClient({
 
       <Card title="Caja" icon={<Vault className="h-4 w-4" />}>
         <div className="mb-4 rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white to-slate-50 p-4 dark:border-zinc-700/80 dark:bg-gradient-to-br dark:from-zinc-900 dark:to-zinc-950">
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div><p className="text-[11px] uppercase text-slate-500 dark:text-zinc-400">Esperado</p><p className="mt-1 text-lg font-bold text-slate-900 dark:text-white">${kpiExpected.toFixed(2)}</p></div>
-            <div><p className="text-[11px] uppercase text-slate-500 dark:text-zinc-400">Contado</p><p className="mt-1 text-lg font-bold text-slate-900 dark:text-white">${kpiCounted.toFixed(2)}</p></div>
-            <div><p className="text-[11px] uppercase text-slate-500 dark:text-zinc-400">Diferencia</p><p className={`mt-1 text-lg font-bold ${kpiDiff >= 0 ? "text-emerald-600" : "text-red-500"}`}>${kpiDiff.toFixed(2)}</p></div>
-          </div>
+          {cashLoading ? (
+            <div className="grid grid-cols-3 gap-2 text-center">
+              {[0, 1, 2].map((i) => (
+                <div key={i}>
+                  <div className="mx-auto mb-1 h-3 w-16 animate-pulse rounded bg-slate-200 dark:bg-zinc-700" />
+                  <div className="mx-auto h-6 w-20 animate-pulse rounded bg-slate-200 dark:bg-zinc-700" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div><p className="text-[11px] uppercase text-slate-500 dark:text-zinc-400">Esperado</p><p className="mt-1 text-lg font-bold text-slate-900 dark:text-white">${kpiExpected.toFixed(2)}</p></div>
+                <div><p className="text-[11px] uppercase text-slate-500 dark:text-zinc-400">Contado</p><p className="mt-1 text-lg font-bold text-slate-900 dark:text-white">${kpiCounted.toFixed(2)}</p></div>
+                <div><p className="text-[11px] uppercase text-slate-500 dark:text-zinc-400">Diferencia</p><p className={`mt-1 text-lg font-bold ${kpiDiff >= 0 ? "text-emerald-600" : "text-red-500"}`}>${kpiDiff.toFixed(2)}</p></div>
+              </div>
+              {cashSession?.status === "open" && (
+                <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500 dark:text-zinc-400">
+                  <span>Inicial: <strong className="text-slate-700 dark:text-zinc-200">${cashSession.openingAmount.toFixed(2)}</strong></span>
+                  <span>Movimientos: <strong className="text-slate-700 dark:text-zinc-200">${cashSession.movementNet >= 0 ? "+" : ""}{cashSession.movementNet.toFixed(2)}</strong></span>
+                  <span>Turnos: <strong className="text-slate-700 dark:text-zinc-200">+${cashSession.appointmentIncome.toFixed(2)}</strong></span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">

@@ -119,6 +119,8 @@ export type CashSessionSummary = {
   expectedAmount: number;
   countedAmount: number | null;
   differenceAmount: number | null;
+  movementNet: number;
+  appointmentIncome: number;
 };
 
 export type CashMovementItem = {
@@ -309,7 +311,7 @@ export async function upsertStaffCompensationRule(formData: FormData, shopIdOver
     });
     if (error) return { success: false, error: error.message };
 
-    await revalidateDashboardSegments(shopId, ["/finances", "", "/business"]);
+    await revalidateDashboardSegments(shopId, ["/finances"]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al guardar regla" };
@@ -420,7 +422,7 @@ export async function createStaffPreLiquidation(formData: FormData, shopIdOverri
     }
 
     const staff = staffRows.find((s) => s.user_id === staffUserId);
-    await revalidateDashboardSegments(shopId, ["/finances", "", "/business"]);
+    await revalidateDashboardSegments(shopId, ["/finances"]);
 
     return {
       success: true,
@@ -507,7 +509,7 @@ export async function markStaffLiquidationPaid(liquidationId: string, paidAmount
       .eq("shop_id", shopId);
 
     if (error) return { success: false, error: error.message };
-    await revalidateDashboardSegments(shopId, ["/finances", "", "/business"]);
+    await revalidateDashboardSegments(shopId, ["/finances"]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al marcar liquidacion" };
@@ -575,6 +577,8 @@ export async function fetchCashSession(shopIdOverride?: string): Promise<ActionR
         expectedAmount,
         countedAmount: data.counted_amount == null ? null : Number(data.counted_amount),
         differenceAmount: data.difference_amount == null ? null : Number(data.difference_amount),
+        movementNet,
+        appointmentIncome,
       },
     };
   } catch (e) {
@@ -604,7 +608,7 @@ export async function openCashSession(formData: FormData, shopIdOverride?: strin
       opened_by: actorResult.data,
     });
     if (error) return { success: false, error: error.message };
-    await revalidateDashboardSegments(shopId, ["/finances", "", "/business"]);
+    await revalidateDashboardSegments(shopId, ["/finances"]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al abrir caja" };
@@ -680,7 +684,7 @@ export async function closeCashSession(formData: FormData, shopIdOverride?: stri
       .eq("status", "open");
     if (error) return { success: false, error: error.message };
 
-    await revalidateDashboardSegments(shopId, ["/finances", "", "/business"]);
+    await revalidateDashboardSegments(shopId, ["/finances"]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al cerrar caja" };
@@ -733,7 +737,7 @@ export async function createCashMovement(formData: FormData, shopIdOverride?: st
       happened_at: happenedAt,
     });
     if (error) return { success: false, error: error.message };
-    await revalidateDashboardSegments(shopId, ["/finances", "", "/business"]);
+    await revalidateDashboardSegments(shopId, ["/finances"]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al crear movimiento de caja" };
@@ -987,6 +991,8 @@ export async function fetchCashSessionsHistory(fromDate?: string, toDate?: strin
         expectedAmount: Number(s.expected_amount || 0),
         countedAmount: s.counted_amount == null ? null : Number(s.counted_amount),
         differenceAmount: s.difference_amount == null ? null : Number(s.difference_amount),
+        movementNet: 0,
+        appointmentIncome: 0,
       })),
     };
   } catch (e) {
@@ -1031,7 +1037,7 @@ export async function createExpense(formData: FormData, shopIdOverride?: string)
       return { success: false, error: error.message };
     }
 
-    await revalidateDashboardSegments(shopId, ["/finances", "", "/business"]);
+    await revalidateDashboardSegments(shopId, ["/finances"]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al crear gasto" };
@@ -1061,7 +1067,7 @@ export async function deleteExpense(id: string, shopIdOverride?: string): Promis
       return { success: false, error: error.message };
     }
 
-    await revalidateDashboardSegments(shopId, ["/finances", "", "/business"]);
+    await revalidateDashboardSegments(shopId, ["/finances"]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al eliminar gasto" };
