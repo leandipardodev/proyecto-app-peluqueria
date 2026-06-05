@@ -411,8 +411,9 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
       </div>
 
       <div className="relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-        <div className="lg:col-span-2 min-w-0">
+        <div className="lg:col-span-2 min-w-0 space-y-4">
           <RevenueChart data={metrics?.revenueChart ?? []} flowByPeriod={metrics?.flowByPeriod} />
+          <ShareLinkCard slug={shopSlugOverride || summary.shopSlug} />
         </div>
         <div className="lg:col-span-1 space-y-4 min-w-0">
           <TopServices data={metrics?.topServices ?? []} serviceLabelPlural={servicePlural} />
@@ -528,7 +529,6 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
         )}
       </div>
 
-      <ShareLinkCard slug={shopSlugOverride || summary.shopSlug} />
       <PwaInstallButton />
       <style>{`
         .flow-mini {

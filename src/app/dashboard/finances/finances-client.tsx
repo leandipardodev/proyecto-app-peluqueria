@@ -5,7 +5,6 @@ import {
   Users2,
   CheckCircle2,
   Vault,
-  Download,
 } from "lucide-react";
 import {
   fetchFinanceData,
@@ -29,7 +28,6 @@ import {
 } from "@/lib/dashboard/finances-actions";
 import { supabase } from "@/lib/supabase";
 import CustomSelect from "@/components/ui/custom-select";
-import { downloadCsv } from "@/lib/csv-export";
 
 type Movement = {
   id: string;
@@ -307,16 +305,6 @@ export default function FinancesClient({
         <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Finanzas</h1>
         {uiMessage && <span className="ui-badge">{uiMessage}</span>}
         {error && <span className="rounded-full bg-red-500/15 px-3 py-1 text-xs font-semibold text-red-700 dark:text-red-300">{error}</span>}
-        {data && (
-          <button onClick={() => downloadCsv([{ ingresos: data.totalIncome, gastos: data.totalExpenses, balance: data.netBalance }], [
-            { key: "ingresos", label: "Ingresos" },
-            { key: "gastos", label: "Gastos" },
-            { key: "balance", label: "Balance" },
-          ], "finanzas")} className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-zinc-600 px-2.5 py-1.5 text-xs font-medium text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
-            <Download className="w-3.5 h-3.5" />
-            CSV
-          </button>
-        )}
       </header>
 
       <div className="ui-card inline-flex max-w-full flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-2.5 dark:border-zinc-700 dark:bg-zinc-900/65">
@@ -344,15 +332,7 @@ export default function FinancesClient({
         </div>
       </div>
 
-      <Card title="Equipo" icon={<Users2 className="h-4 w-4" />} right={staffProduction.length > 0 ? <button onClick={() => downloadCsv(staffProduction, [
-          { key: "staffName", label: "Empleado" },
-          { key: "appointmentsCount", label: "Turnos" },
-          { key: (s) => s.paidRevenue.toFixed(2), label: "Cobrado" },
-          { key: (s) => s.avgTicketPaid.toFixed(2), label: "Ticket" },
-        ], "produccion-empleados")} className="inline-flex items-center gap-1 rounded-lg border border-slate-300 dark:border-zinc-600 px-2 py-1 text-xs font-medium text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
-          <Download className="w-3 h-3" />
-          CSV
-        </button> : undefined}>
+      <Card title="Equipo" icon={<Users2 className="h-4 w-4" />} right={undefined}>
         {staffProduction.length === 0 ? (
           <div className="flex min-h-[120px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 dark:border-zinc-700 dark:bg-zinc-900/40">
             <Users2 className="h-7 w-7 text-slate-400" />

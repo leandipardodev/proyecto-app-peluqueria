@@ -112,14 +112,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const { data: shop } = await supabase
-        .from("shops")
-        .select("id, nombre, slug, industry, active, plan_expiry")
-        .eq("id", profile.shop_id)
-        .maybeSingle();
+      let resolvedShop: ShopInfo | null = null;
+      if (profile.shop_id) {
+        const { data: shop } = await supabase
+          .from("shops")
+          .select("id, nombre, slug, industry, active, plan_expiry")
+          .eq("id", profile.shop_id)
+          .maybeSingle();
+        if (shop) {
+          resolvedShop = { id: shop.id, name: shop.nombre, slug: shop.slug, industry: resolveIndustry(shop.industry), planExpiry: shop.plan_expiry, active: shop.active };
+        }
+      }
 
       if (isMounted && seq === fetchVersionRef.current) {
-        const resolvedShop = shop ? { id: shop.id, name: shop.nombre, slug: shop.slug, industry: resolveIndustry(shop.industry), planExpiry: shop.plan_expiry, active: shop.active } : null;
         const currentSlug = pathnameShopSlugRef.current;
         const slugMismatch = currentSlug && resolvedShop && resolvedShop.slug !== currentSlug;
 

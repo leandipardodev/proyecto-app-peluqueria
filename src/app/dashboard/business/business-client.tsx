@@ -12,6 +12,7 @@ import { useKlipSounds } from "@/lib/use-klip-sounds";
 import BookingTemplateCarousel from "@/components/dashboard/booking-template-carousel";
 import BookingThemeLivePreview from "@/components/dashboard/booking-theme-live-preview";
 import BusinessStatsSection from "@/components/dashboard/business-stats-section";
+import ExportDataCard from "@/components/dashboard/export-data-card";
 import CreateShopModal from "@/components/dashboard/create-shop-modal";
 import CloseShopModal from "@/components/dashboard/close-shop-modal";
 import { bulkUpdateServiceCategories } from "@/lib/dashboard/service-actions";
@@ -1804,6 +1805,11 @@ export default function BusinessClient({
         document.body,
       )}
       </div>
+
+      {/* Exportar datos */}
+      {shop?.id && (
+        <ExportDataCard shopId={shop.id} />
+      )}
 
       {/* Guardar todo flotante */}
       {portalReady && typeof document !== "undefined" && createPortal(

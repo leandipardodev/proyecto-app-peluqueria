@@ -125,7 +125,7 @@ export default function BookingTemplateCarousel({ selectedTemplateId, onSelect }
         onPointerMove={handlePointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
-        className={`flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 select-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
+        className={`flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 select-none touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
       >
         {BOOKING_TEMPLATE_PRESETS.map((template) => {
           const selected = template.id === selectedTemplateId;
@@ -148,7 +148,7 @@ export default function BookingTemplateCarousel({ selectedTemplateId, onSelect }
                   : "border-white/35 bg-white/55 hover:bg-white/75 dark:bg-zinc-900/30 dark:hover:bg-zinc-900/45"
               }`}
             >
-              <div className="overflow-hidden rounded-2xl border border-white/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+              <div className="overflow-hidden rounded-2xl border border-white/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] dark:bg-white">
                 <Image src={template.previewSrc} alt={template.name} width={220} height={390} sizes="220px" className="h-[220px] w-full object-cover" />
               </div>
               <p className="mt-3 text-sm font-semibold text-zinc-900 dark:text-white">{template.name}</p>

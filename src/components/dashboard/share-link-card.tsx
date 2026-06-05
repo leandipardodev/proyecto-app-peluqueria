@@ -46,7 +46,7 @@ export default function ShareLinkCard({ slug }: ShareLinkCardProps) {
         Tu link de reservas
       </h3>
       <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
-        Compartí este link con tus clientes para que reserven online.
+        Compartí este link con tus clientes para que reserven online, y pegalo en tus redes.
       </p>
       <div className="flex flex-col sm:flex-row gap-2">
         <input

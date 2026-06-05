@@ -145,8 +145,21 @@ export default function CalendarPageClient({
   const [selectedAppointment, setSelectedAppointment] =
     useState<Appointment | null>(null);
   const [staffFilter, setStaffFilter] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const filteredAppointments = useMemo(() => {
+    if (!statusFilter) return resolvedAppointments;
+    const statuses = statusFilter === "scheduled"
+      ? ["scheduled", "pending_payment"]
+      : statusFilter === "confirmed"
+        ? ["confirmed", "in_progress"]
+        : statusFilter === "cancelled"
+          ? ["cancelled", "no_show"]
+          : [statusFilter];
+    return resolvedAppointments.filter((a) => statuses.includes(a.status));
+  }, [resolvedAppointments, statusFilter]);
 
   useEffect(() => {
     setHydrated(true);
@@ -286,9 +299,33 @@ export default function CalendarPageClient({
         </div>
       </div>
 
+      {/* Filtro por estado */}
+      <div className="flex items-center gap-1 mb-4 -mt-1">
+        {[
+          { key: null, label: "Todos" },
+          { key: "scheduled", label: "Pendiente" },
+          { key: "confirmed", label: "Confirmado" },
+          { key: "completed", label: "Completado" },
+          { key: "cancelled", label: "Cancelado" },
+        ].map((opt) => (
+          <button
+            key={opt.key ?? "all"}
+            type="button"
+            onClick={() => setStatusFilter(opt.key)}
+            className={`text-[11px] font-medium px-2 py-0.5 rounded-full transition-colors cursor-pointer select-none ${
+              statusFilter === opt.key
+                ? "text-[#0071E3] dark:text-[#5da8ff] bg-[#0071E3]/10 dark:bg-[#0071E3]/15"
+                : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300"
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
       <div className="flex-1 min-h-0">
         <CalendarView
-          appointments={resolvedAppointments}
+          appointments={filteredAppointments}
           currentDate={currentDate}
           onPrevWeek={handlePrevWeek}
           onNextWeek={handleNextWeek}
