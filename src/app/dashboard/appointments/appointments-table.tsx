@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, memo } from "react";
 import { MessageCircle, Bell } from "lucide-react";
 import AppointmentFormModal from "@/components/calendar/appointment-form-modal";
 import { Button } from "@/components/ui/button";
@@ -78,7 +78,7 @@ interface Props {
   error?: string | null;
 }
 
-export default function AppointmentsTable({ shopId, initialAppointments, services, staff, customers, shopName, shopAddress, whatsappTemplate, error }: Props) {
+const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppointments, services, staff, customers, shopName, shopAddress, whatsappTemplate, error }: Props) {
   const { shop } = useAuth();
   const industry = resolveIndustry(shop?.industry);
   const customerWord = INDUSTRY_CONFIG[industry].labels.customerSingular;
@@ -391,4 +391,6 @@ export default function AppointmentsTable({ shopId, initialAppointments, service
       )}
     </div>
   );
-}
+});
+
+export default AppointmentsTable;

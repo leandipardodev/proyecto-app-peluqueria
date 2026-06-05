@@ -1,7 +1,7 @@
 "use client";
 
 import { Pencil, Trash2, Plus } from "lucide-react";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, memo } from "react";
 import { useRouter } from "next/navigation";
 import ServiceModal from "./service-modal";
 import ServiceForm from "./service-form";
@@ -28,7 +28,7 @@ interface ServicesListProps {
   initialServices: Service[];
 }
 
-export default function ServicesList({ shopId, shopSlug, industry, initialServices }: ServicesListProps) {
+const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, initialServices }: ServicesListProps) {
   const router = useRouter();
   const [services, setServices] = useState(initialServices);
   const [modalOpen, setModalOpen] = useState(false);
@@ -294,4 +294,6 @@ export default function ServicesList({ shopId, shopSlug, industry, initialServic
       />
     </>
   );
-}
+});
+
+export default ServicesList;

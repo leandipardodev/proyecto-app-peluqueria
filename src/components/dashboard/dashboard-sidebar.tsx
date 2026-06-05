@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, memo } from "react";
 import { AnimatePresence, LayoutGroup, animate, motion, useMotionValue, useSpring } from "framer-motion";
 import {
   Home,
@@ -56,7 +56,7 @@ interface DashboardSidebarProps {
   showBrand?: boolean;
 }
 
-export default function DashboardSidebar({
+const DashboardSidebar = memo(function DashboardSidebar({
   userName,
   onLogout,
   className = "",
@@ -281,7 +281,9 @@ export default function DashboardSidebar({
     </motion.aside>
     </AnimatePresence>
   );
-}
+});
+
+export default DashboardSidebar;
 
 const letters = "Klip".split("");
 

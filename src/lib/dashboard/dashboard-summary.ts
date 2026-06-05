@@ -260,6 +260,9 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
     const monthStart = new Date(dayStart);
     monthStart.setUTCDate(1);
 
+    const twelveMonthsAgo = new Date(monthStart);
+    twelveMonthsAgo.setUTCFullYear(twelveMonthsAgo.getUTCFullYear() - 1);
+
     const [apptsRevenueRes, apptsCountRes, financesRes, cashMovesRes, clientsRes, flowToday, flowWeek, flowMonth] = await Promise.all([
       admin
         .from("appointments")
@@ -274,15 +277,18 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
       admin
         .from("finances")
         .select("amount, type, created_at, happened_at")
-        .eq("shop_id", shopId),
+        .eq("shop_id", shopId)
+        .gte("created_at", twelveMonthsAgo.toISOString()),
       admin
         .from("cash_movements")
         .select("amount, movement_type, happened_at")
-        .eq("shop_id", shopId),
+        .eq("shop_id", shopId)
+        .gte("created_at", twelveMonthsAgo.toISOString()),
       admin
         .from("customers")
         .select("created_at")
-        .eq("shop_id", shopId),
+        .eq("shop_id", shopId)
+        .gte("created_at", twelveMonthsAgo.toISOString()),
       fetchFlowRange(admin, shopId, dayStart.toISOString(), dayEnd.toISOString()),
       fetchFlowRange(admin, shopId, weekStart.toISOString(), dayEnd.toISOString()),
       fetchFlowRange(admin, shopId, monthStart.toISOString(), dayEnd.toISOString()),

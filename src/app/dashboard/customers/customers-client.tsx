@@ -136,7 +136,7 @@ export default function CustomersPage() {
     }
 
     const [{ data, error: fetchError }, { data: shopData, error: shopError }] = await Promise.all([
-      supabase.from("customers").select("*").eq("shop_id", activeShopId),
+      supabase.from("customers").select('id, nombre, email, telefono, "cumpleaños", observaciones_tecnicas, es_vip, recurring_weekday, recurring_frequency, recurring_notes, loyalty_cuts_count, loyalty_rewards_available').eq("shop_id", activeShopId),
       supabase
         .from("shops")
         .select("loyalty_enabled, loyalty_cuts_required")

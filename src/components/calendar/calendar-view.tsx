@@ -857,13 +857,6 @@ export default memo(function CalendarView({
                             ? "hover:bg-white/30 dark:hover:bg-white/5 cursor-pointer"
                             : "bg-slate-200 dark:bg-zinc-950 border-y border-y-black/[0.08] dark:border-y-white/[0.03] closed-slot-pattern"
                         }`}
-                        style={
-                          isOpenSlot
-                            ? undefined
-                            : {
-                                backgroundImage: undefined,
-                              }
-                        }
                         onClick={isOpenSlot ? () => onSlotClick(day, hour) : undefined}
                       >
                         {(isMobileDayMode || (isMobileViewport && viewMode === "week" && dayIndex === 0)) && (
@@ -875,8 +868,7 @@ export default memo(function CalendarView({
                     );})}
 
                     <div
-                      className="absolute inset-x-0 bottom-0 pointer-events-none z-10"
-                      style={{ top: 0 }}
+                      className="absolute inset-0 pointer-events-none z-10"
                     >
                       {(eventLayoutByDay.get(dayStr) || []).map((event) => (
                         <AppointmentBlock

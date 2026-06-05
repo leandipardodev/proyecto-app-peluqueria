@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef, memo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Package,
@@ -29,7 +29,7 @@ interface StockTableProps {
   items: StockItem[];
 }
 
-export default function StockTable({ shopId, items }: StockTableProps) {
+const StockTable = memo(function StockTable({ shopId, items }: StockTableProps) {
   const [stockItems, setStockItems] = useState(items);
   const [search, setSearch] = useState("");
   const [bulkAmountById, setBulkAmountById] = useState<Record<string, string>>({});
@@ -427,4 +427,6 @@ export default function StockTable({ shopId, items }: StockTableProps) {
       />
     </>
   );
-}
+});
+
+export default StockTable;

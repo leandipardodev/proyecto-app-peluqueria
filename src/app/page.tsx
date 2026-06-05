@@ -17,7 +17,7 @@ const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], weight: ["400", "500", "
 const reveal = {
   initial: { opacity: 0, y: 18 },
   whileInView: { opacity: 1, y: 0 },
-  viewport: { once: false, amount: 0.25 },
+  viewport: { once: true, amount: 0.25 },
   transition: { type: "spring", stiffness: 110, damping: 22 },
 } as const;
 
@@ -83,13 +83,13 @@ function SweepSection({
   allowOverflow?: boolean;
 }) {
   return (
-    <motion.div className={`relative rounded-[2rem] ${allowOverflow ? "overflow-visible" : "overflow-hidden"}`} initial={{ opacity: 0.88 }} whileInView={{ opacity: 1 }} viewport={{ once: false, amount: 0.2 }}>
+    <motion.div className={`relative rounded-[2rem] ${allowOverflow ? "overflow-visible" : "overflow-hidden"}`} initial={{ opacity: 0.88 }} whileInView={{ opacity: 1 }} viewport={{ once: true, amount: 0.2 }}>
       <motion.div
         aria-hidden
         className={`pointer-events-none absolute -left-1/3 top-0 z-20 h-full w-1/2 -skew-x-12 ${sweepClassName}`}
         initial={{ x: "-140%", opacity: 0 }}
         whileInView={{ x: "280%", opacity: [0, 0.55, 0] }}
-        viewport={{ once: false, amount: 0.25 }}
+        viewport={{ once: true, amount: 0.25 }}
         transition={{ duration: 1.35, ease: [0.22, 1, 0.36, 1] }}
       />
       {children}

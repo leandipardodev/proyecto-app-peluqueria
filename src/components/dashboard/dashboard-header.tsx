@@ -1,7 +1,7 @@
 "use client";
 
 import { Menu, Search, Moon, Sun, Gauge, Repeat2, Check, Volume2, VolumeX, SlidersHorizontal, Sparkles } from "lucide-react";
-import { useState, useRef, useEffect, useTransition, useMemo, type KeyboardEvent } from "react";
+import { useState, useRef, useEffect, useTransition, useMemo, memo, type KeyboardEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import DashboardMobileSidebar from "./dashboard-mobile-sidebar";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
@@ -42,7 +42,7 @@ interface DashboardHeaderProps {
 const SEARCH_COLLAPSED_WIDTH = 280;
 const SEARCH_EXPANDED_WIDTH = 640;
 
-export default function DashboardHeader({ shopName, userName, userEmail, onLogout, activeShopSlug, managedShops, billingStatus, lastPaymentDate }: DashboardHeaderProps) {
+const DashboardHeader = memo(function DashboardHeader({ shopName, userName, userEmail, onLogout, activeShopSlug, managedShops, billingStatus, lastPaymentDate }: DashboardHeaderProps) {
 
   const { shop } = useAuth();
   const industry = resolveIndustry(shop?.industry);
@@ -234,6 +234,9 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
 
   useEffect(() => {
     setSoundMuted(isMuted());
+    const handleStorage = () => setSoundMuted(isMuted());
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
   useEffect(() => {
@@ -962,4 +965,6 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
       `}</style>
     </>
   );
-}
+});
+
+export default DashboardHeader;
