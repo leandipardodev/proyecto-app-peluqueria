@@ -434,7 +434,7 @@ export default function DashboardHeader({ shopName, userName, userEmail, onLogou
 
   return (
     <>
-      <header className="dashboard-mobile-header sticky top-0 z-50 shrink-0 flex items-center gap-4 bg-white/10 dark:bg-black/10 backdrop-blur-xl border-b border-white/20 dark:border-white/10 px-4 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.5rem)] touch-pan-x [overscroll-behavior-y:none] lg:px-6 lg:pt-2.5 transition-colors">
+      <header className="dashboard-mobile-header sticky top-0 z-50 shrink-0 flex items-center gap-4 bg-white/30 dark:bg-black/30 backdrop-blur-xl shadow-sm border-b border-white/10 dark:border-white/5 px-4 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.5rem)] touch-pan-x [overscroll-behavior-y:none] lg:px-6 lg:pt-2.5">
         <button
           onClick={handleMobileOpen}
           aria-label="Abrir menú de navegación"

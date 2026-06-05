@@ -165,7 +165,7 @@ export default function DashboardSidebar({
     <AnimatePresence mode="wait">
       <motion.aside
         key="desktop-sidebar"
-        className={`flex flex-col bg-white/10 dark:bg-black/10 backdrop-blur-3xl border-r border-white/20 dark:border-white/10 border-t border-l border-white/40 dark:border-t-white/20 dark:border-l-white/20 h-full transition-colors ${className}`}
+        className={`flex flex-col bg-white/30 dark:bg-black/30 backdrop-blur-3xl shadow-sm border-r border-white/10 dark:border-white/5 border-t border-l border-white/30 dark:border-t-white/15 dark:border-l-white/15 h-full ${className}`}
         initial={{ x: -300, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         exit={{ x: -300, opacity: 0, transition: { duration: 0.2, ease: "easeIn" } }}
