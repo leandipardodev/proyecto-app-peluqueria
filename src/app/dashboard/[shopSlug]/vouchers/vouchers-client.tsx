@@ -50,7 +50,7 @@ export default function VouchersClient({ shopId, initialVouchers, initialTemplat
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [shopId, router]);
+  }, [shopId]);
 
   const todayBirthdays = useMemo(() => vouchers.filter((v) => isBirthdayToday(v.gifted_to_birthday) && v.status !== "redeemed"), [vouchers]);
 

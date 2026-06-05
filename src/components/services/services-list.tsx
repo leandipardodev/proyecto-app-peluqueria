@@ -69,7 +69,7 @@ export default function ServicesList({ shopId, shopSlug, industry, initialServic
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [shopId, router]);
+  }, [shopId]);
 
   function openCreate() {
     setEditingService(null);

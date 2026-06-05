@@ -113,7 +113,7 @@ export default function AppointmentsTable({ shopId, initialAppointments, service
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [shopId, router]);
+  }, [shopId]);
 
   function handleSuccess() {
     setShowForm(false);

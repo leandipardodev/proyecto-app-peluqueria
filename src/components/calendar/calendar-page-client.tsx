@@ -195,7 +195,7 @@ export default function CalendarPageClient({
       if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
       supabase.removeChannel(channel);
     };
-  }, [shopId, router]);
+  }, [shopId]);
 
   const handleSlotClick = useCallback((date: Date, hour: number) => {
     setFormInitialDate(getArgentinaDateKey(date));

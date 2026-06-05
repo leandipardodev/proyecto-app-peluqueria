@@ -57,7 +57,7 @@ export default function StockTable({ shopId, items }: StockTableProps) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [shopId, router]);
+  }, [shopId]);
 
   const filtered = useMemo(
     () =>
