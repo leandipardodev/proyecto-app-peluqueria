@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { createVoucher, markVoucherRedeemed, markVoucherReminderSent, updateVoucherWhatsappTemplate, type VoucherRow } from "@/lib/dashboard/voucher-actions";
 import { DEFAULT_VOUCHER_WHATSAPP_TEMPLATE } from "@/lib/dashboard/voucher-constants";
 import { CheckCircle2, Gift, MessageCircle } from "lucide-react";
@@ -26,8 +27,13 @@ function voucherWhatsappText(v: VoucherRow, template: string) {
 }
 
 export default function VouchersClient({ shopId, initialVouchers, initialTemplate }: Props) {
+  const router = useRouter();
   const [vouchers, setVouchers] = useState(initialVouchers);
   const [template, setTemplate] = useState(initialTemplate || DEFAULT_VOUCHER_WHATSAPP_TEMPLATE);
+
+  useEffect(() => {
+    setVouchers(initialVouchers);
+  }, [initialVouchers]);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -37,23 +43,14 @@ export default function VouchersClient({ shopId, initialVouchers, initialTemplat
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "vouchers", filter: `shop_id=eq.${shopId}` },
-        async () => {
-          const { data } = await supabase
-            .from("vouchers")
-            .select("id, gifted_to_name, gifted_to_phone, gifted_to_birthday, gifted_by_name, service_name, voucher_message, status, reminder_sent_at, redeemed_at, created_at")
-            .eq("shop_id", shopId)
-            .order("gifted_to_birthday", { ascending: true });
-          if (data) {
-            setVouchers(data as VoucherRow[]);
-          }
-        }
+        () => router.refresh()
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [shopId]);
+  }, [shopId, router]);
 
   const todayBirthdays = useMemo(() => vouchers.filter((v) => isBirthdayToday(v.gifted_to_birthday) && v.status !== "redeemed"), [vouchers]);
 

@@ -73,9 +73,20 @@ export default function LoginPage() {
   useEffect(() => {
     const stored = Number(window.localStorage.getItem(RESET_COOLDOWN_KEY) || "0");
     if (stored > Date.now()) setResetCooldownUntil(stored);
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (resetCooldownUntil <= Date.now()) return;
+    const timer = setInterval(() => {
+      const n = Date.now();
+      setNow(n);
+      setResetCooldownUntil(prev => {
+        if (n >= prev) return 0;
+        return prev;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resetCooldownUntil]);
 
   const resetCooldownSeconds = Math.max(0, Math.ceil((resetCooldownUntil - now) / 1000));
 

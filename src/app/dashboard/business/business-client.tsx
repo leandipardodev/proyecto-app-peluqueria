@@ -1518,41 +1518,58 @@ export default function BusinessClient({
               </div>
 
               <div className="rounded-2xl border border-rose-200/70 dark:border-rose-700/40 bg-rose-50/80 dark:bg-rose-900/20 p-4 space-y-3">
-                <p className="text-sm font-semibold text-rose-800 dark:text-rose-200">Recomendacion fuerte de cobro</p>
-                <p className="text-xs text-rose-700/90 dark:text-rose-200/90">
-                  Mercado Pago descuenta aproximadamente un 7% por transaccion. Si cobras el servicio completo desde /book, perdes margen en cada turno.
-                  Te conviene cobrar solo una seña online y finalizar el resto en el local.
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-rose-800 dark:text-rose-200">Recomendacion fuerte de cobro</p>
+                  <p className="text-xs text-rose-700/90 dark:text-rose-200/90 mt-0.5">MP descuenta ~7%. Mejor cobra solo una seña online.</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setBookingDepositEnabled((prev) => !prev)}
-                    className={`inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-medium border transition-colors ${
-                      bookingDepositEnabled
-                        ? "bg-emerald-100 text-emerald-800 border-emerald-300"
-                        : "bg-zinc-100 text-zinc-700 border-zinc-300"
+                    onClick={() => { setPayAtShop(false); setBookingDepositEnabled(true); }}
+                    className={`rounded-full px-4 py-2 text-sm font-medium border transition-colors ${
+                      !payAtShop && bookingDepositEnabled
+                        ? "ui-btn-primary"
+                        : "ui-btn-ghost"
                     }`}
                   >
-                    {bookingDepositEnabled ? "Cobrando seña online" : "Cobro total online"}
+                    Cobrar seña online
                   </button>
-                  <input
-                    type="number"
-                    min={0}
-                    value={bookingDepositAmount}
-                    onChange={(e) => setBookingDepositAmount(e.target.value)}
-                    className="w-full rounded-full bg-white/70 dark:bg-black/30 border border-rose-200/80 dark:border-rose-700/50 px-4 py-2.5 text-sm text-gray-900 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    placeholder="Monto de seña (ARS)"
-                  />
+                  {!payAtShop && bookingDepositEnabled && (
+                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                      <span className="text-xs text-rose-600 dark:text-rose-300">$</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={bookingDepositAmount}
+                        onChange={(e) => setBookingDepositAmount(e.target.value)}
+                        className="w-20 rounded-md bg-white/80 dark:bg-black/40 border border-zinc-200 dark:border-zinc-700 px-2 py-1.5 text-sm text-center text-gray-900 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        placeholder="3000"
+                      />
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => { setPayAtShop(false); setBookingDepositEnabled(false); }}
+                    className={`rounded-full px-4 py-2 text-sm font-medium border transition-colors ${
+                      !payAtShop && !bookingDepositEnabled
+                        ? "ui-btn-primary"
+                        : "ui-btn-ghost"
+                    }`}
+                  >
+                    Cobrar total online
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setPayAtShop(true); setBookingDepositEnabled(false); }}
+                    className={`rounded-full px-4 py-2 text-sm font-medium border transition-colors ${
+                      payAtShop
+                        ? "ui-btn-primary"
+                        : "ui-btn-ghost"
+                    }`}
+                  >
+                    Cobrar en local
+                  </button>
                 </div>
-                <label className="flex items-center gap-2 cursor-pointer mt-3">
-                  <input
-                    type="checkbox"
-                    checked={payAtShop}
-                    onChange={(e) => setPayAtShop(e.target.checked)}
-                    className="w-4 h-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
-                  />
-                  <span className="text-sm text-rose-800 dark:text-rose-200 font-medium">Forzar pago en el local</span>
-                </label>
                 <div />
               </div>
             </div>
@@ -1788,22 +1805,20 @@ export default function BusinessClient({
       )}
       </div>
 
-      {/* Fixed bottom bar - Guardar todo siempre visible */}
+      {/* Guardar todo flotante */}
       {portalReady && typeof document !== "undefined" && createPortal(
-        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/20 dark:border-white/10 bg-white/85 dark:bg-gray-950/85 backdrop-blur-xl px-4 sm:px-6 py-3 flex items-center justify-end gap-4 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
-          <button
-            type="button"
-            onClick={() => {
-              startTransition(async () => {
-                await saveAllSections();
-              });
-            }}
-            disabled={pending}
-            className="ui-btn-primary inline-flex items-center rounded-full px-6 py-2.5 text-sm font-semibold disabled:opacity-60 shadow-lg"
-          >
-            {pending ? "Guardando todo..." : "Guardar todo"}
-          </button>
-        </div>,
+        <button
+          type="button"
+          onClick={() => {
+            startTransition(async () => {
+              await saveAllSections();
+            });
+          }}
+          disabled={pending}
+          className="fixed bottom-4 right-4 z-50 ui-btn-primary inline-flex items-center rounded-full px-6 py-2.5 text-sm font-semibold disabled:opacity-60 shadow-lg"
+        >
+          {pending ? "Guardando todo..." : "Guardar todo"}
+        </button>,
         document.body
       )}
 

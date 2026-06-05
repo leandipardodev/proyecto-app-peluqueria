@@ -552,14 +552,16 @@ export async function fetchCashSession(shopIdOverride?: string): Promise<ActionR
     if (data.status === "open") {
       const { data: sessionAppts } = await admin
         .from("appointments")
-        .select("service_price")
+        .select("service_price, services:service_id(price)")
         .eq("shop_id", shopId)
         .eq("status", "completed")
         .eq("is_paid", true)
         .gte("start_time", data.opened_at)
         .lte("start_time", new Date().toISOString());
       appointmentIncome = (sessionAppts || []).reduce((sum, a) => {
-        return sum + (a.service_price != null ? Number(a.service_price) : 0);
+        const svc = Array.isArray(a.services) ? a.services[0] : a.services;
+        const amount = a.service_price != null ? Number(a.service_price) : (svc?.price ?? 0);
+        return sum + amount;
       }, 0);
     }
 
@@ -651,7 +653,7 @@ export async function closeCashSession(formData: FormData, shopIdOverride?: stri
 
     const { data: sessionAppts } = await admin
       .from("appointments")
-      .select("service_price")
+      .select("service_price, services:service_id(price)")
       .eq("shop_id", shopId)
       .eq("status", "completed")
       .eq("is_paid", true)
@@ -659,7 +661,9 @@ export async function closeCashSession(formData: FormData, shopIdOverride?: stri
       .lte("start_time", new Date().toISOString());
 
     const appointmentIncome = (sessionAppts || []).reduce((sum, a) => {
-      return sum + (a.service_price != null ? Number(a.service_price) : 0);
+      const svc = Array.isArray(a.services) ? a.services[0] : a.services;
+      const amount = a.service_price != null ? Number(a.service_price) : (svc?.price ?? 0);
+      return sum + amount;
     }, 0);
 
     const movementNet = (moves || []).reduce((sum, m) => {

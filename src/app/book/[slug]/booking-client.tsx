@@ -75,14 +75,14 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
 
   const [availableSlots, setAvailableSlots] = useState<Slot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
-  const [fetchedDates, setFetchedDates] = useState<Set<string>>(new Set());
+  const fetchedDatesRef = useRef(new Set<string>());
 
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [phoneError, setPhoneError] = useState("");
 
-  const needsPayment = !shop.payAtShop && !(selectedService?.pay_at_shop ?? false);
+  const needsPayment = useMemo(() => !shop.payAtShop && !(selectedService?.pay_at_shop ?? false), [shop.payAtShop, selectedService?.pay_at_shop]);
 
   const [submitting, setSubmitting] = useState(false);
   const [creatingPreference, setCreatingPreference] = useState(false);
@@ -104,7 +104,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
   const staffWordLower = staffWord.toLowerCase();
   const STEP_NAMES = [serviceWord, staffWord, "Fecha", "Tus datos"];
 
-  const weekDates = getWeekDates();
+  const weekDates = useMemo(() => getWeekDates(), []);
   const isLoggedIn = !!user;
   const hasPhoneFromSession = Boolean(user?.phone?.trim());
   const requiresManualPhone = !isLoggedIn || !hasPhoneFromSession;
@@ -149,7 +149,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
   }, [shop.mpPublicKey]);
 
   useEffect(() => {
-    if (!selectedService || !selectedDate || fetchedDates.has(formatDate(selectedDate))) return;
+    if (!selectedService || !selectedDate || fetchedDatesRef.current.has(formatDate(selectedDate))) return;
 
     setLoadingSlots(true);
     setSelectedSlot(null);
@@ -171,20 +171,23 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
         setAvailableSlots([]);
       } finally {
         setLoadingSlots(false);
-        setFetchedDates((prev) => new Set(prev).add(dateStr));
+        fetchedDatesRef.current = new Set(fetchedDatesRef.current).add(dateStr);
       }
     })();
-  }, [selectedService, selectedDate, selectedStaff, shop.id, fetchedDates]);
+  }, [selectedService, selectedDate, selectedStaff, shop.id]);
 
   useEffect(() => {
-    setFetchedDates(new Set());
+    fetchedDatesRef.current = new Set();
     setAvailableSlots([]);
     setSelectedSlot(null);
     setSelectedDate(null);
   }, [selectedService, selectedStaff]);
 
+  const populatedFromSession = useRef(false);
+
   useEffect(() => {
-    if (!isLoggedIn || !user) return;
+    if (!isLoggedIn || !user || populatedFromSession.current) return;
+    populatedFromSession.current = true;
     const safeName = user.name?.trim();
     const normalizedName = safeName && !safeName.includes("@") ? safeName : "Cliente";
     setCustomerName(normalizedName);
@@ -365,7 +368,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
     setIsDepositPayment(false);
     setDone(false);
     setError(null);
-    setFetchedDates(new Set());
+    fetchedDatesRef.current = new Set();
   }
 
   const summaryService = selectedService?.name || "Sin servicio";
@@ -381,7 +384,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
           ? "pastel-colorful"
           : "minimal-light";
 
-  const templateStyles = {
+  const templateStyles = useMemo(() => ({
     "minimal-light": {
       isDark: false,
       page: "bg-[#EEF4FF] text-[#1C1C1E]",
@@ -666,7 +669,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
       priceFx: "text-[#4c60be] drop-shadow-[0_10px_22px_rgba(82,102,194,0.3)]",
       ghostBtn: "border-[#cfdaec] bg-white/78 text-[#4f5f80] hover:bg-white",
     },
-  }[resolvedTemplate];
+  })[resolvedTemplate], [resolvedTemplate]);
 
   const tactileClass = "transition-all duration-500 ease-[0.16,1,0.3,1] hover:scale-[1.01] active:scale-[0.98]";
   const progressPercent = (step / (STEP_NAMES.length - 1)) * 100;
@@ -697,6 +700,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
         style={{
           background:
             "radial-gradient(circle at 50% 40%, rgba(255,255,255,0.10), transparent 52%), radial-gradient(circle at 28% 68%, rgba(255,255,255,0.08), transparent 48%)",
+          willChange: "opacity",
         }}
         animate={{ opacity: [0.12, 0.2, 0.12] }}
         transition={{ duration: 11.5, repeat: Infinity, ease: "easeInOut" }}
@@ -726,6 +730,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
                   <div className="min-w-0">
                     <motion.h1
                       className={`text-[1.85rem] sm:text-[2.35rem] md:text-[2.75rem] font-black truncate leading-[0.98] tracking-[-0.035em] ${templateStyles.headingFx} bg-gradient-to-r ${templateStyles.titleGradient} bg-[length:220%_100%] bg-clip-text text-transparent`}
+                      style={{ willChange: "background-position" }}
                       animate={{ backgroundPositionX: ["0%", "100%", "0%"] }}
                       transition={{ duration: 8.5, repeat: Infinity, ease: "easeInOut" }}
                     >
@@ -733,6 +738,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
                     </motion.h1>
                     <motion.p
                       className={`text-xs sm:text-sm truncate uppercase tracking-[0.18em] bg-gradient-to-r ${templateStyles.subtitleGradient} bg-[length:200%_100%] bg-clip-text text-transparent`}
+                      style={{ willChange: "background-position" }}
                       animate={{ backgroundPositionX: ["0%", "100%", "0%"] }}
                       transition={{ duration: 10.5, repeat: Infinity, ease: "easeInOut" }}
                     >
@@ -751,6 +757,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
                             backgroundSize: "54px 100%",
                             backgroundRepeat: "no-repeat",
                             filter: "drop-shadow(0 0 5px rgba(255,255,255,0.6))",
+                            willChange: "background-position",
                           }}
                           animate={{ backgroundPositionX: ["-50px", "calc(100% + 50px)"] }}
                           transition={{ duration: 1.15, repeat: Infinity, ease: "linear" }}
@@ -887,7 +894,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
                                 onClick={() => {
                                   setSelectedDate(d);
                                   setSelectedSlot(null);
-                                  setFetchedDates(new Set());
+    fetchedDatesRef.current = new Set();
                                 }}
                                 className={`flex flex-col items-center justify-center gap-1 py-3 rounded-[12px] border min-h-[78px] ${tactileClass} ${
                                   isSelected ? templateStyles.selected : `${templateStyles.plain} ${templateStyles.hoverBorder}`
@@ -1208,6 +1215,16 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
                   Nueva reserva
                 </button>
               </div>
+              <div className="mt-8">
+                <a
+                  href="https://klip.com.ar"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`inline-flex items-center gap-1 text-xs transition-colors ${templateStyles.meta} ${templateStyles.metaHover}`}
+                >
+                  powered by <span className="font-bold">KLIP</span>
+                </a>
+              </div>
             </motion.div>
           )}
         </div>
@@ -1242,6 +1259,14 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
                 <ExternalLink className="w-3 h-3" /> Instagram
               </a>
             )}
+            <a
+              href="https://klip.com.ar"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`flex items-center gap-1 transition-colors ${templateStyles.metaHover}`}
+            >
+              powered by <span className="font-bold">KLIP</span>
+            </a>
           </div>
         )}
         </div>

@@ -55,7 +55,7 @@ export default function FidelizacionClient({
   const [winnerBurst, setWinnerBurst] = useState(false);
   const [birthdayDiscount, setBirthdayDiscount] = useState("15");
   const [birthdayMessage, setBirthdayMessage] = useState(
-    voucherTemplate || "Feliz cumple {Nombre}! Tenes un beneficio especial para tu proxima visita."
+    voucherTemplate || "Feliz cumple {Nombre}! Te regalamos un descuento especial para tu proxima visita."
   );
   const [birthdayMessageStatus, setBirthdayMessageStatus] = useState<string | null>(null);
   const raffleTimerRef = useRef<number | null>(null);
@@ -146,7 +146,7 @@ export default function FidelizacionClient({
     setBirthdayMessageStatus(null);
     startTransition(async () => {
       const safeDiscount = Math.max(0, Math.min(100, Number(birthdayDiscount) || 0));
-      const text = `${birthdayMessage.trim()}\n\nDescuento de cumple: ${safeDiscount}%`;
+      const text = birthdayMessage.trim();
       const result = await updateVoucherWhatsappTemplate(shopId, text);
       if (!result.success) {
         setBirthdayMessageStatus(result.error);
@@ -347,7 +347,7 @@ export default function FidelizacionClient({
                 onChange={(e) => setBirthdayMessage(e.target.value)}
                 rows={3}
                 className="mt-1 w-full rounded-2xl bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-4 py-2.5 text-sm text-gray-900 dark:text-white"
-                placeholder="Ej: Feliz cumple {Nombre}! Te esperamos para celebrar."
+                placeholder="Ej: Feliz cumple {Nombre}! Te regalamos un descuento."
               />
             </div>
             <div className="md:col-span-3 flex items-center justify-between gap-3">

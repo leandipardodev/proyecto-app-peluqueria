@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, animate, motion } from "framer-motion";
 import { X } from "lucide-react";
 import DashboardSidebar from "./dashboard-sidebar";
 
@@ -47,8 +47,26 @@ export default function DashboardMobileSidebar({ open, onClose, userName, onLogo
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
           >
             <div className="flex items-center justify-between px-4 pb-3 pt-[max(env(safe-area-inset-top),0.75rem)] border-b border-white/20 dark:border-white/10 bg-white/30 dark:bg-black/30 backdrop-blur-3xl">
-              <div className="inline-flex items-center gap-2">
-                <span className="text-xl font-bold tracking-tight text-[#0071E3]">Klip</span>
+              <div
+                onClick={() => {
+                  const els = document.querySelectorAll<HTMLSpanElement>("#klip-mobile-logo span");
+                  els.forEach((el, i) => {
+                    const angle = Math.random() * Math.PI * 2;
+                    const distance = 60 + Math.random() * 100;
+                    animate(el,
+                      { x: Math.cos(angle) * distance, y: Math.sin(angle) * distance, rotate: (Math.random() - 0.5) * 360 },
+                      { duration: 0.25, delay: i * 0.04, ease: "easeOut" },
+                    ).then(() => {
+                      animate(el,
+                        { x: 0, y: 0, rotate: 0 },
+                        { type: "spring", stiffness: 250, damping: 7, mass: 0.6 },
+                      );
+                    });
+                  });
+                }}
+                className="inline-flex items-center gap-2 cursor-pointer select-none"
+              >
+                <span id="klip-mobile-logo" className="text-xl font-bold tracking-tight text-[#0071E3]">Klip</span>
               </div>
               <button
                 onClick={onClose}

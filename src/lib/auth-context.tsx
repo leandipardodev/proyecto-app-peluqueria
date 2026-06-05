@@ -195,5 +195,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => { isMounted = false; };
   }, [pathnameShopSlug, state.user]);
 
-  return <AuthContext.Provider value={state}>{children}</AuthContext.Provider>;
+  const contextValue = useMemo(() => state, [
+    state.user?.id ?? null,
+    state.shop?.id ?? null,
+    state.isLoading,
+  ]);
+
+  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 }

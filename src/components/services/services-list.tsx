@@ -1,7 +1,7 @@
 "use client";
 
 import { Pencil, Trash2, Plus } from "lucide-react";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import ServiceModal from "./service-modal";
 import ServiceForm from "./service-form";
@@ -56,36 +56,20 @@ export default function ServicesList({ shopId, shopSlug, industry, initialServic
     }
   }, [shopSlug]);
 
-  const refetchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   useEffect(() => {
     const channel = supabase
       .channel(`services-${shopId}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "services", filter: `shop_id=eq.${shopId}` },
-        async () => {
-          if (refetchDebounce.current) clearTimeout(refetchDebounce.current);
-          refetchDebounce.current = setTimeout(async () => {
-            refetchDebounce.current = null;
-            const { data } = await supabase
-              .from("services")
-              .select("id, name, category, price, duration_minutes")
-              .eq("shop_id", shopId)
-              .order("created_at", { ascending: false });
-            if (Array.isArray(data)) {
-              setServices(data);
-            }
-          }, 1000);
-        }
+        () => router.refresh()
       )
       .subscribe();
 
     return () => {
-      if (refetchDebounce.current) clearTimeout(refetchDebounce.current);
       supabase.removeChannel(channel);
     };
-  }, [shopId]);
+  }, [shopId, router]);
 
   function openCreate() {
     setEditingService(null);

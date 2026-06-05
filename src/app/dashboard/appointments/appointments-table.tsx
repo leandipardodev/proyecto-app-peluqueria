@@ -109,9 +109,6 @@ export default function AppointmentsTable({ shopId, initialAppointments, service
     const channel = supabase
       .channel(`appointments-${shopId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "appointments", filter: `shop_id=eq.${shopId}` }, () => router.refresh())
-      .on("postgres_changes", { event: "*", schema: "public", table: "customers", filter: `shop_id=eq.${shopId}` }, () => router.refresh())
-      .on("postgres_changes", { event: "*", schema: "public", table: "services", filter: `shop_id=eq.${shopId}` }, () => router.refresh())
-      .on("postgres_changes", { event: "*", schema: "public", table: "shop_memberships", filter: `shop_id=eq.${shopId}` }, () => router.refresh())
       .subscribe();
 
     return () => {
@@ -216,36 +213,28 @@ export default function AppointmentsTable({ shopId, initialAppointments, service
                 <p className="text-sm text-gray-700 dark:text-gray-300">{svc ? `${svc.emoji} ${svc.label}` : apt.services?.name || "N/A"}</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">{staffWord}: {apt.staff?.name || "N/A"}</p>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <a
-                    href={whatsappUrl}
-                    target={phone ? "_blank" : undefined}
-                    rel={phone ? "noopener noreferrer" : undefined}
+                  <button
+                    type="button"
+                    disabled={!phone}
                     className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-semibold transition-colors ${
                       phone
-                        ? "bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm cursor-pointer select-none"
+                        ? "bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm cursor-pointer"
                         : "bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 cursor-not-allowed"
                     }`}
-                    onMouseDown={() => {
-                      if (!phone || !hasRequiredWhatsappTemplate || !hasLocation) {
+                    onClick={() => {
+                      if (!phone) return;
+                      if (!hasRequiredWhatsappTemplate || !hasLocation) {
+                        addToast("Para enviar WhatsApp, asegúrate de incluir {Hora} y direccion del local.", "error");
                         playError();
                         return;
                       }
                       playSuccess();
-                    }}
-                    onClick={(e) => {
-                      if (!phone) {
-                        e.preventDefault();
-                        return;
-                      }
-                      if (!hasRequiredWhatsappTemplate || !hasLocation) {
-                        e.preventDefault();
-                        addToast("Para enviar WhatsApp, asegúrate de incluir {Hora} y direccion del local.", "error");
-                      }
+                      window.open(whatsappUrl, "_blank", "noopener,noreferrer");
                     }}
                   >
                     <MessageCircle className="w-4 h-4" />
                     WhatsApp
-                  </a>
+                  </button>
                   {urgent && <Bell className="w-4 h-4 text-red-500 animate-pulse shrink-0" />}
                 </div>
               </div>
@@ -316,37 +305,29 @@ export default function AppointmentsTable({ shopId, initialAppointments, service
                           const whatsappUrl = buildWhatsAppUrl(phone, apt.customers?.nombre || customerWord, apt.start_time);
                           return (
                             <>
-                              <a
-                                href={whatsappUrl}
-                                target={phone ? "_blank" : undefined}
-                                rel={phone ? "noopener noreferrer" : undefined}
+                              <button
+                                type="button"
+                                disabled={!phone}
+                                title={phone ? "Enviar WhatsApp" : "Sin teléfono — editá el cliente para agregarlo"}
                                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-semibold transition-colors ${
                                   phone
-                                    ? "bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm cursor-pointer select-none"
+                                    ? "bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm cursor-pointer"
                                     : "bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 cursor-not-allowed"
                                 }`}
-                                title={phone ? "Enviar WhatsApp" : "Sin teléfono — editá el cliente para agregarlo"}
-                                onMouseDown={() => {
-                                  if (!phone || !hasRequiredWhatsappTemplate || !hasLocation) {
+                                onClick={() => {
+                                  if (!phone) return;
+                                  if (!hasRequiredWhatsappTemplate || !hasLocation) {
+                                    addToast("Para enviar WhatsApp, asegúrate de incluir {Hora} y direccion del local.", "error");
                                     playError();
                                     return;
                                   }
                                   playSuccess();
-                                }}
-                                onClick={(e) => {
-                                  if (!phone) {
-                                    e.preventDefault();
-                                    return;
-                                  }
-                                  if (!hasRequiredWhatsappTemplate || !hasLocation) {
-                                    e.preventDefault();
-                                    addToast("Para enviar WhatsApp, asegúrate de incluir {Hora} y direccion del local.", "error");
-                                  }
+                                  window.open(whatsappUrl, "_blank", "noopener,noreferrer");
                                 }}
                               >
                                 <MessageCircle className="w-4 h-4" />
                                 WhatsApp
-                              </a>
+                              </button>
                               {urgent && (
                                 <span title="Próximo turno en menos de 1 hora">
                                   <Bell className="w-4 h-4 text-red-500 animate-pulse shrink-0" />

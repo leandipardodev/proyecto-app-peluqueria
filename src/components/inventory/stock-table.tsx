@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
   Package,
   AlertTriangle,
@@ -38,6 +39,7 @@ export default function StockTable({ shopId, items }: StockTableProps) {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const { addToast } = useToast();
+  const router = useRouter();
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -50,23 +52,14 @@ export default function StockTable({ shopId, items }: StockTableProps) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "stock", filter: `shop_id=eq.${shopId}` },
-        async () => {
-          const { data } = await supabase
-            .from("stock")
-            .select("id, nombre_producto, quantity, unit_cost")
-            .eq("shop_id", shopId)
-            .order("nombre_producto", { ascending: true });
-          if (data) {
-            setStockItems(data as StockItem[]);
-          }
-        }
+        () => router.refresh()
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [shopId]);
+  }, [shopId, router]);
 
   const filtered = useMemo(
     () =>

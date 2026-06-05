@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, LayoutGroup, motion, useMotionValue, useSpring } from "framer-motion";
+import { AnimatePresence, LayoutGroup, animate, motion, useMotionValue, useSpring } from "framer-motion";
 import {
   Home,
   CalendarDays,
@@ -287,6 +287,8 @@ const letters = "Klip".split("");
 
 function KlipLogo({ performanceMode }: { performanceMode: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
+  const letterRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const [hovered, setHovered] = useState(false);
   const rotateX = useMotionValue(0);
   const rotateY = useMotionValue(0);
   const springX = useSpring(rotateX, { stiffness: 200, damping: 20 });
@@ -305,8 +307,31 @@ function KlipLogo({ performanceMode }: { performanceMode: boolean }) {
 
   function handleMouseLeave() {
     if (performanceMode) return;
+    setHovered(false);
     rotateX.set(0);
     rotateY.set(0);
+  }
+
+  function handleClick() {
+    if (performanceMode) return;
+    letterRefs.current.forEach((el, i) => {
+      if (!el) return;
+      const angle = Math.random() * Math.PI * 2;
+      const distance = 80 + Math.random() * 120;
+      const tx = Math.cos(angle) * distance;
+      const ty = Math.sin(angle) * distance;
+      const tr = (Math.random() - 0.5) * 360;
+
+      animate(el,
+        { x: tx, y: ty, rotate: tr },
+        { duration: 0.25, delay: i * 0.04, ease: "easeOut" },
+      ).then(() => {
+        animate(el,
+          { x: 0, y: 0, rotate: 0 },
+          { type: "spring", stiffness: 250, damping: 7, mass: 0.6 },
+        );
+      });
+    });
   }
 
   if (performanceMode) {
@@ -321,8 +346,10 @@ function KlipLogo({ performanceMode }: { performanceMode: boolean }) {
     <div
       ref={ref}
       onMouseMove={handleMouseMove}
+      onMouseEnter={() => setHovered(true)}
       onMouseLeave={handleMouseLeave}
-      className="inline-flex items-center gap-2"
+      onClick={handleClick}
+      className="inline-flex items-center gap-2 cursor-pointer select-none"
       style={{ perspective: "500px", transformStyle: "preserve-3d" }}
     >
       <motion.span
@@ -336,15 +363,22 @@ function KlipLogo({ performanceMode }: { performanceMode: boolean }) {
         {letters.map((letter, i) => (
           <motion.span
             key={i}
-            className="inline-block cursor-default"
-            whileHover={{ y: -6, color: "#4a9eff" }}
-            whileTap={{ scale: 0.85, y: 0 }}
-            transition={{
-              type: "spring",
-              stiffness: 500,
-              damping: 8,
-              delay: i * 0.04,
+            ref={(el) => { letterRefs.current[i] = el; }}
+            className="inline-block"
+            animate={hovered ? {
+              y: [0, -5, 0],
+              color: ["#0071E3", "#4a9eff", "#0071E3"],
+              transition: {
+                duration: 1.2,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: i * 0.12,
+              },
+            } : {
+              y: 0,
+              color: "#0071E3",
             }}
+            whileTap={{ scale: 0.9 }}
             style={{ transformStyle: "preserve-3d" }}
           >
             {letter}
