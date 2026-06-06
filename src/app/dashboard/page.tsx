@@ -23,7 +23,7 @@ const VoucherBirthdayAlert = dynamicImport(() => import("@/components/dashboard/
 
 export const dynamic = "force-dynamic";
 
-import SocialTagCycler from "@/components/dashboard/social-tag-cycler";
+
 
 function getInitials(name: string): string {
   return name
@@ -318,7 +318,6 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
                 <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current relative z-10" aria-hidden="true"><path d="M14.5 3c.2 1.9 1.3 3.5 3.1 4.2.8.3 1.6.5 2.4.5v2.6c-1.8 0-3.7-.5-5.2-1.5v6.1c0 3.1-2.5 5.6-5.6 5.6S3.6 18 3.6 14.9s2.5-5.6 5.6-5.6c.3 0 .6 0 .9.1V12c-.3-.1-.6-.2-.9-.2-1.7 0-3.1 1.4-3.1 3.1S7.5 18 9.2 18s3.1-1.4 3.1-3.1V3h2.2Z" /></svg>
               </a>
             )}
-            <SocialTagCycler />
           </div>
           <p className="mt-3 text-sm text-gray-500 dark:text-gray-400 font-medium">
             Resumen de tu negocio
@@ -346,7 +345,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
               <div
                 className={`glass-sheen-card h-full min-h-[124px] lg:min-h-[132px] bg-white dark:bg-zinc-900 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm p-6 flex items-center gap-4 transition-colors cursor-pointer ${
                   label === "Rendimiento" ? "rounded-bl-none" : "rounded-br-none"
-                }`}
+                } ${idx === 1 ? "card-enter-left" : "card-enter-right"}`}
                 style={sheenStyle}
               >
                 <div className={`p-3 rounded-xl ${bg}`}>
@@ -459,6 +458,12 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
 
       <PwaInstallButton />
       <style>{`
+        @media (max-width: 639px) {
+          @keyframes cardFromRight { from { transform: translateX(60px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+          @keyframes cardFromLeft { from { transform: translateX(-60px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+          .card-enter-right { animation: cardFromRight 0.5s cubic-bezier(0.16,1,0.3,1) both; will-change: transform; }
+          .card-enter-left { animation: cardFromLeft 0.5s cubic-bezier(0.16,1,0.3,1) both; will-change: transform; }
+        }
         .flow-mini {
           position: relative;
           overflow: hidden;

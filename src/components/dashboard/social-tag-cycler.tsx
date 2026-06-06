@@ -131,7 +131,7 @@ export default function SocialTagCycler() {
         textShadow: "0 10px 28px rgba(15,23,42,0.12)",
       }}
     >
-      #{text}
+      <span className="hidden sm:inline">#</span>{text}
     </span>
   );
 }

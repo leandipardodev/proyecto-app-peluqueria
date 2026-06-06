@@ -54,6 +54,7 @@ interface DashboardSidebarProps {
   className?: string;
   notifications?: { urgentAppointments?: boolean; lowStock?: boolean };
   showBrand?: boolean;
+  onNavigate?: () => void;
 }
 
 const DashboardSidebar = memo(function DashboardSidebar({
@@ -62,6 +63,7 @@ const DashboardSidebar = memo(function DashboardSidebar({
   className = "",
   notifications,
   showBrand = true,
+  onNavigate,
 }: DashboardSidebarProps) {
   const { shop } = useAuth();
   const industry = resolveIndustry(shop?.industry);
@@ -210,6 +212,7 @@ const DashboardSidebar = memo(function DashboardSidebar({
                       playClick();
                       haptic(6);
                       startNavTransition();
+                      onNavigate?.();
                     }}
                     className={`relative flex items-center gap-3 px-3 py-3 rounded-2xl text-sm font-medium transition-colors cursor-pointer select-none ${
                     isActive
