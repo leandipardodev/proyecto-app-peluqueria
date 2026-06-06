@@ -13,14 +13,14 @@ export default function TopServices({ data, serviceLabelPlural = "Servicios" }: 
 
   if (data.length === 0) {
     return (
-      <div className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="rounded-xl rounded-bl-none border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
         <StatePanel title={`Sin ${serviceLabelPlural.toLowerCase()}`} description={`Todavía no hay ${serviceLabelPlural.toLowerCase()} registrados.`} />
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="rounded-xl rounded-bl-none border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
       <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 mb-1">
         Top {serviceLabelPlural.toLowerCase()}
       </h3>

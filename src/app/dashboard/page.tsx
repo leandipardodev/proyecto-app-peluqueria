@@ -312,7 +312,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
               href={whatsappHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center rounded-full w-9 h-9 text-white"
+              className="inline-flex items-center justify-center rounded-full rounded-tr-none w-9 h-9 text-white"
               aria-label="Abrir WhatsApp"
               title="WhatsApp"
               style={{
@@ -325,17 +325,17 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
               </svg>
             </a>
             {instagramHref && (
-              <a href={instagramHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-full w-9 h-9 text-white bg-gradient-to-br from-fuchsia-500 via-rose-500 to-orange-400 shadow-sm" aria-label="Abrir Instagram" title="Instagram">
+              <a href={instagramHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-full rounded-bl-none w-9 h-9 text-white bg-gradient-to-br from-fuchsia-500 via-rose-500 to-orange-400 shadow-sm" aria-label="Abrir Instagram" title="Instagram">
                 <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-current" aria-hidden="true"><path d="M7.75 2h8.5A5.75 5.75 0 0 1 22 7.75v8.5A5.75 5.75 0 0 1 16.25 22h-8.5A5.75 5.75 0 0 1 2 16.25v-8.5A5.75 5.75 0 0 1 7.75 2Zm0 1.8A3.95 3.95 0 0 0 3.8 7.75v8.5a3.95 3.95 0 0 0 3.95 3.95h8.5a3.95 3.95 0 0 0 3.95-3.95v-8.5a3.95 3.95 0 0 0-3.95-3.95h-8.5Zm9.15 1.35a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4ZM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 1.8a3.2 3.2 0 1 0 0 6.4 3.2 3.2 0 0 0 0-6.4Z" /></svg>
               </a>
             )}
             {facebookHref && (
-              <a href={facebookHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-full w-9 h-9 text-white bg-[#1877F2] shadow-sm" aria-label="Abrir Facebook" title="Facebook">
+              <a href={facebookHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-full rounded-tr-none w-9 h-9 text-white bg-[#1877F2] shadow-sm" aria-label="Abrir Facebook" title="Facebook">
                 <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-current" aria-hidden="true"><path d="M13.5 22v-8h2.7l.4-3h-3.1V9.1c0-.9.3-1.6 1.6-1.6h1.7V4.8c-.3 0-1.3-.1-2.5-.1-2.5 0-4.2 1.5-4.2 4.4V11H8v3h2.6v8h2.9Z" /></svg>
               </a>
             )}
             {tiktokHref && (
-              <a href={tiktokHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-full w-9 h-9 text-white bg-black shadow-sm" aria-label="Abrir TikTok" title="TikTok">
+              <a href={tiktokHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-full rounded-bl-none w-9 h-9 text-white bg-black shadow-sm" aria-label="Abrir TikTok" title="TikTok">
                 <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-current" aria-hidden="true"><path d="M14.5 3c.2 1.9 1.3 3.5 3.1 4.2.8.3 1.6.5 2.4.5v2.6c-1.8 0-3.7-.5-5.2-1.5v6.1c0 3.1-2.5 5.6-5.6 5.6S3.6 18 3.6 14.9s2.5-5.6 5.6-5.6c.3 0 .6 0 .9.1V12c-.3-.1-.6-.2-.9-.2-1.7 0-3.1 1.4-3.1 3.1S7.5 18 9.2 18s3.1-1.4 3.1-3.1V3h2.2Z" /></svg>
               </a>
             )}
@@ -379,7 +379,9 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
           <HoverScale key={label}>
             <Link href={cardHrefByLabel[label] || dashboardBasePath} className="block h-full">
               <div
-                className="glass-sheen-card h-full min-h-[124px] lg:min-h-[132px] bg-white dark:bg-zinc-900 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm p-6 flex items-center gap-4 transition-colors cursor-pointer"
+                className={`glass-sheen-card h-full min-h-[124px] lg:min-h-[132px] bg-white dark:bg-zinc-900 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm p-6 flex items-center gap-4 transition-colors cursor-pointer ${
+                  label === "Rendimiento" ? "rounded-bl-none" : "rounded-br-none"
+                }`}
                 style={sheenStyle}
               >
                 <div className={`p-3 rounded-xl ${bg}`}>
@@ -427,7 +429,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
         </div>
       </div>
 
-      <div className="glass-sheen-card bg-white dark:bg-zinc-900 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors">
+      <div className="glass-sheen-card bg-white dark:bg-zinc-900 rounded-[2.5rem] rounded-t-none border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors">
         <div className="px-6 py-4 border-b border-white/20 dark:border-white/10">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2 tracking-tight">
             <Clock className="w-5 h-5 text-zinc-400 dark:text-zinc-500" />

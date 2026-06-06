@@ -40,7 +40,7 @@ export default function ShareLinkCard({ slug }: ShareLinkCardProps) {
   }
 
   return (
-    <div className="bg-white dark:bg-zinc-900 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm p-6 transition-colors">
+    <div className="bg-white dark:bg-zinc-900 rounded-[2.5rem] rounded-tr-none border border-zinc-200 dark:border-zinc-800 shadow-sm p-6 transition-colors">
       <h3 className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2 mb-3 tracking-tight">
         <Link className="w-4 h-4 text-violet-600" />
         Tu link de reservas
