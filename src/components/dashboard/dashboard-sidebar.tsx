@@ -287,7 +287,7 @@ export default DashboardSidebar;
 
 const letters = "Klip".split("");
 
-function KlipLogo({ performanceMode }: { performanceMode: boolean }) {
+function KlipLogo({ performanceMode: _perfMode }: { performanceMode?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const letterRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const [hovered, setHovered] = useState(false);
@@ -297,7 +297,6 @@ function KlipLogo({ performanceMode }: { performanceMode: boolean }) {
   const springY = useSpring(rotateY, { stiffness: 200, damping: 20 });
 
   function handleMouseMove(e: React.MouseEvent) {
-    if (performanceMode) return;
     const el = ref.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
@@ -308,14 +307,12 @@ function KlipLogo({ performanceMode }: { performanceMode: boolean }) {
   }
 
   function handleMouseLeave() {
-    if (performanceMode) return;
     setHovered(false);
     rotateX.set(0);
     rotateY.set(0);
   }
 
   function handleClick() {
-    if (performanceMode) return;
     letterRefs.current.forEach((el, i) => {
       if (!el) return;
       const angle = Math.random() * Math.PI * 2;
@@ -334,14 +331,6 @@ function KlipLogo({ performanceMode }: { performanceMode: boolean }) {
         );
       });
     });
-  }
-
-  if (performanceMode) {
-    return (
-      <div className="inline-flex items-center gap-2">
-        <span className="text-2xl font-bold tracking-tight text-[#0071E3]">Klip</span>
-      </div>
-    );
   }
 
   return (

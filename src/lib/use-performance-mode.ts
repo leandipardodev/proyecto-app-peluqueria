@@ -5,9 +5,26 @@ import { useCallback, useEffect, useState } from "react";
 const STORAGE_KEY = "klip-performance-mode";
 const PERF_EVENT = "klip-performance-mode-change";
 
-function readStored(): boolean {
+export function isVeryPowerfulDevice(): boolean {
   if (typeof window === "undefined") return false;
-  return localStorage.getItem(STORAGE_KEY) === "true";
+  try {
+    const cores = window.navigator.hardwareConcurrency || 4;
+    const memory = (window.navigator as any).deviceMemory || 4;
+    // Devices with 8+ CPU cores and 8GB+ RAM are highly powerful
+    return cores >= 8 && memory >= 8;
+  } catch (e) {
+    return false;
+  }
+}
+
+export function readStored(): boolean {
+  if (typeof window === "undefined") return false;
+  const stored = localStorage.getItem(STORAGE_KEY);
+  if (stored !== null) {
+    return stored === "true";
+  }
+  // Default to low-performance (performanceMode = true) unless it's a very powerful device
+  return !isVeryPowerfulDevice();
 }
 
 export function usePerformanceMode() {

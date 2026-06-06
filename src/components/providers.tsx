@@ -2,20 +2,20 @@
 
 import { ToastProvider } from "@/components/ui/toast";
 import { AuthProvider } from "@/lib/auth-context";
-import { getPerformanceModeEventName, getPerformanceModeStorageKey } from "@/lib/use-performance-mode";
+import { getPerformanceModeEventName, getPerformanceModeStorageKey, readStored } from "@/lib/use-performance-mode";
 import { MotionConfig } from "framer-motion";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
 function PerformanceModeProvider({ children }: { children: ReactNode }) {
-  const [performanceMode, setPerformanceMode] = useState(false);
+  const [, setPerformanceMode] = useState(false);
 
   useEffect(() => {
     const storageKey = getPerformanceModeStorageKey();
     const eventName = getPerformanceModeEventName();
 
     const syncPerformanceMode = () => {
-      const value = window.localStorage.getItem(storageKey) === "true";
+      const value = readStored();
       setPerformanceMode(value);
       document.documentElement.classList.toggle("perf-mode", value);
     };
@@ -41,7 +41,7 @@ function PerformanceModeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <MotionConfig reducedMotion={performanceMode ? "always" : "never"}>
+    <MotionConfig reducedMotion="never">
       {children}
     </MotionConfig>
   );

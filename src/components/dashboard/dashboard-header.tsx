@@ -885,10 +885,10 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                     </button>
                   </div>
 
-                  <div className="flex items-center justify-between rounded-xl border border-white/20 dark:border-white/10 px-3 py-2">
-                    <div className="flex items-center gap-2 text-sm text-gray-800 dark:text-gray-100">
-                      <Gauge className={`w-4 h-4 ${performanceMode ? "text-emerald-500" : "text-zinc-400"}`} />
-                      {performanceMode ? "Animaciones desactivadas" : "Desactivar animaciones"}
+                  <div className={`flex items-center justify-between rounded-xl border px-3 py-2 transition-all duration-300 ${performanceMode ? "border-white/20 dark:border-white/10" : "border-violet-200/40 dark:border-violet-800/30 bg-violet-50/40 dark:bg-violet-950/30"}`}>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Sparkles className={`w-4 h-4 ${performanceMode ? "text-zinc-400 dark:text-zinc-500" : "text-violet-500"}`} />
+                      <span className={performanceMode ? "text-gray-800 dark:text-gray-100" : "text-violet-800 dark:text-violet-200 font-medium"}>Animaciones</span>
                     </div>
                     <button
                       type="button"
@@ -896,17 +896,16 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                         haptic(6);
                         togglePerformanceMode();
                       }}
-                      className={`relative w-10 h-5 rounded-full transition-colors ${performanceMode ? "bg-emerald-600" : "bg-gray-300"}`}
-                      title="Atajo: tecla L"
+                      className={`relative w-10 h-5 rounded-full transition-colors ${performanceMode ? "bg-gray-300" : "bg-violet-600"}`}
                     >
-                      <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${performanceMode ? "translate-x-5" : "translate-x-0"}`} />
+                      <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${performanceMode ? "translate-x-0" : "translate-x-5"}`} />
                     </button>
                   </div>
 
                   <div className="flex items-center justify-between rounded-xl border border-white/20 dark:border-white/10 px-3 py-2">
                     <div className="flex items-center gap-2 text-sm text-gray-800 dark:text-gray-100">
                       {soundMuted ? <VolumeX className="w-4 h-4 text-zinc-400" /> : <Volume2 className="w-4 h-4 text-sky-500" />}
-                      {soundMuted ? "Sonido/vibracion desactivados" : "Sonido/vibracion activos"}
+                      Sonido/Vibración
                     </div>
                     <button
                       type="button"

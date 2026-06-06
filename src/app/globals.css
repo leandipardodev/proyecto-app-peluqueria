@@ -308,50 +308,6 @@ html.perf-mode .analytics-card-bg::after {
   opacity: 0 !important;
 }
 
-html.perf-mode *,
-html.perf-mode *::before,
-html.perf-mode *::after {
-  animation: none !important;
-  transition-property: none !important;
-  transition-duration: 0ms !important;
-  transition-delay: 0ms !important;
-  scroll-behavior: auto !important;
-}
-
-html.perf-mode .backdrop-blur-3xl,
-html.perf-mode .backdrop-blur-2xl,
-html.perf-mode .backdrop-blur-xl,
-html.perf-mode .backdrop-blur-lg,
-html.perf-mode .backdrop-blur-md,
-html.perf-mode .backdrop-blur-sm {
-  backdrop-filter: none !important;
-}
-
-html.perf-mode [class*="bg-white/10"],
-html.perf-mode [class*="bg-white/20"],
-html.perf-mode [class*="bg-white/30"],
-html.perf-mode [class*="bg-black/10"],
-html.perf-mode [class*="bg-black/20"],
-html.perf-mode [class*="bg-black/30"] {
-  background-color: rgba(255, 255, 255, 0.85) !important;
-}
-
-html.dark.perf-mode [class*="bg-white/10"],
-html.dark.perf-mode [class*="bg-white/20"],
-html.dark.perf-mode [class*="bg-white/30"],
-html.dark.perf-mode [class*="bg-black/10"],
-html.dark.perf-mode [class*="bg-black/20"],
-html.dark.perf-mode [class*="bg-black/30"] {
-  background-color: rgba(0, 0, 0, 0.75) !important;
-}
-
-html.perf-mode .transition-all,
-html.perf-mode .transition-colors,
-html.perf-mode .transition-opacity,
-html.perf-mode .transition-transform {
-  transition: none !important;
-}
-
 @keyframes carousel-zoom {
   0% { transform: scale(1); }
   100% { transform: scale(1.08); }
