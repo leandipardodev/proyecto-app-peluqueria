@@ -2,7 +2,7 @@
 
 import { format, startOfWeek, addDays, isToday } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, MessageCircle } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from "lucide-react";
 import { useRef, useState, useEffect, useMemo, useCallback, memo } from "react";
 import { createPortal } from "react-dom";
 import { GRID_END_HOUR, GRID_START_HOUR, HOUR_HEIGHT } from "@/lib/calendar-constants";
@@ -227,18 +227,7 @@ const AppointmentBlock = memo(function AppointmentBlock({
               {appt.start_hhmm && (
                 <span className={`tabular-nums leading-none ${isWeekMode ? "text-[9px] text-gray-400 dark:text-gray-500" : "text-[10px] text-gray-400 dark:text-gray-500"}`}>{appt.start_hhmm}</span>
               )}
-              {appt.customers?.telefono && (
-                <a
-                  href={`https://wa.me/${appt.customers.telefono.replace(/\D/g, "")}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="inline-flex items-center justify-center rounded-full border border-zinc-300 dark:border-zinc-600 p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Enviar WhatsApp"
-                >
-                  <MessageCircle className="h-3 w-3" />
-                </a>
-              )}
+
             </div>
           </div>
           {svcName && (
@@ -579,8 +568,19 @@ export default memo(function CalendarView({
     const isMobileViewport = window.matchMedia("(max-width: 767px)").matches;
     if (!isMobileViewport) return;
     setFocusedDayKey(getArgentinaDateKey(new Date()));
-    setViewMode("day");
+    setViewMode("week");
   }, [mounted]);
+
+  useEffect(() => {
+    if (!mounted || typeof window === "undefined") return;
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const todayIdx = displayedDays.findIndex((d) => isToday(d));
+    if (todayIdx < 0) return;
+    const dayWidth = 140;
+    const scrollTarget = todayIdx * dayWidth - (container.clientWidth - dayWidth) / 2;
+    container.scrollLeft = Math.max(0, scrollTarget);
+  }, [mounted, displayedDays]);
 
   useEffect(() => {
     if (isCoarsePointer) {
@@ -693,15 +693,25 @@ export default memo(function CalendarView({
             Hoy
           </button>
         </div>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white hidden sm:block">
-          {format(displayedDays[0], "d 'de' MMMM", { locale: es })} —{" "}
-          {format(displayedDays[displayedDays.length - 1], "d 'de' MMMM 'de' yyyy", {
-            locale: es,
-          })}
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white hidden sm:block">
+          {(() => {
+            const f = displayedDays[0];
+            const l = displayedDays[displayedDays.length - 1];
+            const sameMonth = f.getMonth() === l.getMonth() && f.getFullYear() === l.getFullYear();
+            return sameMonth
+              ? `${format(f, "d")}–${format(l, "d 'de' MMMM")}`
+              : `${format(f, "d MMM")} – ${format(l, "d MMM")}`;
+          })()}
         </h2>
         <h2 className="text-sm font-semibold text-gray-900 dark:text-white sm:hidden">
-          {format(displayedDays[0], "d MMM", { locale: es })} -{" "}
-          {format(displayedDays[displayedDays.length - 1], "d MMM", { locale: es })}
+          {(() => {
+            const f = displayedDays[0];
+            const l = displayedDays[displayedDays.length - 1];
+            const sameMonth = f.getMonth() === l.getMonth() && f.getFullYear() === l.getFullYear();
+            return sameMonth
+              ? `${format(f, "d")}–${format(l, "d MMM")}`
+              : `${format(f, "d MMM")} – ${format(l, "d MMM")}`;
+          })()}
         </h2>
       </div>
 

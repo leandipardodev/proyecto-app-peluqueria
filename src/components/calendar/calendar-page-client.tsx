@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { addWeeks, subWeeks } from "date-fns";
 import { motion } from "framer-motion";
-import { Plus } from "lucide-react";
+
 import { useRouter } from "next/navigation";
 import CalendarView from "./calendar-view";
 import AppointmentFormModal from "./appointment-form-modal";
@@ -232,92 +232,84 @@ export default function CalendarPageClient({
       {(!staff || staff.length === 0) && (
         <StatePanel title="Sin personal" description="No hay personal registrado. Agregá personal en la sección Personal." />
       )}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Calendario</h1>
-        </div>
-        <div className="flex w-full sm:w-auto flex-col sm:flex-row sm:items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setFormInitialDate(undefined);
-              setFormInitialHour(undefined);
-              setFormModalOpen(true);
-            }}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 transition-colors cursor-pointer select-none"
-          >
-            <Plus className="h-4 w-4" />
-            Agregar turno
-          </button>
-          <div className="flex flex-wrap items-center rounded-2xl sm:rounded-full bg-white/30 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 p-0.5 shadow-sm relative gap-1">
-          <button
-            type="button"
-            onClick={() => setStaffFilter(null)}
-            className={`relative z-10 px-2.5 sm:px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all cursor-pointer select-none ${
-              staffFilter === null
-                ? "text-[#0071E3] dark:text-[#5da8ff]"
-                : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
-            }`}
-          >
-            {staffFilter === null && (
-              <motion.span
-                layoutId="activeTab"
-                className="absolute inset-0 rounded-full bg-[#0071E3]/20 dark:bg-[#0071E3]/30 border border-[#0071E3]/30 dark:border-[#0071E3]/40 shadow-sm"
-                transition={{ type: "spring", stiffness: 500, damping: 30 }}
-              />
-            )}
-            <span className="relative z-10">Todos</span>
-          </button>
-          {staff.map((s) => {
-            const isActive = staffFilter === s.id;
-            return (
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white tracking-tight leading-none">Calendario</h1>
+        <div className="flex flex-col gap-2 p-1.5 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm">
+          <div className="flex flex-wrap items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setStaffFilter(null)}
+              className={`relative z-10 px-2.5 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer select-none ${
+                staffFilter === null
+                  ? "text-[#0071E3] dark:text-[#5da8ff]"
+                  : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300"
+              }`}
+            >
+              {staffFilter === null && (
+                <motion.span
+                  layoutId="staffTab"
+                  className="absolute inset-0 rounded-full bg-[#0071E3]/20 dark:bg-[#0071E3]/30 border border-[#0071E3]/30 dark:border-[#0071E3]/40 shadow-sm"
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                />
+              )}
+              <span className="relative z-10">Todos</span>
+            </button>
+            {staff.map((s) => {
+              const isActive = staffFilter === s.id;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setStaffFilter(isActive ? null : s.id)}
+                  className={`relative z-10 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer select-none ${
+                    isActive
+                      ? "text-[#0071E3] dark:text-[#5da8ff]"
+                      : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300"
+                  }`}
+                >
+                  {isActive && (
+                    <motion.span
+                      layoutId="staffTab"
+                      className="absolute inset-0 rounded-full bg-[#0071E3]/20 dark:bg-[#0071E3]/30 border border-[#0071E3]/30 dark:border-[#0071E3]/40 shadow-sm"
+                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    />
+                  )}
+                  <span className="relative z-10 w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: STAFF_SEGMENTED_COLORS[staff.indexOf(s) % STAFF_SEGMENTED_COLORS.length] }} />
+                  <span className="relative z-10">{s.name || s.email}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="border-t border-zinc-200 dark:border-zinc-700 w-full" />
+          <div className="flex items-center gap-1 flex-wrap">
+            {[
+              { key: null, label: "Todos" },
+              { key: "scheduled", label: "Pendiente" },
+              { key: "confirmed", label: "Confirmado" },
+              { key: "completed", label: "Completado" },
+            ].map((opt) => (
               <button
-                key={s.id}
+                key={opt.key ?? "all"}
                 type="button"
-                onClick={() => setStaffFilter(isActive ? null : s.id)}
-                className={`relative z-10 inline-flex max-w-full items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all cursor-pointer select-none ${
-                  isActive
+                onClick={() => setStatusFilter(opt.key)}
+                className={`relative z-10 text-[11px] font-medium px-2 py-1 rounded-full transition-colors cursor-pointer select-none ${
+                  statusFilter === opt.key
                     ? "text-[#0071E3] dark:text-[#5da8ff]"
-                    : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
+                    : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300"
                 }`}
               >
-                {isActive && (
+                {statusFilter === opt.key && (
                   <motion.span
-                    layoutId="activeTab"
-                    className="absolute inset-0 rounded-full bg-[#0071E3]/20 dark:bg-[#0071E3]/30 border border-[#0071E3]/30 dark:border-[#0071E3]/40 shadow-sm"
+                    layoutId="statusTab"
+                    className="absolute inset-0 rounded-full bg-[#0071E3]/10 dark:bg-[#0071E3]/15"
                     transition={{ type: "spring", stiffness: 500, damping: 30 }}
                   />
                 )}
-                <span className="relative z-10 w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: STAFF_SEGMENTED_COLORS[staff.indexOf(s) % STAFF_SEGMENTED_COLORS.length] }} />
-                <span className="relative z-10 max-w-[92px] sm:max-w-none truncate">{s.name || s.email}</span>
+                <span className="relative z-10">{opt.label}</span>
               </button>
-            );
-          })}
+            ))}
           </div>
         </div>
-      </div>
-
-      {/* Filtro por estado */}
-      <div className="flex items-center gap-1 mb-4 -mt-1">
-        {[
-          { key: null, label: "Todos" },
-          { key: "scheduled", label: "Pendiente" },
-          { key: "confirmed", label: "Confirmado" },
-          { key: "completed", label: "Completado" },
-        ].map((opt) => (
-          <button
-            key={opt.key ?? "all"}
-            type="button"
-            onClick={() => setStatusFilter(opt.key)}
-            className={`text-[11px] font-medium px-2 py-0.5 rounded-full transition-colors cursor-pointer select-none ${
-              statusFilter === opt.key
-                ? "text-[#0071E3] dark:text-[#5da8ff] bg-[#0071E3]/10 dark:bg-[#0071E3]/15"
-                : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300"
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
       </div>
 
       <div className="flex-1 min-h-0">

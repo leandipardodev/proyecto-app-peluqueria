@@ -1,11 +1,11 @@
 import { fetchDashboardSummary, fetchDashboardMetrics } from "@/lib/dashboard/dashboard-summary";
-import { CalendarDays, AlertTriangle, TrendingUp, Clock, MessageCircle } from "lucide-react";
+import { CalendarDays, AlertTriangle, TrendingUp, Clock, ChevronRight } from "lucide-react";
 import ShareLinkCard from "@/components/dashboard/share-link-card";
 import PwaInstallButton from "@/components/dashboard/pwa-install-button";
 import HoverScale from "@/components/ui/hover-scale";
 import { fetchWhatsappTemplate } from "@/lib/dashboard/whatsapp-actions";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
-import { buildWhatsAppContactUrl, buildWhatsAppUrl } from "@/lib/dashboard/whatsapp-utils";
+import { buildWhatsAppContactUrl } from "@/lib/dashboard/whatsapp-utils";
 import { createServiceRoleClient, getAuthSession, getShopId } from "@/lib/dashboard/auth-server";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { resolveIndustry } from "@/lib/industry/resolve";
@@ -23,23 +23,7 @@ const VoucherBirthdayAlert = dynamicImport(() => import("@/components/dashboard/
 
 export const dynamic = "force-dynamic";
 
-const SOCIAL_TAGS = [
-  "#conecta",
-  "#presencia",
-  "#tuMarca",
-  "#identidad",
-  "#comunidad",
-  "#visibilidad",
-  "#difusion",
-  "#conexion",
-  "#vinculo",
-  "#marcaViva",
-  "#huellaDigital",
-  "#vozDeMarca",
-  "#alcance",
-  "#contactoDirecto",
-  "#canalesDigitales",
-];
+import SocialTagCycler from "@/components/dashboard/social-tag-cycler";
 
 function getInitials(name: string): string {
   return name
@@ -287,7 +271,6 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
   const instagramHref = normalizeSocialUrl(socialLinks.instagramUrl, "instagram");
   const facebookHref = normalizeSocialUrl(socialLinks.facebookUrl, "facebook");
   const tiktokHref = normalizeSocialUrl(socialLinks.tiktokUrl, "tiktok");
-  const randomSocialTag = SOCIAL_TAGS[Math.floor(Math.random() * SOCIAL_TAGS.length)];
 
   return (
     <div className="space-y-6">
@@ -296,15 +279,15 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
       )}
       <div className="flex min-w-0 items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white capitalize tracking-tight">
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white capitalize tracking-tight leading-tight">
             {today}
           </h1>
-          <div className="mt-3 flex min-w-0 items-center gap-2 overflow-hidden">
+          <div className="mt-4 flex min-w-0 items-center gap-2">
             <a
               href={whatsappHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center rounded-full rounded-tr-none w-9 h-9 text-white"
+              className="relative group inline-flex items-center justify-center rounded-full rounded-tr-none w-10 h-10 text-white shrink-0 overflow-hidden transition-all duration-150 ease-out hover:scale-110 hover:-translate-y-1 hover:shadow-xl"
               aria-label="Abrir WhatsApp"
               title="WhatsApp"
               style={{
@@ -312,47 +295,37 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
                 boxShadow: "0 8px 18px rgba(105,187,147,0.22), inset 0 1px 0 rgba(255,255,255,0.35)",
               }}
             >
-              <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-current" aria-hidden="true">
+              <span className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/30 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" />
+              <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current relative z-10" aria-hidden="true">
                 <path d="M12.04 2C6.53 2 2.06 6.47 2.06 11.98c0 1.94.55 3.83 1.6 5.46L2 22l4.72-1.63a9.93 9.93 0 0 0 5.32 1.54h.01c5.51 0 9.98-4.47 9.98-9.98A9.98 9.98 0 0 0 12.04 2Zm5.82 14.25c-.24.68-1.39 1.3-1.92 1.38-.49.07-1.12.1-1.81-.12-.42-.13-.95-.31-1.64-.61-2.88-1.25-4.76-4.16-4.91-4.36-.15-.2-1.17-1.56-1.17-2.97 0-1.41.74-2.1 1-2.39.26-.29.58-.36.77-.36.19 0 .39 0 .56.01.18.01.42-.07.66.5.24.58.83 2.01.9 2.16.07.14.12.31.02.5-.1.19-.14.31-.29.47-.14.17-.3.37-.43.49-.14.14-.29.3-.12.59.17.29.77 1.27 1.64 2.05 1.13 1.01 2.08 1.32 2.37 1.47.29.14.46.12.63-.07.17-.19.73-.85.92-1.14.19-.29.39-.24.66-.14.27.1 1.72.81 2.01.96.29.14.48.22.55.34.07.12.07.68-.17 1.36Z" />
               </svg>
             </a>
             {instagramHref && (
-              <a href={instagramHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-full rounded-bl-none w-9 h-9 text-white bg-gradient-to-br from-fuchsia-500 via-rose-500 to-orange-400 shadow-sm" aria-label="Abrir Instagram" title="Instagram">
-                <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-current" aria-hidden="true"><path d="M7.75 2h8.5A5.75 5.75 0 0 1 22 7.75v8.5A5.75 5.75 0 0 1 16.25 22h-8.5A5.75 5.75 0 0 1 2 16.25v-8.5A5.75 5.75 0 0 1 7.75 2Zm0 1.8A3.95 3.95 0 0 0 3.8 7.75v8.5a3.95 3.95 0 0 0 3.95 3.95h8.5a3.95 3.95 0 0 0 3.95-3.95v-8.5a3.95 3.95 0 0 0-3.95-3.95h-8.5Zm9.15 1.35a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4ZM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 1.8a3.2 3.2 0 1 0 0 6.4 3.2 3.2 0 0 0 0-6.4Z" /></svg>
+              <a href={instagramHref} target="_blank" rel="noopener noreferrer" className="relative group inline-flex items-center justify-center rounded-full rounded-bl-none w-10 h-10 text-white bg-gradient-to-br from-fuchsia-500 via-rose-500 to-orange-400 shrink-0 overflow-hidden transition-all duration-150 ease-out hover:scale-110 hover:-translate-y-1 hover:shadow-xl" aria-label="Abrir Instagram" title="Instagram">
+                <span className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/30 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" />
+                <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current relative z-10" aria-hidden="true"><path d="M7.75 2h8.5A5.75 5.75 0 0 1 22 7.75v8.5A5.75 5.75 0 0 1 16.25 22h-8.5A5.75 5.75 0 0 1 2 16.25v-8.5A5.75 5.75 0 0 1 7.75 2Zm0 1.8A3.95 3.95 0 0 0 3.8 7.75v8.5a3.95 3.95 0 0 0 3.95 3.95h8.5a3.95 3.95 0 0 0 3.95-3.95v-8.5a3.95 3.95 0 0 0-3.95-3.95h-8.5Zm9.15 1.35a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4ZM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 1.8a3.2 3.2 0 1 0 0 6.4 3.2 3.2 0 0 0 0-6.4Z" /></svg>
               </a>
             )}
             {facebookHref && (
-              <a href={facebookHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-full rounded-tr-none w-9 h-9 text-white bg-[#1877F2] shadow-sm" aria-label="Abrir Facebook" title="Facebook">
-                <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-current" aria-hidden="true"><path d="M13.5 22v-8h2.7l.4-3h-3.1V9.1c0-.9.3-1.6 1.6-1.6h1.7V4.8c-.3 0-1.3-.1-2.5-.1-2.5 0-4.2 1.5-4.2 4.4V11H8v3h2.6v8h2.9Z" /></svg>
+              <a href={facebookHref} target="_blank" rel="noopener noreferrer" className="relative group inline-flex items-center justify-center rounded-full rounded-tr-none w-10 h-10 text-white bg-[#1877F2] shrink-0 overflow-hidden transition-all duration-150 ease-out hover:scale-110 hover:-translate-y-1 hover:shadow-xl" aria-label="Abrir Facebook" title="Facebook">
+                <span className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/30 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" />
+                <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current relative z-10" aria-hidden="true"><path d="M13.5 22v-8h2.7l.4-3h-3.1V9.1c0-.9.3-1.6 1.6-1.6h1.7V4.8c-.3 0-1.3-.1-2.5-.1-2.5 0-4.2 1.5-4.2 4.4V11H8v3h2.6v8h2.9Z" /></svg>
               </a>
             )}
             {tiktokHref && (
-              <a href={tiktokHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-full rounded-bl-none w-9 h-9 text-white bg-black shadow-sm" aria-label="Abrir TikTok" title="TikTok">
-                <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-current" aria-hidden="true"><path d="M14.5 3c.2 1.9 1.3 3.5 3.1 4.2.8.3 1.6.5 2.4.5v2.6c-1.8 0-3.7-.5-5.2-1.5v6.1c0 3.1-2.5 5.6-5.6 5.6S3.6 18 3.6 14.9s2.5-5.6 5.6-5.6c.3 0 .6 0 .9.1V12c-.3-.1-.6-.2-.9-.2-1.7 0-3.1 1.4-3.1 3.1S7.5 18 9.2 18s3.1-1.4 3.1-3.1V3h2.2Z" /></svg>
+              <a href={tiktokHref} target="_blank" rel="noopener noreferrer" className="relative group inline-flex items-center justify-center rounded-full rounded-bl-none w-10 h-10 text-white bg-black shrink-0 overflow-hidden transition-all duration-150 ease-out hover:scale-110 hover:-translate-y-1 hover:shadow-xl" aria-label="Abrir TikTok" title="TikTok">
+                <span className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/30 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" />
+                <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current relative z-10" aria-hidden="true"><path d="M14.5 3c.2 1.9 1.3 3.5 3.1 4.2.8.3 1.6.5 2.4.5v2.6c-1.8 0-3.7-.5-5.2-1.5v6.1c0 3.1-2.5 5.6-5.6 5.6S3.6 18 3.6 14.9s2.5-5.6 5.6-5.6c.3 0 .6 0 .9.1V12c-.3-.1-.6-.2-.9-.2-1.7 0-3.1 1.4-3.1 3.1S7.5 18 9.2 18s3.1-1.4 3.1-3.1V3h2.2Z" /></svg>
               </a>
             )}
-            <span
-              className="social-tag-hero ml-2 sm:ml-3 min-w-0 max-w-[34vw] sm:max-w-[260px] truncate text-[1rem] sm:text-[2rem] leading-none font-medium tracking-[-0.02em] select-none"
-              style={{
-                backgroundImage:
-                  "linear-gradient(112deg, rgba(15,23,42,0.9) 0%, rgba(71,85,105,0.82) 32%, rgba(59,130,246,0.74) 62%, rgba(125,211,252,0.8) 78%, rgba(14,165,233,0.68) 100%)",
-                backgroundSize: "180% 100%",
-                WebkitBackgroundClip: "text",
-                backgroundClip: "text",
-                color: "transparent",
-                textShadow: "0 10px 28px rgba(15,23,42,0.12)",
-                transition: "transform 260ms cubic-bezier(0.22, 1, 0.36, 1), filter 260ms cubic-bezier(0.22, 1, 0.36, 1), background-position 520ms cubic-bezier(0.22, 1, 0.36, 1)",
-              }}
-            >
-              {randomSocialTag}
-            </span>
+            <SocialTagCycler />
           </div>
-          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            Resumen de tu peluquería
+          <p className="mt-3 text-sm text-gray-500 dark:text-gray-400 font-medium">
+            Resumen de tu negocio
           </p>
         </div>
-        <div className="hidden lg:block pt-0.5">
-          <p className="dashboard-shopname-hero text-4xl xl:text-5xl font-black tracking-[-0.04em] text-gray-900/80 dark:text-white/85 max-w-[34rem] truncate text-right">
+        <div className="hidden lg:block pt-1.5 pr-4">
+          <p className="dashboard-shopname-hero text-5xl xl:text-6xl font-black tracking-[-0.04em] text-gray-900/85 dark:text-white/90 max-w-[32rem] truncate text-right leading-tight">
             {summary.shopName}
           </p>
         </div>
@@ -421,10 +394,10 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
         </div>
       </div>
 
-      <div className="glass-sheen-card bg-white dark:bg-zinc-900 rounded-[2.5rem] rounded-t-none border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors">
-        <div className="px-6 py-4 border-b border-white/20 dark:border-white/10">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2 tracking-tight">
-            <Clock className="w-5 h-5 text-zinc-400 dark:text-zinc-500" />
+      <div className="bg-white dark:bg-zinc-900 rounded-[2rem] border border-zinc-200/80 dark:border-zinc-800 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+        <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800/50">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2 tracking-tight">
+            <Clock className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
             Próximos turnos
           </h2>
         </div>
@@ -434,7 +407,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
             No hay turnos programados para hoy.
           </div>
         ) : (
-          <div className="divide-y divide-white/20 dark:divide-white/10">
+          <div className="divide-y divide-zinc-100 dark:divide-zinc-800/50">
             {summary.nextAppointments.map((appt) => {
               const start = new Date(appt.start_time);
               const end = new Date(appt.end_time);
@@ -445,76 +418,37 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
               return (
                 <div
                   key={appt.id}
-                  className="flex items-center gap-4 px-6 py-4 hover:bg-white/40 dark:hover:bg-white/5 transition-colors"
+                  className="flex items-center gap-3 px-5 py-3.5 hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors group cursor-pointer"
                 >
                   <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 ${colorClass}`}
+                    className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${colorClass}`}
                   >
                     {initials}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate leading-snug">
                       {clientName}
                     </p>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
                       {(appt.services?.name || "Sin servicio") + (appt.services?.price ? ` · $${Number(appt.services.price).toFixed(2)}` : "")}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <div className="text-right">
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white tabular-nums">
                         {start.toLocaleTimeString("es-AR", {
                           hour: "2-digit",
                           minute: "2-digit",
                         })}
                       </p>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                      <p className="text-[11px] text-zinc-400 dark:text-zinc-500 tabular-nums">
                         {end.toLocaleTimeString("es-AR", {
                           hour: "2-digit",
                           minute: "2-digit",
                         })}
                       </p>
                     </div>
-                    {(() => {
-                      const waUrl = buildWhatsAppUrl({
-                        phone: appt.customers?.telefono ?? null,
-                        customerName: clientName,
-                        serviceName: appt.services?.name,
-                        time: start.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }),
-                        template: whatsappTemplate,
-                        shopName: summary.shopName,
-                      });
-                      if (waUrl) {
-                        return (
-                          <a
-                            href={waUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="group inline-flex items-center justify-center gap-1 p-2 rounded-full text-white transition-all shadow-sm"
-                            style={{
-                              background: "linear-gradient(135deg, #7bcfa3 0%, #69bb93 100%)",
-                              boxShadow: "0 8px 18px rgba(105,187,147,0.22), inset 0 1px 0 rgba(255,255,255,0.35)",
-                              backdropFilter: "blur(10px)",
-                              WebkitBackdropFilter: "blur(10px)",
-                            }}
-                            title="Enviar Recordatorio"
-                            data-cursor="enviar"
-                          >
-                            <MessageCircle className="w-4 h-4" />
-                            <span className="max-w-0 group-hover:max-w-[130px] overflow-hidden text-[10px] font-medium leading-none transition-all duration-200 whitespace-nowrap">Enviar Recordatorio</span>
-                          </a>
-                        );
-                      }
-
-                      return (
-                        <span
-                          className="inline-flex items-center justify-center p-2 rounded-full border border-zinc-300/70 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500"
-                          title="WhatsApp no disponible: falta teléfono o plantilla inválida"
-                        >
-                          <MessageCircle className="w-4 h-4" />
-                        </span>
-                      );
-                    })()}
+                    <ChevronRight className="w-4 h-4 text-zinc-300 dark:text-zinc-600 group-hover:text-zinc-400 dark:group-hover:text-zinc-500 transition-colors -mr-1" />
                   </div>
                 </div>
               );
@@ -587,17 +521,22 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
           to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
         }
         .social-tag-hero {
-          animation: socialTagReveal 680ms cubic-bezier(0.22, 1, 0.36, 1) both;
+          animation: socialTagReveal 680ms cubic-bezier(0.22, 1, 0.36, 1) both,
+                     socialTagShimmer 7s ease-in-out 1s infinite;
           will-change: transform, filter, background-position;
         }
         .social-tag-hero:hover {
-          transform: translateY(-1px) scale(1.01);
-          filter: saturate(1.06);
-          background-position: 82% 0;
+          transform: translateY(-2px) scale(1.02);
+          filter: saturate(1.15) brightness(1.05);
+          animation-duration: 680ms, 2.5s;
         }
         @keyframes socialTagReveal {
           from { opacity: 0; transform: translate3d(10px, 0, 0); }
           to { opacity: 1; transform: translate3d(0, 0, 0); }
+        }
+        @keyframes socialTagShimmer {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
         }
       `}</style>
     </div>
