@@ -865,11 +865,11 @@ export default memo(function CalendarView({
         return (
           <div
             key={tipAppt.id}
-            className="fixed pointer-events-none z-[60] animate-in fade-in zoom-in-95 duration-200 ease-out"
+            className="fixed pointer-events-none z-[60]"
             style={{ left: tooltipPos.left, top: tooltipPos.top }}
           >
             <div
-              className="w-[270px] rounded-2xl bg-white/70 dark:bg-zinc-900/75 backdrop-blur-2xl border border-white/40 dark:border-zinc-700/40 overflow-hidden"
+              className="w-[270px] rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-700/60 overflow-hidden"
               style={{
                 boxShadow: `0 2px 4px rgba(0,0,0,0.02), 0 12px 32px -8px rgba(0,0,0,0.18), 0 0 0 1px rgba(255,255,255,0.08) inset`,
                 borderLeft: `3px solid ${tipStaffColor}`,
@@ -890,21 +890,27 @@ export default memo(function CalendarView({
                 </div>
                 <div className="mt-3.5 mb-3.5 h-px bg-gradient-to-r from-zinc-200/80 via-zinc-200/30 to-transparent dark:from-zinc-700/50 dark:via-zinc-700/20" />
                 {tipAppt.services?.name && (
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-[5px] h-[5px] rounded-full shrink-0" style={{ backgroundColor: solidStaffColor }} />
-                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200 leading-tight">
-                      {tipAppt.services.name}
-                    </span>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[11px] text-zinc-400 dark:text-zinc-500 shrink-0">Servicio</span>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-[5px] h-[5px] rounded-full shrink-0" style={{ backgroundColor: solidStaffColor }} />
+                      <span className="text-sm font-medium text-gray-800 dark:text-gray-200 leading-tight truncate">
+                        {tipAppt.services.name}
+                      </span>
+                    </div>
                   </div>
                 )}
-                <div className="mt-2.5 flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
-                  <span className="flex items-center justify-center w-[18px] h-[18px] rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500">
-                    <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                      <circle cx="12" cy="7" r="4" />
-                    </svg>
-                  </span>
-                  <span className="font-medium text-zinc-500 dark:text-zinc-400">{tipAppt.staff?.name || "Sin asignar"}</span>
+                <div className="mt-2.5 flex items-baseline gap-2 text-xs">
+                  <span className="text-zinc-400 dark:text-zinc-500 shrink-0">Se encarga</span>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="flex items-center justify-center w-[18px] h-[18px] rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 shrink-0">
+                      <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>
+                    </span>
+                    <span className="font-medium text-zinc-600 dark:text-zinc-300 truncate">{tipAppt.staff?.name || "Sin asignar"}</span>
+                  </div>
                 </div>
                 {(tipAppt.services?.price != null || (tipAppt.deposit_amount != null && tipAppt.deposit_amount > 0)) && (
                   <div className="mt-3.5 flex flex-wrap items-center gap-1.5">
