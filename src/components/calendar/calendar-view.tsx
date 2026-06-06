@@ -193,13 +193,14 @@ const AppointmentBlock = memo(function AppointmentBlock({
   const svcName = appt.services?.name || "";
 
   const isFinalStatus = STATUS_FINAL.has(appt.status);
-  const isCancelled = appt.status === "cancelled" || appt.status === "no_show";
+  const isCancelled = appt.status === "cancelled";
+  const isNoShow = appt.status === "no_show";
   const isCompleted = appt.status === "completed";
   const isConfirmed = appt.status === "confirmed" || appt.status === "in_progress";
   const needsAttention = appt.status === "scheduled";
   return (
     <div
-      className={`absolute pointer-events-auto min-w-0 rounded-tl-xl rounded-bl-xl rounded-br-xl text-xs cursor-pointer bg-white dark:bg-zinc-800/90 border border-zinc-200/50 dark:border-zinc-700/50 shadow-sm group overflow-hidden ${isCancelled ? "opacity-80" : isCompleted ? "opacity-75" : ""}`}
+      className={`absolute pointer-events-auto min-w-0 rounded-tl-xl rounded-bl-xl rounded-br-xl text-xs cursor-pointer bg-white dark:bg-zinc-800/90 border border-zinc-200/50 dark:border-zinc-700/50 shadow-sm group overflow-hidden ${isCancelled ? "opacity-0 pointer-events-none" : isCompleted || isNoShow ? "opacity-75" : ""}`}
       style={{
         top: `${topPx}px`,
         height: `${Math.max(heightPx - 2, 18)}px`,
@@ -207,10 +208,10 @@ const AppointmentBlock = memo(function AppointmentBlock({
         left: `calc(${leftPct}% + 8px)`,
         fontFamily: "Inter, sans-serif",
         boxShadow: isCancelled
-          ? "inset 2px 0 0 rgba(220,38,38,0.4)"
+          ? "none"
           : `inset 2px 0 0 ${staffColor.borderRgba32}, inset 0 -2px 0 ${staffColor.borderRgba45}`,
         background: isCancelled
-          ? "linear-gradient(180deg, rgba(254,202,202,0.68) 0%, rgba(254,226,226,0.36) 46%, rgba(255,255,255,0.22) 100%)"
+          ? "none"
         : needsAttention
             ? "linear-gradient(180deg, rgba(220,200,230,0.30) 0%, rgba(235,220,240,0.15) 48%, rgba(255,255,255,0.15) 100%)"
         : isCompleted
@@ -774,7 +775,7 @@ export default memo(function CalendarView({
             return (
               <div
                 key={dayStr}
-                className={`col-span-1 border-r border-zinc-200/50 dark:border-zinc-800 border-l-2 border-l-zinc-200 dark:border-l-zinc-700 last:border-r-0 flex flex-col ${dayFullyClosed ? "opacity-60" : ""}`}
+                className={`col-span-1 border-r border-zinc-200/50 dark:border-zinc-800 border-l-2 border-l-zinc-200 dark:border-l-zinc-700 last:border-r-0 flex flex-col ${dayFullyClosed ? "opacity-60" : ""} ${isToday(day) ? "bg-sky-50/40 dark:bg-sky-900/15" : ""}`}
               >
                 <div
                   className={`group relative border-b border-zinc-200/50 dark:border-zinc-800 flex flex-col items-center justify-center shrink-0 transition-all duration-200 ${

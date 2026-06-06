@@ -155,9 +155,7 @@ export default function CalendarPageClient({
       ? ["scheduled", "pending_payment"]
       : statusFilter === "confirmed"
         ? ["confirmed", "in_progress"]
-        : statusFilter === "cancelled"
-          ? ["cancelled", "no_show"]
-          : [statusFilter];
+        : [statusFilter];
     return resolvedAppointments.filter((a) => statuses.includes(a.status));
   }, [resolvedAppointments, statusFilter]);
 
@@ -306,7 +304,6 @@ export default function CalendarPageClient({
           { key: "scheduled", label: "Pendiente" },
           { key: "confirmed", label: "Confirmado" },
           { key: "completed", label: "Completado" },
-          { key: "cancelled", label: "Cancelado" },
         ].map((opt) => (
           <button
             key={opt.key ?? "all"}

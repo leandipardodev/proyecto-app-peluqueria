@@ -53,11 +53,9 @@ interface AppointmentDetailModalProps {
 const statusFlow: Record<string, { label: string; nextStatus: string }[]> = {
   scheduled: [
     { label: "Confirmar", nextStatus: "confirmed" },
-    { label: "Cancelar", nextStatus: "cancelled" },
   ],
   confirmed: [
     { label: "Completar", nextStatus: "completed" },
-    { label: "Cancelar", nextStatus: "cancelled" },
   ],
   in_progress: [{ label: "Completar", nextStatus: "completed" }],
   completed: [],
@@ -515,28 +513,17 @@ export default function AppointmentDetailModal({
 
             {actions.length > 0 && (
               <div className="flex gap-2 pt-2">
-                {actions.map(({ label, nextStatus }) => {
-                  const isCancel = nextStatus === "cancelled";
-                  return (
-                    <button
-                      key={nextStatus}
-                      onClick={() => handleStatusChange(nextStatus)}
-                      disabled={pending}
-                      className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer select-none ${
-                        isCancel
-                          ? "text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950 hover:bg-red-100 dark:hover:bg-red-900"
-                          : "text-white bg-violet-600 hover:bg-violet-700"
-                      } disabled:opacity-50`}
-                    >
-                      {isCancel ? (
-                        <XCircle className="w-4 h-4" />
-                      ) : (
-                        <Check className="w-4 h-4" />
-                      )}
-                      {label}
-                    </button>
-                  );
-                })}
+                {actions.map(({ label, nextStatus }) => (
+                  <button
+                    key={nextStatus}
+                    onClick={() => handleStatusChange(nextStatus)}
+                    disabled={pending}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 transition-colors disabled:opacity-50 cursor-pointer select-none"
+                  >
+                    <Check className="w-4 h-4" />
+                    {label}
+                  </button>
+                ))}
               </div>
             )}
 
