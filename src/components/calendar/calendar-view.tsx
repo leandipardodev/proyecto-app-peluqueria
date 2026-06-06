@@ -2,9 +2,8 @@
 
 import { format, startOfWeek, addDays, isToday } from "date-fns";
 import { es } from "date-fns/locale";
-import { Check, CheckCheck, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clock, MessageCircle, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, MessageCircle } from "lucide-react";
 import { useRef, useState, useEffect, useMemo, useCallback, memo } from "react";
-import { motion, useMotionValue, type MotionValue } from "framer-motion";
 import { createPortal } from "react-dom";
 import { GRID_END_HOUR, GRID_START_HOUR, HOUR_HEIGHT } from "@/lib/calendar-constants";
 import {
@@ -74,26 +73,19 @@ function hourFromHHmm(v: string): number {
 }
 
 type StaffColor = {
-  bg: string;
-  border: string;
-  text: string;
-  borderRgba32: string;
-  borderRgba85: string;
-  borderRgba45: string;
+  accent: string;
 };
 
 const STAFF_COLORS: StaffColor[] = [
-  { bg: "#ede9fe", border: "#7c3aed", text: "#4c1d95", borderRgba32: "rgba(124,58,237,0.32)", borderRgba85: "rgba(124,58,237,0.85)", borderRgba45: "rgba(124,58,237,0.45)" },
-  { bg: "#d1fae5", border: "#059669", text: "#064e3b", borderRgba32: "rgba(5,150,105,0.32)", borderRgba85: "rgba(5,150,105,0.85)", borderRgba45: "rgba(5,150,105,0.45)" },
-  { bg: "#fef9c3", border: "#d97706", text: "#78350f", borderRgba32: "rgba(217,119,6,0.32)", borderRgba85: "rgba(217,119,6,0.85)", borderRgba45: "rgba(217,119,6,0.45)" },
-  { bg: "#fce7f3", border: "#db2777", text: "#831843", borderRgba32: "rgba(219,39,119,0.32)", borderRgba85: "rgba(219,39,119,0.85)", borderRgba45: "rgba(219,39,119,0.45)" },
-  { bg: "#cffafe", border: "#0891b2", text: "#164e63", borderRgba32: "rgba(8,145,178,0.32)", borderRgba85: "rgba(8,145,178,0.85)", borderRgba45: "rgba(8,145,178,0.45)" },
-  { bg: "#fed7aa", border: "#ea580c", text: "#7c2d12", borderRgba32: "rgba(234,88,12,0.32)", borderRgba85: "rgba(234,88,12,0.85)", borderRgba45: "rgba(234,88,12,0.45)" },
-  { bg: "#c7d2fe", border: "#4f46e5", text: "#312e81", borderRgba32: "rgba(79,70,229,0.32)", borderRgba85: "rgba(79,70,229,0.85)", borderRgba45: "rgba(79,70,229,0.45)" },
-  { bg: "#fecaca", border: "#dc2626", text: "#7f1d1d", borderRgba32: "rgba(220,38,38,0.32)", borderRgba85: "rgba(220,38,38,0.85)", borderRgba45: "rgba(220,38,38,0.45)" },
+  { accent: "rgba(99,102,241,0.35)" },
+  { accent: "rgba(14,165,233,0.35)" },
+  { accent: "rgba(234,179,8,0.35)" },
+  { accent: "rgba(236,72,153,0.35)" },
+  { accent: "rgba(16,185,129,0.35)" },
+  { accent: "rgba(168,85,247,0.35)" },
+  { accent: "rgba(249,115,22,0.35)" },
+  { accent: "rgba(239,68,68,0.35)" },
 ];
-
-const STATUS_FINAL = new Set(["completed", "cancelled", "no_show"]);
 
 const NowLine = memo(function NowLine({ day, gridStartHour, gridEndHour }: { day: Date; gridStartHour: number; gridEndHour: number }) {
   const [now, setNow] = useState(() => new Date());
@@ -127,9 +119,9 @@ const DAY_MAP: Record<number, string> = {
 };
 
 function getTooltipPosition(x: number, y: number): { left: number; top: number } {
-  const offset = 15;
-  const tooltipWidth = 300;
-  const tooltipHeight = 165;
+  const offset = 12;
+  const tooltipWidth = 270;
+  const tooltipHeight = 220;
   const padding = 8;
   const vw = typeof window !== "undefined" ? window.innerWidth : 1280;
   const vh = typeof window !== "undefined" ? window.innerHeight : 720;
@@ -156,8 +148,7 @@ const AppointmentBlock = memo(function AppointmentBlock({
   isMobileViewport,
   staffColorMap,
   isCoarsePointer,
-  tooltipX,
-  tooltipY,
+  onTooltipMove,
   gridStartHour,
   onHover,
   onLeave,
@@ -172,8 +163,7 @@ const AppointmentBlock = memo(function AppointmentBlock({
   isMobileViewport: boolean;
   staffColorMap: Record<string, (typeof STAFF_COLORS)[0]>;
   isCoarsePointer: boolean;
-  tooltipX: MotionValue<number>;
-  tooltipY: MotionValue<number>;
+  onTooltipMove: (left: number, top: number) => void;
   gridStartHour: number;
   onHover: (appt: NormalizedAppointment) => void;
   onLeave: () => void;
@@ -192,15 +182,13 @@ const AppointmentBlock = memo(function AppointmentBlock({
 
   const svcName = appt.services?.name || "";
 
-  const isFinalStatus = STATUS_FINAL.has(appt.status);
   const isCancelled = appt.status === "cancelled";
   const isNoShow = appt.status === "no_show";
   const isCompleted = appt.status === "completed";
   const isConfirmed = appt.status === "confirmed" || appt.status === "in_progress";
-  const needsAttention = appt.status === "scheduled";
   return (
     <div
-      className={`absolute pointer-events-auto min-w-0 rounded-tl-xl rounded-bl-xl rounded-br-xl text-xs cursor-pointer bg-white dark:bg-zinc-800/90 border border-zinc-200/50 dark:border-zinc-700/50 shadow-sm group overflow-hidden ${isCancelled ? "opacity-0 pointer-events-none" : isCompleted || isNoShow ? "opacity-75" : ""}`}
+      className={`absolute pointer-events-auto min-w-0 text-xs cursor-pointer bg-white dark:bg-zinc-800/90 border border-zinc-200/50 dark:border-zinc-700/50 group overflow-hidden ${isCancelled ? "opacity-0 pointer-events-none" : isCompleted ? "opacity-55" : isNoShow ? "opacity-40" : ""}`}
       style={{
         top: `${topPx}px`,
         height: `${Math.max(heightPx - 2, 18)}px`,
@@ -209,19 +197,7 @@ const AppointmentBlock = memo(function AppointmentBlock({
         fontFamily: "Inter, sans-serif",
         borderLeft: isCancelled
           ? undefined
-          : `2px solid ${staffColor.borderRgba32}`,
-        borderBottom: isCancelled
-          ? undefined
-          : `2px solid ${staffColor.borderRgba45}`,
-        background: isCancelled
-          ? "none"
-        : needsAttention
-            ? "linear-gradient(180deg, rgba(220,200,230,0.30) 0%, rgba(235,220,240,0.15) 48%, rgba(255,255,255,0.15) 100%)"
-        : isCompleted
-            ? undefined
-            : isConfirmed && isMobileViewport
-              ? "linear-gradient(180deg, rgba(186,230,253,0.66) 0%, rgba(224,242,254,0.34) 48%, rgba(255,255,255,0.24) 100%)"
-              : undefined,
+          : `3px solid ${staffColor.accent}`,
       }}
       onClick={(e) => {
         e.stopPropagation();
@@ -230,41 +206,34 @@ const AppointmentBlock = memo(function AppointmentBlock({
       onMouseEnter={(e) => {
         if (isCoarsePointer) return;
         onHover(appt);
-        const pos = getTooltipPosition(e.clientX, e.clientY);
-        tooltipX.set(pos.left);
-        tooltipY.set(pos.top);
+        onTooltipMove(e.clientX, e.clientY);
       }}
       onMouseMove={(e) => {
         if (isCoarsePointer) return;
-        const pos = getTooltipPosition(e.clientX, e.clientY);
-        tooltipX.set(pos.left);
-        tooltipY.set(pos.top);
+        onTooltipMove(e.clientX, e.clientY);
       }}
       onMouseLeave={onLeave}
     >
-      <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent rounded-2xl pointer-events-none" />
       <div className={`relative z-10 flex h-full ${isWeekMode ? "flex-col p-1 gap-0.5" : "flex-col justify-between p-1.5 gap-0.5"}`}>
         <div className="min-w-0 space-y-0.5">
           <div className="flex items-center justify-between gap-1">
             <div className="min-w-0 flex items-center gap-1">
-              <span className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${isCompleted ? "bg-emerald-500 text-white" : isCancelled ? "bg-rose-500 text-white" : isConfirmed ? "bg-sky-500 text-white" : "bg-amber-500 text-white shadow-sm"}`}>
-                {isCompleted ? <Check className="h-2.5 w-2.5" /> : isCancelled ? <X className="h-2.5 w-2.5" /> : isConfirmed ? <CheckCheck className="h-2.5 w-2.5" /> : <Clock className="h-2.5 w-2.5" />}
-              </span>
-              <span className={`font-bold leading-tight truncate ${isWeekMode ? "text-[10px]" : isCompact ? "text-[11px]" : "text-xs"} ${isCancelled ? "line-through" : ""} text-gray-900 dark:text-gray-100`}>
+              <span className={`inline-flex h-1.5 w-1.5 shrink-0 rounded-full ${isCancelled ? "bg-transparent" : isCompleted ? "bg-emerald-500" : isConfirmed ? "bg-sky-500" : isNoShow ? "bg-zinc-300" : "bg-amber-400"}`} />
+              <span className={`font-semibold leading-tight truncate ${isWeekMode ? "text-[10px]" : isCompact ? "text-[11px]" : "text-xs"} ${isCancelled ? "line-through" : ""} text-gray-900 dark:text-gray-100`}>
                 {isWeekMode ? (appt.customers?.nombre?.split(/\s+/)[0] || "Sin") : (appt.customers?.nombre || "Sin cliente")}
               </span>
             </div>
             <div className="flex items-center gap-1 shrink-0">
               {appt.start_hhmm && (
-                <span className={`font-mono leading-none ${isWeekMode ? "text-[9px] text-gray-500 dark:text-gray-400" : "text-[10px] text-gray-500 dark:text-gray-400"}`}>{appt.start_hhmm}</span>
+                <span className={`tabular-nums leading-none ${isWeekMode ? "text-[9px] text-gray-400 dark:text-gray-500" : "text-[10px] text-gray-400 dark:text-gray-500"}`}>{appt.start_hhmm}</span>
               )}
-              {appt.customers?.telefono && !isWeekMode && !isMobileViewport && (
+              {appt.customers?.telefono && (
                 <a
                   href={`https://wa.me/${appt.customers.telefono.replace(/\D/g, "")}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
-                  className="inline-flex items-center justify-center rounded-full border border-emerald-300/70 bg-emerald-50/90 p-1 text-emerald-700 hover:bg-emerald-100"
+                  className="inline-flex items-center justify-center rounded-full border border-zinc-300 dark:border-zinc-600 p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 opacity-0 group-hover:opacity-100 transition-opacity"
                   title="Enviar WhatsApp"
                 >
                   <MessageCircle className="h-3 w-3" />
@@ -310,14 +279,16 @@ export default memo(function CalendarView({
   const [isCoarsePointer, setIsCoarsePointer] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [hoverTooltip, setHoverTooltip] = useState<HoverTooltipState | null>(null);
-  const tooltipX = useMotionValue(-9999);
-  const tooltipY = useMotionValue(-9999);
-  const [portalReady, setPortalReady] = useState(false);
+  const [tooltipPos, setTooltipPos] = useState({ left: -9999, top: -9999 });
+  const portalReady = true;
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const startX = useRef(0);
   const scrollLeft = useRef(0);
 
+  const handleTooltipMove = useCallback((clientX: number, clientY: number) => {
+    setTooltipPos(getTooltipPosition(clientX, clientY));
+  }, []);
   const handleAppointmentHover = useCallback((appt: NormalizedAppointment) => {
     setHoverTooltip({ appointment: appt });
   }, []);
@@ -583,7 +554,6 @@ export default memo(function CalendarView({
 
   useEffect(() => {
     setMounted(true);
-    setPortalReady(true);
   }, []);
 
   useEffect(() => {
@@ -660,10 +630,22 @@ export default memo(function CalendarView({
   const styleTag = useMemo(() => (
     <style>{`
       .closed-slot-pattern {
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Crect width='4' height='8' fill='rgba(0,0,0,0.06)'/%3E%3C/svg%3E");
+        background-image: repeating-linear-gradient(
+          45deg,
+          transparent,
+          transparent 6px,
+          rgba(0,0,0,0.06) 6px,
+          rgba(0,0,0,0.06) 8px
+        );
       }
       .dark .closed-slot-pattern {
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Crect width='4' height='8' fill='rgba(255,255,255,0.10)'/%3E%3C/svg%3E");
+        background-image: repeating-linear-gradient(
+          45deg,
+          transparent,
+          transparent 6px,
+          rgba(255,255,255,0.08) 6px,
+          rgba(255,255,255,0.08) 8px
+        );
       }
     `}</style>
   ), []);
@@ -826,7 +808,7 @@ export default memo(function CalendarView({
                         className={`relative overflow-visible border-b border-zinc-200/30 dark:border-zinc-800/40 last:border-b-0 transition-colors ${(isMobileDayMode || (isMobileViewport && viewMode === "week" && dayIndex === 0)) ? "pl-7 pr-1 py-1.5" : "p-1.5"} ${
                           isOpenSlot
                             ? "hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer"
-                            : "bg-zinc-100 dark:bg-zinc-950 border-y border-y-zinc-200 dark:border-y-zinc-800 closed-slot-pattern"
+                            : "bg-zinc-100/70 dark:bg-zinc-800/50 closed-slot-pattern"
                         }`}
                         onClick={isOpenSlot ? () => onSlotClick(day, hour) : undefined}
                       >
@@ -853,8 +835,7 @@ export default memo(function CalendarView({
                           isMobileViewport={isMobileViewport}
                           staffColorMap={staffColorMap}
                           isCoarsePointer={isCoarsePointer}
-                          tooltipX={tooltipX}
-                          tooltipY={tooltipY}
+                          onTooltipMove={handleTooltipMove}
                           gridStartHour={gridStartHour}
                           onHover={handleAppointmentHover}
                           onLeave={handleAppointmentLeave}
@@ -872,49 +853,86 @@ export default memo(function CalendarView({
         </div>
       </div>
 
-      {portalReady && !isCoarsePointer && createPortal((
-        <>
-          {hoverTooltip && (() => {
-            const tipAppt = hoverTooltip.appointment;
-            const humanDate = format(new Date(tipAppt.start_local_iso), "EEEE d MMMM", { locale: es });
-            return (
-              <motion.div
-                key={tipAppt.id}
-                className="fixed left-0 top-0 pointer-events-none z-[60] w-[300px] rounded-xl border border-zinc-200/70 dark:border-white/10 bg-white dark:bg-black/90 shadow-lg px-4 py-3 text-gray-900 dark:text-white"
-                style={{ x: tooltipX, y: tooltipY }}
-              >
-              <div className="text-base font-semibold leading-tight">
-                👤 {tipAppt.customers?.nombre || "Sin cliente"}
-              </div>
-              <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">
-                📅 {humanDate.charAt(0).toUpperCase() + humanDate.slice(1)}
-              </div>
-              <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">
-                ⏰ {tipAppt.start_hhmm} - {tipAppt.end_hhmm}
-              </div>
-              {tipAppt.services?.name && (
-                <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">
-                  ✂️ {tipAppt.services.name}
+      {portalReady && !isCoarsePointer && hoverTooltip && createPortal((() => {
+        const tipAppt = hoverTooltip.appointment;
+        const tipStaffColor = tipAppt.staff_id && staffColorMap[tipAppt.staff_id]
+          ? staffColorMap[tipAppt.staff_id].accent
+          : "rgba(99,102,241,0.35)";
+        const dayName = format(new Date(tipAppt.start_local_iso), "EEE", { locale: es });
+        const dayNum = format(new Date(tipAppt.start_local_iso), "d", { locale: es });
+        const monthName = format(new Date(tipAppt.start_local_iso), "MMM", { locale: es });
+        const solidStaffColor = tipStaffColor.replace(/[\d.]+\)$/, "1)");
+        return (
+          <div
+            key={tipAppt.id}
+            className="fixed pointer-events-none z-[60] animate-in fade-in zoom-in-95 duration-200 ease-out"
+            style={{ left: tooltipPos.left, top: tooltipPos.top }}
+          >
+            <div
+              className="w-[270px] rounded-2xl bg-white/70 dark:bg-zinc-900/75 backdrop-blur-2xl border border-white/40 dark:border-zinc-700/40 overflow-hidden"
+              style={{
+                boxShadow: `0 2px 4px rgba(0,0,0,0.02), 0 12px 32px -8px rgba(0,0,0,0.18), 0 0 0 1px rgba(255,255,255,0.08) inset`,
+                borderLeft: `3px solid ${tipStaffColor}`,
+              }}
+            >
+              <div className="px-4 pt-[18px] pb-4">
+                <div
+                  className="text-[17px] font-bold leading-tight text-gray-900 dark:text-white tracking-[-0.02em]"
+                  style={{ letterSpacing: "-0.01em" }}
+                >
+                  {tipAppt.customers?.nombre || "Sin cliente"}
                 </div>
-              )}
-              {tipAppt.customers?.email && (
-                <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">
-                  📧 {tipAppt.customers.email}
+                <div className="mt-1.5 flex items-center gap-2 text-[11px] text-zinc-400 dark:text-zinc-500">
+                  <span className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 font-medium text-zinc-500 dark:text-zinc-400">
+                    {dayName} {dayNum} {monthName}
+                  </span>
+                  <span className="tabular-nums font-medium">{tipAppt.start_hhmm}</span>
                 </div>
-              )}
-              <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">
-                💈 {tipAppt.staff?.name || "Sin asignar"}
+                <div className="mt-3.5 mb-3.5 h-px bg-gradient-to-r from-zinc-200/80 via-zinc-200/30 to-transparent dark:from-zinc-700/50 dark:via-zinc-700/20" />
+                {tipAppt.services?.name && (
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-[5px] h-[5px] rounded-full shrink-0" style={{ backgroundColor: solidStaffColor }} />
+                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200 leading-tight">
+                      {tipAppt.services.name}
+                    </span>
+                  </div>
+                )}
+                <div className="mt-2.5 flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+                  <span className="flex items-center justify-center w-[18px] h-[18px] rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500">
+                    <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  </span>
+                  <span className="font-medium text-zinc-500 dark:text-zinc-400">{tipAppt.staff?.name || "Sin asignar"}</span>
+                </div>
+                {(tipAppt.services?.price != null || (tipAppt.deposit_amount != null && tipAppt.deposit_amount > 0)) && (
+                  <div className="mt-3.5 flex flex-wrap items-center gap-1.5">
+                    {tipAppt.services?.price != null && tipAppt.is_paid && (
+                      <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-500 dark:bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_2px_6px_rgba(16,185,129,0.25)]">
+                        ${tipAppt.services.price.toLocaleString("es-AR")}
+                        <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      </span>
+                    )}
+                    {tipAppt.services?.price != null && !tipAppt.is_paid && (
+                      <span className="inline-flex items-center rounded-lg bg-zinc-100 dark:bg-zinc-800 px-2.5 py-1 text-[11px] font-semibold text-zinc-700 dark:text-zinc-300">
+                        ${tipAppt.services.price.toLocaleString("es-AR")}
+                      </span>
+                    )}
+                    {tipAppt.deposit_amount != null && tipAppt.deposit_amount > 0 && (
+                      <span className="inline-flex items-center rounded-lg bg-amber-500 dark:bg-amber-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_2px_6px_rgba(245,158,11,0.25)]">
+                        Seña ${tipAppt.deposit_amount.toFixed(2)}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
-              {tipAppt.deposit_amount && tipAppt.deposit_amount > 0 && (
-                <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">
-                  💵 Seña: ${tipAppt.deposit_amount.toFixed(2)}
-                </div>
-              )}
-            </motion.div>
-          );
-        })()}
-      </>
-      ), document.body)}
+            </div>
+          </div>
+        );
+      })(), document.body)}
 
       {businessHours && (
         <div className="mt-3 inline-flex items-center gap-1.5 text-xs bg-zinc-100 dark:bg-zinc-800 rounded-xl px-3 py-1.5 border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400">
