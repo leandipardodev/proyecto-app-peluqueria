@@ -776,6 +776,8 @@ export default memo(function CalendarView({
               <div
                 key={dayStr}
                 className={`col-span-1 border-r border-zinc-200/50 dark:border-zinc-800 border-l-2 border-l-zinc-200 dark:border-l-zinc-700 last:border-r-0 flex flex-col ${dayFullyClosed ? "opacity-60" : ""} ${
+                  todayIdx >= 0 && dayIndex === todayIdx ? "rounded-tl-2xl rounded-tr-2xl overflow-hidden" : ""
+                } ${
                   todayIdx > 0 && dayIndex === todayIdx - 1 ? "rounded-tr-2xl overflow-hidden" : ""
                 } ${
                   todayIdx >= 0 && dayIndex === todayIdx + 1 ? "rounded-tl-2xl overflow-hidden" : ""
