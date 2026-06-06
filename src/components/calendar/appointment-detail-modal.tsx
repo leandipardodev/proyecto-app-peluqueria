@@ -1,7 +1,7 @@
 "use client";
 
-import { X, Check, XCircle, Trash2, MessageCircle, UserRoundPen } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { X, Check, Trash2, MessageCircle, UserRoundPen, Search } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, useTransition, useMemo } from "react";
 import { deleteAppointment, patchAppointmentQuick, redeemLoyaltyReward, updateCustomerQuick } from "@/lib/dashboard/appointment-actions";
 import { refundMpPayment } from "@/lib/payments/mercadopago-actions";
 import { AnimatePresence, motion } from "framer-motion";
@@ -73,6 +73,21 @@ function getTurnoStatusLabel(status: string, isPaid: boolean): string {
   return status;
 }
 
+function statusColor(status: string, isPaid: boolean): string {
+  const label = getTurnoStatusLabel(status, isPaid);
+  if (label === "Completado") return "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200";
+  if (label === "Confirmado") return "bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200";
+  if (label === "Señado") return "bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200";
+  if (label === "Cancelado") return "bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200";
+  return "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300";
+}
+
+function toDateTimeLocalValue(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export default function AppointmentDetailModal({
   shopId,
   appointment,
@@ -86,7 +101,6 @@ export default function AppointmentDetailModal({
   const [localPaid, setLocalPaid] = useState(appointment?.is_paid || false);
   const [error, setError] = useState<string | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
   const [refundConfirmOpen, setRefundConfirmOpen] = useState(false);
   const [selectedStaffId, setSelectedStaffId] = useState(appointment?.staff_id || "");
   const [localRewardsAvailable, setLocalRewardsAvailable] = useState(
@@ -101,17 +115,16 @@ export default function AppointmentDetailModal({
   const [customerNotes, setCustomerNotes] = useState("");
   const [customerVip, setCustomerVip] = useState(false);
   const [portalReady, setPortalReady] = useState(false);
-  const [hasPendingChanges, setHasPendingChanges] = useState(false);
   const [selectedServiceId, setSelectedServiceId] = useState(appointment?.service_id || "");
   const [startDateTimeLocal, setStartDateTimeLocal] = useState("");
+  const [serviceSearchQuery, setServiceSearchQuery] = useState("");
+  const [serviceSearchOpen, setServiceSearchOpen] = useState(false);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const { addToast } = useToast();
-  const patchDraftRef = useRef<{ status?: string; isPaid?: boolean; staffId?: string | null; serviceId?: string; startTime?: string }>({});
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveVersionRef = useRef(0);
 
-  function toDateTimeLocalValue(iso: string): string {
-    const d = new Date(iso);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  }
+  const pendingChangesRef = useRef<{ status?: string; isPaid?: boolean; staffId?: string | null; serviceId?: string; startTime?: string }>({});
 
   useEffect(() => {
     setPortalReady(true);
@@ -130,17 +143,14 @@ export default function AppointmentDetailModal({
     setSelectedServiceId(appointment.service_id || "");
     setStartDateTimeLocal(toDateTimeLocalValue(appointment.start_time));
     setShowCustomerEditor(false);
-    setHasPendingChanges(false);
     setError(null);
+    setSaveState("idle");
+    pendingChangesRef.current = {};
   }, [appointment]);
 
   const requestClose = useCallback(() => {
-    if (hasPendingChanges) {
-      setCloseConfirmOpen(true);
-      return;
-    }
     onClose();
-  }, [hasPendingChanges, onClose]);
+  }, [onClose]);
 
   useEffect(() => {
     if (!appointment) return;
@@ -151,53 +161,76 @@ export default function AppointmentDetailModal({
     return () => document.removeEventListener("keydown", handleEscape);
   }, [appointment, requestClose]);
 
-  function queueAppointmentPatch(next: { status?: string; isPaid?: boolean; staffId?: string | null; serviceId?: string; startTime?: string }) {
-    patchDraftRef.current = { ...patchDraftRef.current, ...next };
-    setHasPendingChanges(true);
-  }
-
-  function handleSaveAppointment() {
+  const flushSave = useCallback(() => {
     if (!appointment) return;
-    setError(null);
+    const payload = { ...pendingChangesRef.current };
+    if (Object.keys(payload).length === 0) return;
 
-    const payload = { ...patchDraftRef.current };
-    patchDraftRef.current = {};
-    setHasPendingChanges(false);
-
-    if (payload.status === undefined && payload.isPaid === undefined && payload.staffId === undefined && payload.serviceId === undefined && payload.startTime === undefined) {
-      addToast("No hay cambios pendientes", "info");
-      return;
-    }
+    pendingChangesRef.current = {};
+    const version = ++saveVersionRef.current;
+    setSaveState("saving");
 
     startTransition(async () => {
       const result = await patchAppointmentQuick(appointment.id, payload, shopId);
+      if (version !== saveVersionRef.current) return;
       if (!result.success) {
         setError(result.error);
+        setSaveState("idle");
         return;
       }
-      addToast("Turno guardado", "success");
-      onClose();
+      setSaveState("saved");
+      setTimeout(() => setSaveState("idle"), 2000);
     });
-  }
+  }, [appointment, shopId]);
 
-  function handleServiceChange(value: string) {
-    setSelectedServiceId(value);
+  const queueChange = useCallback((next: { status?: string; isPaid?: boolean; staffId?: string | null; serviceId?: string; startTime?: string }) => {
+    pendingChangesRef.current = { ...pendingChangesRef.current, ...next };
     setError(null);
-    queueAppointmentPatch({ serviceId: value });
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(flushSave, 800);
+  }, [flushSave]);
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+
+  const filteredServices = useMemo(() => {
+    if (!serviceSearchQuery.trim()) return services;
+    const q = serviceSearchQuery.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return services.filter((s) =>
+      s.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(q)
+    );
+  }, [services, serviceSearchQuery]);
+
+  function handleServiceSelect(id: string) {
+    setSelectedServiceId(id);
+    setServiceSearchQuery("");
+    setServiceSearchOpen(false);
+    const svc = services.find((s) => s.id === id);
+    if (svc && appointment) {
+      const dur = svc.duration_minutes;
+      const newEnd = new Date(new Date(startDateTimeLocal).getTime() + dur * 60000);
+      queueChange({ serviceId: id, startTime: new Date(startDateTimeLocal).toISOString() });
+    }
   }
 
   function handleStartDateTimeChange(value: string) {
     setStartDateTimeLocal(value);
-    setError(null);
     if (!value) return;
-    queueAppointmentPatch({ startTime: new Date(value).toISOString() });
+    const selectedSvc = services.find((s) => s.id === selectedServiceId);
+    const dur = selectedSvc?.duration_minutes || 60;
+    const newEnd = new Date(new Date(value).getTime() + dur * 60000);
+    queueChange({ startTime: new Date(value).toISOString() });
   }
 
   function handleStatusChange(newStatus: string) {
     if (!appointment) return;
     setError(null);
     setLocalStatus(newStatus);
-    queueAppointmentPatch({ status: newStatus });
+    queueChange({ status: newStatus });
   }
 
   function handleTogglePaid() {
@@ -205,7 +238,14 @@ export default function AppointmentDetailModal({
     const newPaid = !localPaid;
     setError(null);
     setLocalPaid(newPaid);
-    queueAppointmentPatch({ isPaid: newPaid });
+    queueChange({ isPaid: newPaid });
+  }
+
+  function handleStaffChange(value: string) {
+    if (!appointment) return;
+    setSelectedStaffId(value);
+    setError(null);
+    queueChange({ staffId: value || null });
   }
 
   function handleDeleteAppointment() {
@@ -232,13 +272,6 @@ export default function AppointmentDetailModal({
         addToast(result.error || "Error al reembolsar", "error");
       }
     });
-  }
-
-  function handleStaffChange(value: string) {
-    if (!appointment) return;
-    setSelectedStaffId(value);
-    setError(null);
-    queueAppointmentPatch({ staffId: value || null });
   }
 
   async function handleSaveCustomerQuick() {
@@ -268,7 +301,6 @@ export default function AppointmentDetailModal({
 
   function confirmDeleteAppointment() {
     if (!appointment) return;
-
     setError(null);
     startTransition(async () => {
       const result = await deleteAppointment(appointment.id, shopId);
@@ -298,286 +330,318 @@ export default function AppointmentDetailModal({
 
   const start = appointment ? new Date(appointment.start_time) : null;
   const end = appointment ? new Date(appointment.end_time) : null;
-
   const actions = statusFlow[localStatus] || [];
+
+  const saveIndicator = saveState === "saving"
+    ? "Guardando..."
+    : saveState === "saved"
+      ? "Guardado"
+      : null;
 
   const modalNode = (
     <AnimatePresence>
       {appointment && (
         <motion.div
           ref={backdropRef}
-          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-y-contain bg-white/40 p-3 dark:bg-black/40 backdrop-blur-sm sm:p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-y-contain bg-black/20 p-3 sm:p-4"
           onClick={(e) => {
             if (e.target === backdropRef.current) requestClose();
           }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.22 }}
+          transition={{ duration: 0.15 }}
         >
           <motion.div
-            className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] w-full max-w-md overflow-hidden max-h-[88dvh] flex flex-col transition-colors"
-            initial={{ opacity: 0, y: 56, scale: 0.98 }}
+            className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xl w-full max-w-lg overflow-hidden max-h-[88dvh] flex flex-col"
+            initial={{ opacity: 0, y: 24, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 40, scale: 0.985 }}
+            exit={{ opacity: 0, y: 16, scale: 0.98 }}
             transition={{ type: "spring", ...IOS_MODAL_SPRING }}
           >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/20 dark:border-white/10">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Detalle del Turno
-          </h2>
-          <button
-            onClick={requestClose}
-            className="p-1 rounded-md text-gray-500 dark:text-gray-400 hover:bg-white/40 dark:hover:bg-white/10 transition-colors cursor-pointer select-none"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="p-6 space-y-5 overflow-y-auto overscroll-y-contain">
-          {error && (
-            <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg border border-red-200">
-              {error}
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">Cliente</span>
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mt-0.5">
-                {appointment.customers?.nombre || "—"}
-              </p>
-              <div className="mt-1 flex flex-wrap items-center gap-2">
-                {appointment.customers?.email && <p className="text-xs text-gray-500 dark:text-gray-400">{appointment.customers.email}</p>}
-                {appointment.customers?.telefono && (
-                  <a
-                    href={`https://wa.me/${appointment.customers.telefono.replace(/\D/g, "")}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700"
-                  >
-                    <MessageCircle className="h-3 w-3" /> WhatsApp
-                  </a>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setShowCustomerEditor((v) => !v)}
-                  className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px]"
-                >
-                  <UserRoundPen className="h-3 w-3" /> Editar cliente
-                </button>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200 dark:border-zinc-800">
+              <div className="flex items-center gap-3">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Turno
+                </h2>
+                <span className={`inline-flex items-center text-xs font-medium px-2.5 py-0.5 rounded-full ${statusColor(localStatus, localPaid)}`}>
+                  {getTurnoStatusLabel(localStatus, localPaid)}
+                </span>
               </div>
-            </div>
-            <div>
-              <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">Servicio</span>
-              <div className="mt-1.5">
-                <GlassSelect
-                  options={services.map((svc) => ({ value: svc.id, label: `${svc.name} - $${svc.price}` }))}
-                  value={selectedServiceId}
-                  onChange={handleServiceChange}
-                  placeholder="Seleccionar servicio"
-                  className="w-full"
-                />
-              </div>
-            </div>
-            <div>
-              <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">Staff</span>
-              <div className="mt-1.5">
-                <GlassSelect
-                  options={[
-                    { value: "", label: "Sin peluquero asignado (disponible)" },
-                    ...staff.map((s) => ({ value: s.id, label: s.name || s.email || "Sin nombre" })),
-                  ]}
-                  value={selectedStaffId}
-                  onChange={handleStaffChange}
-                  placeholder="Sin peluquero asignado"
-                  className="w-full"
-                />
-              </div>
-            </div>
-            <div className="col-span-2">
-              <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">Fecha y hora</span>
-              <input
-                type="datetime-local"
-                value={startDateTimeLocal}
-                onChange={(e) => handleStartDateTimeChange(e.target.value)}
-                className="mt-1.5 w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 outline-none"
-              />
-            </div>
-          </div>
-
-          {showCustomerEditor && (
-            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3">
-              <p className="mb-2 text-xs font-semibold text-slate-600 dark:text-zinc-300">Editar cliente</p>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Nombre" className="rounded-xl border px-3 py-2 text-sm" />
-                <input value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} placeholder="Email" className="rounded-xl border px-3 py-2 text-sm" />
-                <input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="Telefono" className="rounded-xl border px-3 py-2 text-sm" />
-                <input value={customerBirthday} onChange={(e) => setCustomerBirthday(e.target.value)} type="date" className="rounded-xl border px-3 py-2 text-sm" />
-                <input value={customerNotes} onChange={(e) => setCustomerNotes(e.target.value)} placeholder="Observaciones" className="rounded-xl border px-3 py-2 text-sm sm:col-span-2" />
-                <label className="inline-flex items-center gap-2 text-xs sm:col-span-2"><input type="checkbox" checked={customerVip} onChange={(e) => setCustomerVip(e.target.checked)} /> VIP</label>
-              </div>
-              <div className="mt-2 flex justify-end">
-                <button type="button" onClick={() => void handleSaveCustomerQuick()} className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-medium text-white">Guardar cliente</button>
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">Servicio</span>
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mt-0.5">
-                {appointment.services?.name || "—"}
-              </p>
-            </div>
-            <div>
-              <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">Precio</span>
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mt-0.5">
-                ${appointment.services?.price.toFixed(2) || "—"}
-              </p>
-            </div>
-          </div>
-
-          <div>
-            <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">Seña</span>
-            <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mt-0.5">
-              {appointment.deposit_amount ? `$${appointment.deposit_amount.toFixed(2)}` : "Sin seña"}
-            </p>
-          </div>
-
-          <div>
-            <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">Horario</span>
-            <p suppressHydrationWarning className="text-sm font-medium text-gray-900 dark:text-gray-100 mt-0.5">
-              {start?.toLocaleDateString("es-AR", {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-              })}
-            </p>
-            <p suppressHydrationWarning className="text-sm text-gray-600 dark:text-gray-400">
-              {start?.toLocaleTimeString("es-AR", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}{" "}
-              —{" "}
-              {end?.toLocaleTimeString("es-AR", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </p>
-          </div>
-
-          {appointment.notes && (
-            <div>
-              <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">Notas</span>
-              <p className="text-sm text-gray-700 dark:text-gray-300 mt-0.5">
-                {appointment.notes}
-              </p>
-            </div>
-          )}
-
-          <div className="border-t border-gray-200 dark:border-gray-800 pt-5 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-700 dark:text-gray-300">Estado</span>
-              <span className="inline-flex items-center justify-center whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium bg-violet-100 dark:bg-violet-950 text-violet-800 dark:text-violet-200">
-                {getTurnoStatusLabel(localStatus, localPaid)}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-700 dark:text-gray-300">Pago</span>
               <div className="flex items-center gap-2">
-                {localPaid && (
-                  <button
-                    onClick={handleRefundClick}
-                    disabled={pending}
-                    className="text-xs text-red-600 dark:text-red-400 hover:underline disabled:opacity-50 cursor-pointer select-none"
-                  >
-                    Reembolsar
-                  </button>
+                {saveIndicator && (
+                  <span className={`text-xs ${
+                    saveState === "saving"
+                      ? "text-zinc-400"
+                      : "text-emerald-600 dark:text-emerald-400"
+                  }`}>
+                    {saveIndicator}
+                  </span>
                 )}
                 <button
-                  onClick={handleTogglePaid}
-                  disabled={pending}
-                  className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer select-none ${
-                    localPaid ? "bg-green-500" : "bg-gray-300"
-                  }`}
+                  onClick={requestClose}
+                  className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer select-none"
                 >
-                  <span
-                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                      localPaid ? "translate-x-5" : "translate-x-0"
-                    }`}
-                  />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
-            {actions.length > 0 && (
-              <div className="flex gap-2 pt-2">
-                {actions.map(({ label, nextStatus }) => (
-                  <button
-                    key={nextStatus}
-                    onClick={() => handleStatusChange(nextStatus)}
-                    disabled={pending}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 transition-colors disabled:opacity-50 cursor-pointer select-none"
-                  >
-                    <Check className="w-4 h-4" />
-                    {label}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div className="pt-2">
-              <button
-                onClick={handleDeleteAppointment}
-                disabled={pending}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950 hover:bg-red-100 dark:hover:bg-red-900 transition-colors cursor-pointer select-none disabled:opacity-50"
-              >
-                <Trash2 className="w-4 h-4" />
-                Eliminar definitivamente
-              </button>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-700 dark:text-gray-300">Fidelizacion</span>
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                Canjes: {localRewardsAvailable}
-              </span>
-            </div>
-
-            <div className={`grid gap-2 ${!localRewardApplied ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"}`}>
-              {!localRewardApplied && (
-                <button
-                  onClick={handleRedeemLoyaltyReward}
-                  disabled={pending || localRewardsAvailable <= 0}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-extrabold tracking-wide text-white bg-gradient-to-r from-violet-600 via-fuchsia-600 to-violet-700 shadow-[0_10px_26px_rgba(124,58,237,0.35)] hover:brightness-105 transition-all cursor-pointer select-none disabled:opacity-50 disabled:shadow-none"
-                >
-                  {localRewardsAvailable > 0 ? `Usar canje ahora (${localRewardsAvailable})` : "Usar canje ahora"}
-                </button>
+            <div className="p-5 overflow-y-auto overscroll-y-contain flex-1 space-y-5">
+              {error && (
+                <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm px-4 py-2 rounded-xl">
+                  {error}
+                </div>
               )}
 
-              <button
-                onClick={handleSaveAppointment}
-                disabled={pending || !hasPendingChanges}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold text-violet-700 dark:text-violet-200 bg-violet-50/90 dark:bg-violet-950/45 border border-violet-200/80 dark:border-violet-800/60 hover:bg-violet-100/90 dark:hover:bg-violet-900/50 transition-all cursor-pointer select-none disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Guardar turno
-              </button>
-            </div>
+              <div className="space-y-4">
+                <div>
+                  <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium uppercase tracking-wide">
+                    Cliente
+                  </span>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 mt-0.5">
+                    {appointment.customers?.nombre || "—"}
+                  </p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    {appointment.customers?.email && (
+                      <span className="text-xs text-zinc-500 dark:text-zinc-400">{appointment.customers.email}</span>
+                    )}
+                    {appointment.customers?.telefono && (
+                      <a
+                        href={`https://wa.me/${appointment.customers.telefono.replace(/\D/g, "")}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 rounded-full border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-300"
+                      >
+                        <MessageCircle className="h-3 w-3" /> WhatsApp
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShowCustomerEditor((v) => !v)}
+                      className="inline-flex items-center gap-1 rounded-full border border-zinc-200 dark:border-zinc-700 px-2 py-0.5 text-[11px] text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer select-none"
+                    >
+                      <UserRoundPen className="h-3 w-3" /> Editar
+                    </button>
+                  </div>
+                </div>
 
-            {localRewardApplied && (
-              <p className="text-xs text-emerald-700 dark:text-emerald-300">
-                Canje aplicado: {appointment.loyalty_discount_percent_applied || 0}% de descuento.
-              </p>
-            )}
-          </div>
+                {showCustomerEditor && (
+                  <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 p-4 space-y-3">
+                    <p className="text-xs font-semibold text-zinc-600 dark:text-zinc-300">Editar cliente</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Nombre" className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30" />
+                      <input value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} placeholder="Email" className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30" />
+                      <input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="Teléfono" className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30" />
+                      <input value={customerBirthday} onChange={(e) => setCustomerBirthday(e.target.value)} type="date" className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30" />
+                      <input value={customerNotes} onChange={(e) => setCustomerNotes(e.target.value)} placeholder="Observaciones" className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30 sm:col-span-2" />
+                      <label className="inline-flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400 sm:col-span-2">
+                        <input type="checkbox" checked={customerVip} onChange={(e) => setCustomerVip(e.target.checked)} className="rounded" />
+                        VIP
+                      </label>
+                    </div>
+                    <div className="flex justify-end">
+                      <button type="button" onClick={() => void handleSaveCustomerQuick()} className="rounded-lg bg-zinc-900 dark:bg-white px-3 py-2 text-xs font-medium text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors cursor-pointer select-none">
+                        Guardar cliente
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium uppercase tracking-wide">
+                    Servicio
+                  </span>
+                  <div className="mt-1.5 relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none z-10" />
+                    <input
+                      type="text"
+                      placeholder={appointment.services?.name || "Buscar servicio..."}
+                      value={serviceSearchQuery}
+                      onChange={(e) => {
+                        setServiceSearchQuery(e.target.value);
+                        setServiceSearchOpen(true);
+                      }}
+                      onFocus={() => setServiceSearchOpen(true)}
+                      onBlur={() => setTimeout(() => setServiceSearchOpen(false), 200)}
+                      className="w-full pl-9 pr-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
+                    />
+                    {serviceSearchOpen && filteredServices.length > 0 && (
+                      <div className="absolute z-50 mt-1 w-full bg-white dark:bg-zinc-800 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden py-1 max-h-48 overflow-y-auto">
+                        {filteredServices.map((s) => {
+                          const selected = s.id === selectedServiceId;
+                          return (
+                            <button
+                              key={s.id}
+                              type="button"
+                              onMouseDown={() => handleServiceSelect(s.id)}
+                              className={`w-full text-left px-3 py-2 text-sm transition-colors cursor-pointer select-none flex items-center justify-between ${
+                                selected
+                                  ? "text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/30"
+                                  : "text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20"
+                              }`}
+                            >
+                              <span className="font-medium">{s.name}</span>
+                              <span className="text-xs text-zinc-400">
+                                ${s.price.toFixed(2)} · {s.duration_minutes}min
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium uppercase tracking-wide">
+                    Staff
+                  </span>
+                  <div className="mt-1.5">
+                    <GlassSelect
+                      options={[
+                        { value: "", label: "Sin peluquero asignado (disponible)" },
+                        ...staff.map((s) => ({ value: s.id, label: s.name || s.email || "Sin nombre" })),
+                      ]}
+                      value={selectedStaffId}
+                      onChange={handleStaffChange}
+                      placeholder="Sin peluquero asignado"
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium uppercase tracking-wide">
+                    Fecha y hora
+                  </span>
+                  <input
+                    type="datetime-local"
+                    value={startDateTimeLocal}
+                    onChange={(e) => handleStartDateTimeChange(e.target.value)}
+                    className="mt-1.5 w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+                  />
+                  {selectedServiceId && (() => {
+                    const svc = services.find((s) => s.id === selectedServiceId);
+                    if (!svc) return null;
+                    const st = new Date(startDateTimeLocal);
+                    if (isNaN(st.getTime())) return null;
+                    const et = new Date(st.getTime() + svc.duration_minutes * 60000);
+                    return (
+                      <p className="mt-1 text-xs text-zinc-400 tabular-nums">
+                        {st.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false })} — {et.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false })} ({svc.duration_minutes} min)
+                      </p>
+                    );
+                  })()}
+                </div>
+
+                {appointment.notes && (
+                  <div>
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium uppercase tracking-wide">
+                      Notas
+                    </span>
+                    <p className="text-sm text-gray-700 dark:text-gray-300 mt-0.5">
+                      {appointment.notes}
+                    </p>
+                  </div>
+                )}
+
+                {appointment.deposit_amount ? (
+                  <div>
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium uppercase tracking-wide">
+                      Seña
+                    </span>
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mt-0.5">
+                      ${appointment.deposit_amount.toFixed(2)}
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="border-t border-zinc-200 dark:border-zinc-800 pt-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-700 dark:text-gray-300">Pago</span>
+                  <div className="flex items-center gap-2">
+                    {localPaid && (
+                      <button
+                        onClick={handleRefundClick}
+                        disabled={pending}
+                        className="text-xs text-red-600 dark:text-red-400 hover:underline disabled:opacity-50 cursor-pointer select-none"
+                      >
+                        Reembolsar
+                      </button>
+                    )}
+                    <button
+                      onClick={handleTogglePaid}
+                      disabled={pending}
+                      className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer select-none ${
+                        localPaid ? "bg-emerald-500" : "bg-zinc-300 dark:bg-zinc-600"
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                          localPaid ? "translate-x-5" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+
+                {actions.length > 0 && (
+                  <div className="flex gap-2">
+                    {actions.map(({ label, nextStatus }) => (
+                      <button
+                        key={nextStatus}
+                        onClick={() => handleStatusChange(nextStatus)}
+                        disabled={pending}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 transition-colors disabled:opacity-50 cursor-pointer select-none"
+                      >
+                        <Check className="w-4 h-4" />
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between gap-4 pt-2">
+                  <button
+                    onClick={handleDeleteAppointment}
+                    disabled={pending}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors cursor-pointer select-none disabled:opacity-50"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Eliminar
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                      Canjes: {localRewardsAvailable}
+                    </span>
+                    {!localRewardApplied && (
+                      <button
+                        onClick={handleRedeemLoyaltyReward}
+                        disabled={pending || localRewardsAvailable <= 0}
+                        className="px-4 py-2 rounded-xl text-sm font-semibold text-violet-700 dark:text-violet-200 bg-violet-50 dark:bg-violet-950/40 border border-violet-200 dark:border-violet-800 hover:bg-violet-100 dark:hover:bg-violet-900/40 transition-colors cursor-pointer select-none disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Canjear
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {localRewardApplied && (
+                  <p className="text-xs text-emerald-700 dark:text-emerald-300">
+                    Canje aplicado: {appointment.loyalty_discount_percent_applied || 0}% de descuento.
+                  </p>
+                )}
+              </div>
             </div>
           </motion.div>
 
           <ConfirmDialog
             open={deleteConfirmOpen}
             title="Eliminar turno"
-            message="Esta accion elimina el turno definitivamente y no se puede deshacer."
+            message="Esta acción elimina el turno definitivamente y no se puede deshacer."
             confirmLabel="Eliminar"
             danger
             onCancel={() => setDeleteConfirmOpen(false)}
@@ -585,23 +649,9 @@ export default function AppointmentDetailModal({
           />
 
           <ConfirmDialog
-            open={closeConfirmOpen}
-            title="Descartar cambios"
-            message="Tenes cambios sin guardar en este turno. Si cerras ahora, se perderan."
-            confirmLabel="Descartar"
-            onCancel={() => setCloseConfirmOpen(false)}
-            onConfirm={() => {
-              setCloseConfirmOpen(false);
-              patchDraftRef.current = {};
-              setHasPendingChanges(false);
-              onClose();
-            }}
-          />
-
-          <ConfirmDialog
             open={refundConfirmOpen}
             title="Reembolsar pago"
-            message="Se reembolsara el p completo de Mercado Pago al cliente y el turno quedara como no pagado."
+            message="Se reembolsará el pago completo de Mercado Pago al cliente y el turno quedará como no pagado."
             confirmLabel="Reembolsar"
             danger
             onCancel={() => setRefundConfirmOpen(false)}

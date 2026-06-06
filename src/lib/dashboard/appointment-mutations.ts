@@ -32,7 +32,7 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
     const customerId = formData.get("customer_id") as string;
     const staffIdRaw = (formData.get("staff_id") as string) || "";
     const staffId = staffIdRaw.trim();
-    const serviceId = formData.get("service_id") as string;
+    const serviceIdsRaw = (formData.get("service_ids") as string) || formData.get("service_id") as string;
     const startDate = formData.get("start_date") as string;
     const startTime = formData.get("start_time") as string;
     const recurringFrequency = ((formData.get("recurring_frequency") as string) || "none") as RecurringFrequency;
@@ -41,7 +41,8 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
     const depositAmountRaw = (formData.get("deposit_amount") as string) || "";
     const depositAmount = depositAmountRaw ? Number(depositAmountRaw) : null;
 
-    if (!customerId || !serviceId || !startDate || !startTime) {
+    const serviceIds = serviceIdsRaw.split(",").map((s) => s.trim()).filter(Boolean);
+    if (!customerId || serviceIds.length === 0 || !startDate || !startTime) {
       return { success: false, error: "Todos los campos obligatorios deben completarse" };
     }
     if (depositAmount !== null && (Number.isNaN(depositAmount) || depositAmount < 0)) {
@@ -50,34 +51,47 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
 
     const supabase = await createServerClient();
 
-    const { data: service } = await supabase
+    const { data: services, error: servicesError } = await supabase
       .from("services")
-      .select("duration_minutes, price")
-      .eq("id", serviceId)
-      .single();
+      .select("id, duration_minutes, price, name")
+      .in("id", serviceIds);
 
-    if (!service) return { success: false, error: "Servicio no encontrado" };
+    if (servicesError) return { success: false, error: servicesError.message };
+    if (!services || services.length !== serviceIds.length) {
+      return { success: false, error: "Uno o más servicios no encontrados" };
+    }
 
-    const { start } = await toArgentinaStartEnd(startDate, startTime, service.duration_minutes);
+    const orderedServices = serviceIds.map((id) => services.find((s) => s.id === id)!);
+    const totalDuration = orderedServices.reduce((sum, s) => sum + s.duration_minutes, 0);
+
+    const { start } = await toArgentinaStartEnd(startDate, startTime, totalDuration);
     const recurringStarts = await buildRecurringStarts(start, recurringFrequency, recurringUntil);
 
-    const rowsToInsert = recurringStarts.map((startAt) => {
-      const endAt = new Date(startAt.getTime() + service.duration_minutes * 60000);
-      const startIso = startAt.toISOString();
-      return {
-        shop_id: shopId,
-        customer_id: customerId,
-        staff_id: staffId || null,
-        service_id: serviceId,
-        service_price: service.price ?? null,
-        start_time: startIso,
-        end_time: endAt.toISOString(),
-        date_key_ar: getArgentinaDateKey(startIso),
-        status: "scheduled",
-        deposit_amount: depositAmount,
-        is_paid: depositAmount !== null && depositAmount > 0,
-        notes: notes || null,
-      };
+    if (recurringFrequency !== "none" && orderedServices.length > 1) {
+      return { success: false, error: "No se puede repetir un turno con múltiples servicios" };
+    }
+
+    const rowsToInsert = recurringStarts.flatMap((startAt) => {
+      let currentStart = new Date(startAt);
+      return orderedServices.map((svc) => {
+        const currentEnd = new Date(currentStart.getTime() + svc.duration_minutes * 60000);
+        const row = {
+          shop_id: shopId,
+          customer_id: customerId,
+          staff_id: staffId || null,
+          service_id: svc.id,
+          service_price: svc.price ?? null,
+          start_time: currentStart.toISOString(),
+          end_time: currentEnd.toISOString(),
+          date_key_ar: getArgentinaDateKey(currentStart.toISOString()),
+          status: "scheduled" as const,
+          deposit_amount: depositAmount,
+          is_paid: depositAmount !== null && depositAmount > 0,
+          notes: notes || null,
+        };
+        currentStart = currentEnd;
+        return row;
+      });
     });
 
     if (staffId) {
@@ -96,14 +110,12 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
     }
 
     const { error } = await supabase.from("appointments").insert(rowsToInsert);
-
     if (error) return { success: false, error: error.message };
 
     try {
       const admin = await createAdminClient();
-      const [{ data: customer }, { data: serviceData }, { data: shopData }] = await Promise.all([
+      const [{ data: customer }, { data: shopData }] = await Promise.all([
         supabase.from("customers").select("nombre, email").eq("id", customerId).maybeSingle(),
-        supabase.from("services").select("name").eq("id", serviceId).maybeSingle(),
         admin.from("shops").select("nombre, email, address, localidad").eq("id", shopId).maybeSingle(),
       ]);
 
@@ -113,13 +125,14 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
         const locationParts = [sd?.address?.trim(), sd?.localidad?.trim()].filter(Boolean);
         const shopAddress = locationParts.length > 0 ? locationParts.join(", ") : undefined;
         const replyTo = sd?.email && sd.email.includes("@") ? sd.email : undefined;
+        const serviceNames = orderedServices.map((s) => s.name).join(", ");
         await Promise.allSettled(
           rowsToInsert.map((row) =>
             sendAppointmentAutomationEmails({
               to: emailTo,
               customerName: customer?.nombre || "Cliente",
               shopName: sd?.nombre || "Klip",
-              serviceName: serviceData?.name || "Servicio",
+              serviceName: serviceNames,
               startTime: row.start_time,
               shopAddress,
               replyTo,
@@ -156,14 +169,15 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
     const customerPhone = formData.get("customer_phone") as string;
     const staffIdRaw = (formData.get("staff_id") as string) || "";
     const staffId = staffIdRaw.trim();
-    const serviceId = formData.get("service_id") as string;
+    const serviceIdsRaw = (formData.get("service_ids") as string) || formData.get("service_id") as string;
     const startDate = formData.get("start_date") as string;
     const startTime = formData.get("start_time") as string;
     const notes = formData.get("notes") as string;
     const depositAmountRaw = (formData.get("deposit_amount") as string) || "";
     const depositAmount = depositAmountRaw ? Number(depositAmountRaw) : null;
 
-    if (!customerName || !customerEmail || !serviceId || !startDate || !startTime) {
+    const serviceIds = serviceIdsRaw.split(",").map((s) => s.trim()).filter(Boolean);
+    if (!customerName || !customerEmail || serviceIds.length === 0 || !startDate || !startTime) {
       return { success: false, error: "Nombre, email, servicio, fecha y hora son obligatorios" };
     }
     if (depositAmount !== null && (Number.isNaN(depositAmount) || depositAmount < 0)) {
@@ -172,12 +186,18 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
 
     const supabase = await createServerClient();
 
-    const { data: service } = await supabase
+    const { data: services, error: servicesError } = await supabase
       .from("services")
-      .select("duration_minutes, price")
-      .eq("id", serviceId)
-      .single();
-    if (!service) return { success: false, error: "Servicio no encontrado" };
+      .select("id, duration_minutes, price, name")
+      .in("id", serviceIds);
+
+    if (servicesError) return { success: false, error: servicesError.message };
+    if (!services || services.length !== serviceIds.length) {
+      return { success: false, error: "Uno o más servicios no encontrados" };
+    }
+
+    const orderedServices = serviceIds.map((id) => services.find((s) => s.id === id)!);
+    const totalDuration = orderedServices.reduce((sum, s) => sum + s.duration_minutes, 0);
 
     const { data: newCustomer, error: customerInsertError } = await supabase
       .from("customers")
@@ -192,45 +212,49 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
     if (customerInsertError) return { success: false, error: `Error al crear cliente: ${customerInsertError.message}` };
     const customerId = newCustomer.id;
 
-    const { start } = await toArgentinaStartEnd(startDate, startTime, service.duration_minutes);
-    const end = new Date(start.getTime() + service.duration_minutes * 60000);
-    const startIso = start.toISOString();
+    const { start } = await toArgentinaStartEnd(startDate, startTime, totalDuration);
+    let currentStart = new Date(start);
+    const rowsToInsert = orderedServices.map((svc) => {
+      const currentEnd = new Date(currentStart.getTime() + svc.duration_minutes * 60000);
+      const row = {
+        shop_id: shopId,
+        customer_id: customerId,
+        staff_id: staffId || null,
+        service_id: svc.id,
+        service_price: svc.price ?? null,
+        start_time: currentStart.toISOString(),
+        end_time: currentEnd.toISOString(),
+        date_key_ar: getArgentinaDateKey(currentStart.toISOString()),
+        status: "scheduled" as const,
+        deposit_amount: depositAmount,
+        is_paid: depositAmount !== null && depositAmount > 0,
+        notes: notes || null,
+      };
+      currentStart = currentEnd;
+      return row;
+    });
 
     if (staffId) {
-      const { data: conflict } = await supabase
-        .from("appointments")
-        .select("id")
-        .eq("shop_id", shopId)
-        .eq("staff_id", staffId)
-        .not("status", "eq", "cancelled")
-        .gt("end_time", startIso)
-        .lt("start_time", end.toISOString())
-        .maybeSingle();
-      if (conflict) {
-        return { success: false, error: "slot_taken" };
+      for (const row of rowsToInsert) {
+        const { data: conflict } = await supabase
+          .from("appointments")
+          .select("id")
+          .eq("shop_id", shopId)
+          .eq("staff_id", staffId)
+          .not("status", "eq", "cancelled")
+          .gt("end_time", row.start_time)
+          .lt("start_time", row.end_time)
+          .maybeSingle();
+        if (conflict) return { success: false, error: "slot_taken" };
       }
     }
 
-    const { error: insertError } = await supabase.from("appointments").insert({
-      shop_id: shopId,
-      customer_id: customerId,
-      staff_id: staffId || null,
-      service_id: serviceId,
-      service_price: service.price ?? null,
-      start_time: startIso,
-      end_time: end.toISOString(),
-      date_key_ar: getArgentinaDateKey(startIso),
-      status: "scheduled",
-      deposit_amount: depositAmount,
-      is_paid: depositAmount !== null && depositAmount > 0,
-      notes: notes || null,
-    });
+    const { error: insertError } = await supabase.from("appointments").insert(rowsToInsert);
     if (insertError) return { success: false, error: insertError.message };
 
     try {
       const admin = await createAdminClient();
-      const [{ data: serviceData }, { data: shopData }] = await Promise.all([
-        supabase.from("services").select("name").eq("id", serviceId).maybeSingle(),
+      const [{ data: shopData }] = await Promise.all([
         admin.from("shops").select("nombre, email, address, localidad").eq("id", shopId).maybeSingle(),
       ]);
 
@@ -239,12 +263,13 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
         const locationParts = [sd?.address?.trim(), sd?.localidad?.trim()].filter(Boolean);
         const shopAddress = locationParts.length > 0 ? locationParts.join(", ") : undefined;
         const replyTo = sd?.email && sd.email.includes("@") ? sd.email : undefined;
+        const serviceNames = orderedServices.map((s) => s.name).join(", ");
         await sendAppointmentAutomationEmails({
           to: customerEmail.trim(),
           customerName: customerName,
           shopName: sd?.nombre || "Klip",
-          serviceName: serviceData?.name || "Servicio",
-          startTime: startIso,
+          serviceName: serviceNames,
+          startTime: rowsToInsert[0].start_time,
           shopAddress,
           replyTo,
         });

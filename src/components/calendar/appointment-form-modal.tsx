@@ -1,8 +1,8 @@
 "use client";
 
 import { useToast } from "@/components/ui/toast";
-import { X, Plus, UserPlus, Search } from "lucide-react";
-import { useEffect, useRef, useState, useTransition, useMemo } from "react";
+import { X, Plus, UserPlus, Search, Clock, DollarSign, CalendarDays } from "lucide-react";
+import { useEffect, useRef, useState, useTransition, useMemo, useCallback } from "react";
 import { createAppointment, createCustomerAndAppointment } from "@/lib/dashboard/appointment-actions";
 import { playPop } from "@/lib/sound";
 import { getArgentinaDateString } from "@/lib/argentina-time";
@@ -11,6 +11,7 @@ import GlassSelect from "@/components/ui/glass-select";
 import { createPortal } from "react-dom";
 
 const STAFF_COLORS = ["#c084fc", "#34d399", "#fbbf24", "#fb7185", "#22d3ee", "#fb923c", "#818cf8", "#f472b6"];
+const STAFF_SPRING = { type: "spring" as const, stiffness: 500, damping: 30 };
 
 function getInitials(name: string): string {
   return name.split(" ").map((w) => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
@@ -51,6 +52,10 @@ interface AppointmentFormModalProps {
   customers: Customer[];
 }
 
+function formatTime(d: Date): string {
+  return d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false });
+}
+
 export default function AppointmentFormModal({
   shopId,
   open,
@@ -68,7 +73,7 @@ export default function AppointmentFormModal({
   const [error, setError] = useState<string | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [selectedStaffId, setSelectedStaffId] = useState("");
-  const [selectedServiceId, setSelectedServiceId] = useState("");
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [recurringFrequency, setRecurringFrequency] = useState("none");
   const [recurringUntil, setRecurringUntil] = useState("");
   const [showNewCustomer, setShowNewCustomer] = useState(false);
@@ -77,6 +82,12 @@ export default function AppointmentFormModal({
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
   const [customerSearchQuery, setCustomerSearchQuery] = useState("");
   const [customerSearchOpen, setCustomerSearchOpen] = useState(false);
+  const [serviceSearchQuery, setServiceSearchQuery] = useState("");
+  const [serviceSearchOpen, setServiceSearchOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(initialDate || getArgentinaDateString());
+  const [selectedTime, setSelectedTime] = useState(
+    initialHour ? `${String(initialHour).padStart(2, "0")}:00` : "09:00"
+  );
   const [portalReady, setPortalReady] = useState(false);
   const { addToast } = useToast();
 
@@ -97,7 +108,7 @@ export default function AppointmentFormModal({
     if (open) {
       setSelectedCustomerId("");
       setSelectedStaffId("");
-      setSelectedServiceId("");
+      setSelectedServiceIds([]);
       setRecurringFrequency("none");
       setRecurringUntil("");
       setShowNewCustomer(false);
@@ -106,11 +117,28 @@ export default function AppointmentFormModal({
       setNewCustomerPhone("");
       setCustomerSearchQuery("");
       setCustomerSearchOpen(false);
+      setServiceSearchQuery("");
+      setServiceSearchOpen(false);
+      setSelectedDate(initialDate || getArgentinaDateString());
+      setSelectedTime(initialHour ? `${String(initialHour).padStart(2, "0")}:00` : "09:00");
       setError(null);
     }
-  }, [open]);
+  }, [open, initialDate, initialHour]);
 
-  const selectedService = services.find((s) => s.id === selectedServiceId);
+  const selectedServices = useMemo(
+    () => services.filter((s) => selectedServiceIds.includes(s.id)),
+    [services, selectedServiceIds]
+  );
+
+  const totalDuration = useMemo(
+    () => selectedServices.reduce((sum, s) => sum + s.duration_minutes, 0),
+    [selectedServices]
+  );
+
+  const totalPrice = useMemo(
+    () => selectedServices.reduce((sum, s) => sum + s.price, 0),
+    [selectedServices]
+  );
 
   const filteredCustomers = useMemo(() => {
     if (!customerSearchQuery.trim()) return customers;
@@ -120,30 +148,48 @@ export default function AppointmentFormModal({
     );
   }, [customers, customerSearchQuery]);
 
-  function getDefaultDateTime() {
-    const today = initialDate || getArgentinaDateString();
-    const hour = initialHour ?? 9;
-    return {
-      date: today,
-      time: `${String(hour).padStart(2, "0")}:00`,
-    };
-  }
+  const filteredServices = useMemo(() => {
+    if (!serviceSearchQuery.trim()) return services;
+    const q = serviceSearchQuery.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return services.filter((s) =>
+      s.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(q)
+    );
+  }, [services, serviceSearchQuery]);
 
-  const defaults = getDefaultDateTime();
-  const endTime = selectedService
-    ? new Date(
-        new Date(`2000-01-01T${defaults.time}`).getTime() +
-          selectedService.duration_minutes * 60000
-      )
-        .toTimeString()
-        .slice(0, 5)
-    : "";
+  const timeSlots = useMemo(() => {
+    if (selectedServices.length === 0) return [];
+    const base = new Date(`2000-01-01T${selectedTime}`);
+    const slots: { service: Service; start: string; end: string }[] = [];
+    let current = new Date(base);
+    selectedServices.forEach((svc) => {
+      const startStr = formatTime(current);
+      current = new Date(current.getTime() + svc.duration_minutes * 60000);
+      slots.push({ service: svc, start: startStr, end: formatTime(current) });
+    });
+    return slots;
+  }, [selectedServices, selectedTime]);
+
+  const addService = useCallback((id: string) => {
+    setSelectedServiceIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+    setServiceSearchQuery("");
+    setServiceSearchOpen(false);
+  }, []);
+
+  const removeService = useCallback((id: string) => {
+    setSelectedServiceIds((prev) => prev.filter((s) => s !== id));
+  }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
 
+    if (selectedServiceIds.length === 0) {
+      setError("Seleccioná al menos un servicio");
+      return;
+    }
+
     const formData = new FormData(e.currentTarget);
+    formData.set("service_ids", selectedServiceIds.join(","));
 
     startTransition(async () => {
       const result = showNewCustomer
@@ -154,7 +200,9 @@ export default function AppointmentFormModal({
         setError(result.error);
       } else {
         playPop();
-        addToast("Turno guardado", "success");
+        addToast(result.success
+          ? `Turno${selectedServiceIds.length > 1 ? "s" : ""} creado${selectedServiceIds.length > 1 ? "s" : ""}`
+          : "Turno guardado", "success");
         onSuccess?.();
         onClose();
       }
@@ -166,7 +214,7 @@ export default function AppointmentFormModal({
       {open && (
         <motion.div
           ref={backdropRef}
-          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-y-contain bg-white/40 p-3 dark:bg-black/40 backdrop-blur-sm sm:p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-y-contain bg-black/20 p-3 sm:p-4"
           role="dialog"
           aria-modal="true"
           onPointerDown={(e) => {
@@ -179,316 +227,383 @@ export default function AppointmentFormModal({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.22 }}
+          transition={{ duration: 0.15 }}
         >
           <motion.div
-             className="bg-white/60 dark:bg-black/60 backdrop-blur-3xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] w-full max-w-lg overflow-hidden max-h-[88dvh] flex flex-col transition-colors"
-            initial={{ opacity: 0, y: 56, scale: 0.98 }}
+            className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xl w-full max-w-lg overflow-hidden max-h-[88dvh] flex flex-col"
+            initial={{ opacity: 0, y: 24, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 40, scale: 0.985 }}
+            exit={{ opacity: 0, y: 16, scale: 0.98 }}
             transition={{ type: "spring", ...IOS_MODAL_SPRING }}
           >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/20 dark:border-white/10">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Nuevo Turno</h2>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-md text-gray-500 dark:text-gray-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer select-none"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Nuevo Turno
+              </h2>
+              <button
+                onClick={onClose}
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer select-none"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-        <div className="p-6 overflow-y-auto overscroll-y-contain flex-1">
-          <form id="appointment-form" onSubmit={handleSubmit}>
-            {error === "slot_taken" ? (
-              <div className="mb-4 bg-amber-100/40 dark:bg-amber-950/40 backdrop-blur-md border border-amber-200/30 dark:border-amber-800/30 text-amber-800 dark:text-amber-200 text-sm px-4 py-3 rounded-2xl flex items-start gap-3">
-                <div className="p-1.5 rounded-full bg-amber-200/50 dark:bg-amber-800/30 shrink-0">
-                  <X className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                </div>
-                <p>
-                  <span className="font-semibold block">Horario ocupado</span>
-                  Este horario ya está ocupado. Si necesitás un sobre-turno, verificá la agenda primero.
-                </p>
-              </div>
-            ) : error && (
-              <div className="mb-4 bg-red-100/40 dark:bg-red-950/40 backdrop-blur-md border border-red-200/30 dark:border-red-800/30 text-red-700 dark:text-red-300 text-sm px-4 py-2 rounded-2xl">
-                {error}
-              </div>
-            )}
+            <form id="appointment-form" onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+              <div className="p-5 overflow-y-auto overscroll-y-contain flex-1 space-y-5">
+                {error === "slot_taken" ? (
+                  <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-sm px-4 py-3 rounded-xl flex items-start gap-3">
+                    <div className="p-1 rounded-full bg-amber-100 dark:bg-amber-900/50 shrink-0">
+                      <X className="w-3.5 h-3.5" />
+                    </div>
+                    <p>
+                      <span className="font-semibold block">Horario ocupado</span>
+                      Este horario ya está ocupado. Verificá la agenda primero.
+                    </p>
+                  </div>
+                ) : error && (
+                  <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm px-4 py-2 rounded-xl">
+                    {error}
+                  </div>
+                )}
 
-            <div className="space-y-5">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 cursor-pointer">
-                  Cliente
-                </label>
-                {!showNewCustomer ? (
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                    Cliente <span className="text-red-500">*</span>
+                  </label>
+                  {!showNewCustomer ? (
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                        <input
+                          type="text"
+                          placeholder="Buscar cliente por nombre..."
+                          value={customerSearchQuery}
+                          onChange={(e) => {
+                            setCustomerSearchQuery(e.target.value);
+                            setCustomerSearchOpen(true);
+                          }}
+                          onFocus={() => setCustomerSearchOpen(true)}
+                          onBlur={() => setTimeout(() => setCustomerSearchOpen(false), 200)}
+                          className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
+                        />
+                        {customerSearchOpen && filteredCustomers.length > 0 && (
+                          <div className="absolute z-50 mt-1 w-full bg-white dark:bg-zinc-800 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden py-1 max-h-48 overflow-y-auto">
+                            {filteredCustomers.map((c) => (
+                              <button
+                                key={c.id}
+                                type="button"
+                                onMouseDown={() => {
+                                  setSelectedCustomerId(c.id);
+                                  setCustomerSearchQuery(c.nombre || "Sin nombre");
+                                  setCustomerSearchOpen(false);
+                                }}
+                                className={`w-full text-left px-3 py-2 text-sm transition-colors cursor-pointer select-none ${
+                                  c.id === selectedCustomerId
+                                    ? "text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/30"
+                                    : "text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20"
+                                }`}
+                              >
+                                <span className="font-medium">{c.nombre || "Sin nombre"}</span>
+                                {c.telefono && (
+                                  <span className="ml-2 text-xs text-zinc-400">{c.telefono}</span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        <input type="hidden" name="customer_id" value={selectedCustomerId} required />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowNewCustomer(true)}
+                        className="px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-xl text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-white hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-all cursor-pointer select-none shrink-0"
+                        title="Nuevo cliente"
+                      >
+                        <UserPlus className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-700">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Nuevo cliente</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowNewCustomer(false);
+                            setCustomerSearchQuery("");
+                          }}
+                          className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-white cursor-pointer select-none"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
                       <input
                         type="text"
-                        placeholder="Buscar cliente por nombre..."
-                        value={customerSearchQuery}
-                        onChange={(e) => {
-                          setCustomerSearchQuery(e.target.value);
-                          setCustomerSearchOpen(true);
-                        }}
-                        onFocus={() => setCustomerSearchOpen(true)}
-                        onBlur={() => setTimeout(() => setCustomerSearchOpen(false), 200)}
-                        className="w-full pl-9 pr-3 py-2 rounded-2xl text-sm border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 backdrop-blur-md text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-violet-500/20 transition-all"
+                        name="customer_name"
+                        placeholder="Nombre completo"
+                        value={newCustomerName}
+                        onChange={(e) => setNewCustomerName(e.target.value)}
+                        required
+                        className="w-full px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
                       />
-                      {customerSearchOpen && filteredCustomers.length > 0 && (
-                        <div className="absolute z-50 mt-1 w-full bg-white/70 dark:bg-black/70 backdrop-blur-xl rounded-2xl shadow-lg border border-white/20 dark:border-white/10 overflow-hidden py-1 max-h-48 overflow-y-auto">
-                          {filteredCustomers.map((c) => (
+                      <input
+                        type="email"
+                        name="customer_email"
+                        placeholder="Email"
+                        value={newCustomerEmail}
+                        onChange={(e) => setNewCustomerEmail(e.target.value)}
+                        required
+                        className="w-full px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
+                      />
+                      <input
+                        type="tel"
+                        name="customer_phone"
+                        placeholder="Teléfono"
+                        value={newCustomerPhone}
+                        onChange={(e) => setNewCustomerPhone(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                    Servicios <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder="Buscar y agregar servicio..."
+                      value={serviceSearchQuery}
+                      onChange={(e) => {
+                        setServiceSearchQuery(e.target.value);
+                        setServiceSearchOpen(true);
+                      }}
+                      onFocus={() => setServiceSearchOpen(true)}
+                      onBlur={() => setTimeout(() => setServiceSearchOpen(false), 200)}
+                      className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
+                    />
+                    {serviceSearchOpen && filteredServices.length > 0 && (
+                      <div className="absolute z-50 mt-1 w-full bg-white dark:bg-zinc-800 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden py-1 max-h-48 overflow-y-auto">
+                        {filteredServices.map((s) => {
+                          const already = selectedServiceIds.includes(s.id);
+                          return (
                             <button
-                              key={c.id}
+                              key={s.id}
                               type="button"
-                              onMouseDown={() => {
-                                setSelectedCustomerId(c.id);
-                                setCustomerSearchQuery(c.nombre || "Sin nombre");
-                                setCustomerSearchOpen(false);
-                              }}
-                              className={`w-full text-left px-3 py-2 text-sm transition-colors cursor-pointer select-none ${
-                                c.id === selectedCustomerId
-                                  ? "text-violet-700 dark:text-violet-300 bg-violet-500/10"
-                                  : "text-gray-700 dark:text-gray-300 hover:bg-violet-500/10"
+                              onMouseDown={() => { if (!already) addService(s.id); }}
+                              disabled={already}
+                              className={`w-full text-left px-3 py-2.5 text-sm transition-colors cursor-pointer select-none flex items-center justify-between ${
+                                already
+                                  ? "text-zinc-400 dark:text-zinc-500 bg-zinc-50 dark:bg-zinc-800 cursor-not-allowed"
+                                  : "text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20"
                               }`}
                             >
-                              <span className="font-medium">{c.nombre || "Sin nombre"}</span>
-                              {c.telefono && (
-                                <span className="ml-2 text-xs text-zinc-400">{c.telefono}</span>
-                              )}
+                              <span className="font-medium">{s.name}</span>
+                              <span className="text-xs text-zinc-400 tabular-nums">
+                                ${s.price.toFixed(2)} · {s.duration_minutes}min
+                              </span>
                             </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {selectedServices.length > 0 && (
+                    <div className="mt-3 space-y-3">
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedServices.map((s) => (
+                          <span
+                            key={s.id}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-violet-50 dark:bg-violet-900/30 text-violet-800 dark:text-violet-200 rounded-lg text-sm font-medium"
+                          >
+                            {s.name}
+                            <button
+                              type="button"
+                              onClick={() => removeService(s.id)}
+                              className="hover:bg-violet-200 dark:hover:bg-violet-800 rounded p-0.5 transition-colors cursor-pointer select-none"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center gap-4 text-sm text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl px-4 py-2">
+                        <span className="flex items-center gap-1.5">
+                          <Clock className="w-4 h-4" />
+                          {totalDuration} min
+                        </span>
+                        <span className="flex items-center gap-1.5 font-medium text-gray-900 dark:text-gray-100">
+                          <DollarSign className="w-4 h-4" />
+                          ${totalPrice.toFixed(2)}
+                        </span>
+                      </div>
+
+                      {timeSlots.length > 1 && (
+                        <div className="border border-zinc-200 dark:border-zinc-700 rounded-xl overflow-hidden">
+                          <div className="text-xs font-medium text-zinc-500 dark:text-zinc-400 px-4 py-2 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700">
+                            Secuencia horaria
+                          </div>
+                          {timeSlots.map((slot, i) => (
+                            <div
+                              key={i}
+                              className="flex items-center gap-3 px-4 py-2 text-sm border-b border-zinc-100 dark:border-zinc-800 last:border-b-0"
+                            >
+                              <span className="text-violet-600 dark:text-violet-400 font-medium tabular-nums min-w-[8.5ch]">
+                                {slot.start} — {slot.end}
+                              </span>
+                              <span className="text-gray-700 dark:text-gray-300">{slot.service.name}</span>
+                            </div>
                           ))}
                         </div>
                       )}
-                      <input type="hidden" name="customer_id" value={selectedCustomerId} required />
                     </div>
+                  )}
+                  <input type="hidden" name="service_ids" value={selectedServiceIds.join(",")} />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Staff
+                  </label>
+                  <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm">
                     <button
                       type="button"
-                      onClick={() => setShowNewCustomer(true)}
-                      className="px-3 py-2 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-2xl text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all cursor-pointer select-none focus:outline-none focus:ring-1 focus:ring-violet-500/20"
-                      title="Nuevo cliente"
+                      onClick={() => setSelectedStaffId("")}
+                      className={`relative px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer select-none ${
+                        selectedStaffId === ""
+                          ? "text-[#0071E3] dark:text-[#5da8ff]"
+                          : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+                      }`}
                     >
-                      <UserPlus className="w-4 h-4" />
+                      {selectedStaffId === "" && (
+                        <motion.span
+                          layoutId="staffSelectForm"
+                          className="absolute inset-0 rounded-lg bg-[#0071E3]/15 dark:bg-[#0071E3]/25 border border-[#0071E3]/25 dark:border-[#0071E3]/35 shadow-sm"
+                          transition={STAFF_SPRING}
+                        />
+                      )}
+                      <span className="relative z-10">Cualquiera</span>
                     </button>
+                    {staff.map((s, i) => {
+                      const isActive = selectedStaffId === s.id;
+                      const color = STAFF_COLORS[i % STAFF_COLORS.length];
+                      return (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => setSelectedStaffId(isActive ? "" : s.id)}
+                          className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer select-none ${
+                            isActive
+                              ? "text-[#0071E3] dark:text-[#5da8ff]"
+                              : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+                          }`}
+                        >
+                          {isActive && (
+                            <motion.span
+                              layoutId="staffSelectForm"
+                              className="absolute inset-0 rounded-lg bg-[#0071E3]/15 dark:bg-[#0071E3]/25 border border-[#0071E3]/25 dark:border-[#0071E3]/35 shadow-sm"
+                              transition={STAFF_SPRING}
+                            />
+                          )}
+                          <span className="relative z-10 w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                          <span className="relative z-10">{s.name || s.email}</span>
+                        </button>
+                      );
+                    })}
                   </div>
-                ) : (
-                  <div className="space-y-3 p-4 bg-white/40 dark:bg-black/30 backdrop-blur-md rounded-2xl border border-white/20 dark:border-white/10">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Nuevo cliente</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowNewCustomer(false);
-                          setCustomerSearchQuery("");
-                        }}
-                        className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-white cursor-pointer select-none"
-                      >
-                        Cancelar
-                      </button>
-                    </div>
+                  <input type="hidden" name="staff_id" value={selectedStaffId} />
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 flex-1">
+                    <CalendarDays className="w-4 h-4 text-zinc-400 shrink-0" />
                     <input
-                      type="text"
-                      name="customer_name"
-                      placeholder="Nombre completo"
-                      value={newCustomerName}
-                      onChange={(e) => setNewCustomerName(e.target.value)}
+                      type="date"
+                      name="start_date"
+                      value={selectedDate}
+                      onChange={(e) => setSelectedDate(e.target.value)}
                       required
-                      className="w-full px-3 py-2 rounded-2xl text-sm border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 backdrop-blur-md text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-violet-500/20 transition-all"
+                      className="flex-1 px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
                     />
+                  </div>
+                  <div className="flex items-center gap-2 flex-1">
+                    <Clock className="w-4 h-4 text-zinc-400 shrink-0" />
                     <input
-                      type="email"
-                      name="customer_email"
-                      placeholder="Email"
-                      value={newCustomerEmail}
-                      onChange={(e) => setNewCustomerEmail(e.target.value)}
+                      type="time"
+                      name="start_time"
+                      value={selectedTime}
+                      onChange={(e) => setSelectedTime(e.target.value)}
                       required
-                      className="w-full px-3 py-2 rounded-2xl text-sm border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 backdrop-blur-md text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-violet-500/20 transition-all"
+                      className="flex-1 px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
                     />
-                    <input
-                      type="tel"
-                      name="customer_phone"
-                      placeholder="Teléfono"
-                      value={newCustomerPhone}
-                      onChange={(e) => setNewCustomerPhone(e.target.value)}
-                      className="w-full px-3 py-2 rounded-2xl text-sm border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 backdrop-blur-md text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-violet-500/20 transition-all"
-                    />
+                  </div>
+                </div>
+
+                {selectedServices.length > 0 && timeSlots.length > 0 && (
+                  <div className="text-sm text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl px-4 py-2.5 flex items-center gap-2 tabular-nums">
+                    <Clock className="w-4 h-4 shrink-0" />
+                    {timeSlots[0].start} → {timeSlots[timeSlots.length - 1].end}
+                    <span className="text-zinc-300 dark:text-zinc-600">·</span>
+                    {totalDuration} min total
                   </div>
                 )}
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 cursor-pointer">
-                  Staff asignado
-                </label>
-                <GlassSelect
-                  options={staff && staff.length > 0
-                    ? [
-                        { value: "", label: "Sin peluquero asignado (toma el disponible)" },
-                        ...staff.map((s, i) => {
-                        const name = s.name || s.email || s.id;
-                        const initials = getInitials(name);
-                        const color = STAFF_COLORS[i % STAFF_COLORS.length];
-                        return {
-                          value: s.id,
-                          label: name,
-                          prefix: (
-                            <span
-                              className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-semibold text-white shrink-0"
-                              style={{ backgroundColor: color }}
-                            >
-                              {initials}
-                            </span>
-                          ),
-                        };
-                      })
-                      ]
-                    : [{ value: "", label: "No hay personal registrado" }]
-                  }
-                  value={selectedStaffId}
-                  onChange={setSelectedStaffId}
-                  placeholder="Asignar staff (opcional)"
-                  name="staff_id"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 cursor-pointer">
-                  Servicio
-                </label>
-                <GlassSelect
-                  options={services.map((s) => ({
-                    value: s.id,
-                    label: `${s.name} — $${s.price.toFixed(2)} (${s.duration_minutes} min)`,
-                  }))}
-                  value={selectedServiceId}
-                  onChange={setSelectedServiceId}
-                  placeholder="Seleccionar servicio..."
-                  name="service_id"
-                  required
-                />
-                {selectedService && (
-                  <p className="mt-1.5 text-xs text-zinc-400">
-                    Duración: {selectedService.duration_minutes} min | Precio: ${selectedService.price.toFixed(2)}
-                  </p>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 cursor-pointer">
-                    Fecha
-                  </label>
-                  <input
-                    type="date"
-                    id="start_date"
-                    name="start_date"
-                    defaultValue={defaults.date}
-                    required
-                    className="w-full px-3 py-2 rounded-2xl text-sm border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 backdrop-blur-md text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-violet-500/20 transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 cursor-pointer">
-                    Hora inicio
-                  </label>
-                  <input
-                    type="time"
-                    id="start_time"
-                    name="start_time"
-                    defaultValue={defaults.time}
-                    required
-                    className="w-full px-3 py-2 rounded-2xl text-sm border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 backdrop-blur-md text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-violet-500/20 transition-all"
-                  />
-                </div>
-              </div>
-
-              {endTime && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 cursor-pointer">
-                    Hora fin (calculada)
-                  </label>
-                  <div className="px-3 py-2 bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-2xl text-sm text-zinc-500 dark:text-zinc-400">
-                    {endTime}
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+                      Repeticion
+                    </label>
+                    <GlassSelect
+                      options={[
+                        { value: "none", label: "No repetir" },
+                        { value: "weekly", label: "Semanal" },
+                        { value: "biweekly", label: "Cada 2 semanas" },
+                        { value: "monthly", label: "Mensual" },
+                      ]}
+                      value={selectedServiceIds.length > 1 ? "none" : recurringFrequency}
+                      onChange={setRecurringFrequency}
+                      placeholder="No repetir"
+                      name="recurring_frequency"
+                      className={selectedServiceIds.length > 1 ? "opacity-60 pointer-events-none" : ""}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+                      Repetir hasta
+                    </label>
+                    <input
+                      type="date"
+                      name="recurring_until"
+                      value={recurringUntil}
+                      onChange={(e) => setRecurringUntil(e.target.value)}
+                      disabled={recurringFrequency === "none" || selectedServiceIds.length > 1}
+                      className="w-full px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all disabled:opacity-50"
+                    />
                   </div>
                 </div>
-              )}
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 cursor-pointer">
-                    Seña (opcional)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    name="deposit_amount"
-                    placeholder="Ej: 3000"
-                    className="w-full px-3 py-2 rounded-2xl text-sm border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 backdrop-blur-md text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-violet-500/20 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 cursor-pointer">
-                    Notas (opcional)
-                  </label>
-                  <input
-                    type="text"
-                    name="notes"
-                    placeholder="Aclaraciones del turno"
-                    className="w-full px-3 py-2 rounded-2xl text-sm border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 backdrop-blur-md text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-violet-500/20 transition-all"
-                  />
-                </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 cursor-pointer">
-                    Repeticion
-                  </label>
-                  <GlassSelect
-                    options={[
-                      { value: "none", label: "No repetir" },
-                      { value: "weekly", label: "Semanal" },
-                      { value: "biweekly", label: "Cada 2 semanas" },
-                      { value: "monthly", label: "Mensual" },
-                    ]}
-                    value={recurringFrequency}
-                    onChange={setRecurringFrequency}
-                    placeholder="No repetir"
-                    name="recurring_frequency"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 cursor-pointer">
-                    Repetir hasta
-                  </label>
-                  <input
-                    type="date"
-                    name="recurring_until"
-                    value={recurringUntil}
-                    onChange={(e) => setRecurringUntil(e.target.value)}
-                    disabled={recurringFrequency === "none"}
-                    className="w-full px-3 py-2 rounded-2xl text-sm border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 backdrop-blur-md text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-violet-500/20 transition-all disabled:opacity-60"
-                  />
-                </div>
+              <div className="px-5 py-4 border-t border-zinc-200 dark:border-zinc-800 flex justify-center">
+                <button
+                  type="submit"
+                  form="appointment-form"
+                  disabled={pending || selectedServiceIds.length === 0}
+                  className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white py-2.5 px-8 rounded-xl text-sm font-semibold shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none transition-all cursor-pointer select-none"
+                >
+                  <Plus className="w-4 h-4" />
+                  {pending
+                    ? "Creando..."
+                    : selectedServiceIds.length > 1
+                      ? `Crear ${selectedServiceIds.length} turnos`
+                      : "Crear Turno"}
+                </button>
               </div>
-            </div>
-          </form>
-        </div>
-
-        <div className="px-6 py-4 border-t border-white/20 dark:border-white/10">
-          <button
-            type="submit"
-            form="appointment-form"
-            disabled={pending}
-            className="w-full flex items-center justify-center gap-2 bg-violet-600/90 backdrop-blur-md text-white py-2.5 px-4 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer select-none"
-          >
-            <Plus className="w-4 h-4" />
-            {pending ? "Creando..." : "Crear Turno"}
-          </button>
-        </div>
+            </form>
           </motion.div>
         </motion.div>
       )}
