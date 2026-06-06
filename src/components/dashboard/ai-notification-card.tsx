@@ -35,21 +35,21 @@ export default function AINotificationCard({
       setPwaTip({
         id: "pwa-ios",
         title: "Instalá Klip en tu iPhone",
-        body: "En Safari tocá el ícono Compartir (cuadrado con flecha arriba). Desplazá y elegí «Agregar a pantalla de inicio». Tocá «Agregar» arriba a la derecha y listo.",
+        body: "Compartir → «Agregar a pantalla de inicio» → «Agregar».",
         tone: "insight",
       });
     } else if (isAndroid) {
       setPwaTip({
         id: "pwa-android",
         title: "Instalá Klip en tu Android",
-        body: "En Chrome tocá los tres puntos ⋮ y elegí «Instalar aplicación». Si no aparece, buscá «Agregar a pantalla de inicio» en el mismo menú.",
+        body: "⋮ → «Instalar aplicación».",
         tone: "insight",
       });
     } else {
       setPwaTip({
         id: "pwa-desktop",
         title: "Instalá Klip en tu PC",
-        body: "En Chrome o Edge buscá el ícono de instalar (monitor con flecha ⬇) en la barra de direcciones. También podés ir al menú → «Instalar Klip».",
+        body: "Clic al ícono de instalar ⬇ en la barra de direcciones.",
         tone: "insight",
       });
     }
