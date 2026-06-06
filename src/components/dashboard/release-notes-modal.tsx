@@ -39,7 +39,7 @@ export default function ReleaseNotesModal() {
           className="fixed inset-0 z-[90] overflow-y-auto bg-black/45 backdrop-blur-sm p-3 sm:p-4"
         >
           <div className="mx-auto flex min-h-full w-full max-w-xl items-start justify-center py-4 sm:items-center sm:py-8">
-            <div className="w-full max-h-[88dvh] overflow-hidden rounded-[1.6rem] sm:rounded-[2rem] border border-white/20 bg-white/95 shadow-2xl dark:border-white/10 dark:bg-zinc-950/92">
+            <div className="w-full max-h-[88dvh] overflow-hidden rounded-[1.6rem] sm:rounded-[2rem] border border-zinc-200 dark:border-zinc-800 bg-white shadow-2xl dark:bg-zinc-900">
               <div className="flex items-start justify-between gap-4 px-4 pt-4 sm:px-6 sm:pt-6">
                 <div>
                   <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">{RELEASE_NOTES_TITLE}</h2>

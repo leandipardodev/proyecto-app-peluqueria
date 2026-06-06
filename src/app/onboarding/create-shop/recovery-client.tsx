@@ -10,7 +10,7 @@ export default function CreateShopRecoveryClient({ userEmail }: { userEmail: str
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="w-full max-w-md bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-white/20 dark:border-zinc-700 rounded-3xl p-6 shadow-xl">
+      <div className="w-full max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-3xl p-6 shadow-xl">
         <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Recuperar acceso</h1>
         <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
           Tu cuenta ({userEmail || "sin email"}) no tiene un local activo. Crea uno nuevo para entrar al dashboard.

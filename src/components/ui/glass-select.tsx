@@ -81,7 +81,7 @@ export default function GlassSelect({
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className={`w-full flex items-center justify-between px-3 py-2 rounded-2xl text-sm border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 backdrop-blur-md focus:outline-none focus:ring-1 focus:ring-violet-500/20 transition-all cursor-pointer select-none ${
+        className={`w-full flex items-center justify-between px-3 py-2 rounded-2xl text-sm border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:outline-none focus:ring-1 focus:ring-violet-500/20 transition-all cursor-pointer select-none ${
           selected ? "text-gray-900 dark:text-gray-100" : "text-zinc-400 dark:text-zinc-500"
         }`}
       >
@@ -95,7 +95,7 @@ export default function GlassSelect({
       <AnimatePresence>
         {open && (
           <motion.div
-            className="absolute z-50 mt-1.5 w-full bg-white/70 dark:bg-black/70 backdrop-blur-xl rounded-2xl shadow-lg border border-white/20 dark:border-white/10 overflow-hidden py-1"
+            className="absolute z-50 mt-1.5 w-full bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden py-1"
             variants={dropVariants}
             initial="hidden"
             animate="visible"
@@ -108,7 +108,7 @@ export default function GlassSelect({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={searchPlaceholder}
-                  className="w-full rounded-xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-black/30 px-3 py-2 text-xs text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-violet-500/25"
+                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-xs text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-violet-500/25"
                 />
               </div>
             )}

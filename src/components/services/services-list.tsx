@@ -154,7 +154,7 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
       </div>
 
       {services.length === 0 ? (
-        <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] py-16 px-6 text-center">
+        <div className="bg-white dark:bg-zinc-900 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm py-16 px-6 text-center">
           <StatePanel title={`Sin ${serviceWordLower}s`} description={`Todavía no hay ${serviceWordLower}s creados.`} />
           <button
             type="button"
@@ -169,7 +169,7 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
         <>
           <div className="md:hidden space-y-3">
             {services.map((service) => (
-              <div key={service.id} className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[1.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-4">
+              <div key={service.id} className="bg-white dark:bg-zinc-900 rounded-[1.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm p-4">
                 <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{service.name}</p>
                 <div className="mt-2 flex items-center justify-between text-sm">
                   <span className="text-gray-500 dark:text-gray-400">Categoria</span>
@@ -205,11 +205,11 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
             ))}
           </div>
 
-          <div className="hidden md:block bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden">
+          <div className="hidden md:block bg-white dark:bg-zinc-900 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full" aria-label="Tabla de servicios">
               <thead>
-                <tr className="bg-white/40 dark:bg-black/20 border-b border-white/20 dark:border-white/10">
+                <tr className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
                   <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider px-6 py-3">
                     Nombre
                   </th>
@@ -229,7 +229,7 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
               </thead>
               <tbody className="divide-y divide-white/20 dark:divide-white/10">
                 {services.map((service) => (
-                  <tr key={service.id} className="hover:bg-white/40 dark:hover:bg-white/5 cursor-pointer">
+                  <tr key={service.id} className="hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer">
                     <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-gray-100">
                       {service.name}
                     </td>

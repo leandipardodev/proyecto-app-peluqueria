@@ -23,7 +23,7 @@ export default function CreateShopModal({ isOpen, onClose, shopName, onShopNameC
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[80] bg-black/45 backdrop-blur-[2px] flex items-center justify-center p-4"
+          className="fixed inset-0 z-[80] bg-black/45 flex items-center justify-center p-4"
           onClick={() => { if (!creating) onClose(); }}
         >
           <motion.div

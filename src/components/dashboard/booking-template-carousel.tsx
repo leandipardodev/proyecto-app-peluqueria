@@ -144,8 +144,8 @@ export default function BookingTemplateCarousel({ selectedTemplateId, onSelect }
               }}
               className={`min-h-12 min-w-[220px] max-w-[220px] snap-start rounded-3xl border p-3 text-left transition-all ${
                 selected
-                  ? "border-[#0071E3]/55 bg-[linear-gradient(168deg,rgba(255,255,255,0.95)_0%,rgba(236,245,255,0.86)_100%)] shadow-[0_22px_40px_-26px_rgba(0,113,227,0.45)] dark:bg-zinc-900/50"
-                  : "border-white/35 bg-white/55 hover:bg-white/75 dark:bg-zinc-900/30 dark:hover:bg-zinc-900/45"
+                  ? "border-[#0071E3]/55 bg-[linear-gradient(168deg,rgba(255,255,255,0.95)_0%,rgba(236,245,255,0.86)_100%)] shadow-[0_22px_40px_-26px_rgba(0,113,227,0.45)] dark:bg-zinc-900"
+                  : "border-zinc-200 dark:border-zinc-800 bg-white hover:bg-zinc-100 dark:bg-zinc-900 dark:hover:bg-zinc-800"
               }`}
             >
               <div className="overflow-hidden rounded-2xl border border-white/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] dark:bg-white">

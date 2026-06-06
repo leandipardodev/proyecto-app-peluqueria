@@ -402,13 +402,13 @@ export default function AppointmentDetailModal({
                 type="datetime-local"
                 value={startDateTimeLocal}
                 onChange={(e) => handleStartDateTimeChange(e.target.value)}
-                className="mt-1.5 w-full rounded-xl border border-white/25 bg-white/45 px-3 py-2 text-sm text-gray-900 outline-none backdrop-blur-md dark:border-white/15 dark:bg-white/10 dark:text-gray-100"
+                className="mt-1.5 w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 outline-none"
               />
             </div>
           </div>
 
           {showCustomerEditor && (
-            <div className="rounded-2xl border border-slate-200/70 bg-white/70 p-3 dark:border-zinc-800 dark:bg-zinc-900/40">
+            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3">
               <p className="mb-2 text-xs font-semibold text-slate-600 dark:text-zinc-300">Editar cliente</p>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Nombre" className="rounded-xl border px-3 py-2 text-sm" />

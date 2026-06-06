@@ -54,7 +54,7 @@ export default function AddProductModal({ shopId, open, onClose }: AddProductMod
         if (e.target === backdropRef.current) onClose();
       }}
     >
-      <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] w-full max-w-md overflow-hidden max-h-[88dvh] flex flex-col">
+      <div className="bg-white dark:bg-zinc-900 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 shadow-lg w-full max-w-md overflow-hidden max-h-[88dvh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/20 dark:border-white/10">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">
             Nuevo Producto

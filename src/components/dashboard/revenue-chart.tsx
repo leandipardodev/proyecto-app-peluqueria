@@ -114,21 +114,21 @@ export default function RevenueChart({ data, flowByPeriod }: RevenueChartProps) 
       </div>
 
       <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-zinc-200 bg-zinc-50/60 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-800/40">
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-800">
           <p className="text-[10px] font-semibold tracking-widest text-zinc-500 dark:text-zinc-400">INGRESOS</p>
           <p className="mt-0.5 text-2xl font-bold text-blue-600 dark:text-blue-400" style={{ fontVariantNumeric: "tabular-nums" }}>
             {formatMoney(totals.income).replace("ARS", "").trim()}
           </p>
         </div>
 
-        <div className="rounded-xl border border-zinc-200 bg-zinc-50/60 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-800/40">
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-800">
           <p className="text-[10px] font-semibold tracking-widest text-zinc-500 dark:text-zinc-400">GASTOS</p>
           <p className="mt-0.5 text-2xl font-bold text-slate-600 dark:text-slate-400" style={{ fontVariantNumeric: "tabular-nums" }}>
             {formatMoney(totals.expenses).replace("ARS", "").trim()}
           </p>
         </div>
 
-        <div className="rounded-xl border border-zinc-200 bg-zinc-50/60 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-800/40">
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-800">
           <p className="text-[10px] font-semibold tracking-widest text-zinc-500 dark:text-zinc-400">RESULTADO</p>
           <p className={`mt-0.5 text-2xl font-bold ${netResult >= 0 ? "text-blue-600 dark:text-blue-400" : "text-slate-600 dark:text-slate-400"}`} style={{ fontVariantNumeric: "tabular-nums" }}>
             {formatMoney(Math.abs(netResult)).replace("ARS", "").trim()}
@@ -139,14 +139,14 @@ export default function RevenueChart({ data, flowByPeriod }: RevenueChartProps) 
 
       <div
         ref={chartHostRef}
-        className="analytics-bg relative h-64 min-h-[16rem] min-w-0 w-full overflow-hidden rounded-xl bg-zinc-100 p-3 dark:bg-zinc-800/60"
+        className="analytics-bg relative h-64 min-h-[16rem] min-w-0 w-full overflow-hidden rounded-xl bg-zinc-100 p-3 dark:bg-zinc-800"
       >
         <div className="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
           <div className="analytics-grid size-full" />
           <div className="analytics-scan size-full" />
         </div>
         {!chartReady && (
-          <div className="absolute inset-3 rounded-xl bg-zinc-200/50 dark:bg-zinc-700/30 animate-pulse" />
+          <div className="absolute inset-3 rounded-xl bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
         )}
         {canRenderChart && (
           <ResponsiveContainer width="100%" height={220} minWidth={280} minHeight={180}>

@@ -122,7 +122,7 @@ function Card({
     <motion.div
       whileHover={{ y: -3 }}
       transition={MOTION.hover}
-      className={`rounded-3xl border border-slate-200 bg-white/80 backdrop-blur-xl shadow-[0_20px_40px_rgba(0,0,0,0.04)] ${className}`}
+      className={`rounded-3xl border border-slate-200 bg-white/95 shadow-[0_20px_40px_rgba(0,0,0,0.04)] ${className}`}
     >
       {children}
     </motion.div>
@@ -330,7 +330,7 @@ export default function Home() {
             <div className={`${playfair.className} pointer-events-none absolute right-6 top-4 hidden lg:block text-[10rem] leading-none font-black tracking-[-0.07em] text-[#0b172f]/5`}>
               KLIP
             </div>
-            <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/70 px-2.5 py-1.5 text-[9px] uppercase tracking-[0.2em] text-[#68707d] shadow-[0_10px_24px_rgba(2,6,23,0.08)] sm:mb-5 sm:px-3 sm:text-[10px] sm:tracking-[0.24em]">
+            <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/80 bg-white px-2.5 py-1.5 text-[9px] uppercase tracking-[0.2em] text-[#68707d] shadow-[0_10px_24px_rgba(2,6,23,0.08)] sm:mb-5 sm:px-3 sm:text-[10px] sm:tracking-[0.24em]">
               <Sparkles className="h-4 w-4 text-[#0071E3]" />
               Booking + Gestion + Cobros
             </p>
@@ -351,7 +351,7 @@ export default function Home() {
               Klip
             </motion.div>
 
-            <div className="mb-5 overflow-hidden rounded-full border border-white/80 bg-white/65 backdrop-blur-xl sm:mb-6">
+            <div className="mb-5 overflow-hidden rounded-full border border-white/80 bg-white sm:mb-6">
               <div className="marquee-track flex w-max gap-2 px-3 py-2">
                 {[...marqueeItems, ...marqueeItems].map((item, i) => (
                   <span
@@ -408,7 +408,7 @@ export default function Home() {
                   <div className="absolute inset-2 rounded-full border border-sky-300/45 animate-[spin_7s_linear_infinite]" />
                   <div className="absolute inset-4 rounded-full border border-blue-400/40 animate-[spin_4s_linear_infinite_reverse]" />
                 </div>
-                <div className="relative rounded-[1.5rem] border border-white/70 bg-white/78 p-3.5 sm:rounded-[1.8rem] sm:p-5 backdrop-blur-2xl shadow-[0_24px_56px_rgba(15,23,42,0.14)]">
+                <div className="relative rounded-[1.5rem] border border-white/70 bg-white p-3.5 sm:rounded-[1.8rem] sm:p-5 shadow-[0_24px_56px_rgba(15,23,42,0.14)]">
                   <div className="mb-4 flex items-center justify-between">
                     <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Panel en vivo</p>
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
@@ -417,7 +417,7 @@ export default function Home() {
                     </span>
                   </div>
                   <div className="space-y-3">
-                    <motion.div className="rounded-2xl border border-white/70 bg-white/75 p-3" style={{ translateZ: 24 }} whileHover={{ y: -3, scale: 1.01 }}>
+                    <motion.div className="rounded-2xl border border-white/70 bg-white p-3" style={{ translateZ: 24 }} whileHover={{ y: -3, scale: 1.01 }}>
                       <p className="text-xs text-slate-500">Turnos de hoy</p>
                       <div className="mt-1 flex flex-wrap items-end gap-2">
                         <motion.p
@@ -435,17 +435,17 @@ export default function Home() {
                       </div>
                     </motion.div>
                     <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
-                      <motion.div className="rounded-2xl border border-white/70 bg-white/75 p-3" style={{ translateZ: 34 }} whileHover={{ y: -3, scale: 1.01 }}>
+                      <motion.div className="rounded-2xl border border-white/70 bg-white p-3" style={{ translateZ: 34 }} whileHover={{ y: -3, scale: 1.01 }}>
                         <p className="text-xs text-slate-500">No-show</p>
                         <p className="mt-1 text-lg font-black text-rose-500 sm:text-xl">-40%</p>
                       </motion.div>
-                      <motion.div className="rounded-2xl border border-white/70 bg-white/75 p-3" style={{ translateZ: 34 }} whileHover={{ y: -3, scale: 1.01 }}>
+                      <motion.div className="rounded-2xl border border-white/70 bg-white p-3" style={{ translateZ: 34 }} whileHover={{ y: -3, scale: 1.01 }}>
                         <p className="text-xs text-slate-500">Retencion</p>
                         <p className="mt-1 text-lg font-black text-blue-600 sm:text-xl">+2.3x</p>
                       </motion.div>
                     </div>
                     <motion.div
-                      className="rounded-2xl border border-white/70 bg-white/75 p-3"
+                      className="rounded-2xl border border-white/70 bg-white p-3"
                       style={{ translateZ: 22 }}
                       whileHover={{ y: -3, scale: 1.01 }}
                     >
@@ -458,15 +458,15 @@ export default function Home() {
             </div>
 
             <div className="mt-8 grid grid-cols-1 gap-2.5 sm:mt-10 sm:gap-3 sm:grid-cols-3">
-              <motion.div className="rounded-2xl border border-white/80 bg-white/82 px-4 py-3 backdrop-blur-xl shadow-[0_12px_28px_rgba(2,6,23,0.08)]" whileHover={{ y: -4, scale: 1.01, rotateX: -2, rotateY: -2 }}>
+              <motion.div className="rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-[0_12px_28px_rgba(2,6,23,0.08)]" whileHover={{ y: -4, scale: 1.01, rotateX: -2, rotateY: -2 }}>
                 <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Tiempo real</p>
                 <p className="mt-1 text-xl font-extrabold tracking-tight text-slate-900">Agenda unificada</p>
               </motion.div>
-              <motion.div className="rounded-2xl border border-white/80 bg-white/82 px-4 py-3 backdrop-blur-xl shadow-[0_12px_28px_rgba(2,6,23,0.08)]" whileHover={{ y: -4, scale: 1.01, rotateX: -2, rotateY: 2 }}>
+              <motion.div className="rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-[0_12px_28px_rgba(2,6,23,0.08)]" whileHover={{ y: -4, scale: 1.01, rotateX: -2, rotateY: 2 }}>
                 <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Automatizacion</p>
                 <p className="mt-1 text-base font-extrabold tracking-tight text-slate-900 sm:text-xl">Mensajes recordatorios de turnos</p>
               </motion.div>
-              <motion.div className="rounded-2xl border border-white/80 bg-white/82 px-4 py-3 backdrop-blur-xl shadow-[0_12px_28px_rgba(2,6,23,0.08)]" whileHover={{ y: -4, scale: 1.01, rotateX: -2, rotateY: 2 }}>
+              <motion.div className="rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-[0_12px_28px_rgba(2,6,23,0.08)]" whileHover={{ y: -4, scale: 1.01, rotateX: -2, rotateY: 2 }}>
                 <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Escalable</p>
                 <p className="mt-1 text-xl font-extrabold tracking-tight text-slate-900">Multi local</p>
               </motion.div>
@@ -599,27 +599,27 @@ export default function Home() {
                     <h3 className={`${playfair.className} mt-3 text-3xl sm:text-5xl font-bold tracking-[-0.03em] text-white`}>Un concepto visual claro para decidir en segundos.</h3>
                     <p className="mt-4 max-w-xl text-slate-300 leading-relaxed">Detecta huecos, reduce drasticamente los ausentismos y activa recompensas y marketing para que tus clientes vuelvan mas seguido, sin depender de planillas.</p>
                   </div>
-                  <motion.div className="relative rounded-[1.7rem] border border-slate-600/70 bg-slate-900/80 p-4 shadow-[0_24px_46px_rgba(2,6,23,0.5)]" whileHover={{ y: -5, rotateX: -1.4, rotateY: 1.4 }} transition={MOTION.hover}>
+                  <motion.div className="relative rounded-[1.7rem] border border-slate-600/70 bg-slate-900 p-4 shadow-[0_24px_46px_rgba(2,6,23,0.5)]" whileHover={{ y: -5, rotateX: -1.4, rotateY: 1.4 }} transition={MOTION.hover}>
                     <div className="mb-3 flex items-center gap-1.5">
                       <span className="h-2.5 w-2.5 rounded-full bg-rose-400" />
                       <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
                       <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-xl border border-slate-700 bg-slate-800/90 p-3">
+                      <div className="rounded-xl border border-slate-700 bg-slate-800 p-3">
                         <p className="text-[11px] uppercase tracking-[0.15em] text-slate-400">Agenda hoy</p>
                         <p className="mt-1 text-2xl font-black text-white">24 turnos</p>
                       </div>
-                      <div className="rounded-xl border border-slate-700 bg-slate-800/90 p-3">
+                      <div className="rounded-xl border border-slate-700 bg-slate-800 p-3">
                         <p className="text-[11px] uppercase tracking-[0.15em] text-slate-400">Caja neta</p>
                         <p className="mt-1 text-2xl font-black text-white">$482k</p>
                       </div>
-                      <div className="rounded-xl border border-slate-700 bg-slate-800/90 p-3 sm:col-span-2">
+                      <div className="rounded-xl border border-slate-700 bg-slate-800 p-3 sm:col-span-2">
                         <p className="text-[11px] uppercase tracking-[0.15em] text-slate-400">Fidelizacion activa</p>
                         <p className="mt-1 text-lg font-bold text-sky-300">32 clientes listos para beneficio</p>
                       </div>
                     </div>
-                    <motion.div className="absolute -left-4 top-8 rounded-full border border-slate-500/70 bg-slate-800/95 px-3 py-1 text-xs font-semibold text-slate-100" animate={{ y: [0, -5, 0] }} transition={{ duration: 2.6, repeat: Infinity }}>
+                    <motion.div className="absolute -left-4 top-8 rounded-full border border-slate-500/70 bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-100" animate={{ y: [0, -5, 0] }} transition={{ duration: 2.6, repeat: Infinity }}>
                       Agenda inteligente
                     </motion.div>
                     <motion.div className="absolute -right-5 bottom-10 rounded-full border border-sky-300/50 bg-sky-400/15 px-3 py-1 text-xs font-semibold text-sky-100" animate={{ y: [0, -6, 0] }} transition={{ duration: 2.9, repeat: Infinity }}>
@@ -644,13 +644,13 @@ export default function Home() {
                 <div className="grid gap-3 text-sm font-semibold uppercase tracking-[0.14em] text-slate-500 md:grid-cols-3">
                   <p>Indicador</p><p>Antes</p><p>Con Klip</p>
                 </div>
-                <div className="mt-4 grid items-center gap-3 rounded-2xl border border-slate-200 bg-white/90 p-4 md:grid-cols-3">
+                <div className="mt-4 grid items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 md:grid-cols-3">
                   <p className="font-semibold text-slate-700">Inasistencias mensuales</p><p className="text-2xl font-black text-rose-500">18%</p><p className="text-2xl font-black text-emerald-600"><CountUp to={6} suffix="%" /></p>
                 </div>
-                <div className="mt-3 grid items-center gap-3 rounded-2xl border border-slate-200 bg-white/90 p-4 md:grid-cols-3">
+                <div className="mt-3 grid items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 md:grid-cols-3">
                   <p className="font-semibold text-slate-700">Horas admin por semana</p><p className="text-2xl font-black text-rose-500">12h</p><p className="text-2xl font-black text-emerald-600"><CountUp to={4} suffix="h" /></p>
                 </div>
-                <div className="mt-3 grid items-center gap-3 rounded-2xl border border-slate-200 bg-white/90 p-4 md:grid-cols-3">
+                <div className="mt-3 grid items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 md:grid-cols-3">
                   <p className="font-semibold text-slate-700">Clientes que regresan</p><p className="text-2xl font-black text-rose-500">31%</p><p className="text-2xl font-black text-emerald-600"><CountUp to={64} suffix="%" /></p>
                 </div>
               </Card>

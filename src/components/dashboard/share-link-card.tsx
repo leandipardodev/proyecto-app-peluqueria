@@ -40,7 +40,7 @@ export default function ShareLinkCard({ slug }: ShareLinkCardProps) {
   }
 
   return (
-    <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-6 transition-colors">
+    <div className="bg-white dark:bg-zinc-900 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm p-6 transition-colors">
       <h3 className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2 mb-3 tracking-tight">
         <Link className="w-4 h-4 text-violet-600" />
         Tu link de reservas
@@ -54,13 +54,13 @@ export default function ShareLinkCard({ slug }: ShareLinkCardProps) {
           type="text"
           value={bookingUrl}
           readOnly
-          className="w-full sm:flex-1 px-4 py-2.5 border border-white/40 dark:border-white/10 rounded-full text-sm bg-white/40 dark:bg-black/30 backdrop-blur-sm text-zinc-600 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-violet-400/50 select-all"
+          className="w-full sm:flex-1 px-4 py-2.5 border border-zinc-200 dark:border-zinc-700 rounded-full text-sm bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-violet-400/50 select-all"
           onClick={(e) => (e.target as HTMLInputElement).select()}
         />
         <div className="flex items-center gap-2">
           <button
             onClick={handleCopy}
-            className="px-4 py-2 border border-white/40 dark:border-white/10 rounded-full text-sm text-zinc-500 dark:text-zinc-400 bg-white/40 dark:bg-black/30 backdrop-blur-sm hover:bg-white/70 dark:hover:bg-white/10 transition-all cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
+            className="px-4 py-2 border border-zinc-200 dark:border-zinc-700 rounded-full text-sm text-zinc-500 dark:text-zinc-400 bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-all cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
             title="Copiar link"
           >
             {copied ? (

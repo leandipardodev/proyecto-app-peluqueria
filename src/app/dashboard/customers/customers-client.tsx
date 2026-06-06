@@ -349,7 +349,7 @@ export default function CustomersPage() {
   if (loading) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.14),_transparent_48%),linear-gradient(180deg,_#f8fafc_0%,_#f1f5f9_100%)] px-6 dark:bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.16),_transparent_46%),linear-gradient(180deg,_#09090b_0%,_#111827_100%)]">
-        <div className="flex w-full max-w-sm items-center gap-3 rounded-2xl border border-white/70 bg-white/80 px-4 py-3 text-slate-700 shadow-[0_18px_45px_-28px_rgba(15,23,42,0.45)] backdrop-blur-xl dark:border-white/15 dark:bg-zinc-900/65 dark:text-zinc-200">
+        <div className="flex w-full max-w-sm items-center gap-3 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white px-4 py-3 text-slate-700 shadow-sm dark:text-zinc-200 dark:bg-zinc-900">
           <Loader2 className="h-5 w-5 animate-spin text-blue-600 dark:text-sky-300" />
           <div className="min-w-0">
             <p className="text-sm font-medium">Verificando sesión...</p>
@@ -475,7 +475,7 @@ export default function CustomersPage() {
                   <tr
                     key={customer.id}
                     onClick={() => openEditor(customer)}
-                    className="border-b border-slate-100 dark:border-zinc-800 last:border-0 hover:bg-slate-50/70 dark:hover:bg-zinc-800/60 cursor-pointer"
+                    className="border-b border-slate-100 dark:border-zinc-800 last:border-0 hover:bg-slate-100 dark:hover:bg-zinc-800 cursor-pointer"
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
@@ -530,7 +530,7 @@ export default function CustomersPage() {
       {portalReady && (selectedCustomer || isCreating) && createPortal((
         <>
           <div
-            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40"
+            className="fixed inset-0 bg-black/50 z-40"
             onPointerDown={(e) => {
               overlayPointerDownRef.current = e.target === e.currentTarget;
             }}
@@ -539,7 +539,7 @@ export default function CustomersPage() {
               overlayPointerDownRef.current = false;
             }}
           />
-          <div className="fixed right-0 top-0 h-[100dvh] w-full max-w-xl z-50 bg-white/90 dark:bg-zinc-900/95 backdrop-blur-xl border-l border-slate-200 dark:border-zinc-700 shadow-2xl">
+          <div className="fixed right-0 top-0 h-[100dvh] w-full max-w-xl z-50 bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 shadow-lg">
             <div className="h-full flex flex-col">
               <div className="px-6 py-4 border-b border-slate-200 dark:border-zinc-700 flex items-center justify-between">
                 <div>

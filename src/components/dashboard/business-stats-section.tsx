@@ -38,7 +38,7 @@ export default function BusinessStatsSection({
   servicePlural,
 }: Props) {
   return (
-    <section id="estadisticas" className="glass-sheen-card bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden transition-colors">
+    <section id="estadisticas" className="glass-sheen-card bg-white dark:bg-zinc-900 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors">
       <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Estadísticas del Negocio</h2>
@@ -48,7 +48,7 @@ export default function BusinessStatsSection({
           <button
             type="button"
             onClick={() => setShowStats(!showStats)}
-            className="inline-flex items-center gap-2 rounded-full border border-white/20 dark:border-white/10 bg-white/40 dark:bg-white/[0.06] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-300 transition hover:bg-white/60 dark:hover:bg-white/[0.11]"
+            className="inline-flex items-center gap-2 rounded-full border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-300 transition hover:bg-zinc-100 dark:hover:bg-zinc-700"
             aria-label={showStats ? "Ocultar estadísticas" : "Mostrar estadísticas"}
           >
             {showStats ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
@@ -67,7 +67,7 @@ export default function BusinessStatsSection({
             transition={{ duration: 0.22, ease: "easeOut" }}
             className="glass-sheen-stagger p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
           >
-            <div className="glass-sheen-card sm:col-span-2 lg:col-span-3 rounded-2xl bg-white/40 dark:bg-white/[0.03] border border-white/30 dark:border-white/10 p-4">
+            <div className="glass-sheen-card sm:col-span-2 lg:col-span-3 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-4">
               <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 mb-3">
                 <span>Flujo financiero</span>
                 <span>Ingresos vs Gastos</span>
@@ -107,7 +107,7 @@ export default function BusinessStatsSection({
             <StatCard label="Alertas de stock" value={maskValue(String(summaryStats?.lowStockCount ?? "-"))} bgClass="bg-amber-100 dark:bg-amber-900/30" barClass="bg-gradient-to-r from-amber-400 to-amber-300 dark:from-amber-500 dark:to-amber-400" barWidth="w-1/2" />
             <StatCard label={servicePlural + " activos"} value={maskValue(String(metricStats?.topServicesCount ?? "-"))} bgClass="bg-cyan-100 dark:bg-cyan-900/30" barClass="bg-gradient-to-r from-cyan-400 to-cyan-300 dark:from-cyan-500 dark:to-cyan-400" barWidth="w-3/5" />
 
-            <div className="glass-sheen-card h-full min-h-[118px] md:min-h-[124px] rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4 flex flex-col sm:col-span-2 lg:col-span-3">
+            <div className="glass-sheen-card h-full min-h-[118px] md:min-h-[124px] rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-4 py-4 flex flex-col sm:col-span-2 lg:col-span-3">
               <p className="text-xs text-zinc-500 dark:text-zinc-400">Balance neto histórico</p>
               <p className={`mt-1 text-2xl font-bold tracking-tight ${netValue >= 0 ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300"}`}>
                 {maskValue(`${netValue >= 0 ? "+" : "-"}$${Math.abs(netValue).toFixed(2)}`)}
@@ -163,7 +163,7 @@ export default function BusinessStatsSection({
 
 function StatCard({ label, value, bgClass, barClass, barWidth }: { label: string; value: string; bgClass: string; barClass: string; barWidth: string }) {
   return (
-    <div className="glass-sheen-card h-full min-h-[118px] md:min-h-[124px] rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4 flex flex-col">
+    <div className="glass-sheen-card h-full min-h-[118px] md:min-h-[124px] rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-4 py-4 flex flex-col">
       <p className="text-xs text-zinc-500 dark:text-zinc-400">{label}</p>
       <p className="mt-1 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{value}</p>
       <div className="mt-auto pt-3 h-1.5 rounded-full overflow-hidden">
@@ -175,7 +175,7 @@ function StatCard({ label, value, bgClass, barClass, barWidth }: { label: string
 
 function GrowthCard({ growth, maskValue }: { growth: number | null; maskValue: (v: string) => string }) {
   return (
-    <div className="glass-sheen-card h-full min-h-[118px] md:min-h-[124px] rounded-2xl bg-white/45 dark:bg-white/[0.04] border border-white/30 dark:border-white/10 px-4 py-4 flex flex-col">
+    <div className="glass-sheen-card h-full min-h-[118px] md:min-h-[124px] rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-4 py-4 flex flex-col">
       <p className="text-xs text-zinc-500 dark:text-zinc-400">Crecimiento mensual</p>
       <p className={`mt-1 text-2xl font-bold tracking-tight ${growth === null ? "text-zinc-600 dark:text-zinc-300" : growth >= 0 ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300"}`}>
         {maskValue(growth === null ? "N/D" : `${growth >= 0 ? "+" : ""}${growth}%`)}

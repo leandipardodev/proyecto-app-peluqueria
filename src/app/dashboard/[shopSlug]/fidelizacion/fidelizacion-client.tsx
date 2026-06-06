@@ -159,7 +159,7 @@ export default function FidelizacionClient({
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[1.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-xl shadow-black/[0.03] overflow-hidden transition-colors">
+        <div className="rounded-[1.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors bg-white dark:bg-zinc-900">
           <div className="px-5 py-4 border-b border-white/10 flex items-center gap-2.5">
             <div className="p-2 rounded-full bg-amber-500/15">
               <Trophy className="w-4.5 h-4.5 text-amber-600" />
@@ -195,7 +195,7 @@ export default function FidelizacionClient({
           </div>
         </div>
 
-        <div className="bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[1.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-xl shadow-black/[0.03] overflow-hidden transition-colors">
+        <div className="rounded-[1.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors bg-white dark:bg-zinc-900">
           <div className="px-5 py-4 border-b border-white/10 flex items-center gap-2.5">
             <div className="p-2 rounded-full bg-cyan-500/15">
               <Users className="w-4.5 h-4.5 text-cyan-600" />
@@ -226,7 +226,7 @@ export default function FidelizacionClient({
                     <input
                       value={rafflePrizeName}
                       onChange={(e) => setRafflePrizeName(e.target.value)}
-                      className="mt-1 w-full rounded-full bg-white/60 dark:bg-black/25 border border-cyan-200 dark:border-cyan-700/40 px-4 py-2 text-sm text-gray-900 dark:text-white"
+                      className="mt-1 w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm text-gray-900 dark:text-white"
                       placeholder="Ej: Corte gratis"
                     />
                   </div>
@@ -248,11 +248,11 @@ export default function FidelizacionClient({
                 {raffleMessage && <p className="text-sm text-cyan-900 dark:text-cyan-100">{raffleMessage}</p>}
 
                 {raffleResult && (
-                  <div className="rounded-xl border border-cyan-200/70 dark:border-cyan-700/40 bg-white/65 dark:bg-black/20 p-3">
+                  <div className="rounded-xl border border-cyan-200 dark:border-cyan-700 bg-white dark:bg-zinc-900 p-3">
                     <p className="text-sm font-semibold text-cyan-900 dark:text-cyan-100">Resultado: {raffleResult.prizeName}</p>
                     <div className="mt-3 rounded-xl border border-cyan-200/70 dark:border-cyan-700/40 bg-cyan-100/60 dark:bg-cyan-800/20 p-3 min-h-[96px]">
                       <p className="text-[11px] uppercase tracking-[0.14em] text-cyan-800/75 dark:text-cyan-100/75">Sorteando...</p>
-                      <div className="mt-1 h-8 overflow-visible rounded-lg bg-white/55 dark:bg-black/25 border border-cyan-200/70 dark:border-cyan-700/40 px-2 relative">
+                      <div className="mt-1 h-8 overflow-visible rounded-lg bg-white dark:bg-zinc-800 border border-cyan-200 dark:border-cyan-700 px-2 relative">
                         <AnimatePresence mode="popLayout" initial={false}>
                           <motion.p
                             key={`${raffleDisplayName}-${raffleSpinKey}`}
@@ -315,7 +315,7 @@ export default function FidelizacionClient({
           </div>
         </div>
 
-        <div className="bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[1.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-xl shadow-black/[0.03] overflow-hidden transition-colors lg:col-span-2">
+        <div className="rounded-[1.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors bg-white dark:bg-zinc-900 lg:col-span-2">
           <div className="px-5 py-4 border-b border-white/10 flex items-center gap-2.5">
             <div className="p-2 rounded-full bg-pink-500/15">
               <Gift className="w-4.5 h-4.5 text-pink-600" />
@@ -336,7 +336,7 @@ export default function FidelizacionClient({
                   max={100}
                   value={birthdayDiscount}
                   onChange={(e) => setBirthdayDiscount(e.target.value)}
-                  className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 pl-8 pr-4 py-2.5 text-sm text-gray-900 dark:text-white"
+                  className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 pl-8 pr-4 py-2.5 text-sm text-gray-900 dark:text-white"
                 />
               </div>
             </div>
@@ -346,7 +346,7 @@ export default function FidelizacionClient({
                 value={birthdayMessage}
                 onChange={(e) => setBirthdayMessage(e.target.value)}
                 rows={3}
-                className="mt-1 w-full rounded-2xl bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-4 py-2.5 text-sm text-gray-900 dark:text-white"
+                className="mt-1 w-full rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-4 py-2.5 text-sm text-gray-900 dark:text-white"
                 placeholder="Ej: Feliz cumple {Nombre}! Te regalamos un descuento."
               />
             </div>
@@ -369,7 +369,7 @@ export default function FidelizacionClient({
         </div>
       </div>
 
-      <div className="bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden transition-colors">
+      <div className="rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors bg-white dark:bg-zinc-900">
         <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
           <div className="p-2 rounded-full bg-violet-500/15">
             <Gift className="w-5 h-5 text-violet-600" />
@@ -408,7 +408,7 @@ export default function FidelizacionClient({
                 min={1}
                 value={cutsRequired}
                 onChange={(e) => setCutsRequired(e.target.value)}
-                className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-4 py-2.5 text-sm text-gray-900 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-4 py-2.5 text-sm text-gray-900 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 placeholder="Cortes requeridos"
               />
               <p className="px-1 text-xs text-zinc-500 dark:text-zinc-400">Cortes necesarios para la recompensa.</p>
@@ -422,7 +422,7 @@ export default function FidelizacionClient({
                   max={100}
                   value={discountPercent}
                   onChange={(e) => setDiscountPercent(e.target.value)}
-                  className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 pl-8 pr-4 py-2.5 text-sm text-gray-900 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 pl-8 pr-4 py-2.5 text-sm text-gray-900 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   placeholder="Descuento"
                 />
               </div>

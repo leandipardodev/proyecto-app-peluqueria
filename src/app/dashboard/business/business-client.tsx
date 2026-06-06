@@ -929,7 +929,7 @@ export default function BusinessClient({
       />
 
       {error && (
-        <div className="bg-red-50/80 backdrop-blur-md text-red-700 dark:text-red-300 text-sm px-5 py-3 rounded-full border border-red-200/30 dark:border-red-500/20">
+        <div className="bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 text-sm px-5 py-3 rounded-full border border-red-200/30 dark:border-red-500/20">
           {error}
         </div>
       )}
@@ -942,8 +942,8 @@ export default function BusinessClient({
             exit={{ opacity: 0, y: -8 }}
             className={`text-sm px-5 py-3 rounded-full border ${
               message.type === "success"
-                ? "bg-green-50/80 backdrop-blur-md text-green-700 border-green-200/30"
-                : "bg-red-50/80 backdrop-blur-md text-red-700 border-red-200/30"
+                ? "bg-green-50 dark:bg-green-950 text-green-700 border-green-200/30"
+                : "bg-red-50 dark:bg-red-950 text-red-700 border-red-200/30"
             }`}
           >
             {message.text}
@@ -954,7 +954,7 @@ export default function BusinessClient({
       <div className="flex flex-col gap-6">
       {/* Card: Información Pública */}
       <form id="setup-public-info" onSubmit={handleSavePublicInfo} className="order-1">
-        <div className="bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden transition-colors">
+        <div className="rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors bg-white dark:bg-zinc-900">
           <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
             <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-violet-500/15 text-base font-bold text-violet-700 dark:text-violet-200">1</span>
             <div className="p-2 rounded-full bg-violet-500/15">
@@ -971,7 +971,7 @@ export default function BusinessClient({
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
+                className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
                 placeholder="Ej: Klip Barbería"
                 required
               />
@@ -988,7 +988,7 @@ export default function BusinessClient({
                     setAddress(e.target.value);
                     if (e.target.value.trim()) setLocationError(null);
                   }}
-                  className={`w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 transition-all ${locationError ? "border-red-400 focus:ring-red-400/50" : "border-white/20 dark:border-white/10 focus:ring-violet-500/50"}`}
+                  className={`w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 transition-all ${locationError ? "border-red-400 focus:ring-red-400/50" : "border-red-400/0 dark:border-red-400/0 focus:ring-violet-500/50"}`}
                   placeholder="Av. Siempre Viva 123"
                 />
                 {locationError && <p className="mt-1 text-xs text-red-500">{locationError}</p>}
@@ -1001,7 +1001,7 @@ export default function BusinessClient({
                 <input
                   value={localidad}
                   onChange={(e) => setLocalidad(e.target.value)}
-                  className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
+                  className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
                   placeholder="Ej: Palermo, CABA"
                 />
               </div>
@@ -1013,13 +1013,13 @@ export default function BusinessClient({
                 <input
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
+                  className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
                   placeholder="11 1234-5678"
                 />
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/25 dark:bg-black/20 p-4">
+            <div className="rounded-2xl border border-white/20 dark:border-white/10 bg-white dark:bg-zinc-900 p-4">
               <p className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2 tracking-tight">
                 <Share2 className="w-4 h-4 text-zinc-500" />
                 Redes sociales
@@ -1034,7 +1034,7 @@ export default function BusinessClient({
                   <input
                     value={instagramUrl}
                     onChange={(e) => setInstagramUrl(e.target.value)}
-                    className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-4 py-2 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
+                    className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
                     placeholder="https://instagram.com/tu-local"
                   />
                 </div>
@@ -1046,7 +1046,7 @@ export default function BusinessClient({
                   <input
                     value={facebookUrl}
                     onChange={(e) => setFacebookUrl(e.target.value)}
-                    className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-4 py-2 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
+                    className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
                     placeholder="https://facebook.com/tu-local"
                   />
                 </div>
@@ -1058,7 +1058,7 @@ export default function BusinessClient({
                   <input
                     value={tiktokUrl}
                     onChange={(e) => setTiktokUrl(e.target.value)}
-                    className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-4 py-2 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
+                    className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
                     placeholder="https://tiktok.com/@tu-local"
                   />
                 </div>
@@ -1069,7 +1069,7 @@ export default function BusinessClient({
         </div>
       </form>
 
-      <section className="order-4 bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden transition-colors">
+      <section className="order-4 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors bg-white dark:bg-zinc-900">
         <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
           <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-fuchsia-500/15 text-base font-bold text-fuchsia-700 dark:text-fuchsia-200">4</span>
           <div className="flex-1">
@@ -1089,7 +1089,7 @@ export default function BusinessClient({
               href={`/book/${shopSlug}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/30 bg-white/80 px-4 py-2.5 text-sm font-semibold text-zinc-700 transition-colors hover:bg-white dark:border-white/10 dark:bg-zinc-900/60 dark:text-zinc-200 dark:hover:bg-zinc-900"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/30 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
               title="Abrir version cliente"
             >
               <Store className="h-4 w-4" />
@@ -1116,7 +1116,7 @@ export default function BusinessClient({
                   bookingCopyTouchedRef.current = true;
                   setHeroTitle(event.target.value);
                 }}
-                className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
+                className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
                 placeholder={data?.nombre ? `Reserva en ${data.nombre}` : "Reserva tu turno"}
               />
             </div>
@@ -1128,7 +1128,7 @@ export default function BusinessClient({
                   bookingCopyTouchedRef.current = true;
                   setHeroSubtitle(event.target.value);
                 }}
-                className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
+                className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
                 placeholder={`Elegi ${serviceWord.toLowerCase()}, ${staffWord.toLowerCase()} y horario`}
               />
             </div>
@@ -1140,7 +1140,7 @@ export default function BusinessClient({
                   bookingCopyTouchedRef.current = true;
                   setAboutTitle(event.target.value);
                 }}
-                className="w-full rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
+                className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
                 placeholder="Sobre nosotros"
               />
             </div>
@@ -1153,34 +1153,34 @@ export default function BusinessClient({
                   setAboutText(event.target.value);
                 }}
                 rows={4}
-                className="w-full rounded-2xl bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all resize-none"
+                className="w-full rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all resize-none"
                 placeholder={`Contale al ${customerWord.toLowerCase()} el estilo de atencion de tu local`}
               />
             </div>
           </div>
 
-          <div className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/30 dark:bg-black/20 p-4">
+          <div className="rounded-2xl border border-white/20 dark:border-white/10 bg-white dark:bg-zinc-900 p-4">
             <p className="text-sm font-semibold text-gray-900 dark:text-white">Logo del negocio</p>
             <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">PNG/JPG/WebP/SVG hasta 2MB. Recomendado: 512x512 o superior para evitar pixelado.</p>
             <div className="mt-3 flex flex-wrap items-center gap-3">
-              <label className="inline-flex min-h-12 cursor-pointer items-center justify-center rounded-full border border-white/30 bg-white/55 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-white/80 dark:border-white/10 dark:bg-zinc-900/40 dark:text-zinc-200 dark:hover:bg-zinc-900">
+              <label className="inline-flex min-h-12 cursor-pointer items-center justify-center rounded-full border border-white/30 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800">
                 {uploadingLogo ? "Subiendo..." : "Subir logo"}
                 <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="hidden" onChange={handleLogoUpload} />
               </label>
-              {logoUrl ? <Image src={logoUrl} alt="Logo" width={80} height={80} sizes="80px" className="h-20 w-20 rounded-2xl object-contain border border-white/20 bg-white/50 p-1.5 dark:bg-zinc-900/40" /> : null}
+              {logoUrl ? <Image src={logoUrl} alt="Logo" width={80} height={80} sizes="80px" className="h-20 w-20 rounded-2xl object-contain border border-white/20 bg-zinc-100 p-1.5 dark:bg-zinc-900" /> : null}
               {bookingTheme?.logo_url && !logoUrl ? <span className="text-xs text-zinc-500">Logo configurado</span> : null}
             </div>
           </div>
 
-          <div className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/30 dark:bg-black/20 p-4">
+          <div className="rounded-2xl border border-white/20 dark:border-white/10 bg-white dark:bg-zinc-900 p-4">
             <p className="text-sm font-semibold text-gray-900 dark:text-white">Secciones de {servicePlural.toLowerCase()} (/book)</p>
             <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Crealas una sola vez y luego asigna cada {serviceWord.toLowerCase()} con un selector.</p>
 
-            <div className="mt-3 rounded-xl border border-white/20 bg-white/40 p-3 dark:border-white/10 dark:bg-zinc-900/30">
+            <div className="mt-3 rounded-xl border border-white/20 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
               <p className="text-xs font-medium text-zinc-600 dark:text-zinc-300">Secciones disponibles</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {sectionCatalog.map((section) => (
-                  <span key={section} className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/70 px-3 py-1 text-xs text-zinc-700 dark:border-white/10 dark:bg-zinc-900/60 dark:text-zinc-200">
+                  <span key={section} className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white px-3 py-1 text-xs text-zinc-700 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200">
                     {section}
                     {section !== "General" ? (
                       <>
@@ -1217,7 +1217,7 @@ export default function BusinessClient({
                 <input
                   value={newSectionName}
                   onChange={(event) => setNewSectionName(event.target.value)}
-                  className="min-h-12 flex-1 rounded-full border border-white/40 bg-white/80 px-4 py-2 text-sm text-zinc-800 outline-none ring-[#0071E3] focus:ring-2 dark:border-white/10 dark:bg-zinc-900/60 dark:text-zinc-100"
+                  className="min-h-12 flex-1 rounded-full border border-white/40 bg-white px-4 py-2 text-sm text-zinc-800 outline-none ring-[#0071E3] focus:ring-2 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
                   placeholder="Nueva seccion (ej: Cortes)"
                 />
                 <button
@@ -1274,12 +1274,12 @@ export default function BusinessClient({
                           className={`min-h-[180px] rounded-2xl border p-3 transition-all duration-300 ${
                             isDragOver
                               ? "border-[#0071E3]/70 bg-[#0071E3]/10 shadow-[0_0_0_3px_rgba(0,113,227,0.18)] dark:bg-[#0071E3]/20"
-                              : "border-white/25 bg-white/50 dark:border-white/10 dark:bg-zinc-900/35"
+                              : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"
                           }`}
                         >
                           <div className="flex items-center justify-between gap-2">
                             <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{section}</p>
-                            <span className="rounded-full bg-white/80 px-2 py-0.5 text-[11px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">{servicesInSection.length}</span>
+                            <span className="rounded-full bg-white px-2 py-0.5 text-[11px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">{servicesInSection.length}</span>
                           </div>
                           <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
                             {servicesInSection.length > 0 ? `~$${avgPrice} · ${avgDuration} min` : `Sin ${servicePlural.toLowerCase()}`}
@@ -1315,7 +1315,7 @@ export default function BusinessClient({
                                   className={`cursor-grab rounded-xl border px-3 py-2 text-sm active:cursor-grabbing transition-all duration-200 ${
                                     draggingServiceId === service.id
                                       ? "border-[#0071E3]/50 bg-[#0071E3]/10 text-zinc-900 dark:text-zinc-100"
-                                      : "border-white/35 bg-white/85 text-zinc-800 dark:border-white/10 dark:bg-zinc-900/70 dark:text-zinc-100"
+                                      : "border-zinc-200 dark:border-zinc-700 bg-white text-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
                                   }`}
                                   title={`Arrastra para mover ${servicePlural.toLowerCase()} de seccion`}
                                 >
@@ -1330,7 +1330,7 @@ export default function BusinessClient({
                   </div>
 
                   <div className="space-y-3 md:hidden">
-                    <div className="rounded-2xl border border-white/25 bg-white/55 p-3 dark:border-white/10 dark:bg-zinc-900/35">
+                    <div className="rounded-2xl border border-white/25 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
                       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-600 dark:text-zinc-300">Principal (General)</p>
                       <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">Arrastra un {serviceWord.toLowerCase()} y soltalo en una categoria.</p>
                       <div className="mt-3 space-y-2">
@@ -1352,7 +1352,7 @@ export default function BusinessClient({
                               className={`cursor-grab active:cursor-grabbing rounded-xl border px-3 py-2 text-sm transition-all ${
                                 draggingServiceId === service.id
                                   ? "border-[#0071E3]/55 bg-[#0071E3]/10"
-                                  : "border-white/35 bg-white/85 dark:border-white/10 dark:bg-zinc-900/70"
+                                  : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"
                               }`}
                             >
                               <p className="font-medium text-zinc-800 dark:text-zinc-100">{service.name}</p>
@@ -1375,7 +1375,7 @@ export default function BusinessClient({
                           className={`rounded-2xl border transition-all ${
                             isDragOver || mobileDropFlashSection === section
                               ? "border-[#0071E3]/70 bg-[#0071E3]/10 shadow-[0_0_0_3px_rgba(0,113,227,0.15)]"
-                              : "border-white/25 bg-white/55 dark:border-white/10 dark:bg-zinc-900/35"
+                              : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"
                           }`}
                           onDragOver={(event) => {
                             event.preventDefault();
@@ -1403,7 +1403,7 @@ export default function BusinessClient({
                           >
                             <div className="flex items-center justify-between gap-2">
                               <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{section}</p>
-                              <span className="rounded-full bg-white/85 px-2 py-0.5 text-[11px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                              <span className="rounded-full bg-white px-2 py-0.5 text-[11px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                                 {servicesInSection.length}
                               </span>
                             </div>
@@ -1420,12 +1420,12 @@ export default function BusinessClient({
                                 </div>
                               ) : (
                                 servicesInSection.map((service) => (
-                                  <div key={service.id} className="flex items-center justify-between gap-2 rounded-xl border border-white/30 bg-white/75 px-3 py-2 dark:border-white/10 dark:bg-zinc-900/65">
+                                  <div key={service.id} className="flex items-center justify-between gap-2 rounded-xl border border-white/30 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900">
                                     <p className="text-sm font-medium text-zinc-800 dark:text-zinc-100 truncate">{service.name}</p>
                                     <button
                                       type="button"
                                       onClick={() => moveServiceToSection(service.id, "General")}
-                                      className="rounded-full border border-white/35 bg-white/85 px-2.5 py-1 text-[11px] font-medium text-zinc-700 hover:bg-white dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-200"
+                                      className="rounded-full border border-white/35 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
                                     >
                                       Quitar
                                     </button>
@@ -1459,7 +1459,7 @@ export default function BusinessClient({
       </section>
 
       {/* Card: Configuración Técnica */}
-      <div id="setup-payments" className="order-3 bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden transition-colors">
+      <div id="setup-payments" className="order-3 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors bg-white dark:bg-zinc-900">
         <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
           <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/15 text-base font-bold text-amber-700 dark:text-amber-200">3</span>
           <div className="p-2 rounded-full bg-amber-500/15">
@@ -1480,7 +1480,7 @@ export default function BusinessClient({
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white tracking-tight">Mercado Pago</h3>
             </div>
             <div className="space-y-4">
-              <div className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 px-4 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="rounded-2xl border border-white/20 dark:border-white/10 bg-white dark:bg-zinc-900 px-4 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-900 dark:text-white">
                     {data?.mp_oauth_connected ? "Cuenta conectada" : "Cuenta no conectada"}
@@ -1543,7 +1543,7 @@ export default function BusinessClient({
                         min={0}
                         value={bookingDepositAmount}
                         onChange={(e) => setBookingDepositAmount(e.target.value)}
-                        className="w-20 rounded-md bg-white/80 dark:bg-black/40 border border-zinc-200 dark:border-zinc-700 px-2 py-1.5 text-sm text-center text-gray-900 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="w-20 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 px-2 py-1.5 text-sm text-center text-gray-900 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         placeholder="3000"
                       />
                     </div>
@@ -1591,7 +1591,7 @@ export default function BusinessClient({
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white tracking-tight">Mensaje de WhatsApp</h3>
             </div>
             <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-3">
-              Podes usar <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{Nombre}'}</code> y <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{Peluqueria}'}</code> (o <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{Negocio}'}</code>) y se autocompletara con los datos del turno. Es obligatorio incluir <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{Hora}'}</code> y <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{ubicacion}'}</code> (o <code className="bg-white/30 dark:bg-black/30 px-1.5 py-0.5 rounded text-[11px]">{'{Lugar}'}</code>).
+              Podes usar <code className="bg-white dark:bg-zinc-900 px-1.5 py-0.5 rounded text-[11px]">{'{Nombre}'}</code> y <code className="bg-white dark:bg-zinc-900 px-1.5 py-0.5 rounded text-[11px]">{'{Peluqueria}'}</code> (o <code className="bg-white dark:bg-zinc-900 px-1.5 py-0.5 rounded text-[11px]">{'{Negocio}'}</code>) y se autocompletara con los datos del turno. Es obligatorio incluir <code className="bg-white dark:bg-zinc-900 px-1.5 py-0.5 rounded text-[11px]">{'{Hora}'}</code> y <code className="bg-white dark:bg-zinc-900 px-1.5 py-0.5 rounded text-[11px]">{'{ubicacion}'}</code> (o <code className="bg-white dark:bg-zinc-900 px-1.5 py-0.5 rounded text-[11px]">{'{Lugar}'}</code>).
             </p>
             <textarea
               value={whatsappTemplate}
@@ -1599,7 +1599,7 @@ export default function BusinessClient({
                 setWhatsappTemplate(e.target.value);
               }}
               rows={3}
-              className="w-full rounded-2xl bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all resize-none"
+              className="w-full rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all resize-none"
             />
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-3">
               <div className="flex flex-col gap-1">
@@ -1626,7 +1626,7 @@ export default function BusinessClient({
       </div>
 
       {/* Card: Horarios de Atención */}
-      <div id="setup-hours" className="order-2 bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden transition-colors">
+      <div id="setup-hours" className="order-2 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors bg-white dark:bg-zinc-900">
         <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
           <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/15 text-base font-bold text-blue-700 dark:text-blue-200">2</span>
           <div className="p-2 rounded-full bg-blue-500/15">
@@ -1647,7 +1647,7 @@ export default function BusinessClient({
                 const h = businessHours[day.key];
                 if (!h) return null;
                 return (
-                  <div key={day.key} className="flex flex-wrap items-center gap-3 py-3 px-3 rounded-2xl hover:bg-white/20 dark:hover:bg-white/5 transition-colors">
+                  <div key={day.key} className="flex flex-wrap items-center gap-3 py-3 px-3 rounded-2xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
                     <p className={`text-sm font-medium min-w-[64px] ${h.open ? "text-gray-900 dark:text-white" : "text-zinc-400 dark:text-zinc-500"}`}>
                       {day.label}
                     </p>
@@ -1667,7 +1667,7 @@ export default function BusinessClient({
                         value={h.start}
                         disabled={!h.open}
                         onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, start: e.target.value } })}
-                        className="rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
+                        className="rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
                       />
                       <span className="hidden sm:inline text-xs text-zinc-400">→</span>
                       <input
@@ -1675,7 +1675,7 @@ export default function BusinessClient({
                         value={h.end}
                         disabled={!h.open}
                         onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, end: e.target.value } })}
-                        className="rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
+                        className="rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
                       />
 
                       <button
@@ -1705,7 +1705,7 @@ export default function BusinessClient({
                             value={h.break_start}
                             disabled={!h.open}
                             onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, break_start: e.target.value } })}
-                            className="rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
+                            className="rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
                           />
                           <span className="hidden sm:inline text-xs text-zinc-400">→</span>
                           <input
@@ -1713,7 +1713,7 @@ export default function BusinessClient({
                             value={h.break_end}
                             disabled={!h.open}
                             onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, break_end: e.target.value } })}
-                            className="rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
+                            className="rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
                           />
                         </>
                       )}
@@ -1750,7 +1750,7 @@ export default function BusinessClient({
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 8 }}
-                className="fixed bottom-4 left-1/2 z-[90] w-[min(94vw,620px)] -translate-x-1/2 rounded-3xl border border-white/25 dark:border-white/10 bg-white/92 dark:bg-zinc-900/92 backdrop-blur-2xl p-4 shadow-2xl"
+                className="fixed bottom-4 left-1/2 z-[90] w-[min(94vw,620px)] -translate-x-1/2 rounded-3xl border border-white/25 dark:border-white/10 bg-white dark:bg-zinc-900 p-4 shadow-2xl"
               >
                 <p className="text-[11px] uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Recorrido guiado</p>
                 <h3 className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{tourSteps[tourStep].title}</h3>
@@ -1843,7 +1843,7 @@ export default function BusinessClient({
               value={closeConfirm}
               onChange={(e) => setCloseConfirm(e.target.value)}
               placeholder='Escribí "CONFIRMAR"'
-              className="w-full sm:max-w-xs rounded-full border border-red-200 dark:border-red-700 bg-white/70 dark:bg-black/30 px-4 py-2 text-sm text-red-800 dark:text-red-200 outline-none"
+              className="w-full sm:max-w-xs rounded-full border border-red-200 dark:border-red-700 bg-white dark:bg-zinc-900 px-4 py-2 text-sm text-red-800 dark:text-red-200 outline-none"
             />
             <button
               type="button"

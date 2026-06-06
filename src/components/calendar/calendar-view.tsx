@@ -199,22 +199,16 @@ const AppointmentBlock = memo(function AppointmentBlock({
   const needsAttention = appt.status === "scheduled";
   return (
     <div
-      className={`absolute pointer-events-auto min-w-0 rounded-tl-xl rounded-bl-xl rounded-br-xl text-xs cursor-pointer bg-white/90 dark:bg-white/10 backdrop-blur-md border border-white/45 dark:border-white/20 shadow-sm group overflow-hidden ${isCancelled ? "opacity-30 saturate-0" : isCompleted ? "opacity-35 saturate-[0.70]" : isFinalStatus ? "opacity-50" : ""}`}
+      className={`absolute pointer-events-auto min-w-0 rounded-tl-xl rounded-bl-xl rounded-br-xl text-xs cursor-pointer bg-white dark:bg-zinc-800/90 border border-zinc-200/50 dark:border-zinc-700/50 shadow-sm group overflow-hidden ${isCancelled ? "opacity-80" : isCompleted ? "opacity-75" : ""}`}
       style={{
         top: `${topPx}px`,
         height: `${Math.max(heightPx - 2, 18)}px`,
         width: `calc(${widthPct}% - 12px)`,
         left: `calc(${leftPct}% + 8px)`,
         fontFamily: "Inter, sans-serif",
-        boxShadow: isCompleted
-          ? "none"
-          : isCancelled
-            ? "inset 3px 0 0 rgba(220,38,38,0.6)"
-          : needsAttention
-            ? "inset 3px 0 0 rgba(190,160,210,0.80), 0 0 0 1px rgba(190,160,210,0.30)"
-          : isConfirmed && isMobileViewport
-            ? "inset 2px 0 0 rgba(14,165,233,0.85), 0 0 0 1px rgba(14,165,233,0.22)"
-            : `inset 2px 0 0 ${staffColor.borderRgba32}`,
+        boxShadow: isCancelled
+          ? "inset 2px 0 0 rgba(220,38,38,0.4)"
+          : `inset 2px 0 0 ${staffColor.borderRgba32}, inset 0 -2px 0 ${staffColor.borderRgba45}`,
         background: isCancelled
           ? "linear-gradient(180deg, rgba(254,202,202,0.68) 0%, rgba(254,226,226,0.36) 46%, rgba(255,255,255,0.22) 100%)"
         : needsAttention
@@ -245,12 +239,6 @@ const AppointmentBlock = memo(function AppointmentBlock({
       onMouseLeave={onLeave}
     >
       <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent rounded-2xl pointer-events-none" />
-      <div
-        className="absolute inset-y-0 left-0 w-[3px] pointer-events-none"
-        style={{
-          background: `linear-gradient(180deg, ${staffColor.borderRgba85} 0%, ${staffColor.borderRgba45} 100%)`,
-        }}
-      />
       <div className={`relative z-10 flex h-full ${isWeekMode ? "flex-col p-1 gap-0.5" : "flex-col justify-between p-1.5 gap-0.5"}`}>
         <div className="min-w-0 space-y-0.5">
           <div className="flex items-center justify-between gap-1">
@@ -714,19 +702,19 @@ export default memo(function CalendarView({
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={handlePrevPeriod}
-            className="p-2 rounded-2xl border border-white/50 dark:border-white/10 bg-white/40 dark:bg-black/30 hover:bg-white/70 dark:hover:bg-white/10 backdrop-blur-md shadow-sm transition-all cursor-pointer select-none"
+            className="p-2 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 shadow-sm transition-all cursor-pointer select-none"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
           <button
             onClick={handleNextPeriod}
-            className="p-2 rounded-2xl border border-white/50 dark:border-white/10 bg-white/40 dark:bg-black/30 hover:bg-white/70 dark:hover:bg-white/10 backdrop-blur-md shadow-sm transition-all cursor-pointer select-none"
+            className="p-2 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 shadow-sm transition-all cursor-pointer select-none"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
           <button
             onClick={handleTodayClick}
-            className="px-3 py-1.5 text-sm font-medium border border-white/50 dark:border-white/10 bg-white/40 dark:bg-black/30 hover:bg-white/70 dark:hover:bg-white/10 backdrop-blur-md rounded-2xl shadow-sm transition-all cursor-pointer select-none"
+            className="px-3 py-1.5 text-sm font-medium border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-2xl shadow-sm transition-all cursor-pointer select-none"
           >
             Hoy
           </button>
@@ -748,7 +736,7 @@ export default memo(function CalendarView({
         className="flex-1 min-h-0 overflow-auto"
       >
         <div
-          className="grid border border-zinc-200/60 dark:border-white/10 rounded-2xl overflow-hidden bg-white/40 dark:bg-black/20 relative"
+          className="grid border border-zinc-200/60 dark:border-zinc-800 rounded-2xl overflow-hidden bg-zinc-50 dark:bg-zinc-900 relative"
           style={{
             gridTemplateColumns:
               viewMode === "day"
@@ -762,8 +750,8 @@ export default memo(function CalendarView({
           }}
         >
           {!hideHourColumnOnMobile && (
-            <div className="col-span-1 border-r border-zinc-200/30 dark:border-white/10">
-              <div className="border-b border-zinc-200/30 dark:border-white/10" style={{ height: `${slotHeight}px` }} />
+            <div className="col-span-1 border-r border-zinc-200/50 dark:border-zinc-800">
+              <div className="border-b border-zinc-200/50 dark:border-zinc-800" style={{ height: `${slotHeight}px` }} />
               {hours.map((hour) => (
                 <div
                   key={hour}
@@ -786,12 +774,12 @@ export default memo(function CalendarView({
             return (
               <div
                 key={dayStr}
-                className={`col-span-1 border-r border-zinc-200/30 dark:border-white/10 border-l-2 border-l-[#e2e8f0] last:border-r-0 flex flex-col ${dayFullyClosed ? "opacity-60" : ""}`}
+                className={`col-span-1 border-r border-zinc-200/50 dark:border-zinc-800 border-l-2 border-l-zinc-200 dark:border-l-zinc-700 last:border-r-0 flex flex-col ${dayFullyClosed ? "opacity-60" : ""}`}
               >
                 <div
-                  className={`group border-b border-zinc-200/30 dark:border-white/10 flex flex-col items-center justify-center shrink-0 transition-all ${
+                  className={`group border-b border-zinc-200/50 dark:border-zinc-800 flex flex-col items-center justify-center shrink-0 transition-all ${
                     isToday(day) || viewMode === "day"
-                      ? "bg-sky-100/50 dark:bg-slate-800/40 cursor-pointer hover:bg-sky-100/70 dark:hover:bg-slate-800/55"
+                      ? "bg-sky-100 dark:bg-slate-800 cursor-pointer hover:bg-sky-200 dark:hover:bg-slate-700"
                       : ""
                   }`}
                   style={{ height: `${slotHeight}px` }}
@@ -852,10 +840,10 @@ export default memo(function CalendarView({
                       return (
                       <div
                         key={hour}
-                        className={`relative overflow-visible border-b border-zinc-200/30 dark:border-slate-800/40 last:border-b-0 transition-colors ${(isMobileDayMode || (isMobileViewport && viewMode === "week" && dayIndex === 0)) ? "pl-7 pr-1 py-1.5" : "p-1.5"} ${
+                        className={`relative overflow-visible border-b border-zinc-200/30 dark:border-zinc-800/40 last:border-b-0 transition-colors ${(isMobileDayMode || (isMobileViewport && viewMode === "week" && dayIndex === 0)) ? "pl-7 pr-1 py-1.5" : "p-1.5"} ${
                           isOpenSlot
-                            ? "hover:bg-white/30 dark:hover:bg-white/5 cursor-pointer"
-                            : "bg-slate-200 dark:bg-zinc-950 border-y border-y-black/[0.08] dark:border-y-white/[0.03] closed-slot-pattern"
+                            ? "hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer"
+                            : "bg-zinc-100 dark:bg-zinc-950 border-y border-y-zinc-200 dark:border-y-zinc-800 closed-slot-pattern"
                         }`}
                         onClick={isOpenSlot ? () => onSlotClick(day, hour) : undefined}
                       >
@@ -946,7 +934,7 @@ export default memo(function CalendarView({
       ), document.body)}
 
       {businessHours && (
-        <div className="mt-3 inline-flex items-center gap-1.5 text-xs bg-zinc-50/60 dark:bg-white/5 rounded-xl px-3 py-1.5 border border-zinc-200/50 dark:border-white/10 text-zinc-500 dark:text-zinc-400">
+        <div className="mt-3 inline-flex items-center gap-1.5 text-xs bg-zinc-100 dark:bg-zinc-800 rounded-xl px-3 py-1.5 border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400">
           <div className="w-3 h-3 rounded-sm closed-slot-pattern border border-zinc-300/40 dark:border-white/10" style={{ backgroundSize: "6px 6px" }} />
           <span>Cerrado</span>
         </div>

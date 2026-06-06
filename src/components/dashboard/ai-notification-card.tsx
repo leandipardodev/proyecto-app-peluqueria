@@ -82,7 +82,7 @@ export default function AINotificationCard({
     <button type="button" onClick={handleClick} className="group block h-full w-full text-left">
       <div className="relative h-[148px] md:h-[156px]">
         <div className="absolute inset-0 rounded-[2rem]" />
-        <div className="ai-orb-wrap relative h-full overflow-hidden rounded-[2rem] border border-cyan-300/30 bg-white p-4 text-cyan-950 shadow-[0_20px_48px_rgba(8,145,178,0.28)] transition-transform duration-300 group-hover:-translate-y-0.5 dark:bg-slate-950/92 dark:text-cyan-50">
+        <div className="ai-orb-wrap relative h-full overflow-hidden rounded-[2rem] border border-cyan-300/30 bg-white p-4 text-cyan-950 shadow-[0_20px_48px_rgba(8,145,178,0.28)] transition-transform duration-300 group-hover:-translate-y-0.5 dark:bg-zinc-900 dark:text-cyan-50">
           <div className="pointer-events-none absolute inset-0 ai-mode-layer ai-mode-orb bg-[radial-gradient(circle_at_22%_24%,rgba(6,182,212,0.22),transparent_42%),radial-gradient(circle_at_80%_16%,rgba(37,99,235,0.20),transparent_40%),radial-gradient(circle_at_45%_88%,rgba(14,165,233,0.16),transparent_44%)] dark:bg-[radial-gradient(circle_at_22%_24%,rgba(34,211,238,0.2),transparent_36%),radial-gradient(circle_at_80%_16%,rgba(96,165,250,0.18),transparent_34%)]" />
           <div className="pointer-events-none absolute inset-0 ai-mode-layer ai-mode-matrix">
             <div className="ai-matrix-grid h-full w-full" />

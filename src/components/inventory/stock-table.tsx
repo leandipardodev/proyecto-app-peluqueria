@@ -212,7 +212,7 @@ const StockTable = memo(function StockTable({ shopId, items }: StockTableProps) 
             const isLow = item.quantity < 5;
             const total = item.quantity * item.unit_cost;
             return (
-              <div key={item.id} className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[1.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-4">
+              <div key={item.id} className="bg-white dark:bg-zinc-900 rounded-[1.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm p-4">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{item.nombre_producto}</p>
@@ -243,7 +243,7 @@ const StockTable = memo(function StockTable({ shopId, items }: StockTableProps) 
                     type="button"
                     onClick={() => handleBulkAdjust(item.id, 1)}
                     disabled={pending}
-                    className="w-10 h-10 rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 backdrop-blur-md hover:bg-emerald-100 dark:hover:bg-emerald-900/40 hover:text-emerald-700 dark:hover:text-emerald-300 hover:border-emerald-300/50 dark:hover:border-emerald-700/50 hover:shadow-sm disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer select-none active:scale-95"
+                    className="w-10 h-10 rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 hover:text-emerald-700 dark:hover:text-emerald-300 hover:border-emerald-300/50 dark:hover:border-emerald-700/50 hover:shadow-sm disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer select-none active:scale-95"
                     title="Aumentar cantidad"
                     aria-label={`Aumentar cantidad de ${item.nombre_producto}`}
                   >
@@ -253,7 +253,7 @@ const StockTable = memo(function StockTable({ shopId, items }: StockTableProps) 
                     type="button"
                     onClick={() => handleBulkAdjust(item.id, -1)}
                     disabled={pending || item.quantity <= 0}
-                    className="w-10 h-10 rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 backdrop-blur-md hover:bg-rose-100 dark:hover:bg-rose-900/40 hover:text-rose-700 dark:hover:text-rose-300 hover:border-rose-300/50 dark:hover:border-rose-700/50 hover:shadow-sm disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer select-none active:scale-95"
+                    className="w-10 h-10 rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-rose-100 dark:hover:bg-rose-900/40 hover:text-rose-700 dark:hover:text-rose-300 hover:border-rose-300/50 dark:hover:border-rose-700/50 hover:shadow-sm disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer select-none active:scale-95"
                     title="Disminuir cantidad"
                     aria-label={`Disminuir cantidad de ${item.nombre_producto}`}
                   >
@@ -276,18 +276,18 @@ const StockTable = memo(function StockTable({ shopId, items }: StockTableProps) 
         )}
 
         {filtered.length > 0 && (
-          <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[1.25rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 px-4 py-3 text-xs text-gray-600 dark:text-gray-400 flex items-center justify-between">
+          <div className="bg-white dark:bg-zinc-900 rounded-[1.25rem] border border-zinc-200 dark:border-zinc-800 px-4 py-3 text-xs text-gray-600 dark:text-gray-400 flex items-center justify-between">
             <span>{filtered.length} producto{filtered.length !== 1 ? "s" : ""}</span>
             <span className="font-semibold text-gray-900 dark:text-gray-100">${totalValue.toFixed(2)}</span>
           </div>
         )}
       </div>
 
-      <div className="hidden md:block bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden">
+      <div className="hidden md:block bg-white dark:bg-zinc-900 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full" aria-label="Tabla de inventario">
             <thead>
-              <tr className="bg-white/40 dark:bg-black/20 border-b border-white/20 dark:border-white/10">
+              <tr className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
                 <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider px-6 py-3">
                   Producto
                 </th>
@@ -326,7 +326,7 @@ const StockTable = memo(function StockTable({ shopId, items }: StockTableProps) 
                   return (
                     <tr
                       key={item.id}
-                      className="hover:bg-white/40 dark:hover:bg-white/5 transition-colors"
+                      className="hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
@@ -368,7 +368,7 @@ const StockTable = memo(function StockTable({ shopId, items }: StockTableProps) 
                             type="button"
                             onClick={() => handleBulkAdjust(item.id, 1)}
                             disabled={pending}
-                            className="w-9 h-9 rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 backdrop-blur-md hover:bg-emerald-100 dark:hover:bg-emerald-900/40 hover:text-emerald-700 dark:hover:text-emerald-300 hover:border-emerald-300/50 dark:hover:border-emerald-700/50 hover:shadow-sm disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer select-none active:scale-95"
+                            className="w-9 h-9 rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 hover:text-emerald-700 dark:hover:text-emerald-300 hover:border-emerald-300/50 dark:hover:border-emerald-700/50 hover:shadow-sm disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer select-none active:scale-95"
                             title="Aumentar cantidad"
                             aria-label={`Aumentar cantidad de ${item.nombre_producto}`}
                           >
@@ -378,7 +378,7 @@ const StockTable = memo(function StockTable({ shopId, items }: StockTableProps) 
                             type="button"
                             onClick={() => handleBulkAdjust(item.id, -1)}
                             disabled={pending || item.quantity <= 0}
-                            className="w-9 h-9 rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 backdrop-blur-md hover:bg-rose-100 dark:hover:bg-rose-900/40 hover:text-rose-700 dark:hover:text-rose-300 hover:border-rose-300/50 dark:hover:border-rose-700/50 hover:shadow-sm disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer select-none active:scale-95"
+                            className="w-9 h-9 rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-rose-100 dark:hover:bg-rose-900/40 hover:text-rose-700 dark:hover:text-rose-300 hover:border-rose-300/50 dark:hover:border-rose-700/50 hover:shadow-sm disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer select-none active:scale-95"
                             title="Disminuir cantidad"
                             aria-label={`Disminuir cantidad de ${item.nombre_producto}`}
                           >

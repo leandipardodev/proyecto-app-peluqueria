@@ -108,13 +108,13 @@ export default function VouchersClient({ shopId, initialVouchers, initialTemplat
         </div>
       )}
 
-      <form action={handleCreate} className="grid grid-cols-1 md:grid-cols-2 gap-3 rounded-[2rem] border border-white/15 dark:border-white/10 bg-white/25 dark:bg-black/25 backdrop-blur-2xl p-5 shadow-xl shadow-black/[0.03]">
-        <input name="gifted_to_name" required placeholder="Nombre de quien recibe" className="rounded-xl border border-white/25 dark:border-white/10 bg-white/55 dark:bg-black/30 px-3 py-2 text-sm text-gray-900 dark:text-gray-100" />
-        <input name="gifted_to_phone" placeholder="Telefono (WhatsApp)" className="rounded-xl border border-white/25 dark:border-white/10 bg-white/55 dark:bg-black/30 px-3 py-2 text-sm text-gray-900 dark:text-gray-100" />
-        <input name="gifted_to_birthday" required type="date" className="rounded-xl border border-white/25 dark:border-white/10 bg-white/55 dark:bg-black/30 px-3 py-2 text-sm text-gray-900 dark:text-gray-100" />
-        <input name="gifted_by_name" placeholder="Quien regala" className="rounded-xl border border-white/25 dark:border-white/10 bg-white/55 dark:bg-black/30 px-3 py-2 text-sm text-gray-900 dark:text-gray-100" />
-        <input name="service_name" required placeholder="Servicio (ej: Color + brushing)" className="rounded-xl border border-white/25 dark:border-white/10 bg-white/55 dark:bg-black/30 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 md:col-span-2" />
-        <textarea name="voucher_message" placeholder="Mensaje del voucher (opcional)" className="rounded-xl border border-white/25 dark:border-white/10 bg-white/55 dark:bg-black/30 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 md:col-span-2" rows={2} />
+      <form action={handleCreate} className="grid grid-cols-1 md:grid-cols-2 gap-3 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-xl shadow-black/[0.03]">
+        <input name="gifted_to_name" required placeholder="Nombre de quien recibe" className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100" />
+        <input name="gifted_to_phone" placeholder="Telefono (WhatsApp)" className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100" />
+        <input name="gifted_to_birthday" required type="date" className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100" />
+        <input name="gifted_by_name" placeholder="Quien regala" className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100" />
+        <input name="service_name" required placeholder="Servicio (ej: Color + brushing)" className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 md:col-span-2" />
+        <textarea name="voucher_message" placeholder="Mensaje del voucher (opcional)" className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 md:col-span-2" rows={2} />
         {error && <div className="text-red-600 dark:text-red-300 text-sm md:col-span-2">{error}</div>}
         <button disabled={pending} className="md:col-span-2 inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 text-white py-2 text-sm font-medium hover:bg-violet-700 disabled:opacity-60">
           <Gift className="w-4 h-4" />
@@ -122,21 +122,21 @@ export default function VouchersClient({ shopId, initialVouchers, initialTemplat
         </button>
       </form>
 
-      <div className="rounded-[2rem] border border-white/15 dark:border-white/10 bg-white/25 dark:bg-black/25 backdrop-blur-2xl p-5 space-y-2 shadow-xl shadow-black/[0.03]">
+      <div className="rounded-[2rem] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 space-y-2 shadow-xl shadow-black/[0.03]">
         <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Plantilla WhatsApp de voucher</p>
         <textarea
           value={template}
           onChange={(e) => setTemplate(e.target.value)}
           rows={2}
-          className="w-full rounded-xl border border-white/25 dark:border-white/10 bg-white/55 dark:bg-black/30 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+          className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
         />
         <p className="text-xs text-gray-500 dark:text-gray-400">Variables: {"{Nombre}"}, {"{Servicio}"}, {"{Regala}"}</p>
         <button onClick={saveTemplate} disabled={pending} className="rounded-xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-3 py-1.5 text-sm disabled:opacity-60">Guardar plantilla</button>
       </div>
 
-      <div className="rounded-[2rem] border border-white/15 dark:border-white/10 bg-white/25 dark:bg-black/25 backdrop-blur-2xl overflow-hidden shadow-xl shadow-black/[0.03]">
+      <div className="rounded-[2rem] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-xl shadow-black/[0.03]">
         <table className="w-full text-sm">
-          <thead className="bg-white/40 dark:bg-white/5">
+          <thead className="bg-white dark:bg-zinc-900">
             <tr className="text-left text-gray-500 dark:text-gray-400 border-b border-white/20 dark:border-white/10">
               <th className="px-4 py-3">Recibe</th>
               <th className="px-4 py-3">Cumple</th>

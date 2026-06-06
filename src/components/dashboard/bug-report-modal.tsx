@@ -84,7 +84,7 @@ export default function BugReportModal() {
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 12, scale: 0.98 }}
         transition={{ duration: 0.18 }}
-        className="w-full max-w-xl rounded-[2rem] border border-white/20 bg-white/95 p-6 shadow-2xl dark:border-white/10 dark:bg-zinc-950/92"
+        className="w-full max-w-xl rounded-[2rem] border border-zinc-200 dark:border-zinc-800 bg-white p-6 shadow-2xl dark:bg-zinc-900"
       >
         <div className="flex items-start justify-between gap-4">
           <div>

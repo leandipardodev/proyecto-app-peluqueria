@@ -117,12 +117,12 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
   const whatsappTemplate = whatsappTemplateResult.success ? (whatsappTemplateResult.data ?? DEFAULT_WHATSAPP_TEMPLATE) : DEFAULT_WHATSAPP_TEMPLATE;
 
   if (!shopIdOverride) {
-    return <div className="bg-red-50/80 backdrop-blur-md text-red-700 dark:text-red-300 text-sm px-5 py-3 rounded-full border border-red-200/30">Shop ID no disponible</div>;
+    return <div className="bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 text-sm px-5 py-3 rounded-full border border-red-200/30">Shop ID no disponible</div>;
   }
 
   if (!summaryResult.success || !summaryResult.data) {
     return (
-      <div className="bg-red-50/80 backdrop-blur-md text-red-700 dark:text-red-300 text-sm px-5 py-3 rounded-full border border-red-200/30">
+      <div className="bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 text-sm px-5 py-3 rounded-full border border-red-200/30">
         Error al cargar resumen: {summaryResult.success ? "Datos no disponibles" : summaryResult.error}
       </div>
     );
@@ -379,7 +379,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
           <HoverScale key={label}>
             <Link href={cardHrefByLabel[label] || dashboardBasePath} className="block h-full">
               <div
-                className="glass-sheen-card h-full min-h-[124px] lg:min-h-[132px] bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-6 flex items-center gap-4 transition-colors hover:bg-white/30 dark:hover:bg-white/5 cursor-pointer"
+                className="glass-sheen-card h-full min-h-[124px] lg:min-h-[132px] bg-white dark:bg-zinc-900 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm p-6 flex items-center gap-4 transition-colors cursor-pointer"
                 style={sheenStyle}
               >
                 <div className={`p-3 rounded-xl ${bg}`}>
@@ -390,7 +390,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
                   <p className="text-xl font-bold tracking-tighter text-gray-900 dark:text-white">{value}</p>
                   {isHealthCard && (
                     <div className="mt-2.5">
-                      <div className="h-2 w-full rounded-full overflow-hidden bg-zinc-200/70 dark:bg-zinc-700/60">
+                      <div className="h-2 w-full rounded-full overflow-hidden bg-zinc-200 dark:bg-zinc-700">
                         <div
                           className="h-full rounded-full bg-blue-500 dark:bg-blue-400 transition-all duration-500 ease-out"
                           style={{ width: `${healthFill}%` }}
@@ -427,7 +427,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
         </div>
       </div>
 
-      <div className="glass-sheen-card bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden transition-colors">
+      <div className="glass-sheen-card bg-white dark:bg-zinc-900 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors">
         <div className="px-6 py-4 border-b border-white/20 dark:border-white/10">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2 tracking-tight">
             <Clock className="w-5 h-5 text-zinc-400 dark:text-zinc-500" />

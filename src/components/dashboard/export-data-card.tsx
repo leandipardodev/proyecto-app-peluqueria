@@ -112,7 +112,7 @@ export default function ExportDataCard({ shopId }: Props) {
           type="button"
           onClick={btn.action}
           disabled={busy === btn.id}
-          className="inline-flex items-center gap-1 rounded-lg border border-white/30 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 px-2.5 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:bg-white dark:hover:bg-zinc-800 transition disabled:opacity-50"
+          className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:bg-white dark:hover:bg-zinc-800 transition disabled:opacity-50"
         >
           {busy === btn.id ? (
             <span className="w-3 h-3 rounded-full border-2 border-zinc-400 border-t-transparent animate-spin" />

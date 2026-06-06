@@ -424,14 +424,14 @@ export default function BookingFlow({ shopId, services, staffMembers, selectedSe
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, ease: "easeOut" }}
         >
-          <div className="bg-white/70 dark:bg-gray-900/70 backdrop-blur-lg rounded-2xl border border-white/20 dark:border-gray-700/30 shadow-xl p-6 space-y-6">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-white/20 dark:border-gray-700/30 shadow-xl p-6 space-y-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
               <CreditCard className="w-5 h-5 text-violet-600" />
               Checkout
             </h2>
 
             {/* Order summary */}
-            <div className="space-y-3 bg-white/50 dark:bg-gray-800/50 rounded-xl p-4">
+            <div className="space-y-3 bg-white dark:bg-zinc-900 rounded-xl p-4">
               {selectedServices.map((svc) => (
                 <div key={svc.id} className="flex justify-between">
                   <span className="text-sm text-gray-600 dark:text-gray-400">{svc.name}</span>
@@ -646,7 +646,7 @@ export default function BookingFlow({ shopId, services, staffMembers, selectedSe
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3, ease: "easeOut" }}
-          className="bg-white/70 dark:bg-gray-900/70 backdrop-blur-lg rounded-2xl border border-white/20 dark:border-gray-700/30 shadow-xl p-6 space-y-6 text-center"
+          className="bg-white dark:bg-zinc-900 rounded-2xl border border-white/20 dark:border-gray-700/30 shadow-xl p-6 space-y-6 text-center"
         >
           <div className="flex justify-center">
             <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">

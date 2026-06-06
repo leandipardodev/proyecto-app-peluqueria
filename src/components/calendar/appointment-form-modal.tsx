@@ -192,7 +192,7 @@ export default function AppointmentFormModal({
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Nuevo Turno</h2>
           <button
             onClick={onClose}
-            className="p-1 rounded-md text-gray-500 dark:text-gray-400 hover:bg-white/40 dark:hover:bg-white/10 transition-colors cursor-pointer select-none"
+            className="p-1 rounded-md text-gray-500 dark:text-gray-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer select-none"
           >
             <X className="w-5 h-5" />
           </button>
@@ -267,7 +267,7 @@ export default function AppointmentFormModal({
                     <button
                       type="button"
                       onClick={() => setShowNewCustomer(true)}
-                      className="px-3 py-2 border border-white/20 dark:border-white/10 bg-white/40 dark:bg-black/30 backdrop-blur-md rounded-2xl text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-white hover:bg-white/70 dark:hover:bg-white/10 transition-all cursor-pointer select-none focus:outline-none focus:ring-1 focus:ring-violet-500/20"
+                      className="px-3 py-2 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-2xl text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all cursor-pointer select-none focus:outline-none focus:ring-1 focus:ring-violet-500/20"
                       title="Nuevo cliente"
                     >
                       <UserPlus className="w-4 h-4" />

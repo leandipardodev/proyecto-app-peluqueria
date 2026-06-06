@@ -62,7 +62,7 @@ export default function PwaInstallButton() {
   if (isIosFallbackVisible && !isInstalled) {
     return (
       <div className="pt-2">
-        <div className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/35 dark:bg-white/[0.06] backdrop-blur-xl px-4 py-3 text-sm text-zinc-800 dark:text-zinc-100">
+        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 py-3 text-sm text-zinc-800 dark:text-zinc-100">
           Para instalar Klip en iPhone: toca <strong>Compartir</strong> en Safari y luego <strong>Agregar a pantalla de inicio</strong>.
         </div>
       </div>
@@ -76,7 +76,7 @@ export default function PwaInstallButton() {
       <button
         type="button"
         onClick={handleInstallClick}
-        className="w-full inline-flex items-center justify-center gap-2 rounded-2xl border border-white/20 dark:border-white/10 bg-white/35 dark:bg-white/[0.06] backdrop-blur-xl px-5 py-3 text-sm font-medium text-zinc-800 dark:text-zinc-100 hover:bg-white/55 dark:hover:bg-white/[0.12] transition-colors"
+        className="w-full inline-flex items-center justify-center gap-2 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-5 py-3 text-sm font-medium text-zinc-800 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
       >
         <Download className="w-4 h-4" />
         Instalar Klip en este dispositivo

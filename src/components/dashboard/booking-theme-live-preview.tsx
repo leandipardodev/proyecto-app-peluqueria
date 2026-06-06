@@ -75,7 +75,7 @@ export default function BookingThemeLivePreview({
   const styles = {
     "classic-dark": {
       page: "bg-[#060a12] text-[#F5F5F7]",
-      shell: "bg-[#0f1522]/65 border-[#293347] backdrop-blur-[24px]",
+      shell: "bg-zinc-900 border-[#293347]",
       heading: "text-[#F5F5F7]",
       accent: "text-[#7AB8FF]",
       chip: "rounded-full border border-white/15 bg-white/5 px-3 py-2 text-[11px] font-semibold tracking-[0.08em] text-[#B0B4BF]",
@@ -86,35 +86,35 @@ export default function BookingThemeLivePreview({
     },
     "minimal-glass": {
       page: "bg-[#EEF4FF] text-[#1C1C1E]",
-      shell: "bg-white/75 border-[#d5dfeb] backdrop-blur-[24px]",
+      shell: "bg-white border-[#d5dfeb]",
       heading: "text-[#1C1C1E]",
       accent: "text-[#0071E3]",
-      chip: "rounded-full border border-black/10 bg-white/55 px-3 py-2 text-[11px] font-semibold text-[#4A5565] backdrop-blur-sm",
-      chipActive: "border-[#0071E3]/40 bg-white/75 text-[#0071E3]",
+      chip: "rounded-full border border-black/10 bg-white px-3 py-2 text-[11px] font-semibold text-[#4A5565]",
+      chipActive: "border-[#0071E3]/40 bg-white text-[#0071E3]",
       chipAll: "border-transparent bg-transparent text-[#7f8ea5]",
-      card: "border-black/10 bg-white/65",
+      card: "border-black/10 bg-white",
       cta: "bg-[#1C1C1E] text-white",
     },
     "editorial-luxury": {
       page: "bg-[#f9f1e7] text-[#2E221A]",
-      shell: "bg-[#fff8ef]/80 border-[#ddc7b0] backdrop-blur-[24px]",
+      shell: "bg-amber-50 border-[#ddc7b0]",
       heading: "text-[#2E221A]",
       accent: "text-[#6A4A2D]",
-      chip: "rounded-full border border-stone-300/50 bg-white/45 px-3 py-2 text-[11px] font-semibold tracking-[0.08em] text-[#7D6A57]",
+      chip: "rounded-full border border-stone-300/50 bg-white px-3 py-2 text-[11px] font-semibold tracking-[0.08em] text-[#7D6A57]",
       chipActive: "border-[#B98850]/50 bg-[#FFF8EE] text-[#6D4E2E]",
       chipAll: "border-transparent bg-transparent text-[#907c67]",
-      card: "border-stone-200/60 bg-white/70",
+      card: "border-stone-200/60 bg-white",
       cta: "bg-[#2E221A] text-[#FDFBF7]",
     },
     "street-bold": {
       page: "bg-[#eef2ff] text-[#2D3142]",
-      shell: "bg-white/85 border-[#d7deef] backdrop-blur-[24px]",
+      shell: "bg-white border-[#d7deef]",
       heading: "text-[#2D3142]",
       accent: "text-[#5a72cd]",
-      chip: "rounded-full border border-neutral-200/60 bg-white/65 px-3 py-2 text-[11px] font-semibold tracking-[0.08em] text-[#6B728A]",
+      chip: "rounded-full border border-neutral-200/60 bg-white px-3 py-2 text-[11px] font-semibold tracking-[0.08em] text-[#6B728A]",
       chipActive: "border-[#9CB0EA]/60 bg-[#F7FAFF] text-[#5873C7]",
       chipAll: "border-transparent bg-transparent text-[#818ca8]",
-      card: "border-neutral-200/70 bg-white/80",
+      card: "border-neutral-200/70 bg-white",
       cta: "bg-[#2D3142] text-white",
     },
   }[templateId];
@@ -122,15 +122,15 @@ export default function BookingThemeLivePreview({
   const isDesktopPreview = viewport === "desktop";
 
   return (
-    <section className="self-start rounded-3xl border border-white/30 bg-white/55 p-3 dark:border-white/10 dark:bg-black/20">
+    <section className="self-start rounded-3xl border border-white/30 bg-white p-3 dark:border-white/10 dark:bg-zinc-800">
       <div className="mb-2 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Vista previa en vivo</p>
-          <span className="rounded-full border border-white/40 bg-white/75 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600">
+          <span className="rounded-full border border-white/40 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600">
             {templateLabel}
           </span>
         </div>
-        <div className="inline-flex rounded-full border border-white/30 bg-white/60 p-1 dark:border-white/10 dark:bg-zinc-900/60">
+        <div className="inline-flex rounded-full border border-white/30 bg-white p-1 dark:border-white/10 dark:bg-zinc-900">
           <button
             type="button"
             onClick={() => setViewport("mobile")}
@@ -152,14 +152,14 @@ export default function BookingThemeLivePreview({
         <div className={`${isDesktopPreview ? "w-full max-w-[780px]" : "w-[320px]"} transition-all duration-200`}>
             <div className={`mx-auto border p-1.5 shadow-2xl ${isDesktopPreview ? "max-w-[780px] rounded-[1.35rem]" : "max-w-[320px] rounded-[2.2rem]"}`}>
             {isDesktopPreview ? (
-              <div className="mb-2 flex h-8 items-center gap-2 rounded-[0.75rem] bg-zinc-900/85 px-3">
+              <div className="mb-2 flex h-8 items-center gap-2 rounded-[0.75rem] bg-zinc-900 px-3">
                 <span className="h-2.5 w-2.5 rounded-full bg-rose-400" />
                 <span className="h-2.5 w-2.5 rounded-full bg-amber-300" />
                 <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
-                <div className="ml-2 h-5 w-full max-w-[320px] rounded-full bg-white/10" />
+                <div className="ml-2 h-5 w-full max-w-[320px] rounded-full bg-zinc-200 dark:bg-zinc-800" />
               </div>
             ) : (
-              <div className="mx-auto mb-2 h-5 w-24 rounded-full bg-black/70" />
+              <div className="mx-auto mb-2 h-5 w-24 rounded-full bg-zinc-800" />
             )}
             <div className={`rounded-[1.4rem] border shadow-[0_24px_60px_-36px_rgba(15,23,42,0.45)] ${styles.page} ${styles.shell} ${isDesktopPreview ? "p-3" : "p-2.5"}`}>
               <div className="flex items-center gap-2 border-b border-white/15 pb-2">

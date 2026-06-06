@@ -27,7 +27,7 @@ export default async function BookPage({ params }: BookPageProps) {
   if (shopError || !shop) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-zinc-100 to-white dark:from-zinc-950 dark:to-black">
-        <div className="bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2rem] border border-white/20 p-10 text-center max-w-md">
+        <div className="bg-white dark:bg-zinc-900 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 p-10 text-center max-w-md">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
             Peluquería no encontrada
           </h1>
