@@ -804,21 +804,15 @@ export default memo(function CalendarView({
                   }`}>
                     {format(day, "EEE", { locale: es })}
                   </span>
-                  {isToday(day) && viewMode !== "day" ? (
-                    <span className="relative z-10 inline-flex items-center justify-center w-9 h-9 rounded-full bg-sky-500 text-white text-sm font-bold leading-none shadow-sm">
-                      {format(day, "d")}
-                    </span>
-                  ) : (
-                    <span
-                      className={`relative z-10 ${
-                        isToday(day)
-                          ? "text-xl font-extrabold text-sky-700 dark:text-sky-300"
-                          : "text-sm font-semibold text-gray-900 dark:text-gray-100"
-                      }`}
-                    >
-                      {format(day, "d")}
-                    </span>
-                  )}
+                  <span
+                    className={`relative z-10 ${
+                      isToday(day) && viewMode !== "day"
+                        ? "text-lg font-bold text-sky-600 dark:text-sky-400"
+                        : "text-sm font-semibold text-gray-900 dark:text-gray-100"
+                    }`}
+                  >
+                    {format(day, "d")}
+                  </span>
                   {dayFullyClosed && (
                     <span className="relative z-10 text-[9px] text-zinc-400 dark:text-zinc-600 uppercase tracking-wider mt-0.5">Cerrado</span>
                   )}
