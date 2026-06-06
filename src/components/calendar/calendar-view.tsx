@@ -694,7 +694,8 @@ export default memo(function CalendarView({
 
   const isMobileDayMode = isMobileViewport && viewMode === "day";
   const hideHourColumnOnMobile = isMobileViewport;
-  const hourColumnWidth = isMobileViewport ? 40 : 80;
+  const hourColumnWidth = isMobileViewport ? 40 : 56;
+  const todayIdx = displayedDays.findIndex((d) => isToday(d));
 
   return (
     <div className="calendar-shell flex flex-col h-full">
@@ -750,15 +751,15 @@ export default memo(function CalendarView({
           }}
         >
           {!hideHourColumnOnMobile && (
-            <div className="col-span-1 border-r border-zinc-200/50 dark:border-zinc-800">
+            <div className={`col-span-1 border-r border-zinc-200/50 dark:border-zinc-800 ${todayIdx === 0 ? "rounded-tl-2xl" : ""}`}>
               <div className="border-b border-zinc-200/50 dark:border-zinc-800" style={{ height: `${slotHeight}px` }} />
               {hours.map((hour) => (
                 <div
                   key={hour}
-                  className="flex items-start justify-end pr-1 sm:pr-2 pt-1"
+                  className="flex items-center justify-end pr-2"
                   style={{ height: `${slotHeight}px` }}
                 >
-                  <span className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">
+                  <span className="text-[10px] sm:text-sm font-medium text-gray-500 dark:text-gray-400 leading-none">
                     {`${String(hour).padStart(2, "0")}:00`}
                   </span>
                 </div>
@@ -774,7 +775,11 @@ export default memo(function CalendarView({
             return (
               <div
                 key={dayStr}
-                className={`col-span-1 border-r border-zinc-200/50 dark:border-zinc-800 border-l-2 border-l-zinc-200 dark:border-l-zinc-700 last:border-r-0 flex flex-col ${dayFullyClosed ? "opacity-60" : ""}`}
+                className={`col-span-1 border-r border-zinc-200/50 dark:border-zinc-800 border-l-2 border-l-zinc-200 dark:border-l-zinc-700 last:border-r-0 flex flex-col ${dayFullyClosed ? "opacity-60" : ""} ${
+                  todayIdx > 0 && dayIndex === todayIdx - 1 ? "rounded-tr-2xl" : ""
+                } ${
+                  todayIdx >= 0 && dayIndex === todayIdx + 1 ? "rounded-tl-2xl" : ""
+                }`}
               >
                 <div
                   className={`group border-b border-zinc-200/50 dark:border-zinc-800 flex flex-col items-center justify-center shrink-0 transition-all ${
