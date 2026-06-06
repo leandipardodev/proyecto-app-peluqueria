@@ -301,13 +301,13 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
               </svg>
             </a>
             {instagramHref && (
-              <a href={instagramHref} target="_blank" rel="noopener noreferrer" className="relative group inline-flex items-center justify-center rounded-full rounded-bl-none w-10 h-10 text-white bg-gradient-to-br from-fuchsia-500 via-rose-500 to-orange-400 shrink-0 overflow-hidden transition-all duration-150 ease-out hover:scale-110 hover:-translate-y-1 hover:shadow-xl" aria-label="Abrir Instagram" title="Instagram">
+              <a href={instagramHref} target="_blank" rel="noopener noreferrer" className="relative group inline-flex items-center justify-center rounded-full rounded-bl-none rounded-tr-none w-10 h-10 text-white bg-gradient-to-br from-fuchsia-500 via-rose-500 to-orange-400 shrink-0 overflow-hidden transition-all duration-150 ease-out hover:scale-110 hover:-translate-y-1 hover:shadow-xl" aria-label="Abrir Instagram" title="Instagram">
                 <span className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/30 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" />
                 <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current relative z-10" aria-hidden="true"><path d="M7.75 2h8.5A5.75 5.75 0 0 1 22 7.75v8.5A5.75 5.75 0 0 1 16.25 22h-8.5A5.75 5.75 0 0 1 2 16.25v-8.5A5.75 5.75 0 0 1 7.75 2Zm0 1.8A3.95 3.95 0 0 0 3.8 7.75v8.5a3.95 3.95 0 0 0 3.95 3.95h8.5a3.95 3.95 0 0 0 3.95-3.95v-8.5a3.95 3.95 0 0 0-3.95-3.95h-8.5Zm9.15 1.35a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4ZM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 1.8a3.2 3.2 0 1 0 0 6.4 3.2 3.2 0 0 0 0-6.4Z" /></svg>
               </a>
             )}
             {facebookHref && (
-              <a href={facebookHref} target="_blank" rel="noopener noreferrer" className="relative group inline-flex items-center justify-center rounded-full rounded-tr-none w-10 h-10 text-white bg-[#1877F2] shrink-0 overflow-hidden transition-all duration-150 ease-out hover:scale-110 hover:-translate-y-1 hover:shadow-xl" aria-label="Abrir Facebook" title="Facebook">
+              <a href={facebookHref} target="_blank" rel="noopener noreferrer" className="relative group inline-flex items-center justify-center rounded-full rounded-bl-none w-10 h-10 text-white bg-[#1877F2] shrink-0 overflow-hidden transition-all duration-150 ease-out hover:scale-110 hover:-translate-y-1 hover:shadow-xl" aria-label="Abrir Facebook" title="Facebook">
                 <span className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/30 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" />
                 <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current relative z-10" aria-hidden="true"><path d="M13.5 22v-8h2.7l.4-3h-3.1V9.1c0-.9.3-1.6 1.6-1.6h1.7V4.8c-.3 0-1.3-.1-2.5-.1-2.5 0-4.2 1.5-4.2 4.4V11H8v3h2.6v8h2.9Z" /></svg>
               </a>
