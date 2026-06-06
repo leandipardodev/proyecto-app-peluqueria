@@ -66,7 +66,7 @@ export async function verifyEmailCode(email: string, code: string): Promise<{ su
 
     const { data: existing } = await admin
       .from("email_verifications")
-      .select("*")
+      .select("id, code, created_at, expires_at, verified_at")
       .eq("email", normalizedEmail)
       .is("verified_at", null)
       .gte("expires_at", new Date().toISOString())

@@ -207,9 +207,12 @@ const AppointmentBlock = memo(function AppointmentBlock({
         width: `calc(${widthPct}% - 12px)`,
         left: `calc(${leftPct}% + 8px)`,
         fontFamily: "Inter, sans-serif",
-        boxShadow: isCancelled
-          ? "none"
-          : `inset 2px 0 0 ${staffColor.borderRgba32}, inset 0 -2px 0 ${staffColor.borderRgba45}`,
+        borderLeft: isCancelled
+          ? undefined
+          : `2px solid ${staffColor.borderRgba32}`,
+        borderBottom: isCancelled
+          ? undefined
+          : `2px solid ${staffColor.borderRgba45}`,
         background: isCancelled
           ? "none"
         : needsAttention
@@ -657,22 +660,10 @@ export default memo(function CalendarView({
   const styleTag = useMemo(() => (
     <style>{`
       .closed-slot-pattern {
-        background-image: repeating-linear-gradient(
-          45deg,
-          transparent,
-          transparent 10px,
-          rgba(0, 0, 0, 0.08) 10px,
-          rgba(0, 0, 0, 0.08) 20px
-        );
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Crect width='4' height='8' fill='rgba(0,0,0,0.06)'/%3E%3C/svg%3E");
       }
       .dark .closed-slot-pattern {
-        background-image: repeating-linear-gradient(
-          45deg,
-          transparent,
-          transparent 10px,
-          rgba(255, 255, 255, 0.16) 10px,
-          rgba(255, 255, 255, 0.16) 20px
-        );
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Crect width='4' height='8' fill='rgba(255,255,255,0.10)'/%3E%3C/svg%3E");
       }
     `}</style>
   ), []);
@@ -734,11 +725,12 @@ export default memo(function CalendarView({
 
       <div
         ref={scrollContainerRef}
-        className="flex-1 min-h-0 overflow-auto"
+        className="flex-1 min-h-0 overflow-auto scroll-smooth"
       >
         <div
           className="grid border border-zinc-200/60 dark:border-zinc-800 rounded-2xl overflow-hidden bg-zinc-50 dark:bg-zinc-900 relative"
           style={{
+            willChange: "transform",
             gridTemplateColumns:
               viewMode === "day"
                 ? isMobileDayMode
@@ -926,7 +918,7 @@ export default memo(function CalendarView({
 
       {businessHours && (
         <div className="mt-3 inline-flex items-center gap-1.5 text-xs bg-zinc-100 dark:bg-zinc-800 rounded-xl px-3 py-1.5 border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400">
-          <div className="w-3 h-3 rounded-sm closed-slot-pattern border border-zinc-300/40 dark:border-white/10" style={{ backgroundSize: "6px 6px" }} />
+          <div className="w-3 h-3 rounded-sm bg-zinc-300/50 dark:bg-zinc-600/50 border border-zinc-400/30 dark:border-white/10" />
           <span>Cerrado</span>
         </div>
       )}

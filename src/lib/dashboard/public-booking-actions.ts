@@ -441,7 +441,7 @@ export async function createPublicAppointment(data: {
     if (data.customerEmail) {
       try {
         const [{ data: shop }, { data: service }] = await Promise.all([
-          admin.from("shops").select("*").eq("id", data.shopId).maybeSingle(),
+          admin.from("shops").select("nombre, email, address, localidad").eq("id", data.shopId).maybeSingle(),
           admin.from("services").select("name").eq("id", data.serviceId).maybeSingle(),
         ]);
 

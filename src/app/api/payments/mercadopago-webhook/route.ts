@@ -242,7 +242,7 @@ export async function POST(request: NextRequest) {
 
       const { data: booking } = await admin
         .from("pending_bookings")
-        .select("*")
+        .select("id, shop_id, status, customer_phone, customer_email, customer_name, service_id, service_name, start_time, end_time, created_at, staff_id, deposit_amount, mp_preference_id")
         .eq("id", bookingId)
         .maybeSingle();
 

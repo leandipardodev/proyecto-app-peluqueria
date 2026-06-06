@@ -91,11 +91,24 @@ export async function fetchExportStaffProduction(
 ): Promise<ActionResult<ExportRow[]>> {
   try {
     const supabase = await createServerClient();
-    const { data: staffList, error: staffError } = await supabase
-      .from("staff")
-      .select("id, name")
-      .eq("shop_id", shopId);
-    if (staffError) return { success: false, error: staffError.message };
+    const { data: memberships, error: membershipsError } = await supabase
+      .from("shop_memberships")
+      .select("user_id")
+      .eq("shop_id", shopId)
+      .eq("is_active", true)
+      .in("role", ["owner", "admin", "staff"]);
+    if (membershipsError) return { success: false, error: membershipsError.message };
+
+    const userIds = (memberships || []).map((m) => m.user_id).filter(Boolean);
+    if (userIds.length === 0) return { success: true, data: [] };
+
+    const { data: profiles, error: profilesError } = await supabase
+      .from("user_profiles")
+      .select("user_id, name")
+      .in("user_id", userIds);
+    if (profilesError) return { success: false, error: profilesError.message };
+
+    const staffList = (profiles || []).map((p) => ({ id: p.user_id, name: p.name }));
 
     const { data: appointments, error: apptError } = await supabase
       .from("appointments")

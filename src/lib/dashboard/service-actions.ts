@@ -67,7 +67,7 @@ export async function fetchServices(shopIdOverride?: string): Promise<ActionResu
 
     const { data, error } = await admin
       .from("services")
-      .select("*")
+      .select("id, name, category, price, duration_minutes, created_at, updated_at, shop_id")
       .eq("shop_id", shopId)
       .order("created_at", { ascending: false });
 
