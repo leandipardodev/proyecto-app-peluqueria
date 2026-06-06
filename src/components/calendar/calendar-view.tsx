@@ -694,8 +694,7 @@ export default memo(function CalendarView({
 
   const isMobileDayMode = isMobileViewport && viewMode === "day";
   const hideHourColumnOnMobile = isMobileViewport;
-  const hourColumnWidth = isMobileViewport ? 40 : 56;
-  const todayIdx = displayedDays.findIndex((d) => isToday(d));
+  const hourColumnWidth = isMobileViewport ? 40 : 80;
 
   return (
     <div className="calendar-shell flex flex-col h-full">
@@ -751,15 +750,15 @@ export default memo(function CalendarView({
           }}
         >
           {!hideHourColumnOnMobile && (
-            <div className={`col-span-1 border-r border-zinc-200/50 dark:border-zinc-800 ${todayIdx === 0 ? "rounded-tl-2xl overflow-hidden" : ""}`}>
+            <div className="col-span-1 border-r border-zinc-200/50 dark:border-zinc-800">
               <div className="border-b border-zinc-200/50 dark:border-zinc-800" style={{ height: `${slotHeight}px` }} />
               {hours.map((hour) => (
                 <div
                   key={hour}
-                  className="flex items-center justify-end pr-2"
+                  className="flex items-start justify-end pr-1 sm:pr-2 pt-1"
                   style={{ height: `${slotHeight}px` }}
                 >
-                  <span className="text-[10px] sm:text-sm font-medium text-gray-500 dark:text-gray-400 leading-none">
+                  <span className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">
                     {`${String(hour).padStart(2, "0")}:00`}
                   </span>
                 </div>
@@ -779,9 +778,11 @@ export default memo(function CalendarView({
               >
                 <div
                   className={`group border-b border-zinc-200/50 dark:border-zinc-800 flex flex-col items-center justify-center shrink-0 transition-all ${
-                    isToday(day) || viewMode === "day"
-                      ? "bg-sky-100 dark:bg-slate-800 rounded-t-2xl overflow-hidden cursor-pointer hover:bg-sky-200 dark:hover:bg-slate-700"
-                      : ""
+                    viewMode === "day"
+                      ? "bg-sky-100 dark:bg-slate-800 cursor-pointer hover:bg-sky-200 dark:hover:bg-slate-700"
+                      : isToday(day)
+                        ? "cursor-pointer"
+                        : ""
                   }`}
                   style={{ height: `${slotHeight}px` }}
                   onClick={() => {
@@ -793,14 +794,18 @@ export default memo(function CalendarView({
                     }
                   }}
                 >
-                  <span className="text-[11px] text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                  <span className={`text-[11px] uppercase tracking-wide ${
+                    isToday(day) && viewMode !== "day"
+                      ? "font-bold text-sky-700 dark:text-sky-300"
+                      : "text-gray-500 dark:text-gray-400"
+                  }`}>
                     {format(day, "EEE", { locale: es })}
                   </span>
                   <span
-                    className={`text-sm font-semibold ${
-                      isToday(day)
-                        ? "text-sky-700 dark:text-sky-300"
-                        : "text-gray-900 dark:text-gray-100"
+                    className={`${
+                      isToday(day) && viewMode !== "day"
+                        ? "text-xl font-extrabold text-sky-700 dark:text-sky-300"
+                        : "text-sm font-semibold text-gray-900 dark:text-gray-100"
                     }`}
                   >
                     {format(day, "d")}
@@ -811,7 +816,7 @@ export default memo(function CalendarView({
                         <span className="absolute inline-flex w-full h-full rounded-full bg-red-500 opacity-75 animate-ping" />
                         <span className="relative inline-flex w-1.5 h-1.5 rounded-full bg-red-500" />
                       </span>
-                      <span className="text-[9px] font-semibold text-red-500 uppercase tracking-wider">Hoy</span>
+                      <span className="text-[11px] font-bold text-red-500 uppercase tracking-wider">Hoy</span>
                     </span>
                   )}
                   {dayFullyClosed && (
