@@ -777,11 +777,11 @@ export default memo(function CalendarView({
                 className={`col-span-1 border-r border-zinc-200/50 dark:border-zinc-800 border-l-2 border-l-zinc-200 dark:border-l-zinc-700 last:border-r-0 flex flex-col ${dayFullyClosed ? "opacity-60" : ""}`}
               >
                 <div
-                  className={`group border-b border-zinc-200/50 dark:border-zinc-800 flex flex-col items-center justify-center shrink-0 transition-all ${
+                  className={`group relative border-b border-zinc-200/50 dark:border-zinc-800 flex flex-col items-center justify-center shrink-0 transition-all duration-200 ${
                     viewMode === "day"
                       ? "bg-sky-100 dark:bg-slate-800 cursor-pointer hover:bg-sky-200 dark:hover:bg-slate-700"
                       : isToday(day)
-                        ? "cursor-pointer"
+                        ? "cursor-pointer hover:scale-[1.02]"
                         : ""
                   }`}
                   style={{ height: `${slotHeight}px` }}
@@ -794,43 +794,33 @@ export default memo(function CalendarView({
                     }
                   }}
                 >
-                  <span className={`text-[11px] uppercase tracking-wide ${
+                  {isToday(day) && (
+                    <div className="absolute inset-0 rounded-2xl bg-zinc-50/60 dark:bg-zinc-900/60 opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-105 transition-all duration-500 ease-out pointer-events-none -z-10" />
+                  )}
+                  <span className={`relative z-10 text-[11px] uppercase tracking-wide ${
                     isToday(day) && viewMode !== "day"
                       ? "font-bold text-sky-700 dark:text-sky-300"
                       : "text-gray-500 dark:text-gray-400"
                   }`}>
                     {format(day, "EEE", { locale: es })}
                   </span>
-                  <span
-                    className={`${
-                      isToday(day) && viewMode !== "day"
-                        ? "text-xl font-extrabold text-sky-700 dark:text-sky-300"
-                        : "text-sm font-semibold text-gray-900 dark:text-gray-100"
-                    }`}
-                  >
-                    {format(day, "d")}
-                  </span>
-                  {isToday(day) && (
-                    <span className="inline-flex items-center gap-1 mt-0.5">
-                      <span className="relative flex w-1.5 h-1.5">
-                        <span className="absolute inline-flex w-full h-full rounded-full bg-red-500 opacity-75 animate-ping" />
-                        <span className="relative inline-flex w-1.5 h-1.5 rounded-full bg-red-500" />
-                      </span>
-                      <span className="text-[11px] font-bold text-red-500 uppercase tracking-wider">Hoy</span>
+                  {isToday(day) && viewMode !== "day" ? (
+                    <span className="relative z-10 inline-flex items-center justify-center w-9 h-9 rounded-full bg-sky-500 text-white text-sm font-bold leading-none shadow-sm">
+                      {format(day, "d")}
+                    </span>
+                  ) : (
+                    <span
+                      className={`relative z-10 ${
+                        isToday(day)
+                          ? "text-xl font-extrabold text-sky-700 dark:text-sky-300"
+                          : "text-sm font-semibold text-gray-900 dark:text-gray-100"
+                      }`}
+                    >
+                      {format(day, "d")}
                     </span>
                   )}
                   {dayFullyClosed && (
-                    <span className="text-[9px] text-zinc-400 dark:text-zinc-600 uppercase tracking-wider mt-0.5">Cerrado</span>
-                  )}
-                  {(isToday(day) || viewMode === "day") && (
-                    <div className="flex items-center justify-center gap-0.5 mt-0.5 opacity-60 group-hover:opacity-100 transition-opacity duration-200">
-                      <div
-                        className="flex items-center gap-0.5 text-[9px] text-zinc-400 dark:text-zinc-500"
-                      >
-                        {viewMode === "day" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                        <span>{viewMode === "day" ? "semana" : "día"}</span>
-                      </div>
-                    </div>
+                    <span className="relative z-10 text-[9px] text-zinc-400 dark:text-zinc-600 uppercase tracking-wider mt-0.5">Cerrado</span>
                   )}
                 </div>
 
