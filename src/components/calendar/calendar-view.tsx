@@ -751,7 +751,7 @@ export default memo(function CalendarView({
           }}
         >
           {!hideHourColumnOnMobile && (
-            <div className={`col-span-1 border-r border-zinc-200/50 dark:border-zinc-800 ${todayIdx === 0 ? "rounded-tl-2xl" : ""}`}>
+            <div className={`col-span-1 border-r border-zinc-200/50 dark:border-zinc-800 ${todayIdx === 0 ? "rounded-tl-2xl overflow-hidden" : ""}`}>
               <div className="border-b border-zinc-200/50 dark:border-zinc-800" style={{ height: `${slotHeight}px` }} />
               {hours.map((hour) => (
                 <div
@@ -776,9 +776,9 @@ export default memo(function CalendarView({
               <div
                 key={dayStr}
                 className={`col-span-1 border-r border-zinc-200/50 dark:border-zinc-800 border-l-2 border-l-zinc-200 dark:border-l-zinc-700 last:border-r-0 flex flex-col ${dayFullyClosed ? "opacity-60" : ""} ${
-                  todayIdx > 0 && dayIndex === todayIdx - 1 ? "rounded-tr-2xl" : ""
+                  todayIdx > 0 && dayIndex === todayIdx - 1 ? "rounded-tr-2xl overflow-hidden" : ""
                 } ${
-                  todayIdx >= 0 && dayIndex === todayIdx + 1 ? "rounded-tl-2xl" : ""
+                  todayIdx >= 0 && dayIndex === todayIdx + 1 ? "rounded-tl-2xl overflow-hidden" : ""
                 }`}
               >
                 <div
