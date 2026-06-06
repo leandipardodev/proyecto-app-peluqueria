@@ -201,16 +201,8 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
     function handleKeyDown(e: globalThis.KeyboardEvent) {
       if (e.key === "Escape") setMenuOpen(false);
     }
-    function handleClickOutside(e: MouseEvent) {
-      if (!avatarMenuRef.current) return;
-      if (!avatarMenuRef.current.contains(e.target as Node)) setMenuOpen(false);
-    }
     document.addEventListener("keydown", handleKeyDown);
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [menuOpen]);
 
   useEffect(() => {
@@ -941,6 +933,19 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
           </div>
         </div>
       </header>
+
+      <AnimatePresence>
+        {menuOpen && (
+          <motion.div
+            className="fixed inset-0 z-40 bg-black/20"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
+            onClick={() => setMenuOpen(false)}
+          />
+        )}
+      </AnimatePresence>
 
       <DashboardMobileSidebar
         open={mobileOpen}
