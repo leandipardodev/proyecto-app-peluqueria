@@ -775,18 +775,12 @@ export default memo(function CalendarView({
             return (
               <div
                 key={dayStr}
-                className={`col-span-1 border-r border-zinc-200/50 dark:border-zinc-800 border-l-2 border-l-zinc-200 dark:border-l-zinc-700 last:border-r-0 flex flex-col ${dayFullyClosed ? "opacity-60" : ""} ${
-                  todayIdx >= 0 && dayIndex === todayIdx ? "rounded-tl-2xl rounded-tr-2xl overflow-hidden" : ""
-                } ${
-                  todayIdx > 0 && dayIndex === todayIdx - 1 ? "rounded-tr-2xl overflow-hidden" : ""
-                } ${
-                  todayIdx >= 0 && dayIndex === todayIdx + 1 ? "rounded-tl-2xl overflow-hidden" : ""
-                }`}
+                className={`col-span-1 border-r border-zinc-200/50 dark:border-zinc-800 border-l-2 border-l-zinc-200 dark:border-l-zinc-700 last:border-r-0 flex flex-col ${dayFullyClosed ? "opacity-60" : ""}`}
               >
                 <div
                   className={`group border-b border-zinc-200/50 dark:border-zinc-800 flex flex-col items-center justify-center shrink-0 transition-all ${
                     isToday(day) || viewMode === "day"
-                      ? "bg-sky-100 dark:bg-slate-800 cursor-pointer hover:bg-sky-200 dark:hover:bg-slate-700"
+                      ? "bg-sky-100 dark:bg-slate-800 rounded-t-2xl overflow-hidden cursor-pointer hover:bg-sky-200 dark:hover:bg-slate-700"
                       : ""
                   }`}
                   style={{ height: `${slotHeight}px` }}
