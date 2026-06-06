@@ -17,16 +17,8 @@ import { redirect } from "next/navigation";
 import { fetchTodayVoucherAlerts } from "@/lib/dashboard/voucher-actions";
 import type { CSSProperties } from "react";
 import AINotificationCard from "@/components/dashboard/ai-notification-card";
+import DashboardChartsWrapper from "@/components/dashboard/dashboard-charts-wrapper";
 
-const RevenueChart = dynamicImport(() => import("@/components/dashboard/revenue-chart"), {
-  loading: () => <div className="h-72 rounded-3xl bg-white/30 dark:bg-white/5 animate-pulse" />,
-});
-const TopServices = dynamicImport(() => import("@/components/dashboard/top-services"), {
-  loading: () => <div className="h-52 rounded-3xl bg-white/30 dark:bg-white/5 animate-pulse" />,
-});
-const MonthlyGrowthCard = dynamicImport(() => import("@/components/dashboard/monthly-growth-card"), {
-  loading: () => <div className="h-52 rounded-3xl bg-white/30 dark:bg-white/5 animate-pulse" />,
-});
 const VoucherBirthdayAlert = dynamicImport(() => import("@/components/dashboard/voucher-birthday-alert"));
 
 export const dynamic = "force-dynamic";
@@ -412,20 +404,20 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
         />
       </div>
 
-      <div className="relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-        <div className="lg:col-span-2 min-w-0 space-y-4">
-          <RevenueChart data={metrics?.revenueChart ?? []} flowByPeriod={metrics?.flowByPeriod} />
+      <div className="relative z-10">
+        <DashboardChartsWrapper
+          revenueData={metrics?.revenueChart ?? []}
+          flowByPeriod={metrics?.flowByPeriod}
+          topServicesData={metrics?.topServices ?? []}
+          serviceLabelPlural={servicePlural}
+          clientsData={metrics?.monthlyGrowth ?? []}
+          monthlyRevenueData={metrics?.revenueChart ?? []}
+          healthScore={metrics?.healthScore ?? null}
+          healthBreakdown={metrics?.healthBreakdown ?? null}
+          totalClients={metrics?.stats.totalClients ?? 0}
+        />
+        <div className="mt-4">
           <ShareLinkCard slug={shopSlugOverride || summary.shopSlug} />
-        </div>
-        <div className="lg:col-span-1 space-y-4 min-w-0">
-          <TopServices data={metrics?.topServices ?? []} serviceLabelPlural={servicePlural} />
-          <MonthlyGrowthCard
-            clientsData={metrics?.monthlyGrowth ?? []}
-            revenueData={metrics?.revenueChart ?? []}
-            healthScore={metrics?.healthScore ?? null}
-            healthBreakdown={metrics?.healthBreakdown ?? null}
-            totalClients={metrics?.stats.totalClients ?? 0}
-          />
         </div>
       </div>
 

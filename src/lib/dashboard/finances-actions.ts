@@ -832,7 +832,8 @@ export async function fetchFinanceData(fromDate?: string, toDate?: string, shopI
         .select("id, movement_type, amount, category, description, happened_at")
         .eq("shop_id", shopId)
         .gte("happened_at", fromBounds.start.toISOString())
-        .lte("happened_at", toBounds.end.toISOString()),
+        .lte("happened_at", toBounds.end.toISOString())
+        .limit(200),
     ]);
 
     if (incomeAppts.error) {

@@ -1,10 +1,20 @@
 import { Suspense } from "react";
 import { getCachedUser, getCachedShopIdBySlug, getShopId } from "@/lib/dashboard/auth-server";
 import { redirect } from "next/navigation";
-import CalendarSection from "./calendar-section";
+import { fetchActiveServices, fetchStaffMembers } from "@/lib/dashboard/appointment-actions";
+import { fetchStaffMembers as fetchStaffMembersFull } from "@/lib/dashboard/staff-actions";
+import CalendarSection, { fetchCustomersByShop, type CustomersData } from "./calendar-section";
 import AppointmentsTableSection from "./appointments-table-section";
+import type { ActionResult } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+
+type ServicesData = Awaited<ReturnType<typeof fetchActiveServices>> extends ActionResult<infer T> ? T : never;
+type StaffData = Awaited<ReturnType<typeof fetchStaffMembersFull>> extends ActionResult<infer T> ? T : never;
+
+function isActionSuccess<T>(value: unknown): value is ActionResult<T> & { success: true; data?: T } {
+  return typeof value === "object" && value !== null && "success" in value && (value as { success: boolean }).success === true;
+}
 
 function CombinedSkeleton() {
   return (
@@ -86,9 +96,20 @@ async function CalendarPageContent({
   initialDateParam?: string;
   initialAppointmentId?: string;
 }) {
+  const [servicesResult, staffResult, customers] = await Promise.all([
+    fetchActiveServices(shopId),
+    fetchStaffMembersFull(shopId),
+    fetchCustomersByShop(shopId),
+  ]);
+
+  let services: ServicesData = [];
+  let staff: StaffData = [];
+  if (isActionSuccess<ServicesData>(servicesResult)) services = servicesResult.data ?? [];
+  if (isActionSuccess<StaffData>(staffResult)) staff = staffResult.data ?? [];
+
   const [calendarEl, tableEl] = await Promise.all([
-    CalendarSection({ shopId, initialDateParam, initialAppointmentId }),
-    AppointmentsTableSection({ shopId }),
+    CalendarSection({ shopId, services, staff, customers, initialDateParam, initialAppointmentId }),
+    AppointmentsTableSection({ shopId, services, staff, customers }),
   ]);
   return <>{calendarEl}{tableEl}</>;
 }

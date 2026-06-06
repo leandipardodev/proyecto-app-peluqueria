@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/toast";
 
@@ -21,6 +22,7 @@ function isRateLimitError(message: string | null | undefined): boolean {
 }
 
 export default function LoginPage() {
+  const router = useRouter();
   const [checkingSession, setCheckingSession] = useState(true);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -32,8 +34,8 @@ export default function LoginPage() {
   const [redirectPath, setRedirectPath] = useState("/dashboard");
 
   const redirectTo = useCallback((path: string) => {
-    window.location.href = path;
-  }, []);
+    router.replace(path);
+  }, [router]);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,7 +48,7 @@ export default function LoginPage() {
         const target = params.get("redirect")?.startsWith("/")
           ? params.get("redirect")!
           : "/dashboard";
-        window.location.href = target;
+        router.replace(target);
         return;
       }
       setCheckingSession(false);
@@ -60,7 +62,7 @@ export default function LoginPage() {
         const target = params.get("redirect")?.startsWith("/")
           ? params.get("redirect")!
           : "/dashboard";
-        window.location.href = target;
+        router.replace(target);
       }
     });
 

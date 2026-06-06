@@ -36,7 +36,7 @@ function RegisterPageContent({ industry }: { industry: Industry }) {
           setCheckingSession(false);
           return;
         }
-        window.location.href = "/dashboard";
+        router.replace("/dashboard");
       } else {
         setCheckingSession(false);
       }

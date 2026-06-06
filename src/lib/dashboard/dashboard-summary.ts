@@ -203,6 +203,7 @@ async function fetchFlowRange(
       .from("cash_movements")
       .select("amount, movement_type")
       .eq("shop_id", shopId)
+      .in("movement_type", ["income", "expense", "withdrawal"])
       .gte("happened_at", startIso)
       .lte("happened_at", endIso),
   ]);
@@ -260,35 +261,37 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
     const monthStart = new Date(dayStart);
     monthStart.setUTCDate(1);
 
-    const twelveMonthsAgo = new Date(monthStart);
-    twelveMonthsAgo.setUTCFullYear(twelveMonthsAgo.getUTCFullYear() - 1);
+    const sixMonthsAgo = new Date(monthStart);
+    sixMonthsAgo.setUTCMonth(sixMonthsAgo.getUTCMonth() - 6);
 
     const [apptsRevenueRes, apptsCountRes, financesRes, cashMovesRes, clientsRes, flowToday, flowWeek, flowMonth] = await Promise.all([
       admin
         .from("appointments")
         .select("date_key_ar, service_id, is_paid, service_price, services!appointments_service_id_fkey(price)")
         .eq("shop_id", shopId)
+        .gte("start_time", sixMonthsAgo.toISOString())
         .eq("status", "completed"),
       admin
         .from("appointments")
         .select("id")
         .eq("shop_id", shopId)
+        .gte("start_time", sixMonthsAgo.toISOString())
         .in("status", ["scheduled", "confirmed", "pending_payment", "in_progress", "completed"]),
       admin
         .from("finances")
         .select("amount, type, created_at, happened_at")
         .eq("shop_id", shopId)
-        .gte("created_at", twelveMonthsAgo.toISOString()),
+        .gte("created_at", sixMonthsAgo.toISOString()),
       admin
         .from("cash_movements")
         .select("amount, movement_type, happened_at")
         .eq("shop_id", shopId)
-        .gte("created_at", twelveMonthsAgo.toISOString()),
+        .gte("created_at", sixMonthsAgo.toISOString()),
       admin
         .from("customers")
         .select("created_at")
         .eq("shop_id", shopId)
-        .gte("created_at", twelveMonthsAgo.toISOString()),
+        .gte("created_at", sixMonthsAgo.toISOString()),
       fetchFlowRange(admin, shopId, dayStart.toISOString(), dayEnd.toISOString()),
       fetchFlowRange(admin, shopId, weekStart.toISOString(), dayEnd.toISOString()),
       fetchFlowRange(admin, shopId, monthStart.toISOString(), dayEnd.toISOString()),
@@ -346,6 +349,7 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
       .from("appointments")
       .select("service_id, is_paid, services!appointments_service_id_fkey(name)")
       .eq("shop_id", shopId)
+      .gte("start_time", sixMonthsAgo.toISOString())
       .eq("status", "completed")
       .eq("is_paid", true);
 

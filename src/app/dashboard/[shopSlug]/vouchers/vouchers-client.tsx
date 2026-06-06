@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useDebouncedRefresh } from "@/lib/use-debounced-refresh";
 import { createVoucher, markVoucherRedeemed, markVoucherReminderSent, updateVoucherWhatsappTemplate, type VoucherRow } from "@/lib/dashboard/voucher-actions";
 import { DEFAULT_VOUCHER_WHATSAPP_TEMPLATE } from "@/lib/dashboard/voucher-constants";
 import { CheckCircle2, Gift, MessageCircle } from "lucide-react";
@@ -28,6 +29,7 @@ function voucherWhatsappText(v: VoucherRow, template: string) {
 
 export default function VouchersClient({ shopId, initialVouchers, initialTemplate }: Props) {
   const router = useRouter();
+  const refresh = useDebouncedRefresh();
   const [vouchers, setVouchers] = useState(initialVouchers);
   const [template, setTemplate] = useState(initialTemplate || DEFAULT_VOUCHER_WHATSAPP_TEMPLATE);
 
@@ -43,7 +45,7 @@ export default function VouchersClient({ shopId, initialVouchers, initialTemplat
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "vouchers", filter: `shop_id=eq.${shopId}` },
-        () => router.refresh()
+        () => refresh()
       )
       .subscribe();
 

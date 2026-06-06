@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef, memo } from "react";
 import { useRouter } from "next/navigation";
+import { useDebouncedRefresh } from "@/lib/use-debounced-refresh";
 import {
   Package,
   AlertTriangle,
@@ -38,6 +39,7 @@ const StockTable = memo(function StockTable({ shopId, items }: StockTableProps) 
   const [pending, startTransition] = useTransition();
   const { addToast } = useToast();
   const router = useRouter();
+  const refresh = useDebouncedRefresh();
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -50,7 +52,7 @@ const StockTable = memo(function StockTable({ shopId, items }: StockTableProps) 
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "stock", filter: `shop_id=eq.${shopId}` },
-        () => router.refresh()
+        () => refresh()
       )
       .subscribe();
 

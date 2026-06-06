@@ -8,6 +8,7 @@ import { useAppointmentAlarm } from "@/lib/use-appointment-alarm";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { useRouter } from "next/navigation";
+import { useDebouncedRefresh } from "@/lib/use-debounced-refresh";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
@@ -103,11 +104,12 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
   }, [page, totalPages]);
 
   useAppointmentAlarm(appointments);
+  const refresh = useDebouncedRefresh();
 
   useEffect(() => {
     const channel = supabase
       .channel(`appointments-${shopId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "appointments", filter: `shop_id=eq.${shopId}` }, () => router.refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "appointments", filter: `shop_id=eq.${shopId}` }, () => refresh())
       .subscribe();
 
     return () => {

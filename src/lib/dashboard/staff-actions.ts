@@ -127,37 +127,42 @@ export async function fetchStaffMembers(shopIdOverride?: string): Promise<Action
       };
     });
 
-    const staffWithRevenue = await Promise.all(
-      staffRows.map(async (member) => {
-        const { data: revenueData } = await supabase
-          .from("appointments")
-          .select("is_paid, status, service_price, services!appointments_service_id_fkey(price)")
-          .eq("shop_id", shopId)
-          .eq("staff_id", member.user_id)
-          .eq("status", "completed")
-          .eq("is_paid", true);
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setUTCMonth(sixMonthsAgo.getUTCMonth() - 6);
 
-        const revenue = (revenueData || []).reduce((sum, apt) => {
-          if (apt.service_price != null) return sum + Number(apt.service_price);
-          return sum + (apt.services?.[0]?.price || 0);
-        }, 0);
-        const rule = ruleMap.get(member.user_id);
-        const percentageRate = Number(rule?.percentage_rate || 0);
-        const fixedAmount = Number(rule?.fixed_amount || 0);
-        const payModel: StaffMember["payModel"] = fixedAmount > 0 && percentageRate > 0 ? "mixed" : fixedAmount > 0 ? "fixed" : "percentage";
+    const { data: revenueData } = await supabase
+      .from("appointments")
+      .select("staff_id, service_price, services!appointments_service_id_fkey(price)")
+      .eq("shop_id", shopId)
+      .in("staff_id", userIds)
+      .gte("start_time", sixMonthsAgo.toISOString())
+      .eq("status", "completed")
+      .eq("is_paid", true);
 
-        return {
-          id: member.user_id,
-          name: member.name ?? member.nombre,
-          email: member.email,
-          role: member.role,
-          revenue,
-          payModel,
-          percentageRate,
-          fixedAmount,
-        };
-      })
-    );
+    const revenueByStaff = new Map<string, number>();
+    for (const apt of revenueData ?? []) {
+      if (!apt.staff_id) continue;
+      const value = apt.service_price != null ? Number(apt.service_price) : (apt.services?.[0]?.price || 0);
+      revenueByStaff.set(apt.staff_id, (revenueByStaff.get(apt.staff_id) || 0) + value);
+    }
+
+    const staffWithRevenue = staffRows.map((member) => {
+      const rule = ruleMap.get(member.user_id);
+      const percentageRate = Number(rule?.percentage_rate || 0);
+      const fixedAmount = Number(rule?.fixed_amount || 0);
+      const payModel: StaffMember["payModel"] = fixedAmount > 0 && percentageRate > 0 ? "mixed" : fixedAmount > 0 ? "fixed" : "percentage";
+
+      return {
+        id: member.user_id,
+        name: member.name ?? member.nombre,
+        email: member.email,
+        role: member.role,
+        revenue: revenueByStaff.get(member.user_id) ?? 0,
+        payModel,
+        percentageRate,
+        fixedAmount,
+      };
+    });
 
     return { success: true, data: staffWithRevenue };
   } catch (e) {

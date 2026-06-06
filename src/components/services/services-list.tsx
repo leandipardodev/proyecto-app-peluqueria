@@ -3,6 +3,7 @@
 import { Pencil, Trash2, Plus } from "lucide-react";
 import { useEffect, useState, useTransition, memo } from "react";
 import { useRouter } from "next/navigation";
+import { useDebouncedRefresh } from "@/lib/use-debounced-refresh";
 import ServiceModal from "./service-modal";
 import ServiceForm from "./service-form";
 import { deleteService } from "@/lib/dashboard/service-actions";
@@ -30,6 +31,7 @@ interface ServicesListProps {
 
 const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, initialServices }: ServicesListProps) {
   const router = useRouter();
+  const refresh = useDebouncedRefresh();
   const [services, setServices] = useState(initialServices);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
@@ -62,7 +64,7 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "services", filter: `shop_id=eq.${shopId}` },
-        () => router.refresh()
+        () => refresh()
       )
       .subscribe();
 

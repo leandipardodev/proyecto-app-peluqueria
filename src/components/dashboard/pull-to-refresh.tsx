@@ -1,11 +1,12 @@
 "use client";
 
 import { useRef, useState, type ReactNode } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 
 export default function PullToRefresh({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const isCalendar = pathname.includes("/calendar");
   const startY = useRef(0);
   const [pulling, setPulling] = useState(false);
@@ -30,7 +31,7 @@ export default function PullToRefresh({ children }: { children: ReactNode }) {
   function onTouchEnd() {
     if (isCalendar) return;
     if (pullDist >= 60) {
-      window.location.reload();
+      router.refresh();
     }
     setPulling(false);
     setPullDist(0);

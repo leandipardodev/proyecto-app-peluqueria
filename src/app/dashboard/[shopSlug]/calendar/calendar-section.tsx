@@ -1,8 +1,4 @@
-import {
-  fetchAppointments,
-  fetchActiveServices,
-  fetchStaffMembers,
-} from "@/lib/dashboard/appointment-actions";
+import { fetchAppointments } from "@/lib/dashboard/appointment-actions";
 import CalendarPageClient from "@/components/calendar/calendar-page-client";
 import { createServerClient } from "@/lib/supabase/server";
 import { getArgentinaWeekStart } from "@/lib/argentina-time";
@@ -10,8 +6,8 @@ import { fetchBusinessHours } from "@/lib/dashboard/business-actions";
 import type { ActionResult } from "@/lib/types";
 
 type AppointmentsData = Awaited<ReturnType<typeof fetchAppointments>> extends ActionResult<infer T> ? T : never;
-type ServicesData = Awaited<ReturnType<typeof fetchActiveServices>> extends ActionResult<infer T> ? T : never;
-type StaffData = Awaited<ReturnType<typeof fetchStaffMembers>> extends ActionResult<infer T> ? T : never;
+type ServicesData = Array<{ id: string; name: string; price: number; duration_minutes: number }>;
+type StaffData = Array<{ id: string; name: string | null; email: string | null; role: string; revenue: number; payModel: string; percentageRate: number; fixedAmount: number }>;
 type BusinessHoursData = Awaited<ReturnType<typeof fetchBusinessHours>> extends ActionResult<infer T> ? T : never;
 
 function isActionSuccess<T>(value: unknown): value is ActionResult<T> & { success: true; data?: T } {
@@ -20,42 +16,39 @@ function isActionSuccess<T>(value: unknown): value is ActionResult<T> & { succes
 
 export default async function CalendarSection({
   shopId,
+  services,
+  staff,
+  customers,
   initialDateParam,
   initialAppointmentId,
 }: {
   shopId: string;
+  services: ServicesData;
+  staff: StaffData;
+  customers: CustomersData;
   initialDateParam?: string;
   initialAppointmentId?: string;
 }) {
   const weekStart = getArgentinaWeekStart();
   const rangeStart = new Date(weekStart);
-  rangeStart.setUTCDate(weekStart.getUTCDate() - 14);
+  rangeStart.setUTCDate(weekStart.getUTCDate() - 7);
   const rangeEnd = new Date(weekStart);
-  rangeEnd.setUTCDate(weekStart.getUTCDate() + 35);
+  rangeEnd.setUTCDate(weekStart.getUTCDate() + 14);
   rangeEnd.setUTCHours(23, 59, 59, 999);
 
   let appointments: AppointmentsData = [];
-  let services: ServicesData = [];
-  let staff: StaffData = [];
-  let customers: Awaited<ReturnType<typeof fetchCustomersByShop>> = [];
   let businessHours: BusinessHoursData | null = null;
   let error: string | null = null;
 
   try {
-    const [appointmentsResult, servicesResult, staffResult, customersResult, businessHoursResult] = await Promise.all([
+    const [appointmentsResult, businessHoursResult] = await Promise.all([
       fetchAppointments(rangeStart.toISOString(), rangeEnd.toISOString(), shopId),
-      fetchActiveServices(shopId),
-      fetchStaffMembers(shopId),
-      fetchCustomersByShop(shopId),
       fetchBusinessHours(shopId),
     ]);
 
     if (isActionSuccess<AppointmentsData>(appointmentsResult)) appointments = appointmentsResult.data ?? [];
     else error = "Error al cargar turnos";
 
-    if (isActionSuccess<ServicesData>(servicesResult)) services = servicesResult.data ?? [];
-    if (isActionSuccess<StaffData>(staffResult)) staff = staffResult.data ?? [];
-    customers = customersResult;
     if (isActionSuccess<BusinessHoursData>(businessHoursResult)) businessHours = businessHoursResult.data ?? null;
   } catch {
     error = "Error al cargar datos del calendario";
@@ -76,7 +69,9 @@ export default async function CalendarSection({
   );
 }
 
-async function fetchCustomersByShop(shopId: string) {
+export type CustomersData = Array<{ id: string; nombre: string | null; email: string | null; telefono: string | null }>;
+
+export async function fetchCustomersByShop(shopId: string): Promise<CustomersData> {
   const supabase = await createServerClient();
   const { data, error } = await supabase
     .from("customers")
