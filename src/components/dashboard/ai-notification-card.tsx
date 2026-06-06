@@ -21,6 +21,7 @@ export default function AINotificationCard({
   const [activeIndex, setActiveIndex] = useState(0);
   const [thinking, setThinking] = useState(true);
   const [pwaTip, setPwaTip] = useState<Message | null>(null);
+  const [poweredOn, setPoweredOn] = useState(true);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -68,11 +69,17 @@ export default function AINotificationCard({
     if (target) router.push(target);
   }, [feed, activeIndex, router]);
 
+  function handleTogglePower(e: React.MouseEvent) {
+    e.stopPropagation();
+    setPoweredOn((v) => !v);
+  }
+
   useEffect(() => {
     setActiveIndex(0);
   }, [feed.length]);
 
   useEffect(() => {
+    if (!poweredOn) return;
     let cancelled = false;
     const initial: ReturnType<typeof setTimeout> = setTimeout(() => {
       if (!cancelled) setThinking(false);
@@ -101,9 +108,9 @@ export default function AINotificationCard({
       clearTimeout(delay);
       clearTimeout(inner);
     };
-  }, [feed.length]);
+  }, [feed.length, poweredOn]);
 
-  const active = feed[activeIndex];
+  const active = feed[poweredOn ? activeIndex : 0];
   const toneClass =
     active.tone === "urgent"
       ? "border-rose-300/50 bg-rose-300/10 text-rose-900 dark:text-rose-100"
@@ -116,67 +123,92 @@ export default function AINotificationCard({
     <button type="button" onClick={handleClick} className="group block h-full w-full text-left">
       <div className="relative h-[148px] md:h-[156px]">
         <div className="absolute inset-0 rounded-[2rem] rounded-tr-none rounded-bl-none" />
-        <div className="ai-orb-wrap relative h-full overflow-hidden rounded-[2rem] rounded-tr-none rounded-bl-none border border-cyan-300/30 bg-white p-4 text-cyan-950 shadow-[0_20px_48px_rgba(8,145,178,0.28)] transition-transform duration-300 group-hover:-translate-y-0.5 dark:bg-zinc-900 dark:text-cyan-50">
-          <div className="pointer-events-none absolute inset-0 ai-mode-layer ai-mode-orb bg-[radial-gradient(circle_at_22%_24%,rgba(6,182,212,0.22),transparent_42%),radial-gradient(circle_at_80%_16%,rgba(37,99,235,0.20),transparent_40%),radial-gradient(circle_at_45%_88%,rgba(14,165,233,0.16),transparent_44%)] dark:bg-[radial-gradient(circle_at_22%_24%,rgba(34,211,238,0.2),transparent_36%),radial-gradient(circle_at_80%_16%,rgba(96,165,250,0.18),transparent_34%)]" />
-          <div className="pointer-events-none absolute inset-0 ai-mode-layer ai-mode-matrix">
-            <div className="ai-matrix-grid h-full w-full" />
-          </div>
-          <div className="pointer-events-none absolute inset-0 ai-scan" />
-          <div className="pointer-events-none absolute inset-[1px] rounded-[1.95rem] rounded-tr-none rounded-bl-none border border-cyan-300/30 dark:border-cyan-200/12" />
-          <div
-            className={`pointer-events-none absolute inset-0 z-20 flex items-center justify-center transition-opacity duration-500 ${
-              thinking ? "opacity-100" : "opacity-0"
-            }`}
-            aria-hidden={!thinking}
-          >
-            <div className="ai-analyzing" aria-hidden="true">
-              <span className="ai-analyzing-dot" />
-              <span className="ai-analyzing-dot" />
-              <span className="ai-analyzing-dot" />
+        <div className={`ai-orb-wrap relative h-full overflow-hidden rounded-[2rem] rounded-tr-none rounded-bl-none border bg-white p-4 text-cyan-950 transition-all duration-300 ${poweredOn ? "border-cyan-300/30 shadow-[0_20px_48px_rgba(8,145,178,0.28)] dark:bg-zinc-900 dark:text-cyan-50 ai-on group-hover:-translate-y-0.5" : "border-zinc-200/60 shadow-none dark:bg-zinc-900/80 dark:text-zinc-400 ai-paused"}`}>
+          {poweredOn && (
+            <>
+              <div className="pointer-events-none absolute inset-0 ai-mode-layer ai-mode-orb bg-[radial-gradient(circle_at_22%_24%,rgba(6,182,212,0.22),transparent_42%),radial-gradient(circle_at_80%_16%,rgba(37,99,235,0.20),transparent_40%),radial-gradient(circle_at_45%_88%,rgba(14,165,233,0.16),transparent_44%)] dark:bg-[radial-gradient(circle_at_22%_24%,rgba(34,211,238,0.2),transparent_36%),radial-gradient(circle_at_80%_16%,rgba(96,165,250,0.18),transparent_34%)]" />
+              <div className="pointer-events-none absolute inset-0 ai-mode-layer ai-mode-matrix">
+                <div className="ai-matrix-grid h-full w-full" />
+              </div>
+              <div className="pointer-events-none absolute inset-0 ai-scan" />
+            </>
+          )}
+          {!poweredOn && <div className="pointer-events-none absolute inset-0 bg-zinc-200/50 dark:bg-zinc-800/40 rounded-[inherit]" />}
+          <div className={`pointer-events-none absolute inset-[1px] rounded-[1.95rem] rounded-tr-none rounded-bl-none border ${poweredOn ? "border-cyan-300/30 dark:border-cyan-200/12" : "border-zinc-200/40 dark:border-zinc-700/30"}`} />
+          {poweredOn && (
+            <div
+              className={`pointer-events-none absolute inset-0 z-20 flex items-center justify-center transition-opacity duration-500 ${
+                thinking ? "opacity-100" : "opacity-0"
+              }`}
+              aria-hidden={!thinking}
+            >
+              <div className="ai-analyzing" aria-hidden="true">
+                <span className="ai-analyzing-dot" />
+                <span className="ai-analyzing-dot" />
+                <span className="ai-analyzing-dot" />
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="relative z-10 flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-cyan-700 inline-flex items-center gap-1.5 dark:text-cyan-200">
-              <Bot className="h-3.5 w-3.5 ai-bot" />
+            <p className={`text-xs font-semibold uppercase tracking-[0.14em] inline-flex items-center gap-1.5 ${poweredOn ? "text-cyan-700 dark:text-cyan-200" : "text-zinc-400 dark:text-zinc-500"}`}>
+              <Bot className={`h-3.5 w-3.5 ${poweredOn ? "ai-bot" : ""}`} />
               Klipo IA
             </p>
-            <span className="inline-flex items-center gap-2 text-[11px] text-cyan-700 dark:text-cyan-200">
-              <span className="h-2 w-2 rounded-full bg-emerald-300 ai-pulse" />
-              Activa
+            <span
+              onClick={handleTogglePower}
+              className={`inline-flex items-center gap-2 text-[11px] cursor-pointer select-none ${poweredOn ? "text-cyan-700 dark:text-cyan-200" : "text-zinc-400 dark:text-zinc-500"}`}
+            >
+              <span className={`h-2 w-2 rounded-full ${poweredOn ? "bg-emerald-300 ai-pulse" : "bg-red-400"}`} />
+              {poweredOn ? "Activa" : "Apagada"}
             </span>
           </div>
 
-          <div className="relative z-10 mt-2 flex h-[84px] items-start gap-3">
+          <div className={`relative z-10 mt-2 flex h-[84px] items-start gap-3 ${poweredOn ? "" : "opacity-60"}`}>
               <div className="relative mt-0.5 h-12 w-12 shrink-0">
-                <div className="ai-orb absolute inset-0 rounded-full" />
-                <div className="ai-orb-glow absolute inset-[-8px] rounded-full" />
+                {poweredOn && (
+                  <>
+                    <div className="ai-orb absolute inset-0 rounded-full" />
+                    <div className="ai-orb-glow absolute inset-[-8px] rounded-full" />
+                  </>
+                )}
+                {!poweredOn && <div className="absolute inset-0 rounded-full bg-zinc-300 dark:bg-zinc-600" />}
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <Sparkles className="h-5 w-5 text-cyan-700 ai-star dark:text-cyan-100" />
+                  <Sparkles className={`h-5 w-5 ${poweredOn ? "text-cyan-700 ai-star dark:text-cyan-100" : "text-zinc-400 dark:text-zinc-500"}`} />
                 </div>
               </div>
 
               <div className="relative min-w-0 flex-1 h-full">
-                <div
-                  className={`absolute inset-0 px-3 py-2.5 flex items-center justify-center ai-panel-transition ${
-                    thinking ? "opacity-100" : "opacity-0"
-                  }`}
-                  aria-hidden={!thinking}
-                >
-                  <div className="h-full w-full" />
-                </div>
+                {poweredOn && (
+                  <div
+                    className={`absolute inset-0 px-3 py-2.5 flex items-center justify-center ai-panel-transition ${
+                      thinking ? "opacity-100" : "opacity-0"
+                    }`}
+                    aria-hidden={!thinking}
+                  >
+                    <div className="h-full w-full" />
+                  </div>
+                )}
 
                 <div
-                  className={`absolute inset-0 ai-msg h-full rounded-xl border px-3 py-2.5 ${toneClass} ai-panel-transition ${
-                    thinking ? "opacity-0" : "opacity-100"
+                  className={`absolute inset-0 h-full rounded-xl border px-3 py-2.5 ${poweredOn ? `${toneClass} ai-msg ai-panel-transition` : "bg-zinc-100 dark:bg-zinc-800 border-zinc-200/60 dark:border-zinc-700/40 text-zinc-400 dark:text-zinc-500"} ${
+                    poweredOn && thinking ? "opacity-0" : "opacity-100"
                   }`}
-                  aria-hidden={thinking}
+                  aria-hidden={poweredOn && thinking}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs font-semibold truncate">{active.title}</p>
-                    <span className="text-[10px] uppercase tracking-[0.12em] opacity-90">{toneLabel}</span>
-                  </div>
-                  <p className="mt-1 line-clamp-2 text-[11px] opacity-95">{active.body}</p>
+                  {poweredOn ? (
+                    <>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-semibold truncate">{active.title}</p>
+                        <span className="text-[10px] uppercase tracking-[0.12em] opacity-90">{toneLabel}</span>
+                      </div>
+                      <p className="mt-1 line-clamp-2 text-[11px] opacity-95">{active.body}</p>
+                    </>
+                  ) : (
+                    <div className="flex items-center justify-center h-full">
+                      <p className="text-[11px] text-zinc-400 dark:text-zinc-500">Klipo IA está detenida</p>
+                    </div>
+                  )}
                 </div>
 
             </div>
@@ -185,6 +217,14 @@ export default function AINotificationCard({
           <style jsx>{`
           .ai-orb-wrap {
             transform: perspective(1200px) rotateX(2deg);
+          }
+          .ai-paused .ai-orb,
+          .ai-paused .ai-orb-glow,
+          .ai-paused .ai-matrix-grid,
+          .ai-paused .ai-scan,
+          .ai-paused .ai-mode-layer,
+          .ai-paused .ai-msg {
+            animation-play-state: paused !important;
           }
           .ai-orb {
             background: radial-gradient(circle at 30% 30%, rgba(165,243,252,0.9), rgba(14,116,144,0.5) 55%, rgba(2,6,23,0.9));
