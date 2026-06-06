@@ -20,13 +20,47 @@ export default function AINotificationCard({
   const router = useRouter();
   const [activeIndex, setActiveIndex] = useState(0);
   const [thinking, setThinking] = useState(true);
+  const [pwaTip, setPwaTip] = useState<Message | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone;
+    if (isStandalone) return;
+
+    const ua = navigator.userAgent;
+    const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const isAndroid = /Android/.test(ua);
+
+    if (isIOS) {
+      setPwaTip({
+        id: "pwa-ios",
+        title: "Instalá Klip en tu iPhone",
+        body: "En Safari tocá el ícono Compartir (cuadrado con flecha arriba). Desplazá y elegí «Agregar a pantalla de inicio». Tocá «Agregar» arriba a la derecha y listo.",
+        tone: "insight",
+      });
+    } else if (isAndroid) {
+      setPwaTip({
+        id: "pwa-android",
+        title: "Instalá Klip en tu Android",
+        body: "En Chrome tocá los tres puntos ⋮ y elegí «Instalar aplicación». Si no aparece, buscá «Agregar a pantalla de inicio» en el mismo menú.",
+        tone: "insight",
+      });
+    } else {
+      setPwaTip({
+        id: "pwa-desktop",
+        title: "Instalá Klip en tu PC",
+        body: "En Chrome o Edge buscá el ícono de instalar (monitor con flecha ⬇) en la barra de direcciones. También podés ir al menú → «Instalar Klip».",
+        tone: "insight",
+      });
+    }
+  }, []);
 
   const feed = useMemo(
-    () =>
-      (messages.length > 0
-        ? messages.slice(0, 20)
-        : [{ id: "fallback", title: "Todo en orden", body: "Sin novedades urgentes.", tone: "insight" as const, href: undefined }]),
-    [messages]
+    () => {
+      const base = messages.length > 0 ? messages.slice(0, 20) : [{ id: "fallback", title: "Todo en orden", body: "Sin novedades urgentes.", tone: "insight" as const, href: undefined }];
+      return pwaTip ? [pwaTip, ...base] : base;
+    },
+    [messages, pwaTip]
   );
 
   const handleClick = useCallback(() => {
