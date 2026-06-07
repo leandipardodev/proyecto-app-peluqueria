@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect, useMemo, useRef, type DragEvent } from "react";
+import { useState, useTransition, useEffect, useMemo, useRef, useCallback, type DragEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
 import { Store, CreditCard, MessageSquareText, Smartphone, Link2, MapPin, Phone, Clock, Share2, AlertTriangle, Trash2 } from "lucide-react";
@@ -99,7 +99,7 @@ export default function BusinessClient({
   const router = useRouter();
   const [data, setData] = useState(initialData);
   const [error] = useState(initialError);
-  const [pending, startTransition] = useTransition();
+  const [isSaving, setIsSaving] = useState(false);
   const [creatingShop, startCreateShopTransition] = useTransition();
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -580,18 +580,20 @@ export default function BusinessClient({
     setMessage({ type: "error", text });
   }
 
-  function handleSavePublicInfo(e: React.FormEvent) {
+  async function handleSavePublicInfo(e: React.FormEvent) {
     e.preventDefault();
-    const formData = new FormData();
-    formData.set("nombre", name);
-    formData.set("address", address);
-    formData.set("localidad", localidad);
-    formData.set("phone", phone);
-    formData.set("instagram_url", instagramUrl);
-    formData.set("facebook_url", facebookUrl);
-    formData.set("tiktok_url", tiktokUrl);
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      const formData = new FormData();
+      formData.set("nombre", name);
+      formData.set("address", address);
+      formData.set("localidad", localidad);
+      formData.set("phone", phone);
+      formData.set("instagram_url", instagramUrl);
+      formData.set("facebook_url", facebookUrl);
+      formData.set("tiktok_url", tiktokUrl);
 
-    startTransition(async () => {
       const result = await updateBusinessInfo(formData);
       if (!result.success) {
         playError();
@@ -604,7 +606,12 @@ export default function BusinessClient({
           setData(fresh.data ?? null);
         }
       }
-    });
+    } catch (e) {
+      playError();
+      showError(e instanceof Error ? e.message : "Error al guardar información pública");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   function handleConnectMercadoPago() {
@@ -630,8 +637,10 @@ export default function BusinessClient({
     window.location.href = "/api/payments/mercadopago-oauth/start";
   }
 
-  function handleSaveBookingTheme() {
-    startTransition(async () => {
+  async function handleSaveBookingTheme() {
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
       const categoryUpdates = initialServices.map((service) => ({
         id: service.id,
         category: (serviceCategoryDraft[service.id] || "General").trim() || "General",
@@ -668,7 +677,12 @@ export default function BusinessClient({
       templateTouchedRef.current = false;
       playSuccess();
       showSuccess("Personalizacion de /book guardada");
-    });
+    } catch (e) {
+      playError();
+      showError(e instanceof Error ? e.message : "Error al guardar personalización");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   function handleAddSection() {
@@ -782,43 +796,40 @@ export default function BusinessClient({
     return dragEvent?.dataTransfer ?? null;
   }
 
-  function handleLogoUpload(event: React.ChangeEvent<HTMLInputElement>) {
+  async function handleLogoUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
 
     setUploadingLogo(true);
-    startTransition(async () => {
-      try {
-        const formData = new FormData();
-        formData.set("logo", file);
-        if (shopSlug) formData.set("shopSlug", shopSlug);
+    try {
+      const formData = new FormData();
+      formData.set("logo", file);
+      if (shopSlug) formData.set("shopSlug", shopSlug);
 
-        const result = await uploadBookingLogo(formData);
-        if (!result.success || !result.data) {
-          playError();
-          showError(result.success ? "No se pudo subir el logo" : result.error);
-          return;
-        }
-
-        setLogoUrl(result.data.logoUrl);
-        playSuccess();
-        showSuccess("Logo actualizado");
-      } catch (error) {
+      const result = await uploadBookingLogo(formData);
+      if (!result.success || !result.data) {
         playError();
-        showError(error instanceof Error ? error.message : "No se pudo subir el logo");
-      } finally {
-        setUploadingLogo(false);
-        event.target.value = "";
+        showError(result.success ? "No se pudo subir el logo" : result.error);
+        return;
       }
-    });
+
+      setLogoUrl(result.data.logoUrl);
+      playSuccess();
+      showSuccess("Logo actualizado");
+    } catch (error) {
+      playError();
+      showError(error instanceof Error ? error.message : "No se pudo subir el logo");
+    } finally {
+      setUploadingLogo(false);
+      event.target.value = "";
+    }
   }
 
-  function handleDisconnectMercadoPago() {
+  async function handleDisconnectMercadoPago() {
     setIsDisconnectingMp(true);
-    startTransition(async () => {
+    try {
       const result = await disconnectMercadoPagoOauthAction();
       if (!result.success) {
-        setIsDisconnectingMp(false);
         playError();
         showError(result.error);
         return;
@@ -827,8 +838,12 @@ export default function BusinessClient({
       showSuccess("Mercado Pago desconectado");
       const fresh = await fetchBusinessData();
       if (fresh.success) setData(fresh.data ?? null);
+    } catch (e) {
+      playError();
+      showError(e instanceof Error ? e.message : "Error al desconectar Mercado Pago");
+    } finally {
       setIsDisconnectingMp(false);
-    });
+    }
   }
 
 
@@ -1079,10 +1094,10 @@ export default function BusinessClient({
           <button
             type="button"
             onClick={handleSaveBookingTheme}
-            disabled={pending || uploadingLogo}
+            disabled={isSaving || uploadingLogo}
             className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#0071E3] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#005fcc] disabled:opacity-60"
           >
-            {pending ? "Publicando..." : "Publicar cambios"}
+            {isSaving ? "Publicando..." : "Publicar cambios"}
           </button>
           {shopSlug ? (
             <a
@@ -1775,16 +1790,20 @@ export default function BusinessClient({
                         if (tourStep === 2) {
                           setTourAdvancing(true);
                           setMpConnectUnlockAt(Date.now() + 1400);
-                          startTransition(async () => {
-                            const ok = await saveAllSections();
-                            if (!ok) {
+                          (async () => {
+                            try {
+                              const ok = await saveAllSections();
+                              if (!ok) {
+                                setTourAdvancing(false);
+                                return;
+                              }
+                              const key = `klip-business-onboarding-v1:${shopSlug || "default"}`;
+                              window.localStorage.setItem(key, JSON.stringify({ active: true, step: 3 }));
+                              router.push(shopSlug ? `/dashboard/${shopSlug}/staff` : "/dashboard/staff");
+                            } catch (e) {
                               setTourAdvancing(false);
-                              return;
                             }
-                            const key = `klip-business-onboarding-v1:${shopSlug || "default"}`;
-                            window.localStorage.setItem(key, JSON.stringify({ active: true, step: 3 }));
-                            router.push(shopSlug ? `/dashboard/${shopSlug}/staff` : "/dashboard/staff");
-                          });
+                          })();
                           return;
                         }
                         const nextStep = Math.min(tourStep + 1, tourSteps.length - 1);
@@ -1815,15 +1834,21 @@ export default function BusinessClient({
       {portalReady && typeof document !== "undefined" && createPortal(
         <button
           type="button"
-          onClick={() => {
-            startTransition(async () => {
+          onClick={async () => {
+            if (isSaving) return;
+            setIsSaving(true);
+            try {
               await saveAllSections();
-            });
+            } catch (e) {
+              showError(e instanceof Error ? e.message : "Error al guardar todo");
+            } finally {
+              setIsSaving(false);
+            }
           }}
-          disabled={pending}
+          disabled={isSaving}
           className="fixed bottom-4 right-4 z-50 ui-btn-primary inline-flex items-center rounded-full px-6 py-2.5 text-sm font-semibold disabled:opacity-60 shadow-lg"
         >
-          {pending ? "Guardando todo..." : "Guardar todo"}
+          {isSaving ? "Guardando todo..." : "Guardar todo"}
         </button>,
         document.body
       )}
