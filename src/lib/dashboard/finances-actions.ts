@@ -216,7 +216,8 @@ export async function fetchStaffProduction(fromDate?: string, toDate?: string, s
         .in("status", ["completed", "confirmed", "scheduled"])
         .not("staff_id", "is", null)
         .gte("start_time", fromBounds.start.toISOString())
-        .lte("start_time", toBounds.end.toISOString()),
+        .lte("start_time", toBounds.end.toISOString())
+        .limit(500),
     ]);
 
     if (apptsRes.error) return { success: false, error: apptsRes.error.message };
@@ -818,7 +819,8 @@ export async function fetchFinanceData(fromDate?: string, toDate?: string, shopI
         .eq("status", "completed")
         .eq("is_paid", true)
         .gte("start_time", fromBounds.start.toISOString())
-        .lte("start_time", toBounds.end.toISOString()),
+        .lte("start_time", toBounds.end.toISOString())
+        .limit(500),
       admin
         .from("finances")
         .select("id, amount, category, description, created_at, happened_at")

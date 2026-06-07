@@ -138,6 +138,8 @@ export default function FinancesClient({
   const [uiMessage, setUiMessage] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const shopRef = useRef(shopId);
+  const isFirstRender = useRef(true);
+  const skipNextRealtimeRefresh = useRef(false);
 
   useEffect(() => {
     shopRef.current = shopId;
@@ -204,15 +206,43 @@ export default function FinancesClient({
   }
 
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      const sid = shopRef.current || undefined;
+      setCashLoading(true);
+      Promise.all([
+        fetchCashSession(sid),
+        fetchCashMovements(from, to, sid),
+        fetchCashSessionsHistory(from, to, sid),
+        fetchStaffLiquidations(from, to, sid),
+      ])
+        .then(([session, moves, history, liq]) => {
+          if (session.success) setCashSession(session.data ?? null);
+          if (moves.success && moves.data) setCashMovements(moves.data);
+          if (history.success && history.data) setCashSessionsHistory(history.data);
+          if (liq.success && liq.data) setLiquidations(liq.data);
+        })
+        .finally(() => setCashLoading(false));
+      return;
+    }
     triggerLoads(from, to);
   }, [from, to]);
 
   useEffect(() => {
     const channel = supabase
       .channel(`finances-${shopId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "finances", filter: `shop_id=eq.${shopId}` }, () => void triggerLoads(from, to))
-      .on("postgres_changes", { event: "*", schema: "public", table: "cash_movements", filter: `shop_id=eq.${shopId}` }, () => void triggerLoads(from, to))
-      .on("postgres_changes", { event: "*", schema: "public", table: "cash_sessions", filter: `shop_id=eq.${shopId}` }, () => void triggerLoads(from, to))
+      .on("postgres_changes", { event: "*", schema: "public", table: "finances", filter: `shop_id=eq.${shopId}` }, () => {
+        if (skipNextRealtimeRefresh.current) { skipNextRealtimeRefresh.current = false; return; }
+        void triggerLoads(from, to);
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "cash_movements", filter: `shop_id=eq.${shopId}` }, () => {
+        if (skipNextRealtimeRefresh.current) { skipNextRealtimeRefresh.current = false; return; }
+        void triggerLoads(from, to);
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "cash_sessions", filter: `shop_id=eq.${shopId}` }, () => {
+        if (skipNextRealtimeRefresh.current) { skipNextRealtimeRefresh.current = false; return; }
+        void triggerLoads(from, to);
+      })
       .subscribe();
 
     return () => {
@@ -241,6 +271,7 @@ export default function FinancesClient({
     if (!res.success || !res.data) return setError(actionError(res, "No se pudo generar"));
     setLiquidationResult(res.data);
     setQuickFeedback("Pre-liquidacion creada");
+    skipNextRealtimeRefresh.current = true;
     void triggerLoads(from, to);
   }
 
@@ -250,6 +281,7 @@ export default function FinancesClient({
     setBusyKey(null);
     if (!res.success) return setError(actionError(res, "No se pudo actualizar"));
     setQuickFeedback("Liquidacion pagada");
+    skipNextRealtimeRefresh.current = true;
     void triggerLoads(from, to);
   }
 
@@ -267,6 +299,7 @@ export default function FinancesClient({
     setBusyKey(null);
     if (!res.success) return setError(actionError(res, "No se pudo abrir caja"));
     setQuickFeedback("Caja abierta");
+    skipNextRealtimeRefresh.current = true;
     void triggerLoads(from, to);
   }
 
@@ -280,6 +313,7 @@ export default function FinancesClient({
     setBusyKey(null);
     if (!res.success) return setError(actionError(res, "No se pudo cerrar caja"));
     setQuickFeedback("Caja cerrada");
+    skipNextRealtimeRefresh.current = true;
     void triggerLoads(from, to);
   }
 
@@ -292,6 +326,7 @@ export default function FinancesClient({
     if (!res.success) return setError(actionError(res, "No se pudo guardar movimiento"));
     form.reset();
     setQuickFeedback("Movimiento guardado");
+    skipNextRealtimeRefresh.current = true;
     void triggerLoads(from, to);
   }
 
