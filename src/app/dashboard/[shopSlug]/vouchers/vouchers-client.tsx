@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { useDebouncedRefresh } from "@/lib/use-debounced-refresh";
-import { createVoucher, markVoucherRedeemed, markVoucherReminderSent, updateVoucherWhatsappTemplate, type VoucherRow } from "@/lib/dashboard/voucher-actions";
+import { fetchVouchers, createVoucher, markVoucherRedeemed, markVoucherReminderSent, updateVoucherWhatsappTemplate, type VoucherRow } from "@/lib/dashboard/voucher-actions";
 import { DEFAULT_VOUCHER_WHATSAPP_TEMPLATE } from "@/lib/dashboard/voucher-constants";
 import { CheckCircle2, Gift, MessageCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -28,8 +26,6 @@ function voucherWhatsappText(v: VoucherRow, template: string) {
 }
 
 export default function VouchersClient({ shopId, initialVouchers, initialTemplate }: Props) {
-  const router = useRouter();
-  const refresh = useDebouncedRefresh();
   const [vouchers, setVouchers] = useState(initialVouchers);
   const [template, setTemplate] = useState(initialTemplate || DEFAULT_VOUCHER_WHATSAPP_TEMPLATE);
 
@@ -40,12 +36,19 @@ export default function VouchersClient({ shopId, initialVouchers, initialTemplat
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const handleChange = async () => {
+      const result = await fetchVouchers(shopId);
+      if (result.success && Array.isArray(result.data)) {
+        setVouchers(result.data);
+      }
+    };
+
     const channel = supabase
       .channel(`vouchers-${shopId}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "vouchers", filter: `shop_id=eq.${shopId}` },
-        () => refresh()
+        handleChange
       )
       .subscribe();
 

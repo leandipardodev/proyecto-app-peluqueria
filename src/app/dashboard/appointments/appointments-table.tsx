@@ -7,9 +7,8 @@ import { Button } from "@/components/ui/button";
 import { useAppointmentAlarm } from "@/lib/use-appointment-alarm";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
-import { useRouter } from "next/navigation";
-import { useDebouncedRefresh } from "@/lib/use-debounced-refresh";
 import { supabase } from "@/lib/supabase";
+import { fetchAllAppointmentsForTable } from "@/lib/dashboard/appointment-queries";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
@@ -85,9 +84,8 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
   const customerWord = INDUSTRY_CONFIG[industry].labels.customerSingular;
   const serviceWord = INDUSTRY_CONFIG[industry].labels.serviceSingular;
   const staffWord = INDUSTRY_CONFIG[industry].labels.staffSingular;
-  const router = useRouter();
   const { playSuccess, playError, playClick } = useKlipSounds();
-  const [appointments] = useState(initialAppointments);
+  const [appointments, setAppointments] = useState(initialAppointments);
   const [page, setPage] = useState(1);
   const [showForm, setShowForm] = useState(false);
   const { addToast } = useToast();
@@ -100,16 +98,26 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
   }, [appointments, page]);
 
   useEffect(() => {
+    setAppointments(initialAppointments);
+  }, [initialAppointments]);
+
+  useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
   useAppointmentAlarm(appointments);
-  const refresh = useDebouncedRefresh();
 
   useEffect(() => {
+    const handleChange = async () => {
+      const result = await fetchAllAppointmentsForTable(shopId, { limit: 50, upcomingOnly: true });
+      if (result.success && Array.isArray(result.data)) {
+        setAppointments(result.data as Appointment[]);
+      }
+    };
+
     const channel = supabase
       .channel(`appointments-${shopId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "appointments", filter: `shop_id=eq.${shopId}` }, () => refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "appointments", filter: `shop_id=eq.${shopId}` }, handleChange)
       .subscribe();
 
     return () => {

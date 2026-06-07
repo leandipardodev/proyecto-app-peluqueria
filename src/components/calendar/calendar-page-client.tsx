@@ -1,17 +1,17 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { addWeeks, subWeeks } from "date-fns";
 import { motion } from "framer-motion";
 
-import { useRouter } from "next/navigation";
 import CalendarView from "./calendar-view";
 import AppointmentFormModal from "./appointment-form-modal";
 import AppointmentDetailModal from "./appointment-detail-modal";
 import { StatePanel } from "@/components/ui/state-panel";
 import { useAppointmentAlarm } from "@/lib/use-appointment-alarm";
-import { getArgentinaDateKey } from "@/lib/argentina-time";
+import { getArgentinaDateKey, getArgentinaWeekStart } from "@/lib/argentina-time";
 import { supabase } from "@/lib/supabase";
+import { fetchAppointments } from "@/lib/dashboard/appointment-queries";
 
 function CalendarSkeleton() {
   return (
@@ -112,13 +112,31 @@ export default function CalendarPageClient({
   initialDateParam,
   initialAppointmentId,
 }: CalendarPageClientProps) {
-  const router = useRouter();
-  const resolvedAppointments = useMemo(() => {
-    if (!Array.isArray(initialAppointments) || initialAppointments.length === 0) return [];
+  const [currentDate, setCurrentDate] = useState(() => {
+    if (!initialDateParam) return new Date();
+    const parsed = new Date(initialDateParam);
+    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  });
+  const [formModalOpen, setFormModalOpen] = useState(false);
+  const [formInitialDate, setFormInitialDate] = useState<string | undefined>();
+  const [formInitialHour, setFormInitialHour] = useState<number | undefined>();
+  const [selectedAppointment, setSelectedAppointment] =
+    useState<Appointment | null>(null);
+  const [staffFilter, setStaffFilter] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [appointments, setAppointments] = useState(initialAppointments);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setAppointments(initialAppointments);
+  }, [initialAppointments]);
+
+  const enrichedAppointments = useMemo(() => {
+    if (!Array.isArray(appointments) || appointments.length === 0) return [];
 
     const servicesById = new Map(services.map((service) => [service.id, service]));
 
-    return initialAppointments.map((appointment) => {
+    return appointments.map((appointment) => {
       if (appointment.services?.name) return appointment;
       const fallbackService = servicesById.get(appointment.service_id);
       if (!fallbackService) return appointment;
@@ -132,32 +150,17 @@ export default function CalendarPageClient({
         },
       };
     });
-  }, [initialAppointments, services]);
-
-  const [currentDate, setCurrentDate] = useState(() => {
-    if (!initialDateParam) return new Date();
-    const parsed = new Date(initialDateParam);
-    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
-  });
-  const [formModalOpen, setFormModalOpen] = useState(false);
-  const [formInitialDate, setFormInitialDate] = useState<string | undefined>();
-  const [formInitialHour, setFormInitialHour] = useState<number | undefined>();
-  const [selectedAppointment, setSelectedAppointment] =
-    useState<Appointment | null>(null);
-  const [staffFilter, setStaffFilter] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const [hydrated, setHydrated] = useState(false);
-  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  }, [appointments, services]);
 
   const filteredAppointments = useMemo(() => {
-    if (!statusFilter) return resolvedAppointments;
+    if (!statusFilter) return enrichedAppointments;
     const statuses = statusFilter === "scheduled"
       ? ["scheduled", "pending_payment"]
       : statusFilter === "confirmed"
         ? ["confirmed", "in_progress"]
         : [statusFilter];
-    return resolvedAppointments.filter((a) => statuses.includes(a.status));
-  }, [resolvedAppointments, statusFilter]);
+    return enrichedAppointments.filter((a) => statuses.includes(a.status));
+  }, [enrichedAppointments, statusFilter]);
 
   useEffect(() => {
     setHydrated(true);
@@ -165,32 +168,38 @@ export default function CalendarPageClient({
 
   useEffect(() => {
     if (!initialAppointmentId) return;
-    const found = resolvedAppointments.find((a) => a.id === initialAppointmentId);
+    const found = enrichedAppointments.find((a) => a.id === initialAppointmentId);
     if (found) {
       setSelectedAppointment(found);
     }
-  }, [initialAppointmentId, resolvedAppointments]);
+  }, [initialAppointmentId, enrichedAppointments]);
 
-  useAppointmentAlarm(resolvedAppointments);
+  useAppointmentAlarm(enrichedAppointments);
 
   useEffect(() => {
-    const scheduleRefresh = () => {
-      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-      refreshTimerRef.current = setTimeout(() => {
-        router.refresh();
-      }, 3000);
+    const weekStart = getArgentinaWeekStart();
+    const rangeStart = new Date(weekStart);
+    rangeStart.setUTCDate(weekStart.getUTCDate() - 7);
+    const rangeEnd = new Date(weekStart);
+    rangeEnd.setUTCDate(weekStart.getUTCDate() + 14);
+    rangeEnd.setUTCHours(23, 59, 59, 999);
+
+    const handleChange = async () => {
+      const result = await fetchAppointments(rangeStart.toISOString(), rangeEnd.toISOString(), shopId);
+      if (result.success && Array.isArray(result.data)) {
+        setAppointments(result.data as Appointment[]);
+      }
     };
 
     const channel = supabase
       .channel(`calendar-${shopId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "appointments", filter: `shop_id=eq.${shopId}` }, scheduleRefresh)
-      .on("postgres_changes", { event: "*", schema: "public", table: "customers", filter: `shop_id=eq.${shopId}` }, scheduleRefresh)
-      .on("postgres_changes", { event: "*", schema: "public", table: "services", filter: `shop_id=eq.${shopId}` }, scheduleRefresh)
-      .on("postgres_changes", { event: "*", schema: "public", table: "shop_memberships", filter: `shop_id=eq.${shopId}` }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "appointments", filter: `shop_id=eq.${shopId}` }, handleChange)
+      .on("postgres_changes", { event: "*", schema: "public", table: "customers", filter: `shop_id=eq.${shopId}` }, handleChange)
+      .on("postgres_changes", { event: "*", schema: "public", table: "services", filter: `shop_id=eq.${shopId}` }, handleChange)
+      .on("postgres_changes", { event: "*", schema: "public", table: "shop_memberships", filter: `shop_id=eq.${shopId}` }, handleChange)
       .subscribe();
 
     return () => {
-      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
       supabase.removeChannel(channel);
     };
   }, [shopId]);

@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useRef, memo } from "react";
-import { useRouter } from "next/navigation";
-import { useDebouncedRefresh } from "@/lib/use-debounced-refresh";
+import { useEffect, useState, useMemo, useRef, memo, useTransition } from "react";
 import {
   Package,
   AlertTriangle,
@@ -11,7 +9,6 @@ import {
   Plus,
   Minus,
 } from "lucide-react";
-import { useTransition } from "react";
 import { applyStockBatchAdjustments, deleteProduct } from "@/lib/dashboard/inventory-actions";
 import { supabase } from "@/lib/supabase";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
@@ -38,8 +35,6 @@ const StockTable = memo(function StockTable({ shopId, items }: StockTableProps) 
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const { addToast } = useToast();
-  const router = useRouter();
-  const refresh = useDebouncedRefresh();
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -52,14 +47,23 @@ const StockTable = memo(function StockTable({ shopId, items }: StockTableProps) 
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "stock", filter: `shop_id=eq.${shopId}` },
-        () => refresh()
+        () => {
+          startTransition(async () => {
+            const { data } = await supabase
+              .from("stock")
+              .select("id, nombre_producto, quantity, unit_cost")
+              .eq("shop_id", shopId)
+              .order("nombre_producto", { ascending: true });
+            if (Array.isArray(data)) setStockItems(data);
+          });
+        }
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [shopId]);
+  }, [shopId, startTransition]);
 
   const filtered = useMemo(
     () =>
