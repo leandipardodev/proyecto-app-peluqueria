@@ -23,7 +23,6 @@ import {
   disconnectMercadoPagoOauthAction,
   updateBookingDepositPolicyAction,
   updateWhatsappTemplateAction,
-  fetchBusinessHours,
   updateBusinessHours,
   type BusinessData,
   type BusinessHoursData,
@@ -65,6 +64,8 @@ export default function BusinessClient({
   canManageBilling,
   shopSlug,
   initialServices,
+  initialBusinessHours,
+  initialBookingTheme,
 }: {
   initialData: BusinessData | null;
   initialError: string | null;
@@ -84,6 +85,8 @@ export default function BusinessClient({
   canManageBilling: boolean;
   shopSlug: string | null;
   initialServices: InitialServiceItem[];
+  initialBusinessHours: BusinessHoursData | null;
+  initialBookingTheme: BookingThemeData | null;
 }) {
   const { shop } = useAuth();
   const industry = resolveIndustry(shop?.industry);
@@ -116,9 +119,9 @@ export default function BusinessClient({
   const [bookingDepositAmount, setBookingDepositAmount] = useState(String(data?.booking_deposit_amount ?? 3000));
   const [payAtShop, setPayAtShop] = useState(data?.pay_at_shop ?? false);
   const [message, setMessage] = useState<MessageType>(null);
-  const [businessHours, setBusinessHours] = useState<BusinessHoursData | null>(null);
+  const [businessHours, setBusinessHours] = useState<BusinessHoursData | null>(initialBusinessHours);
   const [tourAdvancing, setTourAdvancing] = useState(false);
-  const [hoursLoading, setHoursLoading] = useState(true);
+  const [hoursLoading, setHoursLoading] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [closeConfirm, setCloseConfirm] = useState("");
   const [showCloseModal, setShowCloseModal] = useState(false);
@@ -131,21 +134,45 @@ export default function BusinessClient({
   const [mpConnectUnlockAt, setMpConnectUnlockAt] = useState(0);
   const [isConnectingMp, setIsConnectingMp] = useState(false);
   const [isDisconnectingMp, setIsDisconnectingMp] = useState(false);
-  const [bookingTheme, setBookingTheme] = useState<BookingThemeData | null>(null);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<BookingTemplateId>(DEFAULT_BOOKING_TEMPLATE);
+  const [bookingTheme, setBookingTheme] = useState<BookingThemeData | null>(initialBookingTheme);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<BookingTemplateId>(
+    initialBookingTheme?.template_id || DEFAULT_BOOKING_TEMPLATE
+  );
   const templateTouchedRef = useRef(false);
   const bookingCopyTouchedRef = useRef(false);
   const sectionTouchedRef = useRef(false);
-  const [logoUrl, setLogoUrl] = useState<string>("");
-  const [heroTitle, setHeroTitle] = useState("");
-  const [heroSubtitle, setHeroSubtitle] = useState("");
-  const [aboutTitle, setAboutTitle] = useState("");
-  const [aboutText, setAboutText] = useState("");
+  const [logoUrl, setLogoUrl] = useState<string>(initialBookingTheme?.logo_url || "");
+  const [heroTitle, setHeroTitle] = useState(initialBookingTheme?.hero_title || "");
+  const [heroSubtitle, setHeroSubtitle] = useState(initialBookingTheme?.hero_subtitle || "");
+  const [aboutTitle, setAboutTitle] = useState(initialBookingTheme?.about_title || "");
+  const [aboutText, setAboutText] = useState(initialBookingTheme?.about_text || "");
   const [uploadingLogo, setUploadingLogo] = useState(false);
-  const [serviceCategoryDraft, setServiceCategoryDraft] = useState<Record<string, string>>(
-    Object.fromEntries(initialServices.map((service) => [service.id, (service.category || "General").trim() || "General"])),
-  );
+  const [serviceCategoryDraft, setServiceCategoryDraft] = useState<Record<string, string>>(() => {
+    if (initialBookingTheme?.section_service_order?.length) {
+      const ranked = new Map(initialBookingTheme.section_service_order.map((id, index) => [id, index]));
+      const orderedFromTheme = [...initialServices].sort((a, b) => {
+        const ai = ranked.get(a.id);
+        const bi = ranked.get(b.id);
+        if (ai === undefined && bi === undefined) return 0;
+        if (ai === undefined) return 1;
+        if (bi === undefined) return -1;
+        return ai - bi;
+      });
+      const draft: Record<string, string> = {};
+      for (const service of orderedFromTheme) {
+        draft[service.id] = (service.category || "General").trim() || "General";
+      }
+      return draft;
+    }
+    return Object.fromEntries(initialServices.map((service) => [service.id, (service.category || "General").trim() || "General"]));
+  });
   const [sectionCatalog, setSectionCatalog] = useState<string[]>(() => {
+    if (initialBookingTheme?.section_order?.length) {
+      const fromServices = Array.from(new Set(initialServices.map((service) => (service.category || "General").trim() || "General")));
+      const merged = [...initialBookingTheme.section_order, ...fromServices].filter((item, index, arr) => Boolean(item) && arr.indexOf(item) === index);
+      if (!merged.includes("General")) merged.unshift("General");
+      return ["General", ...merged.filter((item) => item !== "General")];
+    }
     const unique = Array.from(new Set(initialServices.map((service) => (service.category || "General").trim() || "General")));
     if (!unique.includes("General")) unique.unshift("General");
     return unique;
@@ -154,7 +181,21 @@ export default function BusinessClient({
   const [draggingServiceId, setDraggingServiceId] = useState<string | null>(null);
   const [dragOverSection, setDragOverSection] = useState<string | null>(null);
   const [mobileDropFlashSection, setMobileDropFlashSection] = useState<string | null>(null);
-  const [serviceOrderIds, setServiceOrderIds] = useState<string[]>(initialServices.map((service) => service.id));
+  const [serviceOrderIds, setServiceOrderIds] = useState<string[]>(() => {
+    if (initialBookingTheme?.section_service_order?.length) {
+      const ranked = new Map(initialBookingTheme.section_service_order.map((id, index) => [id, index]));
+      const orderedFromTheme = [...initialServices].sort((a, b) => {
+        const ai = ranked.get(a.id);
+        const bi = ranked.get(b.id);
+        if (ai === undefined && bi === undefined) return 0;
+        if (ai === undefined) return 1;
+        if (bi === undefined) return -1;
+        return ai - bi;
+      });
+      return orderedFromTheme.map((service) => service.id);
+    }
+    return initialServices.map((service) => service.id);
+  });
 
   useEffect(() => {
     setServiceCategoryDraft((prev) => {
@@ -205,11 +246,6 @@ export default function BusinessClient({
       })),
     [orderedServices, serviceCategoryDraft],
   );
-  const bookingThemeSyncKey = useMemo(
-    () => `${shopSlug || "default"}::${initialServices.map((service) => service.id).join("|")}`,
-    [shopSlug, initialServices],
-  );
-
   const DAYS = [
     { key: "monday", label: "Lunes" },
     { key: "tuesday", label: "Martes" },
@@ -231,62 +267,6 @@ export default function BusinessClient({
   const mpReturnScrollKey = getMpReturnScrollKey(shopSlug);
 
   const maskValue = (value: string) => (showStats ? value : "••••");
-
-  useEffect(() => {
-    fetchBusinessHours()
-      .then((h) => {
-        if (h.success) {
-          setBusinessHours(h.data ?? null);
-        }
-        setHoursLoading(false);
-      })
-      .catch(() => {
-        setHoursLoading(false);
-      });
-  }, []);
-
-  useEffect(() => {
-    fetchBookingTheme(undefined, shopSlug ?? undefined).then((result) => {
-      if (!result.success) return;
-      const theme = result.data;
-      if (!theme) return;
-      setBookingTheme(theme);
-      if (!templateTouchedRef.current) {
-        setSelectedTemplateId(theme.template_id);
-      }
-      setLogoUrl(theme.logo_url || "");
-      if (!bookingCopyTouchedRef.current) {
-        setHeroTitle(theme.hero_title || "");
-        setHeroSubtitle(theme.hero_subtitle || "");
-        setAboutTitle(theme.about_title || "");
-        setAboutText(theme.about_text || "");
-      }
-      if (!sectionTouchedRef.current && Array.isArray(theme.section_order) && theme.section_order.length > 0) {
-        const fromServices = Array.from(new Set(initialServices.map((service) => (service.category || "General").trim() || "General")));
-        const merged = [...theme.section_order, ...fromServices].filter((item, index, arr) => Boolean(item) && arr.indexOf(item) === index);
-        if (!merged.includes("General")) merged.unshift("General");
-        const ordered = ["General", ...merged.filter((item) => item !== "General")];
-        setSectionCatalog(ordered);
-      }
-      if (Array.isArray(theme.section_service_order) && theme.section_service_order.length > 0) {
-        const ranked = new Map(theme.section_service_order.map((id, index) => [id, index]));
-        const orderedFromTheme = [...initialServices].sort((a, b) => {
-          const ai = ranked.get(a.id);
-          const bi = ranked.get(b.id);
-          if (ai === undefined && bi === undefined) return 0;
-          if (ai === undefined) return 1;
-          if (bi === undefined) return -1;
-          return ai - bi;
-        });
-        const nextDraft: Record<string, string> = {};
-        for (const service of orderedFromTheme) {
-          nextDraft[service.id] = (service.category || "General").trim() || "General";
-        }
-        setServiceCategoryDraft((prev) => ({ ...nextDraft, ...prev }));
-        setServiceOrderIds(orderedFromTheme.map((service) => service.id));
-      }
-    });
-  }, [bookingThemeSyncKey, initialServices, shopSlug]);
 
   useEffect(() => {
     try {
