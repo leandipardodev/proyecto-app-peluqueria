@@ -1,25 +1,13 @@
-import { revalidatePath } from "next/cache";
-import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
-
-function normalizeSegment(segment: string): string {
-  if (!segment || segment === "/") return "";
-  return segment.startsWith("/") ? segment : `/${segment}`;
-}
-
-async function resolveShopSlug(shopId: string): Promise<string | null> {
-  const admin = await createServiceRoleClient();
-  const { data } = await admin.from("shops").select("slug").eq("id", shopId).maybeSingle();
-  const slug = (data?.slug as string | undefined)?.trim();
-  return slug || null;
-}
-
-export async function revalidateDashboardSegments(shopId: string | null | undefined, segments: string[]): Promise<void> {
-  if (!shopId) return;
-  const slug = await resolveShopSlug(shopId);
-  if (!slug) return;
-  const uniqueSegments = Array.from(new Set(segments.map(normalizeSegment)));
-
-  for (const segment of uniqueSegments) {
-    revalidatePath(`/dashboard/${slug}${segment}`);
-  }
+/**
+ * Revalidation is handled by:
+ *  - Client-side state updates after mutations (setState)
+ *  - Supabase Realtime subscriptions with cooldown
+ *  - `force-dynamic` on the dashboard layout (always fresh on navigation)
+ *
+ * Calling revalidatePath inside server actions triggered a full RSC re-fetch
+ * of the current page + layout on every mutation, causing the entire
+ * dashboard (sidebar, header, content) to flash/refresh unnecessarily.
+ */
+export async function revalidateDashboardSegments(_shopId: string | null | undefined, _segments: string[]): Promise<void> {
+  /* no-op */
 }
