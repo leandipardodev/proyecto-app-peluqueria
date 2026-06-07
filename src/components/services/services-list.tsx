@@ -1,7 +1,7 @@
 "use client";
 
 import { Pencil, Trash2, Plus } from "lucide-react";
-import { useEffect, useState, useTransition, memo } from "react";
+import { useEffect, useState, useTransition, memo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ServiceModal from "./service-modal";
 import ServiceForm from "./service-form";
@@ -56,6 +56,8 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
     }
   }, [shopSlug]);
 
+  const realtimeCooldown = useRef(false);
+
   useEffect(() => {
     const channel = supabase
       .channel(`services-${shopId}`)
@@ -63,6 +65,9 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
         "postgres_changes",
         { event: "*", schema: "public", table: "services", filter: `shop_id=eq.${shopId}` },
         () => {
+          if (realtimeCooldown.current) return;
+          realtimeCooldown.current = true;
+          setTimeout(() => { realtimeCooldown.current = false; }, 2000);
           startTransition(async () => {
             const { data } = await supabase
               .from("services")

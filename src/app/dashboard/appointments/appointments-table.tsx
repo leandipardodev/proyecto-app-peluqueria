@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, memo } from "react";
+import { useEffect, useMemo, useState, memo, useRef } from "react";
 import { MessageCircle, Bell } from "lucide-react";
 import AppointmentFormModal from "@/components/calendar/appointment-form-modal";
 import { Button } from "@/components/ui/button";
@@ -107,8 +107,13 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
 
   useAppointmentAlarm(appointments);
 
+  const realtimeCooldown = useRef(false);
+
   useEffect(() => {
     const handleChange = async () => {
+      if (realtimeCooldown.current) return;
+      realtimeCooldown.current = true;
+      setTimeout(() => { realtimeCooldown.current = false; }, 2000);
       const result = await fetchAllAppointmentsForTable(shopId, { limit: 50, upcomingOnly: true });
       if (result.success && Array.isArray(result.data)) {
         setAppointments(result.data as Appointment[]);

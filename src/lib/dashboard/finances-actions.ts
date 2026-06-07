@@ -161,33 +161,44 @@ function toService(row: StaffAppointmentRow): { price: number | null; name: stri
   return Array.isArray(row.services) ? row.services[0] || null : row.services;
 }
 
+const shopStaffCache = new Map<string, Promise<StaffProfileRow[]>>();
+
 async function fetchShopStaff(admin: Awaited<ReturnType<typeof createAdminClient>>, shopId: string): Promise<StaffProfileRow[]> {
-  const { data: memberships, error: membershipsError } = await admin
-    .from("shop_memberships")
-    .select("user_id, role")
-    .eq("shop_id", shopId)
-    .eq("is_active", true)
-    .in("role", ["owner", "admin", "staff"]);
+  const cached = shopStaffCache.get(shopId);
+  if (cached) return cached;
 
-  if (membershipsError) throw new Error(membershipsError.message);
+  const promise = (async () => {
+    const { data: memberships, error: membershipsError } = await admin
+      .from("shop_memberships")
+      .select("user_id, role")
+      .eq("shop_id", shopId)
+      .eq("is_active", true)
+      .in("role", ["owner", "admin", "staff"]);
 
-  const userIds = (memberships || []).map((m) => m.user_id).filter(Boolean);
-  if (userIds.length === 0) return [];
+    if (membershipsError) throw new Error(membershipsError.message);
 
-  const { data: profiles, error: profilesError } = await admin
-    .from("user_profiles")
-    .select("user_id, name, email")
-    .in("user_id", userIds);
+    const userIds = (memberships || []).map((m) => m.user_id).filter(Boolean);
+    if (userIds.length === 0) return [];
 
-  if (profilesError) throw new Error(profilesError.message);
+    const { data: profiles, error: profilesError } = await admin
+      .from("user_profiles")
+      .select("user_id, name, email")
+      .in("user_id", userIds);
 
-  const profileMap = new Map((profiles || []).map((p) => [p.user_id, { name: p.name, email: p.email }]));
+    if (profilesError) throw new Error(profilesError.message);
 
-  return (memberships || []).map((m) => ({
-    user_id: m.user_id,
-    role: m.role,
-    user_profiles: profileMap.get(m.user_id) || null,
-  })) as StaffProfileRow[];
+    const profileMap = new Map((profiles || []).map((p) => [p.user_id, { name: p.name, email: p.email }]));
+
+    return (memberships || []).map((m) => ({
+      user_id: m.user_id,
+      role: m.role,
+      user_profiles: profileMap.get(m.user_id) || null,
+    })) as StaffProfileRow[];
+  })();
+
+  shopStaffCache.set(shopId, promise);
+  promise.finally(() => shopStaffCache.delete(shopId));
+  return promise;
 }
 
 export async function fetchStaffProduction(fromDate?: string, toDate?: string, shopIdOverride?: string): Promise<ActionResult<StaffProduction[]>> {
@@ -361,7 +372,8 @@ export async function createStaffPreLiquidation(formData: FormData, shopIdOverri
         .eq("status", "completed")
         .eq("is_paid", true)
         .gte("start_time", fromBounds.start.toISOString())
-        .lte("start_time", toBounds.end.toISOString()),
+        .lte("start_time", toBounds.end.toISOString())
+        .limit(500),
     ]);
 
     if (apptsRes.error) return { success: false, error: apptsRes.error.message };
@@ -541,7 +553,8 @@ export async function fetchCashSession(shopIdOverride?: string): Promise<ActionR
       .from("cash_movements")
       .select("movement_type, amount")
       .eq("shop_id", shopId)
-      .eq("cash_session_id", data.id);
+      .eq("cash_session_id", data.id)
+      .limit(500);
     if (movesError) return { success: false, error: movesError.message };
 
     const movementNet = (sessionMoves || []).reduce((sum, m) => {
@@ -558,7 +571,8 @@ export async function fetchCashSession(shopIdOverride?: string): Promise<ActionR
         .eq("status", "completed")
         .eq("is_paid", true)
         .gte("start_time", data.opened_at)
-        .lte("start_time", new Date().toISOString());
+        .lte("start_time", new Date().toISOString())
+        .limit(500);
       appointmentIncome = (sessionAppts || []).reduce((sum, a) => {
         const svc = Array.isArray(a.services) ? a.services[0] : a.services;
         const amount = a.service_price != null ? Number(a.service_price) : (svc?.price ?? 0);
@@ -641,7 +655,8 @@ export async function closeCashSession(formData: FormData, shopIdOverride?: stri
       .from("cash_movements")
       .select("movement_type, amount")
       .eq("shop_id", shopId)
-      .eq("cash_session_id", sessionId);
+      .eq("cash_session_id", sessionId)
+      .limit(500);
     if (movesError) return { success: false, error: movesError.message };
 
     const { data: session, error: sessionErr } = await admin
@@ -659,7 +674,8 @@ export async function closeCashSession(formData: FormData, shopIdOverride?: stri
       .eq("status", "completed")
       .eq("is_paid", true)
       .gte("start_time", session.opened_at)
-      .lte("start_time", new Date().toISOString());
+      .lte("start_time", new Date().toISOString())
+      .limit(500);
 
     const appointmentIncome = (sessionAppts || []).reduce((sum, a) => {
       const svc = Array.isArray(a.services) ? a.services[0] : a.services;

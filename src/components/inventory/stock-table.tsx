@@ -41,6 +41,8 @@ const StockTable = memo(function StockTable({ shopId, items }: StockTableProps) 
     setStockItems(items);
   }, [items]);
 
+  const realtimeCooldown = useRef(false);
+
   useEffect(() => {
     const channel = supabase
       .channel(`stock-${shopId}`)
@@ -48,6 +50,9 @@ const StockTable = memo(function StockTable({ shopId, items }: StockTableProps) 
         "postgres_changes",
         { event: "*", schema: "public", table: "stock", filter: `shop_id=eq.${shopId}` },
         () => {
+          if (realtimeCooldown.current) return;
+          realtimeCooldown.current = true;
+          setTimeout(() => { realtimeCooldown.current = false; }, 2000);
           startTransition(async () => {
             const { data } = await supabase
               .from("stock")

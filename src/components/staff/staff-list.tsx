@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -92,8 +92,13 @@ export default function StaffList({
     setStaff(initialStaff);
   }, [initialStaff]);
 
+  const realtimeCooldown = useRef(false);
+
   useEffect(() => {
     const refreshStaff = async () => {
+      if (realtimeCooldown.current) return;
+      realtimeCooldown.current = true;
+      setTimeout(() => { realtimeCooldown.current = false; }, 2000);
       const latest = await fetchStaffMembers(shopId);
       if (latest.success) setStaff(latest.data ?? []);
     };

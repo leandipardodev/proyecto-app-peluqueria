@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition, useRef } from "react";
 import { fetchVouchers, createVoucher, markVoucherRedeemed, markVoucherReminderSent, updateVoucherWhatsappTemplate, type VoucherRow } from "@/lib/dashboard/voucher-actions";
 import { DEFAULT_VOUCHER_WHATSAPP_TEMPLATE } from "@/lib/dashboard/voucher-constants";
 import { CheckCircle2, Gift, MessageCircle } from "lucide-react";
@@ -35,8 +35,13 @@ export default function VouchersClient({ shopId, initialVouchers, initialTemplat
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
+  const realtimeCooldown = useRef(false);
+
   useEffect(() => {
     const handleChange = async () => {
+      if (realtimeCooldown.current) return;
+      realtimeCooldown.current = true;
+      setTimeout(() => { realtimeCooldown.current = false; }, 2000);
       const result = await fetchVouchers(shopId);
       if (result.success && Array.isArray(result.data)) {
         setVouchers(result.data);

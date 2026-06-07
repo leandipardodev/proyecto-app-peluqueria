@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { addWeeks, subWeeks } from "date-fns";
 import { motion } from "framer-motion";
 
@@ -176,6 +176,8 @@ export default function CalendarPageClient({
 
   useAppointmentAlarm(enrichedAppointments);
 
+  const realtimeCooldown = useRef(false);
+
   useEffect(() => {
     const weekStart = getArgentinaWeekStart();
     const rangeStart = new Date(weekStart);
@@ -185,6 +187,9 @@ export default function CalendarPageClient({
     rangeEnd.setUTCHours(23, 59, 59, 999);
 
     const handleChange = async () => {
+      if (realtimeCooldown.current) return;
+      realtimeCooldown.current = true;
+      setTimeout(() => { realtimeCooldown.current = false; }, 2000);
       const result = await fetchAppointments(rangeStart.toISOString(), rangeEnd.toISOString(), shopId);
       if (result.success && Array.isArray(result.data)) {
         setAppointments(result.data as Appointment[]);
