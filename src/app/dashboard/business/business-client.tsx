@@ -40,7 +40,7 @@ import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { resolveIndustry } from "@/lib/industry/resolve";
 
 type MessageType = { type: "success" | "error"; text: string } | null;
-type InitialServiceItem = { id: string; name: string; category?: string | null; price: number; duration_minutes: number };
+type InitialServiceItem = { id: string; name: string; category?: string | null; price: number; duration_minutes: number; pay_at_shop: boolean };
 
 function getMpReturnScrollKey(shopSlug: string | null): string {
   return `klip-mp-return-scroll:${shopSlug || "default"}`;

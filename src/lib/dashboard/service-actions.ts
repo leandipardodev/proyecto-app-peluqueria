@@ -16,6 +16,7 @@ type ServiceRow = {
   category: string;
   price: number;
   duration_minutes: number;
+  pay_at_shop: boolean;
   created_at: string;
   updated_at: string | null;
   shop_id: string;
@@ -67,7 +68,7 @@ export async function fetchServices(shopIdOverride?: string): Promise<ActionResu
 
     const { data, error } = await admin
       .from("services")
-      .select("id, name, category, price, duration_minutes, created_at, updated_at, shop_id")
+      .select("id, name, category, price, duration_minutes, pay_at_shop, created_at, updated_at, shop_id")
       .eq("shop_id", shopId)
       .order("created_at", { ascending: false });
 
