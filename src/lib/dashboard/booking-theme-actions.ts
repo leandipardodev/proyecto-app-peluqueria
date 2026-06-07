@@ -131,7 +131,6 @@ export async function upsertBookingTheme(input: {
     const { data: shopData } = await admin.from("shops").select("slug").eq("id", shopId).maybeSingle();
     const slug = shopData?.slug as string | undefined;
     if (slug) {
-      revalidatePath(`/dashboard/${slug}/business`);
       revalidatePath(`/book/${slug}`);
     }
     return { success: true };
@@ -177,7 +176,6 @@ export async function uploadBookingLogo(formData: FormData): Promise<ActionResul
     const { data: shopData } = await admin.from("shops").select("slug").eq("id", shopId).maybeSingle();
     const slug = shopData?.slug as string | undefined;
     if (slug) {
-      revalidatePath(`/dashboard/${slug}/business`);
       revalidatePath(`/book/${slug}`);
     }
 
