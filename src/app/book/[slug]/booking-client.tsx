@@ -17,7 +17,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { initMercadoPago, Wallet } from "@mercadopago/sdk-react";
-import { fetchPublicAvailableSlots, createPublicAppointment } from "@/lib/dashboard/public-booking-actions";
+import { fetchPublicAvailableSlots, createPublicAppointment, createPublicComboAppointment } from "@/lib/dashboard/public-booking-actions";
 import { createPendingBooking, deletePendingBooking } from "@/lib/dashboard/pending-booking-actions";
 import GoogleSignInButton from "@/components/auth/google-sign-in-button";
 import { useAuth } from "@/lib/auth-context";
@@ -28,6 +28,7 @@ import {
   type Service,
   type StaffMember,
   type Slot,
+  type Combo,
   stepReveal,
   stepItemReveal,
   triggerHaptic,
@@ -61,14 +62,16 @@ interface BookingClientProps {
     templateId: BookingTemplateId;
   };
   services: Service[];
+  combos: Combo[];
   staffMembers: StaffMember[];
 }
 
-const BookingClient = memo(function BookingClient({ shop, services, staffMembers }: BookingClientProps) {
+const BookingClient = memo(function BookingClient({ shop, services, combos, staffMembers }: BookingClientProps) {
   const { user, isLoading: isAuthLoading } = useAuth();
 
   const [step, setStep] = useState(0);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [selectedCombo, setSelectedCombo] = useState<Combo | null>(null);
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
@@ -82,7 +85,13 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
   const [customerPhone, setCustomerPhone] = useState("");
   const [phoneError, setPhoneError] = useState("");
 
-  const needsPayment = useMemo(() => !shop.payAtShop && !(selectedService?.pay_at_shop ?? false), [shop.payAtShop, selectedService?.pay_at_shop]);
+  const needsPayment = useMemo(() => {
+    if (!shop.payAtShop) {
+      if (selectedCombo) return selectedCombo.services.some((s) => !s.pay_at_shop);
+      return !(selectedService?.pay_at_shop ?? false);
+    }
+    return false;
+  }, [shop.payAtShop, selectedService?.pay_at_shop, selectedCombo]);
 
   const [submitting, setSubmitting] = useState(false);
   const [creatingPreference, setCreatingPreference] = useState(false);
@@ -118,8 +127,9 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
     for (const item of found) {
       if (!merged.includes(item)) merged.push(item);
     }
+    if (combos.length > 0) merged.push("Combos");
     return ["Todos", ...merged];
-  }, [services, shop.sectionOrder]);
+  }, [services, shop.sectionOrder, combos]);
 
   const filteredServices = useMemo(() => {
     const base = selectedCategory === "Todos"
@@ -149,15 +159,19 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
   }, [shop.mpPublicKey]);
 
   useEffect(() => {
-    if (!selectedService || !selectedDate || fetchedDatesRef.current.has(formatDate(selectedDate))) return;
+    if (!selectedService && !selectedCombo) return;
+    if (!selectedDate || fetchedDatesRef.current.has(formatDate(selectedDate))) return;
 
     setLoadingSlots(true);
     setSelectedSlot(null);
     const dateStr = formatDate(selectedDate);
+    const slotDuration = selectedCombo
+      ? (selectedCombo.duration_minutes ?? selectedCombo.total_duration)
+      : (selectedService?.duration_minutes ?? 60);
 
     (async () => {
       try {
-        const result = await fetchPublicAvailableSlots(shop.id, selectedService.duration_minutes, dateStr, selectedStaff?.id);
+        const result = await fetchPublicAvailableSlots(shop.id, slotDuration, dateStr, selectedStaff?.id);
         setAvailableSlots(
           result.success
             ? (result.data ?? []).map((slot) => ({
@@ -181,7 +195,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
     setAvailableSlots([]);
     setSelectedSlot(null);
     setSelectedDate(null);
-  }, [selectedService, selectedStaff]);
+  }, [selectedService, selectedCombo, selectedStaff]);
 
   const populatedFromSession = useRef(false);
 
@@ -203,7 +217,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
   }, []);
 
   const googleCalendarUrl = useMemo(() => {
-    if (!selectedSlot || !selectedService) return null;
+    if (!selectedSlot || (!selectedService && !selectedCombo)) return null;
     const toGoogleDate = (iso: string) => {
       const d = new Date(iso);
       const yyyy = d.getUTCFullYear();
@@ -214,12 +228,13 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
       const ss = String(d.getUTCSeconds()).padStart(2, "0");
       return `${yyyy}${mm}${dd}T${hh}${min}${ss}Z`;
     };
-    const title = `${shop.name} - ${selectedService.name}`;
+    const name = selectedCombo?.name ?? selectedService?.name ?? "Turno";
+    const title = `${shop.name} - ${name}`;
     const details = `Turno reservado en ${shop.name}`;
     const location = shop.address || "";
     const dates = `${toGoogleDate(selectedSlot.start)}/${toGoogleDate(selectedSlot.end)}`;
     return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&details=${encodeURIComponent(details)}&location=${encodeURIComponent(location)}&dates=${encodeURIComponent(dates)}`;
-  }, [selectedSlot, selectedService, shop.name, shop.address]);
+  }, [selectedSlot, selectedService, selectedCombo, shop.name, shop.address]);
 
   const filteredSlots = useMemo(() => {
     if (!selectedDate) return availableSlots;
@@ -239,7 +254,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
   const canGoNext = (() => {
     switch (step) {
       case 0:
-        return selectedService !== null;
+        return selectedService !== null || selectedCombo !== null;
       case 1:
         return true;
       case 2:
@@ -266,7 +281,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
   }
 
   async function handleConfirm() {
-    if (!selectedService || !selectedSlot || !customerName || !customerPhone) return;
+    if ((!selectedService && !selectedCombo) || !selectedSlot || !customerName || !customerPhone) return;
     if (!isLoggedIn && !customerEmail.trim()) return;
 
     const phoneErr = validatePhone(customerPhone);
@@ -284,9 +299,37 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
     const formattedPhone = formatArgentinePhone(customerPhone);
 
     if (!needsPayment) {
+      if (selectedCombo) {
+        const result = await createPublicComboAppointment({
+          shopId: shop.id,
+          comboId: selectedCombo.id,
+          comboName: selectedCombo.name,
+          comboPrice: selectedCombo.price,
+          comboDurationMinutes: selectedCombo.duration_minutes,
+          services: selectedCombo.services,
+          staffId: selectedStaff?.id,
+          customerName: customerName.trim(),
+          customerEmail: customerEmail.trim() || undefined,
+          customerPhone: formattedPhone,
+          authenticatedUserId: user?.id,
+          startTime: selectedSlot.start,
+          status: "scheduled",
+        });
+
+        setSubmitting(false);
+
+        if (!result.success) {
+          setError(result.error || "No se pudo reservar el turno");
+          return;
+        }
+
+        setDone(true);
+        return;
+      }
+
       const result = await createPublicAppointment({
         shopId: shop.id,
-        serviceId: selectedService.id,
+        serviceId: selectedService!.id,
         staffId: selectedStaff?.id,
         customerName: customerName.trim(),
         customerEmail: customerEmail.trim() || undefined,
@@ -308,6 +351,71 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
       return;
     }
 
+    // Payment flow — for combos, create all appointments via createPublicComboAppointment first, then create preference
+    if (selectedCombo) {
+      setCreatingPreference(true);
+
+      const comboResult = await createPublicComboAppointment({
+        shopId: shop.id,
+        comboId: selectedCombo.id,
+        comboName: selectedCombo.name,
+        comboPrice: selectedCombo.price,
+        comboDurationMinutes: selectedCombo.duration_minutes,
+        services: selectedCombo.services,
+        staffId: selectedStaff?.id,
+        customerName: customerName.trim(),
+        customerEmail: customerEmail.trim() || undefined,
+        customerPhone: formattedPhone,
+        authenticatedUserId: user?.id,
+        startTime: selectedSlot.start,
+        status: "pending_payment",
+      });
+
+      if (!comboResult.success) {
+        setSubmitting(false);
+        setCreatingPreference(false);
+        setError(comboResult.error || "No se pudo crear el turno");
+        return;
+      }
+      if (!comboResult.data) {
+        setSubmitting(false);
+        setCreatingPreference(false);
+        setError("No se pudo crear el turno");
+        return;
+      }
+
+      const { getRecaptchaToken } = await import("@/lib/recaptcha");
+      const recaptchaToken = await getRecaptchaToken(process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || "");
+
+      // Create a payment preference with the total combo price and all appointment IDs
+      const { createPaymentPreference } = await import("@/lib/dashboard/public-booking-actions");
+      const prefResult = await createPaymentPreference({
+        appointmentId: comboResult.data.appointmentIds[0],
+        shopId: shop.id,
+        shopSlug: shop.slug,
+        overridePrice: selectedCombo.price,
+        comboAppointmentIds: comboResult.data.appointmentIds,
+      });
+
+      setSubmitting(false);
+      setCreatingPreference(false);
+
+      if (!prefResult.success) {
+        setError(prefResult.error || "No se pudo iniciar el pago");
+        return;
+      }
+      if (!prefResult.data) {
+        setError("No se pudo iniciar el pago");
+        return;
+      }
+
+      setPaymentPreferenceId(prefResult.data.preferenceId);
+      setPaymentInitPoint(prefResult.data.initPoint);
+      setChargedAmount(prefResult.data.chargedAmount ?? null);
+      setIsDepositPayment(Boolean(prefResult.data.isDeposit));
+      return;
+    }
+
     setCreatingPreference(true);
 
     const { getRecaptchaToken } = await import("@/lib/recaptcha");
@@ -317,9 +425,9 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
       recaptchaToken: recaptchaToken || undefined,
       shopId: shop.id,
       shopSlug: shop.slug,
-      serviceId: selectedService.id,
-      serviceName: selectedService.name,
-      servicePrice: selectedService.price,
+      serviceId: selectedService!.id,
+      serviceName: selectedService!.name,
+      servicePrice: selectedService!.price,
       staffId: selectedStaff?.id,
       customerName: customerName.trim(),
       customerEmail: customerEmail.trim() || undefined,
@@ -353,6 +461,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
   function handleReset() {
     setStep(0);
     setSelectedService(null);
+    setSelectedCombo(null);
     setSelectedStaff(null);
     setSelectedDate(null);
     setSelectedSlot(null);
@@ -371,7 +480,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
     fetchedDatesRef.current = new Set();
   }
 
-  const summaryService = selectedService?.name || "Sin servicio";
+  const summaryService = selectedCombo?.name || selectedService?.name || "Sin servicio";
   const summaryDate = selectedDate ? formatDisplayDate(selectedDate).replace(/^\w/, (c) => c.toUpperCase()) : "Sin fecha";
   const summaryTime = selectedSlot ? formatTimeFromIso(selectedSlot.start) || to24HourTimeLabel(selectedSlot.time) : "Sin hora";
 
@@ -809,9 +918,78 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
                         </motion.div>
 
                         <motion.div variants={stepItemReveal} className="space-y-4">
-                          {filteredServices.map((svc) => {
-                            const isSelected = selectedService?.id === svc.id;
-                            return (
+                          {selectedCategory === "Combos" ? (
+                            combos.map((combo) => {
+                              const isSelected = selectedCombo?.id === combo.id;
+                              const totalOriginal = combo.services.reduce((s, svc) => s + svc.price, 0);
+                              const savings = totalOriginal > combo.price ? totalOriginal - combo.price : 0;
+                              const savingsPct = totalOriginal > 0 ? Math.round((savings / totalOriginal) * 100) : 0;
+                              return (
+                                <motion.div
+                                  key={combo.id}
+                                  layout
+                                  whileHover={{ y: -2 }}
+                                  whileTap={{ scale: 0.995 }}
+                                  transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                                  className={`overflow-hidden rounded-3xl border transition-all duration-300 ease-[0.16,1,0.3,1] ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected} scale-[1.01]` : `${templateStyles.plain} ${templateStyles.plate} ${templateStyles.hoverBorder}`}`}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      triggerHaptic(15, e.currentTarget);
+                                      setSelectedCombo(combo);
+                                      setSelectedService(null);
+                                    }}
+                                    className={`w-full px-6 py-5 text-left ${tactileClass} active:scale-[0.97] transition-transform duration-150`}
+                                  >
+                                    <div className="flex items-start justify-between gap-4">
+                                      <div className="min-w-0 flex-1">
+                                        <p className={`text-xl font-medium ${templateStyles.heading}`}>{combo.name}</p>
+                                        {combo.description && (
+                                          <p className={`mt-1 text-xs leading-relaxed ${templateStyles.tiny}`}>{combo.description}</p>
+                                        )}
+                                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                          {combo.services.map((svc) => (
+                                            <span
+                                              key={svc.id}
+                                              className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-medium leading-tight ${templateStyles.pricePill}`}
+                                            >
+                                              {svc.name}
+                                            </span>
+                                          ))}
+                                        </div>
+                                        <p className={`mt-2 text-sm ${templateStyles.tiny}`}>
+                                          {combo.duration_minutes ?? combo.total_duration} min
+                                          {combo.duration_minutes && combo.duration_minutes !== combo.total_duration && (
+                                            <span className="ml-1 opacity-60">({combo.total_duration} min reales)</span>
+                                          )}
+                                        </p>
+                                      </div>
+                                      <div className="shrink-0 text-right">
+                                        {savingsPct > 0 && (
+                                          <span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-semibold mb-2 ${templateStyles.successChip}`}>
+                                            -{savingsPct}%
+                                          </span>
+                                        )}
+                                        <p className={`${templateStyles.priceText} ${templateStyles.priceFx} tabular-nums`}>
+                                          <span className="mr-1 align-top text-[0.72em] font-semibold opacity-85">$</span>
+                                          <span className="tracking-[-0.045em]">{combo.price.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                                        </p>
+                                        {savings > 0 && (
+                                          <p className={`text-[11px] line-through opacity-50 mt-0.5 ${templateStyles.tiny}`}>
+                                            ${totalOriginal.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </button>
+                                </motion.div>
+                              );
+                            })
+                          ) : (
+                            filteredServices.map((svc) => {
+                              const isSelected = selectedService?.id === svc.id;
+                              return (
                                 <motion.div
                                   key={svc.id}
                                   layout
@@ -825,6 +1003,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
                                   onClick={(e) => {
                                     triggerHaptic(15, e.currentTarget);
                                     setSelectedService(svc);
+                                    setSelectedCombo(null);
                                   }}
                                   className={`w-full px-6 py-6 text-left ${tactileClass} active:scale-[0.97] transition-transform duration-150`}
                                 >
@@ -841,7 +1020,7 @@ const BookingClient = memo(function BookingClient({ shop, services, staffMembers
                                 </button>
                               </motion.div>
                             );
-                          })}
+                          }))}
                         </motion.div>
                       </div>
                     )}

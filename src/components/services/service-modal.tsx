@@ -18,7 +18,6 @@ export default function ServiceModal({
   children,
 }: ServiceModalProps) {
   const backdropRef = useRef<HTMLDivElement>(null);
-  const backdropPointerDownRef = useRef(false);
 
   useEffect(() => {
     if (!open) return;
@@ -37,12 +36,8 @@ export default function ServiceModal({
     <div
       ref={backdropRef}
       className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-y-contain backdrop-blur-sm p-3 sm:p-4"
-      onPointerDown={(e) => {
-        backdropPointerDownRef.current = e.target === backdropRef.current;
-      }}
-      onPointerUp={(e) => {
-        if (backdropPointerDownRef.current && e.target === backdropRef.current) onClose();
-        backdropPointerDownRef.current = false;
+      onClick={(e) => {
+        if (e.target === backdropRef.current) onClose();
       }}
     >
       <div className="bg-white dark:bg-zinc-900 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 shadow-lg w-full max-w-md overflow-hidden max-h-[88dvh] flex flex-col">

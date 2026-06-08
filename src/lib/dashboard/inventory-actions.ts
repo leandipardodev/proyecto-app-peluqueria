@@ -163,15 +163,18 @@ export async function applyStockBatchAdjustments(
       if (next < 0) return { success: false, error: "La cantidad no puede ser negativa" };
     }
 
-    for (const id of ids) {
-      const next = (currentById.get(id) || 0) + normalized[id];
-      const { error } = await supabase
-        .from("stock")
-        .update({ quantity: next, updated_at: new Date().toISOString() })
-        .eq("id", id)
-        .eq("shop_id", shopId);
-      if (error) return { success: false, error: error.message };
-    }
+    const results = await Promise.all(
+      ids.map(async (id) => {
+        const next = (currentById.get(id) || 0) + normalized[id];
+        return supabase
+          .from("stock")
+          .update({ quantity: next, updated_at: new Date().toISOString() })
+          .eq("id", id)
+          .eq("shop_id", shopId);
+      })
+    );
+    const firstError = results.find((r) => r.error)?.error;
+    if (firstError) return { success: false, error: firstError.message };
 
     await revalidateDashboardSegments(shopId, ["/inventory"]);
     return { success: true };

@@ -69,6 +69,8 @@ type StaffMember = {
   payModel: "percentage" | "fixed" | "mixed";
   percentageRate: number;
   fixedAmount: number;
+  joined: boolean;
+  inviteLink: string | null;
 };
 
 type StaffRpcRow = {
@@ -77,6 +79,7 @@ type StaffRpcRow = {
   name: string | null;
   nombre: string | null;
   email: string | null;
+  invite_accepted_at: string | null;
 };
 
 export async function fetchStaffMembers(shopIdOverride?: string): Promise<ActionResult<StaffMember[]>> {
@@ -93,7 +96,7 @@ export async function fetchStaffMembers(shopIdOverride?: string): Promise<Action
 
     const { data: memberships, error: membershipsError } = await admin
       .from("shop_memberships")
-      .select("user_id, role")
+      .select("user_id, role, invite_accepted_at")
       .eq("shop_id", shopId)
       .eq("is_active", true)
       .in("role", ["owner", "staff", "admin"]);
@@ -124,6 +127,7 @@ export async function fetchStaffMembers(shopIdOverride?: string): Promise<Action
         name: profile?.name || null,
         nombre: profile?.name || null,
         email: profile?.email || null,
+        invite_accepted_at: m.invite_accepted_at as string | null,
       };
     });
 
@@ -146,11 +150,17 @@ export async function fetchStaffMembers(shopIdOverride?: string): Promise<Action
       revenueByStaff.set(apt.staff_id, (revenueByStaff.get(apt.staff_id) || 0) + value);
     }
 
-    const staffWithRevenue = staffRows.map((member) => {
+    const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://klip.com.ar";
+
+    const staffWithRevenue: StaffMember[] = staffRows.map((member) => {
       const rule = ruleMap.get(member.user_id);
       const percentageRate = Number(rule?.percentage_rate || 0);
       const fixedAmount = Number(rule?.fixed_amount || 0);
       const payModel: StaffMember["payModel"] = fixedAmount > 0 && percentageRate > 0 ? "mixed" : fixedAmount > 0 ? "fixed" : "percentage";
+      const joined = Boolean(member.invite_accepted_at);
+      const inviteLink = !joined && member.email
+        ? `${SITE_URL}/join?token=${encodeURIComponent(createStaffInviteToken({ shopId, email: member.email, role: member.role as "staff" | "owner" }))}`
+        : null;
 
       return {
         id: member.user_id,
@@ -161,6 +171,8 @@ export async function fetchStaffMembers(shopIdOverride?: string): Promise<Action
         payModel,
         percentageRate,
         fixedAmount,
+        joined,
+        inviteLink,
       };
     });
 

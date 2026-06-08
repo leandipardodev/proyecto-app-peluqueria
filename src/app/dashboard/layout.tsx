@@ -41,7 +41,6 @@ export default async function DashboardLayout({
       </div>
 
       <div className="flex flex-col flex-1 min-w-0 min-h-0 relative z-10">
-        <ReleaseNotesModal />
         <BugReportModal />
         <DashboardHeaderLoader userEmail={user.email ?? ""} onLogout={logout} />
 

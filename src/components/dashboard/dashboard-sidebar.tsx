@@ -268,7 +268,7 @@ const DashboardSidebar = memo(function DashboardSidebar({
           </motion.div>
         </div>
         <div className="mt-3 flex items-center justify-between gap-2">
-          <p className="text-[11px] text-zinc-400 dark:text-zinc-500">Version actual: v{APP_VERSION}</p>
+          
           <button
             type="button"
             onMouseDown={playClick}

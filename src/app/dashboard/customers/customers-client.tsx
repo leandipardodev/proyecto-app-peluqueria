@@ -95,7 +95,7 @@ export default function CustomersPage() {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [portalReady, setPortalReady] = useState(false);
-  const overlayPointerDownRef = useRef(false);
+
   const initialSessionLoadedRef = useRef(false);
 
   useEffect(() => {
@@ -557,12 +557,8 @@ export default function CustomersPage() {
         <>
           <div
             className="fixed inset-0 bg-black/50 z-40"
-            onPointerDown={(e) => {
-              overlayPointerDownRef.current = e.target === e.currentTarget;
-            }}
-            onPointerUp={(e) => {
-              if (overlayPointerDownRef.current && e.target === e.currentTarget) closeEditor();
-              overlayPointerDownRef.current = false;
+            onClick={(e) => {
+              if (e.target === e.currentTarget) closeEditor();
             }}
           />
           <div className="fixed right-0 top-0 h-[100dvh] w-full max-w-xl z-50 bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 shadow-lg">

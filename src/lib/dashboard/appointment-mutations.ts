@@ -94,19 +94,19 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
       });
     });
 
-    if (staffId) {
-      for (const row of rowsToInsert) {
-        const { data: conflict } = await supabase
-          .from("appointments")
-          .select("id")
-          .eq("shop_id", shopId)
-          .eq("staff_id", staffId)
-          .not("status", "eq", "cancelled")
-          .gt("end_time", row.start_time)
-          .lt("start_time", row.end_time)
-          .maybeSingle();
-        if (conflict) return { success: false, error: "slot_taken" };
-      }
+    if (staffId && rowsToInsert.length > 0) {
+      const conditions = rowsToInsert.map(
+        (row) => `and(end_time.gt.${row.start_time},start_time.lt.${row.end_time})`
+      );
+      const { data: conflict } = await supabase
+        .from("appointments")
+        .select("id")
+        .eq("shop_id", shopId)
+        .eq("staff_id", staffId)
+        .not("status", "eq", "cancelled")
+        .or(conditions.join(","))
+        .limit(1);
+      if (conflict && conflict.length > 0) return { success: false, error: "slot_taken" };
     }
 
     const { error } = await supabase.from("appointments").insert(rowsToInsert);
@@ -234,19 +234,19 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
       return row;
     });
 
-    if (staffId) {
-      for (const row of rowsToInsert) {
-        const { data: conflict } = await supabase
-          .from("appointments")
-          .select("id")
-          .eq("shop_id", shopId)
-          .eq("staff_id", staffId)
-          .not("status", "eq", "cancelled")
-          .gt("end_time", row.start_time)
-          .lt("start_time", row.end_time)
-          .maybeSingle();
-        if (conflict) return { success: false, error: "slot_taken" };
-      }
+    if (staffId && rowsToInsert.length > 0) {
+      const conditions = rowsToInsert.map(
+        (row) => `and(end_time.gt.${row.start_time},start_time.lt.${row.end_time})`
+      );
+      const { data: conflict } = await supabase
+        .from("appointments")
+        .select("id")
+        .eq("shop_id", shopId)
+        .eq("staff_id", staffId)
+        .not("status", "eq", "cancelled")
+        .or(conditions.join(","))
+        .limit(1);
+      if (conflict && conflict.length > 0) return { success: false, error: "slot_taken" };
     }
 
     const { error: insertError } = await supabase.from("appointments").insert(rowsToInsert);

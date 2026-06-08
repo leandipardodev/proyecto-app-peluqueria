@@ -21,6 +21,7 @@ import { useToast } from "@/components/ui/toast";
 import { StatePanel } from "@/components/ui/state-panel";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import type { Industry } from "@/lib/industry/types";
+import { Copy, Check } from "lucide-react";
 
 type StaffMember = {
   id: string;
@@ -31,6 +32,8 @@ type StaffMember = {
   payModel: "percentage" | "fixed" | "mixed";
   percentageRate: number;
   fixedAmount: number;
+  joined: boolean;
+  inviteLink: string | null;
 };
 
 export default function StaffList({
@@ -386,6 +389,29 @@ export default function StaffList({
                   <span className="text-gray-500 dark:text-gray-400">Facturación</span>
                   <span className="font-medium text-gray-900 dark:text-gray-100">${member.revenue.toFixed(2)}</span>
                 </div>
+                {canManageStaff && !isCurrentOwnerSelf && (
+                  <div className="mt-2 flex items-center justify-between text-sm">
+                    <span className="text-gray-500 dark:text-gray-400">Invitación</span>
+                    {member.joined ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400">
+                        <Check className="w-3.5 h-3.5" />
+                        Conectado
+                      </span>
+                    ) : member.inviteLink ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(member.inviteLink!);
+                          addToast("Link de invitación copiado al portapapeles", "success");
+                        }}
+                        className="inline-flex items-center gap-1 text-xs font-medium text-sky-600 hover:text-sky-800 cursor-pointer select-none"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        Copiar link
+                      </button>
+                    ) : null}
+                  </div>
+                )}
                 <div className="mt-3 flex justify-end">
                   {!canManageStaff ? (
                     <span className="text-xs text-gray-400 cursor-not-allowed select-none">-</span>
@@ -489,12 +515,30 @@ export default function StaffList({
                     {!canManageStaff ? (
                       <span className="text-gray-400 cursor-not-allowed select-none">-</span>
                     ) : (
-                      <>
+                      <div className="flex items-center gap-3">
+                        {!isCurrentOwnerSelf && member.joined ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400">
+                            <Check className="w-3.5 h-3.5" />
+                            Conectado
+                          </span>
+                        ) : !isCurrentOwnerSelf && member.inviteLink ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(member.inviteLink!);
+                              addToast("Link de invitación copiado al portapapeles", "success");
+                            }}
+                            className="inline-flex items-center gap-1 text-xs font-medium text-sky-600 hover:text-sky-800 cursor-pointer select-none mr-2"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                            Copiar link
+                          </button>
+                        ) : null}
                         {!isCurrentOwnerSelf && (
                           <button
                             type="button"
                             onClick={() => setPayEditor({ id: member.id, name: member.name || member.email || "Staff", payModel: member.payModel, percentageRate: member.percentageRate, fixedAmount: member.fixedAmount })}
-                            className="text-sky-600 hover:text-sky-800 cursor-pointer select-none mr-3"
+                            className="text-sky-600 hover:text-sky-800 cursor-pointer select-none"
                           >
                             Cobro
                           </button>
@@ -505,7 +549,7 @@ export default function StaffList({
                             setRenameTarget({ id: member.id, name: member.name || "" });
                             setRenameValue(member.name || "");
                           }}
-                          className="text-violet-600 hover:text-violet-800 cursor-pointer select-none mr-3"
+                          className="text-violet-600 hover:text-violet-800 cursor-pointer select-none"
                         >
                           Renombrar
                         </button>
@@ -520,7 +564,7 @@ export default function StaffList({
                         ) : (
                           <span className="text-gray-400 cursor-not-allowed select-none" title={selfOwnerTooltip}>Tu usuario</span>
                         )}
-                      </>
+                      </div>
                     )}
                   </td>
                 </tr>

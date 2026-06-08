@@ -67,7 +67,8 @@ export async function fetchTodayVoucherAlerts(shopIdOverride?: string): Promise<
       .from("vouchers")
       .select("id, gifted_to_name, service_name, gifted_by_name, gifted_to_birthday, status")
       .eq("shop_id", shopId)
-      .in("status", ["pending", "sent", "due_today"]);
+      .in("status", ["pending", "sent", "due_today"])
+      .limit(50);
 
     if (error) return { success: false, error: error.message };
 
@@ -127,22 +128,30 @@ export async function runVoucherReminderSweep(): Promise<ActionResult<{ updated:
   try {
     const supabase = await createServerClient();
     const today = new Date();
-    const todayMMDD = `${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-    const { data, error } = await supabase
-      .from("vouchers")
-      .select("id, gifted_to_birthday, status")
-      .in("status", ["pending", "sent"]);
+    const todayMonth = today.getMonth() + 1;
+    const todayDay = today.getDate();
 
-    if (error) return { success: false, error: error.message };
+    const { data: shops } = await supabase.from("shops").select("id");
+    if (!shops || shops.length === 0) return { success: true, data: { updated: 0 } };
 
-    const dueIds = (data || [])
-      .filter((v) => {
-        const d = new Date(`${v.gifted_to_birthday}T00:00:00`);
-        const mmdd = `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-        return mmdd === todayMMDD;
+    const results = await Promise.all(
+      shops.map(async (shop) => {
+        const { data } = await supabase
+          .from("vouchers")
+          .select("id, gifted_to_birthday")
+          .eq("shop_id", shop.id)
+          .in("status", ["pending", "sent"]);
+        if (!data) return [] as string[];
+        return data
+          .filter((v) => {
+            const d = new Date(v.gifted_to_birthday);
+            return d.getMonth() + 1 === todayMonth && d.getDate() === todayDay;
+          })
+          .map((v) => v.id);
       })
-      .map((v) => v.id);
+    );
 
+    const dueIds = results.flat();
     if (dueIds.length === 0) return { success: true, data: { updated: 0 } };
 
     const { error: upErr } = await supabase

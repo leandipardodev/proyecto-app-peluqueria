@@ -1,6 +1,15 @@
 export type Service = { id: string; name: string; price: number; duration_minutes: number; category: string | null; pay_at_shop: boolean };
 export type StaffMember = { id: string; name: string };
 export type Slot = { start: string; end: string; time: string };
+export type Combo = {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  total_duration: number;
+  duration_minutes: number | null;
+  services: { id: string; name: string; duration_minutes: number; price: number; pay_at_shop: boolean }[];
+};
 
 export const stepReveal = {
   initial: { opacity: 0, y: 14, filter: "blur(2px)" },

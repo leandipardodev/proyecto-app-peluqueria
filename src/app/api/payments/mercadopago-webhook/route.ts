@@ -417,23 +417,39 @@ export async function POST(request: NextRequest) {
 
     const preferenceId = (paymentResult.order?.id as string | undefined) || (paymentResult.metadata?.preference_id as string | undefined) || undefined;
 
-    // Update appointment first (idempotent — setting same values on retry)
-    const { error: updateError } = await withRetry(
-      () => admin
-        .from("appointments")
-        .update({
-          status,
-          is_paid: paymentResult.status === "approved",
-          mp_preference_id: preferenceId,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", appointment.id)
-        .eq("shop_id", appointment.shop_id)
-        .then((r) => r as { error: unknown }),
-      { retries: 1, delayMs: 500 }
-    );
+    // Determine which appointment IDs to update (main + any combo-linked appointments)
+    const allAppointmentIds: string[] = [appointment.id];
+    const comboAppointmentIdsRaw = paymentResult.metadata?.combo_appointment_ids as string[] | string | undefined;
+    if (comboAppointmentIdsRaw) {
+      const extraIds = Array.isArray(comboAppointmentIdsRaw)
+        ? comboAppointmentIdsRaw
+        : typeof comboAppointmentIdsRaw === "string"
+          ? (() => {
+              try { return JSON.parse(comboAppointmentIdsRaw); } catch { return comboAppointmentIdsRaw.split(",").map((s: string) => s.trim()).filter(Boolean); }
+            })()
+          : [];
+      allAppointmentIds.push(...extraIds.filter((id: string) => id !== appointment.id));
+    }
 
-    if (updateError) throw updateError;
+    // Update all linked appointments
+    for (const aptId of allAppointmentIds) {
+      const { error: updateError } = await withRetry(
+        () => admin
+          .from("appointments")
+          .update({
+            status,
+            is_paid: paymentResult.status === "approved",
+            mp_preference_id: preferenceId,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", aptId)
+          .eq("shop_id", appointment.shop_id)
+          .then((r) => r as { error: unknown }),
+        { retries: 1, delayMs: 500 }
+      );
+
+      if (updateError) throw updateError;
+    }
 
     // Insert billing event after successful appointment update
     if (paymentResult.status === "approved") {

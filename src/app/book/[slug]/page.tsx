@@ -1,4 +1,5 @@
 import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
+import { fetchPublicCombos } from "@/lib/dashboard/public-booking-actions";
 import BookingClient from "./booking-client";
 import { absoluteUrl } from "@/lib/seo";
 import { DEFAULT_BOOKING_TEMPLATE, type BookingTemplateId } from "@/lib/booking/theme-presets";
@@ -39,7 +40,8 @@ export default async function BookPage({ params }: BookPageProps) {
     );
   }
 
-  const [servicesRes, membershipsRes] = await Promise.all([
+  const combosPromise = fetchPublicCombos(shop.id);
+  const [servicesRes, membershipsRes, combosRes] = await Promise.all([
     admin
       .from("services")
       .select("id, name, price, duration_minutes, category, pay_at_shop")
@@ -52,6 +54,7 @@ export default async function BookPage({ params }: BookPageProps) {
       .eq("is_active", true)
       .in("role", ["owner", "staff"])
       .order("created_at", { ascending: true }),
+    combosPromise,
   ]);
 
   const memberIds = (membershipsRes.data || []).map((m) => m.user_id).filter(Boolean);
@@ -65,6 +68,7 @@ export default async function BookPage({ params }: BookPageProps) {
   const profileMap = new Map((staffProfilesRes.data || []).map((p) => [p.user_id, p.name || "Sin nombre"]));
 
   const services = servicesRes.data || [];
+  const combos = combosRes.success ? (combosRes.data ?? []) : [];
   const staffMembers = memberIds
     .map((id) => ({ id, name: profileMap.get(id) || "Sin nombre" }))
     .sort((a, b) => a.name.localeCompare(b.name, "es"));
@@ -140,6 +144,7 @@ export default async function BookPage({ params }: BookPageProps) {
             : DEFAULT_BOOKING_TEMPLATE) as BookingTemplateId,
         }}
         services={services}
+        combos={combos}
         staffMembers={staffMembers}
       />
     </>

@@ -50,6 +50,7 @@ export default async function JoinPage({ searchParams }: { searchParams?: Promis
       shop_id: shop.id,
       role: invite.role,
       is_active: true,
+      invite_accepted_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     },
     { onConflict: "user_id,shop_id" }

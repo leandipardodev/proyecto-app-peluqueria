@@ -18,6 +18,69 @@ import "server-only";
 
 const slotsLimiter = createRateLimiter({ intervalMs: 60_000, maxRequests: 30 });
 
+type ComboService = { id: string; name: string; duration_minutes: number; price: number; pay_at_shop: boolean };
+type ComboRow = { id: string; name: string; description: string | null; price: number; total_duration: number; duration_minutes: number | null; services: ComboService[] };
+
+export async function fetchPublicCombos(shopId: string): Promise<ActionResult<ComboRow[]>> {
+  try {
+    const admin = await createAdminClient();
+
+    const { data: combos, error } = await admin
+      .from("combos")
+      .select("id, name, description, price, duration_minutes")
+      .eq("shop_id", shopId)
+      .eq("active", true);
+
+    if (error) return { success: false, error: error.message };
+    if (!combos || combos.length === 0) return { success: true, data: [] };
+
+    const comboIds = combos.map((c) => c.id);
+    const { data: links } = await admin
+      .from("combo_services")
+      .select("combo_id, service_id")
+      .in("combo_id", comboIds);
+
+    const allServiceIds = [...new Set((links || []).map((l) => l.service_id))];
+    const serviceById = new Map<string, ComboService>();
+
+    if (allServiceIds.length > 0) {
+      const { data: servicesData } = await admin
+        .from("services")
+        .select("id, name, duration_minutes, price, pay_at_shop")
+        .in("id", allServiceIds);
+      for (const s of servicesData || []) {
+        serviceById.set(s.id, s as ComboService);
+      }
+    }
+
+    const linkMap = new Map<string, ComboService[]>();
+    for (const link of links || []) {
+      const list = linkMap.get(link.combo_id) || [];
+      const svc = serviceById.get(link.service_id);
+      if (svc) list.push(svc);
+      linkMap.set(link.combo_id, list);
+    }
+
+    const result: ComboRow[] = combos.map((combo) => {
+      const services = linkMap.get(combo.id) || [];
+      const total_duration = services.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+      return {
+        id: combo.id,
+        name: combo.name,
+        description: combo.description,
+        price: Number(combo.price) || 0,
+        total_duration,
+        duration_minutes: combo.duration_minutes ?? null,
+        services,
+      };
+    });
+
+    return { success: true, data: result };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al obtener combos" };
+  }
+}
+
 async function createAdminClient() {
   return createServiceRoleClient();
 }
@@ -218,6 +281,7 @@ export async function fetchPublicAvailableSlots(
 
     const slots: Slot[] = [];
     const slotDuration = safeDuration;
+    const SLOT_STEP = 30;
     const [y, monthNum, d] = date.split("-").map(Number);
 
     const isTodayInArgentina = date === getArgentinaDateString();
@@ -226,9 +290,9 @@ export async function fetchPublicAvailableSlots(
       let currentMinute = isTodayInArgentina ? Math.max(block.openMinutes, nowMinuteInArgentina) : block.openMinutes;
 
       if (isTodayInArgentina && currentMinute > block.openMinutes) {
-        const remainder = currentMinute % slotDuration;
+        const remainder = currentMinute % SLOT_STEP;
         if (remainder !== 0) {
-          currentMinute += slotDuration - remainder;
+          currentMinute += SLOT_STEP - remainder;
         }
       }
 
@@ -262,7 +326,7 @@ export async function fetchPublicAvailableSlots(
           }
         }
 
-        currentMinute += slotDuration;
+        currentMinute += SLOT_STEP;
       }
     }
 
@@ -480,10 +544,231 @@ export async function createPublicAppointment(data: {
   }
 }
 
+export async function createPublicComboAppointment(data: {
+  shopId: string;
+  comboId: string;
+  comboName: string;
+  comboPrice: number;
+  comboDurationMinutes?: number | null;
+  services: { id: string; name: string; duration_minutes: number; price: number }[];
+  staffId?: string;
+  customerName: string;
+  customerEmail?: string;
+  customerPhone: string;
+  authenticatedUserId?: string;
+  status?: "scheduled" | "pending_payment";
+  startTime: string;
+}): Promise<ActionResult<{ customerId: string; appointmentIds: string[] }>> {
+  try {
+    const admin = await createAdminClient();
+
+    const startDate = new Date(data.startTime);
+    if (Number.isNaN(startDate.getTime())) {
+      return { success: false, error: "Horario invalido" };
+    }
+
+    const totalDuration = data.comboDurationMinutes ?? data.services.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+    const endDate = new Date(startDate.getTime() + totalDuration * 60000);
+
+    const bookingDate = getArgentinaDateKey(data.startTime);
+    const { data: shopHoursData } = await admin
+      .from("shops")
+      .select("business_hours")
+      .eq("id", data.shopId)
+      .maybeSingle();
+
+    const normalizedHours = normalizeHours(shopHoursData?.business_hours);
+    const dayIndex = new Date(`${bookingDate}T12:00:00-03:00`).getDay();
+    const dayName = DAY_KEYS[dayIndex];
+    const resolved = resolveDayHours(normalizedHours, dayIndex);
+    const dayConfig = resolved || DEFAULT_WEEK_HOURS[dayName] || { open: false, start: "09:00", end: "20:00" };
+
+    if (!dayConfig.open) {
+      return { success: false, error: "El local esta cerrado en ese horario" };
+    }
+
+    const startMinutes = getArgentinaMinutesSinceMidnight(data.startTime);
+    const endMinutes = getArgentinaMinutesSinceMidnight(endDate.toISOString());
+    const [sh, sm] = dayConfig.start.split(":").map(Number);
+    const [eh, em] = dayConfig.end.split(":").map(Number);
+    const openMinutes = sh * 60 + sm;
+    const closeMinutes = eh * 60 + em;
+
+    let isInsideOpenHours = startMinutes >= openMinutes && endMinutes <= closeMinutes;
+    if (isInsideOpenHours && dayConfig.break_start && dayConfig.break_end) {
+      const [bsh, bsm] = dayConfig.break_start.split(":").map(Number);
+      const [beh, bem] = dayConfig.break_end.split(":").map(Number);
+      const breakStart = bsh * 60 + bsm;
+      const breakEnd = beh * 60 + bem;
+      if (startMinutes < breakEnd && endMinutes > breakStart) isInsideOpenHours = false;
+    }
+
+    if (!isInsideOpenHours) {
+      return { success: false, error: "El horario seleccionado esta fuera del horario de atencion" };
+    }
+
+    // Create or find customer
+    let customerId: string;
+    if (data.authenticatedUserId) {
+      customerId = data.authenticatedUserId;
+      const { error: upsertError } = await admin
+        .from("customers")
+        .upsert({
+          id: customerId,
+          user_id: customerId,
+          shop_id: data.shopId,
+          nombre: data.customerName,
+          email: data.customerEmail ?? null,
+          telefono: data.customerPhone,
+          updated_at: new Date().toISOString(),
+        });
+      if (upsertError) return { success: false, error: upsertError.message };
+    } else {
+      const { data: existingCustomer } = await admin
+        .from("customers")
+        .select("id")
+        .eq("shop_id", data.shopId)
+        .eq("telefono", data.customerPhone)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (existingCustomer) {
+        customerId = existingCustomer.id;
+        await admin
+          .from("customers")
+          .update({ nombre: data.customerName, email: data.customerEmail ?? null, updated_at: new Date().toISOString() })
+          .eq("id", customerId);
+      } else {
+        const { data: newCustomer, error: custError } = await admin
+          .from("customers")
+          .insert({
+            user_id: data.authenticatedUserId ?? null,
+            shop_id: data.shopId,
+            nombre: data.customerName,
+            telefono: data.customerPhone,
+            email: data.customerEmail ?? null,
+          })
+          .select("id")
+          .single();
+        if (custError) return { success: false, error: custError.message };
+        customerId = newCustomer.id;
+      }
+    }
+
+    // Check conflicts for the full time block
+    let conflictQuery = admin
+      .from("appointments")
+      .select("id, status, created_at")
+      .eq("shop_id", data.shopId)
+      .lt("start_time", endDate.toISOString())
+      .gt("end_time", data.startTime)
+      .not("status", "eq", "cancelled");
+
+    if (data.staffId) {
+      conflictQuery = conflictQuery.eq("staff_id", data.staffId);
+    }
+
+    const { data: conflictsRaw, error: checkError } = await conflictQuery;
+    if (checkError) return { success: false, error: checkError.message };
+
+    const hasBlockingConflict = (conflictsRaw || []).some((apt) =>
+      isPendingPaymentStillBlocking(apt.status as string | null | undefined, apt.created_at as string | null | undefined)
+    );
+
+    if (hasBlockingConflict) {
+      return { success: false, error: "slot_taken" };
+    }
+
+    // Prorate combo price across services
+    const totalOriginalPrice = data.services.reduce((sum, s) => sum + s.price, 0);
+    let runningMinutes = 0;
+    const appointmentIds: string[] = [];
+
+    for (const svc of data.services) {
+      const aptStart = new Date(startDate.getTime() + runningMinutes * 60000);
+      const aptEnd = new Date(aptStart.getTime() + svc.duration_minutes * 60000);
+      const proratedPrice = totalOriginalPrice > 0
+        ? (data.comboPrice * svc.price) / totalOriginalPrice
+        : data.comboPrice / data.services.length;
+
+      const { data: created, error: aptError } = await admin
+        .from("appointments")
+        .insert({
+          shop_id: data.shopId,
+          customer_id: customerId,
+          staff_id: data.staffId || null,
+          service_id: svc.id,
+          service_price: Math.round(proratedPrice * 100) / 100,
+          start_time: aptStart.toISOString(),
+          end_time: aptEnd.toISOString(),
+          date_key_ar: getArgentinaDateKey(data.startTime),
+          status: data.status ?? "scheduled",
+          is_paid: false,
+        })
+        .select("id")
+        .single();
+
+      if (aptError) {
+        // Rollback created appointments (batch delete)
+        if (appointmentIds.length > 0) {
+          await admin.from("appointments").delete().in("id", appointmentIds);
+        }
+        return { success: false, error: aptError.message };
+      }
+
+      appointmentIds.push(created.id);
+      runningMinutes += svc.duration_minutes;
+    }
+
+    // Send confirmation email
+    if (data.customerEmail) {
+      try {
+        const [{ data: shop }, firstSvc] = await Promise.all([
+          admin.from("shops").select("nombre, email, address, localidad").eq("id", data.shopId).maybeSingle(),
+          Promise.resolve(data.services[0]),
+        ]);
+        const shopData = (shop as { nombre?: string | null; email?: string | null; address?: string | null; localidad?: string | null } | null) || null;
+        const serviceName = data.comboName || firstSvc?.name || "Combo";
+        const replyTo = shopData?.email && shopData.email.includes("@") ? shopData.email : undefined;
+        const locationParts = [shopData?.address?.trim(), shopData?.localidad?.trim()].filter(Boolean);
+        const shopAddress = locationParts.length > 0 ? locationParts.join(", ") : undefined;
+
+        await sendAppointmentConfirmationEmail({
+          to: data.customerEmail,
+          customerName: data.customerName,
+          shopName: shopData?.nombre || "Klip",
+          serviceName,
+          startTime: data.startTime,
+          replyTo,
+        });
+
+        await scheduleAppointmentReminderEmail({
+          to: data.customerEmail,
+          customerName: data.customerName,
+          shopName: shopData?.nombre || "Klip",
+          serviceName,
+          shopAddress,
+          startTime: data.startTime,
+          replyTo,
+        });
+      } catch (mailError) {
+        console.error("[createPublicComboAppointment] confirmation email error:", mailError);
+      }
+    }
+
+    return { success: true, data: { customerId, appointmentIds } };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al crear turno combo" };
+  }
+}
+
 type CreatePaymentPreferenceInput = {
   appointmentId: string;
   shopId: string;
   shopSlug: string;
+  overridePrice?: number;
+  comboAppointmentIds?: string[];
 };
 
 type CreatePaymentPreferenceOutput = {
@@ -541,6 +826,9 @@ export async function createPaymentPreference(
       return { success: false, error: "Servicio no encontrado para generar preferencia" };
     }
 
+    const serviceName = service.name;
+    const effectivePrice = appointmentData.overridePrice !== undefined ? appointmentData.overridePrice : (Number(service.price) || 0);
+
     const { data: shopPolicy, error: shopPolicyError } = await admin
       .from("shops")
       .select("booking_deposit_enabled, booking_deposit_amount, mp_access_token")
@@ -562,7 +850,7 @@ export async function createPaymentPreference(
       return { success: false, error: "Mercado Pago no esta configurado para este local. Reconecta Mercado Pago en Mi Negocio." };
     }
 
-    const servicePrice = Math.max(0, Number(service.price) || 0);
+    const servicePrice = Math.max(0, effectivePrice);
     const depositEnabled = resolvedShopPolicy?.booking_deposit_enabled !== false;
     const configuredDeposit = Math.max(0, Number(resolvedShopPolicy?.booking_deposit_amount ?? 0));
     const chargeAmount = depositEnabled
@@ -594,7 +882,7 @@ export async function createPaymentPreference(
         items: [
           {
             id: appointment.id,
-            title: depositEnabled ? `Seña - ${service.name}` : service.name,
+            title: depositEnabled ? `Seña - ${serviceName}` : serviceName,
             quantity: 1,
             unit_price: chargeAmount,
             currency_id: "ARS",
@@ -613,6 +901,7 @@ export async function createPaymentPreference(
         metadata: {
           appointment_id: appointment.id,
           shop_id: appointmentData.shopId,
+          ...(appointmentData.comboAppointmentIds ? { combo_appointment_ids: JSON.stringify(appointmentData.comboAppointmentIds) } : {}),
         },
       },
     });
