@@ -105,6 +105,10 @@ export default function FinancesClient({
   initialTo,
   initialError,
   initialStaffProduction = [],
+  initialCashSession = null,
+  initialCashMovements = [],
+  initialCashSessionsHistory = [],
+  initialStaffLiquidations = [],
 }: {
   shopId: string;
   initialData: FinanceData | null;
@@ -112,6 +116,10 @@ export default function FinancesClient({
   initialTo: string;
   initialError: string | null;
   initialStaffProduction: StaffProduction[];
+  initialCashSession: CashSessionSummary | null;
+  initialCashMovements: CashMovementItem[];
+  initialCashSessionsHistory: CashSessionSummary[];
+  initialStaffLiquidations: StaffLiquidationListItem[];
 }) {
   const today = getArgentinaDate();
   const monthBounds = getMonthBounds(today);
@@ -124,15 +132,15 @@ export default function FinancesClient({
 
   const [staffProduction, setStaffProduction] = useState<StaffProduction[]>(initialStaffProduction);
   const [liquidationResult, setLiquidationResult] = useState<StaffLiquidationPreview | null>(null);
-  const [liquidations, setLiquidations] = useState<StaffLiquidationListItem[]>([]);
+  const [liquidations, setLiquidations] = useState<StaffLiquidationListItem[]>(initialStaffLiquidations);
   const [liquidationItems, setLiquidationItems] = useState<StaffLiquidationDetailItem[]>([]);
   const [selectedLiquidationId, setSelectedLiquidationId] = useState<string | null>(null);
   const [selectedStaffForLiquidation, setSelectedStaffForLiquidation] = useState("");
   const [cashMovementType, setCashMovementType] = useState("income");
 
-  const [cashSession, setCashSession] = useState<CashSessionSummary | null>(null);
-  const [cashMovements, setCashMovements] = useState<CashMovementItem[]>([]);
-  const [cashSessionsHistory, setCashSessionsHistory] = useState<CashSessionSummary[]>([]);
+  const [cashSession, setCashSession] = useState<CashSessionSummary | null>(initialCashSession);
+  const [cashMovements, setCashMovements] = useState<CashMovementItem[]>(initialCashMovements);
+  const [cashSessionsHistory, setCashSessionsHistory] = useState<CashSessionSummary[]>(initialCashSessionsHistory);
   const [cashLoading, setCashLoading] = useState(false);
 
   const [uiMessage, setUiMessage] = useState<string | null>(null);
@@ -140,10 +148,43 @@ export default function FinancesClient({
   const shopRef = useRef(shopId);
   const isFirstRender = useRef(true);
   const skipNextRealtimeRefresh = useRef(false);
+  const realtimeCooldown = useRef(false);
 
   useEffect(() => {
     shopRef.current = shopId;
   }, [shopId]);
+
+  async function refreshFinanceData(nextFrom: string, nextTo: string) {
+    const sid = shopRef.current || undefined;
+    startTransition(async () => {
+      const result = await fetchFinanceData(nextFrom, nextTo, sid);
+      if (result.success && result.data) {
+        setData(result.data);
+        setError(null);
+      } else {
+        setError(actionError(result, "Error al cargar"));
+      }
+    });
+  }
+
+  async function refreshCashData(nextFrom: string, nextTo: string) {
+    const sid = shopRef.current || undefined;
+    setCashLoading(true);
+    try {
+      const [session, moves, history] = await Promise.all([
+        fetchCashSession(sid),
+        fetchCashMovements(nextFrom, nextTo, sid),
+        fetchCashSessionsHistory(nextFrom, nextTo, sid),
+      ]);
+      if (session.success) setCashSession(session.data ?? null);
+      if (moves.success && moves.data) setCashMovements(moves.data);
+      if (history.success && history.data) setCashSessionsHistory(history.data);
+    } catch {
+      /* ignore */
+    } finally {
+      setCashLoading(false);
+    }
+  }
 
   async function triggerLoads(nextFrom: string, nextTo: string) {
     const sid = shopRef.current || undefined;
@@ -184,23 +225,7 @@ export default function FinancesClient({
       }
     })();
 
-    const cashPromise = (async () => {
-      setCashLoading(true);
-      try {
-        const [session, moves, history] = await Promise.all([
-          fetchCashSession(sid),
-          fetchCashMovements(nextFrom, nextTo, sid),
-          fetchCashSessionsHistory(nextFrom, nextTo, sid),
-        ]);
-        if (session.success) setCashSession(session.data ?? null);
-        if (moves.success && moves.data) setCashMovements(moves.data);
-        if (history.success && history.data) setCashSessionsHistory(history.data);
-      } catch {
-        /* silently ignore */
-      } finally {
-        setCashLoading(false);
-      }
-    })();
+    const cashPromise = refreshCashData(nextFrom, nextTo);
 
     await Promise.allSettled([staffPromise, cashPromise]);
   }
@@ -208,21 +233,6 @@ export default function FinancesClient({
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
-      const sid = shopRef.current || undefined;
-      setCashLoading(true);
-      Promise.all([
-        fetchCashSession(sid),
-        fetchCashMovements(from, to, sid),
-        fetchCashSessionsHistory(from, to, sid),
-        fetchStaffLiquidations(from, to, sid),
-      ])
-        .then(([session, moves, history, liq]) => {
-          if (session.success) setCashSession(session.data ?? null);
-          if (moves.success && moves.data) setCashMovements(moves.data);
-          if (history.success && history.data) setCashSessionsHistory(history.data);
-          if (liq.success && liq.data) setLiquidations(liq.data);
-        })
-        .finally(() => setCashLoading(false));
       return;
     }
     triggerLoads(from, to);
@@ -233,15 +243,24 @@ export default function FinancesClient({
       .channel(`finances-${shopId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "finances", filter: `shop_id=eq.${shopId}` }, () => {
         if (skipNextRealtimeRefresh.current) { skipNextRealtimeRefresh.current = false; return; }
-        void triggerLoads(from, to);
+        if (realtimeCooldown.current) return;
+        realtimeCooldown.current = true;
+        setTimeout(() => { realtimeCooldown.current = false; }, 2000);
+        refreshFinanceData(from, to);
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "cash_movements", filter: `shop_id=eq.${shopId}` }, () => {
         if (skipNextRealtimeRefresh.current) { skipNextRealtimeRefresh.current = false; return; }
-        void triggerLoads(from, to);
+        if (realtimeCooldown.current) return;
+        realtimeCooldown.current = true;
+        setTimeout(() => { realtimeCooldown.current = false; }, 2000);
+        refreshCashData(from, to);
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "cash_sessions", filter: `shop_id=eq.${shopId}` }, () => {
         if (skipNextRealtimeRefresh.current) { skipNextRealtimeRefresh.current = false; return; }
-        void triggerLoads(from, to);
+        if (realtimeCooldown.current) return;
+        realtimeCooldown.current = true;
+        setTimeout(() => { realtimeCooldown.current = false; }, 2000);
+        refreshCashData(from, to);
       })
       .subscribe();
 

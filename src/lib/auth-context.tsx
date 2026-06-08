@@ -67,10 +67,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       let user = userOverride ?? null;
       if (!user) {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        user = session?.user ?? null;
+        try {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          user = session?.user ?? null;
+        } catch {
+          // Token inválido (ej: usuario eliminado), forzar sign out
+          await supabase.auth.signOut();
+          if (isMounted) setState({ user: null, shop: null, isLoading: false });
+          return;
+        }
       }
 
       if (!user) {
@@ -166,7 +173,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (event === "SIGNED_OUT" || !session?.user) {
         setState({ user: null, shop: null, isLoading: false });
       } else if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-        fetchSession(session.user);
+        fetchSession(session.user).catch(() => {
+          setState({ user: null, shop: null, isLoading: false });
+        });
       }
     });
 

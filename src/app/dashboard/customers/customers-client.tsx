@@ -136,7 +136,7 @@ export default function CustomersPage() {
     }
 
     const [{ data, error: fetchError }, { data: shopData, error: shopError }] = await Promise.all([
-      supabase.from("customers").select('id, nombre, email, telefono, "cumpleaños", observaciones_tecnicas, es_vip, recurring_weekday, recurring_frequency, recurring_notes, loyalty_cuts_count, loyalty_rewards_available').eq("shop_id", activeShopId),
+      supabase.from("customers").select('id, nombre, email, telefono, "cumpleaños", observaciones_tecnicas, es_vip, recurring_weekday, recurring_frequency, recurring_notes, loyalty_cuts_count, loyalty_rewards_available').eq("shop_id", activeShopId).order("created_at", { ascending: false }).limit(500),
       supabase
         .from("shops")
         .select("loyalty_enabled, loyalty_cuts_required")
@@ -318,11 +318,28 @@ export default function CustomersPage() {
       shop_id: activeShopId,
     };
 
-    let saveError: { message?: string } | null = null;
-
     if (isCreating) {
-      const { error } = await supabase.from("customers").insert(payload);
-      saveError = error;
+      const { data: created, error } = await supabase.from("customers").insert(payload).select().single();
+      if (error) {
+        setSaveMessage("Error al guardar, intentá de nuevo");
+        setSaving(false);
+        return;
+      }
+      const normalized: Customer = {
+        id: created.id,
+        nombre: created.nombre ?? null,
+        email: created.email ?? null,
+        telefono: created.telefono ?? null,
+        cumpleaños: created.cumpleaños ?? null,
+        observaciones_tecnicas: created.observaciones_tecnicas ?? null,
+        es_vip: created.es_vip ?? false,
+        recurring_weekday: created.recurring_weekday ?? null,
+        recurring_frequency: created.recurring_frequency ?? null,
+        recurring_notes: created.recurring_notes ?? null,
+        loyalty_cuts_count: 0,
+        loyalty_rewards_available: 0,
+      };
+      setCustomers((prev) => [normalized, ...prev]);
     } else {
       if (!selectedId) {
         setSaveMessage("Error al guardar, intentá de nuevo");
@@ -330,32 +347,41 @@ export default function CustomersPage() {
         return;
       }
       const { error } = await supabase.from("customers").update(payload).eq("id", selectedId);
-      saveError = error;
-    }
-
-    if (saveError) {
-      console.error(saveError);
-      setSaveMessage("Error al guardar, intentá de nuevo");
-      setSaving(false);
-      return;
+      if (error) {
+        setSaveMessage("Error al guardar, intentá de nuevo");
+        setSaving(false);
+        return;
+      }
+      setCustomers((prev) =>
+        prev.map((c) =>
+          c.id === selectedId
+            ? {
+                ...c,
+                nombre: draftNombre || null,
+                email: draftEmail || null,
+                telefono: draftTelefono || null,
+                cumpleaños: draftCumple || null,
+                observaciones_tecnicas: draftObs || null,
+                es_vip: draftVip,
+                recurring_weekday: draftRecurringWeekday ? Number(draftRecurringWeekday) : null,
+                recurring_frequency: draftRecurringFrequency || null,
+                recurring_notes: draftRecurringNotes || null,
+              }
+            : c,
+        ),
+      );
     }
 
     playSuccess();
-    await loadCustomers();
     setSaving(false);
     closeEditor();
   }
 
   if (loading) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.14),_transparent_48%),linear-gradient(180deg,_#f8fafc_0%,_#f1f5f9_100%)] px-6 dark:bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.16),_transparent_46%),linear-gradient(180deg,_#09090b_0%,_#111827_100%)]">
-        <div className="flex w-full max-w-sm items-center gap-3 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white px-4 py-3 text-slate-700 shadow-sm dark:text-zinc-200 dark:bg-zinc-900">
-          <Loader2 className="h-5 w-5 animate-spin text-blue-600 dark:text-sky-300" />
-          <div className="min-w-0">
-            <p className="text-sm font-medium">Verificando sesión...</p>
-            <p className="truncate text-xs text-slate-500 dark:text-zinc-400">Cargando {customerPlural.toLowerCase()} y configuración del local</p>
-          </div>
-        </div>
+      <div className="flex items-center gap-3 px-5 py-4 text-sm text-slate-500 dark:text-zinc-400">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Cargando {customerPlural.toLowerCase()}...
       </div>
     );
   }

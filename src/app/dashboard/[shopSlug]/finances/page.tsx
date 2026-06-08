@@ -1,4 +1,11 @@
-import { fetchFinanceData, fetchStaffProduction } from "@/lib/dashboard/finances-actions";
+import {
+  fetchFinanceData,
+  fetchStaffProduction,
+  fetchCashSession,
+  fetchCashMovements,
+  fetchCashSessionsHistory,
+  fetchStaffLiquidations,
+} from "@/lib/dashboard/finances-actions";
 import FinancesClient from "@/app/dashboard/finances/finances-client";
 import { getArgentinaDateString } from "@/lib/argentina-time";
 import { getCachedUser, getCachedShopIdBySlug } from "@/lib/dashboard/auth-server";
@@ -27,9 +34,13 @@ export default async function DashboardShopFinancesPage({
   const from = fromRaw <= toRaw ? fromRaw : toRaw;
   const to = fromRaw <= toRaw ? toRaw : fromRaw;
 
-  const [result, staffResult] = await Promise.all([
+  const [result, staffResult, cashResult, movesResult, historyResult, liqResult] = await Promise.all([
     fetchFinanceData(from, to, shopId),
     fetchStaffProduction(from, to, shopId),
+    fetchCashSession(shopId),
+    fetchCashMovements(from, to, shopId),
+    fetchCashSessionsHistory(from, to, shopId),
+    fetchStaffLiquidations(from, to, shopId),
   ]);
 
   return (
@@ -37,6 +48,10 @@ export default async function DashboardShopFinancesPage({
       shopId={shopId}
       initialData={result.success ? result.data ?? null : null}
       initialStaffProduction={staffResult.success ? staffResult.data ?? [] : []}
+      initialCashSession={cashResult.success ? cashResult.data ?? null : null}
+      initialCashMovements={movesResult.success ? movesResult.data ?? [] : []}
+      initialCashSessionsHistory={historyResult.success ? historyResult.data ?? [] : []}
+      initialStaffLiquidations={liqResult.success ? liqResult.data ?? [] : []}
       initialFrom={from}
       initialTo={to}
       initialError={result.success ? null : result.error}
