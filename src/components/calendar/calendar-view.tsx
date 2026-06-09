@@ -382,12 +382,75 @@ export default memo(function CalendarView({
     return map;
   }, [staffList]);
 
+  const mergedAppointments = useMemo(() => {
+    if (normalizedAppointments.length === 0) return [];
+
+    const sorted = [...normalizedAppointments].sort((a, b) =>
+      a.start_local_iso.localeCompare(b.start_local_iso)
+    );
+
+    const merged: NormalizedAppointment[] = [];
+    let current: NormalizedAppointment | null = null;
+
+    for (const appt of sorted) {
+      if (!current) {
+        current = { ...appt };
+        continue;
+      }
+
+      const currentEnd = new Date(current.end_time).getTime();
+      const nextStart = new Date(appt.start_time).getTime();
+      const gap = nextStart - currentEnd;
+
+      const sameCustomer = current.customer_id === appt.customer_id;
+      const sameStaff = current.staff_id === appt.staff_id;
+      const consecutive = Math.abs(gap) < 60000;
+      const sameDay = current.date_key_ar === appt.date_key_ar;
+
+      if (sameCustomer && sameStaff && consecutive && sameDay) {
+        const currentName = current.services?.name || "";
+        const nextName = appt.services?.name || "";
+        const mergedName = currentName && nextName
+          ? `${currentName} + ${nextName}`
+          : currentName || nextName;
+        const mergedPrice = (current.services?.price ?? 0) + (appt.services?.price ?? 0);
+        const mergedDuration = (current.services?.duration_minutes ?? 0) + (appt.services?.duration_minutes ?? 0);
+        const startMinutes = minutesFromHHmm(current.start_hhmm);
+        const endMinutes = minutesFromHHmm(appt.end_hhmm);
+        const sameCalendarDay = getArgentinaDateKey(current.start_local_iso) === getArgentinaDateKey(appt.end_local_iso);
+        const mergedDurationAr = sameCalendarDay
+          ? Math.max(endMinutes - startMinutes, 1)
+          : Math.max((24 * 60 - startMinutes) + endMinutes, 1);
+
+        current = {
+          ...current,
+          end_time: appt.end_time,
+          end_local_iso: appt.end_local_iso,
+          end_hhmm: appt.end_hhmm,
+          service_id: `${current.service_id},${appt.service_id}`,
+          services: {
+            name: mergedName,
+            price: mergedPrice,
+            duration_minutes: mergedDuration,
+          },
+          duration_minutes_ar: mergedDurationAr,
+        };
+      } else {
+        merged.push(current);
+        current = { ...appt };
+      }
+    }
+    if (current) merged.push(current);
+
+    return merged;
+  }, [normalizedAppointments]);
+
   const appointmentsByDay = useMemo(() => {
     const map = new Map<string, NormalizedAppointment[]>();
     for (const day of weekDays) {
       map.set(getArgentinaDateKey(day), []);
     }
-    for (const appt of normalizedAppointments) {
+    for (const appt of mergedAppointments) {
       const dayAppointments = map.get(appt.date_key_ar);
       if (dayAppointments) dayAppointments.push(appt);
     }
@@ -395,7 +458,7 @@ export default memo(function CalendarView({
       value.sort((a, b) => a.start_hhmm.localeCompare(b.start_hhmm));
     }
     return map;
-  }, [normalizedAppointments, weekDays]);
+  }, [mergedAppointments, weekDays]);
 
   const displayedDays = useMemo(() => {
     const baseDays = (() => {

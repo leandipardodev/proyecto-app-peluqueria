@@ -344,6 +344,18 @@ export default function CalendarPageClient({
       <AppointmentFormModal
         open={formModalOpen}
         onClose={() => setFormModalOpen(false)}
+        onSuccess={async () => {
+          const weekStart = getArgentinaWeekStart();
+          const rangeStart = new Date(weekStart);
+          rangeStart.setUTCDate(weekStart.getUTCDate() - 7);
+          const rangeEnd = new Date(weekStart);
+          rangeEnd.setUTCDate(weekStart.getUTCDate() + 14);
+          rangeEnd.setUTCHours(23, 59, 59, 999);
+          const result = await fetchAppointments(rangeStart.toISOString(), rangeEnd.toISOString(), shopId);
+          if (result.success && Array.isArray(result.data)) {
+            setAppointments(result.data as Appointment[]);
+          }
+        }}
         initialDate={formInitialDate}
         initialHour={formInitialHour}
         services={services}

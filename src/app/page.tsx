@@ -287,7 +287,7 @@ export default function Home() {
                   href="/dashboard"
                   className="rounded-full border border-slate-200 bg-white px-5 py-2 text-sm text-[#1D1D1F] transition hover:bg-slate-50"
                 >
-                  Dashboard
+                  Panel
                 </Link>
                 <Link
                   href="/dashboard"
@@ -332,7 +332,7 @@ export default function Home() {
             </div>
             <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/80 bg-white px-2.5 py-1.5 text-[9px] uppercase tracking-[0.2em] text-[#68707d] shadow-[0_10px_24px_rgba(2,6,23,0.08)] sm:mb-5 sm:px-3 sm:text-[10px] sm:tracking-[0.24em]">
               <Sparkles className="h-4 w-4 text-[#0071E3]" />
-              Booking + Gestion + Cobros
+              Turnos + Gestión + Cobros
             </p>
 
             <motion.div
@@ -367,7 +367,7 @@ export default function Home() {
             <div className="relative z-10 grid gap-6 md:gap-10 lg:grid-cols-[1.1fr_0.9fr] items-start">
               <div className="max-w-3xl">
               <h1 className={`${playfair.className} title-animated text-[2.05rem] font-black tracking-[-0.045em] leading-[0.95] text-[#0e1628] sm:text-6xl sm:tracking-[-0.055em] sm:leading-[0.92] md:text-7xl lg:text-8xl`}>
-                Menos ausencias. Mas clientes fieles. Tu salon bajo control.
+                Menos ausencias. Mas clientes fieles.                 Tu negocio bajo control.
               </h1>
 
               <p className="mt-4 max-w-2xl text-[14px] leading-relaxed text-[#5f6673] sm:mt-7 sm:text-lg">
@@ -383,7 +383,7 @@ export default function Home() {
                   href={user ? "/dashboard" : "/register"}
                   className="inline-flex rounded-full bg-[#0071E3] px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_40px_rgba(0,113,227,0.40)] transition hover:translate-y-[-1px] hover:bg-[#0064cc] sm:px-10 sm:py-4 sm:text-base"
                 >
-                  {user ? "Ir al dashboard" : "Empezar gratis ahora"}
+                  {user ? "Ir al panel" : "Empezar gratis ahora"}
                 </Link>
               </div>
               </div>
@@ -436,7 +436,7 @@ export default function Home() {
                     </motion.div>
                     <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                       <motion.div className="rounded-2xl border border-white/70 bg-white p-3" style={{ translateZ: 34 }} whileHover={{ y: -3, scale: 1.01 }}>
-                        <p className="text-xs text-slate-500">No-show</p>
+                        <p className="text-xs text-slate-500">Ausentismo</p>
                         <p className="mt-1 text-lg font-black text-rose-500 sm:text-xl">-40%</p>
                       </motion.div>
                       <motion.div className="rounded-2xl border border-white/70 bg-white p-3" style={{ translateZ: 34 }} whileHover={{ y: -3, scale: 1.01 }}>
@@ -450,7 +450,7 @@ export default function Home() {
                       whileHover={{ y: -3, scale: 1.01 }}
                     >
                       <p className="text-xs text-slate-500">Proximo recordatorio</p>
-                      <p className="mt-1 text-sm font-semibold leading-snug text-slate-900">Leandro - Corte + Barba - 16:30</p>
+                      <p className="mt-1 text-sm font-semibold leading-snug text-slate-900">Leandro - Servicio - 16:30</p>
                     </motion.div>
                   </div>
                 </div>
@@ -491,7 +491,7 @@ export default function Home() {
           <div className="grid gap-5 md:grid-cols-3">
             <Card className="p-8 bg-gradient-to-br from-white via-white to-blue-50/60 shadow-[0_18px_38px_rgba(15,23,42,0.06)] hover:shadow-[0_24px_48px_rgba(15,23,42,0.1)] transition-shadow">
               <p className="text-xs font-semibold tracking-[0.16em] text-[#0071E3]">PASO 1</p>
-              <h3 className="mt-3 text-2xl font-bold tracking-tight text-[#1D1D1F]">Configuras tu salon</h3>
+              <h3 className="mt-3 text-2xl font-bold tracking-tight text-[#1D1D1F]">Configuras tu negocio</h3>
               <p className="mt-3 leading-relaxed text-[#86868B]">Cargas tus servicios con sus duraciones, precios y asignas que empleados realizan cada tarea.</p>
             </Card>
             <Card className="p-8 bg-gradient-to-br from-white via-white to-violet-50/50 shadow-[0_18px_38px_rgba(15,23,42,0.06)] hover:shadow-[0_24px_48px_rgba(15,23,42,0.1)] transition-shadow">
@@ -529,7 +529,7 @@ export default function Home() {
             <Card className="p-10 md:col-span-3">
               <Scissors className="mb-5 h-7 w-7 text-[#0071E3]" />
               <h3 className="mb-3 text-2xl font-bold tracking-tight text-[#1D1D1F]">Catalogo de Servicios Claro</h3>
-              <p className="leading-relaxed text-[#86868B]">Defini precios y tiempos por cada corte, color o tratamiento. El cliente sabe exactamente que contrata y la agenda calcula huecos de forma matematica.</p>
+              <p className="leading-relaxed text-[#86868B]">Defini precios y tiempos por cada servicio. El cliente sabe exactamente que contrata y la agenda calcula huecos de forma matematica.</p>
             </Card>
 
             <Card className="p-10 md:col-span-2">
@@ -574,7 +574,7 @@ export default function Home() {
             <Card className="p-10">
               <CalendarCheck2 className="mb-5 h-8 w-8 text-[#0071E3]" />
               <p className="text-6xl font-extrabold tracking-tight text-[#1D1D1F] animate-[pulseSoft_4s_ease-in-out_infinite,numberGlow_6s_ease-in-out_infinite]">-40%</p>
-              <p className="mt-2 leading-relaxed text-[#86868B]">Ausentismo (no-shows) con recordatorios previos.</p>
+              <p className="mt-2 leading-relaxed text-[#86868B]">Ausentismo con recordatorios previos.</p>
             </Card>
 
             <Card className="p-10">
@@ -662,7 +662,7 @@ export default function Home() {
           <SweepSection sweepClassName="bg-[linear-gradient(90deg,transparent_0%,rgba(226,232,240,0.65)_48%,transparent_100%)]">
             <Section className="py-10 sm:py-12">
               <div className="mb-7 max-w-3xl">
-                <h2 className={`${playfair.className} title-animated text-5xl sm:text-6xl font-bold tracking-[-0.04em] text-[#101625]`}>Elegido por salones que quieren crecer</h2>
+                <h2 className={`${playfair.className} title-animated text-5xl sm:text-6xl font-bold tracking-[-0.04em] text-[#101625]`}>Elegido por negocios que quieren crecer</h2>
               </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {[
@@ -695,7 +695,7 @@ export default function Home() {
                 ))}
               </div>
               <div className="mt-5 grid gap-4 md:grid-cols-2">
-                <Card className="bg-gradient-to-br from-white to-slate-50 p-6"><p className="text-sm font-semibold text-slate-700">&quot;Ordenamos todo el salon en una semana. Hoy nadie se pisa horarios.&quot;</p><p className="mt-3 text-xs uppercase tracking-[0.16em] text-slate-500">Cristian - JAZBA peluqueria</p></Card>
+                <Card className="bg-gradient-to-br from-white to-slate-50 p-6"><p className="text-sm font-semibold text-slate-700">&quot;Ordenamos todo el negocio en una semana. Hoy nadie se pisa horarios.&quot;</p><p className="mt-3 text-xs uppercase tracking-[0.16em] text-slate-500">Cristian - JAZBA</p></Card>
                 <Card className="bg-gradient-to-br from-white to-slate-50 p-6"><p className="text-sm font-semibold text-slate-700">&quot;La gente vuelve mas porque reservar y recordarles turno es facil.&quot;</p><p className="mt-3 text-xs uppercase tracking-[0.16em] text-slate-500">Lucho - EUNOIA</p></Card>
               </div>
             </Section>
@@ -715,7 +715,7 @@ export default function Home() {
                   href={user ? "/dashboard" : "/register"}
                   className="relative z-[220] inline-flex cursor-pointer rounded-full bg-white px-6 py-3 text-sm font-bold text-slate-900 transition hover:translate-y-[-1px] hover:bg-slate-100 pointer-events-auto"
                 >
-                  {user ? "Ir al dashboard" : "Crear cuenta gratis"}
+                  {user ? "Ir al panel" : "Crear cuenta gratis"}
                 </Link>
               </div>
             </div>

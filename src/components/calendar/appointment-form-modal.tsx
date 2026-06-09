@@ -92,6 +92,9 @@ export default function AppointmentFormModal({
     initialHour ? `${String(initialHour).padStart(2, "0")}:00` : "09:00"
   );
   const [portalReady, setPortalReady] = useState(false);
+  const [serviceCustomDurations, setServiceCustomDurations] = useState<Record<string, number>>({});
+  const [editingDurationId, setEditingDurationId] = useState<string | null>(null);
+  const [editingDurationValue, setEditingDurationValue] = useState("");
   const { addToast } = useToast();
 
   useEffect(() => {
@@ -122,6 +125,9 @@ export default function AppointmentFormModal({
       setCustomerSearchOpen(false);
       setServiceSearchQuery("");
       setServiceSearchOpen(false);
+      setServiceCustomDurations({});
+      setEditingDurationId(null);
+      setEditingDurationValue("");
       setSelectedDate(initialDate || getArgentinaDateString());
       setSelectedTime(initialHour ? `${String(initialHour).padStart(2, "0")}:00` : "09:00");
       setError(null);
@@ -148,8 +154,8 @@ export default function AppointmentFormModal({
   );
 
   const totalDuration = useMemo(
-    () => selectedServices.reduce((sum, s) => sum + s.duration_minutes, 0),
-    [selectedServices]
+    () => selectedServices.reduce((sum, s) => sum + (serviceCustomDurations[s.id] ?? s.duration_minutes), 0),
+    [selectedServices, serviceCustomDurations]
   );
 
   const totalPrice = useMemo(
@@ -179,12 +185,13 @@ export default function AppointmentFormModal({
     const slots: { service: Service; start: string; end: string }[] = [];
     let current = new Date(base);
     selectedServices.forEach((svc) => {
+      const duration = serviceCustomDurations[svc.id] ?? svc.duration_minutes;
       const startStr = formatTime(current);
-      current = new Date(current.getTime() + svc.duration_minutes * 60000);
+      current = new Date(current.getTime() + duration * 60000);
       slots.push({ service: svc, start: startStr, end: formatTime(current) });
     });
     return slots;
-  }, [selectedServices, selectedTime]);
+  }, [selectedServices, selectedTime, serviceCustomDurations]);
 
   const addService = useCallback((id: string) => {
     setSelectedServiceIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
@@ -470,12 +477,18 @@ export default function AppointmentFormModal({
                   {selectedServices.length > 0 && (
                     <div className="mt-3 space-y-3">
                       <div className="flex flex-wrap gap-1.5">
-                        {selectedServices.map((s) => (
+                        {selectedServices.map((s) => {
+                          const effDuration = serviceCustomDurations[s.id] ?? s.duration_minutes;
+                          const isCustom = effDuration !== s.duration_minutes;
+                          return (
                           <span
                             key={s.id}
                             className="inline-flex items-center gap-1 px-2.5 py-1 bg-violet-50 dark:bg-violet-900/30 text-violet-800 dark:text-violet-200 rounded-lg text-sm font-medium"
                           >
                             {s.name}
+                            <span className={`text-xs ${isCustom ? 'text-violet-600 dark:text-violet-300 font-semibold' : 'opacity-70'}`}>
+                              {effDuration}min
+                            </span>
                             <button
                               type="button"
                               onClick={() => removeService(s.id)}
@@ -484,7 +497,8 @@ export default function AppointmentFormModal({
                               <X className="w-3 h-3" />
                             </button>
                           </span>
-                        ))}
+                          );
+                        })}
                       </div>
 
                       <div className="flex items-center gap-4 text-sm text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl px-4 py-2">
@@ -503,7 +517,12 @@ export default function AppointmentFormModal({
                           <div className="text-xs font-medium text-zinc-500 dark:text-zinc-400 px-4 py-2 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700">
                             Secuencia horaria
                           </div>
-                          {timeSlots.map((slot, i) => (
+                          {timeSlots.map((slot, i) => {
+                            const origDuration = slot.service.duration_minutes;
+                            const effDuration = serviceCustomDurations[slot.service.id] ?? origDuration;
+                            const isCustom = effDuration !== origDuration;
+                            const isEditing = editingDurationId === slot.service.id;
+                            return (
                             <div
                               key={i}
                               className="flex items-center gap-3 px-4 py-2 text-sm border-b border-zinc-100 dark:border-zinc-800 last:border-b-0"
@@ -511,14 +530,66 @@ export default function AppointmentFormModal({
                               <span className="text-violet-600 dark:text-violet-400 font-medium tabular-nums min-w-[8.5ch]">
                                 {slot.start} — {slot.end}
                               </span>
-                              <span className="text-gray-700 dark:text-gray-300">{slot.service.name}</span>
+                              <span className="text-gray-700 dark:text-gray-300 flex-1">{slot.service.name}</span>
+                              {isEditing ? (
+                                <span className="flex items-center gap-1 shrink-0">
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={300}
+                                    value={editingDurationValue}
+                                    onChange={(e) => setEditingDurationValue(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        const val = parseInt(editingDurationValue, 10);
+                                        if (!isNaN(val) && val >= 1 && val <= 300) {
+                                          setServiceCustomDurations((prev) => ({ ...prev, [slot.service.id]: val }));
+                                        } else {
+                                          setError("La duración debe ser entre 1 y 300 minutos (5 hs)");
+                                          setServiceCustomDurations((prev) => { const n = { ...prev }; delete n[slot.service.id]; return n; });
+                                        }
+                                        setEditingDurationId(null);
+                                      }
+                                      if (e.key === "Escape") {
+                                        setEditingDurationId(null);
+                                      }
+                                    }}
+                                    onBlur={() => {
+                                      const val = parseInt(editingDurationValue, 10);
+                                      if (!isNaN(val) && val >= 1 && val <= 300) {
+                                        setServiceCustomDurations((prev) => ({ ...prev, [slot.service.id]: val }));
+                                      } else {
+                                        setError("La duración debe ser entre 1 y 300 minutos (5 hs)");
+                                        setServiceCustomDurations((prev) => { const n = { ...prev }; delete n[slot.service.id]; return n; });
+                                      }
+                                      setEditingDurationId(null);
+                                    }}
+                                    autoFocus
+                                    className="w-16 px-1.5 py-0.5 rounded border border-violet-300 text-center text-xs tabular-nums"
+                                  />
+                                  <span className="text-zinc-400 text-xs">min</span>
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingDurationId(slot.service.id);
+                                    setEditingDurationValue(String(effDuration));
+                                  }}
+                                  className={`text-xs tabular-nums hover:text-violet-600 transition-colors cursor-pointer select-none shrink-0 ${isCustom ? 'text-violet-600 font-semibold' : 'text-zinc-400'}`}
+                                >
+                                  {effDuration}min
+                                </button>
+                              )}
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </div>
                   )}
                   <input type="hidden" name="service_ids" value={selectedServiceIds.join(",")} />
+                  <input type="hidden" name="service_durations" value={JSON.stringify(serviceCustomDurations)} />
                 </div>
 
                 <div>

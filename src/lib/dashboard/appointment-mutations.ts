@@ -49,6 +49,15 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
       return { success: false, error: "La seña debe ser un monto válido" };
     }
 
+    const serviceDurationsRaw = (formData.get("service_durations") as string) || "{}";
+    let serviceDurations: Record<string, number> = {};
+    try { serviceDurations = JSON.parse(serviceDurationsRaw); } catch { serviceDurations = {}; }
+    for (const [_id, minutes] of Object.entries(serviceDurations)) {
+      if (minutes < 1 || minutes > 300) {
+        return { success: false, error: "Duración inválida para un servicio. Máximo 300 min (5 hs)." };
+      }
+    }
+
     const supabase = await createServerClient();
 
     const { data: services, error: servicesError } = await supabase
@@ -62,7 +71,7 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
     }
 
     const orderedServices = serviceIds.map((id) => services.find((s) => s.id === id)!);
-    const totalDuration = orderedServices.reduce((sum, s) => sum + s.duration_minutes, 0);
+    const totalDuration = orderedServices.reduce((sum, s) => sum + (serviceDurations[s.id] ?? s.duration_minutes), 0);
 
     const { start } = await toArgentinaStartEnd(startDate, startTime, totalDuration);
     const recurringStarts = await buildRecurringStarts(start, recurringFrequency, recurringUntil);
@@ -74,7 +83,8 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
     const rowsToInsert = recurringStarts.flatMap((startAt) => {
       let currentStart = new Date(startAt);
       return orderedServices.map((svc) => {
-        const currentEnd = new Date(currentStart.getTime() + svc.duration_minutes * 60000);
+        const effectiveDuration = serviceDurations[svc.id] ?? svc.duration_minutes;
+        const currentEnd = new Date(currentStart.getTime() + effectiveDuration * 60000);
         const row = {
           shop_id: shopId,
           customer_id: customerId,
@@ -184,6 +194,15 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
       return { success: false, error: "La seña debe ser un monto válido" };
     }
 
+    const serviceDurationsRaw = (formData.get("service_durations") as string) || "{}";
+    let serviceDurations: Record<string, number> = {};
+    try { serviceDurations = JSON.parse(serviceDurationsRaw); } catch { serviceDurations = {}; }
+    for (const [_id, minutes] of Object.entries(serviceDurations)) {
+      if (minutes < 1 || minutes > 300) {
+        return { success: false, error: "Duración inválida para un servicio. Máximo 300 min (5 hs)." };
+      }
+    }
+
     const supabase = await createServerClient();
 
     const { data: services, error: servicesError } = await supabase
@@ -197,7 +216,7 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
     }
 
     const orderedServices = serviceIds.map((id) => services.find((s) => s.id === id)!);
-    const totalDuration = orderedServices.reduce((sum, s) => sum + s.duration_minutes, 0);
+    const totalDuration = orderedServices.reduce((sum, s) => sum + (serviceDurations[s.id] ?? s.duration_minutes), 0);
 
     const { data: newCustomer, error: customerInsertError } = await supabase
       .from("customers")
@@ -215,7 +234,8 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
     const { start } = await toArgentinaStartEnd(startDate, startTime, totalDuration);
     let currentStart = new Date(start);
     const rowsToInsert = orderedServices.map((svc) => {
-      const currentEnd = new Date(currentStart.getTime() + svc.duration_minutes * 60000);
+      const effectiveDuration = serviceDurations[svc.id] ?? svc.duration_minutes;
+      const currentEnd = new Date(currentStart.getTime() + effectiveDuration * 60000);
       const row = {
         shop_id: shopId,
         customer_id: customerId,
