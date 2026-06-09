@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { ChevronDown } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import { createPortal } from "react-dom";
 
 interface GlassSelectOption {
   value: string;
@@ -22,12 +23,6 @@ interface GlassSelectProps {
   searchPlaceholder?: string;
 }
 
-const dropVariants = {
-  hidden: { opacity: 0, y: -8, scale: 0.97 },
-  visible: { opacity: 1, y: 0, scale: 1, transition: { type: "spring" as const, damping: 28, stiffness: 350 } },
-  exit: { opacity: 0, y: -6, scale: 0.98, transition: { duration: 0.15 } },
-};
-
 export default function GlassSelect({
   options,
   value,
@@ -42,21 +37,58 @@ export default function GlassSelect({
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<{ top: number; left: number; width: number } | null>(null);
 
   const selected = options.find((o) => o.value === value);
 
   useEffect(() => {
+    if (!open) return;
     function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const target = e.target as Node;
+      if (containerRef.current?.contains(target)) return;
+      if (dropdownRef.current?.contains(target)) return;
+      setOpen(false);
     }
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
-  }, []);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleMove() { setOpen(false); }
+    window.addEventListener("scroll", handleMove, true);
+    window.addEventListener("resize", handleMove);
+    return () => {
+      window.removeEventListener("scroll", handleMove, true);
+      window.removeEventListener("resize", handleMove);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) setSearchQuery("");
+  }, [open]);
+
+  const handleToggle = useCallback(() => {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      if (spaceBelow < 200 && rect.top > spaceBelow) {
+        setDropdownStyle({
+          top: Math.max(8, rect.top - 260),
+          left: rect.left,
+          width: rect.width,
+        });
+      } else {
+        setDropdownStyle({
+          top: rect.bottom + 6,
+          left: rect.left,
+          width: rect.width,
+        });
+      }
+    }
+    setOpen((prev) => !prev);
   }, [open]);
 
   const normalizedQuery = searchQuery
@@ -79,8 +111,9 @@ export default function GlassSelect({
     <div ref={containerRef} className={`relative ${className}`}>
       <input type="hidden" name={name} value={value} required={required} />
       <button
+        ref={buttonRef}
         type="button"
-        onClick={() => setOpen(!open)}
+        onClick={handleToggle}
         className={`w-full flex items-center justify-between px-3 py-2 rounded-2xl text-sm border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:outline-none focus:ring-1 focus:ring-violet-500/20 transition-all cursor-pointer select-none ${
           selected ? "text-gray-900 dark:text-gray-100" : "text-zinc-400 dark:text-zinc-500"
         }`}
@@ -92,14 +125,23 @@ export default function GlassSelect({
         <ChevronDown className={`w-4 h-4 text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
-      <AnimatePresence>
-        {open && (
+      {typeof document !== "undefined" && createPortal(
+        <AnimatePresence>
+          {open && dropdownStyle && (
           <motion.div
-            className="absolute z-50 mt-1.5 w-full bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden py-1"
-            variants={dropVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
+            ref={dropdownRef}
+            style={{
+              position: "fixed",
+              top: dropdownStyle.top,
+              left: dropdownStyle.left,
+              width: dropdownStyle.width,
+              zIndex: 9999,
+            }}
+            className="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden py-1"
+            initial={{ opacity: 0, y: -8, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.98 }}
+            transition={{ duration: 0.15 }}
           >
             {searchable && (
               <div className="px-2 pb-1">
@@ -138,8 +180,10 @@ export default function GlassSelect({
               })
             )}
           </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </div>
   );
 }

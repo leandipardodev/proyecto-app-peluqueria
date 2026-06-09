@@ -117,8 +117,10 @@ export default function AppointmentDetailModal({
   const [portalReady, setPortalReady] = useState(false);
   const [selectedServiceId, setSelectedServiceId] = useState(appointment?.service_id || "");
   const [startDateTimeLocal, setStartDateTimeLocal] = useState("");
+  const serviceSearchRef = useRef<HTMLInputElement>(null);
   const [serviceSearchQuery, setServiceSearchQuery] = useState("");
   const [serviceSearchOpen, setServiceSearchOpen] = useState(false);
+  const [serviceDropdownStyle, setServiceDropdownStyle] = useState<{ top: number; left: number; width: number } | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const { addToast } = useToast();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -129,6 +131,17 @@ export default function AppointmentDetailModal({
   useEffect(() => {
     setPortalReady(true);
   }, []);
+
+  useEffect(() => {
+    if (!serviceSearchOpen) return;
+    function handleMove() { setServiceSearchOpen(false); }
+    window.addEventListener("scroll", handleMove, true);
+    window.addEventListener("resize", handleMove);
+    return () => {
+      window.removeEventListener("scroll", handleMove, true);
+      window.removeEventListener("resize", handleMove);
+    };
+  }, [serviceSearchOpen]);
 
   useEffect(() => {
     if (!appointment) return;
@@ -455,19 +468,39 @@ export default function AppointmentDetailModal({
                   <div className="mt-1.5 relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none z-10" />
                     <input
+                      ref={serviceSearchRef}
                       type="text"
                       placeholder={appointment.services?.name || "Buscar servicio..."}
                       value={serviceSearchQuery}
                       onChange={(e) => {
                         setServiceSearchQuery(e.target.value);
                         setServiceSearchOpen(true);
+                        if (serviceSearchRef.current) {
+                          const r = serviceSearchRef.current.getBoundingClientRect();
+                          setServiceDropdownStyle({ top: r.bottom + 4, left: r.left, width: r.width });
+                        }
                       }}
-                      onFocus={() => setServiceSearchOpen(true)}
+                      onFocus={() => {
+                        setServiceSearchOpen(true);
+                        if (serviceSearchRef.current) {
+                          const r = serviceSearchRef.current.getBoundingClientRect();
+                          setServiceDropdownStyle({ top: r.bottom + 4, left: r.left, width: r.width });
+                        }
+                      }}
                       onBlur={() => setTimeout(() => setServiceSearchOpen(false), 200)}
                       className="w-full pl-9 pr-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
                     />
-                    {serviceSearchOpen && filteredServices.length > 0 && (
-                      <div className="absolute z-50 mt-1 w-full bg-white dark:bg-zinc-800 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden py-1 max-h-48 overflow-y-auto">
+                    {serviceSearchOpen && filteredServices.length > 0 && serviceDropdownStyle && typeof document !== "undefined" && createPortal(
+                      <div
+                        style={{
+                          position: "fixed",
+                          top: serviceDropdownStyle.top,
+                          left: serviceDropdownStyle.left,
+                          width: serviceDropdownStyle.width,
+                          zIndex: 9999,
+                        }}
+                        className="bg-white dark:bg-zinc-800 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden py-1 max-h-48 overflow-y-auto"
+                      >
                         {filteredServices.map((s) => {
                           const selected = s.id === selectedServiceId;
                           return (
@@ -482,13 +515,14 @@ export default function AppointmentDetailModal({
                               }`}
                             >
                               <span className="font-medium">{s.name}</span>
-                              <span className="text-xs text-zinc-400">
+                              <span className="text-xs text-zinc-400 tabular-nums">
                                 ${s.price.toFixed(2)} · {s.duration_minutes}min
                               </span>
                             </button>
                           );
                         })}
-                      </div>
+                      </div>,
+                      document.body
                     )}
                   </div>
                 </div>

@@ -79,10 +79,14 @@ export default function AppointmentFormModal({
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerEmail, setNewCustomerEmail] = useState("");
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
+  const customerSearchRef = useRef<HTMLInputElement>(null);
+  const serviceSearchRef = useRef<HTMLInputElement>(null);
   const [customerSearchQuery, setCustomerSearchQuery] = useState("");
   const [customerSearchOpen, setCustomerSearchOpen] = useState(false);
+  const [customerDropdownStyle, setCustomerDropdownStyle] = useState<{ top: number; left: number; width: number } | null>(null);
   const [serviceSearchQuery, setServiceSearchQuery] = useState("");
   const [serviceSearchOpen, setServiceSearchOpen] = useState(false);
+  const [serviceDropdownStyle, setServiceDropdownStyle] = useState<{ top: number; left: number; width: number } | null>(null);
   const [selectedDate, setSelectedDate] = useState(initialDate || getArgentinaDateString());
   const [selectedTime, setSelectedTime] = useState(
     initialHour ? `${String(initialHour).padStart(2, "0")}:00` : "09:00"
@@ -123,6 +127,20 @@ export default function AppointmentFormModal({
       setError(null);
     }
   }, [open, initialDate, initialHour]);
+
+  useEffect(() => {
+    if (!customerSearchOpen && !serviceSearchOpen) return;
+    function handleMove() {
+      setCustomerSearchOpen(false);
+      setServiceSearchOpen(false);
+    }
+    window.addEventListener("scroll", handleMove, true);
+    window.addEventListener("resize", handleMove);
+    return () => {
+      window.removeEventListener("scroll", handleMove, true);
+      window.removeEventListener("resize", handleMove);
+    };
+  }, [customerSearchOpen, serviceSearchOpen]);
 
   const selectedServices = useMemo(
     () => services.filter((s) => selectedServiceIds.includes(s.id)),
@@ -270,19 +288,39 @@ export default function AppointmentFormModal({
                       <div className="relative flex-1">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
                         <input
+                          ref={customerSearchRef}
                           type="text"
                           placeholder="Buscar cliente por nombre..."
                           value={customerSearchQuery}
                           onChange={(e) => {
                             setCustomerSearchQuery(e.target.value);
                             setCustomerSearchOpen(true);
+                            if (customerSearchRef.current) {
+                              const r = customerSearchRef.current.getBoundingClientRect();
+                              setCustomerDropdownStyle({ top: r.bottom + 4, left: r.left, width: r.width });
+                            }
                           }}
-                          onFocus={() => setCustomerSearchOpen(true)}
+                          onFocus={() => {
+                            setCustomerSearchOpen(true);
+                            if (customerSearchRef.current) {
+                              const r = customerSearchRef.current.getBoundingClientRect();
+                              setCustomerDropdownStyle({ top: r.bottom + 4, left: r.left, width: r.width });
+                            }
+                          }}
                           onBlur={() => setTimeout(() => setCustomerSearchOpen(false), 200)}
                           className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
                         />
-                        {customerSearchOpen && filteredCustomers.length > 0 && (
-                          <div className="absolute z-50 mt-1 w-full bg-white dark:bg-zinc-800 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden py-1 max-h-48 overflow-y-auto">
+                        {customerSearchOpen && filteredCustomers.length > 0 && customerDropdownStyle && typeof document !== "undefined" && createPortal(
+                          <div
+                            style={{
+                              position: "fixed",
+                              top: customerDropdownStyle.top,
+                              left: customerDropdownStyle.left,
+                              width: customerDropdownStyle.width,
+                              zIndex: 9999,
+                            }}
+                            className="bg-white dark:bg-zinc-800 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden py-1 max-h-48 overflow-y-auto"
+                          >
                             {filteredCustomers.map((c) => (
                               <button
                                 key={c.id}
@@ -304,7 +342,8 @@ export default function AppointmentFormModal({
                                 )}
                               </button>
                             ))}
-                          </div>
+                          </div>,
+                          document.body
                         )}
                         <input type="hidden" name="customer_id" value={selectedCustomerId} required />
                       </div>
@@ -369,19 +408,39 @@ export default function AppointmentFormModal({
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
                     <input
+                      ref={serviceSearchRef}
                       type="text"
                       placeholder="Buscar y agregar servicio..."
                       value={serviceSearchQuery}
                       onChange={(e) => {
                         setServiceSearchQuery(e.target.value);
                         setServiceSearchOpen(true);
+                        if (serviceSearchRef.current) {
+                          const r = serviceSearchRef.current.getBoundingClientRect();
+                          setServiceDropdownStyle({ top: r.bottom + 4, left: r.left, width: r.width });
+                        }
                       }}
-                      onFocus={() => setServiceSearchOpen(true)}
+                      onFocus={() => {
+                        setServiceSearchOpen(true);
+                        if (serviceSearchRef.current) {
+                          const r = serviceSearchRef.current.getBoundingClientRect();
+                          setServiceDropdownStyle({ top: r.bottom + 4, left: r.left, width: r.width });
+                        }
+                      }}
                       onBlur={() => setTimeout(() => setServiceSearchOpen(false), 200)}
                       className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
                     />
-                    {serviceSearchOpen && filteredServices.length > 0 && (
-                      <div className="absolute z-50 mt-1 w-full bg-white dark:bg-zinc-800 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden py-1 max-h-48 overflow-y-auto">
+                    {serviceSearchOpen && filteredServices.length > 0 && serviceDropdownStyle && typeof document !== "undefined" && createPortal(
+                      <div
+                        style={{
+                          position: "fixed",
+                          top: serviceDropdownStyle.top,
+                          left: serviceDropdownStyle.left,
+                          width: serviceDropdownStyle.width,
+                          zIndex: 9999,
+                        }}
+                        className="bg-white dark:bg-zinc-800 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden py-1 max-h-48 overflow-y-auto"
+                      >
                         {filteredServices.map((s) => {
                           const already = selectedServiceIds.includes(s.id);
                           return (
@@ -403,7 +462,8 @@ export default function AppointmentFormModal({
                             </button>
                           );
                         })}
-                      </div>
+                      </div>,
+                      document.body
                     )}
                   </div>
 
