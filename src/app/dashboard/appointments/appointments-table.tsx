@@ -2,8 +2,6 @@
 
 import { useEffect, useMemo, useState, memo, useRef } from "react";
 import { MessageCircle, Bell } from "lucide-react";
-import AppointmentFormModal from "@/components/calendar/appointment-form-modal";
-import { Button } from "@/components/ui/button";
 import { useAppointmentAlarm } from "@/lib/use-appointment-alarm";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
@@ -87,7 +85,6 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
   const { playSuccess, playError, playClick } = useKlipSounds();
   const [appointments, setAppointments] = useState(initialAppointments);
   const [page, setPage] = useState(1);
-  const [showForm, setShowForm] = useState(false);
   const { addToast } = useToast();
   const pageSize = 10;
 
@@ -130,10 +127,6 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
     };
   }, [shopId]);
 
-  function handleSuccess() {
-    setShowForm(false);
-  }
-
   function buildWhatsAppUrl(phone: string | null, customerName: string, startTime: string): string {
     if (!phone) return "#";
     const cleanPhone = phone.replace(/[^\d]/g, "").replace(/^00/, "");
@@ -166,22 +159,7 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
     <div className="p-3 sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-6">
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Proximos turnos</h1>
-        <div className="flex gap-2">
-          <Button onClick={() => setShowForm(true)}>Nuevo Turno</Button>
-        </div>
       </div>
-
-      {showForm && (
-        <AppointmentFormModal
-          shopId={shopId}
-          open={showForm}
-          onClose={() => setShowForm(false)}
-          onSuccess={handleSuccess}
-          services={services.map(s => ({ id: s.id, name: s.name, duration_minutes: s.duration_minutes, price: s.price }))}
-          staff={staff}
-          customers={customers}
-        />
-      )}
 
       <div className="md:hidden space-y-3">
         {appointments.length === 0 ? (
