@@ -408,17 +408,17 @@ export default memo(function CalendarView({
       const sameDay = current.date_key_ar === appt.date_key_ar;
 
       if (sameCustomer && sameStaff && consecutive && sameDay) {
-        const currentName = current.services?.name || "";
-        const nextName = appt.services?.name || "";
-        const mergedName = currentName && nextName
+        const currentName: string = current.services?.name || "";
+        const nextName: string = appt.services?.name || "";
+        const mergedName: string = currentName && nextName
           ? `${currentName} + ${nextName}`
           : currentName || nextName;
-        const mergedPrice = (current.services?.price ?? 0) + (appt.services?.price ?? 0);
-        const mergedDuration = (current.services?.duration_minutes ?? 0) + (appt.services?.duration_minutes ?? 0);
-        const startMinutes = minutesFromHHmm(current.start_hhmm);
-        const endMinutes = minutesFromHHmm(appt.end_hhmm);
-        const sameCalendarDay = getArgentinaDateKey(current.start_local_iso) === getArgentinaDateKey(appt.end_local_iso);
-        const mergedDurationAr = sameCalendarDay
+        const mergedPrice: number = (current.services?.price ?? 0) + (appt.services?.price ?? 0);
+        const mergedDuration: number = (current.services?.duration_minutes ?? 0) + (appt.services?.duration_minutes ?? 0);
+        const startMinutes: number = minutesFromHHmm(current.start_hhmm);
+        const endMinutes: number = minutesFromHHmm(appt.end_hhmm);
+        const sameCalendarDay: boolean = getArgentinaDateKey(current.start_local_iso) === getArgentinaDateKey(appt.end_local_iso);
+        const mergedDurationAr: number = sameCalendarDay
           ? Math.max(endMinutes - startMinutes, 1)
           : Math.max((24 * 60 - startMinutes) + endMinutes, 1);
 
