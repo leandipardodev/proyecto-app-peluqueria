@@ -3,10 +3,12 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { addWeeks, subWeeks } from "date-fns";
 import { motion } from "framer-motion";
+import { Plus } from "lucide-react";
 
 import CalendarView from "./calendar-view";
 import AppointmentFormModal from "./appointment-form-modal";
 import AppointmentDetailModal from "./appointment-detail-modal";
+import BatchAppointmentModal from "./batch-appointment-modal";
 import { StatePanel } from "@/components/ui/state-panel";
 import { useAppointmentAlarm } from "@/lib/use-appointment-alarm";
 import { getArgentinaDateKey, getArgentinaWeekStart } from "@/lib/argentina-time";
@@ -126,6 +128,8 @@ export default function CalendarPageClient({
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [appointments, setAppointments] = useState(initialAppointments);
   const [hydrated, setHydrated] = useState(false);
+  const [calendarViewMode, setCalendarViewMode] = useState<"week" | "day">("week");
+  const [batchModalOpen, setBatchModalOpen] = useState(false);
 
   useEffect(() => {
     setAppointments(initialAppointments);
@@ -231,6 +235,19 @@ export default function CalendarPageClient({
     setSelectedAppointment(appt);
   }, []);
 
+  const refreshAppointments = useCallback(async () => {
+    const weekStart = getArgentinaWeekStart();
+    const rangeStart = new Date(weekStart);
+    rangeStart.setUTCDate(weekStart.getUTCDate() - 7);
+    const rangeEnd = new Date(weekStart);
+    rangeEnd.setUTCDate(weekStart.getUTCDate() + 14);
+    rangeEnd.setUTCHours(23, 59, 59, 999);
+    const result = await fetchAppointments(rangeStart.toISOString(), rangeEnd.toISOString(), shopId);
+    if (result.success && Array.isArray(result.data)) {
+      setAppointments(result.data as Appointment[]);
+    }
+  }, [shopId]);
+
   if (!hydrated) {
     return <CalendarSkeleton />;
   }
@@ -326,6 +343,19 @@ export default function CalendarPageClient({
         </div>
       </div>
 
+      {calendarViewMode === "week" && (
+        <div className="mb-3 flex justify-end">
+          <button
+            type="button"
+            onClick={() => setBatchModalOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200/80 dark:border-zinc-700/80 bg-white/60 dark:bg-zinc-800/60 px-3 py-1.5 text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:bg-white dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors cursor-pointer select-none backdrop-blur-sm"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Crear múltiples turnos
+          </button>
+        </div>
+      )}
+
       <div className="flex-1 min-h-0">
         <CalendarView
           appointments={filteredAppointments}
@@ -338,6 +368,7 @@ export default function CalendarPageClient({
           staffList={staff}
           staffFilter={staffFilter}
           businessHours={businessHours}
+          onViewModeChange={setCalendarViewMode}
         />
       </div>
 
@@ -370,6 +401,16 @@ export default function CalendarPageClient({
         staff={staff}
         services={services}
         onClose={() => setSelectedAppointment(null)}
+      />
+
+      <BatchAppointmentModal
+        open={batchModalOpen}
+        onClose={() => setBatchModalOpen(false)}
+        onSuccess={refreshAppointments}
+        services={services}
+        staff={staff}
+        customers={customers}
+        shopId={shopId}
       />
     </div>
   );

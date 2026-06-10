@@ -2,7 +2,7 @@
 
 import { format, startOfWeek, addDays, isToday } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Pointer } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pointer } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useRef, useState, useEffect, useMemo, useCallback, memo } from "react";
 import { createPortal } from "react-dom";
@@ -66,6 +66,7 @@ interface CalendarViewProps {
   staffList?: StaffMember[];
   staffFilter?: string | null;
   businessHours?: BusinessHoursMap;
+  onViewModeChange?: (mode: "week" | "day") => void;
 }
 
 function hourFromHHmm(v: string): number {
@@ -146,7 +147,6 @@ const AppointmentBlock = memo(function AppointmentBlock({
   col,
   cols,
   viewMode,
-  isMobileViewport,
   staffColorMap,
   isCoarsePointer,
   onTooltipMove,
@@ -161,7 +161,6 @@ const AppointmentBlock = memo(function AppointmentBlock({
   col: number;
   cols: number;
   viewMode: "week" | "day";
-  isMobileViewport: boolean;
   staffColorMap: Record<string, (typeof STAFF_COLORS)[0]>;
   isCoarsePointer: boolean;
   onTooltipMove: (left: number, top: number) => void;
@@ -256,6 +255,7 @@ export default memo(function CalendarView({
   staffList,
   staffFilter,
   businessHours,
+  onViewModeChange,
 }: CalendarViewProps) {
   const { weekStart, weekEnd, weekDays } = useMemo(() => {
     const ws = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -263,8 +263,12 @@ export default memo(function CalendarView({
     const wd = Array.from({ length: 7 }, (_, i) => addDays(ws, i));
     return { weekStart: ws, weekEnd: we, weekDays: wd };
   }, [currentDate]);
-  const [viewMode, setViewMode] = useState<"week" | "day">("week");
+  const [viewMode, _setViewMode] = useState<"week" | "day">("week");
   const [focusedDayKey, setFocusedDayKey] = useState(() => getArgentinaDateKey(new Date()));
+  const setViewMode = useCallback((mode: "week" | "day") => {
+    _setViewMode(mode);
+    onViewModeChange?.(mode);
+  }, [onViewModeChange]);
   const [mounted, setMounted] = useState(false);
   const [showViewHint, setShowViewHint] = useState(false);
   const [isCoarsePointer, setIsCoarsePointer] = useState(false);
@@ -637,7 +641,7 @@ export default memo(function CalendarView({
     if (!isMobileViewport) return;
     setFocusedDayKey(getArgentinaDateKey(new Date()));
     setViewMode("week");
-  }, [mounted]);
+  }, [mounted, setViewMode]);
 
   useEffect(() => {
     if (!mounted || typeof window === "undefined") return;
@@ -923,8 +927,7 @@ export default memo(function CalendarView({
                           durationMin={event.durationMin}
                           col={event.col}
                           cols={event.cols}
-                          viewMode={viewMode}
-                          isMobileViewport={isMobileViewport}
+                           viewMode={viewMode}
                           staffColorMap={staffColorMap}
                           isCoarsePointer={isCoarsePointer}
                           onTooltipMove={handleTooltipMove}
