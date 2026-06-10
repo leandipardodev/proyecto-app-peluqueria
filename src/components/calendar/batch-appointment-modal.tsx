@@ -187,7 +187,7 @@ export default function BatchAppointmentModal({
 
   if (!open) return null;
 
-  return (
+  const modalNode = (
     <AnimatePresence>
       {open && (
         <motion.div
@@ -315,6 +315,9 @@ export default function BatchAppointmentModal({
       )}
     </AnimatePresence>
   );
+
+  if (typeof document === "undefined") return null;
+  return createPortal(modalNode, document.body);
 }
 
 function EntryCard({
