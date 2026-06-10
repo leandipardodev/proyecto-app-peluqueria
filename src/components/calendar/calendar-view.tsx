@@ -2,7 +2,8 @@
 
 import { format, startOfWeek, addDays, isToday } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Pointer } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import { useRef, useState, useEffect, useMemo, useCallback, memo } from "react";
 import { createPortal } from "react-dom";
 import { GRID_END_HOUR, GRID_START_HOUR, HOUR_HEIGHT } from "@/lib/calendar-constants";
@@ -265,6 +266,7 @@ export default memo(function CalendarView({
   const [viewMode, setViewMode] = useState<"week" | "day">("week");
   const [focusedDayKey, setFocusedDayKey] = useState(() => getArgentinaDateKey(new Date()));
   const [mounted, setMounted] = useState(false);
+  const [showViewHint, setShowViewHint] = useState(false);
   const [isCoarsePointer, setIsCoarsePointer] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [hoverTooltip, setHoverTooltip] = useState<HoverTooltipState | null>(null);
@@ -606,6 +608,9 @@ export default memo(function CalendarView({
 
   useEffect(() => {
     setMounted(true);
+    const show = setTimeout(() => setShowViewHint(true), 1000);
+    const hide = setTimeout(() => setShowViewHint(false), 4000);
+    return () => { clearTimeout(show); clearTimeout(hide); };
   }, []);
 
   useEffect(() => {
@@ -864,6 +869,20 @@ export default memo(function CalendarView({
                   {dayFullyClosed && (
                     <span className="relative z-10 text-[9px] text-zinc-400 dark:text-zinc-600 uppercase tracking-wider mt-0.5">Cerrado</span>
                   )}
+                  <AnimatePresence>
+                    {viewMode === "week" && showViewHint && isToday(day) && (
+                      <motion.span
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -2 }}
+                        transition={{ duration: 0.35, ease: "easeOut" }}
+                        className="absolute bottom-1 left-1/2 -translate-x-1/2 z-20 whitespace-nowrap rounded-full border border-zinc-200/70 dark:border-zinc-700/70 bg-white/85 dark:bg-zinc-800/85 px-2 py-0.5 text-[8px] font-medium text-zinc-400 dark:text-zinc-500 shadow-xs backdrop-blur-sm flex items-center gap-1"
+                      >
+                        <Pointer className="w-2.5 h-2.5" />
+                        {isMobileViewport ? "Tocá aquí" : "Click"} para cambiar vista
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
                 </div>
 
                 <>

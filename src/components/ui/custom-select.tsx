@@ -43,7 +43,10 @@ export default function CustomSelect({
 
   useEffect(() => {
     if (!open) return;
-    function handleMove() { setOpen(false); }
+    function handleMove(e: Event) {
+      if (dropdownRef.current && dropdownRef.current.contains(e.target as Node)) return;
+      setOpen(false);
+    }
     window.addEventListener("scroll", handleMove, true);
     window.addEventListener("resize", handleMove);
     return () => {

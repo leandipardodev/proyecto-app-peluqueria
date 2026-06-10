@@ -10,6 +10,7 @@ const DashboardPageTransition = dynamicImport(() => import("@/components/dashboa
 const PullToRefresh = dynamicImport(() => import("@/components/dashboard/pull-to-refresh"));
 const ReleaseNotesModal = dynamicImport(() => import("@/components/dashboard/release-notes-modal"));
 const BugReportModal = dynamicImport(() => import("@/components/dashboard/bug-report-modal"));
+const HelpModal = dynamicImport(() => import("@/components/dashboard/help-modal"));
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +43,7 @@ export default async function DashboardLayout({
 
       <div className="flex flex-col flex-1 min-w-0 min-h-0 relative z-10">
         <BugReportModal />
+        <HelpModal />
         <DashboardHeaderLoader userEmail={user.email ?? ""} onLogout={logout} />
 
         <main className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain p-3 sm:p-6 lg:p-8">

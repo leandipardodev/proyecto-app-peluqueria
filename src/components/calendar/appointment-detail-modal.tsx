@@ -118,6 +118,7 @@ export default function AppointmentDetailModal({
   const [selectedServiceId, setSelectedServiceId] = useState(appointment?.service_id || "");
   const [startDateTimeLocal, setStartDateTimeLocal] = useState("");
   const serviceSearchRef = useRef<HTMLInputElement>(null);
+  const serviceDropdownRef = useRef<HTMLDivElement>(null);
   const [serviceSearchQuery, setServiceSearchQuery] = useState("");
   const [serviceSearchOpen, setServiceSearchOpen] = useState(false);
   const [serviceDropdownStyle, setServiceDropdownStyle] = useState<{ top: number; left: number; width: number } | null>(null);
@@ -134,7 +135,10 @@ export default function AppointmentDetailModal({
 
   useEffect(() => {
     if (!serviceSearchOpen) return;
-    function handleMove() { setServiceSearchOpen(false); }
+    function handleMove(e: Event) {
+      if (serviceDropdownRef.current && serviceDropdownRef.current.contains(e.target as Node)) return;
+      setServiceSearchOpen(false);
+    }
     window.addEventListener("scroll", handleMove, true);
     window.addEventListener("resize", handleMove);
     return () => {
@@ -492,6 +496,7 @@ export default function AppointmentDetailModal({
                     />
                     {serviceSearchOpen && filteredServices.length > 0 && serviceDropdownStyle && typeof document !== "undefined" && createPortal(
                       <div
+                        ref={serviceDropdownRef}
                         style={{
                           position: "fixed",
                           top: serviceDropdownStyle.top,

@@ -80,7 +80,9 @@ export default function AppointmentFormModal({
   const [newCustomerEmail, setNewCustomerEmail] = useState("");
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
   const customerSearchRef = useRef<HTMLInputElement>(null);
+  const customerDropdownRef = useRef<HTMLDivElement>(null);
   const serviceSearchRef = useRef<HTMLInputElement>(null);
+  const serviceDropdownRef = useRef<HTMLDivElement>(null);
   const [customerSearchQuery, setCustomerSearchQuery] = useState("");
   const [customerSearchOpen, setCustomerSearchOpen] = useState(false);
   const [customerDropdownStyle, setCustomerDropdownStyle] = useState<{ top: number; left: number; width: number } | null>(null);
@@ -136,7 +138,14 @@ export default function AppointmentFormModal({
 
   useEffect(() => {
     if (!customerSearchOpen && !serviceSearchOpen) return;
-    function handleMove() {
+    function handleMove(e: Event) {
+      const target = e.target as Node;
+      if (
+        (customerDropdownRef.current && customerDropdownRef.current.contains(target)) ||
+        (serviceDropdownRef.current && serviceDropdownRef.current.contains(target))
+      ) {
+        return;
+      }
       setCustomerSearchOpen(false);
       setServiceSearchOpen(false);
     }
@@ -319,6 +328,7 @@ export default function AppointmentFormModal({
                         />
                         {customerSearchOpen && filteredCustomers.length > 0 && customerDropdownStyle && typeof document !== "undefined" && createPortal(
                           <div
+                            ref={customerDropdownRef}
                             style={{
                               position: "fixed",
                               top: customerDropdownStyle.top,
@@ -439,6 +449,7 @@ export default function AppointmentFormModal({
                     />
                     {serviceSearchOpen && filteredServices.length > 0 && serviceDropdownStyle && typeof document !== "undefined" && createPortal(
                       <div
+                        ref={serviceDropdownRef}
                         style={{
                           position: "fixed",
                           top: serviceDropdownStyle.top,

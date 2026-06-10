@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, Search, Moon, Sun, Gauge, Repeat2, Check, Volume2, VolumeX, SlidersHorizontal, Sparkles } from "lucide-react";
+import { Menu, Search, Moon, Sun, Gauge, Repeat2, Check, Volume2, VolumeX, SlidersHorizontal, Sparkles, Bug, CircleHelp } from "lucide-react";
 import { useState, useRef, useEffect, useTransition, useMemo, memo, type KeyboardEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import DashboardMobileSidebar from "./dashboard-mobile-sidebar";
@@ -925,6 +925,36 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                     <SlidersHorizontal className="w-4 h-4 text-zinc-400" />
                     Funcionalidades del local
                   </button>
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      aria-label="Ayuda"
+                      title="Ayuda"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        window.dispatchEvent(new CustomEvent("dashboard:open-help"));
+                      }}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-white/20 dark:border-white/10 px-3 py-2 text-sm text-gray-800 dark:text-gray-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
+                    >
+                      <CircleHelp className="w-4 h-4 text-zinc-400" />
+                      <span>Ayuda</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      aria-label="Reportar bug"
+                      title="Reportar bug"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        window.dispatchEvent(new CustomEvent("dashboard:open-bug-report"));
+                      }}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-white/20 dark:border-white/10 px-3 py-2 text-sm text-gray-800 dark:text-gray-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
+                    >
+                      <Bug className="w-4 h-4 text-zinc-400" />
+                      <span>Bug</span>
+                    </button>
+                  </div>
 
                 </div>
               </motion.div>
