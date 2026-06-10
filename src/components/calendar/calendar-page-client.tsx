@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { addWeeks, subWeeks } from "date-fns";
 import { motion } from "framer-motion";
-import { Plus } from "lucide-react";
 
 import CalendarView from "./calendar-view";
 import AppointmentFormModal from "./appointment-form-modal";
@@ -128,7 +127,7 @@ export default function CalendarPageClient({
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [appointments, setAppointments] = useState(initialAppointments);
   const [hydrated, setHydrated] = useState(false);
-  const [calendarViewMode, setCalendarViewMode] = useState<"week" | "day">("week");
+  const [, setCalendarViewMode] = useState<"week" | "day">("week");
   const [batchModalOpen, setBatchModalOpen] = useState(false);
 
   useEffect(() => {
@@ -343,19 +342,6 @@ export default function CalendarPageClient({
         </div>
       </div>
 
-      {calendarViewMode === "week" && (
-        <div className="mb-3 flex justify-end">
-          <button
-            type="button"
-            onClick={() => setBatchModalOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200/80 dark:border-zinc-700/80 bg-white/60 dark:bg-zinc-800/60 px-3 py-1.5 text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:bg-white dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors cursor-pointer select-none backdrop-blur-sm"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Crear múltiples turnos
-          </button>
-        </div>
-      )}
-
       <div className="flex-1 min-h-0">
         <CalendarView
           appointments={filteredAppointments}
@@ -369,6 +355,7 @@ export default function CalendarPageClient({
           staffFilter={staffFilter}
           businessHours={businessHours}
           onViewModeChange={setCalendarViewMode}
+          onBatchClick={() => setBatchModalOpen(true)}
         />
       </div>
 

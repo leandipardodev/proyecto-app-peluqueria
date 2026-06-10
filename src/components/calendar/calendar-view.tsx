@@ -2,7 +2,7 @@
 
 import { format, startOfWeek, addDays, isToday } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Pointer } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Pointer } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useRef, useState, useEffect, useMemo, useCallback, memo } from "react";
 import { createPortal } from "react-dom";
@@ -67,6 +67,7 @@ interface CalendarViewProps {
   staffFilter?: string | null;
   businessHours?: BusinessHoursMap;
   onViewModeChange?: (mode: "week" | "day") => void;
+  onBatchClick?: () => void;
 }
 
 function hourFromHHmm(v: string): number {
@@ -256,6 +257,7 @@ export default memo(function CalendarView({
   staffFilter,
   businessHours,
   onViewModeChange,
+  onBatchClick,
 }: CalendarViewProps) {
   const { weekStart, weekEnd, weekDays } = useMemo(() => {
     const ws = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -765,7 +767,18 @@ export default memo(function CalendarView({
             Hoy
           </button>
         </div>
-        <h2 className="text-base font-semibold text-gray-900 dark:text-white hidden sm:block">
+        <div className="flex items-center gap-2">
+          {viewMode === "week" && (
+            <button
+              type="button"
+              onClick={onBatchClick}
+              className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200/80 dark:border-zinc-700/80 bg-white/60 dark:bg-zinc-800/60 px-3 py-1.5 text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:bg-white dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors cursor-pointer select-none backdrop-blur-sm"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Crear múltiples turnos
+            </button>
+          )}
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white hidden sm:block">
           {(() => {
             const f = displayedDays[0];
             const l = displayedDays[displayedDays.length - 1];
@@ -785,6 +798,7 @@ export default memo(function CalendarView({
               : `${format(f, "d MMM")} – ${format(l, "d MMM")}`;
           })()}
         </h2>
+        </div>
       </div>
 
       <div
