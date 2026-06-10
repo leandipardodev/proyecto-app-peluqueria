@@ -388,6 +388,7 @@ export default function CalendarPageClient({
         staff={staff}
         services={services}
         onClose={() => setSelectedAppointment(null)}
+        onSuccess={refreshAppointments}
       />
 
       <BatchAppointmentModal

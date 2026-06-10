@@ -48,6 +48,7 @@ interface AppointmentDetailModalProps {
   staff: StaffMember[];
   services: ServiceItem[];
   onClose: () => void;
+  onSuccess?: () => void;
 }
 
 const statusFlow: Record<string, { label: string; nextStatus: string }[]> = {
@@ -94,6 +95,7 @@ export default function AppointmentDetailModal({
   staff,
   services,
   onClose,
+  onSuccess,
 }: AppointmentDetailModalProps) {
   const backdropRef = useRef<HTMLDivElement>(null);
   const [pending, startTransition] = useTransition();
@@ -196,9 +198,10 @@ export default function AppointmentDetailModal({
         return;
       }
       setSaveState("saved");
+      onSuccess?.();
       setTimeout(() => setSaveState("idle"), 2000);
     });
-  }, [appointment, shopId]);
+  }, [appointment, shopId, onSuccess]);
 
   const queueChange = useCallback((next: { status?: string; isPaid?: boolean; staffId?: string | null; serviceId?: string; startTime?: string }) => {
     pendingChangesRef.current = { ...pendingChangesRef.current, ...next };
