@@ -909,6 +909,8 @@ export default function BusinessClient({
               <span className="text-xs font-normal text-sky-600 dark:text-sky-400 mt-0.5">Precios, duración y personal</span>
             </div>
           </Link>
+        </div>
+        <div className="mt-3">
           <button
             type="button"
             onClick={() => setShowCreateShopModal(true)}
