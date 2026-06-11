@@ -1,7 +1,7 @@
 import { DEFAULT_WHATSAPP_TEMPLATE } from "./whatsapp-constants";
 
 export function hasRequiredWhatsAppPlaceholders(template: string): boolean {
-  return /\{hora\}/i.test(template);
+  return /\@hora/i.test(template);
 }
 
 export function to24hTime(value: string | Date): string {
@@ -32,17 +32,17 @@ export function buildWhatsAppUrl(params: {
   if (!formattedTime) return null;
 
   const text = template
-    .replace(/\{Nombre\}/g, params.customerName)
-    .replace(/\{Cliente\}/g, params.customerName)
-    .replace(/\{Servicio\}/g, params.serviceName ?? "")
-    .replace(/\{Fecha\}/g, params.date ?? "")
-    .replace(/\{Hora\}/g, formattedTime)
-    .replace(/\{hora\}/g, formattedTime)
-    .replace(/\{Lugar\}/g, place)
-    .replace(/\{lugar\}/g, place)
-    .replace(/\{Ubicacion\}/g, place)
-    .replace(/\{ubicacion\}/g, place)
-    .replace(/\{Peluqueria\}/g, params.shopName ?? "");
+    .replace(/\@Nombre/g, params.customerName)
+    .replace(/\@Cliente/g, params.customerName)
+    .replace(/\@Servicio/g, params.serviceName ?? "")
+    .replace(/\@Fecha/g, params.date ?? "")
+    .replace(/\@Hora/g, formattedTime)
+    .replace(/\@hora/g, formattedTime)
+    .replace(/\@Lugar/g, place)
+    .replace(/\@lugar/g, place)
+    .replace(/\@Ubicacion/g, place)
+    .replace(/\@ubicacion/g, place)
+    .replace(/\@Peluqueria/g, params.shopName ?? "");
 
   return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
 }

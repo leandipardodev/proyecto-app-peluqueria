@@ -137,14 +137,14 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
     const template = whatsappTemplate || DEFAULT_WHATSAPP_TEMPLATE;
     const locationLine = shopAddress ? `\n📍 ${shopAddress}` : "";
     const text = template
-      .replace(/\{Nombre\}/g, customerName)
-      .replace(/\{Peluqueria\}/g, shopName)
-      .replace(/\{Negocio\}/g, shopName)
-      .replace(/\{Hora\}/g, time) + locationLine;
+      .replace(/\@Nombre/g, customerName)
+      .replace(/\@Peluqueria/g, shopName)
+      .replace(/\@Negocio/g, shopName)
+      .replace(/\@Hora/g, time) + locationLine;
     return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
   }
 
-  const hasRequiredWhatsappTemplate = (whatsappTemplate || DEFAULT_WHATSAPP_TEMPLATE).includes("{Hora}");
+  const hasRequiredWhatsappTemplate = (whatsappTemplate || DEFAULT_WHATSAPP_TEMPLATE).includes("@Hora");
   const hasLocation = Boolean((shopAddress || "").trim());
 
   if (error) {
@@ -202,7 +202,7 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
                     onClick={() => {
                       if (!phone) return;
                       if (!hasRequiredWhatsappTemplate || !hasLocation) {
-                        addToast("Para enviar WhatsApp, asegúrate de incluir {Hora} y direccion del local.", "error");
+                                    addToast("Para enviar WhatsApp, asegúrate de incluir @Hora y direccion del local.", "error");
                         playError();
                         return;
                       }
@@ -295,7 +295,7 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
                                 onClick={() => {
                                   if (!phone) return;
                                   if (!hasRequiredWhatsappTemplate || !hasLocation) {
-                                    addToast("Para enviar WhatsApp, asegúrate de incluir {Hora} y direccion del local.", "error");
+                        addToast("Para enviar WhatsApp, asegúrate de incluir @Hora y direccion del local.", "error");
                                     playError();
                                     return;
                                   }

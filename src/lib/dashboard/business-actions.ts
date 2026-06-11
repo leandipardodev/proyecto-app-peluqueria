@@ -339,10 +339,10 @@ export async function updateWhatsappTemplateAction(template: string): Promise<Ac
       return { success: false, error: "La ubicación es indispensable para el cliente" };
     }
 
-    const hasHour = template.includes("{Hora}");
-    const hasLocation = template.includes("{ubicacion}") || template.includes("{Lugar}");
+    const hasHour = template.includes("@Hora");
+    const hasLocation = template.includes("@ubicacion") || template.includes("@Lugar");
     if (!hasHour || !hasLocation) {
-      return { success: false, error: "La plantilla debe incluir {Hora} y {ubicacion} (o {Lugar})." };
+      return { success: false, error: "La plantilla debe incluir @Hora y @ubicacion (o @Lugar)." };
     }
 
     const { error } = await admin

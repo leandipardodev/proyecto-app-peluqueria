@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useTransition, useRef } from "react";
 import { fetchVouchers, createVoucher, markVoucherRedeemed, markVoucherReminderSent, updateVoucherWhatsappTemplate, type VoucherRow } from "@/lib/dashboard/voucher-actions";
 import { DEFAULT_VOUCHER_WHATSAPP_TEMPLATE } from "@/lib/dashboard/voucher-constants";
+import { TagChips, useTagInsert } from "@/components/ui/tag-chips";
 import { CheckCircle2, Gift, MessageCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -20,9 +21,9 @@ function isBirthdayToday(dateStr: string): boolean {
 
 function voucherWhatsappText(v: VoucherRow, template: string) {
   return template
-    .replace(/\{Nombre\}/g, v.gifted_to_name)
-    .replace(/\{Servicio\}/g, v.service_name)
-    .replace(/\{Regala\}/g, v.gifted_by_name ? `, regalo de ${v.gifted_by_name}` : "");
+    .replace(/\@Nombre/g, v.gifted_to_name)
+    .replace(/\@Servicio/g, v.service_name)
+    .replace(/\@Regala/g, v.gifted_by_name ? `, regalo de ${v.gifted_by_name}` : "");
 }
 
 export default function VouchersClient({ shopId, initialVouchers, initialTemplate }: Props) {
@@ -140,7 +141,7 @@ export default function VouchersClient({ shopId, initialVouchers, initialTemplat
           rows={2}
           className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
         />
-        <p className="text-xs text-gray-500 dark:text-gray-400">Variables: {"{Nombre}"}, {"{Servicio}"}, {"{Regala}"}</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">Variables: {"@Nombre"}, {"@Servicio"}, {"@Regala"}</p>
         <button onClick={saveTemplate} disabled={pending} className="rounded-xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-3 py-1.5 text-sm disabled:opacity-60">Guardar plantilla</button>
       </div>
 

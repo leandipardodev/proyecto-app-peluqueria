@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Trash2, Plus, Sparkles, EyeOff } from "lucide-react";
+import { Pencil, Trash2, Plus, Sparkles, EyeOff, Clock, DollarSign, Tag, Package } from "lucide-react";
 import { useEffect, useState, useTransition, memo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ServiceModal from "./service-modal";
@@ -288,109 +288,73 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
               </button>
             </div>
           ) : (
-            <>
-              <div className="md:hidden space-y-3">
-                {services.map((service) => (
-                  <div key={service.id} className="bg-white dark:bg-zinc-900 rounded-[1.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm p-4">
-                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{service.name}</p>
-                    <div className="mt-2 flex items-center justify-between text-sm">
-                      <span className="text-gray-500 dark:text-gray-400">Categoria</span>
-                      <span className="font-medium text-gray-900 dark:text-gray-100">{service.category}</span>
-                    </div>
-                    <div className="mt-1 flex items-center justify-between text-sm">
-                      <span className="text-gray-500 dark:text-gray-400">Precio</span>
-                      <span className="font-medium text-gray-900 dark:text-gray-100">${service.price.toFixed(2)}</span>
-                    </div>
-                    <div className="mt-1 flex items-center justify-between text-sm">
-                      <span className="text-gray-500 dark:text-gray-400">Duración</span>
-                      <span className="font-medium text-gray-900 dark:text-gray-100">{service.duration_minutes} min</span>
-                    </div>
-                    <div className="mt-3 flex items-center justify-end gap-1">
-                       <button
-                        type="button"
-                        onClick={() => openEdit(service)}
-                        className="p-1.5 rounded-md text-gray-500 hover:text-violet-600 hover:bg-violet-50 transition-colors cursor-pointer select-none"
-                        title="Editar"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                       <button
-                        type="button"
-                        onClick={() => handleDelete(service.id, "service")}
-                        className="p-1.5 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer select-none"
-                        title="Eliminar"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {services.map((service) => {
+                const catColors: Record<string, string> = {
+                  violet: "bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 border-violet-200 dark:border-violet-700",
+                  emerald: "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-700",
+                  sky: "bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-700",
+                  amber: "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-700",
+                  rose: "bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-700",
+                };
+                const catColorKeys = Object.keys(catColors);
+                const catColor = catColors[catColorKeys[service.id.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) % catColorKeys.length]];
+                return (
+                  <div key={service.id} className="group bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-700 transition-all duration-200">
+                    <div className="p-4 sm:p-5">
+                      <div className="flex items-start gap-4">
+                        <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-400 to-violet-500 dark:from-violet-500 dark:to-violet-600 text-white shadow-lg shadow-violet-200/50 dark:shadow-violet-900/50 shrink-0">
+                          <Tag className="w-6 h-6" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <div className="min-w-0">
+                              <h3 className="text-base font-semibold text-gray-900 dark:text-white truncate">{service.name}</h3>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border ${catColor}`}>
+                                <Tag className="w-3 h-3" />
+                                {service.category}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
+                            <div className="flex items-center gap-2 text-sm">
+                              <DollarSign className="w-4 h-4 text-gray-400" />
+                              <span className="font-semibold text-gray-900 dark:text-white text-lg">${service.price.toFixed(2)}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400">
+                              <Clock className="w-4 h-4" />
+                              <span>{service.duration_minutes} min</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => openEdit(service)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-gray-900 dark:hover:text-gray-200 transition-all duration-200 cursor-pointer select-none"
+                          title="Editar"
+                        >
+                          <Pencil className="w-4 h-4" />
+                          <span className="hidden sm:inline">Editar</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(service.id, "service")}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-700 dark:hover:text-red-300 transition-all duration-200 cursor-pointer select-none"
+                          title="Eliminar"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span className="hidden sm:inline">Eliminar</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
-                ))}
-              </div>
-
-              <div className="hidden md:block bg-white dark:bg-zinc-900 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full" aria-label="Tabla de servicios">
-                  <thead>
-                    <tr className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
-                      <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider px-6 py-3">
-                        Nombre
-                      </th>
-                      <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider px-6 py-3">
-                        Categoria
-                      </th>
-                      <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider px-6 py-3">
-                        Precio
-                      </th>
-                      <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider px-6 py-3">
-                        Duración
-                      </th>
-                      <th className="text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider px-6 py-3">
-                        Acciones
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/20 dark:divide-white/10">
-                    {services.map((service) => (
-                      <tr key={service.id} className="hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer">
-                        <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-gray-100">
-                          {service.name}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
-                          {service.category}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
-                          ${service.price.toFixed(2)}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
-                          {service.duration_minutes} min
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                             <button
-                              type="button"
-                              onClick={() => openEdit(service)}
-                              className="p-1.5 rounded-md text-gray-500 hover:text-violet-600 hover:bg-violet-50 transition-colors cursor-pointer select-none"
-                              title="Editar"
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </button>
-                             <button
-                              type="button"
-                              onClick={() => handleDelete(service.id, "service")}
-                              className="p-1.5 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer select-none"
-                              title="Eliminar"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              </div>
-            </>
+                );
+              })}
+            </div>
           )}
         </>
       )}
@@ -413,163 +377,92 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
               </button>
             </div>
           ) : (
-            <>
-              <div className="md:hidden space-y-3">
-                {combos.map((combo) => (
-                  <div key={combo.id} className="bg-white dark:bg-zinc-900 rounded-[1.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm p-4">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{combo.name}</p>
-                      <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${
-                        combo.active
-                          ? "bg-green-50 text-green-700 border border-green-200"
-                          : "bg-gray-50 text-gray-500 border border-gray-200"
-                      }`}>
-                        {combo.active ? "Activo" : "Inactivo"}
-                      </span>
-                    </div>
-                    {combo.description && (
-                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{combo.description}</p>
-                    )}
-                    <div className="mt-2 flex items-center justify-between text-sm">
-                      <span className="text-gray-500 dark:text-gray-400">Precio</span>
-                      <span className="font-medium text-gray-900 dark:text-gray-100">${combo.price.toFixed(2)}</span>
-                    </div>
-                    <div className="mt-1 flex items-center justify-between text-sm">
-                      <span className="text-gray-500 dark:text-gray-400">Duración</span>
-                      <span className="font-medium text-gray-900 dark:text-gray-100">{combo.duration_minutes ?? combo.total_duration} min{combo.duration_minutes && combo.duration_minutes !== combo.total_duration ? <span className="ml-1 text-xs text-gray-400">({combo.total_duration} min reales)</span> : null}</span>
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {combo.services.map((svc) => (
-                        <span key={svc.id} className="inline-flex items-center gap-1 text-xs bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full border border-violet-200">
-                          {svc.name}
-                        </span>
-                      ))}
-                    </div>
-                    <div className="mt-3 flex items-center justify-end gap-1">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleCombo(combo.id)}
-                        className="p-1.5 rounded-md text-gray-500 hover:text-amber-600 hover:bg-amber-50 transition-colors cursor-pointer select-none"
-                        title={combo.active ? "Desactivar" : "Activar"}
-                      >
-                        <EyeOff className="w-4 h-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => openEditCombo(combo)}
-                        className="p-1.5 rounded-md text-gray-500 hover:text-violet-600 hover:bg-violet-50 transition-colors cursor-pointer select-none"
-                        title="Editar combo"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(combo.id, "combo")}
-                        className="p-1.5 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer select-none"
-                        title="Eliminar"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="hidden md:block bg-white dark:bg-zinc-900 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full" aria-label="Tabla de combos">
-                  <thead>
-                    <tr className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
-                      <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider px-6 py-3">
-                        Combo
-                      </th>
-                      <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider px-6 py-3">
-                        Incluye
-                      </th>
-                      <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider px-6 py-3">
-                        Precio
-                      </th>
-                      <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider px-6 py-3">
-                        Duración
-                      </th>
-                      <th className="text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider px-6 py-3">
-                        Estado
-                      </th>
-                      <th className="text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider px-6 py-3">
-                        Acciones
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/20 dark:divide-white/10">
-                    {combos.map((combo) => (
-                      <tr key={combo.id} className="hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer">
-                        <td className="px-6 py-4">
-                          <div>
-                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{combo.name}</p>
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {combos.map((combo) => (
+                <div key={combo.id} className="group bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-700 transition-all duration-200">
+                  <div className="p-4 sm:p-5">
+                    <div className="flex items-start gap-4">
+                      <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-500 dark:from-amber-500 dark:to-amber-600 text-white shadow-lg shadow-amber-200/50 dark:shadow-amber-900/50 shrink-0">
+                        <Sparkles className="w-6 h-6" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                          <div className="min-w-0">
+                            <h3 className="text-base font-semibold text-gray-900 dark:text-white truncate">{combo.name}</h3>
                             {combo.description && (
-                              <p className="text-xs text-gray-400 mt-0.5">{combo.description}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{combo.description}</p>
                             )}
                           </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-wrap gap-1">
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border shrink-0 ${
+                            combo.active
+                              ? "bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200/50 dark:border-green-800/50"
+                              : "bg-zinc-50 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border-zinc-200/50 dark:border-zinc-700"
+                          }`}>
+                            {combo.active ? "Activo" : "Inactivo"}
+                          </span>
+                        </div>
+                        <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
+                          <div className="flex items-center gap-2 text-sm">
+                            <DollarSign className="w-4 h-4 text-gray-400" />
+                            <span className="font-semibold text-gray-900 dark:text-white text-lg">${combo.price.toFixed(2)}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400">
+                            <Clock className="w-4 h-4" />
+                            <span>{combo.duration_minutes ?? combo.total_duration} min</span>
+                            {combo.duration_minutes && combo.duration_minutes !== combo.total_duration && (
+                              <span className="text-xs text-gray-400">({combo.total_duration} min reales)</span>
+                            )}
+                          </div>
+                        </div>
+                        {combo.services.length > 0 && (
+                          <div className="mt-3 flex flex-wrap gap-1.5">
                             {combo.services.map((svc) => (
-                              <span key={svc.id} className="inline-flex items-center gap-1 text-xs bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 px-2 py-0.5 rounded-full border border-violet-200 dark:border-violet-700">
+                              <span key={svc.id} className="inline-flex items-center gap-1 text-xs bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 px-2.5 py-1 rounded-full border border-violet-200 dark:border-violet-700">
+                                <Package className="w-3 h-3" />
                                 {svc.name}
                               </span>
                             ))}
                           </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
-                          ${combo.price.toFixed(2)}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
-                          {combo.duration_minutes ?? combo.total_duration} min{combo.duration_minutes && combo.duration_minutes !== combo.total_duration ? <span className="ml-1 text-xs text-gray-400">({combo.total_duration})</span> : null}
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${
-                            combo.active
-                              ? "bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700"
-                              : "bg-gray-50 text-gray-500 border border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700"
-                          }`}>
-                            {combo.active ? "Activo" : "Inactivo"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <button
-                              type="button"
-                              onClick={() => handleToggleCombo(combo.id)}
-                              className="p-1.5 rounded-md text-gray-500 hover:text-amber-600 hover:bg-amber-50 transition-colors cursor-pointer select-none"
-                              title={combo.active ? "Desactivar" : "Activar"}
-                            >
-                              <EyeOff className="w-4 h-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => openEditCombo(combo)}
-                              className="p-1.5 rounded-md text-gray-500 hover:text-violet-600 hover:bg-violet-50 transition-colors cursor-pointer select-none"
-                              title="Editar"
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(combo.id, "combo")}
-                              className="p-1.5 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer select-none"
-                              title="Eliminar"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              </div>
-            </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-end gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleCombo(combo.id)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer select-none ${
+                          combo.active
+                            ? "text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/30"
+                            : "text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
+                        }`}
+                        title={combo.active ? "Desactivar" : "Activar"}
+                      >
+                        <EyeOff className="w-4 h-4" />
+                        <span className="hidden sm:inline">{combo.active ? "Desactivar" : "Activar"}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openEditCombo(combo)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-gray-900 dark:hover:text-gray-200 transition-all duration-200 cursor-pointer select-none"
+                        title="Editar"
+                      >
+                        <Pencil className="w-4 h-4" />
+                        <span className="hidden sm:inline">Editar</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(combo.id, "combo")}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-700 dark:hover:text-red-300 transition-all duration-200 cursor-pointer select-none"
+                        title="Eliminar"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span className="hidden sm:inline">Eliminar</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
 
           {services.length > 0 && (

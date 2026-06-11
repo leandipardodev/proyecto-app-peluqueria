@@ -55,7 +55,7 @@ export default function FidelizacionClient({
   const [winnerBurst, setWinnerBurst] = useState(false);
   const [birthdayDiscount, setBirthdayDiscount] = useState("15");
   const [birthdayMessage, setBirthdayMessage] = useState(
-    voucherTemplate || "Feliz cumple {Nombre}! Te regalamos un descuento especial para tu proxima visita."
+    voucherTemplate || "Feliz cumple @Nombre! Te regalamos un descuento especial para tu proxima visita."
   );
   const [birthdayMessageStatus, setBirthdayMessageStatus] = useState<string | null>(null);
   const raffleTimerRef = useRef<number | null>(null);
@@ -347,11 +347,11 @@ export default function FidelizacionClient({
                 onChange={(e) => setBirthdayMessage(e.target.value)}
                 rows={3}
                 className="mt-1 w-full rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-4 py-2.5 text-sm text-gray-900 dark:text-white"
-                placeholder="Ej: Feliz cumple {Nombre}! Te regalamos un descuento."
+                placeholder="Ej: Feliz cumple @Nombre! Te regalamos un descuento."
               />
             </div>
             <div className="md:col-span-3 flex items-center justify-between gap-3">
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">Tip: usa {"{Nombre}"} para personalizar el saludo.</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">Tip: usa @Nombre para personalizar el saludo.</p>
               <button
                 type="button"
                 onClick={handleSaveBirthdayConfig}

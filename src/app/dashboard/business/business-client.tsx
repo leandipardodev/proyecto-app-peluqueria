@@ -4,6 +4,7 @@ import { useState, useTransition, useEffect, useMemo, useRef, useCallback, type 
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
 import { Store, CreditCard, MessageSquareText, Smartphone, Link2, MapPin, Phone, Clock, Share2, AlertTriangle, Trash2, Users, Scissors, ChevronRight } from "lucide-react";
+import { TagChips, useTagInsert } from "@/components/ui/tag-chips";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -114,6 +115,8 @@ export default function BusinessClient({
   const [facebookUrl, setFacebookUrl] = useState(data?.facebook_url || "");
   const [tiktokUrl, setTiktokUrl] = useState(data?.tiktok_url || "");
   const [whatsappTemplate, setWhatsappTemplate] = useState(data?.whatsapp_template || "");
+  const whatsappRef = useRef<HTMLTextAreaElement>(null);
+  const insertWhatsappTag = useTagInsert(whatsappRef, whatsappTemplate, setWhatsappTemplate);
   const [showStats, setShowStats] = useState(false);
   const [bookingDepositEnabled, setBookingDepositEnabled] = useState(data?.booking_deposit_enabled ?? true);
   const [bookingDepositAmount, setBookingDepositAmount] = useState(String(data?.booking_deposit_amount ?? 3000));
@@ -1605,10 +1608,9 @@ export default function BusinessClient({
               <MessageSquareText className="w-4 h-4 text-zinc-400" />
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white tracking-tight">Mensaje de WhatsApp</h3>
             </div>
-            <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-3">
-              Podes usar <code className="bg-white dark:bg-zinc-900 px-1.5 py-0.5 rounded text-[11px]">{'{Nombre}'}</code> y <code className="bg-white dark:bg-zinc-900 px-1.5 py-0.5 rounded text-[11px]">{'{Peluqueria}'}</code> (o <code className="bg-white dark:bg-zinc-900 px-1.5 py-0.5 rounded text-[11px]">{'{Negocio}'}</code>) y se autocompletara con los datos del turno. Es obligatorio incluir <code className="bg-white dark:bg-zinc-900 px-1.5 py-0.5 rounded text-[11px]">{'{Hora}'}</code> y <code className="bg-white dark:bg-zinc-900 px-1.5 py-0.5 rounded text-[11px]">{'{ubicacion}'}</code> (o <code className="bg-white dark:bg-zinc-900 px-1.5 py-0.5 rounded text-[11px]">{'{Lugar}'}</code>).
-            </p>
+            <TagChips tags={["Nombre", "Hora", "Lugar", "ubicacion", "Peluqueria", "Negocio", "Servicio", "Fecha"]} onInsert={insertWhatsappTag} />
             <textarea
+              ref={whatsappRef}
               value={whatsappTemplate}
               onChange={(e) => {
                 setWhatsappTemplate(e.target.value);
@@ -1619,17 +1621,17 @@ export default function BusinessClient({
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-3">
               <div className="flex flex-col gap-1">
                 <p className="text-xs text-zinc-400 dark:text-zinc-500">
-                  {whatsappTemplate.match(/\{Hora\}/) ? (
-                    <span className="text-green-600 dark:text-green-400">✓ Incluye {`{Hora}`}</span>
+                  {whatsappTemplate.match(/\@Hora/) ? (
+                    <span className="text-green-600 dark:text-green-400">✓ Incluye @Hora</span>
                   ) : (
-                    <span className="text-rose-600 dark:text-rose-400">✕ No incluye {`{Hora}`}</span>
+                    <span className="text-rose-600 dark:text-rose-400">✕ No incluye @Hora</span>
                   )}
                 </p>
                 <p className="text-xs text-zinc-400 dark:text-zinc-500">
-                  {whatsappTemplate.match(/\{ubicacion\}|\{Lugar\}/) ? (
-                    <span className="text-green-600 dark:text-green-400">✓ Incluye {`{ubicacion}`} / {`{Lugar}`}</span>
+                  {whatsappTemplate.match(/\@ubicacion|\@Lugar/) ? (
+                    <span className="text-green-600 dark:text-green-400">✓ Incluye @ubicacion / @Lugar</span>
                   ) : (
-                    <span className="text-rose-600 dark:text-rose-400">✕ No incluye {`{ubicacion}`} ni {`{Lugar}`}</span>
+                    <span className="text-rose-600 dark:text-rose-400">✕ No incluye @ubicacion ni @Lugar</span>
                   )}
                 </p>
               </div>
