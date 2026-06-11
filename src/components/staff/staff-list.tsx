@@ -38,6 +38,7 @@ type StaffMember = {
   fixedAmount: number;
   joined: boolean;
   inviteLink: string | null;
+  photo_url: string | null;
 };
 
 function ActionButton({ icon: Icon, label, onClick, disabled, danger }: { icon: typeof Clock; label: string; onClick: () => void; disabled?: boolean; danger?: boolean }) {
@@ -471,8 +472,12 @@ export default function StaffList({
               <div key={member.id} className="group bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-700 transition-all duration-200">
                 <div className="p-4 sm:p-5">
                   <div className="flex items-start gap-4">
-                    <div className={`relative flex items-center justify-center w-12 h-12 rounded-2xl ${avatarColor} text-white text-base font-bold shrink-0 shadow-sm`}>
-                      {initials || <UserRound className="w-5 h-5" />}
+                    <div className={`relative flex items-center justify-center w-12 h-12 rounded-2xl overflow-hidden shrink-0 shadow-sm ${member.photo_url ? "" : avatarColor}`}>
+                      {member.photo_url ? (
+                        <img src={member.photo_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-white text-base font-bold">{initials || <UserRound className="w-5 h-5" />}</span>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">

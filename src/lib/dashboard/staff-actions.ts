@@ -71,6 +71,7 @@ type StaffMember = {
   fixedAmount: number;
   joined: boolean;
   inviteLink: string | null;
+  photo_url: string | null;
 };
 
 type StaffRpcRow = {
@@ -114,6 +115,11 @@ export async function fetchStaffMembers(shopIdOverride?: string): Promise<Action
     if (profilesError) return { success: false, error: profilesError.message };
 
     const profileMap = new Map((profiles || []).map((p) => [p.user_id, p]));
+    const { data: staffProfiles } = await admin
+      .from("staff_profiles")
+      .select("user_id, photo_url")
+      .in("user_id", userIds);
+    const staffProfileMap = new Map((staffProfiles || []).map((p) => [p.user_id, p.photo_url]));
     const { data: rules } = await admin
       .from("staff_compensation_rules")
       .select("staff_user_id, percentage_rate, fixed_amount")
@@ -173,6 +179,7 @@ export async function fetchStaffMembers(shopIdOverride?: string): Promise<Action
         fixedAmount,
         joined,
         inviteLink,
+        photo_url: staffProfileMap.get(member.user_id) ?? null,
       };
     });
 
