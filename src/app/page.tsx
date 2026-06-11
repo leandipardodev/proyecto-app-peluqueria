@@ -282,20 +282,12 @@ export default function Home() {
           <div className="text-sm font-medium tracking-wide text-slate-500">Klip</div>
           <div className="flex items-center gap-3">
             {user ? (
-              <>
-                <Link
-                  href="/dashboard"
-                  className="rounded-full border border-slate-200 bg-white px-5 py-2 text-sm text-[#1D1D1F] transition hover:bg-slate-50"
-                >
-                  Panel
-                </Link>
-                <Link
-                  href="/dashboard"
-                  className="rounded-full bg-[#0071E3] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#0064cc]"
-                >
-                  Mi negocio
-                </Link>
-              </>
+              <Link
+                href="/dashboard"
+                className="rounded-full bg-[#0071E3] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#0064cc]"
+              >
+                Panel
+              </Link>
             ) : (
               <>
                 <Link
