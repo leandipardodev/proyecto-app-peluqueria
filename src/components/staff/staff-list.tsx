@@ -499,29 +499,11 @@ export default function StaffList({
                               <Check className="w-3 h-3" />
                               Conectado
                             </span>
-                          ) : member.inviteLink && !isCurrentOwnerSelf ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                navigator.clipboard.writeText(member.inviteLink!);
-                                addToast("Link de invitación copiado al portapapeles", "success");
-                              }}
-                              className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-200/50 dark:border-amber-800/50 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors cursor-pointer select-none"
-                            >
-                              <Link2 className="w-3 h-3" />
-                              Invitar
-                            </button>
                           ) : null}
                         </div>
                       </div>
                       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
                         <span className="text-gray-400">Facturación <strong className="text-gray-700 dark:text-gray-200">${member.revenue.toFixed(2)}</strong></span>
-                        {!isCurrentOwnerSelf && canManageStaff && !member.joined && member.inviteLink && (
-                          <span className="sm:hidden inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
-                            <Link2 className="w-3 h-3" />
-                            Invitar
-                          </span>
-                        )}
                         {member.joined && (
                           <span className="sm:hidden inline-flex items-center gap-1 text-green-600 dark:text-green-400">
                             <Check className="w-3 h-3" />
@@ -533,7 +515,7 @@ export default function StaffList({
                   </div>
                   {canManageStaff && (
                     <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800 flex flex-wrap items-center gap-1.5">
-                      <ActionButton icon={DollarSign} label="Cobro" onClick={() => setPayEditor({ id: member.id, name: member.name || member.email || "Staff", payModel: member.payModel, percentageRate: member.percentageRate, fixedAmount: member.fixedAmount })} disabled={isCurrentOwnerSelf} />
+                      <ActionButton icon={DollarSign} label="Acuerdo de cobro" onClick={() => setPayEditor({ id: member.id, name: member.name || member.email || "Staff", payModel: member.payModel, percentageRate: member.percentageRate, fixedAmount: member.fixedAmount })} disabled={isCurrentOwnerSelf} />
                       <ActionButton icon={Clock} label="Horarios" onClick={() => openScheduleEditor(member.id, member.name || member.email || "Staff")} />
                       <ActionButton icon={UserCircle} label="Perfil" onClick={() => openProfileEditor(member.id, member.name || member.email || "Staff")} />
                       <ActionButton icon={Pencil} label="Renombrar" onClick={() => { setRenameTarget({ id: member.id, name: member.name || "" }); setRenameValue(member.name || ""); }} disabled={!canManageStaff} />
