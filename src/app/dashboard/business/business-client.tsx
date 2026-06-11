@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect, useMemo, useRef, useCallback, type DragEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
-import { Store, CreditCard, MessageSquareText, Smartphone, Link2, MapPin, Phone, Clock, Share2, AlertTriangle, Trash2 } from "lucide-react";
+import { Store, CreditCard, MessageSquareText, Smartphone, Link2, MapPin, Phone, Clock, Share2, AlertTriangle, Trash2, Users, Scissors } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -882,20 +882,32 @@ export default function BusinessClient({
       <div>
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Mi Negocio</h1>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Información pública y configuración técnica de tu local</p>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Link
             id="setup-staff"
             href={withDashboardBase("/dashboard/staff", dashboardBasePath)}
-            className="ui-btn-ghost inline-flex items-center rounded-full border-emerald-300/60 dark:border-emerald-500/30 bg-emerald-100/80 dark:bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-800 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-500/25 shadow-sm"
+            className="flex items-center gap-4 rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-5 py-4 text-sm font-semibold text-emerald-800 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 hover:border-emerald-300 dark:hover:border-emerald-700 shadow-sm hover:shadow-md transition-all"
           >
-            Gestionar {staffPlural.toLowerCase()}
+            <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-emerald-200/60 dark:bg-emerald-800/60 text-emerald-700 dark:text-emerald-300 shrink-0">
+              <Users className="w-6 h-6" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-base font-semibold">Gestionar {staffPlural.toLowerCase()}</span>
+              <span className="text-xs font-normal text-emerald-600 dark:text-emerald-400 mt-0.5">Agregar, horarios y perfiles</span>
+            </div>
           </Link>
           <Link
             id="setup-services"
             href={withDashboardBase("/dashboard/services", dashboardBasePath)}
-            className="ui-btn-ghost inline-flex items-center rounded-full border-sky-300/60 dark:border-sky-500/30 bg-sky-100/80 dark:bg-sky-500/15 px-4 py-2 text-sm font-semibold text-sky-800 dark:text-sky-200 hover:bg-sky-100 dark:hover:bg-sky-500/25 shadow-sm"
+            className="flex items-center gap-4 rounded-2xl border border-sky-200 dark:border-sky-800 bg-sky-50 dark:bg-sky-950/40 px-5 py-4 text-sm font-semibold text-sky-800 dark:text-sky-200 hover:bg-sky-100 dark:hover:bg-sky-900/60 hover:border-sky-300 dark:hover:border-sky-700 shadow-sm hover:shadow-md transition-all"
           >
-            Gestionar {servicePlural.toLowerCase()}
+            <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-sky-200/60 dark:bg-sky-800/60 text-sky-700 dark:text-sky-300 shrink-0">
+              <Scissors className="w-6 h-6" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-base font-semibold">Gestionar {servicePlural.toLowerCase()}</span>
+              <span className="text-xs font-normal text-sky-600 dark:text-sky-400 mt-0.5">Precios, duración y personal</span>
+            </div>
           </Link>
           <button
             type="button"
