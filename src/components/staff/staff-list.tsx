@@ -25,7 +25,7 @@ import { useToast } from "@/components/ui/toast";
 import { StatePanel } from "@/components/ui/state-panel";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import type { Industry } from "@/lib/industry/types";
-import { Copy, Check, X } from "lucide-react";
+import { Copy, Check, X, Clock, UserCircle, Pencil, Trash2, DollarSign, Link2, MoreHorizontal, UserRound, ShieldCheck } from "lucide-react";
 
 type StaffMember = {
   id: string;
@@ -39,6 +39,27 @@ type StaffMember = {
   joined: boolean;
   inviteLink: string | null;
 };
+
+function ActionButton({ icon: Icon, label, onClick, disabled, danger }: { icon: typeof Clock; label: string; onClick: () => void; disabled?: boolean; danger?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={label}
+      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer select-none ${
+        disabled
+          ? "opacity-30 cursor-not-allowed"
+          : danger
+            ? "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-700 dark:hover:text-red-300"
+            : "text-gray-600 dark:text-gray-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-gray-900 dark:hover:text-gray-200"
+      }`}
+    >
+      <Icon className="w-4 h-4" />
+      <span className="hidden sm:inline">{label}</span>
+    </button>
+  );
+}
 
 export default function StaffList({
   shopId,
@@ -431,246 +452,101 @@ export default function StaffList({
         </div>
       )}
 
-      <div className="md:hidden space-y-3">
+      <div className="space-y-3">
         {staff.length === 0 ? (
           <StatePanel title="Sin personal" description="Todavía no hay personal registrado en este local." />
         ) : (
           staff.map((member) => {
             const isCurrentOwnerSelf = member.id === currentUserId && member.role === "owner";
-            const selfOwnerTooltip = "No podés editar tu propio rol de administrador";
+            const initials = (member.name || member.email || "?")
+              .split(" ")
+              .map((w) => w[0])
+              .filter(Boolean)
+              .slice(0, 2)
+              .join("")
+              .toUpperCase();
+            const avatarColors = ["bg-emerald-500", "bg-sky-500", "bg-violet-500", "bg-amber-500", "bg-rose-500", "bg-cyan-500", "bg-indigo-500"];
+            const avatarColor = avatarColors[member.id.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) % avatarColors.length];
             return (
-              <div key={member.id} className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-4">
-                <p className="text-sm font-semibold text-gray-900 dark:text-white">{member.name || "-"}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{member.email || "-"}</p>
-                <div className="mt-3 flex items-center justify-between text-sm">
-                  <span className="text-gray-500 dark:text-gray-400">Rol</span>
-                  <div className="min-w-[150px]">
-                    <CustomSelect
-                      value={member.role}
-                      onChange={(v) => handleRoleChange(member.id, v as "staff" | "owner")}
-                       options={[{ value: "staff", label: staffWord }, { value: "owner", label: "Admin" }]}
-                      className={!canManageStaff || isCurrentOwnerSelf ? "pointer-events-none opacity-60" : ""}
-                    />
+              <div key={member.id} className="group bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-700 transition-all duration-200">
+                <div className="p-4 sm:p-5">
+                  <div className="flex items-start gap-4">
+                    <div className={`relative flex items-center justify-center w-12 h-12 rounded-2xl ${avatarColor} text-white text-base font-bold shrink-0 shadow-sm`}>
+                      {initials || <UserRound className="w-5 h-5" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div className="min-w-0">
+                          <h3 className="text-base font-semibold text-gray-900 dark:text-white truncate">{member.name || "Sin nombre"}</h3>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{member.email || ""}</p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <div className={`min-w-[130px] ${!canManageStaff || isCurrentOwnerSelf ? "pointer-events-none opacity-60" : ""}`}>
+                            <CustomSelect
+                              value={member.role}
+                              onChange={(v) => handleRoleChange(member.id, v as "staff" | "owner")}
+                              options={[{ value: "staff", label: staffWord }, { value: "owner", label: "Admin" }]}
+                              className="text-xs"
+                            />
+                          </div>
+                          {member.joined ? (
+                            <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 border border-green-200/50 dark:border-green-800/50">
+                              <Check className="w-3 h-3" />
+                              Conectado
+                            </span>
+                          ) : member.inviteLink && !isCurrentOwnerSelf ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(member.inviteLink!);
+                                addToast("Link de invitación copiado al portapapeles", "success");
+                              }}
+                              className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-200/50 dark:border-amber-800/50 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors cursor-pointer select-none"
+                            >
+                              <Link2 className="w-3 h-3" />
+                              Invitar
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                        <span className="text-gray-400">Facturación <strong className="text-gray-700 dark:text-gray-200">${member.revenue.toFixed(2)}</strong></span>
+                        {!isCurrentOwnerSelf && canManageStaff && !member.joined && member.inviteLink && (
+                          <span className="sm:hidden inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                            <Link2 className="w-3 h-3" />
+                            Invitar
+                          </span>
+                        )}
+                        {member.joined && (
+                          <span className="sm:hidden inline-flex items-center gap-1 text-green-600 dark:text-green-400">
+                            <Check className="w-3 h-3" />
+                            Conectado
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="mt-2 flex items-center justify-between text-sm">
-                  <span className="text-gray-500 dark:text-gray-400">Facturación</span>
-                  <span className="font-medium text-gray-900 dark:text-gray-100">${member.revenue.toFixed(2)}</span>
-                </div>
-                {canManageStaff && !isCurrentOwnerSelf && (
-                  <div className="mt-2 flex items-center justify-between text-sm">
-                    <span className="text-gray-500 dark:text-gray-400">Invitación</span>
-                    {member.joined ? (
-                      <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400">
-                        <Check className="w-3.5 h-3.5" />
-                        Conectado
-                      </span>
-                    ) : member.inviteLink ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard.writeText(member.inviteLink!);
-                          addToast("Link de invitación copiado al portapapeles", "success");
-                        }}
-                        className="inline-flex items-center gap-1 text-xs font-medium text-sky-600 hover:text-sky-800 cursor-pointer select-none"
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                        Copiar link
-                      </button>
-                    ) : null}
-                  </div>
-                )}
-                <div className="mt-3 flex justify-end">
-                  {!canManageStaff ? (
-                    <span className="text-xs text-gray-400 cursor-not-allowed select-none">-</span>
-                  ) : (
-                    <>
-                      {!isCurrentOwnerSelf && (
-                        <button
-                          type="button"
-                          onClick={() => setPayEditor({ id: member.id, name: member.name || member.email || "Staff", payModel: member.payModel, percentageRate: member.percentageRate, fixedAmount: member.fixedAmount })}
-                          className="text-sm text-sky-600 hover:text-sky-800 cursor-pointer select-none mr-3"
-                        >
-                          Cobro
-                        </button>
+                  {canManageStaff && (
+                    <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800 flex flex-wrap items-center gap-1.5">
+                      <ActionButton icon={DollarSign} label="Cobro" onClick={() => setPayEditor({ id: member.id, name: member.name || member.email || "Staff", payModel: member.payModel, percentageRate: member.percentageRate, fixedAmount: member.fixedAmount })} disabled={isCurrentOwnerSelf} />
+                      <ActionButton icon={Clock} label="Horarios" onClick={() => openScheduleEditor(member.id, member.name || member.email || "Staff")} />
+                      <ActionButton icon={UserCircle} label="Perfil" onClick={() => openProfileEditor(member.id, member.name || member.email || "Staff")} />
+                      <ActionButton icon={Pencil} label="Renombrar" onClick={() => { setRenameTarget({ id: member.id, name: member.name || "" }); setRenameValue(member.name || ""); }} disabled={!canManageStaff} />
+                      {member.inviteLink && !member.joined && !isCurrentOwnerSelf && (
+                        <ActionButton icon={Link2} label="Link" onClick={() => { navigator.clipboard.writeText(member.inviteLink!); addToast("Link de invitación copiado al portapapeles", "success"); }} />
                       )}
-                      <button
-                        type="button"
-                        onClick={() => openScheduleEditor(member.id, member.name || member.email || "Staff")}
-                        className="text-sm text-emerald-600 hover:text-emerald-800 cursor-pointer select-none mr-3"
-                      >
-                        Horarios
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => openProfileEditor(member.id, member.name || member.email || "Staff")}
-                        className="text-sm text-sky-600 hover:text-sky-800 cursor-pointer select-none mr-3"
-                      >
-                        Perfil
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setRenameTarget({ id: member.id, name: member.name || "" });
-                          setRenameValue(member.name || "");
-                        }}
-                        className="text-sm text-violet-600 hover:text-violet-800 cursor-pointer select-none mr-3"
-                      >
-                        Renombrar
-                      </button>
                       {!isCurrentOwnerSelf ? (
-                        <button
-                          type="button"
-                          onClick={() => handleRemove(member.id)}
-                          className="text-sm text-red-600 hover:text-red-800 cursor-pointer select-none"
-                        >
-                          Eliminar
-                        </button>
+                        <ActionButton icon={Trash2} label="Eliminar" onClick={() => handleRemove(member.id)} danger />
                       ) : (
-                        <span className="text-xs text-gray-400 cursor-not-allowed select-none" title={selfOwnerTooltip}>Tu usuario</span>
+                        <span className="ml-auto text-xs text-gray-400 dark:text-gray-500 italic select-none">Tu usuario</span>
                       )}
-                    </>
+                    </div>
                   )}
                 </div>
               </div>
             );
           })
         )}
-      </div>
-
-      <div className="hidden md:block bg-white dark:bg-zinc-900 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700" aria-label="Tabla de personal">
-          <thead className="bg-zinc-50 dark:bg-zinc-800/50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Nombre
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Email
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Rol
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Facturación
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Acciones
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-transparent dark:bg-transparent divide-y divide-zinc-200 dark:divide-zinc-800">
-            {staff.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
-                  <StatePanel title="Sin personal" description="Todavía no hay personal registrado en este local." />
-                </td>
-              </tr>
-            ) : (
-              staff.map((member) => (
-                (() => {
-                  const isCurrentOwnerSelf = member.id === currentUserId && member.role === "owner";
-                  const selfOwnerTooltip = "No podés editar tu propio rol de administrador";
-                  return (
-                <tr key={member.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {member.name || "-"}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
-                    {member.email || "-"}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="min-w-[150px]">
-                      <CustomSelect
-                        value={member.role}
-                        onChange={(v) => handleRoleChange(member.id, v as "staff" | "owner")}
-                         options={[{ value: "staff", label: staffWord }, { value: "owner", label: "Admin" }]}
-                        className={!canManageStaff || isCurrentOwnerSelf ? "pointer-events-none opacity-60" : ""}
-                      />
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                    ${member.revenue.toFixed(2)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    {!canManageStaff ? (
-                      <span className="text-gray-400 cursor-not-allowed select-none">-</span>
-                    ) : (
-                      <div className="flex items-center gap-3">
-                        {!isCurrentOwnerSelf && member.joined ? (
-                          <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400">
-                            <Check className="w-3.5 h-3.5" />
-                            Conectado
-                          </span>
-                        ) : !isCurrentOwnerSelf && member.inviteLink ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              navigator.clipboard.writeText(member.inviteLink!);
-                              addToast("Link de invitación copiado al portapapeles", "success");
-                            }}
-                            className="inline-flex items-center gap-1 text-xs font-medium text-sky-600 hover:text-sky-800 cursor-pointer select-none mr-2"
-                          >
-                            <Copy className="w-3.5 h-3.5" />
-                            Copiar link
-                          </button>
-                        ) : null}
-                        {!isCurrentOwnerSelf && (
-                          <button
-                            type="button"
-                            onClick={() => setPayEditor({ id: member.id, name: member.name || member.email || "Staff", payModel: member.payModel, percentageRate: member.percentageRate, fixedAmount: member.fixedAmount })}
-                            className="text-sky-600 hover:text-sky-800 cursor-pointer select-none"
-                          >
-                            Cobro
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => openScheduleEditor(member.id, member.name || member.email || "Staff")}
-                          className="text-emerald-600 hover:text-emerald-800 cursor-pointer select-none"
-                        >
-                          Horarios
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openProfileEditor(member.id, member.name || member.email || "Staff")}
-                          className="text-sky-600 hover:text-sky-800 cursor-pointer select-none"
-                        >
-                          Perfil
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setRenameTarget({ id: member.id, name: member.name || "" });
-                            setRenameValue(member.name || "");
-                          }}
-                          className="text-violet-600 hover:text-violet-800 cursor-pointer select-none"
-                        >
-                          Renombrar
-                        </button>
-                        {!isCurrentOwnerSelf ? (
-                          <button
-                            type="button"
-                            onClick={() => handleRemove(member.id)}
-                            className="text-red-600 hover:text-red-800 cursor-pointer select-none"
-                          >
-                            Eliminar
-                          </button>
-                        ) : (
-                          <span className="text-gray-400 cursor-not-allowed select-none" title={selfOwnerTooltip}>Tu usuario</span>
-                        )}
-                      </div>
-                    )}
-                  </td>
-                </tr>
-                  );
-                })()
-              ))
-            )}
-          </tbody>
-        </table>
-        </div>
       </div>
 
       {portalReady && renameTarget && createPortal((
