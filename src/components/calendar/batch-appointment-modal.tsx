@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { createPortal } from "react-dom";
-import { X, Plus, Search, UserPlus, Clock, CalendarDays, ChevronDown, Loader2, Check, AlertCircle } from "lucide-react";
+import { X, Plus, Search, Clock, CalendarDays, ChevronDown, Loader2, Check, AlertCircle } from "lucide-react";
 import { createAppointment, createCustomerAndAppointment } from "@/lib/dashboard/appointment-actions";
 import { getArgentinaDateString } from "@/lib/argentina-time";
 import { useToast } from "@/components/ui/toast";
@@ -474,41 +474,46 @@ function EntryCard({
                         onBlur={() => setTimeout(() => onUpdate({ customerSearchOpen: false }), 200)}
                         className="w-full pl-8 pr-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
                       />
-                      {entry.customerSearchOpen && customerFiltered.length > 0 && customerDropdownStyle && typeof document !== "undefined" && createPortal(
+                      {entry.customerSearchOpen && customerDropdownStyle && (customerFiltered.length > 0 || entry.customerSearchQuery.trim()) && typeof document !== "undefined" && createPortal(
                         <div
                           ref={customerDropdownRef}
                           style={{ position: "fixed", top: customerDropdownStyle.top, left: customerDropdownStyle.left, width: customerDropdownStyle.width, zIndex: 9999 }}
                           className="bg-white dark:bg-zinc-800 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden py-1 max-h-48 overflow-y-auto"
                         >
-                          {customerFiltered.map((c) => (
+                          {customerFiltered.length > 0 ? (
+                            customerFiltered.map((c) => (
+                              <button
+                                key={c.id}
+                                type="button"
+                                onMouseDown={() => {
+                                  onUpdate({ customerId: c.id, customerSearchQuery: c.nombre || "Sin nombre", customerSearchOpen: false });
+                                }}
+                                className={`w-full text-left px-3 py-2 text-sm transition-colors cursor-pointer select-none ${
+                                  c.id === entry.customerId
+                                    ? "text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/30"
+                                    : "text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20"
+                                }`}
+                              >
+                                <span className="font-medium">{c.nombre || "Sin nombre"}</span>
+                                {c.telefono && <span className="ml-2 text-xs text-zinc-400">{c.telefono}</span>}
+                              </button>
+                            ))
+                          ) : (
                             <button
-                              key={c.id}
                               type="button"
                               onMouseDown={() => {
-                                onUpdate({ customerId: c.id, customerSearchQuery: c.nombre || "Sin nombre", customerSearchOpen: false });
+                                onUpdate({ isNewCustomer: true, newCustomerName: entry.customerSearchQuery, customerSearchQuery: "", customerSearchOpen: false });
                               }}
-                              className={`w-full text-left px-3 py-2 text-sm transition-colors cursor-pointer select-none ${
-                                c.id === entry.customerId
-                                  ? "text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/30"
-                                  : "text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20"
-                              }`}
+                              className="w-full text-left px-3 py-2.5 text-sm text-violet-700 dark:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors cursor-pointer select-none font-medium flex items-center gap-2"
                             >
-                              <span className="font-medium">{c.nombre || "Sin nombre"}</span>
-                              {c.telefono && <span className="ml-2 text-xs text-zinc-400">{c.telefono}</span>}
+                              <Plus className="w-4 h-4" />
+                              Agregar a {entry.customerSearchQuery}
                             </button>
-                          ))}
+                          )}
                         </div>,
                         document.body
                       )}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => onUpdate({ isNewCustomer: true, customerId: "" })}
-                      className="px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-xl text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-white hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-all cursor-pointer select-none shrink-0"
-                      title="Nuevo cliente"
-                    >
-                      <UserPlus className="w-4 h-4" />
-                    </button>
                   </div>
                 ) : (
                   <div className="space-y-2 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-700">
@@ -531,14 +536,14 @@ function EntryCard({
                     />
                     <input
                       type="email"
-                      placeholder="Email"
+                      placeholder="Email (opcional)"
                       value={entry.newCustomerEmail}
                       onChange={(e) => onUpdate({ newCustomerEmail: e.target.value })}
                       className="w-full px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
                     />
                     <input
                       type="tel"
-                      placeholder="Teléfono"
+                      placeholder="Teléfono (opcional)"
                       value={entry.newCustomerPhone}
                       onChange={(e) => onUpdate({ newCustomerPhone: e.target.value })}
                       className="w-full px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"

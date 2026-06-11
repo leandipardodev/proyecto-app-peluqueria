@@ -1,7 +1,7 @@
 "use client";
 
 import { useToast } from "@/components/ui/toast";
-import { X, Plus, UserPlus, Search, Clock, DollarSign, CalendarDays } from "lucide-react";
+import { X, Plus, Search, Clock, DollarSign, CalendarDays } from "lucide-react";
 import { useEffect, useRef, useState, useTransition, useMemo, useCallback } from "react";
 import { createAppointment, createCustomerAndAppointment } from "@/lib/dashboard/appointment-actions";
 import { playPop } from "@/lib/sound";
@@ -326,7 +326,7 @@ export default function AppointmentFormModal({
                           onBlur={() => setTimeout(() => setCustomerSearchOpen(false), 200)}
                           className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
                         />
-                        {customerSearchOpen && filteredCustomers.length > 0 && customerDropdownStyle && typeof document !== "undefined" && createPortal(
+                        {customerSearchOpen && customerDropdownStyle && (filteredCustomers.length > 0 || customerSearchQuery.trim()) && typeof document !== "undefined" && createPortal(
                           <div
                             ref={customerDropdownRef}
                             style={{
@@ -338,40 +338,48 @@ export default function AppointmentFormModal({
                             }}
                             className="bg-white dark:bg-zinc-800 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden py-1 max-h-48 overflow-y-auto"
                           >
-                            {filteredCustomers.map((c) => (
+                            {filteredCustomers.length > 0 ? (
+                              filteredCustomers.map((c) => (
+                                <button
+                                  key={c.id}
+                                  type="button"
+                                  onMouseDown={() => {
+                                    setSelectedCustomerId(c.id);
+                                    setCustomerSearchQuery(c.nombre || "Sin nombre");
+                                    setCustomerSearchOpen(false);
+                                  }}
+                                  className={`w-full text-left px-3 py-2 text-sm transition-colors cursor-pointer select-none ${
+                                    c.id === selectedCustomerId
+                                      ? "text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/30"
+                                      : "text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20"
+                                  }`}
+                                >
+                                  <span className="font-medium">{c.nombre || "Sin nombre"}</span>
+                                  {c.telefono && (
+                                    <span className="ml-2 text-xs text-zinc-400">{c.telefono}</span>
+                                  )}
+                                </button>
+                              ))
+                            ) : (
                               <button
-                                key={c.id}
                                 type="button"
                                 onMouseDown={() => {
-                                  setSelectedCustomerId(c.id);
-                                  setCustomerSearchQuery(c.nombre || "Sin nombre");
+                                  setNewCustomerName(customerSearchQuery);
+                                  setShowNewCustomer(true);
+                                  setCustomerSearchQuery("");
                                   setCustomerSearchOpen(false);
                                 }}
-                                className={`w-full text-left px-3 py-2 text-sm transition-colors cursor-pointer select-none ${
-                                  c.id === selectedCustomerId
-                                    ? "text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/30"
-                                    : "text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20"
-                                }`}
+                                className="w-full text-left px-3 py-2.5 text-sm text-violet-700 dark:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors cursor-pointer select-none font-medium flex items-center gap-2"
                               >
-                                <span className="font-medium">{c.nombre || "Sin nombre"}</span>
-                                {c.telefono && (
-                                  <span className="ml-2 text-xs text-zinc-400">{c.telefono}</span>
-                                )}
+                                <Plus className="w-4 h-4" />
+                                Agregar a {customerSearchQuery}
                               </button>
-                            ))}
+                            )}
                           </div>,
                           document.body
                         )}
                         <input type="hidden" name="customer_id" value={selectedCustomerId} required />
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setShowNewCustomer(true)}
-                        className="px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-xl text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-white hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-all cursor-pointer select-none shrink-0"
-                        title="Nuevo cliente"
-                      >
-                        <UserPlus className="w-4 h-4" />
-                      </button>
                     </div>
                   ) : (
                     <div className="space-y-3 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-700">
@@ -400,16 +408,15 @@ export default function AppointmentFormModal({
                       <input
                         type="email"
                         name="customer_email"
-                        placeholder="Email"
+                        placeholder="Email (opcional)"
                         value={newCustomerEmail}
                         onChange={(e) => setNewCustomerEmail(e.target.value)}
-                        required
                         className="w-full px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
                       />
                       <input
                         type="tel"
                         name="customer_phone"
-                        placeholder="Teléfono"
+                        placeholder="Teléfono (opcional)"
                         value={newCustomerPhone}
                         onChange={(e) => setNewCustomerPhone(e.target.value)}
                         className="w-full px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"

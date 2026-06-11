@@ -174,63 +174,79 @@ export async function fetchPublicAvailableSlots(
     }
 
     const admin = await createAdminClient();
-
     const safeDuration = (!serviceDuration || serviceDuration <= 0) ? 60 : serviceDuration;
 
-    const { data: shop, error: shopError } = await admin
+    const { data: shop } = await admin
       .from("shops")
       .select("business_hours")
       .eq("id", shopId)
       .single();
 
-    if (shopError) {
-      console.error("[fetchPublicAvailableSlots] shop query error:", shopError);
-      // Fallback: continue with default hours
-    }
-
     const dbHours = normalizeHours(shop?.business_hours);
-    const dayIndex = new Date(date + "T12:00:00").getDay();
+    const dayIndex = new Date(date + "T12:00:00-03:00").getDay();
     const dayName = DAY_KEYS[dayIndex];
 
     const resolved = resolveDayHours(dbHours, dayIndex);
+    const shopDayConfig = (resolved || DEFAULT_WEEK_HOURS[dayName])!;
+    if (!shopDayConfig.open) return { success: true, data: [] };
 
-    let dayConfig: { open: boolean; start: string; end: string; break_start?: string | null; break_end?: string | null };
-    if (resolved) {
-      dayConfig = resolved!;
-    } else {
-      dayConfig = DEFAULT_WEEK_HOURS[dayName]!;
+    const [shopSh, shopSm] = shopDayConfig.start.split(":").map(Number);
+    const shopOpenMinutes = shopSh * 60 + shopSm;
+    const [shopEh, shopEm] = shopDayConfig.end.split(":").map(Number);
+    const shopCloseMinutes = shopEh * 60 + shopEm;
+    if (shopOpenMinutes >= shopCloseMinutes) return { success: true, data: [] };
+
+    const { data: allStaff } = await admin
+      .from("shop_memberships")
+      .select("user_id")
+      .eq("shop_id", shopId)
+      .eq("is_active", true)
+      .in("role", ["owner", "staff"]);
+
+    const allStaffIds = (allStaff || []).map((s) => s.user_id);
+    if (allStaffIds.length === 0) return { success: true, data: [] };
+
+    const staffIdsToQuery = staffId ? [staffId] : allStaffIds;
+    const { data: staffSchedules } = await admin
+      .from("staff_schedules")
+      .select("staff_id, is_active, start_time, end_time, break_start, break_end")
+      .in("staff_id", staffIdsToQuery)
+      .eq("day_of_week", dayIndex);
+
+    const scheduleMap = new Map<string, NonNullable<typeof staffSchedules>[0]>();
+    for (const s of staffSchedules || []) {
+      scheduleMap.set(s.staff_id, s);
     }
 
-    if (!dayConfig.open) {
-      return { success: true, data: [] };
-    }
-
-    const [sh, sm] = dayConfig.start.split(":").map(Number);
-    const [eh, em] = dayConfig.end.split(":").map(Number);
-    const scheduleBlocks: Array<{ openMinutes: number; closeMinutes: number }> = [];
-    const fullOpen = sh * 60 + sm;
-    const fullClose = eh * 60 + em;
-
-    if (fullOpen >= fullClose) return { success: true, data: [] };
-
-    if (dayConfig.break_start && dayConfig.break_end) {
-      const [bsh, bsm] = dayConfig.break_start.split(":").map(Number);
-      const [beh, bem] = dayConfig.break_end.split(":").map(Number);
-      const breakStart = bsh * 60 + bsm;
-      const breakEnd = beh * 60 + bem;
-      if (fullOpen < breakStart && breakStart < breakEnd && breakEnd < fullClose) {
-        scheduleBlocks.push({ openMinutes: fullOpen, closeMinutes: breakStart });
-        scheduleBlocks.push({ openMinutes: breakEnd, closeMinutes: fullClose });
-      } else {
-        scheduleBlocks.push({ openMinutes: fullOpen, closeMinutes: fullClose });
+    function getStaffDayConfig(sId: string): { startMinutes: number; closeMinutes: number; breakStart: number | null; breakEnd: number | null } | null {
+      const entry = scheduleMap.get(sId);
+      if (entry) {
+        if (!entry.is_active) return null;
+        const [sh, sm] = entry.start_time.slice(0, 5).split(":").map(Number);
+        const [eh, em] = entry.end_time.slice(0, 5).split(":").map(Number);
+        const openMinutes = sh * 60 + sm;
+        const closeMinutes = eh * 60 + em;
+        if (openMinutes >= closeMinutes) return null;
+        let breakStart: number | null = null;
+        let breakEnd: number | null = null;
+        if (entry.break_start && entry.break_end) {
+          const [bsh, bsm] = entry.break_start.slice(0, 5).split(":").map(Number);
+          const [beh, bem] = entry.break_end.slice(0, 5).split(":").map(Number);
+          breakStart = bsh * 60 + bsm;
+          breakEnd = beh * 60 + bem;
+        }
+        return { startMinutes: openMinutes, closeMinutes, breakStart, breakEnd };
       }
-    } else {
-      scheduleBlocks.push({ openMinutes: fullOpen, closeMinutes: fullClose });
+      return {
+        startMinutes: shopOpenMinutes,
+        closeMinutes: shopCloseMinutes,
+        breakStart: shopDayConfig.break_start ? (() => { const [h, m] = shopDayConfig.break_start!.split(":").map(Number); return h * 60 + m; })() : null,
+        breakEnd: shopDayConfig.break_end ? (() => { const [h, m] = shopDayConfig.break_end!.split(":").map(Number); return h * 60 + m; })() : null,
+      };
     }
 
     const { start: dayStart, end: dayEnd } = getArgentinaDayBounds(date);
-
-    let query = admin
+    const { data: appointmentsRaw } = await admin
       .from("appointments")
       .select("start_time, end_time, staff_id, status, created_at")
       .eq("shop_id", shopId)
@@ -238,29 +254,18 @@ export async function fetchPublicAvailableSlots(
       .lte("start_time", dayEnd.toISOString())
       .not("status", "eq", "cancelled");
 
-    if (staffId) {
-      query = query.eq("staff_id", staffId);
-    }
-
-    const { data: appointmentsRaw } = await query;
     const appointments = (appointmentsRaw || []).filter((apt) =>
       isPendingPaymentStillBlocking(apt.status as string | null | undefined, apt.created_at as string | null | undefined)
     );
 
-    // Also block slots held by pending bookings (new flow)
-    let pendingQuery = admin
+    const { data: pendingBookings } = await admin
       .from("pending_bookings")
       .select("start_time, end_time, staff_id")
       .eq("shop_id", shopId)
       .eq("status", "pending")
+      .gt("expires_at", new Date().toISOString())
       .gte("start_time", dayStart.toISOString())
       .lte("start_time", dayEnd.toISOString());
-
-    if (staffId) {
-      pendingQuery = pendingQuery.eq("staff_id", staffId);
-    }
-
-    const { data: pendingBookings } = await pendingQuery;
 
     const allBlocks = [
       ...appointments,
@@ -271,62 +276,100 @@ export async function fetchPublicAvailableSlots(
       })),
     ];
 
-    const { data: allStaff } = await admin
-      .from("user_profiles")
-      .select("user_id")
-      .eq("shop_id", shopId)
-      .in("role", ["owner", "staff"]);
-
-    const allStaffIds = (allStaff || []).map((s) => s.user_id);
-
     const slots: Slot[] = [];
-    const slotDuration = safeDuration;
     const SLOT_STEP = 30;
     const [y, monthNum, d] = date.split("-").map(Number);
-
     const isTodayInArgentina = date === getArgentinaDateString();
     const nowMinuteInArgentina = getArgentinaMinutesSinceMidnight(new Date());
-    for (const block of scheduleBlocks) {
-      let currentMinute = isTodayInArgentina ? Math.max(block.openMinutes, nowMinuteInArgentina) : block.openMinutes;
 
-      if (isTodayInArgentina && currentMinute > block.openMinutes) {
-        const remainder = currentMinute % SLOT_STEP;
-        if (remainder !== 0) {
-          currentMinute += SLOT_STEP - remainder;
-        }
+    function isInBreak(slotStartMinute: number, slotEndMinute: number, breakStart: number | null, breakEnd: number | null): boolean {
+      if (breakStart === null || breakEnd === null) return false;
+      return slotStartMinute < breakEnd && slotEndMinute > breakStart;
+    }
+
+    function hasTimeConflict(sId: string, slotStart: Date, slotEnd: Date): boolean {
+      return allBlocks.some((apt) => {
+        if (apt.staff_id && apt.staff_id !== sId) return false;
+        const aptStart = new Date(apt.start_time);
+        const aptEnd = new Date(apt.end_time);
+        return slotStart < aptEnd && slotEnd > aptStart;
+      });
+    }
+
+    if (staffId) {
+      const config = getStaffDayConfig(staffId);
+      if (!config) return { success: true, data: [] };
+
+      const staffBlocks: Array<{ openMinutes: number; closeMinutes: number }> = [];
+      if (config.breakStart !== null && config.breakEnd !== null && config.startMinutes < config.breakStart && config.breakStart < config.breakEnd && config.breakEnd < config.closeMinutes) {
+        staffBlocks.push({ openMinutes: config.startMinutes, closeMinutes: config.breakStart });
+        staffBlocks.push({ openMinutes: config.breakEnd, closeMinutes: config.closeMinutes });
+      } else {
+        staffBlocks.push({ openMinutes: config.startMinutes, closeMinutes: config.closeMinutes });
       }
 
-      while (currentMinute + slotDuration <= block.closeMinutes) {
-        const hour = Math.floor(currentMinute / 60);
-        const minute = currentMinute % 60;
-        const slotStart = createArgentinaDate(y, monthNum, d, hour, minute);
-        const slotEnd = new Date(slotStart.getTime() + slotDuration * 60000);
-
-        if (staffId) {
-          const hasConflict = allBlocks.some((apt) => {
-            const aptStart = new Date(apt.start_time);
-            const aptEnd = new Date(apt.end_time);
-            return slotStart < aptEnd && slotEnd > aptStart;
-          });
-          if (!hasConflict) {
-            slots.push({ start: slotStart.toISOString(), end: slotEnd.toISOString(), time: formatArgentinaTime(slotStart) });
-          }
-        } else {
-          const busyStaff = new Set<string>();
-          allBlocks.forEach((apt) => {
-            const aptStart = new Date(apt.start_time);
-            const aptEnd = new Date(apt.end_time);
-            if (slotStart < aptEnd && slotEnd > aptStart && apt.staff_id) {
-              busyStaff.add(apt.staff_id);
-            }
-          });
-          const availableStaff = allStaffIds.filter((id) => !busyStaff.has(id));
-          if (availableStaff.length > 0) {
-            slots.push({ start: slotStart.toISOString(), end: slotEnd.toISOString(), time: formatArgentinaTime(slotStart) });
-          }
+      for (const block of staffBlocks) {
+        let currentMinute = isTodayInArgentina ? Math.max(block.openMinutes, nowMinuteInArgentina) : block.openMinutes;
+        if (isTodayInArgentina && currentMinute > block.openMinutes) {
+          const remainder = currentMinute % SLOT_STEP;
+          if (remainder !== 0) currentMinute += SLOT_STEP - remainder;
         }
+        while (currentMinute + safeDuration <= block.closeMinutes) {
+          const hour = Math.floor(currentMinute / 60);
+          const minute = currentMinute % 60;
+          const slotStart = createArgentinaDate(y, monthNum, d, hour, minute);
+          const slotEnd = new Date(slotStart.getTime() + safeDuration * 60000);
+          if (!hasTimeConflict(staffId, slotStart, slotEnd)) {
+            slots.push({ start: slotStart.toISOString(), end: slotEnd.toISOString(), time: formatArgentinaTime(slotStart) });
+          }
+          currentMinute += SLOT_STEP;
+        }
+      }
+    } else {
+      const shopBlocks: Array<{ openMinutes: number; closeMinutes: number }> = [];
+      if (shopDayConfig.break_start && shopDayConfig.break_end) {
+        const [bsh, bsm] = shopDayConfig.break_start.split(":").map(Number);
+        const [beh, bem] = shopDayConfig.break_end.split(":").map(Number);
+        const breakStart = bsh * 60 + bsm;
+        const breakEnd = beh * 60 + bem;
+        if (shopOpenMinutes < breakStart && breakStart < breakEnd && breakEnd < shopCloseMinutes) {
+          shopBlocks.push({ openMinutes: shopOpenMinutes, closeMinutes: breakStart });
+          shopBlocks.push({ openMinutes: breakEnd, closeMinutes: shopCloseMinutes });
+        } else {
+          shopBlocks.push({ openMinutes: shopOpenMinutes, closeMinutes: shopCloseMinutes });
+        }
+      } else {
+        shopBlocks.push({ openMinutes: shopOpenMinutes, closeMinutes: shopCloseMinutes });
+      }
 
-        currentMinute += SLOT_STEP;
+      for (const block of shopBlocks) {
+        let currentMinute = isTodayInArgentina ? Math.max(block.openMinutes, nowMinuteInArgentina) : block.openMinutes;
+        if (isTodayInArgentina && currentMinute > block.openMinutes) {
+          const remainder = currentMinute % SLOT_STEP;
+          if (remainder !== 0) currentMinute += SLOT_STEP - remainder;
+        }
+        while (currentMinute + safeDuration <= block.closeMinutes) {
+          const hour = Math.floor(currentMinute / 60);
+          const minute = currentMinute % 60;
+          const slotStart = createArgentinaDate(y, monthNum, d, hour, minute);
+          const slotEnd = new Date(slotStart.getTime() + safeDuration * 60000);
+          const slotStartMinute = currentMinute;
+          const slotEndMinute = currentMinute + safeDuration;
+
+          const anyAvailable = allStaffIds.some((sId) => {
+            const config = getStaffDayConfig(sId);
+            if (!config) return false;
+            if (slotStartMinute < config.startMinutes || slotEndMinute > config.closeMinutes) return false;
+            if (isInBreak(slotStartMinute, slotEndMinute, config.breakStart, config.breakEnd)) return false;
+            if (hasTimeConflict(sId, slotStart, slotEnd)) return false;
+            return true;
+          });
+
+          if (anyAvailable) {
+            slots.push({ start: slotStart.toISOString(), end: slotEnd.toISOString(), time: formatArgentinaTime(slotStart) });
+          }
+          currentMinute += SLOT_STEP;
+        }
       }
     }
 
@@ -335,6 +378,18 @@ export async function fetchPublicAvailableSlots(
     console.error("[fetchPublicAvailableSlots] error:", e);
     return { success: false, error: "Error al calcular disponibilidad" };
   }
+}
+
+async function resolveShopDayConfig(admin: Awaited<ReturnType<typeof createAdminClient>>, shopId: string, dayIndex: number): Promise<{ open: boolean; start: string; end: string; break_start?: string | null; break_end?: string | null }> {
+  const { data: shopHoursData } = await admin
+    .from("shops")
+    .select("business_hours")
+    .eq("id", shopId)
+    .maybeSingle();
+  const normalizedHours = normalizeHours(shopHoursData?.business_hours);
+  const dayName = DAY_KEYS[dayIndex];
+  const resolved = resolveDayHours(normalizedHours, dayIndex);
+  return resolved || DEFAULT_WEEK_HOURS[dayName] || { open: false, start: "09:00", end: "20:00" };
 }
 
 export async function createPublicAppointment(data: {
@@ -359,43 +414,202 @@ export async function createPublicAppointment(data: {
     }
 
     const bookingDate = getArgentinaDateKey(data.startTime);
-    const { data: shopHoursData } = await admin
-      .from("shops")
-      .select("business_hours")
-      .eq("id", data.shopId)
-      .maybeSingle();
-
-    const normalizedHours = normalizeHours(shopHoursData?.business_hours);
     const dayIndex = new Date(`${bookingDate}T12:00:00-03:00`).getDay();
-    const dayName = DAY_KEYS[dayIndex];
-    const resolved = resolveDayHours(normalizedHours, dayIndex);
-    const dayConfig = resolved || DEFAULT_WEEK_HOURS[dayName] || { open: false, start: "09:00", end: "20:00" };
-
-    if (!dayConfig.open) {
-      return { success: false, error: "El local esta cerrado en ese horario" };
-    }
-
-    const [sh, sm] = dayConfig.start.split(":").map(Number);
-    const [eh, em] = dayConfig.end.split(":").map(Number);
     const startMinutes = getArgentinaMinutesSinceMidnight(data.startTime);
     const endMinutes = getArgentinaMinutesSinceMidnight(data.endTime);
+
+    // Resolve effective schedule: staff schedule takes priority, fallback to shop hours
+    let effectiveDayConfig: { open: boolean; start: string; end: string; break_start?: string | null; break_end?: string | null };
+
+    if (data.staffId) {
+      const { data: staffSchedule } = await admin
+        .from("staff_schedules")
+        .select("is_active, start_time, end_time, break_start, break_end")
+        .eq("staff_id", data.staffId)
+        .eq("day_of_week", dayIndex)
+        .maybeSingle();
+
+      if (staffSchedule) {
+        if (!staffSchedule.is_active) {
+          return { success: false, error: "El profesional no trabaja este dia" };
+        }
+        effectiveDayConfig = {
+          open: true,
+          start: staffSchedule.start_time.slice(0, 5),
+          end: staffSchedule.end_time.slice(0, 5),
+          break_start: staffSchedule.break_start?.slice(0, 5) ?? null,
+          break_end: staffSchedule.break_end?.slice(0, 5) ?? null,
+        };
+      } else {
+        // No schedule entry → fallback to shop hours
+        effectiveDayConfig = await resolveShopDayConfig(admin, data.shopId, dayIndex);
+      }
+    } else {
+      effectiveDayConfig = await resolveShopDayConfig(admin, data.shopId, dayIndex);
+    }
+
+    if (!effectiveDayConfig.open) {
+      const msg = data.staffId
+        ? "El profesional no trabaja en este horario"
+        : "El local esta cerrado en ese horario";
+      return { success: false, error: msg };
+    }
+
+    const [sh, sm] = effectiveDayConfig.start.split(":").map(Number);
+    const [eh, em] = effectiveDayConfig.end.split(":").map(Number);
     const openMinutes = sh * 60 + sm;
     const closeMinutes = eh * 60 + em;
 
-    let isInsideOpenHours = startMinutes >= openMinutes && endMinutes <= closeMinutes;
-    if (isInsideOpenHours && dayConfig.break_start && dayConfig.break_end) {
-      const [bsh, bsm] = dayConfig.break_start.split(":").map(Number);
-      const [beh, bem] = dayConfig.break_end.split(":").map(Number);
-      const breakStart = bsh * 60 + bsm;
-      const breakEnd = beh * 60 + bem;
-      const overlapsBreak = startMinutes < breakEnd && endMinutes > breakStart;
-      if (overlapsBreak) isInsideOpenHours = false;
-    }
-
-    if (!isInsideOpenHours) {
+    if (openMinutes >= closeMinutes || startMinutes < openMinutes || endMinutes > closeMinutes) {
       return { success: false, error: "El horario seleccionado esta fuera del horario de atencion" };
     }
 
+    if (effectiveDayConfig.break_start && effectiveDayConfig.break_end) {
+      const [bsh, bsm] = effectiveDayConfig.break_start.split(":").map(Number);
+      const [beh, bem] = effectiveDayConfig.break_end.split(":").map(Number);
+      const breakStart = bsh * 60 + bsm;
+      const breakEnd = beh * 60 + bem;
+      if (startMinutes < breakEnd && endMinutes > breakStart) {
+        return { success: false, error: "El horario seleccionado coincide con el descanso" };
+      }
+    }
+
+    // Staff-service validation + auto-assign when Sin preferencia
+    let resolvedStaffId = data.staffId || null;
+
+    // Check staff-service compatibility
+    if (resolvedStaffId) {
+      const { data: staffServiceRows } = await admin
+        .from("staff_services")
+        .select("service_id")
+        .eq("staff_id", resolvedStaffId);
+      if (staffServiceRows && staffServiceRows.length > 0) {
+        const assigned = staffServiceRows.some((r) => r.service_id === data.serviceId);
+        if (!assigned) {
+          return { success: false, error: "El profesional no realiza este servicio" };
+        }
+      }
+    } else {
+      // Sin preferencia → auto-assign first available staff
+      const { data: allStaff } = await admin
+        .from("shop_memberships")
+        .select("user_id")
+        .eq("shop_id", data.shopId)
+        .eq("is_active", true)
+        .in("role", ["owner", "staff"]);
+
+      const staffIds = (allStaff || []).map((m) => m.user_id);
+
+      // Check staff_services for all staff
+      const { data: allStaffServices } = await admin
+        .from("staff_services")
+        .select("staff_id, service_id")
+        .in("staff_id", staffIds);
+
+      const servicesByStaff = new Map<string, Set<string>>();
+      for (const row of allStaffServices || []) {
+        if (!servicesByStaff.has(row.staff_id)) servicesByStaff.set(row.staff_id, new Set());
+        servicesByStaff.get(row.staff_id)!.add(row.service_id);
+      }
+
+      // Get appointments that conflict with this slot
+      const { data: conflictingAppts } = await admin
+        .from("appointments")
+        .select("staff_id, status, created_at")
+        .eq("shop_id", data.shopId)
+        .lt("start_time", data.endTime)
+        .gt("end_time", data.startTime)
+        .not("status", "eq", "cancelled")
+        .not("staff_id", "eq", null);
+
+      const busyStaffIds = new Set<string>();
+      for (const apt of conflictingAppts || []) {
+        if (isPendingPaymentStillBlocking(apt.status, apt.created_at)) {
+          busyStaffIds.add(apt.staff_id as string);
+        }
+      }
+
+      // Get pending bookings that conflict
+      const { data: pendingConflicts } = await admin
+        .from("pending_bookings")
+        .select("staff_id")
+        .eq("shop_id", data.shopId)
+        .eq("status", "pending")
+        .gt("expires_at", new Date().toISOString())
+        .lt("start_time", data.endTime)
+        .gt("end_time", data.startTime)
+        .not("staff_id", "eq", null);
+
+      for (const pb of pendingConflicts || []) {
+        if (pb.staff_id) busyStaffIds.add(pb.staff_id);
+      }
+
+      // Get staff schedules for this day
+      const { data: daySchedules } = await admin
+        .from("staff_schedules")
+        .select("staff_id, is_active, start_time, end_time, break_start, break_end")
+        .in("staff_id", staffIds)
+        .eq("day_of_week", dayIndex);
+
+      const scheduleMap = new Map((daySchedules || []).map((s) => [s.staff_id, s]));
+
+      for (const sid of staffIds) {
+        // Skip if busy
+        if (busyStaffIds.has(sid)) continue;
+
+        // Skip if staff not assigned to this service (only if they have assignments)
+        const assignedServices = servicesByStaff.get(sid);
+        if (assignedServices && assignedServices.size > 0 && !assignedServices.has(data.serviceId)) continue;
+
+        // Check schedule
+        const sched = scheduleMap.get(sid);
+        if (sched) {
+          if (!sched.is_active) continue;
+          const [ssh, ssm] = sched.start_time.slice(0, 5).split(":").map(Number);
+          const [seh, sem] = sched.end_time.slice(0, 5).split(":").map(Number);
+          const staffOpen = ssh * 60 + ssm;
+          const staffClose = seh * 60 + sem;
+          if (startMinutes < staffOpen || endMinutes > staffClose) continue;
+          if (sched.break_start && sched.break_end) {
+            const [bsh, bsm] = sched.break_start.slice(0, 5).split(":").map(Number);
+            const [beh, bem] = sched.break_end.slice(0, 5).split(":").map(Number);
+            const breakStart = bsh * 60 + bsm;
+            const breakEnd = beh * 60 + bem;
+            if (startMinutes < breakEnd && endMinutes > breakStart) continue;
+          }
+        }
+        // else: no schedule → falls within shop hours (already validated above)
+
+        resolvedStaffId = sid;
+        break;
+      }
+
+      if (!resolvedStaffId) {
+        return { success: false, error: "No hay profesionales disponibles para este turno" };
+      }
+    }
+
+    // Conflict check for resolved staff
+    const { data: finalConflicts, error: checkError } = await admin
+      .from("appointments")
+      .select("id, status, created_at")
+      .eq("shop_id", data.shopId)
+      .eq("staff_id", resolvedStaffId)
+      .lt("start_time", data.endTime)
+      .gt("end_time", data.startTime)
+      .not("status", "eq", "cancelled");
+
+    if (checkError) return { success: false, error: checkError.message };
+
+    const hasBlockingConflict = (finalConflicts || []).some((apt) =>
+      isPendingPaymentStillBlocking(apt.status as string | null | undefined, apt.created_at as string | null | undefined)
+    );
+
+    if (hasBlockingConflict) {
+      return { success: false, error: "slot_taken" };
+    }
+
+    // Create or find customer
     let customerId: string;
 
     if (data.authenticatedUserId) {
@@ -451,30 +665,6 @@ export async function createPublicAppointment(data: {
       }
     }
 
-    let conflictQuery = admin
-      .from("appointments")
-      .select("id, status, created_at")
-      .eq("shop_id", data.shopId)
-      .lt("start_time", data.endTime)
-      .gt("end_time", data.startTime)
-      .not("status", "eq", "cancelled");
-
-    if (data.staffId) {
-      conflictQuery = conflictQuery.eq("staff_id", data.staffId);
-    }
-
-    const { data: conflictsRaw, error: checkError } = await conflictQuery;
-
-    if (checkError) return { success: false, error: checkError.message };
-
-    const hasBlockingConflict = (conflictsRaw || []).some((apt) =>
-      isPendingPaymentStillBlocking(apt.status as string | null | undefined, apt.created_at as string | null | undefined)
-    );
-
-    if (hasBlockingConflict) {
-      return { success: false, error: "slot_taken" };
-    }
-
     const { data: serviceRow } = await admin
       .from("services")
       .select("price")
@@ -488,7 +678,7 @@ export async function createPublicAppointment(data: {
       .insert({
         shop_id: data.shopId,
         customer_id: customerId,
-        staff_id: data.staffId || null,
+        staff_id: resolvedStaffId,
         service_id: data.serviceId,
         service_price: servicePrice,
         start_time: data.startTime,
@@ -568,43 +758,179 @@ export async function createPublicComboAppointment(data: {
     }
 
     const totalDuration = data.comboDurationMinutes ?? data.services.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+    if (totalDuration <= 0) {
+      return { success: false, error: "Duracion invalida" };
+    }
     const endDate = new Date(startDate.getTime() + totalDuration * 60000);
 
     const bookingDate = getArgentinaDateKey(data.startTime);
-    const { data: shopHoursData } = await admin
-      .from("shops")
-      .select("business_hours")
-      .eq("id", data.shopId)
-      .maybeSingle();
-
-    const normalizedHours = normalizeHours(shopHoursData?.business_hours);
     const dayIndex = new Date(`${bookingDate}T12:00:00-03:00`).getDay();
-    const dayName = DAY_KEYS[dayIndex];
-    const resolved = resolveDayHours(normalizedHours, dayIndex);
-    const dayConfig = resolved || DEFAULT_WEEK_HOURS[dayName] || { open: false, start: "09:00", end: "20:00" };
-
-    if (!dayConfig.open) {
-      return { success: false, error: "El local esta cerrado en ese horario" };
-    }
-
     const startMinutes = getArgentinaMinutesSinceMidnight(data.startTime);
     const endMinutes = getArgentinaMinutesSinceMidnight(endDate.toISOString());
-    const [sh, sm] = dayConfig.start.split(":").map(Number);
-    const [eh, em] = dayConfig.end.split(":").map(Number);
+
+    // Resolve effective schedule: staff schedule takes priority, fallback to shop hours
+    let effectiveDayConfig: { open: boolean; start: string; end: string; break_start?: string | null; break_end?: string | null };
+
+    if (data.staffId) {
+      const { data: staffSchedule } = await admin
+        .from("staff_schedules")
+        .select("is_active, start_time, end_time, break_start, break_end")
+        .eq("staff_id", data.staffId)
+        .eq("day_of_week", dayIndex)
+        .maybeSingle();
+
+      if (staffSchedule) {
+        if (!staffSchedule.is_active) {
+          return { success: false, error: "El profesional no trabaja este dia" };
+        }
+        effectiveDayConfig = {
+          open: true,
+          start: staffSchedule.start_time.slice(0, 5),
+          end: staffSchedule.end_time.slice(0, 5),
+          break_start: staffSchedule.break_start?.slice(0, 5) ?? null,
+          break_end: staffSchedule.break_end?.slice(0, 5) ?? null,
+        };
+      } else {
+        effectiveDayConfig = await resolveShopDayConfig(admin, data.shopId, dayIndex);
+      }
+    } else {
+      effectiveDayConfig = await resolveShopDayConfig(admin, data.shopId, dayIndex);
+    }
+
+    if (!effectiveDayConfig.open) {
+      const msg = data.staffId
+        ? "El profesional no trabaja en este horario"
+        : "El local esta cerrado en ese horario";
+      return { success: false, error: msg };
+    }
+
+    const [sh, sm] = effectiveDayConfig.start.split(":").map(Number);
+    const [eh, em] = effectiveDayConfig.end.split(":").map(Number);
     const openMinutes = sh * 60 + sm;
     const closeMinutes = eh * 60 + em;
 
-    let isInsideOpenHours = startMinutes >= openMinutes && endMinutes <= closeMinutes;
-    if (isInsideOpenHours && dayConfig.break_start && dayConfig.break_end) {
-      const [bsh, bsm] = dayConfig.break_start.split(":").map(Number);
-      const [beh, bem] = dayConfig.break_end.split(":").map(Number);
-      const breakStart = bsh * 60 + bsm;
-      const breakEnd = beh * 60 + bem;
-      if (startMinutes < breakEnd && endMinutes > breakStart) isInsideOpenHours = false;
+    if (openMinutes >= closeMinutes || startMinutes < openMinutes || endMinutes > closeMinutes) {
+      return { success: false, error: "El horario seleccionado esta fuera del horario de atencion" };
     }
 
-    if (!isInsideOpenHours) {
-      return { success: false, error: "El horario seleccionado esta fuera del horario de atencion" };
+    if (effectiveDayConfig.break_start && effectiveDayConfig.break_end) {
+      const [bsh, bsm] = effectiveDayConfig.break_start.split(":").map(Number);
+      const [beh, bem] = effectiveDayConfig.break_end.split(":").map(Number);
+      const breakStart = bsh * 60 + bsm;
+      const breakEnd = beh * 60 + bem;
+      if (startMinutes < breakEnd && endMinutes > breakStart) {
+        return { success: false, error: "El horario seleccionado coincide con el descanso" };
+      }
+    }
+
+    // Staff-service validation + auto-assign when Sin preferencia
+    const comboServiceIds = new Set(data.services.map((s) => s.id));
+    let resolvedStaffId = data.staffId || null;
+
+    if (resolvedStaffId) {
+      const { data: staffServiceRows } = await admin
+        .from("staff_services")
+        .select("service_id")
+        .eq("staff_id", resolvedStaffId);
+      if (staffServiceRows && staffServiceRows.length > 0) {
+        const assigned = staffServiceRows.some((r) => comboServiceIds.has(r.service_id));
+        if (!assigned) {
+          return { success: false, error: "El profesional no realiza uno de los servicios del combo" };
+        }
+      }
+    } else {
+      // Sin preferencia → auto-assign first available staff
+      const { data: allStaff } = await admin
+        .from("shop_memberships")
+        .select("user_id")
+        .eq("shop_id", data.shopId)
+        .eq("is_active", true)
+        .in("role", ["owner", "staff"]);
+
+      const staffIds = (allStaff || []).map((m) => m.user_id);
+
+      const { data: allStaffServices } = await admin
+        .from("staff_services")
+        .select("staff_id, service_id")
+        .in("staff_id", staffIds);
+
+      const servicesByStaff = new Map<string, Set<string>>();
+      for (const row of allStaffServices || []) {
+        if (!servicesByStaff.has(row.staff_id)) servicesByStaff.set(row.staff_id, new Set());
+        servicesByStaff.get(row.staff_id)!.add(row.service_id);
+      }
+
+      const { data: conflictingAppts } = await admin
+        .from("appointments")
+        .select("staff_id, status, created_at")
+        .eq("shop_id", data.shopId)
+        .lt("start_time", endDate.toISOString())
+        .gt("end_time", data.startTime)
+        .not("status", "eq", "cancelled")
+        .not("staff_id", "eq", null);
+
+      const busyStaffIds = new Set<string>();
+      for (const apt of conflictingAppts || []) {
+        if (isPendingPaymentStillBlocking(apt.status, apt.created_at)) {
+          busyStaffIds.add(apt.staff_id as string);
+        }
+      }
+
+      const { data: pendingConflicts } = await admin
+        .from("pending_bookings")
+        .select("staff_id")
+        .eq("shop_id", data.shopId)
+        .eq("status", "pending")
+        .gt("expires_at", new Date().toISOString())
+        .lt("start_time", endDate.toISOString())
+        .gt("end_time", data.startTime)
+        .not("staff_id", "eq", null);
+
+      for (const pb of pendingConflicts || []) {
+        if (pb.staff_id) busyStaffIds.add(pb.staff_id);
+      }
+
+      const { data: daySchedules } = await admin
+        .from("staff_schedules")
+        .select("staff_id, is_active, start_time, end_time, break_start, break_end")
+        .in("staff_id", staffIds)
+        .eq("day_of_week", dayIndex);
+
+      const scheduleMap = new Map((daySchedules || []).map((s) => [s.staff_id, s]));
+
+      for (const sid of staffIds) {
+        if (busyStaffIds.has(sid)) continue;
+
+        const assignedServices = servicesByStaff.get(sid);
+        if (assignedServices && assignedServices.size > 0) {
+          const canDoAllComboServices = data.services.every((svc) => assignedServices!.has(svc.id));
+          if (!canDoAllComboServices) continue;
+        }
+
+        const sched = scheduleMap.get(sid);
+        if (sched) {
+          if (!sched.is_active) continue;
+          const [ssh, ssm] = sched.start_time.slice(0, 5).split(":").map(Number);
+          const [seh, sem] = sched.end_time.slice(0, 5).split(":").map(Number);
+          const staffOpen = ssh * 60 + ssm;
+          const staffClose = seh * 60 + sem;
+          if (startMinutes < staffOpen || endMinutes > staffClose) continue;
+          if (sched.break_start && sched.break_end) {
+            const [bsh, bsm] = sched.break_start.slice(0, 5).split(":").map(Number);
+            const [beh, bem] = sched.break_end.slice(0, 5).split(":").map(Number);
+            const breakStart = bsh * 60 + bsm;
+            const breakEnd = beh * 60 + bem;
+            if (startMinutes < breakEnd && endMinutes > breakStart) continue;
+          }
+        }
+
+        resolvedStaffId = sid;
+        break;
+      }
+
+      if (!resolvedStaffId) {
+        return { success: false, error: "No hay profesionales disponibles para este turno" };
+      }
     }
 
     // Create or find customer
@@ -657,22 +983,18 @@ export async function createPublicComboAppointment(data: {
     }
 
     // Check conflicts for the full time block
-    let conflictQuery = admin
+    const { data: finalConflicts, error: checkError } = await admin
       .from("appointments")
       .select("id, status, created_at")
       .eq("shop_id", data.shopId)
+      .eq("staff_id", resolvedStaffId)
       .lt("start_time", endDate.toISOString())
       .gt("end_time", data.startTime)
       .not("status", "eq", "cancelled");
 
-    if (data.staffId) {
-      conflictQuery = conflictQuery.eq("staff_id", data.staffId);
-    }
-
-    const { data: conflictsRaw, error: checkError } = await conflictQuery;
     if (checkError) return { success: false, error: checkError.message };
 
-    const hasBlockingConflict = (conflictsRaw || []).some((apt) =>
+    const hasBlockingConflict = (finalConflicts || []).some((apt) =>
       isPendingPaymentStillBlocking(apt.status as string | null | undefined, apt.created_at as string | null | undefined)
     );
 
@@ -697,7 +1019,7 @@ export async function createPublicComboAppointment(data: {
         .insert({
           shop_id: data.shopId,
           customer_id: customerId,
-          staff_id: data.staffId || null,
+          staff_id: resolvedStaffId,
           service_id: svc.id,
           service_price: Math.round(proratedPrice * 100) / 100,
           start_time: aptStart.toISOString(),

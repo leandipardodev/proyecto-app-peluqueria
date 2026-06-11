@@ -58,20 +58,38 @@ export default async function BookPage({ params }: BookPageProps) {
   ]);
 
   const memberIds = (membershipsRes.data || []).map((m) => m.user_id).filter(Boolean);
-  const staffProfilesRes = memberIds.length
-    ? await admin
-        .from("user_profiles")
-        .select("user_id, name")
-        .in("user_id", memberIds)
-    : { data: [], error: null };
+  const [staffProfilesRes, staffServicesRes, staffExtraRes] = memberIds.length
+    ? await Promise.all([
+        admin.from("user_profiles").select("user_id, name").in("user_id", memberIds),
+        admin.from("staff_services").select("staff_id, service_id").in("staff_id", memberIds),
+        admin.from("staff_profiles").select("user_id, description, photo_url, instagram, whatsapp").in("user_id", memberIds),
+      ])
+    : [{ data: [], error: null }, { data: [], error: null }, { data: [], error: null }];
 
   const profileMap = new Map((staffProfilesRes.data || []).map((p) => [p.user_id, p.name || "Sin nombre"]));
+  const profileExtraMap = new Map((staffExtraRes.data || []).map((p) => [p.user_id, p]));
 
   const services = servicesRes.data || [];
   const combos = combosRes.success ? (combosRes.data ?? []) : [];
   const staffMembers = memberIds
-    .map((id) => ({ id, name: profileMap.get(id) || "Sin nombre" }))
+    .map((id) => {
+      const extra = profileExtraMap.get(id);
+      return {
+        id,
+        name: profileMap.get(id) || "Sin nombre",
+        photo_url: extra?.photo_url ?? null,
+        description: extra?.description ?? null,
+        instagram: extra?.instagram ?? null,
+        whatsapp: extra?.whatsapp ?? null,
+      };
+    })
     .sort((a, b) => a.name.localeCompare(b.name, "es"));
+
+  const staffServicesMap: Record<string, string[]> = {};
+  for (const row of (staffServicesRes.data || [])) {
+    if (!staffServicesMap[row.staff_id]) staffServicesMap[row.staff_id] = [];
+    staffServicesMap[row.staff_id].push(row.service_id);
+  }
 
   const localBusinessJsonLd = {
     "@context": "https://schema.org",
@@ -146,6 +164,7 @@ export default async function BookPage({ params }: BookPageProps) {
         services={services}
         combos={combos}
         staffMembers={staffMembers}
+        staffServicesMap={staffServicesMap}
       />
     </>
   );

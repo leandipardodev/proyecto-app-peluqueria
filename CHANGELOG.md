@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.2] - 2026-06-11
+
+### Correcciones y mejoras
+- Ya no se pide email ni teléfono obligatorio al agregar un turno.
+- Si el cliente no está en la búsqueda, ofrece agregarlo con "Agregar a {nombre}".
+- Horario configurable por cada profesional (staff_schedules).
+- Servicios asignables por cada profesional (staff_services).
+- Tarjetas de perfil con foto, descripción, Instagram y WhatsApp en la sección de elegir profesional (/book).
+- Bug fix: no se mostraban turnos disponibles cuando no los hay — filtros corregidos (pending_bookings expiry, timezone, .limit(1) removido).
+- Auto-asignación de profesional cuando se selecciona "Sin preferencia".
+- Modales rediseñados con fondo sólido, botón de cerrar y estructura consistente.
+
 ## [1.0.1] - 2026-05-21
 
 ### Personalizacion avanzada de /book

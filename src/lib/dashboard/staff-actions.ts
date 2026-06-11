@@ -528,3 +528,176 @@ export async function removeStaff(id: string, shopIdOverride?: string): Promise<
     return { success: false, error: e instanceof Error ? e.message : "Error al eliminar personal" };
   }
 }
+
+export async function getServiceStaffIds(serviceId: string, shopIdOverride?: string): Promise<ActionResult<string[]>> {
+  try {
+    const admin = await createAdminClient();
+    const { data } = await admin
+      .from("staff_services")
+      .select("staff_id")
+      .eq("service_id", serviceId);
+    return { success: true, data: (data || []).map((r) => r.staff_id) };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al obtener personal del servicio" };
+  }
+}
+
+export async function getStaffSchedule(staffId: string, shopIdOverride?: string): Promise<ActionResult<{
+  day_of_week: number;
+  is_active: boolean;
+  start_time: string;
+  end_time: string;
+  break_start: string | null;
+  break_end: string | null;
+}[]>> {
+  try {
+    const admin = await createAdminClient();
+    const { data } = await admin
+      .from("staff_schedules")
+      .select("day_of_week, is_active, start_time, end_time, break_start, break_end")
+      .eq("staff_id", staffId)
+      .order("day_of_week", { ascending: true });
+    return { success: true, data: (data || []).map((r) => ({
+      ...r,
+      start_time: r.start_time?.slice(0, 5),
+      end_time: r.end_time?.slice(0, 5),
+      break_start: r.break_start?.slice(0, 5) ?? null,
+      break_end: r.break_end?.slice(0, 5) ?? null,
+    })) };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al obtener horarios del personal" };
+  }
+}
+
+export async function updateStaffSchedule(
+  staffId: string,
+  schedule: { day_of_week: number; is_active: boolean; start_time: string; end_time: string; break_start?: string | null; break_end?: string | null }[],
+  shopIdOverride?: string,
+): Promise<ActionResult> {
+  try {
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    }
+
+    const ownerAccess = await requireOwnerAccessForShop(shopId);
+    if (!ownerAccess.success) return ownerAccess;
+
+    const admin = await createAdminClient();
+
+    const { data: memberships } = await admin
+      .from("shop_memberships")
+      .select("user_id")
+      .eq("user_id", staffId)
+      .eq("shop_id", shopId)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (!memberships) return { success: false, error: "El empleado no pertenece a este local" };
+
+    const rows = schedule.map((s) => ({
+      staff_id: staffId,
+      day_of_week: s.day_of_week,
+      is_active: s.is_active,
+      start_time: s.start_time,
+      end_time: s.end_time,
+      break_start: s.break_start || null,
+      break_end: s.break_end || null,
+      updated_at: new Date().toISOString(),
+    }));
+
+    for (const row of rows) {
+      const { error } = await admin.from("staff_schedules").upsert(row, {
+        onConflict: "staff_id,day_of_week",
+        ignoreDuplicates: false,
+      });
+      if (error) return { success: false, error: error.message };
+    }
+
+    await revalidateDashboardSegments(shopId, ["/staff", "/calendar"]);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al actualizar horarios" };
+  }
+}
+
+export async function getStaffProfile(staffId: string, shopIdOverride?: string): Promise<ActionResult<{
+  description: string | null;
+  photo_url: string | null;
+  instagram: string | null;
+  whatsapp: string | null;
+} | null>> {
+  try {
+    const admin = await createAdminClient();
+    if (shopIdOverride) {
+      const { data: membership } = await admin
+        .from("shop_memberships")
+        .select("user_id")
+        .eq("user_id", staffId)
+        .eq("shop_id", shopIdOverride)
+        .eq("is_active", true)
+        .maybeSingle();
+      if (!membership) return { success: false, error: "El empleado no pertenece a este local" };
+    }
+    const { data } = await admin
+      .from("staff_profiles")
+      .select("description, photo_url, instagram, whatsapp")
+      .eq("user_id", staffId)
+      .maybeSingle();
+    return { success: true, data: data || { description: null, photo_url: null, instagram: null, whatsapp: null } };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al obtener perfil" };
+  }
+}
+
+export async function updateStaffProfile(
+  staffId: string,
+  profile: { description?: string | null; photo_url?: string | null; instagram?: string | null; whatsapp?: string | null },
+  shopIdOverride?: string,
+): Promise<ActionResult> {
+  try {
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    }
+
+    const ownerAccess = await requireOwnerAccessForShop(shopId);
+    if (!ownerAccess.success) return ownerAccess;
+
+    const admin = await createAdminClient();
+
+    const { data: membership } = await admin
+      .from("shop_memberships")
+      .select("user_id")
+      .eq("user_id", staffId)
+      .eq("shop_id", shopId)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (!membership) return { success: false, error: "El empleado no pertenece a este local" };
+
+    const { error } = await admin
+      .from("staff_profiles")
+      .upsert({
+        user_id: staffId,
+        description: profile.description ?? null,
+        photo_url: profile.photo_url ?? null,
+        instagram: profile.instagram ?? null,
+        whatsapp: profile.whatsapp ?? null,
+        updated_at: new Date().toISOString(),
+      });
+
+    if (error) return { success: false, error: error.message };
+
+    await revalidateDashboardSegments(shopId, ["/staff", "/book"]);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al actualizar perfil" };
+  }
+}

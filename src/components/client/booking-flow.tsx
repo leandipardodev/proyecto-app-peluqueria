@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { fetchPublicAvailableSlots } from "@/lib/dashboard/public-booking-actions";
@@ -20,6 +20,10 @@ interface Service {
 interface StaffMember {
   user_id: string;
   name: string;
+  photo_url?: string | null;
+  description?: string | null;
+  instagram?: string | null;
+  whatsapp?: string | null;
 }
 
 interface Slot {
@@ -32,13 +36,14 @@ interface BookingFlowProps {
   shopId: string;
   services: Service[];
   staffMembers?: StaffMember[];
+  staffServicesMap: Record<string, string[]>;
   selectedServiceId?: string | null;
   selectedStaffId?: string | null;
 }
 
 type Step = "services" | "staff" | "datetime" | "checkout" | "confirm";
 
-export default function BookingFlow({ shopId, services, staffMembers, selectedServiceId, selectedStaffId }: BookingFlowProps) {
+export default function BookingFlow({ shopId, services, staffMembers, staffServicesMap, selectedServiceId, selectedStaffId }: BookingFlowProps) {
   const router = useRouter();
   const [step, setStep] = useState<Step>("services");
   const [selectedServices, setSelectedServices] = useState<Service[]>([]);
@@ -196,6 +201,24 @@ export default function BookingFlow({ shopId, services, staffMembers, selectedSe
     });
   }
 
+  const availableStaff = useMemo(() => {
+    if (!staffMembers || staffMembers.length === 0) return [];
+    if (selectedServices.length === 0) return staffMembers;
+    const selectedIds = new Set(selectedServices.map((s) => s.id));
+    return staffMembers.filter((s) => {
+      if (s.user_id === "") return true; // "Sin preferencia" always available
+      const myServiceIds = staffServicesMap[s.user_id];
+      if (!myServiceIds || myServiceIds.length === 0) return true; // no assignments = legacy mode
+      return myServiceIds.some((sid) => selectedIds.has(sid));
+    });
+  }, [staffMembers, staffServicesMap, selectedServices]);
+
+  useEffect(() => {
+    if (selectedStaff && !availableStaff.find((s) => s.user_id === selectedStaff.user_id)) {
+      setSelectedStaff(null);
+    }
+  }, [availableStaff, selectedStaff]);
+
   function getMinDate() {
     return getArgentinaDateString();
   }
@@ -333,23 +356,55 @@ export default function BookingFlow({ shopId, services, staffMembers, selectedSe
               Elegí tu peluquero
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {staffMembers.map((staff) => (
+              {availableStaff.map((staff) => {
+                const initials = staff.name.charAt(0).toUpperCase();
+                return (
+                  <div
+                    key={staff.user_id}
+                    onClick={() => handleStaffSelect(staff)}
+                    className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:border-violet-300 hover:shadow-md cursor-pointer transition-all"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="w-12 h-12 rounded-full overflow-hidden bg-violet-100 dark:bg-violet-900 flex items-center justify-center shrink-0">
+                        {staff.photo_url ? (
+                          <img src={staff.photo_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-base font-bold text-violet-600 dark:text-violet-300">{initials}</span>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-semibold text-gray-900 dark:text-gray-100">{staff.name}</h3>
+                        {staff.description && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{staff.description}</p>
+                        )}
+                        {(staff.instagram || staff.whatsapp) && (
+                          <div className="flex items-center gap-2 mt-1.5">
+                            {staff.instagram && (
+                              <span className="text-[11px] text-gray-400 dark:text-gray-500">@{staff.instagram.replace(/^@/, "")}</span>
+                            )}
+                            {staff.whatsapp && (
+                              <span className="text-[11px] text-gray-400 dark:text-gray-500">{staff.whatsapp}</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {availableStaff.length > 0 && (
                 <div
-                  key={staff.user_id}
-                  onClick={() => handleStaffSelect(staff)}
+                  onClick={() => handleStaffSelect({ user_id: "", name: "Sin preferencia" } as StaffMember)}
                   className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 hover:border-violet-300 hover:shadow-md cursor-pointer transition-all"
                 >
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">{staff.name}</h3>
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">Sin preferencia</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Cualquier peluquero disponible</p>
                 </div>
-              ))}
-              <div
-                onClick={() => handleStaffSelect({ user_id: "", name: "Sin preferencia" })}
-                className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 hover:border-violet-300 hover:shadow-md cursor-pointer transition-all"
-              >
-                <h3 className="font-semibold text-gray-900 dark:text-gray-100">Sin preferencia</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Cualquier peluquero disponible</p>
-              </div>
+              )}
             </div>
+            {availableStaff.length === 0 && (
+              <p className="text-sm text-gray-500 dark:text-gray-400">No hay peluqueros disponibles para los servicios seleccionados.</p>
+            )}
           </div>
         </div>
       )}

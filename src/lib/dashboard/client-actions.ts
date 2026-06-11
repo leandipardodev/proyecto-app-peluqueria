@@ -317,7 +317,7 @@ export async function createClientAppointment(formData: FormData): Promise<Actio
   }
 }
 
-type PublicStaffMember = { user_id: string; name: string | null };
+type PublicStaffMember = { user_id: string; name: string | null; photo_url?: string | null; description?: string | null; instagram?: string | null; whatsapp?: string | null };
 
 export async function fetchPublicStaff(shopId: string): Promise<ActionResult<PublicStaffMember[]>> {
   try {
@@ -325,13 +325,24 @@ export async function fetchPublicStaff(shopId: string): Promise<ActionResult<Pub
 
     const { data, error } = await supabase
       .from("user_profiles")
-      .select("user_id, name")
+      .select("user_id, name, staff_profiles!left(photo_url, description, instagram, whatsapp)")
       .eq("shop_id", shopId)
       .in("role", ["owner", "staff"])
       .order("name", { ascending: true });
 
     if (error) return { success: false, error: error.message };
-    return { success: true, data: data || [] };
+    const mapped = (data || []).map((row: Record<string, unknown>) => {
+      const profile = row.staff_profiles as Record<string, unknown> | null || {};
+      return {
+        user_id: row.user_id as string,
+        name: row.name as string | null,
+        photo_url: (profile.photo_url as string | null) || null,
+        description: (profile.description as string | null) || null,
+        instagram: (profile.instagram as string | null) || null,
+        whatsapp: (profile.whatsapp as string | null) || null,
+      };
+    });
+    return { success: true, data: mapped };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al obtener personal" };
   }

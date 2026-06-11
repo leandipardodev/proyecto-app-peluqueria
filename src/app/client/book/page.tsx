@@ -8,7 +8,7 @@ interface ClientBookPageProps {
   searchParams: Promise<{ serviceId?: string; staffId?: string }>;
 }
 
-type BookingStaffMember = { user_id: string; name: string };
+type StaffMemberWithProfile = { user_id: string; name: string; photo_url?: string | null; description?: string | null; instagram?: string | null; whatsapp?: string | null };
 
 export const dynamic = "force-dynamic";
 
@@ -44,14 +44,30 @@ export default async function ClientBookPage({ searchParams }: ClientBookPagePro
     .eq("shop_id", profile.shop_id)
     .order("name", { ascending: true });
 
-  // Fetch staff members
+  // Fetch staff members with profiles
   const staffResult = await fetchPublicStaff(profile.shop_id);
-  const staffMembers: BookingStaffMember[] = staffResult.success
+  const staffMembers: StaffMemberWithProfile[] = staffResult.success
     ? (staffResult.data ?? []).map((member) => ({
         user_id: member.user_id,
         name: member.name || "Staff",
+        photo_url: member.photo_url ?? null,
+        description: member.description ?? null,
+        instagram: member.instagram ?? null,
+        whatsapp: member.whatsapp ?? null,
       }))
     : [];
+
+  // Fetch staff-service assignments
+  const memberIds = staffMembers.map((m) => m.user_id);
+  const { data: staffServicesRaw } = await supabase
+    .from("staff_services")
+    .select("staff_id, service_id")
+    .in("staff_id", memberIds);
+  const staffServicesMap: Record<string, string[]> = {};
+  for (const row of staffServicesRaw ?? []) {
+    if (!staffServicesMap[row.staff_id]) staffServicesMap[row.staff_id] = [];
+    staffServicesMap[row.staff_id].push(row.service_id);
+  }
 
   return (
     <div className="space-y-6">
@@ -66,6 +82,7 @@ export default async function ClientBookPage({ searchParams }: ClientBookPagePro
         shopId={profile.shop_id}
         services={services || []}
         staffMembers={staffMembers}
+        staffServicesMap={staffServicesMap}
         selectedServiceId={serviceId}
         selectedStaffId={staffId}
       />

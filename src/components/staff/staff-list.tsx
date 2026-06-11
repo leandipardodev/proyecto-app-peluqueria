@@ -14,6 +14,10 @@ import {
   updateStaffRole,
   updateStaffPayMode,
   removeStaff,
+  getStaffSchedule,
+  updateStaffSchedule,
+  getStaffProfile,
+  updateStaffProfile,
 } from "@/lib/dashboard/staff-actions";
 import { supabase } from "@/lib/supabase";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
@@ -21,7 +25,7 @@ import { useToast } from "@/components/ui/toast";
 import { StatePanel } from "@/components/ui/state-panel";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import type { Industry } from "@/lib/industry/types";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, X } from "lucide-react";
 
 type StaffMember = {
   id: string;
@@ -64,10 +68,13 @@ export default function StaffList({
   const [renameTarget, setRenameTarget] = useState<{ id: string; name: string } | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [payModel, setPayModel] = useState<"percentage" | "fixed" | "mixed">("percentage");
   const [payPercentage, setPayPercentage] = useState("40");
   const [payFixed, setPayFixed] = useState("0");
   const [payEditor, setPayEditor] = useState<{ id: string; name: string; payModel: "percentage" | "fixed" | "mixed"; percentageRate: number; fixedAmount: number } | null>(null);
+  const [scheduleEditor, setScheduleEditor] = useState<{ id: string; name: string; schedule: { day_of_week: number; is_active: boolean; start_time: string; end_time: string; break_start: string | null; break_end: string | null }[] } | null>(null);
+  const [profileEditor, setProfileEditor] = useState<{ id: string; name: string; description: string; instagram: string; whatsapp: string; photo_url: string; uploading: boolean } | null>(null);
   const [portalReady, setPortalReady] = useState(false);
   const [tutorialActive, setTutorialActive] = useState(false);
   const { addToast } = useToast();
@@ -195,6 +202,67 @@ export default function StaffList({
     setRenameValue("");
   }
 
+  async function openScheduleEditor(id: string, name: string) {
+    setError(null);
+    const result = await getStaffSchedule(id, shopId);
+    if (!result.success) {
+      setError(result.error);
+      return;
+    }
+    const existing = result.data ?? [];
+    const defaultSchedule = [0,1,2,3,4,5,6].map((dow) => {
+      const found = existing.find((s) => s.day_of_week === dow);
+      if (found) return { ...found };
+      const isWeekday = dow >= 1 && dow <= 5;
+      return {
+        day_of_week: dow,
+        is_active: isWeekday,
+        start_time: "09:00",
+        end_time: "20:00",
+        break_start: null as string | null,
+        break_end: null as string | null,
+      };
+    });
+    setScheduleEditor({ id, name, schedule: defaultSchedule });
+  }
+
+  async function openProfileEditor(id: string, name: string) {
+    setError(null);
+    const result = await getStaffProfile(id, shopId);
+    if (!result.success) {
+      setError(result.error);
+      return;
+    }
+    const data = result.data || { description: null, photo_url: null, instagram: null, whatsapp: null };
+    setProfileEditor({
+      id,
+      name,
+      description: data.description ?? "",
+      instagram: data.instagram ?? "",
+      whatsapp: data.whatsapp ?? "",
+      photo_url: data.photo_url ?? "",
+      uploading: false,
+    });
+    setProfileError(null);
+  }
+
+  async function uploadStaffPhoto(file: File): Promise<string | null> {
+    const ext = file.name.split(".").pop() || "jpg";
+    const fileName = `${profileEditor!.id}_${Date.now()}.${ext}`;
+    const filePath = `${shopId}/${fileName}`;
+    const { error: uploadError } = await supabase.storage
+      .from("staff-photos")
+      .upload(filePath, file, { upsert: true });
+    if (uploadError) {
+      setProfileError("Error al subir la foto: " + uploadError.message);
+      return null;
+    }
+    const { data: publicUrlData } = supabase.storage
+      .from("staff-photos")
+      .getPublicUrl(filePath);
+    return publicUrlData?.publicUrl || null;
+  }
+
   return (
     <div>
       {tutorialActive && (
@@ -232,8 +300,8 @@ export default function StaffList({
       )}
 
       {showForm && canManageStaff && (
-        <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-4 sm:p-6 mb-6">
-          <h3 className="text-lg font-medium dark:text-gray-100 mb-4 tracking-tight">Nuevo {staffWord}</h3>
+        <div className="bg-white dark:bg-zinc-900 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm p-4 sm:p-6 mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 tracking-tight">Nuevo {staffWord}</h3>
           <div className="mb-4 rounded-xl border border-sky-200/60 bg-sky-50/80 dark:bg-sky-900/20 px-3 py-2 text-xs text-sky-800 dark:text-sky-200">
             1) Cargá nombre, correo y rol. 2) Guardá. 3) Copiá el enlace de ingreso y compartilo con el {staffWordLower}.
             <br />
@@ -371,8 +439,8 @@ export default function StaffList({
             const isCurrentOwnerSelf = member.id === currentUserId && member.role === "owner";
             const selfOwnerTooltip = "No podés editar tu propio rol de administrador";
             return (
-              <div key={member.id} className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[1.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] p-4">
-                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{member.name || "-"}</p>
+              <div key={member.id} className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-4">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">{member.name || "-"}</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{member.email || "-"}</p>
                 <div className="mt-3 flex items-center justify-between text-sm">
                   <span className="text-gray-500 dark:text-gray-400">Rol</span>
@@ -428,6 +496,20 @@ export default function StaffList({
                       )}
                       <button
                         type="button"
+                        onClick={() => openScheduleEditor(member.id, member.name || member.email || "Staff")}
+                        className="text-sm text-emerald-600 hover:text-emerald-800 cursor-pointer select-none mr-3"
+                      >
+                        Horarios
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openProfileEditor(member.id, member.name || member.email || "Staff")}
+                        className="text-sm text-sky-600 hover:text-sky-800 cursor-pointer select-none mr-3"
+                      >
+                        Perfil
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => {
                           setRenameTarget({ id: member.id, name: member.name || "" });
                           setRenameValue(member.name || "");
@@ -456,10 +538,10 @@ export default function StaffList({
         )}
       </div>
 
-      <div className="hidden md:block bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 border-t border-l border-t-white/60 border-l-white/60 dark:border-t-white/20 dark:border-l-white/20 shadow-2xl shadow-black/[0.03] overflow-hidden">
+      <div className="hidden md:block bg-white dark:bg-zinc-900 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700" aria-label="Tabla de personal">
-          <thead className="bg-white/40 dark:bg-black/20">
+          <thead className="bg-zinc-50 dark:bg-zinc-800/50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Nombre
@@ -478,7 +560,7 @@ export default function StaffList({
               </th>
             </tr>
           </thead>
-          <tbody className="bg-transparent dark:bg-transparent divide-y divide-white/20 dark:divide-white/10">
+          <tbody className="bg-transparent dark:bg-transparent divide-y divide-zinc-200 dark:divide-zinc-800">
             {staff.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
@@ -491,7 +573,7 @@ export default function StaffList({
                   const isCurrentOwnerSelf = member.id === currentUserId && member.role === "owner";
                   const selfOwnerTooltip = "No podés editar tu propio rol de administrador";
                   return (
-                <tr key={member.id} className="hover:bg-white/40 dark:hover:bg-white/5 cursor-pointer">
+                <tr key={member.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                     {member.name || "-"}
                   </td>
@@ -545,6 +627,20 @@ export default function StaffList({
                         )}
                         <button
                           type="button"
+                          onClick={() => openScheduleEditor(member.id, member.name || member.email || "Staff")}
+                          className="text-emerald-600 hover:text-emerald-800 cursor-pointer select-none"
+                        >
+                          Horarios
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openProfileEditor(member.id, member.name || member.email || "Staff")}
+                          className="text-sky-600 hover:text-sky-800 cursor-pointer select-none"
+                        >
+                          Perfil
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => {
                             setRenameTarget({ id: member.id, name: member.name || "" });
                             setRenameValue(member.name || "");
@@ -578,46 +674,64 @@ export default function StaffList({
       </div>
 
       {portalReady && renameTarget && createPortal((
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-          <div className="w-full max-w-sm bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2rem] border border-white/10 dark:border-white/5 p-5 shadow-2xl shadow-black/[0.08]">
-            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Renombrar {staffWordLower}</h3>
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Actualizá el nombre visible en staff, turnos y calendario.</p>
-            <input
-              value={renameValue}
-              onChange={(e) => setRenameValue(e.target.value)}
-              className="mt-3 w-full rounded-xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-black/30 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
-              placeholder="Nombre"
-              autoFocus
-            />
-            <div className="mt-4 flex items-center justify-end gap-2">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm px-4">
+          <div className="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-lg overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200/50 dark:border-zinc-700/50">
+              <h3 className="text-base font-semibold text-gray-900 dark:text-white">Renombrar {staffWordLower}</h3>
               <button
                 type="button"
-                onClick={() => {
-                  setRenameTarget(null);
-                  setRenameValue("");
-                }}
-                className="px-3 py-1.5 rounded-lg text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200"
+                onClick={() => { setRenameTarget(null); setRenameValue(""); }}
+                className="p-1 rounded-md text-gray-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer select-none"
               >
-                Cancelar
+                <X className="w-5 h-5" />
               </button>
-              <button
-                type="button"
-                onClick={submitRename}
-                className="px-3 py-1.5 rounded-lg text-sm bg-violet-600 text-white hover:bg-violet-700"
-              >
-                Guardar
-              </button>
+            </div>
+            <div className="p-5">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Actualizá el nombre visible en staff, turnos y calendario.</p>
+              <Input
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                placeholder="Nombre"
+                autoFocus
+              />
+              <div className="mt-4 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setRenameTarget(null); setRenameValue(""); }}
+                  className="px-3 py-1.5 rounded-lg text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer select-none"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={submitRename}
+                  className="px-3 py-1.5 rounded-lg text-sm bg-violet-600 text-white hover:bg-violet-700 transition-colors cursor-pointer select-none"
+                >
+                  Guardar
+                </button>
+              </div>
             </div>
           </div>
         </div>
       ), document.body)}
 
       {portalReady && payEditor && createPortal((
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-          <div className="w-full max-w-sm bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2rem] border border-white/10 dark:border-white/5 p-5 shadow-2xl shadow-black/[0.08]">
-            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Modo de cobro</h3>
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{payEditor.name}</p>
-            <div className="mt-3 space-y-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm px-4">
+          <div className="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-lg overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200/50 dark:border-zinc-700/50">
+              <div>
+                <h3 className="text-base font-semibold text-gray-900 dark:text-white">Modo de cobro</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{payEditor.name}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPayEditor(null)}
+                className="p-1 rounded-md text-gray-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer select-none"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5 space-y-3">
               <CustomSelect
                 value={payEditor.payModel}
                 onChange={(v) => setPayEditor((prev) => (prev ? { ...prev, payModel: v as "percentage" | "fixed" | "mixed" } : prev))}
@@ -641,8 +755,8 @@ export default function StaffList({
                 />
               )}
             </div>
-            <div className="mt-4 flex items-center justify-end gap-2">
-              <button type="button" onClick={() => setPayEditor(null)} className="px-3 py-1.5 rounded-lg text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200">Cancelar</button>
+            <div className="px-5 pb-5 flex items-center justify-end gap-2">
+              <button type="button" onClick={() => setPayEditor(null)} className="px-3 py-1.5 rounded-lg text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer select-none">Cancelar</button>
               <button
                 type="button"
                 onClick={async () => {
@@ -660,7 +774,245 @@ export default function StaffList({
                   setPayEditor(null);
                   addToast("Modo de cobro actualizado", "success");
                 }}
-                className="px-3 py-1.5 rounded-lg text-sm bg-violet-600 text-white hover:bg-violet-700"
+                className="px-3 py-1.5 rounded-lg text-sm bg-violet-600 text-white hover:bg-violet-700 transition-colors cursor-pointer select-none"
+              >
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      ), document.body)}
+
+      {portalReady && scheduleEditor && createPortal((
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm px-4">
+          <div className="w-full max-w-lg bg-white dark:bg-zinc-900 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-lg overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200/50 dark:border-zinc-700/50">
+              <div>
+                <h3 className="text-base font-semibold text-gray-900 dark:text-white">Horarios de {scheduleEditor.name}</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Configurá los horarios disponibles para cada día.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setScheduleEditor(null)}
+                className="p-1 rounded-md text-gray-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer select-none"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="max-h-[60vh] overflow-y-auto p-5 space-y-2">
+              {scheduleEditor.schedule.map((day, i) => {
+                const dayNames = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+                return (
+                  <div key={day.day_of_week} className="flex flex-wrap items-center gap-2 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 px-3 py-2">
+                    <span className="w-10 text-sm font-medium text-gray-700 dark:text-gray-300">{dayNames[day.day_of_week]}</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={day.is_active}
+                        onChange={() => {
+                          const next = [...scheduleEditor.schedule];
+                          next[i] = { ...next[i], is_active: !next[i].is_active };
+                          setScheduleEditor({ ...scheduleEditor, schedule: next });
+                        }}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500" />
+                    </label>
+                    {day.is_active && (
+                      <>
+                        <input
+                          type="time"
+                          value={day.start_time}
+                          onChange={(e) => {
+                            const next = [...scheduleEditor.schedule];
+                            next[i] = { ...next[i], start_time: e.target.value };
+                            setScheduleEditor({ ...scheduleEditor, schedule: next });
+                          }}
+                          className="w-24 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-xs text-gray-900 dark:text-gray-100"
+                        />
+                        <span className="text-xs text-gray-400">a</span>
+                        <input
+                          type="time"
+                          value={day.end_time}
+                          onChange={(e) => {
+                            const next = [...scheduleEditor.schedule];
+                            next[i] = { ...next[i], end_time: e.target.value };
+                            setScheduleEditor({ ...scheduleEditor, schedule: next });
+                          }}
+                          className="w-24 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-xs text-gray-900 dark:text-gray-100"
+                        />
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="px-5 pb-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setScheduleEditor(null)}
+                className="px-3 py-1.5 rounded-lg text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer select-none"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!scheduleEditor) return;
+                  const res = await updateStaffSchedule(scheduleEditor.id, scheduleEditor.schedule, shopId);
+                  if (!res.success) {
+                    setError(res.error);
+                    return;
+                  }
+                  setScheduleEditor(null);
+                  addToast("Horarios actualizados", "success");
+                }}
+                className="px-3 py-1.5 rounded-lg text-sm bg-emerald-600 text-white hover:bg-emerald-700 transition-colors cursor-pointer select-none"
+              >
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      ), document.body)}
+
+      {portalReady && profileEditor && createPortal((
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm px-4">
+          <div className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-lg overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200/50 dark:border-zinc-700/50">
+              <div>
+                <h3 className="text-base font-semibold text-gray-900 dark:text-white">Perfil de {profileEditor.name}</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Foto, descripción y redes sociales.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setProfileEditor(null)}
+                className="p-1 rounded-md text-gray-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer select-none"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              {/* Photo */}
+              <div>
+                <Label>Foto</Label>
+                <div className="mt-1 flex items-center gap-4">
+                  <div className="relative w-16 h-16 rounded-full overflow-hidden bg-violet-100 dark:bg-violet-900 flex items-center justify-center shrink-0">
+                    {profileEditor.photo_url ? (
+                      <img src={profileEditor.photo_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-lg font-bold text-violet-600 dark:text-violet-300">
+                        {profileEditor.name.charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                    {profileEditor.uploading && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-full">
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                  <label className="cursor-pointer select-none">
+                    <span className="text-sm text-sky-600 hover:text-sky-800 font-medium">
+                      {profileEditor.photo_url ? "Cambiar foto" : "Subir foto"}
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={profileEditor.uploading}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file || !profileEditor) return;
+                        setProfileEditor((prev) => prev ? { ...prev, uploading: true } : prev);
+                        const url = await uploadStaffPhoto(file);
+                        if (url) {
+                          setProfileEditor((prev) => prev ? { ...prev, photo_url: url, uploading: false } : prev);
+                        } else {
+                          setProfileEditor((prev) => prev ? { ...prev, uploading: false } : prev);
+                        }
+                      }}
+                    />
+                  </label>
+                  {profileEditor.photo_url && (
+                    <button
+                      type="button"
+                      onClick={() => setProfileEditor((prev) => prev ? { ...prev, photo_url: "" } : prev)}
+                      className="text-xs text-red-500 hover:text-red-700 cursor-pointer select-none"
+                    >
+                      Quitar
+                    </button>
+                  )}
+                </div>
+              </div>
+              {/* Description */}
+              <div>
+                <Label htmlFor="desc">Descripción</Label>
+                <textarea
+                  id="desc"
+                  value={profileEditor.description}
+                  onChange={(e) => setProfileEditor((prev) => prev ? { ...prev, description: e.target.value } : prev)}
+                  placeholder="Breve descripción del profesional..."
+                  rows={3}
+                  className="mt-1 w-full rounded-xl border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 resize-none"
+                />
+              </div>
+              {/* Instagram */}
+              <div>
+                <Label htmlFor="instagram">Instagram <span className="text-xs text-gray-400">(opcional)</span></Label>
+                <div className="mt-1 flex items-center gap-2">
+                  <span className="text-sm text-gray-400">@</span>
+                  <Input
+                    id="instagram"
+                    value={profileEditor.instagram}
+                    onChange={(e) => setProfileEditor((prev) => prev ? { ...prev, instagram: e.target.value } : prev)}
+                    placeholder="usuario"
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+              {/* WhatsApp */}
+              <div>
+                <Label htmlFor="whatsapp">WhatsApp <span className="text-xs text-gray-400">(opcional)</span></Label>
+                <Input
+                  id="whatsapp"
+                  value={profileEditor.whatsapp}
+                  onChange={(e) => setProfileEditor((prev) => prev ? { ...prev, whatsapp: e.target.value } : prev)}
+                  placeholder="11 1234-5678"
+                  className="mt-1"
+                />
+              </div>
+            </div>
+            {profileError && (
+              <div className="px-5 pb-2">
+                <p className="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{profileError}</p>
+              </div>
+            )}
+            <div className="px-5 pb-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setProfileEditor(null)}
+                className="px-3 py-1.5 rounded-lg text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer select-none"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!profileEditor) return;
+                  const res = await updateStaffProfile(profileEditor.id, {
+                    description: profileEditor.description || null,
+                    photo_url: profileEditor.photo_url || null,
+                    instagram: profileEditor.instagram || null,
+                    whatsapp: profileEditor.whatsapp || null,
+                  }, shopId);
+                  if (!res.success) {
+                    setProfileError(res.error);
+                    return;
+                  }
+                  setProfileEditor(null);
+                  addToast("Perfil actualizado", "success");
+                }}
+                className="px-3 py-1.5 rounded-lg text-sm bg-sky-600 text-white hover:bg-sky-700 transition-colors cursor-pointer select-none"
               >
                 Guardar
               </button>

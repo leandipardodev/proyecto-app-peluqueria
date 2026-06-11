@@ -1,5 +1,5 @@
 export type Service = { id: string; name: string; price: number; duration_minutes: number; category: string | null; pay_at_shop: boolean };
-export type StaffMember = { id: string; name: string };
+export type StaffMember = { id: string; name: string; photo_url?: string | null; description?: string | null; instagram?: string | null; whatsapp?: string | null };
 export type Slot = { start: string; end: string; time: string };
 export type Combo = {
   id: string;

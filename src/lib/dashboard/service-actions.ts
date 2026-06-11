@@ -82,6 +82,12 @@ export async function fetchServices(shopIdOverride?: string): Promise<ActionResu
   }
 }
 
+function parseStaffIds(formData: FormData): string[] {
+  const raw = formData.get("staff_ids") as string;
+  if (!raw) return [];
+  return raw.split(",").map((s) => s.trim()).filter(Boolean);
+}
+
 export async function createService(formData: FormData, shopIdOverride?: string): Promise<ActionResult> {
   try {
     let shopId: string | undefined = shopIdOverride;
@@ -110,18 +116,28 @@ export async function createService(formData: FormData, shopIdOverride?: string)
 
     const category = await resolveCanonicalCategory(admin, shopId, rawCategory);
 
-    const { error } = await admin.from("services").insert({
+    const { data: newService, error } = await admin.from("services").insert({
       shop_id: shopId,
       name,
       category,
       price,
       duration_minutes: durationMinutes,
       pay_at_shop: payAtShop,
-    });
+    }).select("id").single();
 
     if (error) {
       console.error("[createService] Supabase error:", error);
       return { success: false, error: error.message };
+    }
+
+    if (formData.has("has_staff_ids") && newService) {
+      const staffIds = parseStaffIds(formData);
+      if (staffIds.length > 0) {
+        const { error: relError } = await admin.from("staff_services").insert(
+          staffIds.map((staff_id) => ({ staff_id, service_id: newService.id }))
+        );
+        if (relError) console.error("[createService] staff_services error:", relError);
+      }
     }
 
     await trackProductEvent(shopId, "first_service_published");
@@ -166,6 +182,17 @@ export async function updateService(id: string, formData: FormData, shopIdOverri
     if (error) {
       console.error("[updateService] Supabase error:", error);
       return { success: false, error: error.message };
+    }
+
+    if (formData.has("has_staff_ids")) {
+      const staffIds = parseStaffIds(formData);
+      await admin.from("staff_services").delete().eq("service_id", id);
+      if (staffIds.length > 0) {
+        const { error: relError } = await admin.from("staff_services").insert(
+          staffIds.map((staff_id) => ({ staff_id, service_id: id }))
+        );
+        if (relError) console.error("[updateService] staff_services error:", relError);
+      }
     }
 
     await revalidateDashboardSegments(shopId, ["/services"]);

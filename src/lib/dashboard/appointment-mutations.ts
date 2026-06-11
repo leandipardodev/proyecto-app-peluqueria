@@ -43,7 +43,12 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
 
     const serviceIds = serviceIdsRaw.split(",").map((s) => s.trim()).filter(Boolean);
     if (!customerId || serviceIds.length === 0 || !startDate || !startTime) {
-      return { success: false, error: "Todos los campos obligatorios deben completarse" };
+      const missing = [];
+      if (!customerId) missing.push("cliente");
+      if (serviceIds.length === 0) missing.push("servicio");
+      if (!startDate) missing.push("fecha");
+      if (!startTime) missing.push("hora");
+      return { success: false, error: `Faltan campos obligatorios: ${missing.join(", ")}` };
     }
     if (depositAmount !== null && (Number.isNaN(depositAmount) || depositAmount < 0)) {
       return { success: false, error: "La seña debe ser un monto válido" };
@@ -68,6 +73,20 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
     if (servicesError) return { success: false, error: servicesError.message };
     if (!services || services.length !== serviceIds.length) {
       return { success: false, error: "Uno o más servicios no encontrados" };
+    }
+
+    if (staffId) {
+      const { data: staffServiceRows } = await supabase
+        .from("staff_services")
+        .select("service_id")
+        .eq("staff_id", staffId);
+      if (staffServiceRows && staffServiceRows.length > 0) {
+        const assignedIds = new Set(staffServiceRows.map((r) => r.service_id));
+        const unassigned = serviceIds.filter((id) => !assignedIds.has(id));
+        if (unassigned.length > 0) {
+          return { success: false, error: "El profesional no realiza uno o más servicios seleccionados" };
+        }
+      }
     }
 
     const orderedServices = serviceIds.map((id) => services.find((s) => s.id === id)!);
@@ -187,8 +206,13 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
     const depositAmount = depositAmountRaw ? Number(depositAmountRaw) : null;
 
     const serviceIds = serviceIdsRaw.split(",").map((s) => s.trim()).filter(Boolean);
-    if (!customerName || !customerEmail || serviceIds.length === 0 || !startDate || !startTime) {
-      return { success: false, error: "Nombre, email, servicio, fecha y hora son obligatorios" };
+    if (!customerName || serviceIds.length === 0 || !startDate || !startTime) {
+      const missing = [];
+      if (!customerName) missing.push("nombre del cliente");
+      if (serviceIds.length === 0) missing.push("servicio");
+      if (!startDate) missing.push("fecha");
+      if (!startTime) missing.push("hora");
+      return { success: false, error: `Faltan campos obligatorios: ${missing.join(", ")}` };
     }
     if (depositAmount !== null && (Number.isNaN(depositAmount) || depositAmount < 0)) {
       return { success: false, error: "La seña debe ser un monto válido" };
@@ -213,6 +237,20 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
     if (servicesError) return { success: false, error: servicesError.message };
     if (!services || services.length !== serviceIds.length) {
       return { success: false, error: "Uno o más servicios no encontrados" };
+    }
+
+    if (staffId) {
+      const { data: staffServiceRows } = await supabase
+        .from("staff_services")
+        .select("service_id")
+        .eq("staff_id", staffId);
+      if (staffServiceRows && staffServiceRows.length > 0) {
+        const assignedIds = new Set(staffServiceRows.map((r) => r.service_id));
+        const unassigned = serviceIds.filter((id) => !assignedIds.has(id));
+        if (unassigned.length > 0) {
+          return { success: false, error: "El profesional no realiza uno o más servicios seleccionados" };
+        }
+      }
     }
 
     const orderedServices = serviceIds.map((id) => services.find((s) => s.id === id)!);

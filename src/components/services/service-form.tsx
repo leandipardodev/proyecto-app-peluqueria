@@ -1,6 +1,7 @@
 "use client";
 
-import { createService, updateService } from "@/lib/dashboard/service-actions";
+import { createService, updateService, fetchServices } from "@/lib/dashboard/service-actions";
+import { getServiceStaffIds } from "@/lib/dashboard/staff-actions";
 import { useEffect, useRef, useState, useTransition } from "react";
 
 interface ServiceFormProps {
@@ -14,20 +15,37 @@ interface ServiceFormProps {
     pay_at_shop?: boolean;
   };
   onSuccess: () => void;
+  staffMembers?: { id: string; name: string | null }[];
 }
 
 const durationOptions = [5, 10, 15, 20, 30, 45, 60, 90, 120, 150, 180, 240, 300];
 
-export default function ServiceForm({ shopId, service, onSuccess }: ServiceFormProps) {
+export default function ServiceForm({ shopId, service, onSuccess, staffMembers = [] }: ServiceFormProps) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
+  const [selectedStaff, setSelectedStaff] = useState<string[]>([]);
+  const [loadingStaff, setLoadingStaff] = useState(true);
+
+  useEffect(() => {
+    if (!service) {
+      setSelectedStaff(staffMembers.map((s) => s.id));
+      setLoadingStaff(false);
+      return;
+    }
+    getServiceStaffIds(service.id).then((res) => {
+      if (res.success) setSelectedStaff(res.data ?? []);
+      setLoadingStaff(false);
+    });
+  }, [service, staffMembers]);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
 
     const formData = new FormData(e.currentTarget);
+    formData.set("has_staff_ids", "true");
+    formData.set("staff_ids", selectedStaff.join(","));
 
     const action = service
       ? () => updateService(service.id, formData, shopId)
@@ -46,6 +64,12 @@ export default function ServiceForm({ shopId, service, onSuccess }: ServiceFormP
   useEffect(() => {
     nameRef.current?.focus();
   }, []);
+
+  function toggleStaff(id: string) {
+    setSelectedStaff((prev) =>
+      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
@@ -123,6 +147,38 @@ export default function ServiceForm({ shopId, service, onSuccess }: ServiceFormP
           ))}
         </select>
       </div>
+
+      {staffMembers.length > 0 && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            ¿Quiénes realizan este servicio?
+          </label>
+          {loadingStaff ? (
+            <div className="text-sm text-zinc-400">Cargando personal...</div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {staffMembers.map((s) => {
+                const isOn = selectedStaff.includes(s.id);
+                return (
+                  <button
+                    type="button"
+                    key={s.id}
+                    onClick={() => toggleStaff(s.id)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border transition-all cursor-pointer select-none ${
+                      isOn
+                        ? "bg-violet-100 border-violet-300 text-violet-800"
+                        : "bg-white border-zinc-300 text-zinc-500 hover:border-zinc-400"
+                    }`}
+                  >
+                    <span className={`w-2 h-2 rounded-full ${isOn ? "bg-violet-500" : "bg-zinc-300"}`} />
+                    {s.name || "Sin nombre"}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="flex gap-3 pt-2">
         <button
