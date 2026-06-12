@@ -680,15 +680,60 @@ export default function AppointmentDetailModal({
             </div>
           </motion.div>
 
-          <ConfirmDialog
-            open={deleteConfirmOpen}
-            title="Eliminar turno"
-            message="Esta acción elimina el turno definitivamente y no se puede deshacer."
-            confirmLabel="Eliminar"
-            danger
-            onCancel={() => setDeleteConfirmOpen(false)}
-            onConfirm={confirmDeleteAppointment}
-          />
+          {(() => {
+            const needsNotify = localStatus === "scheduled" || localStatus === "confirmed";
+            if (!needsNotify) return (
+              <ConfirmDialog
+                open={deleteConfirmOpen}
+                title="Eliminar turno"
+                message="Esta acción elimina el turno definitivamente y no se puede deshacer."
+                confirmLabel="Eliminar"
+                danger
+                onCancel={() => setDeleteConfirmOpen(false)}
+                onConfirm={confirmDeleteAppointment}
+              />
+            );
+            return deleteConfirmOpen ? createPortal(
+              <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" role="dialog" aria-modal="true">
+                <div className="w-full max-w-sm rounded-[1.75rem] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-lg p-5 shadow-2xl shadow-black/[0.08] space-y-4">
+                  <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Eliminar turno</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    El turno de <strong>{appointment?.customers?.nombre || "—"}</strong> está{" "}
+                    <strong>{localStatus === "scheduled" ? "a confirmar" : "confirmado"}</strong>.
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">¿Querés avisarle al cliente?</p>
+                  {appointment?.customers?.telefono && (
+                    <a
+                      href={`https://wa.me/${appointment.customers.telefono.replace(/\D/g, "")}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-2.5 text-sm font-medium text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors"
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                      Notificar por WhatsApp
+                    </a>
+                  )}
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setDeleteConfirmOpen(false)}
+                      className="px-3 py-1.5 rounded-lg text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={confirmDeleteAppointment}
+                      className="px-3 py-1.5 rounded-lg text-sm text-white bg-red-600 hover:bg-red-700 transition-colors"
+                    >
+                      Eliminar de todos modos
+                    </button>
+                  </div>
+                </div>
+              </div>,
+              document.body
+            ) : null;
+          })()}
 
           <ConfirmDialog
             open={refundConfirmOpen}
