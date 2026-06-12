@@ -85,6 +85,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [phoneError, setPhoneError] = useState("");
+  const [nameError, setNameError] = useState("");
 
   const needsPayment = useMemo(() => {
     if (!shop.payAtShop) {
@@ -285,8 +286,9 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
         return selectedSlot !== null;
       case 3:
         if (isAuthLoading) return false;
-        if (isLoggedIn) return customerName.trim().length > 0 && (!requiresManualPhone || customerPhone.trim().length > 0);
-        return customerName.trim().length > 0 && customerEmail.trim().length > 0 && customerPhone.trim().length > 0;
+        const nameHasTwoWords = customerName.trim().includes(" ");
+        if (isLoggedIn) return nameHasTwoWords && (!requiresManualPhone || customerPhone.trim().length > 0);
+        return nameHasTwoWords && customerEmail.trim().length > 0 && customerPhone.trim().length > 0;
       default:
         return false;
     }
@@ -304,9 +306,27 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
     if (phoneError) setPhoneError("");
   }
 
+  function validateName(name: string): string {
+    const trimmed = name.trim();
+    if (!trimmed) return "El nombre es obligatorio";
+    if (!trimmed.includes(" ")) return "Ingresá nombre y apellido";
+    return "";
+  }
+
+  function handleNameChange(value: string) {
+    setCustomerName(value);
+    if (nameError) setNameError("");
+  }
+
   async function handleConfirm() {
     if ((!selectedService && !selectedCombo) || !selectedSlot || !customerName || !customerPhone) return;
     if (!isLoggedIn && !customerEmail.trim()) return;
+
+    const nameErr = validateName(customerName);
+    if (nameErr) {
+      setNameError(nameErr);
+      return;
+    }
 
     const phoneErr = validatePhone(customerPhone);
     if (phoneErr) {
@@ -1245,6 +1265,22 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                               </div>
                             </div>
 
+                            <div>
+                              <label htmlFor="customer-name-auth" className={`block text-sm font-medium mb-1.5 ${templateStyles.label}`}>Nombre</label>
+                              <div className="relative">
+                                <UserRound className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                                <input
+                                  id="customer-name-auth"
+                                  value={customerName}
+                                  onChange={(e) => handleNameChange(e.target.value)}
+                                  onBlur={() => setNameError(validateName(customerName))}
+                                  className={`${templateStyles.input} ${nameError ? "ring-2 ring-red-500" : ""}`}
+                                  placeholder="Nombre y apellido"
+                                />
+                                {nameError && <p className="text-xs text-red-500 mt-1">{nameError}</p>}
+                              </div>
+                            </div>
+
                             {requiresManualPhone && (
                               <div>
                                  <label htmlFor="customer-phone-auth" className={`block text-sm font-medium mb-1.5 ${templateStyles.label}`}>WhatsApp / Telefono</label>
@@ -1283,10 +1319,12 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                 <input
                                   id="customer-name"
                                   value={customerName}
-                                  onChange={(e) => setCustomerName(e.target.value)}
-                                  className={templateStyles.input}
+                                  onChange={(e) => handleNameChange(e.target.value)}
+                                  onBlur={() => setNameError(validateName(customerName))}
+                                  className={`${templateStyles.input} ${nameError ? "ring-2 ring-red-500" : ""}`}
                                   placeholder="Nombre y apellido"
                                 />
+                                {nameError && <p className="text-xs text-red-500 mt-1">{nameError}</p>}
                               </div>
                             </div>
 
