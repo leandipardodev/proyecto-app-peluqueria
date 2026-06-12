@@ -601,21 +601,29 @@ export default function StaffList({
                 options={[{ value: "percentage", label: "%" }, { value: "fixed", label: "$ fijo" }, { value: "mixed", label: "% + $" }]}
               />
               {payEditor.payModel !== "fixed" && (
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={String(payEditor.percentageRate)}
-                  onChange={(e) => setPayEditor((prev) => (prev ? { ...prev, percentageRate: Number(e.target.value || 0) } : prev))}
-                />
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Porcentaje (%)</label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={String(payEditor.percentageRate)}
+                    onChange={(e) => setPayEditor((prev) => (prev ? { ...prev, percentageRate: Number(e.target.value || 0) } : prev))}
+                    placeholder="Ej: 40"
+                  />
+                </div>
               )}
               {payEditor.payModel !== "percentage" && (
-                <Input
-                  type="number"
-                  min="0"
-                  value={String(payEditor.fixedAmount)}
-                  onChange={(e) => setPayEditor((prev) => (prev ? { ...prev, fixedAmount: Number(e.target.value || 0) } : prev))}
-                />
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Monto fijo ($)</label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={String(payEditor.fixedAmount)}
+                    onChange={(e) => setPayEditor((prev) => (prev ? { ...prev, fixedAmount: Number(e.target.value || 0) } : prev))}
+                    placeholder="Ej: 5000"
+                  />
+                </div>
               )}
             </div>
             <div className="px-5 pb-5 flex items-center justify-end gap-2">

@@ -246,17 +246,16 @@ export async function addStaffMember(formData: FormData, shopIdOverride?: string
       const normalizedPercentage = payModel === "fixed" ? 0 : percentageRate;
       const normalizedFixed = payModel === "percentage" ? 0 : fixedAmount;
       if (role === "staff") {
-        await admin.from("staff_compensation_rules").upsert(
+        await admin.from("staff_compensation_rules").insert(
           {
             shop_id: shopId,
             staff_user_id: existingUser.user_id,
             model: normalizedFixed > 0 && normalizedPercentage > 0 ? "fixed_plus_percentage" : "percentage",
             percentage_rate: normalizedPercentage,
             fixed_amount: normalizedFixed,
-            active_from: new Date().toISOString().slice(0, 10),
+            starts_on: new Date().toISOString().slice(0, 10),
             updated_at: new Date().toISOString(),
           },
-          { onConflict: "shop_id,staff_user_id,active_from" },
         );
       }
 
@@ -346,7 +345,9 @@ export async function addStaffMember(formData: FormData, shopIdOverride?: string
         model: normalizedFixed > 0 && normalizedPercentage > 0 ? "fixed_plus_percentage" : "percentage",
         percentage_rate: normalizedPercentage,
         fixed_amount: normalizedFixed,
-        active_from: new Date().toISOString().slice(0, 10),
+        starts_on: new Date().toISOString().slice(0, 10),
+        ends_on: null,
+        is_active: true,
       });
     }
 
@@ -387,19 +388,26 @@ export async function updateStaffPayMode(
     const admin = await createAdminClient();
     const percentage = input.payModel === "fixed" ? 0 : Math.max(0, Math.min(100, Number(input.percentageRate) || 0));
     const fixed = input.payModel === "percentage" ? 0 : Math.max(0, Number(input.fixedAmount) || 0);
+    const today = new Date().toISOString().slice(0, 10);
 
-    const { error } = await admin.from("staff_compensation_rules").upsert(
-      {
-        shop_id: shopId,
-        staff_user_id: id,
-        model: fixed > 0 && percentage > 0 ? "fixed_plus_percentage" : "percentage",
-        percentage_rate: percentage,
-        fixed_amount: fixed,
-        active_from: new Date().toISOString().slice(0, 10),
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "shop_id,staff_user_id,active_from" },
-    );
+    await admin
+      .from("staff_compensation_rules")
+      .update({ ends_on: today, is_active: false, updated_at: new Date().toISOString() })
+      .eq("shop_id", shopId)
+      .eq("staff_user_id", id)
+      .is("ends_on", null)
+      .eq("is_active", true);
+
+    const { error } = await admin.from("staff_compensation_rules").insert({
+      shop_id: shopId,
+      staff_user_id: id,
+      model: fixed > 0 && percentage > 0 ? "fixed_plus_percentage" : "percentage",
+      percentage_rate: percentage,
+      fixed_amount: fixed,
+      starts_on: today,
+      ends_on: null,
+      is_active: true,
+    });
 
     if (error) return { success: false, error: error.message };
     await revalidateDashboardSegments(shopId, ["/staff", "/finances"]);
