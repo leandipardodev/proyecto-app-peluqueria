@@ -123,7 +123,9 @@ export async function fetchStaffMembers(shopIdOverride?: string): Promise<Action
     const { data: rules } = await admin
       .from("staff_compensation_rules")
       .select("staff_user_id, percentage_rate, fixed_amount")
-      .eq("shop_id", shopId);
+      .eq("shop_id", shopId)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false, nullsFirst: false });
     const ruleMap = new Map((rules || []).map((r) => [r.staff_user_id as string, r]));
     const staffRows: StaffRpcRow[] = (memberships || []).map((m) => {
       const profile = profileMap.get(m.user_id);
@@ -250,7 +252,7 @@ export async function addStaffMember(formData: FormData, shopIdOverride?: string
           {
             shop_id: shopId,
             staff_user_id: existingUser.user_id,
-            model: normalizedFixed > 0 && normalizedPercentage > 0 ? "fixed_plus_percentage" : "percentage",
+            model: normalizedFixed > 0 && normalizedPercentage > 0 ? "hybrid" : normalizedFixed > 0 ? "fixed" : "percentage",
             percentage_rate: normalizedPercentage,
             fixed_amount: normalizedFixed,
             starts_on: new Date().toISOString().slice(0, 10),
@@ -342,7 +344,7 @@ export async function addStaffMember(formData: FormData, shopIdOverride?: string
       await admin.from("staff_compensation_rules").insert({
         shop_id: shopId,
         staff_user_id: adminData.user.id,
-        model: normalizedFixed > 0 && normalizedPercentage > 0 ? "fixed_plus_percentage" : "percentage",
+        model: normalizedFixed > 0 && normalizedPercentage > 0 ? "hybrid" : normalizedFixed > 0 ? "fixed" : "percentage",
         percentage_rate: normalizedPercentage,
         fixed_amount: normalizedFixed,
         starts_on: new Date().toISOString().slice(0, 10),
@@ -401,7 +403,7 @@ export async function updateStaffPayMode(
     const { error } = await admin.from("staff_compensation_rules").insert({
       shop_id: shopId,
       staff_user_id: id,
-      model: fixed > 0 && percentage > 0 ? "fixed_plus_percentage" : "percentage",
+      model: fixed > 0 && percentage > 0 ? "hybrid" : fixed > 0 ? "fixed" : "percentage",
       percentage_rate: percentage,
       fixed_amount: fixed,
       starts_on: today,

@@ -1,5 +1,6 @@
 export {
   fetchAppointments,
+  fetchAppointmentGroup,
   fetchActiveServices,
   fetchStaffMembers,
   fetchAllAppointmentsForTable,
@@ -10,6 +11,7 @@ export {
   createCustomerAndAppointment,
   updateAppointmentStatus,
   patchAppointmentQuick,
+  updateAppointmentServices,
   updateCustomerQuick,
   deleteAppointment,
   redeemLoyaltyReward,

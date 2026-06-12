@@ -149,8 +149,8 @@ export default function BookingThemeLivePreview({
       </div>
 
       <div className="flex justify-center">
-        <div className={`${isDesktopPreview ? "w-full max-w-[780px]" : "w-[320px]"} transition-all duration-200`}>
-            <div className={`mx-auto border p-1.5 shadow-2xl ${isDesktopPreview ? "max-w-[780px] rounded-[1.35rem]" : "max-w-[320px] rounded-[2.2rem]"}`}>
+        <div className={`${isDesktopPreview ? "w-full max-w-[min(780px,100%)]" : "w-[320px]"} transition-all duration-200`}>
+            <div className={`mx-auto border p-1.5 shadow-2xl ${isDesktopPreview ? "max-w-[min(780px,100%)] rounded-[1.35rem]" : "max-w-[320px] rounded-[2.2rem]"}`}>
             {isDesktopPreview ? (
               <div className="mb-2 flex h-8 items-center gap-2 rounded-[0.75rem] bg-zinc-900 px-3">
                 <span className="h-2.5 w-2.5 rounded-full bg-rose-400" />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bot, Sparkles } from "lucide-react";
 
@@ -62,6 +62,13 @@ export default function AINotificationCard({
       });
     }
   }, []);
+
+  const titleRef = useRef<HTMLParagraphElement>(null);
+  const titleWrapRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLParagraphElement>(null);
+  const bodyWrapRef = useRef<HTMLDivElement>(null);
+  const [titleOverflow, setTitleOverflow] = useState(0);
+  const [bodyOverflow, setBodyOverflow] = useState(0);
 
   const feed = useMemo(
     () => {
@@ -206,10 +213,26 @@ export default function AINotificationCard({
                   {poweredOn ? (
                     <>
                       <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs font-semibold truncate">{active.title}</p>
-                        <span className="text-[10px] uppercase tracking-[0.12em] opacity-90">{toneLabel}</span>
+                        <div ref={titleWrapRef} className="min-w-0 flex-1 overflow-hidden">
+                          <p
+                            ref={titleRef}
+                            className={`text-xs font-semibold ${titleOverflow > 0 ? "inline-block whitespace-nowrap" : "truncate"}`}
+                            style={titleOverflow > 0 ? ({ "--dx": `${-titleOverflow}px`, animation: `marquee-x ${6 + titleOverflow * 0.008}s ease-in-out infinite` } as React.CSSProperties) : undefined}
+                          >
+                            {active.title}
+                          </p>
+                        </div>
+                        <span className="text-[10px] uppercase tracking-[0.12em] opacity-90 shrink-0">{toneLabel}</span>
                       </div>
-                      <p className="mt-1 line-clamp-2 text-[11px] opacity-95">{active.body}</p>
+                      <div ref={bodyWrapRef} className="mt-1 overflow-hidden" style={bodyOverflow > 0 ? { height: "calc(100% - 22px)" } : {}}>
+                        <p
+                          ref={bodyRef}
+                          className="text-[11px] opacity-95"
+                          style={bodyOverflow > 0 ? ({ "--dy": `${-bodyOverflow}px`, animation: `marquee-y ${8 + bodyOverflow * 0.004}s ease-in-out infinite` } as React.CSSProperties) : undefined}
+                        >
+                          {active.body}
+                        </p>
+                      </div>
                     </>
                   ) : (
                     <div className="flex items-center justify-center h-full">
@@ -393,6 +416,16 @@ export default function AINotificationCard({
           @keyframes matrixDrift {
             0% { transform: translateY(0px); }
             100% { transform: translateY(18px); }
+          }
+          @keyframes marquee-x {
+            0%, 5% { transform: translateX(0); }
+            45%, 50% { transform: translateX(var(--dx)); }
+            95%, 100% { transform: translateX(0); }
+          }
+          @keyframes marquee-y {
+            0%, 5% { transform: translateY(0); }
+            45%, 50% { transform: translateY(var(--dy)); }
+            95%, 100% { transform: translateY(0); }
           }
         `}</style>
       </div>

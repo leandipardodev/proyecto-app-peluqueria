@@ -97,6 +97,11 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
   }, [shopSlug]);
 
   const realtimeCooldown = useRef(false);
+  const modalOpenRef = useRef(modalOpen);
+
+  useEffect(() => {
+    modalOpenRef.current = modalOpen;
+  }, [modalOpen]);
 
   useEffect(() => {
     const channel = supabase
@@ -105,7 +110,7 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
         "postgres_changes",
         { event: "*", schema: "public", table: "services", filter: `shop_id=eq.${shopId}` },
         () => {
-          if (modalOpen) return;
+          if (modalOpenRef.current) return;
           if (realtimeCooldown.current) return;
           realtimeCooldown.current = true;
           setTimeout(() => { realtimeCooldown.current = false; }, 2000);
@@ -153,6 +158,9 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
   function handleServiceSuccess() {
     setModalOpen(false);
     setEditingService(null);
+    if (realtimeCooldown.current) return;
+    realtimeCooldown.current = true;
+    setTimeout(() => { realtimeCooldown.current = false; }, 2000);
     startTransition(async () => {
       const { data } = await supabase
         .from("services")

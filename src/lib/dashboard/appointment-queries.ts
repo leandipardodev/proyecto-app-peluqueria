@@ -60,6 +60,115 @@ export async function fetchAppointments(startDate: string, endDate: string, shop
   }
 }
 
+export async function fetchAppointmentGroup(
+  appointmentId: string,
+  shopIdOverride?: string
+): Promise<ActionResult<AppointmentEnriched[]>> {
+  try {
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    }
+
+    const supabase = await createServerClient();
+
+    const { data: primary, error: primaryError } = await supabase
+      .from("appointments")
+      .select("id, customer_id, staff_id, start_time, end_time, date_key_ar, status, is_paid, deposit_amount, loyalty_reward_applied, loyalty_discount_percent_applied, notes, service_id")
+      .eq("id", appointmentId)
+      .eq("shop_id", shopId)
+      .maybeSingle();
+
+    if (primaryError) return { success: false, error: primaryError.message };
+    if (!primary) return { success: false, error: "Turno no encontrado" };
+
+    const dateKey = primary.date_key_ar;
+    const customerId = primary.customer_id;
+    const staffId = primary.staff_id;
+
+    let siblings: typeof primary[] = [];
+
+    if (dateKey && customerId) {
+      const query = supabase
+        .from("appointments")
+        .select("id, customer_id, staff_id, service_id, start_time, end_time, date_key_ar, status, is_paid, deposit_amount, loyalty_reward_applied, loyalty_discount_percent_applied, notes")
+        .eq("shop_id", shopId)
+        .eq("customer_id", customerId)
+        .eq("date_key_ar", dateKey)
+        .order("start_time", { ascending: true });
+
+      if (staffId) {
+        query.eq("staff_id", staffId);
+      }
+
+      const { data: sameDay } = await query;
+      if (sameDay && sameDay.length > 1) {
+        let groupStart: string | null = null;
+        let groupEnd: string | null = null;
+        for (const apt of sameDay) {
+          if (apt.id === appointmentId) {
+            groupStart = apt.start_time;
+            groupEnd = apt.end_time;
+            break;
+          }
+        }
+        if (groupStart && groupEnd) {
+          siblings = sameDay.filter((apt) => {
+            if (apt.id === appointmentId) return true;
+            const os = new Date(apt.start_time).getTime();
+            const oe = new Date(apt.end_time).getTime();
+            const gs = new Date(groupStart!).getTime();
+            const ge = new Date(groupEnd!).getTime();
+            return (
+              Math.abs(os - ge) <= 120000 ||
+              Math.abs(oe - gs) <= 120000
+            );
+          });
+          siblings.sort(
+            (a, b) =>
+              new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+          );
+        }
+      }
+    }
+
+    const allIds = (siblings.length > 0 ? siblings : [primary]).map((a) => a.id);
+    const serviceIds = [...new Set((siblings.length > 0 ? siblings : [primary]).map((a) => a.service_id).filter(Boolean))];
+    const staffIds = [...new Set((siblings.length > 0 ? siblings : [primary]).map((a) => a.staff_id).filter(Boolean))];
+    const customerIds = [...new Set((siblings.length > 0 ? siblings : [primary]).map((a) => a.customer_id).filter(Boolean))];
+
+    const admin = await createAdminClient();
+
+    const [customersData, staffRows, servicesData] = await Promise.all([
+      customerIds.length > 0
+        ? supabase.from("customers").select("id, nombre, email, telefono, loyalty_rewards_available").eq("shop_id", shopId).in("id", customerIds)
+        : { data: [], error: null },
+      staffIds.length > 0 ? fetchOperationalStaffByShopId(shopId) : Promise.resolve([] as StaffRpcRow[]),
+      serviceIds.length > 0
+        ? admin.from("services").select("id, name, price, duration_minutes").eq("shop_id", shopId).in("id", serviceIds)
+        : { data: [], error: null },
+    ]);
+
+    const customersMap = new Map((customersData.data || []).map((c: { id: string; nombre: string | null; email: string; telefono: string | null; loyalty_rewards_available?: number | null }) => [c.id, c]));
+    const staffMap = await buildStaffMapFromRpc(staffRows as StaffRpcRow[], staffIds);
+    const servicesMap = new Map((servicesData.data || []).map((s: { id: string; name: string; price: number; duration_minutes: number }) => [s.id, s]));
+
+    const result = (siblings.length > 0 ? siblings : [primary]).map((apt) => ({
+      ...apt,
+      customers: customersMap.get(apt.customer_id) || null,
+      staff: staffMap.get(apt.staff_id) || null,
+      services: servicesMap.get(apt.service_id) || null,
+    })) as AppointmentEnriched[];
+
+    return { success: true, data: result };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al obtener grupo de turnos" };
+  }
+}
+
 export async function fetchActiveServices(shopIdOverride?: string): Promise<ActionResult<ServiceInfo[]>> {
   try {
     let shopId: string | undefined = shopIdOverride;

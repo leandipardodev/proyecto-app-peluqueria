@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   ExternalLink,
   Loader2,
+  LogOut,
   Mail,
   MapPin,
   Phone,
@@ -21,6 +22,7 @@ import { fetchPublicAvailableSlots, createPublicAppointment, createPublicComboAp
 import { createPendingBooking, deletePendingBooking } from "@/lib/dashboard/pending-booking-actions";
 import GoogleSignInButton from "@/components/auth/google-sign-in-button";
 import { useAuth } from "@/lib/auth-context";
+import { supabase } from "@/lib/supabase";
 import type { BookingTemplateId } from "@/lib/booking/theme-presets";
 import type { Industry } from "@/lib/industry/types";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
@@ -46,6 +48,7 @@ interface BookingClientProps {
     name: string;
     description: string;
     address: string;
+    city: string;
     phone: string;
     instagramUrl: string;
     slug: string;
@@ -103,6 +106,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
   const [isDepositPayment, setIsDepositPayment] = useState(false);
 
   const recaptchaLoadedRef = useRef(false);
+  const slotsRef = useRef<HTMLDivElement>(null);
   const [mpReady, setMpReady] = useState(false);
 
   const [done, setDone] = useState(false);
@@ -232,6 +236,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
     setCustomerName(normalizedName);
     setCustomerEmail(user.email?.trim() || "");
     setCustomerPhone(user.phone?.trim() || "");
+    setNameError(validateName(normalizedName));
   }, [isLoggedIn, user]);
 
   useEffect(() => {
@@ -316,6 +321,15 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
   function handleNameChange(value: string) {
     setCustomerName(value);
     if (nameError) setNameError("");
+  }
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    setCustomerName("");
+    setCustomerEmail("");
+    setCustomerPhone("");
+    setNameError("");
+    setPhoneError("");
   }
 
   async function handleConfirm() {
@@ -1132,7 +1146,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                     )}
 
                     {step === 2 && (
-                      <div className="space-y-6">
+                      <div ref={slotsRef} className="space-y-6">
                         <motion.h2 variants={stepItemReveal} className={`font-semibold leading-[1.02] ${templateStyles.heading} ${templateStyles.headingFx}`}>Elegi fecha y horario</motion.h2>
 
                         <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 sm:gap-3">
@@ -1148,7 +1162,10 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                 onClick={() => {
                                   setSelectedDate(d);
                                   setSelectedSlot(null);
-    fetchedDatesRef.current = new Set();
+                                  fetchedDatesRef.current = new Set();
+                                  setTimeout(() => {
+                                    slotsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                                  }, 100);
                                 }}
                                 className={`flex flex-col items-center justify-center gap-1 py-3 rounded-[12px] border min-h-[78px] ${tactileClass} ${
                                   isSelected ? templateStyles.selected : `${templateStyles.plain} ${templateStyles.hoverBorder}`
@@ -1258,11 +1275,18 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                               <div className="w-10 h-10 rounded-2xl bg-emerald-100 flex items-center justify-center">
                                 <UserRound className="w-4 h-4 text-emerald-600" />
                               </div>
-                              <div className="min-w-0">
+                              <div className="min-w-0 flex-1">
                                 <p className="text-xs uppercase tracking-wide text-emerald-600">Sesion activa</p>
                                 <p className={`text-sm font-medium truncate ${templateStyles.heading}`}>{user?.name || user?.email || "Cliente"}</p>
                                 {user?.email && <p className={`text-xs ${templateStyles.tiny} truncate`}>{user.email}</p>}
                               </div>
+                              <button
+                                onClick={handleLogout}
+                                className="shrink-0 p-2 rounded-xl text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer select-none"
+                                title="Cerrar sesión"
+                              >
+                                <LogOut className="w-4 h-4" />
+                              </button>
                             </div>
 
                             <div>
@@ -1505,7 +1529,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
           <div className={`mt-4 flex flex-wrap items-center justify-center gap-4 text-xs ${templateStyles.meta}`}>
             {shop.address && (
               <a
-                href={`https://www.google.com/maps/search/${encodeURIComponent(shop.address)}`}
+                href={`https://www.google.com/maps/search/${encodeURIComponent(shop.city ? `${shop.address}, ${shop.city}` : shop.address)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={`flex items-center gap-1 transition-colors ${templateStyles.metaHover}`}
@@ -1544,8 +1568,15 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
         </div>
       </div>
 
-      {!done && step === 3 && (
-        <div className="fixed bottom-0 left-0 right-0 z-40">
+      <AnimatePresence>
+        {!done && step === 3 && (
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 40 }}
+          transition={{ type: "spring", stiffness: 400, damping: 30, mass: 0.8 }}
+          className="fixed bottom-0 left-0 right-0 z-40"
+        >
           <div className={`mx-2 mb-2 rounded-2xl border px-4 py-3 ${templateStyles.footer}`}>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <div className={`text-xs sm:text-sm min-w-0 flex-1 ${templateStyles.footerText}`}>
@@ -1580,8 +1611,9 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
               </button>
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
       <style jsx global>{`
         @keyframes shimmer {

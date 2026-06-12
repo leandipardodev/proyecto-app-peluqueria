@@ -21,7 +21,7 @@ export default async function BookPage({ params }: BookPageProps) {
 
   const { data: shop, error: shopError } = await admin
     .from("shops")
-    .select("id, nombre, description, address, phone, instagram_url, business_hours, slug, mp_public_key, industry, pay_at_shop")
+    .select("id, nombre, description, address, localidad, phone, instagram_url, business_hours, slug, mp_public_key, industry, pay_at_shop")
     .eq("slug", slug)
     .maybeSingle();
 
@@ -136,6 +136,7 @@ export default async function BookPage({ params }: BookPageProps) {
           name: shop.nombre,
           description: shop.description || "",
           address: shop.address || "",
+          city: shop.localidad || "",
           phone: shop.phone || "",
           instagramUrl: shop.instagram_url || "",
           slug: shop.slug || "",

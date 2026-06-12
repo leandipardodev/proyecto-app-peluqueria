@@ -2,8 +2,8 @@
 
 import { format, startOfWeek, addDays, isToday } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Plus, Pointer } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
+import { ChevronLeft, ChevronRight, Plus, Pointer, X } from "lucide-react";
+import { AnimatePresence, motion, useAnimation } from "framer-motion";
 import { useRef, useState, useEffect, useMemo, useCallback, memo } from "react";
 import { createPortal } from "react-dom";
 import { GRID_END_HOUR, GRID_START_HOUR, HOUR_HEIGHT } from "@/lib/calendar-constants";
@@ -66,7 +66,7 @@ interface CalendarViewProps {
   staffList?: StaffMember[];
   staffFilter?: string | null;
   businessHours?: BusinessHoursMap;
-  onViewModeChange?: (mode: "week" | "day") => void;
+  onViewModeChange?: (mode: "week" | "day" | "month") => void;
   onBatchClick?: () => void;
 }
 
@@ -161,7 +161,7 @@ const AppointmentBlock = memo(function AppointmentBlock({
   durationMin: number;
   col: number;
   cols: number;
-  viewMode: "week" | "day";
+  viewMode: "week" | "day" | "month";
   staffColorMap: Record<string, (typeof STAFF_COLORS)[0]>;
   isCoarsePointer: boolean;
   onTooltipMove: (left: number, top: number) => void;
@@ -265,9 +265,9 @@ export default memo(function CalendarView({
     const wd = Array.from({ length: 7 }, (_, i) => addDays(ws, i));
     return { weekStart: ws, weekEnd: we, weekDays: wd };
   }, [currentDate]);
-  const [viewMode, _setViewMode] = useState<"week" | "day">("week");
+  const [viewMode, _setViewMode] = useState<"week" | "day" | "month">("week");
   const [focusedDayKey, setFocusedDayKey] = useState(() => getArgentinaDateKey(new Date()));
-  const setViewMode = useCallback((mode: "week" | "day") => {
+  const setViewMode = useCallback((mode: "week" | "day" | "month") => {
     _setViewMode(mode);
     onViewModeChange?.(mode);
   }, [onViewModeChange]);
@@ -468,6 +468,70 @@ export default memo(function CalendarView({
     return map;
   }, [mergedAppointments, weekDays]);
 
+  const [monthOffset, setMonthOffset] = useState(0);
+
+  const monthDate = useMemo(() => {
+    const d = new Date(currentDate);
+    d.setMonth(d.getMonth() + monthOffset);
+    return d;
+  }, [currentDate, monthOffset]);
+
+  const monthCells = useMemo(() => {
+    const year = monthDate.getFullYear();
+    const month = monthDate.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const startDow = firstDay.getDay();
+    const startCol = startDow === 0 ? 6 : startDow - 1;
+
+    const cells: Array<{ day: number; date: Date; dateKey: string; isCurrentMonth: boolean }> = [];
+
+    const prevMonthDays = new Date(year, month, 0).getDate();
+    for (let i = 0; i < startCol; i++) {
+      const d = prevMonthDays - startCol + 1 + i;
+      const date = new Date(year, month - 1, d);
+      cells.push({ day: d, date, dateKey: getArgentinaDateKey(date), isCurrentMonth: false });
+    }
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = new Date(year, month, d);
+      cells.push({ day: d, date, dateKey: getArgentinaDateKey(date), isCurrentMonth: true });
+    }
+
+    const remaining = 42 - cells.length;
+    for (let d = 1; d <= remaining; d++) {
+      const date = new Date(year, month + 1, d);
+      cells.push({ day: d, date, dateKey: getArgentinaDateKey(date), isCurrentMonth: false });
+    }
+
+    return cells;
+  }, [monthDate]);
+
+  const appointmentCountByDateKey = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const appt of mergedAppointments) {
+      map.set(appt.date_key_ar, (map.get(appt.date_key_ar) || 0) + 1);
+    }
+    return map;
+  }, [mergedAppointments]);
+
+  const [selectedDayPopover, setSelectedDayPopover] = useState<{
+    dateKey: string;
+    el: HTMLElement;
+  } | null>(null);
+
+  const pillControls = useAnimation();
+  const pillModes = useMemo(() => ["month", "week", "day"] as const, []);
+
+  const maxCountForMonth = useMemo(() => {
+    let max = 0;
+    for (const cell of monthCells) {
+      const count = appointmentCountByDateKey.get(cell.dateKey) || 0;
+      if (count > max) max = count;
+    }
+    return max || 1;
+  }, [monthCells, appointmentCountByDateKey]);
+
   const displayedDays = useMemo(() => {
     const baseDays = (() => {
       if (viewMode === "week") return weekDays;
@@ -575,12 +639,17 @@ export default memo(function CalendarView({
 
   function handleTodayClick() {
     onToday();
+    setMonthOffset(0);
     if (viewMode === "day") {
       setFocusedDayKey(getArgentinaDateKey(new Date()));
     }
   }
 
   function handlePrevPeriod() {
+    if (viewMode === "month") {
+      setMonthOffset((o) => o - 1);
+      return;
+    }
     if (viewMode === "week") {
       onPrevWeek();
       return;
@@ -596,6 +665,10 @@ export default memo(function CalendarView({
   }
 
   function handleNextPeriod() {
+    if (viewMode === "month") {
+      setMonthOffset((o) => o + 1);
+      return;
+    }
     if (viewMode === "week") {
       onNextWeek();
       return;
@@ -724,6 +797,29 @@ export default memo(function CalendarView({
     `}</style>
   ), []);
 
+  function handleDayCellClick(dateKey: string, el: HTMLElement) {
+    const appts = mergedAppointments.filter((a) => a.date_key_ar === dateKey);
+    if (appts.length === 0) {
+      setFocusedDayKey(dateKey);
+      setViewMode("day");
+      return;
+    }
+    setSelectedDayPopover({ dateKey, el });
+  }
+
+  function closeDayPopover() {
+    setSelectedDayPopover(null);
+  }
+
+  useEffect(() => {
+    if (!selectedDayPopover) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeDayPopover();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [selectedDayPopover]);
+
   if (!mounted) {
     return (
       <div className="flex flex-col h-full">
@@ -766,6 +862,43 @@ export default memo(function CalendarView({
           >
             Hoy
           </button>
+
+          <div className="relative w-[76px] h-9 overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm select-none">
+            <motion.div
+              drag="x"
+              dragElastic={0.1}
+              onDragEnd={(_, info) => {
+                const pillWidth = 76;
+                const idx = pillModes.indexOf(viewMode);
+                const slotsMoved = Math.round(-info.offset.x / pillWidth);
+                const targetIdx = ((idx + slotsMoved) % pillModes.length + pillModes.length) % pillModes.length;
+                if (targetIdx !== idx) {
+                  setViewMode(pillModes[targetIdx]);
+                }
+                pillControls.start({ x: -targetIdx * pillWidth });
+              }}
+              onTap={() => {
+                const idx = pillModes.indexOf(viewMode);
+                const targetIdx = (idx + 1) % pillModes.length;
+                setViewMode(pillModes[targetIdx]);
+                pillControls.start({ x: -targetIdx * 76 });
+              }}
+              animate={pillControls}
+              initial={{ x: -pillModes.indexOf(viewMode) * 76 }}
+              transition={{ type: "spring", stiffness: 400, damping: 35 }}
+              className="flex cursor-grab active:cursor-grabbing"
+              style={{ width: 228 }}
+            >
+              {["Mes", "Semana", "Día"].map((label) => (
+                <div
+                  key={label}
+                  className="flex items-center justify-center w-[76px] h-9 text-xs font-medium text-gray-700 dark:text-gray-200"
+                >
+                  {label}
+                </div>
+              ))}
+            </motion.div>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {viewMode === "week" && (
@@ -778,189 +911,249 @@ export default memo(function CalendarView({
               Crear múltiples turnos
             </button>
           )}
-          <h2 className="text-base font-semibold text-gray-900 dark:text-white hidden sm:block">
-          {(() => {
-            const f = displayedDays[0];
-            const l = displayedDays[displayedDays.length - 1];
-            const sameMonth = f.getMonth() === l.getMonth() && f.getFullYear() === l.getFullYear();
-            return sameMonth
-              ? `${format(f, "d")}–${format(l, "d 'de' MMMM")}`
-              : `${format(f, "d MMM")} – ${format(l, "d MMM")}`;
-          })()}
-        </h2>
-        <h2 className="text-sm font-semibold text-gray-900 dark:text-white sm:hidden">
-          {(() => {
-            const f = displayedDays[0];
-            const l = displayedDays[displayedDays.length - 1];
-            const sameMonth = f.getMonth() === l.getMonth() && f.getFullYear() === l.getFullYear();
-            return sameMonth
-              ? `${format(f, "d")}–${format(l, "d MMM")}`
-              : `${format(f, "d MMM")} – ${format(l, "d MMM")}`;
-          })()}
-        </h2>
+          {viewMode !== "month" && (
+            <h2 className="text-base font-semibold text-gray-900 dark:text-white hidden sm:block">
+            {(() => {
+              const f = displayedDays[0];
+              const l = displayedDays[displayedDays.length - 1];
+              const sameMonth = f.getMonth() === l.getMonth() && f.getFullYear() === l.getFullYear();
+              return sameMonth
+                ? `${format(f, "d")}–${format(l, "d 'de' MMMM")}`
+                : `${format(f, "d MMM")} – ${format(l, "d MMM")}`;
+            })()}
+          </h2>
+          )}
+          {viewMode !== "month" && (
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-white sm:hidden">
+            {(() => {
+              const f = displayedDays[0];
+              const l = displayedDays[displayedDays.length - 1];
+              const sameMonth = f.getMonth() === l.getMonth() && f.getFullYear() === l.getFullYear();
+              return sameMonth
+                ? `${format(f, "d")}–${format(l, "d MMM")}`
+                : `${format(f, "d MMM")} – ${format(l, "d MMM")}`;
+            })()}
+          </h2>
+          )}
+          {viewMode === "month" && (
+            <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+              {format(monthDate, "MMMM 'de' yyyy", { locale: es })}
+            </h2>
+          )}
         </div>
       </div>
 
-      <div
-        ref={scrollContainerRef}
-        className="flex-1 min-h-0 overflow-auto scroll-smooth"
-      >
-        <div
-          className="grid border border-zinc-200/60 dark:border-zinc-800 rounded-2xl overflow-hidden bg-zinc-50 dark:bg-zinc-900 relative"
-          style={{
-            willChange: "transform",
-            gridTemplateColumns:
-              viewMode === "day"
-                ? isMobileDayMode
-                  ? "1fr"
-                  : `${hourColumnWidth}px minmax(0, 1fr)`
-                : hideHourColumnOnMobile
-                  ? `repeat(${Math.max(displayedDays.length, 1)}, 140px)`
-                  : `${hourColumnWidth}px repeat(7, minmax(0, 1fr))`,
-            ...(hideHourColumnOnMobile ? { width: "max-content", minWidth: "100%" } : { minWidth: "0px" }),
-          }}
-        >
-          {!hideHourColumnOnMobile && (
-            <div className="col-span-1 border-r border-zinc-200/50 dark:border-zinc-800">
-              <div className="border-b border-zinc-200/50 dark:border-zinc-800" style={{ height: `${slotHeight}px` }} />
-              {hours.map((hour) => (
-                <div
-                  key={hour}
-                  className="flex items-start justify-end pr-1 sm:pr-2 pt-1"
-                  style={{ height: `${slotHeight}px` }}
-                >
-                  <span className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">
-                    {`${String(hour).padStart(2, "0")}:00`}
-                  </span>
+      {viewMode === "month" ? (
+        <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-auto scroll-smooth">
+          <div className="border border-zinc-200/60 dark:border-zinc-800 rounded-2xl overflow-hidden bg-zinc-50 dark:bg-zinc-900">
+            <div className="grid grid-cols-7 border-b border-zinc-200/50 dark:border-zinc-800 bg-white/40 dark:bg-zinc-800/20">
+              {["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map((d) => (
+                <div key={d} className="text-center py-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 border-r border-zinc-200/30 dark:border-zinc-800/30 last:border-r-0">
+                  {d}
                 </div>
               ))}
             </div>
-          )}
-
-          {displayedDays.map((day, dayIndex) => {
-            const dayStr = getArgentinaDateKey(day);
-            const dayKey = DAY_MAP[day.getDay()];
-            const dayHours = businessHours?.[dayKey];
-            const dayFullyClosed = dayHours && !dayHours.open;
-            return (
-              <div
-                key={dayStr}
-                className={`col-span-1 border-r border-zinc-200/50 dark:border-zinc-800 border-l-2 border-l-zinc-200 dark:border-l-zinc-700 last:border-r-0 flex flex-col ${dayFullyClosed ? "opacity-60" : ""} ${isToday(day) ? "bg-sky-50/40 dark:bg-sky-900/15" : ""}`}
-              >
-                <div
-                  className={`group relative border-b border-zinc-200/50 dark:border-zinc-800 flex flex-col items-center justify-center shrink-0 transition-all duration-200 ${
-                    viewMode === "day"
-                      ? "bg-sky-100 dark:bg-slate-800 cursor-pointer hover:bg-sky-200 dark:hover:bg-slate-700"
-                      : isToday(day)
-                        ? "cursor-pointer hover:scale-[1.02]"
-                        : ""
-                  }`}
-                  style={{ height: `${slotHeight}px` }}
-                  onClick={() => {
-                    if (viewMode === "day") {
-                      handleBackToWeek();
-                    } else if (isToday(day)) {
-                      setFocusedDayKey(dayStr);
-                      setViewMode("day");
-                    }
-                  }}
-                >
-                  {isToday(day) && (
-                    <div className="absolute inset-0 rounded-2xl bg-zinc-50/60 dark:bg-zinc-900/60 opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-105 transition-all duration-500 ease-out pointer-events-none -z-10" />
-                  )}
-                  <span className={`relative z-10 text-[11px] uppercase tracking-wide ${
-                    isToday(day) && viewMode !== "day"
-                      ? "font-bold text-sky-700 dark:text-sky-300"
-                      : "text-gray-500 dark:text-gray-400"
-                  }`}>
-                    {format(day, "EEE", { locale: es })}
-                  </span>
-                  <span
-                    className={`relative z-10 ${
-                      isToday(day) && viewMode !== "day"
-                        ? "text-lg font-bold text-sky-600 dark:text-sky-400"
-                        : "text-sm font-semibold text-gray-900 dark:text-gray-100"
-                    }`}
-                  >
-                    {format(day, "d")}
-                  </span>
-                  {dayFullyClosed && (
-                    <span className="relative z-10 text-[9px] text-zinc-400 dark:text-zinc-600 uppercase tracking-wider mt-0.5">Cerrado</span>
-                  )}
-                  <AnimatePresence>
-                    {viewMode === "week" && showViewHint && isToday(day) && (
-                      <motion.span
-                        initial={{ opacity: 0, y: 4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -2 }}
-                        transition={{ duration: 0.35, ease: "easeOut" }}
-                        className="absolute bottom-1 left-1/2 -translate-x-1/2 z-20 whitespace-nowrap rounded-full border border-zinc-200/70 dark:border-zinc-700/70 bg-white/85 dark:bg-zinc-800/85 px-2 py-0.5 text-[8px] font-medium text-zinc-400 dark:text-zinc-500 shadow-xs backdrop-blur-sm flex items-center gap-1"
-                      >
-                        <Pointer className="w-2.5 h-2.5" />
-                        {isMobileViewport ? "Tocá aquí" : "Click"} para cambiar vista
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </div>
-
-                <>
+            <div className="grid grid-cols-7">
+              {monthCells.map((cell, i) => {
+                const count = appointmentCountByDateKey.get(cell.dateKey) || 0;
+                const intensity = count / maxCountForMonth;
+                const isCurrentMonth = cell.isCurrentMonth;
+                const isTodayCell = isToday(cell.date);
+                return (
                   <div
-                    className="grid flex-1 relative"
+                    key={`${cell.dateKey}-${i}`}
+                    className={`relative min-h-[80px] border-r border-b border-zinc-200/30 dark:border-zinc-800/30 cursor-pointer hover:bg-zinc-100/60 dark:hover:bg-zinc-800/40 transition-colors ${!isCurrentMonth ? "bg-zinc-50/40 dark:bg-zinc-900/30" : ""} ${isTodayCell ? "ring-1 ring-inset ring-sky-400 dark:ring-sky-500" : ""}`}
                     style={{
-                      gridTemplateRows: `repeat(${hours.length}, ${slotHeight}px)`,
+                      backgroundColor: count > 0
+                        ? `rgba(139, 92, 246, ${(0.08 + intensity * 0.35).toFixed(3)})`
+                        : undefined,
+                    }}
+                    onClick={(e) => handleDayCellClick(cell.dateKey, e.currentTarget)}
+                  >
+                    <span className="absolute top-1 left-1.5 text-xs font-medium">
+                      {isTodayCell ? (
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-sky-500 text-white text-xs font-bold shadow-sm">
+                          {cell.day}
+                        </span>
+                      ) : (
+                        <span className={`${!isCurrentMonth ? "text-zinc-300 dark:text-zinc-600" : "text-gray-700 dark:text-gray-300"}`}>
+                          {cell.day}
+                        </span>
+                      )}
+                    </span>
+                    {count > 0 && (
+                      <span className="absolute bottom-1.5 right-1.5 inline-flex items-center justify-center min-w-[20px] h-[20px] px-1 rounded-full bg-violet-500/85 text-[10px] font-bold text-white shadow-sm">
+                        {count}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div
+          ref={scrollContainerRef}
+          className="flex-1 min-h-0 overflow-auto scroll-smooth"
+        >
+          <div
+            className="grid border border-zinc-200/60 dark:border-zinc-800 rounded-2xl overflow-hidden bg-zinc-50 dark:bg-zinc-900 relative"
+            style={{
+              willChange: "transform",
+              gridTemplateColumns:
+                viewMode === "day"
+                  ? isMobileDayMode
+                    ? "1fr"
+                    : `${hourColumnWidth}px minmax(0, 1fr)`
+                  : hideHourColumnOnMobile
+                    ? `repeat(${Math.max(displayedDays.length, 1)}, 140px)`
+                    : `${hourColumnWidth}px repeat(7, minmax(0, 1fr))`,
+              ...(hideHourColumnOnMobile ? { width: "max-content", minWidth: "100%" } : { minWidth: "0px" }),
+            }}
+          >
+            {!hideHourColumnOnMobile && (
+              <div className="col-span-1 border-r border-zinc-200/50 dark:border-zinc-800">
+                <div className="border-b border-zinc-200/50 dark:border-zinc-800" style={{ height: `${slotHeight}px` }} />
+                {hours.map((hour) => (
+                  <div
+                    key={hour}
+                    className="flex items-start justify-end pr-1 sm:pr-2 pt-1"
+                    style={{ height: `${slotHeight}px` }}
+                  >
+                    <span className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">
+                      {`${String(hour).padStart(2, "0")}:00`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {displayedDays.map((day, dayIndex) => {
+              const dayStr = getArgentinaDateKey(day);
+              const dayKey = DAY_MAP[day.getDay()];
+              const dayHours = businessHours?.[dayKey];
+              const dayFullyClosed = dayHours && !dayHours.open;
+              return (
+                <div
+                  key={dayStr}
+                  className={`col-span-1 border-r border-zinc-200/50 dark:border-zinc-800 border-l-2 border-l-zinc-200 dark:border-l-zinc-700 last:border-r-0 flex flex-col ${dayFullyClosed ? "opacity-60" : ""} ${isToday(day) ? "bg-sky-50/40 dark:bg-sky-900/15" : ""}`}
+                >
+                  <div
+                    className={`group relative border-b border-zinc-200/50 dark:border-zinc-800 flex flex-col items-center justify-center shrink-0 transition-all duration-200 ${
+                      viewMode === "day"
+                        ? "bg-sky-100 dark:bg-slate-800 cursor-pointer hover:bg-sky-200 dark:hover:bg-slate-700"
+                        : isToday(day)
+                          ? "cursor-pointer hover:scale-[1.02]"
+                          : ""
+                    }`}
+                    style={{ height: `${slotHeight}px` }}
+                    onClick={() => {
+                      if (viewMode === "day") {
+                        handleBackToWeek();
+                      } else if (isToday(day)) {
+                        setFocusedDayKey(dayStr);
+                        setViewMode("day");
+                      }
                     }}
                   >
-                    {hours.map((hour) => {
-                      const isOpenSlot = openSlotsByDay.get(dayKey)?.has(hour) ?? false;
-                      return (
-                      <div
-                        key={hour}
-                        className={`relative overflow-visible border-b border-zinc-200/30 dark:border-zinc-800/40 last:border-b-0 transition-colors ${(isMobileDayMode || (isMobileViewport && viewMode === "week" && dayIndex === 0)) ? "pl-7 pr-1 py-1.5" : "p-1.5"} ${
-                          isOpenSlot
-                            ? "hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer"
-                            : "bg-zinc-100/70 dark:bg-zinc-800/50 closed-slot-pattern"
-                        }`}
-                        onClick={isOpenSlot ? () => onSlotClick(day, hour) : undefined}
-                      >
-                        {(isMobileDayMode || (isMobileViewport && viewMode === "week" && dayIndex === 0)) && (
-                          <span className="absolute left-1 top-1 text-[8px] font-medium text-gray-500 dark:text-gray-400 select-none pointer-events-none">
-                            {`${String(hour).padStart(2, "0")}:00`}
-                          </span>
-                        )}
-                      </div>
-                    );})}
-
-                    <div
-                      className="absolute inset-0 pointer-events-none z-10"
+                    {isToday(day) && (
+                      <div className="absolute inset-0 rounded-2xl bg-zinc-50/60 dark:bg-zinc-900/60 opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-105 transition-all duration-500 ease-out pointer-events-none -z-10" />
+                    )}
+                    <span className={`relative z-10 text-[11px] uppercase tracking-wide ${
+                      isToday(day) && viewMode !== "day"
+                        ? "font-bold text-sky-700 dark:text-sky-300"
+                        : "text-gray-500 dark:text-gray-400"
+                    }`}>
+                      {format(day, "EEE", { locale: es })}
+                    </span>
+                    <span
+                      className={`relative z-10 ${
+                        isToday(day) && viewMode !== "day"
+                          ? "text-lg font-bold text-sky-600 dark:text-sky-400"
+                          : "text-sm font-semibold text-gray-900 dark:text-gray-100"
+                      }`}
                     >
-                      {(eventLayoutByDay.get(dayStr) || []).map((event) => (
-                        <AppointmentBlock
-                          key={event.appt.id}
-                          appt={event.appt}
-                          startMin={event.startMin}
-                          durationMin={event.durationMin}
-                          col={event.col}
-                          cols={event.cols}
-                           viewMode={viewMode}
-                          staffColorMap={staffColorMap}
-                          isCoarsePointer={isCoarsePointer}
-                          onTooltipMove={handleTooltipMove}
-                          gridStartHour={gridStartHour}
-                          onHover={handleAppointmentHover}
-                          onLeave={handleAppointmentLeave}
-                          onAppointmentClick={onAppointmentClick}
-                        />
-                      ))}
-
-                      <NowLine day={day} gridStartHour={gridStartHour} gridEndHour={gridEndHour} />
-                    </div>
+                      {format(day, "d")}
+                    </span>
+                    {dayFullyClosed && (
+                      <span className="relative z-10 text-[9px] text-zinc-400 dark:text-zinc-600 uppercase tracking-wider mt-0.5">Cerrado</span>
+                    )}
+                    <AnimatePresence>
+                      {viewMode === "week" && showViewHint && isToday(day) && (
+                        <motion.span
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -2 }}
+                          transition={{ duration: 0.35, ease: "easeOut" }}
+                          className="absolute bottom-1 left-1/2 -translate-x-1/2 z-20 whitespace-nowrap rounded-full border border-zinc-200/70 dark:border-zinc-700/70 bg-white/85 dark:bg-zinc-800/85 px-2 py-0.5 text-[8px] font-medium text-zinc-400 dark:text-zinc-500 shadow-xs backdrop-blur-sm flex items-center gap-1"
+                        >
+                          <Pointer className="w-2.5 h-2.5" />
+                          {isMobileViewport ? "Tocá aquí" : "Click"} para cambiar vista
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
                   </div>
-                </>
-              </div>
-            );
-          })}
+
+                  <>
+                    <div
+                      className="grid flex-1 relative"
+                      style={{
+                        gridTemplateRows: `repeat(${hours.length}, ${slotHeight}px)`,
+                      }}
+                    >
+                      {hours.map((hour) => {
+                        const isOpenSlot = openSlotsByDay.get(dayKey)?.has(hour) ?? false;
+                        return (
+                        <div
+                          key={hour}
+                          className={`relative overflow-visible border-b border-zinc-200/30 dark:border-zinc-800/40 last:border-b-0 transition-colors ${(isMobileDayMode || (isMobileViewport && viewMode === "week" && dayIndex === 0)) ? "pl-7 pr-1 py-1.5" : "p-1.5"} ${
+                            isOpenSlot
+                              ? "hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer"
+                              : "bg-zinc-100/70 dark:bg-zinc-800/50 closed-slot-pattern"
+                          }`}
+                          onClick={isOpenSlot ? () => onSlotClick(day, hour) : undefined}
+                        >
+                          {(isMobileDayMode || (isMobileViewport && viewMode === "week" && dayIndex === 0)) && (
+                            <span className="absolute left-1 top-1 text-[8px] font-medium text-gray-500 dark:text-gray-400 select-none pointer-events-none">
+                              {`${String(hour).padStart(2, "0")}:00`}
+                            </span>
+                          )}
+                        </div>
+                      );})}
+
+                      <div
+                        className="absolute inset-0 pointer-events-none z-10"
+                      >
+                        {(eventLayoutByDay.get(dayStr) || []).map((event) => (
+                          <AppointmentBlock
+                            key={event.appt.id}
+                            appt={event.appt}
+                            startMin={event.startMin}
+                            durationMin={event.durationMin}
+                            col={event.col}
+                            cols={event.cols}
+                             viewMode={viewMode}
+                            staffColorMap={staffColorMap}
+                            isCoarsePointer={isCoarsePointer}
+                            onTooltipMove={handleTooltipMove}
+                            gridStartHour={gridStartHour}
+                            onHover={handleAppointmentHover}
+                            onLeave={handleAppointmentLeave}
+                            onAppointmentClick={onAppointmentClick}
+                          />
+                        ))}
+
+                        <NowLine day={day} gridStartHour={gridStartHour} gridEndHour={gridEndHour} />
+                      </div>
+                    </div>
+                  </>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {portalReady && !isCoarsePointer && hoverTooltip && createPortal((() => {
         const tipAppt = hoverTooltip.appointment;
@@ -1046,6 +1239,70 @@ export default memo(function CalendarView({
               </div>
             </div>
           </div>
+        );
+      })(), document.body)}
+
+      {selectedDayPopover && portalReady && createPortal((() => {
+        const dayAppts = mergedAppointments.filter((a) => a.date_key_ar === selectedDayPopover.dateKey);
+        const cellRect = selectedDayPopover.el.getBoundingClientRect();
+        const popLeft = Math.max(8, Math.min(cellRect.left, window.innerWidth - 300));
+        const popTop = Math.max(8, cellRect.bottom + 4);
+        const popHeight = Math.min(dayAppts.length * 56 + 100, 420);
+
+        return (
+          <>
+            <div className="fixed inset-0 z-[70]" onClick={closeDayPopover} />
+            <div
+              className="fixed z-[71] w-[280px] rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-700/60 shadow-xl overflow-hidden"
+              style={{ left: popLeft, top: popTop, maxHeight: `${popHeight}px` }}
+            >
+              <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-zinc-100 dark:border-zinc-800">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                    {format(new Date(`${selectedDayPopover.dateKey}T12:00:00`), "EEEE d 'de' MMMM", { locale: es })}
+                  </p>
+                  <p className="text-[11px] text-zinc-400 dark:text-zinc-500">{dayAppts.length} turno{dayAppts.length !== 1 ? "s" : ""}</p>
+                </div>
+                <button onClick={closeDayPopover} className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer">
+                  <X className="w-4 h-4 text-zinc-400" />
+                </button>
+              </div>
+              <div className="overflow-y-auto" style={{ maxHeight: popHeight - 100 }}>
+                {dayAppts.map((appt) => (
+                  <div
+                    key={appt.id}
+                    className="flex items-center gap-3 px-4 py-2.5 border-b border-zinc-50 dark:border-zinc-800/50 last:border-b-0 hover:bg-zinc-50 dark:hover:bg-zinc-800/30 cursor-pointer transition-colors"
+                    onClick={() => {
+                      closeDayPopover();
+                      onAppointmentClick(appt);
+                    }}
+                  >
+                    <span className="text-xs font-bold text-violet-600 dark:text-violet-400 tabular-nums w-10 shrink-0">{appt.start_hhmm}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{appt.customers?.nombre || "Sin cliente"}</p>
+                      <p className="text-[11px] text-zinc-400 dark:text-zinc-500 truncate">
+                        {appt.services?.name || "Sin servicio"}
+                        <span className="mx-1">·</span>
+                        {appt.staff?.name || "Sin asignar"}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="px-4 py-2.5 border-t border-zinc-100 dark:border-zinc-800">
+                <button
+                  className="w-full text-center text-xs font-semibold text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 transition-colors cursor-pointer"
+                  onClick={() => {
+                    closeDayPopover();
+                    setFocusedDayKey(selectedDayPopover.dateKey);
+                    setViewMode("day");
+                  }}
+                >
+                  Ver día completo →
+                </button>
+              </div>
+            </div>
+          </>
         );
       })(), document.body)}
 

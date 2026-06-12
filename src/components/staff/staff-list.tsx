@@ -595,6 +595,16 @@ export default function StaffList({
               </button>
             </div>
             <div className="p-5 space-y-3">
+              <div className="rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 px-4 py-3 text-sm">
+                <span className="text-xs text-zinc-500 dark:text-zinc-400">Configuración actual</span>
+                <p className="mt-0.5 font-medium text-zinc-800 dark:text-zinc-200">
+                  {payEditor.payModel === "percentage"
+                    ? `${payEditor.percentageRate}% de comisión`
+                    : payEditor.payModel === "fixed"
+                      ? `$${payEditor.fixedAmount} fijo por turno`
+                      : `${payEditor.percentageRate}% + $${payEditor.fixedAmount} fijo`}
+                </p>
+              </div>
               <CustomSelect
                 value={payEditor.payModel}
                 onChange={(v) => setPayEditor((prev) => (prev ? { ...prev, payModel: v as "percentage" | "fixed" | "mixed" } : prev))}

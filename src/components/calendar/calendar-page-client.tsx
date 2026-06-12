@@ -127,7 +127,7 @@ export default function CalendarPageClient({
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [appointments, setAppointments] = useState(initialAppointments);
   const [hydrated, setHydrated] = useState(false);
-  const [, setCalendarViewMode] = useState<"week" | "day">("week");
+  const [, setCalendarViewMode] = useState<"week" | "day" | "month">("week");
   const [batchModalOpen, setBatchModalOpen] = useState(false);
 
   useEffect(() => {
@@ -383,6 +383,7 @@ export default function CalendarPageClient({
       />
 
       <AppointmentDetailModal
+        key={selectedAppointment?.id || "none"}
         appointment={selectedAppointment}
         shopId={shopId}
         staff={staff}

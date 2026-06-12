@@ -1,8 +1,8 @@
 "use client";
 
-import { X, Check, Trash2, MessageCircle, UserRoundPen, Search } from "lucide-react";
+import { X, Check, Trash2, MessageCircle, UserRoundPen, Search, Plus, Clock, DollarSign } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, useTransition, useMemo } from "react";
-import { deleteAppointment, patchAppointmentQuick, redeemLoyaltyReward, updateCustomerQuick } from "@/lib/dashboard/appointment-actions";
+import { deleteAppointment, patchAppointmentQuick, redeemLoyaltyReward, updateCustomerQuick, fetchAppointmentGroup, updateAppointmentServices } from "@/lib/dashboard/appointment-actions";
 import { refundMpPayment } from "@/lib/payments/mercadopago-actions";
 import { AnimatePresence, motion } from "framer-motion";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
@@ -89,6 +89,22 @@ function toDateTimeLocalValue(iso: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+function getUserFriendlyError(error: string): string {
+  const map: Record<string, string> = {
+    "slot_taken": "Este horario ya está ocupado. Verificá la agenda primero.",
+    "SESION_EXPIRADA": "Sesión expirada. Iniciá sesión de nuevo.",
+    "SIN_ACCESO_LOCAL": "No tenés acceso a este local.",
+    "LOCAL_INVALIDO": "Local inválido.",
+    "Servicio invalido": "Servicio inválido.",
+    "Fecha/hora invalida": "Fecha/hora inválida.",
+  };
+  return map[error] || error;
+}
+
+function formatTime(d: Date): string {
+  return d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false });
+}
+
 export default function AppointmentDetailModal({
   shopId,
   appointment,
@@ -117,23 +133,75 @@ export default function AppointmentDetailModal({
   const [customerNotes, setCustomerNotes] = useState("");
   const [customerVip, setCustomerVip] = useState(false);
   const [portalReady, setPortalReady] = useState(false);
-  const [selectedServiceId, setSelectedServiceId] = useState(appointment?.service_id || "");
-  const [startDateTimeLocal, setStartDateTimeLocal] = useState("");
-  const serviceSearchRef = useRef<HTMLInputElement>(null);
-  const serviceDropdownRef = useRef<HTMLDivElement>(null);
-  const [serviceSearchQuery, setServiceSearchQuery] = useState("");
-  const [serviceSearchOpen, setServiceSearchOpen] = useState(false);
-  const [serviceDropdownStyle, setServiceDropdownStyle] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [startDateTimeLocal, setStartDateTimeLocal] = useState(
+    appointment?.start_time ? toDateTimeLocalValue(appointment.start_time) : ""
+  );
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const { addToast } = useToast();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveVersionRef = useRef(0);
 
-  const pendingChangesRef = useRef<{ status?: string; isPaid?: boolean; staffId?: string | null; serviceId?: string; startTime?: string }>({});
+  const pendingChangesRef = useRef<{ status?: string; isPaid?: boolean; staffId?: string | null }>({});
+
+  const serviceSearchRef = useRef<HTMLInputElement>(null);
+  const serviceDropdownRef = useRef<HTMLDivElement>(null);
+  const [serviceSearchQuery, setServiceSearchQuery] = useState("");
+  const [serviceSearchOpen, setServiceSearchOpen] = useState(false);
+  const [serviceDropdownStyle, setServiceDropdownStyle] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [editingDurationId, setEditingDurationId] = useState<string | null>(null);
+  const [editingDurationValue, setEditingDurationValue] = useState("");
+
+  const [appointmentGroup, setAppointmentGroup] = useState<any[]>([]);
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>(
+    appointment?.service_id ? [appointment.service_id] : []
+  );
+  const [serviceCustomDurations, setServiceCustomDurations] = useState<Record<string, number>>({});
+  const [groupStartTime, setGroupStartTime] = useState(
+    appointment?.start_time ? toDateTimeLocalValue(appointment.start_time) : ""
+  );
+  const [servicesChanged, setServicesChanged] = useState(false);
+  const [servicesSaving, setServicesSaving] = useState(false);
+  const [servicesJustSaved, setServicesJustSaved] = useState(false);
 
   useEffect(() => {
     setPortalReady(true);
   }, []);
+
+  async function fetchGroup(aptId: string) {
+    const result = await fetchAppointmentGroup(aptId, shopId);
+    if (result.success && result.data && result.data.length > 0) {
+      const group: any[] = result.data;
+      setAppointmentGroup(group);
+      const ids = group.map((a: any) => a.service_id).filter(Boolean);
+      setSelectedServiceIds(ids);
+      const gst = toDateTimeLocalValue(group[0].start_time);
+      setGroupStartTime(gst);
+      if (!startDateTimeLocal) {
+        setStartDateTimeLocal(gst);
+      }
+    }
+  }
+
+  useEffect(() => {
+    if (!appointment) return;
+    setLocalStatus(appointment.status);
+    setLocalPaid(appointment.is_paid);
+    setSelectedStaffId(appointment.staff_id || "");
+    setLocalRewardsAvailable(Math.max(0, Number(appointment.customers?.loyalty_rewards_available || 0)));
+    setLocalRewardApplied(Boolean(appointment.loyalty_reward_applied));
+    setCustomerName(appointment.customers?.nombre || "");
+    setCustomerEmail(appointment.customers?.email || "");
+    setCustomerPhone(appointment.customers?.telefono || "");
+    setStartDateTimeLocal(toDateTimeLocalValue(appointment.start_time));
+    setShowCustomerEditor(false);
+    setError(null);
+    setSaveState("idle");
+    setServicesChanged(false);
+    setServicesJustSaved(false);
+    setServiceCustomDurations({});
+    pendingChangesRef.current = {};
+    fetchGroup(appointment.id);
+  }, [appointment]);
 
   useEffect(() => {
     if (!serviceSearchOpen) return;
@@ -148,24 +216,6 @@ export default function AppointmentDetailModal({
       window.removeEventListener("resize", handleMove);
     };
   }, [serviceSearchOpen]);
-
-  useEffect(() => {
-    if (!appointment) return;
-    setLocalStatus(appointment.status);
-    setLocalPaid(appointment.is_paid);
-    setSelectedStaffId(appointment.staff_id || "");
-    setLocalRewardsAvailable(Math.max(0, Number(appointment.customers?.loyalty_rewards_available || 0)));
-    setLocalRewardApplied(Boolean(appointment.loyalty_reward_applied));
-    setCustomerName(appointment.customers?.nombre || "");
-    setCustomerEmail(appointment.customers?.email || "");
-    setCustomerPhone(appointment.customers?.telefono || "");
-    setSelectedServiceId(appointment.service_id || "");
-    setStartDateTimeLocal(toDateTimeLocalValue(appointment.start_time));
-    setShowCustomerEditor(false);
-    setError(null);
-    setSaveState("idle");
-    pendingChangesRef.current = {};
-  }, [appointment]);
 
   const requestClose = useCallback(() => {
     onClose();
@@ -203,7 +253,7 @@ export default function AppointmentDetailModal({
     });
   }, [appointment, shopId, onSuccess]);
 
-  const queueChange = useCallback((next: { status?: string; isPaid?: boolean; staffId?: string | null; serviceId?: string; startTime?: string }) => {
+  const queueChange = useCallback((next: { status?: string; isPaid?: boolean; staffId?: string | null; startTime?: string }) => {
     pendingChangesRef.current = { ...pendingChangesRef.current, ...next };
     setError(null);
 
@@ -217,6 +267,21 @@ export default function AppointmentDetailModal({
     };
   }, []);
 
+  const selectedServices = useMemo(
+    () => services.filter((s) => selectedServiceIds.includes(s.id)),
+    [services, selectedServiceIds]
+  );
+
+  const totalDuration = useMemo(
+    () => selectedServices.reduce((sum, s) => sum + (serviceCustomDurations[s.id] ?? s.duration_minutes), 0),
+    [selectedServices, serviceCustomDurations]
+  );
+
+  const totalPrice = useMemo(
+    () => selectedServices.reduce((sum, s) => sum + s.price, 0),
+    [selectedServices]
+  );
+
   const filteredServices = useMemo(() => {
     if (!serviceSearchQuery.trim()) return services;
     const q = serviceSearchQuery.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -225,25 +290,41 @@ export default function AppointmentDetailModal({
     );
   }, [services, serviceSearchQuery]);
 
-  function handleServiceSelect(id: string) {
-    setSelectedServiceId(id);
+  const timeSlots = useMemo(() => {
+    if (selectedServices.length === 0 || !groupStartTime) return [];
+    const base = new Date(groupStartTime);
+    if (isNaN(base.getTime())) return [];
+    const slots: { service: ServiceItem; start: string; end: string }[] = [];
+    let current = new Date(base);
+    selectedServices.forEach((svc) => {
+      const duration = serviceCustomDurations[svc.id] ?? svc.duration_minutes;
+      const startStr = formatTime(current);
+      current = new Date(current.getTime() + duration * 60000);
+      slots.push({ service: svc, start: startStr, end: formatTime(current) });
+    });
+    return slots;
+  }, [selectedServices, groupStartTime, serviceCustomDurations]);
+
+  function addService(id: string) {
+    setSelectedServiceIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
     setServiceSearchQuery("");
     setServiceSearchOpen(false);
-    const svc = services.find((s) => s.id === id);
-    if (svc && appointment) {
-      const dur = svc.duration_minutes;
-      const newEnd = new Date(new Date(startDateTimeLocal).getTime() + dur * 60000);
-      queueChange({ serviceId: id, startTime: new Date(startDateTimeLocal).toISOString() });
-    }
+    setServicesChanged(true);
+    setServicesJustSaved(false);
+  }
+
+  function removeService(id: string) {
+    setSelectedServiceIds((prev) => prev.filter((s) => s !== id));
+    setServicesChanged(true);
+    setServicesJustSaved(false);
   }
 
   function handleStartDateTimeChange(value: string) {
     setStartDateTimeLocal(value);
-    if (!value) return;
-    const selectedSvc = services.find((s) => s.id === selectedServiceId);
-    const dur = selectedSvc?.duration_minutes || 60;
-    const newEnd = new Date(new Date(value).getTime() + dur * 60000);
-    queueChange({ startTime: new Date(value).toISOString() });
+    setGroupStartTime(value);
+    setServicesChanged(true);
+    setServicesJustSaved(false);
+    setError(null);
   }
 
   function handleStatusChange(newStatus: string) {
@@ -348,6 +429,44 @@ export default function AppointmentDetailModal({
     });
   }
 
+  async function handleSaveServices() {
+    if (!appointment) return;
+    if (selectedServiceIds.length === 0) {
+      setError("Seleccioná al menos un servicio");
+      return;
+    }
+    setError(null);
+    setServicesSaving(true);
+    setServicesJustSaved(false);
+
+    const result = await updateAppointmentServices(
+      appointment.id,
+      {
+        serviceSelections: selectedServiceIds.map((id) => ({
+          serviceId: id,
+          durationMinutes: serviceCustomDurations[id] ?? services.find((s) => s.id === id)?.duration_minutes ?? 60,
+        })),
+        startTime: new Date(groupStartTime || startDateTimeLocal).toISOString(),
+        staffId: selectedStaffId || undefined,
+      },
+      shopId,
+    );
+
+    setServicesSaving(false);
+
+    if (!result.success) {
+      setError(result.error);
+      return;
+    }
+
+    setServicesChanged(false);
+    setServicesJustSaved(true);
+    addToast("Servicios actualizados", "success");
+    onSuccess?.();
+    fetchGroup(appointment.id);
+    setTimeout(() => setServicesJustSaved(false), 2500);
+  }
+
   const start = appointment ? new Date(appointment.start_time) : null;
   const end = appointment ? new Date(appointment.end_time) : null;
   const actions = statusFlow[localStatus] || [];
@@ -409,9 +528,21 @@ export default function AppointmentDetailModal({
 
             <div className="p-5 overflow-y-auto overscroll-y-contain flex-1 space-y-5">
               {error && (
-                <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm px-4 py-2 rounded-xl">
-                  {error}
-                </div>
+                error === "slot_taken" ? (
+                  <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-sm px-4 py-3 rounded-xl flex items-start gap-3">
+                    <div className="p-1 rounded-full bg-amber-100 dark:bg-amber-900/50 shrink-0">
+                      <X className="w-3.5 h-3.5" />
+                    </div>
+                    <p>
+                      <span className="font-semibold block">Horario ocupado</span>
+                      Este horario ya está ocupado. Verificá la agenda primero.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm px-4 py-2 rounded-xl">
+                    {getUserFriendlyError(error)}
+                  </div>
+                )
               )}
 
               <div className="space-y-4">
@@ -470,14 +601,14 @@ export default function AppointmentDetailModal({
 
                 <div>
                   <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium uppercase tracking-wide">
-                    Servicio
+                    Servicios {appointmentGroup.length > 1 && <span className="text-zinc-400 font-normal">({appointmentGroup.length})</span>}
                   </span>
                   <div className="mt-1.5 relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none z-10" />
                     <input
                       ref={serviceSearchRef}
                       type="text"
-                      placeholder={appointment.services?.name || "Buscar servicio..."}
+                      placeholder="Buscar y agregar servicio..."
                       value={serviceSearchQuery}
                       onChange={(e) => {
                         setServiceSearchQuery(e.target.value);
@@ -510,15 +641,16 @@ export default function AppointmentDetailModal({
                         className="bg-white dark:bg-zinc-800 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden py-1 max-h-48 overflow-y-auto"
                       >
                         {filteredServices.map((s) => {
-                          const selected = s.id === selectedServiceId;
+                          const already = selectedServiceIds.includes(s.id);
                           return (
                             <button
                               key={s.id}
                               type="button"
-                              onMouseDown={() => handleServiceSelect(s.id)}
-                              className={`w-full text-left px-3 py-2 text-sm transition-colors cursor-pointer select-none flex items-center justify-between ${
-                                selected
-                                  ? "text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/30"
+                              onMouseDown={() => { if (!already) addService(s.id); }}
+                              disabled={already}
+                              className={`w-full text-left px-3 py-2.5 text-sm transition-colors cursor-pointer select-none flex items-center justify-between ${
+                                already
+                                  ? "text-zinc-400 dark:text-zinc-500 bg-zinc-50 dark:bg-zinc-800 cursor-not-allowed"
                                   : "text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20"
                               }`}
                             >
@@ -533,6 +665,143 @@ export default function AppointmentDetailModal({
                       document.body
                     )}
                   </div>
+
+                  {selectedServices.length > 0 && (
+                    <div className="mt-3 space-y-3">
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedServices.map((s) => {
+                          const effDuration = serviceCustomDurations[s.id] ?? s.duration_minutes;
+                          const isCustom = effDuration !== s.duration_minutes;
+                          return (
+                          <span
+                            key={s.id}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-violet-50 dark:bg-violet-900/30 text-violet-800 dark:text-violet-200 rounded-lg text-sm font-medium"
+                          >
+                            {s.name}
+                            <span className={`text-xs ${isCustom ? 'text-violet-600 dark:text-violet-300 font-semibold' : 'opacity-70'}`}>
+                              {effDuration}min
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => removeService(s.id)}
+                              className="hover:bg-violet-200 dark:hover:bg-violet-800 rounded p-0.5 transition-colors cursor-pointer select-none"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                          );
+                        })}
+                      </div>
+
+                      <div className="flex items-center gap-4 text-sm text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl px-4 py-2">
+                        <span className="flex items-center gap-1.5">
+                          <Clock className="w-4 h-4" />
+                          {totalDuration} min
+                        </span>
+                        <span className="flex items-center gap-1.5 font-medium text-gray-900 dark:text-gray-100">
+                          <DollarSign className="w-4 h-4" />
+                          ${totalPrice.toFixed(2)}
+                        </span>
+                      </div>
+
+                      {timeSlots.length > 1 && (
+                        <div className="border border-zinc-200 dark:border-zinc-700 rounded-xl overflow-hidden">
+                          <div className="text-xs font-medium text-zinc-500 dark:text-zinc-400 px-4 py-2 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700">
+                            Secuencia horaria
+                          </div>
+                          {timeSlots.map((slot, i) => {
+                            const origDuration = slot.service.duration_minutes;
+                            const effDuration = serviceCustomDurations[slot.service.id] ?? origDuration;
+                            const isCustom = effDuration !== origDuration;
+                            const isEditing = editingDurationId === slot.service.id;
+                            return (
+                            <div
+                              key={i}
+                              className="flex items-center gap-3 px-4 py-2 text-sm border-b border-zinc-100 dark:border-zinc-800 last:border-b-0"
+                            >
+                              <span className="text-violet-600 dark:text-violet-400 font-medium tabular-nums min-w-[8.5ch]">
+                                {slot.start} — {slot.end}
+                              </span>
+                              <span className="text-gray-700 dark:text-gray-300 flex-1">{slot.service.name}</span>
+                              {isEditing ? (
+                                <span className="flex items-center gap-1 shrink-0">
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={300}
+                                    value={editingDurationValue}
+                                    onChange={(e) => setEditingDurationValue(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        const val = parseInt(editingDurationValue, 10);
+                                        if (!isNaN(val) && val >= 1 && val <= 300) {
+                                          setServiceCustomDurations((prev) => ({ ...prev, [slot.service.id]: val }));
+                                          setServicesChanged(true);
+                                          setServicesJustSaved(false);
+                                        } else {
+                                          setError("La duración debe ser entre 1 y 300 minutos (5 hs)");
+                                          setServiceCustomDurations((prev) => { const n = { ...prev }; delete n[slot.service.id]; return n; });
+                                        }
+                                        setEditingDurationId(null);
+                                      }
+                                      if (e.key === "Escape") {
+                                        setEditingDurationId(null);
+                                      }
+                                    }}
+                                    onBlur={() => {
+                                      const val = parseInt(editingDurationValue, 10);
+                                      if (!isNaN(val) && val >= 1 && val <= 300) {
+                                        setServiceCustomDurations((prev) => ({ ...prev, [slot.service.id]: val }));
+                                        setServicesChanged(true);
+                                        setServicesJustSaved(false);
+                                      } else {
+                                        setError("La duración debe ser entre 1 y 300 minutos (5 hs)");
+                                        setServiceCustomDurations((prev) => { const n = { ...prev }; delete n[slot.service.id]; return n; });
+                                      }
+                                      setEditingDurationId(null);
+                                    }}
+                                    autoFocus
+                                    className="w-16 px-1.5 py-0.5 rounded border border-violet-300 text-center text-xs tabular-nums"
+                                  />
+                                  <span className="text-zinc-400 text-xs">min</span>
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingDurationId(slot.service.id);
+                                    setEditingDurationValue(String(effDuration));
+                                  }}
+                                  className={`text-xs tabular-nums hover:text-violet-600 transition-colors cursor-pointer select-none shrink-0 ${isCustom ? 'text-violet-600 font-semibold' : 'text-zinc-400'}`}
+                                >
+                                  {effDuration}min
+                                </button>
+                              )}
+                            </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-end">
+                        {servicesSaving ? (
+                          <span className="text-xs text-zinc-400">Guardando servicios...</span>
+                        ) : servicesJustSaved ? (
+                          <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Servicios guardados ✓</span>
+                        ) : servicesChanged ? (
+                          <button
+                            type="button"
+                            onClick={() => void handleSaveServices()}
+                            disabled={servicesSaving}
+                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 transition-colors disabled:opacity-50 cursor-pointer select-none"
+                          >
+                            <Check className="w-4 h-4" />
+                            Guardar cambios
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -563,18 +832,11 @@ export default function AppointmentDetailModal({
                     onChange={(e) => handleStartDateTimeChange(e.target.value)}
                     className="mt-1.5 w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30"
                   />
-                  {selectedServiceId && (() => {
-                    const svc = services.find((s) => s.id === selectedServiceId);
-                    if (!svc) return null;
-                    const st = new Date(startDateTimeLocal);
-                    if (isNaN(st.getTime())) return null;
-                    const et = new Date(st.getTime() + svc.duration_minutes * 60000);
-                    return (
-                      <p className="mt-1 text-xs text-zinc-400 tabular-nums">
-                        {st.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false })} — {et.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false })} ({svc.duration_minutes} min)
-                      </p>
-                    );
-                  })()}
+                  {selectedServices.length > 0 && timeSlots.length > 0 ? (
+                    <p className="mt-1 text-xs text-zinc-400 tabular-nums">
+                      {timeSlots[0].start} → {timeSlots[timeSlots.length - 1].end} ({totalDuration} min total)
+                    </p>
+                  ) : null}
                 </div>
 
                 {appointment.notes && (

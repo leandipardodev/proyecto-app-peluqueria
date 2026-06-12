@@ -598,6 +598,178 @@ export async function patchAppointmentQuick(
   }
 }
 
+export async function updateAppointmentServices(
+  appointmentId: string,
+  data: {
+    serviceSelections: Array<{ serviceId: string; durationMinutes: number }>;
+    startTime: string;
+    staffId?: string | null;
+  },
+  shopId?: string,
+): Promise<ActionResult> {
+  try {
+    if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+
+    const auth = await createServerClient();
+    const { data: { user } } = await auth.auth.getUser();
+    if (!user) return { success: false, error: "SESION_EXPIRADA" };
+    const allowed = await canAccessShopId(user.id, shopId);
+    if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
+
+    const supabase = await createServerClient();
+    const { data: primary, error: primaryError } = await supabase
+      .from("appointments")
+      .select("id, customer_id, staff_id, start_time, end_time, status, is_paid, deposit_amount, notes, service_id, date_key_ar, loyalty_reward_applied, loyalty_discount_percent_applied")
+      .eq("id", appointmentId)
+      .eq("shop_id", shopId)
+      .maybeSingle();
+
+    if (primaryError) return { success: false, error: primaryError.message };
+    if (!primary) return { success: false, error: "Turno no encontrado" };
+
+    const { serviceSelections, startTime, staffId: newStaffId } = data;
+
+    if (!serviceSelections || serviceSelections.length === 0) {
+      return { success: false, error: "Seleccioná al menos un servicio" };
+    }
+
+    const parsedStart = new Date(startTime);
+    if (Number.isNaN(parsedStart.getTime())) {
+      return { success: false, error: "Fecha/hora inválida" };
+    }
+
+    const serviceIds = serviceSelections.map((s) => s.serviceId);
+    const admin = await createAdminClient();
+
+    const { data: services, error: servicesError } = await supabase
+      .from("services")
+      .select("id, duration_minutes, price, name")
+      .in("id", serviceIds);
+
+    if (servicesError) return { success: false, error: servicesError.message };
+    if (!services || services.length !== serviceIds.length) {
+      return { success: false, error: "Uno o más servicios no encontrados" };
+    }
+
+    for (const sel of serviceSelections) {
+      if (sel.durationMinutes < 1 || sel.durationMinutes > 300) {
+        return { success: false, error: "Duración inválida para un servicio. Máximo 300 min (5 hs)." };
+      }
+    }
+
+    const effectiveStaffId = newStaffId !== undefined ? newStaffId : primary.staff_id;
+
+    if (effectiveStaffId) {
+      const { data: staffServiceRows } = await supabase
+        .from("staff_services")
+        .select("service_id")
+        .eq("staff_id", effectiveStaffId);
+      if (staffServiceRows && staffServiceRows.length > 0) {
+        const assignedIds = new Set(staffServiceRows.map((r) => r.service_id));
+        const unassigned = serviceIds.filter((id) => !assignedIds.has(id));
+        if (unassigned.length > 0) {
+          return { success: false, error: "El profesional no realiza uno o más servicios seleccionados" };
+        }
+      }
+    }
+
+    const orderedServices = serviceIds.map((id) => {
+      const svc = services.find((s) => s.id === id)!;
+      const sel = serviceSelections.find((s) => s.serviceId === id)!;
+      return { ...svc, duration_minutes: sel.durationMinutes };
+    });
+
+    let currentStart = new Date(parsedStart);
+    const rowsToInsert = orderedServices.map((svc) => {
+      const currentEnd = new Date(currentStart.getTime() + svc.duration_minutes * 60000);
+      const row = {
+        shop_id: shopId,
+        customer_id: primary.customer_id,
+        staff_id: effectiveStaffId || null,
+        service_id: svc.id,
+        service_price: svc.price ?? null,
+        start_time: currentStart.toISOString(),
+        end_time: currentEnd.toISOString(),
+        date_key_ar: getArgentinaDateKey(currentStart.toISOString()),
+        status: primary.status,
+        deposit_amount: primary.deposit_amount,
+        is_paid: primary.is_paid,
+        notes: primary.notes,
+        loyalty_reward_applied: primary.loyalty_reward_applied,
+        loyalty_discount_percent_applied: primary.loyalty_discount_percent_applied,
+      };
+      currentStart = currentEnd;
+      return row;
+    });
+
+    if (effectiveStaffId) {
+      const conditions = rowsToInsert.map(
+        (row) => `and(end_time.gt.${row.start_time},start_time.lt.${row.end_time})`
+      );
+      const { data: conflict } = await supabase
+        .from("appointments")
+        .select("id")
+        .eq("shop_id", shopId)
+        .eq("staff_id", effectiveStaffId)
+        .not("status", "eq", "cancelled")
+        .neq("id", appointmentId)
+        .or(conditions.join(","))
+        .limit(1);
+
+      if (conflict && conflict.length > 0) return { success: false, error: "slot_taken" };
+    }
+
+    const { data: siblings, error: siblingsError } = await supabase
+      .from("appointments")
+      .select("id")
+      .eq("shop_id", shopId)
+      .eq("customer_id", primary.customer_id)
+      .eq("date_key_ar", primary.date_key_ar)
+      .order("start_time", { ascending: true });
+
+    if (siblingsError) return { success: false, error: siblingsError.message };
+
+    const siblingIds = (siblings || [])
+      .filter((s) => s.id !== appointmentId)
+      .map((s) => s.id);
+
+    const allOldIds = [appointmentId, ...siblingIds];
+
+    const { error: deleteError } = await supabase
+      .from("appointments")
+      .delete()
+      .in("id", allOldIds)
+      .eq("shop_id", shopId);
+
+    if (deleteError) return { success: false, error: deleteError.message };
+
+    const { error: insertError } = await supabase
+      .from("appointments")
+      .insert(rowsToInsert);
+
+    if (insertError) {
+      console.error("[updateAppointmentServices] insert failed after delete, data may be lost:", insertError);
+      return { success: false, error: insertError.message };
+    }
+
+    const nextStatus = primary.status;
+    const shouldRegisterLoyaltyCut =
+      nextStatus === "completed" &&
+      typeof primary.customer_id === "string" &&
+      primary.customer_id.length > 0;
+
+    if (shouldRegisterLoyaltyCut) {
+      const loyaltyResult = await registerLoyaltyCut(shopId, primary.customer_id as string);
+      if (!loyaltyResult.success) return loyaltyResult;
+    }
+
+    await revalidateDashboardSegments(shopId, ["/calendar", "/appointments", ""]);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al actualizar servicios del turno" };
+  }
+}
+
 export async function updateCustomerQuick(
   customerId: string,
   patch: { nombre?: string; email?: string; telefono?: string | null; cumpleaños?: string | null; observaciones_tecnicas?: string | null; es_vip?: boolean },
