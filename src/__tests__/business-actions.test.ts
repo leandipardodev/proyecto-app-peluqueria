@@ -346,34 +346,34 @@ describe("updateWhatsappTemplateAction", () => {
 
   it("returns success with valid template", async () => {
     mockShopWithAddress();
-    const result = await updateWhatsappTemplateAction("Hola @nombre, tu turno es @Hora en @ubicacion");
+    const result = await updateWhatsappTemplateAction("Hola @nombre, tu turno es @Hora en @Lugar");
     expect(result).toEqual({ success: true });
   });
 
   it("returns error when template missing @Hora", async () => {
     mockShopWithAddress();
-    const result = await updateWhatsappTemplateAction("Hola @nombre, tu turno en @ubicacion");
+    const result = await updateWhatsappTemplateAction("Hola @nombre, tu turno en @Lugar");
     expect(result.success).toBe(false);
     expect(result.error).toContain("@Hora");
   });
 
-  it("returns error when template missing @ubicacion or @Lugar", async () => {
+  it("returns error when template missing @Lugar", async () => {
     mockShopWithAddress();
     const result = await updateWhatsappTemplateAction("Hola @nombre, tu turno es @Hora");
     expect(result.success).toBe(false);
-    expect(result.error).toContain("@ubicacion");
+    expect(result.error).toContain("@Lugar");
   });
 
   it("returns error when shop has no address or nombre", async () => {
     mockShopWithAddress("", "");
-    const result = await updateWhatsappTemplateAction("Hola @nombre, tu turno es @Hora en @ubicacion");
+    const result = await updateWhatsappTemplateAction("Hola @nombre, tu turno es @Hora en @Lugar");
     expect(result.success).toBe(false);
     expect(result.error).toBe("La ubicación es indispensable para el cliente");
   });
 
   it("returns error when requireShopId fails", async () => {
     vi.mocked(mockRequireShopId).mockResolvedValue({ success: false, error: "SESION_EXPIRADA" });
-    const result = await updateWhatsappTemplateAction("Hola @Hora @ubicacion");
+    const result = await updateWhatsappTemplateAction("Hola @Hora @Lugar");
     expect(result).toEqual({ success: false, error: "SESION_EXPIRADA" });
   });
 });

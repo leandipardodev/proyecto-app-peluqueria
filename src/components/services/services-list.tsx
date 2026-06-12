@@ -105,17 +105,18 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
         "postgres_changes",
         { event: "*", schema: "public", table: "services", filter: `shop_id=eq.${shopId}` },
         () => {
+          if (modalOpen) return;
           if (realtimeCooldown.current) return;
           realtimeCooldown.current = true;
           setTimeout(() => { realtimeCooldown.current = false; }, 2000);
-          startTransition(async () => {
-            const { data } = await supabase
-              .from("services")
-              .select("id, name, category, price, duration_minutes")
-              .eq("shop_id", shopId)
-              .order("created_at", { ascending: false });
-            if (Array.isArray(data)) setServices(data);
-          });
+          supabase
+            .from("services")
+            .select("id, name, category, price, duration_minutes")
+            .eq("shop_id", shopId)
+            .order("created_at", { ascending: false })
+            .then(({ data }) => {
+              if (Array.isArray(data)) setServices(data);
+            });
         }
       )
       .subscribe();
@@ -123,7 +124,7 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [shopId, startTransition]);
+  }, [shopId]);
 
   function openCreate() {
     setEditingService(null);

@@ -1608,7 +1608,8 @@ export default function BusinessClient({
               <MessageSquareText className="w-4 h-4 text-zinc-400" />
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white tracking-tight">Mensaje de WhatsApp</h3>
             </div>
-            <TagChips tags={["Nombre", "Hora", "Lugar", "ubicacion", "Peluqueria", "Negocio", "Servicio", "Fecha"]} onInsert={insertWhatsappTag} />
+            <TagChips tags={["Nombre", "Servicio", "Fecha", "Hora", "Lugar", "Negocio"]} onInsert={insertWhatsappTag} />
+            <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-2">Escribí el mensaje y hacé clic en las etiquetas para insertarlas. Se reemplazarán automáticamente con los datos del turno.</p>
             <textarea
               ref={whatsappRef}
               value={whatsappTemplate}
@@ -1628,10 +1629,10 @@ export default function BusinessClient({
                   )}
                 </p>
                 <p className="text-xs text-zinc-400 dark:text-zinc-500">
-                  {whatsappTemplate.match(/\@ubicacion|\@Lugar/) ? (
-                    <span className="text-green-600 dark:text-green-400">✓ Incluye @ubicacion / @Lugar</span>
+                  {whatsappTemplate.match(/\@Lugar/) ? (
+                    <span className="text-green-600 dark:text-green-400">✓ Incluye @Lugar</span>
                   ) : (
-                    <span className="text-rose-600 dark:text-rose-400">✕ No incluye @ubicacion ni @Lugar</span>
+                    <span className="text-rose-600 dark:text-rose-400">✕ No incluye @Lugar</span>
                   )}
                 </p>
               </div>

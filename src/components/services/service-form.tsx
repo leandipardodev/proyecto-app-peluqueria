@@ -2,7 +2,7 @@
 
 import { createService, updateService, fetchServices } from "@/lib/dashboard/service-actions";
 import { getServiceStaffIds } from "@/lib/dashboard/staff-actions";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition, memo } from "react";
 
 interface ServiceFormProps {
   shopId: string;
@@ -20,7 +20,7 @@ interface ServiceFormProps {
 
 const durationOptions = [5, 10, 15, 20, 30, 45, 60, 90, 120, 150, 180, 240, 300];
 
-export default function ServiceForm({ shopId, service, onSuccess, staffMembers = [] }: ServiceFormProps) {
+const ServiceForm = memo(function ServiceForm({ shopId, service, onSuccess, staffMembers = [] }: ServiceFormProps) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -195,4 +195,6 @@ export default function ServiceForm({ shopId, service, onSuccess, staffMembers =
       </div>
     </form>
   );
-}
+});
+
+export default ServiceForm;

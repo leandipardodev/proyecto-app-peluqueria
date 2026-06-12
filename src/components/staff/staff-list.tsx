@@ -704,6 +704,56 @@ export default function StaffList({
                           }}
                           className="w-24 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-xs text-gray-900 dark:text-gray-100"
                         />
+                        {(day.break_start || day.break_end) && (
+                          <>
+                            <span className="text-xs text-zinc-300 dark:text-zinc-600 mx-1">|</span>
+                            <input
+                              type="time"
+                              value={day.break_start ?? ""}
+                              onChange={(e) => {
+                                const next = [...scheduleEditor.schedule];
+                                next[i] = { ...next[i], break_start: e.target.value || null };
+                                setScheduleEditor({ ...scheduleEditor, schedule: next });
+                              }}
+                              className="w-24 rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-zinc-800 px-2 py-1 text-xs text-gray-900 dark:text-gray-100"
+                            />
+                            <span className="text-xs text-amber-500">break</span>
+                            <input
+                              type="time"
+                              value={day.break_end ?? ""}
+                              onChange={(e) => {
+                                const next = [...scheduleEditor.schedule];
+                                next[i] = { ...next[i], break_end: e.target.value || null };
+                                setScheduleEditor({ ...scheduleEditor, schedule: next });
+                              }}
+                              className="w-24 rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-zinc-800 px-2 py-1 text-xs text-gray-900 dark:text-gray-100"
+                            />
+                          </>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = [...scheduleEditor.schedule];
+                            next[i] = { ...next[i], break_start: "12:00", break_end: "13:00" };
+                            setScheduleEditor({ ...scheduleEditor, schedule: next });
+                          }}
+                          className="text-xs text-amber-600 dark:text-amber-400 hover:text-amber-700 hover:underline ml-1 cursor-pointer select-none"
+                        >
+                          + agregar corte
+                        </button>
+                        {day.break_start && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = [...scheduleEditor.schedule];
+                              next[i] = { ...next[i], break_start: null, break_end: null };
+                              setScheduleEditor({ ...scheduleEditor, schedule: next });
+                            }}
+                            className="text-xs text-red-500 hover:text-red-600 hover:underline ml-1 cursor-pointer select-none"
+                          >
+                            quitar
+                          </button>
+                        )}
                       </>
                     )}
                   </div>

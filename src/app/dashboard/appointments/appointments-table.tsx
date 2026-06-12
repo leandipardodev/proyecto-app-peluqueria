@@ -127,20 +127,34 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
     };
   }, [shopId]);
 
-  function buildWhatsAppUrl(phone: string | null, customerName: string, startTime: string): string {
+  function buildWhatsAppUrl(phone: string | null, customerName: string, startTime: string, serviceNames?: string[]): string {
     if (!phone) return "#";
     const cleanPhone = phone.replace(/[^\d]/g, "").replace(/^00/, "");
-    const time = new Date(startTime).toLocaleTimeString("es-AR", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    const dt = new Date(startTime);
+    const time = dt.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+    const date = dt.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
     const template = whatsappTemplate || DEFAULT_WHATSAPP_TEMPLATE;
-    const locationLine = shopAddress ? `\n📍 ${shopAddress}` : "";
-    const text = template
+    const place = (shopAddress || "").trim();
+    const locationLine = place ? `\n📍 ${place}` : "";
+    const servicioText = serviceNames && serviceNames.length > 0
+      ? serviceNames.length === 1
+        ? serviceNames[0]
+        : serviceNames.slice(0, -1).join(", ") + " y " + serviceNames[serviceNames.length - 1]
+      : "";
+    let text = template
       .replace(/\@Nombre/g, customerName)
+      .replace(/\@Cliente/g, customerName)
+      .replace(/\@Servicio/g, servicioText)
+      .replace(/\@Fecha/g, date)
+      .replace(/\@Hora/g, time)
+      .replace(/\@hora/g, time)
+      .replace(/\@Lugar/g, place)
+      .replace(/\@lugar/g, place)
+      .replace(/\@Ubicacion/g, place)
+      .replace(/\@ubicacion/g, place)
       .replace(/\@Peluqueria/g, shopName)
-      .replace(/\@Negocio/g, shopName)
-      .replace(/\@Hora/g, time) + locationLine;
+      .replace(/\@Negocio/g, shopName);
+    if (place) text += locationLine;
     return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
   }
 
@@ -171,7 +185,8 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
             const svc = apt.services?.name ? extractEmoji(apt.services.name) : null;
             const urgent = needsStatusAttention(apt.start_time);
             const phone = apt.customers?.telefono || null;
-            const whatsappUrl = buildWhatsAppUrl(phone, apt.customers?.nombre || customerWord, apt.start_time);
+            const serviceNames = apt.services?.name ? [apt.services.name] : undefined;
+            const whatsappUrl = buildWhatsAppUrl(phone, apt.customers?.nombre || customerWord, apt.start_time, serviceNames);
             return (
               <div key={apt.id} className="bg-white dark:bg-zinc-900 rounded-[1.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm p-4">
                 <div className="flex items-start justify-between gap-2">
@@ -280,7 +295,8 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
                         {(() => {
                           const urgent = needsStatusAttention(apt.start_time);
                           const phone = apt.customers?.telefono || null;
-                          const whatsappUrl = buildWhatsAppUrl(phone, apt.customers?.nombre || customerWord, apt.start_time);
+                          const serviceNames = apt.services?.name ? [apt.services.name] : undefined;
+                          const whatsappUrl = buildWhatsAppUrl(phone, apt.customers?.nombre || customerWord, apt.start_time, serviceNames);
                           return (
                             <>
                               <button

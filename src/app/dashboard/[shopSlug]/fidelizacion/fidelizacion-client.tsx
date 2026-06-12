@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Gift, Save, Trophy, Users } from "lucide-react";
+import { TagChips, useTagInsert } from "@/components/ui/tag-chips";
 import { runLoyaltyRaffleAction, updateLoyaltyProgramAction } from "@/lib/dashboard/business-actions";
 import { updateVoucherWhatsappTemplate } from "@/lib/dashboard/voucher-actions";
 import VouchersClient from "../vouchers/vouchers-client";
@@ -58,6 +59,8 @@ export default function FidelizacionClient({
     voucherTemplate || "Feliz cumple @Nombre! Te regalamos un descuento especial para tu proxima visita."
   );
   const [birthdayMessageStatus, setBirthdayMessageStatus] = useState<string | null>(null);
+  const birthdayRef = useRef<HTMLTextAreaElement>(null);
+  const insertBirthdayTag = useTagInsert(birthdayRef, birthdayMessage, setBirthdayMessage);
   const raffleTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -342,7 +345,10 @@ export default function FidelizacionClient({
             </div>
             <div className="md:col-span-2">
               <label className="px-1 text-xs text-zinc-600 dark:text-zinc-300">Mensaje WhatsApp</label>
+              <TagChips tags={["Nombre"]} onInsert={insertBirthdayTag} />
+              <p className="text-xs text-zinc-400 dark:text-zinc-500">Hacé clic en la etiqueta para insertarla. Se reemplazará con el nombre del cliente.</p>
               <textarea
+                ref={birthdayRef}
                 value={birthdayMessage}
                 onChange={(e) => setBirthdayMessage(e.target.value)}
                 rows={3}

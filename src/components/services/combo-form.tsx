@@ -1,7 +1,7 @@
 "use client";
 
 import { createCombo, updateCombo } from "@/lib/dashboard/combo-actions";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition, memo } from "react";
 
 type ServiceOption = {
   id: string;
@@ -24,7 +24,7 @@ type ComboFormProps = {
   onSuccess: () => void;
 };
 
-export default function ComboForm({ shopId, services, combo, onSuccess }: ComboFormProps) {
+const ComboForm = memo(function ComboForm({ shopId, services, combo, onSuccess }: ComboFormProps) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>(combo?.service_ids || []);
@@ -200,4 +200,6 @@ export default function ComboForm({ shopId, services, combo, onSuccess }: ComboF
       </div>
     </form>
   );
-}
+});
+
+export default ComboForm;

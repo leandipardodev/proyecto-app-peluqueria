@@ -1285,7 +1285,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                   value={customerName}
                                   onChange={(e) => setCustomerName(e.target.value)}
                                   className={templateStyles.input}
-                                  placeholder="Tu nombre"
+                                  placeholder="Nombre y apellido"
                                 />
                               </div>
                             </div>
