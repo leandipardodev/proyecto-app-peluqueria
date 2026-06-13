@@ -1,12 +1,4 @@
 export {
-  fetchAppointments,
-  fetchAppointmentGroup,
-  fetchActiveServices,
-  fetchStaffMembers,
-  fetchAllAppointmentsForTable,
-} from "./appointment-queries";
-
-export {
   createAppointment,
   createCustomerAndAppointment,
   updateAppointmentStatus,

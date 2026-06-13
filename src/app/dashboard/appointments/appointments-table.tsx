@@ -6,7 +6,7 @@ import { useAppointmentAlarm } from "@/lib/use-appointment-alarm";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { supabase } from "@/lib/supabase";
-import { fetchAllAppointmentsForTable } from "@/lib/dashboard/appointment-queries";
+import { fetchAllAppointmentsForTable } from "@/lib/dashboard/appointment-query-actions";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";

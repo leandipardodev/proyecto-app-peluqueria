@@ -1,7 +1,7 @@
 "use client";
 
 import { Menu, Search, Moon, Sun, Gauge, Repeat2, Check, Volume2, VolumeX, SlidersHorizontal, Sparkles, Bug, CircleHelp } from "lucide-react";
-import { useState, useRef, useEffect, useTransition, useMemo, memo, type KeyboardEvent } from "react";
+import { useState, useRef, useEffect, useTransition, useMemo, useCallback, memo, type KeyboardEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import DashboardMobileSidebar from "./dashboard-mobile-sidebar";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
@@ -50,11 +50,11 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
   const servicePlural = INDUSTRY_CONFIG[industry].labels.servicePlural;
   const staffPlural = INDUSTRY_CONFIG[industry].labels.staffPlural;
   const features = useShopFeatures();
-  const filteredNavCommands = NAV_COMMANDS.filter((cmd) => {
+  const filteredNavCommands = useMemo(() => NAV_COMMANDS.filter((cmd) => {
     if (cmd.id === "nav-stock") return features.inventory;
     if (cmd.id === "nav-marketing") return features.marketing;
     return true;
-  });
+  }), [features]);
   const router = useRouter();
   const pathname = usePathname();
   const dashboardBasePath = getDashboardBasePath(pathname);
@@ -97,48 +97,52 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
   const inputRef = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
 
-  const rotatingWords = [
+  const rotatingWords = useMemo(() => [
     "clientes...",
     ...(features.inventory ? ["stock..."] : []),
     "caja...",
     ...(features.marketing ? ["marketing..."] : []),
     "comandos...",
-  ];
-  const gracePosition = 2 - Math.max(0, billingStatus.graceDaysRemaining ?? 0) + 1;
-  const daysBadgeLabel = billingStatus.daysRemaining === null
-    ? "--"
-    : billingStatus.daysRemaining > 0
-      ? `${billingStatus.daysRemaining}d`
-      : billingStatus.inGrace
-        ? `${gracePosition}!/2`
-        : "0d";
-  const planSummary = billingStatus.daysRemaining === null
-    ? "PLAN PRO"
-    : billingStatus.daysRemaining > 0
-      ? `PLAN PRO • ${billingStatus.daysRemaining} DIAS RESTANTES`
-      : billingStatus.inGrace
-        ? `PLAN VENCIDO • DÍA ${gracePosition} de 2 DE CORTESÍA`
-        : "PLAN VENCIDO";
-  const showBillingCta =
-    billingStatus.daysRemaining !== null && billingStatus.daysRemaining <= 3;
-  const billingCtaTone =
-    billingStatus.daysRemaining !== null && billingStatus.daysRemaining <= 0
+  ], [features.inventory, features.marketing]);
+  const billingDerived = useMemo(() => {
+    const gracePosition = 2 - Math.max(0, billingStatus.graceDaysRemaining ?? 0) + 1;
+    const daysBadgeLabel = billingStatus.daysRemaining === null
+      ? "--"
+      : billingStatus.daysRemaining > 0
+        ? `${billingStatus.daysRemaining}d`
+        : billingStatus.inGrace
+          ? `${gracePosition}!/2`
+          : "0d";
+    const planSummary = billingStatus.daysRemaining === null
+      ? "PLAN PRO"
+      : billingStatus.daysRemaining > 0
+        ? `PLAN PRO • ${billingStatus.daysRemaining} DIAS RESTANTES`
+        : billingStatus.inGrace
+          ? `PLAN VENCIDO • DÍA ${gracePosition} de 2 DE CORTESÍA`
+          : "PLAN VENCIDO";
+    const showBillingCta = billingStatus.daysRemaining !== null && billingStatus.daysRemaining <= 3;
+    const billingCtaTone = billingStatus.daysRemaining !== null && billingStatus.daysRemaining <= 0
       ? "critical"
       : billingStatus.daysRemaining !== null && billingStatus.daysRemaining <= 1
         ? "warning"
         : "normal";
-  const billingCtaClass =
-    billingCtaTone === "critical"
+    const billingCtaClass = billingCtaTone === "critical"
       ? "mt-2 inline-flex items-center rounded-full border border-red-300/80 bg-red-50 px-3 py-1 text-[11px] font-semibold text-red-700 hover:bg-red-100 dark:border-red-700/50 dark:bg-red-900/35 dark:text-red-200"
       : billingCtaTone === "warning"
         ? "mt-2 inline-flex items-center rounded-full border border-amber-300/80 bg-amber-50 px-3 py-1 text-[11px] font-semibold text-amber-700 hover:bg-amber-100 dark:border-amber-700/50 dark:bg-amber-900/35 dark:text-amber-200"
         : "mt-2 inline-flex items-center rounded-full border border-rose-300/70 bg-rose-50 px-3 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-100 dark:border-rose-700/50 dark:bg-rose-900/30 dark:text-rose-200";
-  const billingCtaLabel =
-    billingCtaTone === "critical"
+    const billingCtaLabel = billingCtaTone === "critical"
       ? "Plan vencido - pagar ahora"
       : billingCtaTone === "warning"
         ? "Vence pronto - pagar"
         : "Pagar mensualidad";
+    return { daysBadgeLabel, planSummary, showBillingCta, billingCtaTone, billingCtaClass, billingCtaLabel };
+  }, [billingStatus.daysRemaining, billingStatus.graceDaysRemaining, billingStatus.inGrace]);
+  const { daysBadgeLabel, planSummary, showBillingCta, billingCtaTone, billingCtaClass, billingCtaLabel } = billingDerived;
+  const lastPaymentFormatted = useMemo(() => {
+    if (!lastPaymentDate) return null;
+    return new Intl.DateTimeFormat("es-AR", { timeZone: "America/Argentina/Buenos_Aires", day: "2-digit", month: "short", year: "numeric" }).format(new Date(lastPaymentDate));
+  }, [lastPaymentDate]);
 
   function navigateWithTransition(target: string) {
     triggerDashboardNavTransition();
@@ -327,6 +331,11 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
       clear();
     }, 140);
   }
+
+  const handleMobileLogout = useCallback(async () => {
+    setMobileOpen(false);
+    try { await onLogout(); } catch { /* ignore */ }
+  }, [onLogout]);
 
   async function execute(item: CommandItem) {
     if (item.kind === "data") {
@@ -821,7 +830,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                   <p className="text-[10px] font-medium text-slate-400 mt-1">{planSummary}</p>
                   {lastPaymentDate ? (
                     <p className="text-[10px] text-slate-400 mt-0.5">
-                      Último pago: {new Intl.DateTimeFormat("es-AR", { timeZone: "America/Argentina/Buenos_Aires", day: "2-digit", month: "short", year: "numeric" }).format(new Date(lastPaymentDate))}
+                      Último pago: {lastPaymentFormatted}
                     </p>
                   ) : (
                     <p className="text-[10px] text-rose-400 mt-0.5 font-medium">Sin pagos registrados</p>
@@ -981,10 +990,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
         open={mobileOpen}
         onClose={() => setMobileOpen(false)}
         userName={userName}
-        onLogout={async () => {
-          setMobileOpen(false);
-          try { await onLogout(); } catch { /* ignore */ }
-        }}
+        onLogout={handleMobileLogout}
       />
 
       <style jsx global>{`

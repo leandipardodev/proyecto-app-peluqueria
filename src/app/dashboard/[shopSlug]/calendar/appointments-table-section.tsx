@@ -1,4 +1,4 @@
-import { fetchAllAppointmentsForTable } from "@/lib/dashboard/appointment-actions";
+import { fetchAllAppointmentsForTable } from "@/lib/dashboard/appointment-queries";
 import AppointmentsTable from "@/app/dashboard/appointments/appointments-table";
 import { createServerClient } from "@/lib/supabase/server";
 import { fetchWhatsappTemplate } from "@/lib/dashboard/whatsapp-actions";

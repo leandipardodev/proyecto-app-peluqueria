@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useMemo } from "react";
 import { Download, ChevronDown, Users, Package, Calendar, DollarSign, Users2 } from "lucide-react";
 import { downloadCsv } from "@/lib/csv-export";
 import {
@@ -36,8 +36,12 @@ export default function ExportDataCard({ shopId }: Props) {
     }
   }
 
-  const today = new Date().toISOString().slice(0, 10);
-  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
+  const { today, monthStart } = useMemo(() => {
+    const now = new Date();
+    const today = now.toISOString().slice(0, 10);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+    return { today, monthStart };
+  }, []);
 
   const buttons = [
     {

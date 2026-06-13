@@ -60,6 +60,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchVersionRef = useRef(0);
 
   useEffect(() => {
+    const orig = console.error;
+    const authErrorPattern = /Invalid Refresh Token|Refresh Token Not Found/i;
+
+    console.error = (...args: unknown[]) => {
+      const msg = args.map((a) => String(a)).join(" ");
+      if (authErrorPattern.test(msg)) return;
+      orig.apply(console, args);
+    };
+
+    const t = setTimeout(() => { console.error = orig; }, 5000);
+
+    return () => { clearTimeout(t); console.error = orig; };
+  }, []);
+
+  useEffect(() => {
     let isMounted = true;
 
     async function fetchSession(userOverride?: { id: string; email?: string | null; user_metadata?: Record<string, unknown> }) {
@@ -207,7 +222,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     fetchShopBySlug();
     return () => { isMounted = false; };
-  }, [pathnameShopSlug, state.user]);
+  }, [pathnameShopSlug, state.user?.id]);
 
   const contextValue = useMemo(() => state, [
     state.user?.id ?? null,

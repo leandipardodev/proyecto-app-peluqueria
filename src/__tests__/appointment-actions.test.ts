@@ -5,8 +5,8 @@ import {
   updateAppointmentStatus,
   redeemLoyaltyReward,
   deleteAppointment,
-  fetchAppointments,
 } from "@/lib/dashboard/appointment-actions";
+import { fetchAppointments } from "@/lib/dashboard/appointment-queries";
 import { createServerClient as mockCreateServerClient } from "@/lib/supabase/server";
 import { canAccessShopId as mockCanAccessShopId, createServiceRoleClient as mockCreateServiceRole, requireShopId as mockRequireShopId } from "@/lib/dashboard/auth-server";
 import { sendEmailWithResend as mockSendEmail } from "@/lib/email/resend";

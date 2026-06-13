@@ -12,7 +12,7 @@ import { StatePanel } from "@/components/ui/state-panel";
 import { useAppointmentAlarm } from "@/lib/use-appointment-alarm";
 import { getArgentinaDateKey, getArgentinaWeekStart } from "@/lib/argentina-time";
 import { supabase } from "@/lib/supabase";
-import { fetchAppointments } from "@/lib/dashboard/appointment-queries";
+import { fetchAppointments } from "@/lib/dashboard/appointment-query-actions";
 
 function CalendarSkeleton() {
   return (
@@ -127,7 +127,7 @@ export default function CalendarPageClient({
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [appointments, setAppointments] = useState(initialAppointments);
   const [hydrated, setHydrated] = useState(false);
-  const [, setCalendarViewMode] = useState<"week" | "day" | "month">("week");
+  const calendarViewModeRef = useRef<"week" | "day" | "month">("week");
   const [batchModalOpen, setBatchModalOpen] = useState(false);
 
   useEffect(() => {
@@ -195,7 +195,11 @@ export default function CalendarPageClient({
       setTimeout(() => { realtimeCooldown.current = false; }, 2000);
       const result = await fetchAppointments(rangeStart.toISOString(), rangeEnd.toISOString(), shopId);
       if (result.success && Array.isArray(result.data)) {
-        setAppointments(result.data as Appointment[]);
+        const incoming = result.data as Appointment[];
+        setAppointments((prev) => {
+          if (prev.length === incoming.length && prev.every((a, i) => a.id === incoming[i].id)) return prev;
+          return incoming;
+        });
       }
     };
 
@@ -354,7 +358,7 @@ export default function CalendarPageClient({
           staffList={staff}
           staffFilter={staffFilter}
           businessHours={businessHours}
-          onViewModeChange={setCalendarViewMode}
+          onViewModeChange={(m) => { calendarViewModeRef.current = m; }}
           onBatchClick={() => setBatchModalOpen(true)}
         />
       </div>
@@ -388,6 +392,7 @@ export default function CalendarPageClient({
         shopId={shopId}
         staff={staff}
         services={services}
+        allAppointments={enrichedAppointments}
         onClose={() => setSelectedAppointment(null)}
         onSuccess={refreshAppointments}
       />

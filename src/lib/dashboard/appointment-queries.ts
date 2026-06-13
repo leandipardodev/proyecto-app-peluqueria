@@ -1,5 +1,3 @@
-"use server";
-
 import { createServerClient } from "@/lib/supabase/server";
 import { requireShopId } from "@/lib/dashboard/auth-server";
 import { getArgentinaNow } from "@/lib/argentina-time";

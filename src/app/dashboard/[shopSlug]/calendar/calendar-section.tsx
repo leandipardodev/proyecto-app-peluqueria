@@ -1,4 +1,4 @@
-import { fetchAppointments } from "@/lib/dashboard/appointment-actions";
+import { fetchAppointments } from "@/lib/dashboard/appointment-queries";
 import CalendarPageClient from "@/components/calendar/calendar-page-client";
 import { createServerClient } from "@/lib/supabase/server";
 import { getArgentinaWeekStart } from "@/lib/argentina-time";
