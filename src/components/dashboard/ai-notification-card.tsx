@@ -133,6 +133,19 @@ export default function AINotificationCard({
         : "border-cyan-300/50 bg-cyan-300/10 text-cyan-900 dark:text-cyan-100";
   const toneLabel = active.tone === "urgent" ? "Urgente" : active.tone === "action" ? "Accion" : "Insight";
 
+  useEffect(() => {
+    const tw = titleWrapRef.current;
+    const te = titleRef.current;
+    if (tw && te) {
+      setTitleOverflow(Math.max(0, te.scrollWidth - tw.clientWidth));
+    }
+    const bw = bodyWrapRef.current;
+    const be = bodyRef.current;
+    if (bw && be) {
+      setBodyOverflow(Math.max(0, be.scrollHeight - bw.clientHeight));
+    }
+  }, [active.title, active.body]);
+
   return (
     <button type="button" onClick={handleClick} className="group block h-full w-full text-left">
       <div className="relative h-[148px] md:h-[156px]">

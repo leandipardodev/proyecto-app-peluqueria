@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition, useRef } from "react";
-import { fetchVouchers, createVoucher, markVoucherRedeemed, markVoucherReminderSent, updateVoucherWhatsappTemplate, type VoucherRow } from "@/lib/dashboard/voucher-actions";
+import { fetchVouchers, createVoucher, markVoucherRedeemed, markVoucherReminderSent, type VoucherRow } from "@/lib/dashboard/voucher-actions";
 import { DEFAULT_VOUCHER_WHATSAPP_TEMPLATE } from "@/lib/dashboard/voucher-constants";
-import { TagChips, useTagInsert } from "@/components/ui/tag-chips";
 import { CheckCircle2, Gift, MessageCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -28,9 +27,7 @@ function voucherWhatsappText(v: VoucherRow, template: string) {
 
 export default function VouchersClient({ shopId, initialVouchers, initialTemplate }: Props) {
   const [vouchers, setVouchers] = useState(initialVouchers);
-  const [template, setTemplate] = useState(initialTemplate || DEFAULT_VOUCHER_WHATSAPP_TEMPLATE);
-  const templateRef = useRef<HTMLTextAreaElement>(null);
-  const insertVoucherTag = useTagInsert(templateRef, template, setTemplate);
+  const template = useMemo(() => initialTemplate || DEFAULT_VOUCHER_WHATSAPP_TEMPLATE, [initialTemplate]);
 
   useEffect(() => {
     setVouchers(initialVouchers);
@@ -90,13 +87,6 @@ export default function VouchersClient({ shopId, initialVouchers, initialTemplat
     });
   }
 
-  function saveTemplate() {
-    startTransition(async () => {
-      const res = await updateVoucherWhatsappTemplate(shopId, template);
-      if (!res.success) setError(res.error);
-    });
-  }
-
   function markRedeemed(v: VoucherRow) {
     startTransition(async () => {
       const res = await markVoucherRedeemed(v.id, shopId);
@@ -134,20 +124,6 @@ export default function VouchersClient({ shopId, initialVouchers, initialTemplat
           Crear voucher
         </button>
       </form>
-
-      <div className="rounded-[2rem] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 space-y-2 shadow-xl shadow-black/[0.03]">
-        <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Plantilla WhatsApp de voucher</p>
-        <TagChips tags={["Nombre", "Servicio", "Regala"]} onInsert={insertVoucherTag} />
-        <p className="text-xs text-zinc-400 dark:text-zinc-500">Hacé clic en las etiquetas para insertarlas. Se reemplazarán con los datos del voucher.</p>
-        <textarea
-          ref={templateRef}
-          value={template}
-          onChange={(e) => setTemplate(e.target.value)}
-          rows={2}
-          className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
-        />
-        <button onClick={saveTemplate} disabled={pending} className="rounded-xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-3 py-1.5 text-sm disabled:opacity-60">Guardar plantilla</button>
-      </div>
 
       <div className="rounded-[2rem] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-xl shadow-black/[0.03]">
         <table className="w-full text-sm">

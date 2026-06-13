@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Download, Users, Package, Calendar, DollarSign, Users2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { Download, ChevronDown, Users, Package, Calendar, DollarSign, Users2 } from "lucide-react";
 import { downloadCsv } from "@/lib/csv-export";
 import {
   fetchExportCustomers,
@@ -17,6 +17,8 @@ type Props = {
 
 export default function ExportDataCard({ shopId }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+  const timeoutRef = useRef<number>(0);
 
   async function handleExport<T>(
     label: string,
@@ -104,25 +106,47 @@ export default function ExportDataCard({ shopId }: Props) {
     },
   ];
 
+  function handleMouseEnter() {
+    window.clearTimeout(timeoutRef.current);
+    setOpen(true);
+  }
+
+  function handleMouseLeave() {
+    timeoutRef.current = window.setTimeout(() => setOpen(false), 200);
+  }
+
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {buttons.map((btn) => (
-        <button
-          key={btn.id}
-          type="button"
-          onClick={btn.action}
-          disabled={busy === btn.id}
-          className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:bg-white dark:hover:bg-zinc-800 transition disabled:opacity-50"
-        >
-          {busy === btn.id ? (
-            <span className="w-3 h-3 rounded-full border-2 border-zinc-400 border-t-transparent animate-spin" />
-          ) : (
-            <btn.icon className="w-3.5 h-3.5" />
-          )}
-          <span>{busy === btn.id ? "..." : btn.label}</span>
-          <Download className="w-2.5 h-2.5 text-zinc-400" />
-        </button>
-      ))}
+    <div className="relative inline-flex" onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+      <button
+        type="button"
+        className="inline-flex items-center gap-2 rounded-full border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:border-violet-300 dark:hover:border-violet-600 transition-colors"
+      >
+        <Download className="w-4 h-4" />
+        Descargar datos
+        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-full mt-1.5 z-40 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-lg p-1.5 min-w-[180px]">
+          {buttons.map((btn) => (
+            <button
+              key={btn.id}
+              type="button"
+              onClick={btn.action}
+              disabled={busy === btn.id}
+              className="w-full inline-flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-colors disabled:opacity-50"
+            >
+              {busy === btn.id ? (
+                <span className="w-4 h-4 rounded-full border-2 border-zinc-400 border-t-transparent animate-spin" />
+              ) : (
+                <btn.icon className="w-4 h-4" />
+              )}
+              <span className="flex-1 text-left">{busy === btn.id ? "Descargando..." : btn.label}</span>
+              <Download className="w-3 h-3 text-zinc-300" />
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

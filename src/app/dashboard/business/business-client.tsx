@@ -28,6 +28,8 @@ import {
   type BusinessData,
   type BusinessHoursData,
 } from "@/lib/dashboard/business-actions";
+import { fetchVoucherWhatsappTemplate, updateVoucherWhatsappTemplate } from "@/lib/dashboard/voucher-actions";
+import { DEFAULT_VOUCHER_WHATSAPP_TEMPLATE } from "@/lib/dashboard/voucher-constants";
 import { deleteCurrentShop } from "@/lib/dashboard/shop-actions";
 import {
   fetchBookingTheme,
@@ -55,6 +57,69 @@ function getTourSteps(staffPlural: string, servicePlural: string) {
     { id: "setup-staff", title: `4. ${staffPlural}`, text: `Agrega y administra tus ${staffPlural.toLowerCase()} para asignar turnos correctamente.` },
     { id: "setup-services", title: `5. ${servicePlural}`, text: `Carga tu catalogo de ${servicePlural.toLowerCase()} con precio y duracion.` },
   ] as const;
+}
+
+function InfoTooltip({ text }: { text: string }) {
+  return (
+    <span className="group relative inline-flex items-center">
+      <span className="w-4 h-4 rounded-full bg-zinc-300 dark:bg-zinc-600 text-zinc-700 dark:text-zinc-300 text-[10px] font-bold inline-flex items-center justify-center cursor-help flex-shrink-0">
+        ?
+      </span>
+      <span className="absolute top-full right-0 mt-2 w-72 p-3 rounded-xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs shadow-lg z-50 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+        {text}
+      </span>
+    </span>
+  );
+}
+
+function TaggedTextarea({
+  innerRef,
+  value,
+  onChange,
+  onFocus,
+  placeholder,
+}: {
+  innerRef: React.RefObject<HTMLTextAreaElement | null>;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  onFocus?: () => void;
+  placeholder?: string;
+}) {
+  const renderContent = () => {
+    if (!value) {
+      return placeholder ? (
+        <span className="text-zinc-400 dark:text-zinc-500">{placeholder}</span>
+      ) : null;
+    }
+    return value.split(/(@\w+)/g).map((part, i) => {
+      if (part.startsWith("@") && part.length > 1) {
+        return (
+          <span key={i} className="text-violet-600 dark:text-violet-400">
+            {part}
+          </span>
+        );
+      }
+      return <span key={i}>{part}</span>;
+    });
+  };
+
+  return (
+    <div className="relative w-full rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus-within:ring-2 focus-within:ring-violet-500/50 transition-all">
+      <div className="px-5 py-[10px] text-sm leading-5 font-sans tracking-normal whitespace-pre-wrap break-words invisible min-h-[5rem]" aria-hidden>
+        {value || placeholder || " "}
+      </div>
+      <div className="absolute inset-0 px-5 py-[10px] text-sm leading-5 font-sans tracking-normal whitespace-pre-wrap break-words pointer-events-none overflow-hidden rounded-2xl" aria-hidden>
+        {renderContent()}
+      </div>
+      <textarea
+        ref={innerRef}
+        value={value}
+        onChange={onChange}
+        onFocus={onFocus}
+        className="absolute inset-0 w-full h-full bg-transparent text-transparent caret-gray-900 dark:caret-white resize-none overflow-hidden outline-none px-5 py-[10px] text-sm leading-5 font-sans tracking-normal rounded-2xl"
+      />
+    </div>
+  );
 }
 
 export default function BusinessClient({
@@ -117,6 +182,10 @@ export default function BusinessClient({
   const [whatsappTemplate, setWhatsappTemplate] = useState(data?.whatsapp_template || "");
   const whatsappRef = useRef<HTMLTextAreaElement>(null);
   const insertWhatsappTag = useTagInsert(whatsappRef, whatsappTemplate, setWhatsappTemplate);
+  const [voucherWhatsappTemplate, setVoucherWhatsappTemplate] = useState(DEFAULT_VOUCHER_WHATSAPP_TEMPLATE);
+  const voucherRef = useRef<HTMLTextAreaElement>(null);
+  const insertVoucherTag = useTagInsert(voucherRef, voucherWhatsappTemplate, setVoucherWhatsappTemplate);
+  const lastFocusedRef = useRef<"turno" | "voucher">("turno");
   const [showStats, setShowStats] = useState(false);
   const [bookingDepositEnabled, setBookingDepositEnabled] = useState(data?.booking_deposit_enabled ?? true);
   const [bookingDepositAmount, setBookingDepositAmount] = useState(String(data?.booking_deposit_amount ?? 3000));
@@ -301,6 +370,16 @@ export default function BusinessClient({
       if (draft.businessHours && typeof draft.businessHours === "object") setBusinessHours(draft.businessHours);
     } catch {}
   }, [mpDraftKey]);
+
+  useEffect(() => {
+    if (!shop?.id) return;
+    (async () => {
+      const result = await fetchVoucherWhatsappTemplate(shop.id);
+      if (result.success) {
+        setVoucherWhatsappTemplate(result.data || DEFAULT_VOUCHER_WHATSAPP_TEMPLATE);
+      }
+    })();
+  }, [shop?.id]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -517,6 +596,11 @@ export default function BusinessClient({
 
     const wa = await updateWhatsappTemplateAction(whatsappTemplate);
     if (!wa.success) return showError(wa.error), false;
+
+    if (shop?.id) {
+      const vwa = await updateVoucherWhatsappTemplate(shop.id, voucherWhatsappTemplate);
+      if (!vwa.success) return showError(vwa.error), false;
+    }
 
     if (initialServices.length > 0) {
       const categoryUpdates = initialServices.map((service) => ({
@@ -1599,47 +1683,6 @@ export default function BusinessClient({
             </div>
           )}
 
-          {/* Divider */}
-          <div className="border-t border-white/10" />
-
-          {/* WhatsApp Template */}
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <MessageSquareText className="w-4 h-4 text-zinc-400" />
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white tracking-tight">Mensaje de WhatsApp</h3>
-            </div>
-            <TagChips tags={["Nombre", "Servicio", "Fecha", "Hora", "Lugar", "Negocio"]} onInsert={insertWhatsappTag} />
-            <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-2">Escribí el mensaje y hacé clic en las etiquetas para insertarlas. Se reemplazarán automáticamente con los datos del turno.</p>
-            <textarea
-              ref={whatsappRef}
-              value={whatsappTemplate}
-              onChange={(e) => {
-                setWhatsappTemplate(e.target.value);
-              }}
-              rows={3}
-              className="w-full rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all resize-none"
-            />
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-3">
-              <div className="flex flex-col gap-1">
-                <p className="text-xs text-zinc-400 dark:text-zinc-500">
-                  {whatsappTemplate.match(/\@Hora/) ? (
-                    <span className="text-green-600 dark:text-green-400">✓ Incluye @Hora</span>
-                  ) : (
-                    <span className="text-rose-600 dark:text-rose-400">✕ No incluye @Hora</span>
-                  )}
-                </p>
-                <p className="text-xs text-zinc-400 dark:text-zinc-500">
-                  {whatsappTemplate.match(/\@Lugar/) ? (
-                    <span className="text-green-600 dark:text-green-400">✓ Incluye @Lugar</span>
-                  ) : (
-                    <span className="text-rose-600 dark:text-rose-400">✕ No incluye @Lugar</span>
-                  )}
-                </p>
-              </div>
-              <div />
-            </div>
-          </div>
-
         </div>
       </div>
 
@@ -1826,6 +1869,88 @@ export default function BusinessClient({
         </AnimatePresence>,
         document.body,
       )}
+      </div>
+
+      {/* Comunicaciones con los clientes */}
+      <div className="rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm transition-colors bg-white dark:bg-zinc-900">
+        <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
+          <div className="p-2 rounded-full bg-violet-500/15">
+            <MessageSquareText className="w-5 h-5 text-violet-600" />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Comunicaciones con los clientes</h2>
+              <InfoTooltip text="Al editar las plantillas, los nuevos mensajes de WhatsApp que se envíen automáticamente usarán el texto personalizado. Las etiquetas (@Nombre, @Servicio, etc.) se reemplazarán con los datos reales de cada turno o voucher." />
+            </div>
+            <p className="text-xs text-zinc-400 dark:text-zinc-500">Personalizá los mensajes que reciben tus clientes</p>
+          </div>
+          <div />
+        </div>
+        <div className="p-6 space-y-5">
+
+          {/* Etiquetas disponibles */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium shrink-0">Etiquetas:</span>
+            <TagChips tags={["Nombre", "Servicio", "Fecha", "Hora", "Lugar", "Negocio", "Regala"]} onInsert={(tag) => {
+              if (lastFocusedRef.current === "turno") {
+                if (tag === "Regala") return;
+                insertWhatsappTag(tag);
+              } else {
+                insertVoucherTag(tag);
+              }
+            }} />
+          </div>
+          <p className="text-xs text-zinc-400 dark:text-zinc-500 -mt-3">Hacé clic en una etiqueta para insertarla en el mensaje que estés editando.</p>
+
+          {/* Mensaje de confirmación de turno */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <MessageSquareText className="w-4 h-4 text-zinc-400" />
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white tracking-tight">Mensaje de confirmación de turno</h3>
+            </div>
+            <TaggedTextarea
+              innerRef={whatsappRef}
+              value={whatsappTemplate}
+              onChange={(e) => setWhatsappTemplate(e.target.value)}
+              onFocus={() => { lastFocusedRef.current = "turno"; }}
+              placeholder="Escribí el mensaje de confirmación..."
+            />
+            <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+              Requiere:{" "}
+              <span className={whatsappTemplate.match(/\@Hora/) ? "text-green-600 dark:text-green-400" : "text-rose-600 dark:text-rose-400"}>
+                {whatsappTemplate.match(/\@Hora/) ? "✓" : "✕"}<span className="text-violet-600 dark:text-violet-400 font-medium">@Hora</span>
+              </span>{" "}
+              <span className={whatsappTemplate.match(/\@Lugar/) ? "text-green-600 dark:text-green-400" : "text-rose-600 dark:text-rose-400"}>
+                {whatsappTemplate.match(/\@Lugar/) ? "✓" : "✕"}<span className="text-violet-600 dark:text-violet-400 font-medium">@Lugar</span>
+              </span>
+            </p>
+          </div>
+
+          {/* Mensaje de voucher */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <MessageSquareText className="w-4 h-4 text-zinc-400" />
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white tracking-tight">Mensaje de voucher</h3>
+            </div>
+            <TaggedTextarea
+              innerRef={voucherRef}
+              value={voucherWhatsappTemplate}
+              onChange={(e) => setVoucherWhatsappTemplate(e.target.value)}
+              onFocus={() => { lastFocusedRef.current = "voucher"; }}
+              placeholder="Escribí el mensaje de voucher..."
+            />
+            <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+              Requiere:{" "}
+              <span className={voucherWhatsappTemplate.match(/\@Servicio/) ? "text-green-600 dark:text-green-400" : "text-rose-600 dark:text-rose-400"}>
+                {voucherWhatsappTemplate.match(/\@Servicio/) ? "✓" : "✕"}<span className="text-violet-600 dark:text-violet-400 font-medium">@Servicio</span>
+              </span>{" "}
+              <span className={voucherWhatsappTemplate.match(/\@Regala/) ? "text-green-600 dark:text-green-400" : "text-rose-600 dark:text-rose-400"}>
+                {voucherWhatsappTemplate.match(/\@Regala/) ? "✓" : "✕"}<span className="text-violet-600 dark:text-violet-400 font-medium">@Regala</span>
+              </span>
+            </p>
+          </div>
+
+        </div>
       </div>
 
       {/* Exportar datos */}

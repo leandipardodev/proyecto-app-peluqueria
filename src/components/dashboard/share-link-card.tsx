@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Link, Copy, Check, ExternalLink } from "lucide-react";
+import { Link, Copy, Check, ExternalLink, QrCode } from "lucide-react";
+import QRModal from "./qr-modal";
 
 interface ShareLinkCardProps {
   slug: string;
@@ -10,6 +11,7 @@ interface ShareLinkCardProps {
 
 export default function ShareLinkCard({ slug }: ShareLinkCardProps) {
   const [copied, setCopied] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
 
   if (!slug) return null;
 
@@ -69,6 +71,13 @@ export default function ShareLinkCard({ slug }: ShareLinkCardProps) {
               <Copy className="w-4 h-4" />
             )}
           </button>
+          <button
+            onClick={() => setQrOpen(true)}
+            className="px-4 py-2 border border-zinc-200 dark:border-zinc-700 rounded-full text-sm text-zinc-500 dark:text-zinc-400 bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-all cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
+            title="Mostrar QR"
+          >
+            <QrCode className="w-4 h-4" />
+          </button>
           <motion.button
             onClick={handlePreview}
             whileHover={{ scale: 1.02 }}
@@ -92,6 +101,14 @@ export default function ShareLinkCard({ slug }: ShareLinkCardProps) {
           </motion.p>
         )}
       </AnimatePresence>
+
+      {qrOpen && (
+        <QRModal
+          open={qrOpen}
+          bookingUrl={bookingUrl}
+          onClose={() => setQrOpen(false)}
+        />
+      )}
     </div>
   );
 }
