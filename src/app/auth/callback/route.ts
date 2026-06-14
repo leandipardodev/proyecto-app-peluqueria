@@ -157,7 +157,8 @@ export async function GET(request: NextRequest) {
         if (
           flow === "client" &&
           typeof state?.shopName === "string" &&
-          state.shopName.trim().length > 0
+          state.shopName.trim().length > 0 &&
+          !nextPath?.startsWith("/book/")
         ) {
           flow = "owner_signup";
         }
