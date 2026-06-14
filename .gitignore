@@ -33,3 +33,4 @@ yarn-error.log*
 
 # Supabase
 .supabase/*.json
+.supabase/.temp/

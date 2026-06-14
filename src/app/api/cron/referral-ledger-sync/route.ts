@@ -2,11 +2,20 @@ import { NextResponse } from "next/server";
 import { syncReferralLedgerInternal } from "@/lib/admin/referrals";
 import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
 
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
+}
+
 async function handleCron(request: Request) {
   const auth = request.headers.get("authorization");
   const secret = process.env.CRON_SECRET;
 
-  if (!secret || auth !== `Bearer ${secret}`) {
+  if (!secret || !auth || !auth.startsWith("Bearer ") || !timingSafeEqual(auth.slice(7), secret)) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 

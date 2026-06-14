@@ -1,7 +1,6 @@
 "use client";
 
 import { createService, updateService, fetchServices } from "@/lib/dashboard/service-actions";
-import { getServiceStaffIds } from "@/lib/dashboard/staff-actions";
 import { useEffect, useRef, useState, useTransition, memo } from "react";
 
 interface ServiceFormProps {
@@ -16,11 +15,12 @@ interface ServiceFormProps {
   };
   onSuccess: () => void;
   staffMembers?: { id: string; name: string | null }[];
+  serviceStaffMap?: Record<string, string[]>;
 }
 
 const durationOptions = [5, 10, 15, 20, 30, 45, 60, 90, 120, 150, 180, 240, 300];
 
-const ServiceForm = memo(function ServiceForm({ shopId, service, onSuccess, staffMembers = [] }: ServiceFormProps) {
+const ServiceForm = memo(function ServiceForm({ shopId, service, onSuccess, staffMembers = [], serviceStaffMap = {} }: ServiceFormProps) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -30,14 +30,11 @@ const ServiceForm = memo(function ServiceForm({ shopId, service, onSuccess, staf
   useEffect(() => {
     if (!service) {
       setSelectedStaff(staffMembers.map((s) => s.id));
-      setLoadingStaff(false);
-      return;
+    } else {
+      setSelectedStaff(serviceStaffMap[service.id] ?? []);
     }
-    getServiceStaffIds(service.id).then((res) => {
-      if (res.success) setSelectedStaff(res.data ?? []);
-      setLoadingStaff(false);
-    });
-  }, [service, staffMembers]);
+    setLoadingStaff(false);
+  }, [service, staffMembers, serviceStaffMap]);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

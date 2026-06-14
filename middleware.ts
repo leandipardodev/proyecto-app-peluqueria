@@ -101,37 +101,10 @@ async function middlewareHandler(request: NextRequest) {
   }
 
   const shopIds = activeMemberships.map((m) => m.shop_id);
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  let accessibleShops: Array<{ id: string; slug: string; active: boolean; plan_expiry: string | null }> | null = null;
-
-  if (serviceRoleKey && supabaseUrl) {
-    try {
-      const ids = shopIds.map((id) => `"${id}"`).join(",");
-      const res = await fetch(
-        `${supabaseUrl}/rest/v1/shops?select=id,slug,active,plan_expiry&id=in.(${ids})`,
-        {
-          headers: {
-            apikey: serviceRoleKey,
-            Authorization: `Bearer ${serviceRoleKey}`,
-          },
-        }
-      );
-      if (res.ok) {
-        accessibleShops = (await res.json()) as typeof accessibleShops;
-      }
-    } catch {
-      accessibleShops = null;
-    }
-  }
-
-  if (!accessibleShops) {
-    const { data } = await supabase
-      .from("shops")
-      .select("id, slug, active, plan_expiry")
-      .in("id", shopIds);
-    accessibleShops = data;
-  }
+  const { data: accessibleShops } = await supabase
+    .from("shops")
+    .select("id, slug, active, plan_expiry")
+    .in("id", shopIds);
 
   const shops = accessibleShops ?? [];
   const shopBySlug = new Map(shops.map((s) => [s.slug, s]));

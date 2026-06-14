@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition, useRef } from "react";
-import { fetchVouchers, createVoucher, markVoucherRedeemed, markVoucherReminderSent, type VoucherRow } from "@/lib/dashboard/voucher-actions";
+import { createVoucher, markVoucherRedeemed, markVoucherReminderSent, type VoucherRow } from "@/lib/dashboard/voucher-actions";
 import { DEFAULT_VOUCHER_WHATSAPP_TEMPLATE } from "@/lib/dashboard/voucher-constants";
 import { CheckCircle2, Gift, MessageCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -42,9 +42,13 @@ export default function VouchersClient({ shopId, initialVouchers, initialTemplat
       if (realtimeCooldown.current) return;
       realtimeCooldown.current = true;
       setTimeout(() => { realtimeCooldown.current = false; }, 2000);
-      const result = await fetchVouchers(shopId);
-      if (result.success && Array.isArray(result.data)) {
-        setVouchers(result.data);
+      const { data, error } = await supabase
+        .from("vouchers")
+        .select("id, gifted_to_name, gifted_to_phone, gifted_to_birthday, gifted_by_name, service_name, voucher_message, status, reminder_sent_at, redeemed_at, created_at")
+        .eq("shop_id", shopId)
+        .order("gifted_to_birthday", { ascending: true });
+      if (!error && data) {
+        setVouchers(data as VoucherRow[]);
       }
     };
 

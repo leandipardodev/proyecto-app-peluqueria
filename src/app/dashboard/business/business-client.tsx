@@ -28,7 +28,7 @@ import {
   type BusinessData,
   type BusinessHoursData,
 } from "@/lib/dashboard/business-actions";
-import { fetchVoucherWhatsappTemplate, updateVoucherWhatsappTemplate } from "@/lib/dashboard/voucher-actions";
+import { updateVoucherWhatsappTemplate } from "@/lib/dashboard/voucher-actions";
 import { DEFAULT_VOUCHER_WHATSAPP_TEMPLATE } from "@/lib/dashboard/voucher-constants";
 import { deleteCurrentShop } from "@/lib/dashboard/shop-actions";
 import {
@@ -132,6 +132,7 @@ export default function BusinessClient({
   initialServices,
   initialBusinessHours,
   initialBookingTheme,
+  initialVoucherWhatsappTemplate,
 }: {
   initialData: BusinessData | null;
   initialError: string | null;
@@ -153,6 +154,7 @@ export default function BusinessClient({
   initialServices: InitialServiceItem[];
   initialBusinessHours: BusinessHoursData | null;
   initialBookingTheme: BookingThemeData | null;
+  initialVoucherWhatsappTemplate?: string | null;
 }) {
   const { shop } = useAuth();
   const industry = resolveIndustry(shop?.industry);
@@ -182,7 +184,7 @@ export default function BusinessClient({
   const [whatsappTemplate, setWhatsappTemplate] = useState(data?.whatsapp_template || "");
   const whatsappRef = useRef<HTMLTextAreaElement>(null);
   const insertWhatsappTag = useTagInsert(whatsappRef, whatsappTemplate, setWhatsappTemplate);
-  const [voucherWhatsappTemplate, setVoucherWhatsappTemplate] = useState(DEFAULT_VOUCHER_WHATSAPP_TEMPLATE);
+  const [voucherWhatsappTemplate, setVoucherWhatsappTemplate] = useState(initialVoucherWhatsappTemplate ?? DEFAULT_VOUCHER_WHATSAPP_TEMPLATE);
   const voucherRef = useRef<HTMLTextAreaElement>(null);
   const insertVoucherTag = useTagInsert(voucherRef, voucherWhatsappTemplate, setVoucherWhatsappTemplate);
   const lastFocusedRef = useRef<"turno" | "voucher">("turno");
@@ -213,6 +215,7 @@ export default function BusinessClient({
   const templateTouchedRef = useRef(false);
   const bookingCopyTouchedRef = useRef(false);
   const sectionTouchedRef = useRef(false);
+  const messageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [logoUrl, setLogoUrl] = useState<string>(initialBookingTheme?.logo_url || "");
   const [heroTitle, setHeroTitle] = useState(initialBookingTheme?.hero_title || "");
   const [heroSubtitle, setHeroSubtitle] = useState(initialBookingTheme?.hero_subtitle || "");
@@ -372,16 +375,6 @@ export default function BusinessClient({
   }, [mpDraftKey]);
 
   useEffect(() => {
-    if (!shop?.id) return;
-    (async () => {
-      const result = await fetchVoucherWhatsappTemplate(shop.id);
-      if (result.success) {
-        setVoucherWhatsappTemplate(result.data || DEFAULT_VOUCHER_WHATSAPP_TEMPLATE);
-      }
-    })();
-  }, [shop?.id]);
-
-  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const mpStatus = params.get("mp");
     if (!mpStatus) return;
@@ -399,7 +392,8 @@ export default function BusinessClient({
     if (mpStatus === "connected") {
       window.localStorage.removeItem(mpDraftKey);
       setMessage({ type: "success", text: "Mercado Pago conectado correctamente" });
-      setTimeout(() => setMessage(null), 3000);
+      clearTimeout(messageTimerRef.current ?? undefined);
+      messageTimerRef.current = setTimeout(() => { messageTimerRef.current = null; setMessage(null); }, 3000);
     } else {
       setMessage({
         type: "error",
@@ -412,15 +406,21 @@ export default function BusinessClient({
     window.history.replaceState({}, "", `${window.location.pathname}${next ? `?${next}` : ""}`);
 
     const savedY = Number(window.sessionStorage.getItem(mpReturnScrollKey) || "NaN");
+    const scrollTimers: ReturnType<typeof setTimeout>[] = [];
     if (Number.isFinite(savedY) && savedY >= 0) {
       const restore = () => window.scrollTo({ top: savedY, left: 0, behavior: "auto" });
       restore();
       requestAnimationFrame(() => {
         restore();
-        setTimeout(restore, 60);
+        const t = setTimeout(restore, 60);
+        scrollTimers.push(t);
       });
       window.sessionStorage.removeItem(mpReturnScrollKey);
     }
+
+    return () => {
+      scrollTimers.forEach(clearTimeout);
+    };
   }, [mpDraftKey, mpReturnScrollKey]);
 
   useEffect(() => {
@@ -640,7 +640,8 @@ export default function BusinessClient({
 
   function showSuccess(text: string) {
     setMessage({ type: "success", text });
-    setTimeout(() => setMessage(null), 3000);
+    clearTimeout(messageTimerRef.current ?? undefined);
+    messageTimerRef.current = setTimeout(() => { messageTimerRef.current = null; setMessage(null); }, 3000);
   }
 
   function showError(text: string) {

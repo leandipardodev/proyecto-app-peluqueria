@@ -24,7 +24,6 @@ import {
   type StaffLiquidationListItem,
   type CashSessionSummary,
   type CashMovementItem,
-  type StaffLiquidationDetailItem,
 } from "@/lib/dashboard/finances-actions";
 import { supabase } from "@/lib/supabase";
 import CustomSelect from "@/components/ui/custom-select";
@@ -133,8 +132,6 @@ export default function FinancesClient({
   const [staffProduction, setStaffProduction] = useState<StaffProduction[]>(initialStaffProduction);
   const [liquidationResult, setLiquidationResult] = useState<StaffLiquidationPreview | null>(null);
   const [liquidations, setLiquidations] = useState<StaffLiquidationListItem[]>(initialStaffLiquidations);
-  const [liquidationItems, setLiquidationItems] = useState<StaffLiquidationDetailItem[]>([]);
-  const [selectedLiquidationId, setSelectedLiquidationId] = useState<string | null>(null);
   const [selectedStaffForLiquidation, setSelectedStaffForLiquidation] = useState("");
   const [cashMovementType, setCashMovementType] = useState("income");
 
@@ -149,6 +146,7 @@ export default function FinancesClient({
   const isFirstRender = useRef(true);
   const skipNextRealtimeRefresh = useRef(false);
   const realtimeCooldown = useRef(false);
+  const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     shopRef.current = shopId;
@@ -183,6 +181,118 @@ export default function FinancesClient({
       /* ignore */
     } finally {
       setCashLoading(false);
+    }
+  }
+
+  async function refreshFinanceDataFast(nextFrom: string, nextTo: string) {
+    const sid = shopRef.current || undefined;
+    const [incomeRes, expensesRes] = await Promise.all([
+      supabase
+        .from("appointments")
+        .select("service_price, services:service_id(price)")
+        .eq("shop_id", sid)
+        .eq("status", "completed")
+        .eq("is_paid", true)
+        .gte("start_time", nextFrom)
+        .lte("start_time", nextTo)
+        .limit(500),
+      supabase
+        .from("finances")
+        .select("id, amount, category, description, created_at, happened_at")
+        .eq("shop_id", sid)
+        .eq("type", "expense")
+        .gte("happened_at", nextFrom)
+        .lte("happened_at", nextTo)
+        .order("happened_at", { ascending: true }),
+    ]);
+    if (!incomeRes.error && !expensesRes.error) {
+      const totalIncome = (incomeRes.data || []).reduce((sum: number, apt: any) => {
+        return sum + Number(apt.service_price ?? apt.services?.price ?? 0);
+      }, 0);
+      const totalExpenses = (expensesRes.data || []).reduce((sum: number, e: any) => sum + Number(e.amount), 0);
+      setData({
+        totalIncome,
+        totalExpenses,
+        netBalance: totalIncome - totalExpenses,
+        appointmentsCount: (incomeRes.data || []).length,
+        recentMovements: [],
+        expenses: (expensesRes.data || []).map((e: any) => ({
+          id: e.id,
+          amount: Number(e.amount),
+          category: e.category,
+          description: e.description,
+          created_at: e.created_at,
+        })),
+      });
+    }
+  }
+
+  async function refreshCashDataFast(nextFrom: string, nextTo: string) {
+    const sid = shopRef.current || undefined;
+    try {
+      const [sessionRes, movesRes, historyRes] = await Promise.all([
+        supabase
+          .from("cash_sessions")
+          .select("id, status, opened_at, opening_amount, expected_amount, counted_amount, difference_amount")
+          .eq("shop_id", sid)
+          .eq("status", "open")
+          .maybeSingle(),
+        supabase
+          .from("cash_movements")
+          .select("id, movement_type, payment_method, amount, category, description, happened_at")
+          .eq("shop_id", sid)
+          .gte("happened_at", nextFrom)
+          .lte("happened_at", nextTo)
+          .order("happened_at", { ascending: false })
+          .limit(50),
+        supabase
+          .from("cash_sessions")
+          .select("id, status, opened_at, opening_amount, expected_amount, counted_amount, difference_amount")
+          .eq("shop_id", sid)
+          .gte("opened_at", nextFrom)
+          .lte("opened_at", nextTo)
+          .order("opened_at", { ascending: false })
+          .limit(30),
+      ]);
+      if (!sessionRes.error && sessionRes.data) {
+        setCashSession({
+          id: sessionRes.data.id,
+          status: sessionRes.data.status as "open" | "closed" | "cancelled",
+          openedAt: sessionRes.data.opened_at,
+          openingAmount: Number(sessionRes.data.opening_amount),
+          expectedAmount: Number(sessionRes.data.expected_amount),
+          countedAmount: sessionRes.data.counted_amount ? Number(sessionRes.data.counted_amount) : null,
+          differenceAmount: sessionRes.data.difference_amount ? Number(sessionRes.data.difference_amount) : null,
+          movementNet: 0,
+          appointmentIncome: 0,
+        });
+      }
+      if (!movesRes.error && movesRes.data) {
+        setCashMovements(movesRes.data.map((m: any) => ({
+          id: m.id,
+          movementType: m.movement_type,
+          paymentMethod: m.payment_method,
+          amount: Number(m.amount),
+          category: m.category,
+          description: m.description,
+          happenedAt: m.happened_at,
+        })));
+      }
+      if (!historyRes.error && historyRes.data) {
+        setCashSessionsHistory(historyRes.data.map((h: any) => ({
+          id: h.id,
+          status: h.status as "open" | "closed" | "cancelled",
+          openedAt: h.opened_at,
+          openingAmount: Number(h.opening_amount),
+          expectedAmount: Number(h.expected_amount),
+          countedAmount: h.counted_amount ? Number(h.counted_amount) : null,
+          differenceAmount: h.difference_amount ? Number(h.difference_amount) : null,
+          movementNet: 0,
+          appointmentIncome: 0,
+        })));
+      }
+    } catch {
+      /* ignore */
     }
   }
 
@@ -246,21 +356,21 @@ export default function FinancesClient({
         if (realtimeCooldown.current) return;
         realtimeCooldown.current = true;
         setTimeout(() => { realtimeCooldown.current = false; }, 2000);
-        refreshFinanceData(from, to);
+        refreshFinanceDataFast(from, to);
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "cash_movements", filter: `shop_id=eq.${shopId}` }, () => {
         if (skipNextRealtimeRefresh.current) { skipNextRealtimeRefresh.current = false; return; }
         if (realtimeCooldown.current) return;
         realtimeCooldown.current = true;
         setTimeout(() => { realtimeCooldown.current = false; }, 2000);
-        refreshCashData(from, to);
+        refreshCashDataFast(from, to);
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "cash_sessions", filter: `shop_id=eq.${shopId}` }, () => {
         if (skipNextRealtimeRefresh.current) { skipNextRealtimeRefresh.current = false; return; }
         if (realtimeCooldown.current) return;
         realtimeCooldown.current = true;
         setTimeout(() => { realtimeCooldown.current = false; }, 2000);
-        refreshCashData(from, to);
+        refreshCashDataFast(from, to);
       })
       .subscribe();
 
@@ -271,7 +381,11 @@ export default function FinancesClient({
 
   function setQuickFeedback(msg: string) {
     setUiMessage(msg);
-    window.setTimeout(() => setUiMessage(null), 1600);
+    if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+    feedbackTimerRef.current = setTimeout(() => {
+      feedbackTimerRef.current = null;
+      setUiMessage(null);
+    }, 1600);
   }
 
   function applyRangeAndRefresh(nextFrom: string, nextTo: string) {
@@ -305,10 +419,8 @@ export default function FinancesClient({
   }
 
   async function handleOpenLiquidationDetail(liqId: string) {
-    setSelectedLiquidationId(liqId);
     const res = await fetchStaffLiquidationItems(liqId, shopId || undefined);
     if (!res.success || !res.data) return setError(actionError(res, "No se pudo cargar detalle"));
-    setLiquidationItems(res.data);
   }
 
   async function handleOpenCashSession(e: React.FormEvent<HTMLFormElement>) {

@@ -8,7 +8,6 @@ import ServiceForm from "./service-form";
 import ComboForm from "./combo-form";
 import { deleteService } from "@/lib/dashboard/service-actions";
 import { deleteCombo, toggleComboActive, fetchCombos } from "@/lib/dashboard/combo-actions";
-import { fetchStaffMembers } from "@/lib/dashboard/staff-actions";
 import { supabase } from "@/lib/supabase";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
@@ -51,9 +50,11 @@ interface ServicesListProps {
   industry: Industry;
   initialServices: Service[];
   initialCombos?: Combo[];
+  initialStaffMembers?: { id: string; name: string | null }[];
+  initialServiceStaffMap?: Record<string, string[]>;
 }
 
-const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, initialServices, initialCombos = [] }: ServicesListProps) {
+const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, initialServices, initialCombos = [], initialStaffMembers = [], initialServiceStaffMap = {} }: ServicesListProps) {
   const router = useRouter();
   const [services, setServices] = useState(initialServices);
   const [combos, setCombos] = useState(initialCombos);
@@ -66,7 +67,7 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
   const [, startTransition] = useTransition();
   const { addToast } = useToast();
   const [tutorialActive, setTutorialActive] = useState(false);
-  const [staffMembers, setStaffMembers] = useState<{ id: string; name: string | null }[]>([]);
+  const [staffMembers, setStaffMembers] = useState(initialStaffMembers);
   const serviceWord = INDUSTRY_CONFIG[industry].labels.serviceSingular;
   const serviceWordLower = serviceWord.toLowerCase();
 
@@ -77,12 +78,6 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
   useEffect(() => {
     setCombos(initialCombos);
   }, [initialCombos]);
-
-  useEffect(() => {
-    fetchStaffMembers(shopId).then((res) => {
-      if (res.success) setStaffMembers(res.data?.map((s) => ({ id: s.id, name: s.name })) ?? []);
-    });
-  }, [shopId]);
 
   useEffect(() => {
     const key = `klip-business-onboarding-v1:${shopSlug || "default"}`;
@@ -517,6 +512,7 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
             service={editingService ?? undefined}
             onSuccess={handleServiceSuccess}
             staffMembers={staffMembers}
+            serviceStaffMap={initialServiceStaffMap}
           />
         )}
       </ServiceModal>

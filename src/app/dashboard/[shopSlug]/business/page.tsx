@@ -2,6 +2,7 @@ import { fetchBusinessData, fetchBusinessHours } from "@/lib/dashboard/business-
 import { fetchDashboardSummary, fetchDashboardMetrics } from "@/lib/dashboard/dashboard-summary";
 import { fetchServices } from "@/lib/dashboard/service-actions";
 import { fetchBookingTheme } from "@/lib/dashboard/booking-theme-actions";
+import { fetchVoucherWhatsappTemplate } from "@/lib/dashboard/voucher-actions";
 import BusinessClient from "@/app/dashboard/business/business-client";
 import { createServerClient } from "@/lib/supabase/server";
 import { getCachedUser, getCachedShopIdBySlug } from "@/lib/dashboard/auth-server";
@@ -24,13 +25,14 @@ export default async function DashboardShopBusinessPage({ params }: { params: Pr
     .maybeSingle();
   const canManageBilling = Boolean(membership?.is_active && membership.role === "owner");
 
-  const [result, summaryResult, metricsResult, servicesResult, businessHoursResult, bookingThemeResult] = await Promise.all([
+  const [result, summaryResult, metricsResult, servicesResult, businessHoursResult, bookingThemeResult, voucherTemplateResult] = await Promise.all([
     fetchBusinessData(shopId),
     fetchDashboardSummary(shopId),
     fetchDashboardMetrics(shopId),
     fetchServices(shopId),
     fetchBusinessHours(shopId),
     fetchBookingTheme(shopId),
+    fetchVoucherWhatsappTemplate(shopId),
   ]);
 
   const summaryStats =
@@ -65,6 +67,7 @@ export default async function DashboardShopBusinessPage({ params }: { params: Pr
       initialServices={servicesResult.success ? servicesResult.data ?? [] : []}
       initialBusinessHours={businessHoursResult.success ? businessHoursResult.data ?? null : null}
       initialBookingTheme={bookingThemeResult.success ? bookingThemeResult.data ?? null : null}
+      initialVoucherWhatsappTemplate={voucherTemplateResult.success ? voucherTemplateResult.data ?? null : null}
     />
   );
 }

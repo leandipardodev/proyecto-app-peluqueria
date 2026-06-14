@@ -222,7 +222,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
         fetchedDatesRef.current = new Set(fetchedDatesRef.current).add(dateStr);
       }
     })();
-  }, [selectedService, selectedDate, selectedStaff, shop.id]);
+  }, [selectedService, selectedCombo, selectedDate, selectedStaff, shop.id]);
 
   const prevLoadingSlots = useRef<boolean | null>(null);
 
@@ -432,6 +432,9 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
     if (selectedCombo) {
       setCreatingPreference(true);
 
+      const { getRecaptchaToken } = await import("@/lib/recaptcha");
+      const recaptchaToken = await getRecaptchaToken(RECAPTCHA_SITE_KEY);
+
       const comboResult = await createPublicComboAppointment({
         shopId: shop.id,
         comboId: selectedCombo.id,
@@ -446,6 +449,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
         authenticatedUserId: user?.id,
         startTime: selectedSlot.start,
         status: "pending_payment",
+        recaptchaToken: recaptchaToken || undefined,
       });
 
       if (!comboResult.success) {
@@ -460,9 +464,6 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
         setError("No se pudo crear el turno");
         return;
       }
-
-      const { getRecaptchaToken } = await import("@/lib/recaptcha");
-      const recaptchaToken = await getRecaptchaToken(RECAPTCHA_SITE_KEY);
 
       // Create a payment preference with the total combo price and all appointment IDs
       const { createPaymentPreference } = await import("@/lib/dashboard/public-booking-actions");

@@ -151,6 +151,8 @@ export default function AppointmentDetailModal({
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const { addToast } = useToast();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveStateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const servicesSavedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveVersionRef = useRef(0);
 
   const pendingChangesRef = useRef<{ status?: string; isPaid?: boolean; staffId?: string | null }>({});
@@ -280,7 +282,8 @@ export default function AppointmentDetailModal({
       }
       setSaveState("saved");
       onSuccess?.();
-      setTimeout(() => setSaveState("idle"), 2000);
+      clearTimeout(saveStateTimerRef.current ?? undefined);
+      saveStateTimerRef.current = setTimeout(() => { saveStateTimerRef.current = null; setSaveState("idle"); }, 2000);
     });
   }, [appointment, shopId, onSuccess]);
 
@@ -295,6 +298,8 @@ export default function AppointmentDetailModal({
   useEffect(() => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (saveStateTimerRef.current) clearTimeout(saveStateTimerRef.current);
+      if (servicesSavedTimerRef.current) clearTimeout(servicesSavedTimerRef.current);
     };
   }, []);
 
@@ -494,7 +499,8 @@ export default function AppointmentDetailModal({
     setServicesJustSaved(true);
     addToast("Servicios actualizados", "success");
     onSuccess?.();
-    setTimeout(() => setServicesJustSaved(false), 2500);
+    clearTimeout(servicesSavedTimerRef.current ?? undefined);
+    servicesSavedTimerRef.current = setTimeout(() => { servicesSavedTimerRef.current = null; setServicesJustSaved(false); }, 2500);
   }
 
   if (!appointment) return null;

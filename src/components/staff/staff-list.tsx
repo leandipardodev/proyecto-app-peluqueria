@@ -131,8 +131,53 @@ export default function StaffList({
       if (realtimeCooldown.current) return;
       realtimeCooldown.current = true;
       setTimeout(() => { realtimeCooldown.current = false; }, 2000);
-      const latest = await fetchStaffMembers(shopId);
-      if (latest.success) setStaff(latest.data ?? []);
+      const [membershipsRes, profilesRes] = await Promise.all([
+        supabase
+          .from("shop_memberships")
+          .select("user_id, role, invite_accepted_at")
+          .eq("shop_id", shopId)
+          .eq("is_active", true)
+          .in("role", ["owner", "staff", "admin"]),
+        supabase
+          .from("user_profiles")
+          .select("user_id, name, email"),
+      ]);
+      if (membershipsRes.error || profilesRes.error) return;
+      const profilesMap = new Map((profilesRes.data || []).map((p) => [p.user_id, p]));
+      setStaff((prev) => {
+        const updated = prev.map((member) => {
+          const membership = (membershipsRes.data || []).find((m: any) => m.user_id === member.id);
+          const profile = profilesMap.get(member.id);
+          if (!membership) return member;
+          return {
+            ...member,
+            role: membership.role,
+            joined: !!membership.invite_accepted_at,
+            name: profile?.name ?? member.name,
+            email: profile?.email ?? member.email,
+          };
+        });
+        const existingIds = new Set(prev.map((m) => m.id));
+        const newIds = (membershipsRes.data || [])
+          .filter((m: any) => !existingIds.has(m.user_id))
+          .map((m: any) => {
+            const profile = profilesMap.get(m.user_id);
+            return {
+              id: m.user_id,
+              name: profile?.name ?? null,
+              email: profile?.email ?? null,
+              role: m.role,
+              revenue: 0,
+              payModel: "percentage" as const,
+              percentageRate: 0,
+              fixedAmount: 0,
+              joined: !!m.invite_accepted_at,
+              inviteLink: null,
+              photo_url: null,
+            } as StaffMember;
+          });
+        return newIds.length > 0 ? [...updated, ...newIds] : updated;
+      });
     };
 
     const channel = supabase

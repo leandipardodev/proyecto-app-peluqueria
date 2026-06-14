@@ -163,14 +163,14 @@ export async function registerShop(
     });
 
     if (profileError) {
-      try { await admin.auth.admin.deleteUser(userId); } catch {}
+      try { await admin.auth.admin.deleteUser(userId); } catch (cleanupErr) { console.error("[auth-actions] cleanup after profile error:", cleanupErr); }
       return { success: false, error: profileError.message };
     }
 
     const codeResult = await sendVerificationCode(normalizedEmail);
     if (!codeResult.success) {
-      try { await admin.auth.admin.deleteUser(userId); } catch {}
-      try { await admin.from("user_profiles").delete().eq("user_id", userId); } catch {}
+      try { await admin.auth.admin.deleteUser(userId); } catch (cleanupErr) { console.error("[auth-actions] cleanup after code error (user):", cleanupErr); }
+      try { await admin.from("user_profiles").delete().eq("user_id", userId); } catch (cleanupErr) { console.error("[auth-actions] cleanup after code error (profile):", cleanupErr); }
       return { success: false, error: "No se pudo enviar el código de verificación. Intentá de nuevo." };
     }
 
@@ -257,7 +257,7 @@ export async function completeRegistration(
     );
 
     if (membershipError) {
-      try { await admin.from("shops").delete().eq("id", createdShop.id); } catch {}
+      try { await admin.from("shops").delete().eq("id", createdShop.id); } catch (cleanupErr) { console.error("[auth-actions] cleanup after membership error:", cleanupErr); }
       return { success: false, error: membershipError.message };
     }
 
@@ -277,7 +277,7 @@ export async function completeRegistration(
         },
         { onConflict: "email" }
       );
-    } catch {}
+    } catch (listErr) { console.error("[auth-actions] allowlist upsert error:", listErr); }
 
     const cookieStore = await cookies();
     const supabase = createServerClient(
@@ -289,7 +289,7 @@ export async function completeRegistration(
           setAll(cookiesToSet) {
             try {
               cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
-            } catch {}
+            } catch (cookieErr) { console.error("[auth-actions] cookie setAll error:", cookieErr); }
           },
         },
       }
@@ -337,7 +337,7 @@ export async function getGoogleAuthUrl(): Promise<ActionResult<{ url: string }>>
           setAll(cookiesToSet) {
             try {
               cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
-            } catch {}
+            } catch (cookieErr) { console.error("[auth-actions] cookie setAll error:", cookieErr); }
           },
         },
       }
@@ -397,7 +397,7 @@ export async function createAdditionalShop(shopName: string): Promise<ActionResu
           setAll(cookiesToSet) {
             try {
               cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
-            } catch {}
+            } catch (cookieErr) { console.error("[auth-actions] cookie setAll error:", cookieErr); }
           },
         },
       }
@@ -462,7 +462,7 @@ export async function createAdditionalShop(shopName: string): Promise<ActionResu
     );
 
     if (membershipError) {
-      try { await admin.from("shops").delete().eq("id", createdShop.id); } catch {}
+      try { await admin.from("shops").delete().eq("id", createdShop.id); } catch (cleanupErr) { console.error("[auth-actions] cleanup after createAdditionalShop membership error:", cleanupErr); }
       return { success: false, error: membershipError.message };
     }
 
@@ -479,7 +479,7 @@ export async function createAdditionalShop(shopName: string): Promise<ActionResu
       try {
         await admin.from("shop_memberships").delete().eq("user_id", user.id).eq("shop_id", createdShop.id);
         await admin.from("shops").delete().eq("id", createdShop.id);
-      } catch {}
+      } catch (cleanupErr) { console.error("[auth-actions] cleanup after membership verify error:", cleanupErr); }
       return { success: false, error: "No se pudo vincular el nuevo local al usuario" };
     }
 
@@ -503,7 +503,7 @@ export async function createAdditionalShop(shopName: string): Promise<ActionResu
       try {
         await admin.from("shop_memberships").delete().eq("user_id", user.id).eq("shop_id", createdShop.id);
         await admin.from("shops").delete().eq("id", createdShop.id);
-      } catch {}
+      } catch (cleanupErr) { console.error("[auth-actions] cleanup after profile sync error:", cleanupErr); }
       return { success: false, error: profileSyncError.message };
     }
 
@@ -539,7 +539,7 @@ export async function resolveDashboardShopIdBySlug(shopSlug: string): Promise<Ac
           setAll(cookiesToSet) {
             try {
               cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
-            } catch {}
+            } catch (cookieErr) { console.error("[auth-actions] cookie setAll error:", cookieErr); }
           },
         },
       }

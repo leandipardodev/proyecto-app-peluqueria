@@ -13,6 +13,7 @@ import { MercadoPagoConfig, Preference } from "mercadopago";
 import type { ActionResult } from "@/lib/types";
 import { sendAppointmentConfirmationEmail, scheduleAppointmentReminderEmail } from "@/lib/email/booking-emails";
 import { createRateLimiter } from "@/lib/rate-limiter";
+import { verifyRecaptcha } from "@/lib/recaptcha";
 import { headers } from "next/headers";
 import "server-only";
 
@@ -748,8 +749,16 @@ export async function createPublicComboAppointment(data: {
   authenticatedUserId?: string;
   status?: "scheduled" | "pending_payment";
   startTime: string;
+  recaptchaToken?: string;
 }): Promise<ActionResult<{ customerId: string; appointmentIds: string[] }>> {
   try {
+    if (data.recaptchaToken) {
+      const recaptchaResult = await verifyRecaptcha(data.recaptchaToken);
+      if (!recaptchaResult.success) {
+        return { success: false, error: "Verificacion de seguridad fallida. Intenta de nuevo." };
+      }
+    }
+
     const admin = await createAdminClient();
 
     const startDate = new Date(data.startTime);

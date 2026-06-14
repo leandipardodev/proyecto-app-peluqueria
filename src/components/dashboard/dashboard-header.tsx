@@ -8,7 +8,8 @@ import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { haptic } from "@/lib/haptic";
 import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
-import { globalSearch, type OmniSearchResult } from "@/lib/dashboard/global-search-actions";
+import { supabase } from "@/lib/supabase";
+import type { OmniSearchResult } from "@/lib/dashboard/global-search-actions";
 import { useDarkMode } from "@/lib/use-dark-mode";
 import { usePerformanceMode } from "@/lib/use-performance-mode";
 import { triggerDashboardNavTransition } from "@/lib/dashboard/nav-transition";
@@ -243,21 +244,55 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
       return;
     }
 
-    const timer = setTimeout(() => {
-      startTransition(async () => {
-        const res = await globalSearch(q);
-        if (!res.success) {
-          setSearchError(res.error);
-          setDbResults([]);
-          return;
-        }
-        setSearchError(null);
-        setDbResults(res.data ?? []);
-      });
+    const timer = setTimeout(async () => {
+      const [stockRes, servicesRes, customersRes, staffRes] = await Promise.all([
+        supabase
+          .from("stock")
+          .select("id, nombre_producto, quantity")
+          .eq("shop_id", shop?.id)
+          .ilike("nombre_producto", `%${q}%`)
+          .order("nombre_producto", { ascending: true })
+          .limit(8),
+        supabase
+          .from("services")
+          .select("id, name, duration_minutes")
+          .eq("shop_id", shop?.id)
+          .ilike("name", `%${q}%`)
+          .order("name", { ascending: true })
+          .limit(8),
+        supabase
+          .from("customers")
+          .select("id, nombre, telefono")
+          .eq("shop_id", shop?.id)
+          .or(`nombre.ilike.%${q}%,telefono.ilike.%${q}%`)
+          .order("nombre", { ascending: true })
+          .limit(8),
+        supabase
+          .from("user_profiles")
+          .select("user_id, name, email, role")
+          .eq("shop_id", shop?.id)
+          .in("role", ["owner", "staff"])
+          .or(`name.ilike.%${q}%,email.ilike.%${q}%`)
+          .order("name", { ascending: true })
+          .limit(8),
+      ]);
+
+      if (stockRes.error || servicesRes.error || customersRes.error || staffRes.error) {
+        setSearchError("Error en la busqueda");
+        setDbResults([]);
+        return;
+      }
+      setSearchError(null);
+      setDbResults([
+        ...(stockRes.data || []).map((item: any) => ({ type: "stock" as const, ...item })),
+        ...(servicesRes.data || []).map((item: any) => ({ type: "service" as const, ...item })),
+        ...(customersRes.data || []).map((item: any) => ({ type: "customer" as const, ...item })),
+        ...(staffRes.data || []).map((item: any) => ({ type: "staff" as const, id: item.user_id, name: item.name, email: item.email, role: item.role })),
+      ]);
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [query, searchOpen]);
+  }, [query, searchOpen, shop?.id]);
 
   const commandItems = useMemo(() => {
     const q = query.trim();

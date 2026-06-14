@@ -4,20 +4,13 @@ import { createServerClient } from "@/lib/supabase/server";
 import { fetchWhatsappTemplate } from "@/lib/dashboard/whatsapp-actions";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
 import type { ActionResult } from "@/lib/types";
-import type { CustomersData } from "./calendar-section";
 
 type AppointmentsTableData = Awaited<ReturnType<typeof fetchAllAppointmentsForTable>> extends ActionResult<infer T> ? T : never;
 
 export default async function AppointmentsTableSection({
   shopId,
-  services,
-  staff,
-  customers,
 }: {
   shopId: string;
-  services: Array<{ id: string; name: string; price: number; duration_minutes: number }>;
-  staff: Array<{ id: string; name: string | null; email: string | null; role: string; revenue: number; payModel: string; percentageRate: number; fixedAmount: number }>;
-  customers: CustomersData;
 }) {
   let appointmentsForTable: AppointmentsTableData = [];
   let shopName = "";
@@ -44,9 +37,6 @@ export default async function AppointmentsTableSection({
     <AppointmentsTable
       shopId={shopId}
       initialAppointments={appointmentsForTable}
-      services={services}
-      staff={staff}
-      customers={customers}
       shopName={shopName || "Mi Peluquería"}
       shopAddress={shopAddress}
       whatsappTemplate={whatsappTemplate || null}

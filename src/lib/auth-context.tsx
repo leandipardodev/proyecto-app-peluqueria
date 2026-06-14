@@ -226,7 +226,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const contextValue = useMemo(() => state, [
     state.user?.id ?? null,
+    state.user?.role ?? null,
     state.shop?.id ?? null,
+    state.shop?.slug ?? null,
+    state.shop?.active ?? null,
     state.isLoading,
   ]);
 

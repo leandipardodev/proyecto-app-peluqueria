@@ -109,7 +109,7 @@ async function CalendarPageContent({
 
   const [calendarEl, tableEl] = await Promise.all([
     CalendarSection({ shopId, services, staff, customers, initialDateParam, initialAppointmentId }),
-    AppointmentsTableSection({ shopId, services, staff, customers }),
+    AppointmentsTableSection({ shopId }),
   ]);
   return <>{calendarEl}{tableEl}</>;
 }

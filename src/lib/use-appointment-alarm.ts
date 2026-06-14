@@ -23,7 +23,10 @@ export function useAppointmentAlarm(
 ): void {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const appointmentsRef = useRef(appointments);
-  appointmentsRef.current = appointments;
+
+  useEffect(() => {
+    appointmentsRef.current = appointments;
+  }, [appointments]);
 
   useEffect(() => {
     function checkWindows() {

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useRef, useEffect, type ReactNode } from "react";
 import { X, CheckCircle, AlertCircle, Info } from "lucide-react";
 
 type ToastType = "success" | "error" | "info";
@@ -39,13 +39,22 @@ const BG_CLASSES: Record<ToastType, string> = {
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const toastTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+
+  useEffect(() => {
+    return () => {
+      toastTimersRef.current.forEach(clearTimeout);
+    };
+  }, []);
 
   const addToast = useCallback((message: string, type: ToastType = "success") => {
     const id = crypto.randomUUID();
     setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
+    const timer = setTimeout(() => {
+      toastTimersRef.current.delete(timer);
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 4000);
+    toastTimersRef.current.add(timer);
   }, []);
 
   const removeToast = useCallback((id: string) => {

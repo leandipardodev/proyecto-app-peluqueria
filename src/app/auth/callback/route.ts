@@ -161,7 +161,7 @@ export async function GET(request: NextRequest) {
         ) {
           flow = "owner_signup";
         }
-      } catch {}
+      } catch (e) { console.error("[auth/callback] error parsing state:", e); }
     }
 
     const response = new NextResponse(null, { status: 200 });
@@ -240,7 +240,7 @@ export async function GET(request: NextRequest) {
           const state = JSON.parse(decodeURIComponent(stateParam));
           ownerShopName = typeof state?.shopName === "string" ? state.shopName.trim() : null;
           ownerIndustry = resolveIndustry(typeof state?.industry === "string" ? state.industry : null);
-        } catch {}
+        } catch (e) { console.error("[auth/callback] error parsing state:", e); }
       }
 
       if (!ownerShopName) {
@@ -282,7 +282,7 @@ export async function GET(request: NextRequest) {
           .eq("user_id", user.id);
 
         if (profileUpdateError) {
-          try { await adminClient.from("shops").delete().eq("id", createdShop.id); } catch {}
+          try { await adminClient.from("shops").delete().eq("id", createdShop.id); } catch (cleanupErr) { console.error("[auth/callback] cleanup after profile update error:", cleanupErr); }
           return NextResponse.redirect(new URL(`/register?error=${encodeURIComponent(profileUpdateError.message)}`, request.url));
         }
       } else {
@@ -298,7 +298,7 @@ export async function GET(request: NextRequest) {
           });
 
         if (profileInsertError) {
-          try { await adminClient.from("shops").delete().eq("id", createdShop.id); } catch {}
+          try { await adminClient.from("shops").delete().eq("id", createdShop.id); } catch (cleanupErr) { console.error("[auth/callback] cleanup after profile insert error:", cleanupErr); }
           return NextResponse.redirect(new URL(`/register?error=${encodeURIComponent(profileInsertError.message)}`, request.url));
         }
       }
@@ -318,7 +318,7 @@ export async function GET(request: NextRequest) {
         try {
           await adminClient.from("user_profiles").delete().eq("user_id", user.id).eq("shop_id", createdShop.id);
           await adminClient.from("shops").delete().eq("id", createdShop.id);
-        } catch {}
+        } catch (cleanupErr) { console.error("[auth/callback] cleanup after membership error:", cleanupErr); }
         return NextResponse.redirect(new URL(`/register?error=${encodeURIComponent(membershipError.message)}`, request.url));
       }
 
@@ -406,7 +406,7 @@ export async function GET(request: NextRequest) {
         });
 
       if (customerError) {
-        try { await adminClient.from("user_profiles").delete().eq("user_id", user.id); } catch {}
+        try { await adminClient.from("user_profiles").delete().eq("user_id", user.id); } catch (cleanupErr) { console.error("[auth/callback] cleanup after customer error:", cleanupErr); }
         return NextResponse.redirect(
           new URL(`/login?error=${encodeURIComponent(customerError.message)}`, request.url)
         );

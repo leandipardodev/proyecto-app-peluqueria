@@ -6,7 +6,6 @@ import { useAppointmentAlarm } from "@/lib/use-appointment-alarm";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { supabase } from "@/lib/supabase";
-import { fetchAllAppointmentsForTable } from "@/lib/dashboard/appointment-query-actions";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
@@ -24,9 +23,7 @@ type Appointment = {
   services: { id: string; name: string; price: number } | null;
 };
 
-type Service = { id: string; name: string; duration_minutes: number; price: number };
-type StaffMember = { id: string; role: string; name: string | null; email: string | null };
-type Customer = { id: string; nombre: string | null; email: string | null; telefono: string | null };
+
 
 function extractEmoji(name: string): { emoji: string; label: string } {
   const parts = name.split(/\s+/);
@@ -67,16 +64,13 @@ function needsStatusAttention(startTime: string): boolean {
 interface Props {
   shopId: string;
   initialAppointments: Appointment[];
-  services: Service[];
-  staff: StaffMember[];
-  customers: Customer[];
   shopName: string;
   shopAddress?: string | null;
   whatsappTemplate?: string | null;
   error?: string | null;
 }
 
-const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppointments, services, staff, customers, shopName, shopAddress, whatsappTemplate, error }: Props) {
+const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppointments, shopName, shopAddress, whatsappTemplate, error }: Props) {
   const { shop } = useAuth();
   const industry = resolveIndustry(shop?.industry);
   const customerWord = INDUSTRY_CONFIG[industry].labels.customerSingular;
@@ -111,9 +105,39 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
       if (realtimeCooldown.current) return;
       realtimeCooldown.current = true;
       setTimeout(() => { realtimeCooldown.current = false; }, 2000);
-      const result = await fetchAllAppointmentsForTable(shopId, { limit: 50, upcomingOnly: true });
-      if (result.success && Array.isArray(result.data)) {
-        setAppointments(result.data as Appointment[]);
+      const now = new Date().toISOString();
+      const { data: rows, error } = await supabase
+        .from("appointments")
+        .select("id, start_time, end_time, status, is_paid, deposit_amount, customer_id, staff_id, service_id")
+        .eq("shop_id", shopId)
+        .gte("start_time", now)
+        .order("start_time", { ascending: true })
+        .limit(50);
+      if (!error && rows) {
+        const customerIds = rows.map((r) => r.customer_id).filter(Boolean) as string[];
+        const staffIds = rows.map((r) => r.staff_id).filter(Boolean) as string[];
+        const serviceIds = rows.map((r) => r.service_id).filter(Boolean) as string[];
+        const [customersRes, staffRes, servicesRes] = await Promise.all([
+          customerIds.length > 0
+            ? supabase.from("customers").select("id, nombre, email, telefono").in("id", customerIds)
+            : { data: [] },
+          staffIds.length > 0
+            ? supabase.from("user_profiles").select("user_id, name").in("user_id", staffIds)
+            : { data: [] },
+          serviceIds.length > 0
+            ? supabase.from("services").select("id, name, price").in("id", serviceIds)
+            : { data: [] },
+        ]);
+        const customerMap = new Map((customersRes.data || []).map((c: any) => [c.id, c]));
+        const staffMap = new Map((staffRes.data || []).map((s: any) => [s.user_id, s]));
+        const serviceMap = new Map((servicesRes.data || []).map((s: any) => [s.id, s]));
+        const assembled = rows.map((r) => ({
+          ...r,
+          customers: customerMap.get(r.customer_id) ?? null,
+          staff: staffMap.get(r.staff_id) ?? null,
+          services: serviceMap.get(r.service_id) ?? null,
+        }));
+        setAppointments(assembled as Appointment[]);
       }
     };
 

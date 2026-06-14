@@ -193,12 +193,40 @@ export default function CalendarPageClient({
       if (realtimeCooldown.current) return;
       realtimeCooldown.current = true;
       setTimeout(() => { realtimeCooldown.current = false; }, 2000);
-      const result = await fetchAppointments(rangeStart.toISOString(), rangeEnd.toISOString(), shopId);
-      if (result.success && Array.isArray(result.data)) {
-        const incoming = result.data as Appointment[];
+      const { data: rows, error } = await supabase
+        .from("appointments")
+        .select("id, customer_id, staff_id, service_id, start_time, end_time, status, is_paid, deposit_amount, loyalty_reward_applied, loyalty_discount_percent_applied, notes")
+        .eq("shop_id", shopId)
+        .gte("start_time", rangeStart.toISOString())
+        .lte("start_time", rangeEnd.toISOString())
+        .order("start_time", { ascending: true });
+      if (!error && rows) {
+        const customerIds = [...new Set(rows.map((r) => r.customer_id))];
+        const staffIds = [...new Set(rows.map((r) => r.staff_id))];
+        const serviceIds = [...new Set(rows.map((r) => r.service_id))];
+        const [customersRes, staffRes, servicesRes] = await Promise.all([
+          customerIds.length > 0
+            ? supabase.from("customers").select("id, nombre, email, telefono, loyalty_rewards_available").eq("shop_id", shopId).in("id", customerIds)
+            : { data: [] },
+          staffIds.length > 0
+            ? supabase.from("user_profiles").select("user_id, name, email").in("user_id", staffIds)
+            : { data: [] },
+          serviceIds.length > 0
+            ? supabase.from("services").select("id, name, price, duration_minutes").in("id", serviceIds)
+            : { data: [] },
+        ]);
+        const customersMap = new Map((customersRes.data || []).map((c: any) => [c.id, c]));
+        const staffMap = new Map((staffRes.data || []).map((s: any) => [s.user_id, s]));
+        const servicesMap = new Map((servicesRes.data || []).map((s: any) => [s.id, s]));
+        const enriched = rows.map((r) => ({
+          ...r,
+          customers: customersMap.get(r.customer_id) ?? null,
+          staff: staffMap.get(r.staff_id) ?? null,
+          services: servicesMap.get(r.service_id) ?? null,
+        }));
         setAppointments((prev) => {
-          if (prev.length === incoming.length && prev.every((a, i) => a.id === incoming[i].id)) return prev;
-          return incoming;
+          if (prev.length === enriched.length && prev.every((a: any, i: any) => a.id === enriched[i].id)) return prev;
+          return enriched as any;
         });
       }
     };
