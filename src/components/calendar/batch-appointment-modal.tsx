@@ -654,9 +654,15 @@ function EntryCard({
                           ) : (
                             <button
                               type="button"
-                              onClick={() => {
-                                setEditingDurationId(s.id);
-                                setEditingDurationValue(String(effDuration));
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                try {
+                                  console.log("[batch] duration click", s.id, effDuration);
+                                  setEditingDurationId(s.id);
+                                  setEditingDurationValue(String(effDuration));
+                                } catch (err) {
+                                  console.error("[batch] click error", err);
+                                }
                               }}
                               className={`inline-flex items-center gap-0.5 text-xs hover:text-violet-600 transition-colors cursor-pointer select-none ${isCustom ? 'text-violet-600 dark:text-violet-300 font-semibold' : 'opacity-70'}`}
                             >
@@ -800,9 +806,15 @@ function EntryCard({
                       ) : (
                         <button
                           type="button"
-                          onClick={() => {
-                            setEditingDurationId(slot.service.id);
-                            setEditingDurationValue(String(effDuration));
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            try {
+                              console.log("[batch] secuencia duration click", slot.service.id, effDuration);
+                              setEditingDurationId(slot.service.id);
+                              setEditingDurationValue(String(effDuration));
+                            } catch (err) {
+                              console.error("[batch] secuencia click error", err);
+                            }
                           }}
                           className={`inline-flex items-center gap-0.5 text-xs tabular-nums hover:text-violet-600 transition-colors cursor-pointer select-none shrink-0 ${isCustom ? 'text-violet-600 font-semibold' : 'text-zinc-400'}`}
                         >
