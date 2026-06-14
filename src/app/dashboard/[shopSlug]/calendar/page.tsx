@@ -65,7 +65,7 @@ export default async function CalendarByShopSlugPage({
   searchParams,
 }: {
   params: Promise<{ shopSlug: string }>;
-  searchParams?: Promise<{ date?: string; appointmentId?: string }>;
+  searchParams?: Promise<{ date?: string; appointmentId?: string; view?: string }>;
 }) {
   const [user, { shopSlug }] = await Promise.all([getCachedUser(), params]);
   if (!user) redirect("/login");
@@ -81,6 +81,7 @@ export default async function CalendarByShopSlugPage({
           shopId={shopId}
           initialDateParam={resolvedSearchParams?.date}
           initialAppointmentId={resolvedSearchParams?.appointmentId}
+          initialViewMode={resolvedSearchParams?.view}
         />
       </Suspense>
     </div>
@@ -91,10 +92,12 @@ async function CalendarPageContent({
   shopId,
   initialDateParam,
   initialAppointmentId,
+  initialViewMode,
 }: {
   shopId: string;
   initialDateParam?: string;
   initialAppointmentId?: string;
+  initialViewMode?: string;
 }) {
   const [servicesResult, staffResult, customers] = await Promise.all([
     fetchActiveServices(shopId),
@@ -108,7 +111,7 @@ async function CalendarPageContent({
   if (isActionSuccess<StaffData>(staffResult)) staff = staffResult.data ?? [];
 
   const [calendarEl, tableEl] = await Promise.all([
-    CalendarSection({ shopId, services, staff, customers, initialDateParam, initialAppointmentId }),
+    CalendarSection({ shopId, services, staff, customers, initialDateParam, initialAppointmentId, initialViewMode }),
     AppointmentsTableSection({ shopId }),
   ]);
   return <>{calendarEl}{tableEl}</>;

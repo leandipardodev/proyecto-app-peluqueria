@@ -3,9 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Gift, Save, Trophy, Users } from "lucide-react";
-import { TagChips, useTagInsert } from "@/components/ui/tag-chips";
 import { runLoyaltyRaffleAction, updateLoyaltyProgramAction } from "@/lib/dashboard/business-actions";
-import { updateVoucherWhatsappTemplate } from "@/lib/dashboard/voucher-actions";
 import VouchersClient from "../vouchers/vouchers-client";
 import type { VoucherRow } from "@/lib/dashboard/voucher-actions";
 import { useAuth } from "@/lib/auth-context";
@@ -55,12 +53,6 @@ export default function FidelizacionClient({
   const [raffleSpinKey, setRaffleSpinKey] = useState(0);
   const [winnerBurst, setWinnerBurst] = useState(false);
   const [birthdayDiscount, setBirthdayDiscount] = useState("15");
-  const [birthdayMessage, setBirthdayMessage] = useState(
-    voucherTemplate || "Feliz cumple @Nombre! Te regalamos un descuento especial para tu proxima visita."
-  );
-  const [birthdayMessageStatus, setBirthdayMessageStatus] = useState<string | null>(null);
-  const birthdayRef = useRef<HTMLTextAreaElement>(null);
-  const insertBirthdayTag = useTagInsert(birthdayRef, birthdayMessage, setBirthdayMessage);
   const raffleTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -142,20 +134,6 @@ export default function FidelizacionClient({
       };
 
       spin();
-    });
-  }
-
-  function handleSaveBirthdayConfig() {
-    setBirthdayMessageStatus(null);
-    startTransition(async () => {
-      const safeDiscount = Math.max(0, Math.min(100, Number(birthdayDiscount) || 0));
-      const text = birthdayMessage.trim();
-      const result = await updateVoucherWhatsappTemplate(shopId, text);
-      if (!result.success) {
-        setBirthdayMessageStatus(result.error);
-        return;
-      }
-      setBirthdayMessageStatus("Configuracion de cumple guardada.");
     });
   }
 
@@ -317,15 +295,17 @@ export default function FidelizacionClient({
             )}
           </div>
         </div>
+      </div>
 
-        <div className="rounded-[1.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors bg-white dark:bg-zinc-900 lg:col-span-2">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="rounded-[1.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors bg-white dark:bg-zinc-900">
           <div className="px-5 py-4 border-b border-white/10 flex items-center gap-2.5">
             <div className="p-2 rounded-full bg-pink-500/15">
               <Gift className="w-4.5 h-4.5 text-pink-600" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white tracking-tight">Cumpleanos: descuento + WhatsApp</h3>
-              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Define el beneficio y el mensaje automatico</p>
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white tracking-tight">Descuento de cumpleanos</h3>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Define el beneficio por cumpleanos</p>
             </div>
           </div>
           <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -343,38 +323,13 @@ export default function FidelizacionClient({
                 />
               </div>
             </div>
-            <div className="md:col-span-2">
-              <label className="px-1 text-xs text-zinc-600 dark:text-zinc-300">Mensaje WhatsApp</label>
-              <TagChips tags={["Nombre"]} onInsert={insertBirthdayTag} />
-              <p className="text-xs text-zinc-400 dark:text-zinc-500">Hacé clic en la etiqueta para insertarla. Se reemplazará con el nombre del cliente.</p>
-              <textarea
-                ref={birthdayRef}
-                value={birthdayMessage}
-                onChange={(e) => setBirthdayMessage(e.target.value)}
-                rows={3}
-                className="mt-1 w-full rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-4 py-2.5 text-sm text-gray-900 dark:text-white"
-                placeholder="Ej: Feliz cumple @Nombre! Te regalamos un descuento."
-              />
+            <div className="md:col-span-2 flex items-end">
+              <p className="text-xs text-zinc-400 dark:text-zinc-500">El descuento se aplica automaticamente al agendar en el mes del cumpleanos. El mensaje de WhatsApp se configura en Comunicaciones.</p>
             </div>
-            <div className="md:col-span-3 flex items-center justify-between gap-3">
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">Tip: usa @Nombre para personalizar el saludo.</p>
-              <button
-                type="button"
-                onClick={handleSaveBirthdayConfig}
-                disabled={pending}
-                className="inline-flex items-center gap-2 rounded-full bg-pink-600 text-white px-4 py-2 text-sm font-medium hover:bg-pink-700 disabled:opacity-50"
-              >
-                <Save className="w-4 h-4" />
-                {pending ? "Guardando..." : "Guardar cumple"}
-              </button>
-            </div>
-            {birthdayMessageStatus && (
-              <p className="md:col-span-3 text-sm text-zinc-700 dark:text-zinc-200">{birthdayMessageStatus}</p>
-            )}
           </div>
         </div>
-      </div>
 
+        <div>
       <div className="rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors bg-white dark:bg-zinc-900">
         <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
           <div className="p-2 rounded-full bg-violet-500/15">
@@ -449,6 +404,8 @@ export default function FidelizacionClient({
               {pending ? "Guardando..." : "Guardar fidelizacion"}
             </button>
           </div>
+        </div>
+      </div>
         </div>
       </div>
 

@@ -167,6 +167,8 @@ async function createAdminClient() {
 
 export type DashboardMetrics = {
   revenueChart: Array<{ month: string; income: number; expenses: number }>;
+  dailyBreakdown: Array<{ dateKey: string; income: number; expenses: number }>;
+  hourlyBreakdown: Array<{ hour: string; income: number; expenses: number }>;
   monthlyGrowth: Array<{ month: string; clients: number; growthPct: number | null }>;
   healthScore: number;
   healthBreakdown: { revenue: number; clients: number; appointments: number };
@@ -270,7 +272,7 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
     const [apptsRevenueRes, apptsCountRes, financesRes, cashMovesRes, clientsRes, flowToday, flowWeek, flowMonth] = await Promise.all([
       admin
         .from("appointments")
-        .select("date_key_ar, service_id, is_paid, service_price, services!appointments_service_id_fkey(price)")
+        .select("date_key_ar, start_time, service_id, is_paid, service_price, services!appointments_service_id_fkey(price)")
         .eq("shop_id", shopId)
         .gte("start_time", sixMonthsAgo.toISOString())
         .eq("status", "completed")
@@ -351,6 +353,98 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
       month,
       income: incomeByMonth.get(month) ?? 0,
       expenses: expensesByMonth.get(month) ?? 0,
+    }));
+
+    const weekDayKeys: string[] = [];
+    {
+      const wd = new Date(weekStart);
+      for (let i = 0; i < 7; i++) {
+        const k = getArgentinaDateKey(wd);
+        weekDayKeys.push(k);
+        wd.setUTCDate(wd.getUTCDate() + 1);
+      }
+    }
+    const incomeByDay = new Map<string, number>();
+    const expensesByDay = new Map<string, number>();
+    for (const apt of apptsRevenueRes.data ?? []) {
+      if (!apt.is_paid) continue;
+      const dk = typeof apt.date_key_ar === "string" ? apt.date_key_ar : null;
+      if (!dk || !weekDayKeys.includes(dk)) continue;
+      const price = apt.service_price != null ? Number(apt.service_price) : (() => {
+        const svc = Array.isArray(apt.services) ? apt.services[0] : apt.services;
+        return svc?.price ?? 0;
+      })();
+      incomeByDay.set(dk, (incomeByDay.get(dk) ?? 0) + price);
+    }
+    for (const fin of financesRes.data ?? []) {
+      const dateKey = fin.happened_at || fin.created_at;
+      const dk = dateKey ? getArgentinaDateKey(dateKey) : null;
+      if (!dk || !weekDayKeys.includes(dk)) continue;
+      if (fin.type === "income") {
+        incomeByDay.set(dk, (incomeByDay.get(dk) ?? 0) + fin.amount);
+      } else if (fin.type === "expense") {
+        expensesByDay.set(dk, (expensesByDay.get(dk) ?? 0) + fin.amount);
+      }
+    }
+    for (const mov of cashMovesRes.data ?? []) {
+      const dk = mov.happened_at ? getArgentinaDateKey(mov.happened_at) : null;
+      if (!dk || !weekDayKeys.includes(dk)) continue;
+      if (mov.movement_type === "income") {
+        incomeByDay.set(dk, (incomeByDay.get(dk) ?? 0) + Number(mov.amount || 0));
+      } else if (mov.movement_type === "expense" || mov.movement_type === "withdrawal") {
+        expensesByDay.set(dk, (expensesByDay.get(dk) ?? 0) + Number(mov.amount || 0));
+      }
+    }
+    const dailyBreakdown = weekDayKeys.map((dk) => ({
+      dateKey: dk,
+      income: incomeByDay.get(dk) ?? 0,
+      expenses: expensesByDay.get(dk) ?? 0,
+    }));
+
+    const hours = Array.from({ length: 14 }, (_, i) => String(i + 8));
+    const incomeByHour = new Map<string, number>();
+    const expensesByHour = new Map<string, number>();
+    for (const apt of apptsRevenueRes.data ?? []) {
+      if (!apt.is_paid) continue;
+      const dk = typeof apt.date_key_ar === "string" ? apt.date_key_ar : null;
+      if (!dk || dk !== todayArKey) continue;
+      const hour = apt.start_time ? String(new Date(apt.start_time).getUTCHours()).padStart(2, "0") : null;
+      if (!hour || !hours.includes(hour)) continue;
+      const price = apt.service_price != null ? Number(apt.service_price) : (() => {
+        const svc = Array.isArray(apt.services) ? apt.services[0] : apt.services;
+        return svc?.price ?? 0;
+      })();
+      incomeByHour.set(hour, (incomeByHour.get(hour) ?? 0) + price);
+    }
+    for (const fin of financesRes.data ?? []) {
+      const dateKey = fin.happened_at || fin.created_at;
+      if (!dateKey) continue;
+      const dk = getArgentinaDateKey(dateKey);
+      if (dk !== todayArKey) continue;
+      const hour = String(new Date(dateKey).getUTCHours()).padStart(2, "0");
+      if (!hours.includes(hour)) continue;
+      if (fin.type === "income") {
+        incomeByHour.set(hour, (incomeByHour.get(hour) ?? 0) + fin.amount);
+      } else if (fin.type === "expense") {
+        expensesByHour.set(hour, (expensesByHour.get(hour) ?? 0) + fin.amount);
+      }
+    }
+    for (const mov of cashMovesRes.data ?? []) {
+      if (!mov.happened_at) continue;
+      const dk = getArgentinaDateKey(mov.happened_at);
+      if (dk !== todayArKey) continue;
+      const hour = String(new Date(mov.happened_at).getUTCHours()).padStart(2, "0");
+      if (!hours.includes(hour)) continue;
+      if (mov.movement_type === "income") {
+        incomeByHour.set(hour, (incomeByHour.get(hour) ?? 0) + Number(mov.amount || 0));
+      } else if (mov.movement_type === "expense" || mov.movement_type === "withdrawal") {
+        expensesByHour.set(hour, (expensesByHour.get(hour) ?? 0) + Number(mov.amount || 0));
+      }
+    }
+    const hourlyBreakdown = hours.map((hour) => ({
+      hour,
+      income: incomeByHour.get(hour) ?? 0,
+      expenses: expensesByHour.get(hour) ?? 0,
     }));
 
     const { data: topRaw, error: topErr } = await admin
@@ -460,6 +554,8 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
       success: true,
       data: {
         revenueChart,
+        dailyBreakdown,
+        hourlyBreakdown,
         monthlyGrowth,
         healthScore,
         healthBreakdown: { revenue: revScore, clients: cliScore, appointments: apptScore },

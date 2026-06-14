@@ -357,6 +357,22 @@ export async function GET(request: NextRequest) {
       shopId = shop?.id || null;
     }
 
+    // Fallback: extraer slug del nextPath (e.g. /book/mi-local) si no se obtuvo shopId
+    if (!shopId && nextPath) {
+      const slugMatch = nextPath.match(/^\/book\/([^\/?#]+)/);
+      if (slugMatch) {
+        const { data: shop } = await adminClient
+          .from("shops")
+          .select("id")
+          .eq("slug", slugMatch[1])
+          .maybeSingle();
+        shopId = shop?.id ?? null;
+        if (shopId && role === "customer") {
+          role = "customer";
+        }
+      }
+    }
+
     // Use service role key to bypass RLS (chicken-and-egg: new user has no profile yet)
     const { error: profileError } = await adminClient
       .from("user_profiles")

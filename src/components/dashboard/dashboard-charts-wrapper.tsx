@@ -23,6 +23,8 @@ const MonthlyGrowthCard = dynamicImport(() => import("@/components/dashboard/mon
 
 interface DashboardChartsWrapperProps {
   revenueData: Array<{ month: string; income: number; expenses: number }>;
+  dailyBreakdown: Array<{ dateKey: string; income: number; expenses: number }>;
+  hourlyBreakdown: Array<{ hour: string; income: number; expenses: number }>;
   flowByPeriod?: {
     today: { income: number; expenses: number };
     week: { income: number; expenses: number };
@@ -41,7 +43,7 @@ export default function DashboardChartsWrapper(props: DashboardChartsWrapperProp
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
       <div className="lg:col-span-2 min-w-0 space-y-4">
-        <RevenueChart data={props.revenueData} flowByPeriod={props.flowByPeriod} />
+        <RevenueChart data={props.revenueData} dailyBreakdown={props.dailyBreakdown} hourlyBreakdown={props.hourlyBreakdown} flowByPeriod={props.flowByPeriod} />
       </div>
       <div className="lg:col-span-1 space-y-4 min-w-0">
         <TopServices data={props.topServicesData} serviceLabelPlural={props.serviceLabelPlural} />

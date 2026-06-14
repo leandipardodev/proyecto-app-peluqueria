@@ -18,7 +18,10 @@ export default function GoogleSignInButton({ shopSlug, className }: GoogleSignIn
     try {
       playClick();
       setIsLoading(true);
-      const redirectTo = `${window.location.origin}/auth/callback?flow=client&next=/book/${shopSlug}`;
+      const nextPath = `/book/${shopSlug}`;
+      document.cookie = `klip_oauth_flow=client; Path=/; Max-Age=600; SameSite=Lax`;
+      document.cookie = `klip_oauth_next=${encodeURIComponent(nextPath)}; Path=/; Max-Age=600; SameSite=Lax`;
+      const redirectTo = `${window.location.origin}/auth/callback`;
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",

@@ -1,8 +1,7 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Option = { value: string; label: string };
 
@@ -23,9 +22,7 @@ export default function CustomSelect({
 }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const [dropdownStyle, setDropdownStyle] = useState<{ top: number; left: number; width: number } | null>(null);
 
   const selected = useMemo(() => options.find((o) => o.value === value) || null, [options, value]);
 
@@ -34,7 +31,6 @@ export default function CustomSelect({
     function onDocClick(e: MouseEvent) {
       const target = e.target as Node;
       if (containerRef.current?.contains(target)) return;
-      if (dropdownRef.current?.contains(target)) return;
       setOpen(false);
     }
     document.addEventListener("click", onDocClick);
@@ -55,34 +51,12 @@ export default function CustomSelect({
     };
   }, [open]);
 
-  const handleToggle = useCallback(() => {
-    if (!open && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      if (spaceBelow < 200 && rect.top > spaceBelow) {
-        setDropdownStyle({
-          top: Math.max(8, rect.top - 260),
-          left: rect.left,
-          width: rect.width,
-        });
-      } else {
-        setDropdownStyle({
-          top: rect.bottom + 4,
-          left: rect.left,
-          width: rect.width,
-        });
-      }
-    }
-    setOpen((prev) => !prev);
-  }, [open]);
-
   return (
-    <div ref={containerRef} className={`relative ${className}`}>
+    <div ref={containerRef} className={`relative z-50 ${className}`}>
       {name ? <input type="hidden" name={name} value={value} /> : null}
       <button
-        ref={buttonRef}
         type="button"
-        onClick={handleToggle}
+        onClick={() => setOpen((prev) => !prev)}
         className="ui-btn-ghost flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm"
       >
         <span className={selected ? "text-slate-900 dark:text-slate-100" : "text-slate-500 dark:text-slate-400"}>
@@ -91,17 +65,11 @@ export default function CustomSelect({
         <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
-      {open && dropdownStyle && typeof document !== "undefined" && createPortal(
+      {open && (
         <div
           ref={dropdownRef}
-          style={{
-            position: "fixed",
-            top: dropdownStyle.top,
-            left: dropdownStyle.left,
-            width: dropdownStyle.width,
-            zIndex: 9999,
-          }}
-          className="ui-card max-h-64 overflow-y-auto overflow-x-hidden rounded-xl p-1"
+          className="ui-card absolute left-0 right-0 top-full mt-1 max-h-64 overflow-y-auto overflow-x-hidden rounded-xl p-1"
+          style={{ zIndex: 9999 }}
         >
           {options.map((opt) => (
             <button
@@ -120,8 +88,7 @@ export default function CustomSelect({
               {opt.label}
             </button>
           ))}
-        </div>,
-        document.body
+        </div>
       )}
     </div>
   );

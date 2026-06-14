@@ -7,6 +7,8 @@ import { StatePanel } from "@/components/ui/state-panel";
 
 type RevenueChartProps = {
   data: Array<{ month: string; income: number; expenses: number }>;
+  dailyBreakdown: Array<{ dateKey: string; income: number; expenses: number }>;
+  hourlyBreakdown: Array<{ hour: string; income: number; expenses: number }>;
   flowByPeriod?: {
     today: { income: number; expenses: number };
     week: { income: number; expenses: number };
@@ -22,13 +24,24 @@ function formatMoney(value: number): string {
   }).format(value);
 }
 
+const MONTH_LABELS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+const DAY_LABELS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+
 function formatMonthLabel(value: string): string {
   const [y, m] = value.split("-");
-  const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-  return `${months[parseInt(m, 10) - 1]} ${y.slice(2)}`;
+  return `${MONTH_LABELS[parseInt(m, 10) - 1]} ${y.slice(2)}`;
 }
 
-export default function RevenueChart({ data, flowByPeriod }: RevenueChartProps) {
+function formatDayLabel(value: string): string {
+  const d = new Date(value + "T12:00:00-03:00");
+  return DAY_LABELS[d.getUTCDay()];
+}
+
+function formatHourLabel(value: string): string {
+  return `${value}:00`;
+}
+
+export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, flowByPeriod }: RevenueChartProps) {
   const [hoveredBar, setHoveredBar] = useState<string | null>(null);
   const [period, setPeriod] = useState<"today" | "week" | "month">("today");
   const chartHostRef = useRef<HTMLDivElement | null>(null);
@@ -37,7 +50,7 @@ export default function RevenueChart({ data, flowByPeriod }: RevenueChartProps) 
   const [tooltip, setTooltip] = useState<{
     x: number;
     y: number;
-    month: string;
+    label: string;
     income: number;
     expenses: number;
   } | null>(null);
@@ -63,6 +76,20 @@ export default function RevenueChart({ data, flowByPeriod }: RevenueChartProps) 
     return () => observer.disconnect();
   }, []);
 
+  const chartData = useMemo(() => {
+    if (period === "today") return hourlyBreakdown;
+    if (period === "week") return dailyBreakdown;
+    return data;
+  }, [period, data, dailyBreakdown, hourlyBreakdown]);
+
+  const tickFormatter = useMemo(() => {
+    if (period === "today") return formatHourLabel;
+    if (period === "week") return formatDayLabel;
+    return formatMonthLabel;
+  }, [period]);
+
+  const hasData = chartData.length > 0 && chartData.some((d) => d.income > 0 || d.expenses > 0);
+
   const totals = useMemo(() => {
     const lastMonth = data[data.length - 1];
     const fallback = {
@@ -78,7 +105,7 @@ export default function RevenueChart({ data, flowByPeriod }: RevenueChartProps) 
 
   const netResult = totals.income - totals.expenses;
 
-  if (data.length === 0) {
+  if (!hasData && period === "month" && data.length === 0) {
     return (
       <div className="rounded-xl rounded-tr-none border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
         <StatePanel title="Sin datos de ingresos" description="Todavía no hay datos de ingresos para mostrar." />
@@ -150,14 +177,14 @@ export default function RevenueChart({ data, flowByPeriod }: RevenueChartProps) 
         )}
         {canRenderChart && (
           <ResponsiveContainer width="100%" height={220} minWidth={280} minHeight={180}>
-            <BarChart data={data} margin={{ top: 20, right: 4, left: -8, bottom: 0 }} barGap={2} barCategoryGap="8%">
+            <BarChart data={chartData as Array<Record<string, unknown>>} margin={{ top: 20, right: 4, left: -8, bottom: 0 }} barGap={2} barCategoryGap="8%">
               <XAxis
-                dataKey="month"
+                dataKey={period === "today" ? "hour" : period === "week" ? "dateKey" : "month"}
                 axisLine={false}
                 tickLine={false}
                 tickMargin={8}
                 tick={{ fontSize: 11, fill: "#a1a1aa", fontWeight: 500, fontFamily: "Inter" }}
-                tickFormatter={formatMonthLabel}
+                tickFormatter={tickFormatter}
               />
               <YAxis hide />
 
@@ -177,21 +204,22 @@ export default function RevenueChart({ data, flowByPeriod }: RevenueChartProps) 
                   formatter={(value) => formatMoney(Number(value)).replace("ARS", "").trim()}
                   style={{ fontSize: 10, fill: "#3b82f6", fontWeight: 600, fontFamily: "Inter" }}
                 />
-                {data.map((entry, index) => {
+                {chartData.map((entry: Record<string, unknown>, index) => {
                   const key = `income-${index}`;
                   const isHovered = hoveredBar === key;
                   const hasHover = hoveredBar !== null;
+                  const label = (entry.month || entry.dateKey || entry.hour) as string;
                   return (
                     <Cell
-                      key={`${entry.month}-income-${index}`}
+                      key={`${label}-income-${index}`}
                       onMouseEnter={(e) => {
                         setHoveredBar(key);
                         setTooltip({
                           x: e.clientX,
                           y: e.clientY,
-                          month: entry.month,
-                          income: entry.income,
-                          expenses: entry.expenses,
+                          label,
+                          income: entry.income as number,
+                          expenses: entry.expenses as number,
                         });
                       }}
                       onMouseMove={(e) => {
@@ -231,21 +259,22 @@ export default function RevenueChart({ data, flowByPeriod }: RevenueChartProps) 
                   formatter={(value) => formatMoney(Number(value)).replace("ARS", "").trim()}
                   style={{ fontSize: 10, fill: "#64748b", fontWeight: 600, fontFamily: "Inter" }}
                 />
-                {data.map((entry, index) => {
+                {chartData.map((entry: Record<string, unknown>, index) => {
                   const key = `expenses-${index}`;
                   const isHovered = hoveredBar === key;
                   const hasHover = hoveredBar !== null;
+                  const label = (entry.month || entry.dateKey || entry.hour) as string;
                   return (
                     <Cell
-                      key={`${entry.month}-expenses-${index}`}
+                      key={`${label}-expenses-${index}`}
                       onMouseEnter={(e) => {
                         setHoveredBar(key);
                         setTooltip({
                           x: e.clientX,
                           y: e.clientY,
-                          month: entry.month,
-                          income: entry.income,
-                          expenses: entry.expenses,
+                          label,
+                          income: entry.income as number,
+                          expenses: entry.expenses as number,
                         });
                       }}
                       onMouseMove={(e) => {
@@ -323,7 +352,7 @@ export default function RevenueChart({ data, flowByPeriod }: RevenueChartProps) 
           className="rounded-xl border border-zinc-200 bg-white px-4 py-3 shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
         >
           <p className="mb-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
-            {formatMonthLabel(tooltip.month)}
+            {period === "today" ? formatHourLabel(tooltip.label) : period === "week" ? formatDayLabel(tooltip.label) : formatMonthLabel(tooltip.label)}
           </p>
           <div className="space-y-1 text-xs">
             <div className="flex items-center gap-2">

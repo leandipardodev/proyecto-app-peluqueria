@@ -21,6 +21,7 @@ export default async function CalendarSection({
   customers,
   initialDateParam,
   initialAppointmentId,
+  initialViewMode,
 }: {
   shopId: string;
   services: ServicesData;
@@ -28,6 +29,7 @@ export default async function CalendarSection({
   customers: CustomersData;
   initialDateParam?: string;
   initialAppointmentId?: string;
+  initialViewMode?: string;
 }) {
   const weekStart = getArgentinaWeekStart();
   const rangeStart = new Date(weekStart);
@@ -65,6 +67,7 @@ export default async function CalendarSection({
       businessHours={businessHours ?? undefined}
       initialDateParam={initialDateParam}
       initialAppointmentId={initialAppointmentId}
+      initialViewMode={initialViewMode}
     />
   );
 }

@@ -100,6 +100,7 @@ interface CalendarPageClientProps {
   businessHours?: BusinessHoursMap;
   initialDateParam?: string;
   initialAppointmentId?: string;
+  initialViewMode?: string;
 }
 
 export default function CalendarPageClient({
@@ -112,6 +113,7 @@ export default function CalendarPageClient({
   businessHours,
   initialDateParam,
   initialAppointmentId,
+  initialViewMode,
 }: CalendarPageClientProps) {
   const [currentDate, setCurrentDate] = useState(() => {
     if (!initialDateParam) return new Date();
@@ -388,6 +390,7 @@ export default function CalendarPageClient({
           businessHours={businessHours}
           onViewModeChange={(m) => { calendarViewModeRef.current = m; }}
           onBatchClick={() => setBatchModalOpen(true)}
+          initialViewMode={initialViewMode as "week" | "day" | "month" | undefined}
         />
       </div>
 

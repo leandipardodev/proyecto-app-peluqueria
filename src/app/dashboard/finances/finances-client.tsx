@@ -82,6 +82,17 @@ function getMonthBounds(dateStr: string) {
   return { from, to };
 }
 
+function getWeekBounds(dateStr: string) {
+  const d = new Date(dateStr + "T12:00:00-03:00");
+  const day = d.getUTCDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  d.setUTCDate(d.getUTCDate() + mondayOffset);
+  const from = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+  d.setUTCDate(d.getUTCDate() + 6);
+  const to = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+  return { from, to };
+}
+
 function Card({ title, icon, right, children }: { title: string; icon: React.ReactNode; right?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="ui-card rounded-3xl border border-slate-200/80 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900">
@@ -122,6 +133,7 @@ export default function FinancesClient({
 }) {
   const today = getArgentinaDate();
   const monthBounds = getMonthBounds(today);
+  const weekBounds = getWeekBounds(today);
 
   const [from, setFrom] = useState(initialFrom);
   const [to, setTo] = useState(initialTo);
@@ -475,6 +487,7 @@ export default function FinancesClient({
 
       <div className="ui-card inline-flex max-w-full flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-2.5 dark:border-zinc-700 dark:bg-zinc-900">
         <button onClick={() => applyRangeAndRefresh(today, today)} className="ui-btn-ghost rounded-lg px-2.5 py-1.5 text-xs">DIA</button>
+        <button onClick={() => applyRangeAndRefresh(weekBounds.from, weekBounds.to)} className="ui-btn-ghost rounded-lg px-2.5 py-1.5 text-xs">SEMANA</button>
         <button onClick={() => applyRangeAndRefresh(monthBounds.from, monthBounds.to)} className="ui-btn-ghost rounded-lg px-2.5 py-1.5 text-xs">MES</button>
         <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded-lg border px-2 py-1.5 text-xs" />
         <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="rounded-lg border px-2 py-1.5 text-xs" />

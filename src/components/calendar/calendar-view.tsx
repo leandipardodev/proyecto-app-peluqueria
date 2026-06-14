@@ -68,6 +68,7 @@ interface CalendarViewProps {
   businessHours?: BusinessHoursMap;
   onViewModeChange?: (mode: "week" | "day" | "month") => void;
   onBatchClick?: () => void;
+  initialViewMode?: "week" | "day" | "month";
 }
 
 function hourFromHHmm(v: string): number {
@@ -258,6 +259,7 @@ export default memo(function CalendarView({
   businessHours,
   onViewModeChange,
   onBatchClick,
+  initialViewMode,
 }: CalendarViewProps) {
   const { weekStart, weekEnd, weekDays } = useMemo(() => {
     const ws = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -265,7 +267,9 @@ export default memo(function CalendarView({
     const wd = Array.from({ length: 7 }, (_, i) => addDays(ws, i));
     return { weekStart: ws, weekEnd: we, weekDays: wd };
   }, [currentDate]);
-  const [viewMode, _setViewMode] = useState<"week" | "day" | "month">("week");
+  const [viewMode, _setViewMode] = useState<"week" | "day" | "month">(
+    initialViewMode === "day" || initialViewMode === "month" ? initialViewMode : "week"
+  );
   const [focusedDayKey, setFocusedDayKey] = useState(() => getArgentinaDateKey(new Date()));
   const setViewMode = useCallback((mode: "week" | "day" | "month") => {
     _setViewMode(mode);
@@ -522,6 +526,9 @@ export default memo(function CalendarView({
 
   const pillControls = useAnimation();
   const pillModes = useMemo(() => ["month", "week", "day"] as const, []);
+  const pillAnimIdxRef = useRef(pillModes.indexOf(
+    initialViewMode === "day" || initialViewMode === "month" ? initialViewMode : "week"
+  ));
 
   const maxCountForMonth = useMemo(() => {
     let max = 0;
@@ -802,6 +809,9 @@ export default memo(function CalendarView({
     if (appts.length === 0) {
       setFocusedDayKey(dateKey);
       setViewMode("day");
+      const targetIdx = pillModes.indexOf("day");
+      pillAnimIdxRef.current = targetIdx;
+      pillControls.start({ x: -targetIdx * 76 });
       return;
     }
     setSelectedDayPopover({ dateKey, el });
@@ -869,18 +879,20 @@ export default memo(function CalendarView({
               dragElastic={0.1}
               onDragEnd={(_, info) => {
                 const pillWidth = 76;
-                const idx = pillModes.indexOf(viewMode);
+                const idx = pillAnimIdxRef.current;
                 const slotsMoved = Math.round(-info.offset.x / pillWidth);
                 const targetIdx = ((idx + slotsMoved) % pillModes.length + pillModes.length) % pillModes.length;
                 if (targetIdx !== idx) {
                   setViewMode(pillModes[targetIdx]);
                 }
+                pillAnimIdxRef.current = targetIdx;
                 pillControls.start({ x: -targetIdx * pillWidth });
               }}
               onTap={() => {
-                const idx = pillModes.indexOf(viewMode);
+                const idx = pillAnimIdxRef.current;
                 const targetIdx = (idx + 1) % pillModes.length;
                 setViewMode(pillModes[targetIdx]);
+                pillAnimIdxRef.current = targetIdx;
                 pillControls.start({ x: -targetIdx * 76 });
               }}
               animate={pillControls}
@@ -1296,6 +1308,9 @@ export default memo(function CalendarView({
                     closeDayPopover();
                     setFocusedDayKey(selectedDayPopover.dateKey);
                     setViewMode("day");
+                    const targetIdx = pillModes.indexOf("day");
+                    pillAnimIdxRef.current = targetIdx;
+                    pillControls.start({ x: -targetIdx * 76 });
                   }}
                 >
                   Ver día completo →

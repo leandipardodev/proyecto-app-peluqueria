@@ -253,7 +253,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
   ];
 
   const cardHrefByLabel: Record<string, string> = {
-    "Turnos hoy": withDashboardBase("/dashboard/calendar", dashboardBasePath),
+    "Turnos hoy": withDashboardBase("/dashboard/calendar", dashboardBasePath) + "?view=day",
     ...(features.inventory ? { "Alertas de stock": withDashboardBase("/dashboard/inventory", dashboardBasePath) } : {}),
     "Rendimiento": withDashboardBase("/dashboard/business#estadisticas", dashboardBasePath),
   };
@@ -379,6 +379,8 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
       <div className="relative z-10">
         <DashboardChartsWrapper
           revenueData={metrics?.revenueChart ?? []}
+          dailyBreakdown={metrics?.dailyBreakdown ?? []}
+          hourlyBreakdown={metrics?.hourlyBreakdown ?? []}
           flowByPeriod={metrics?.flowByPeriod}
           topServicesData={metrics?.topServices ?? []}
           serviceLabelPlural={servicePlural}
