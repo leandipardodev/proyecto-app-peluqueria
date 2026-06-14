@@ -1,6 +1,6 @@
 "use client";
 
-import { X, Check, Trash2, MessageCircle, UserRoundPen, Search, Plus, Clock, DollarSign } from "lucide-react";
+import { X, Check, Trash2, MessageCircle, UserRoundPen, Search, Plus, Clock, DollarSign, Pencil } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, useTransition, useMemo } from "react";
 import { deleteAppointment, patchAppointmentQuick, redeemLoyaltyReward, updateCustomerQuick, updateAppointmentServices } from "@/lib/dashboard/appointment-actions";
 import { getArgentinaDateKey } from "@/lib/argentina-time";
@@ -708,9 +708,17 @@ export default function AppointmentDetailModal({
                         className="inline-flex items-center gap-1 px-2.5 py-1 bg-violet-50 dark:bg-violet-900/30 text-violet-800 dark:text-violet-200 rounded-lg text-sm font-medium"
                       >
                         {s.name}
-                        <span className={`text-xs ${isCustom ? 'text-violet-600 dark:text-violet-300 font-semibold' : 'opacity-70'}`}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingDurationId(s.id);
+                            setEditingDurationValue(String(effDuration));
+                          }}
+                          className={`inline-flex items-center gap-0.5 text-xs hover:text-violet-600 transition-colors cursor-pointer select-none ${isCustom ? 'text-violet-600 dark:text-violet-300 font-semibold' : 'opacity-70'}`}
+                        >
                           {effDuration}min
-                        </span>
+                          <Pencil className="w-3 h-3 opacity-60" />
+                        </button>
                         <button
                           type="button"
                           onClick={() => removeService(s.id)}
@@ -802,9 +810,10 @@ export default function AppointmentDetailModal({
                                 setEditingDurationId(slot.service.id);
                                 setEditingDurationValue(String(effDuration));
                               }}
-                              className={`text-xs tabular-nums hover:text-violet-600 transition-colors cursor-pointer select-none shrink-0 ${isCustom ? 'text-violet-600 font-semibold' : 'text-zinc-400'}`}
+                              className={`inline-flex items-center gap-0.5 text-xs tabular-nums hover:text-violet-600 transition-colors cursor-pointer select-none shrink-0 ${isCustom ? 'text-violet-600 font-semibold' : 'text-zinc-400'}`}
                             >
                               {effDuration}min
+                              <Pencil className="w-3 h-3 opacity-60" />
                             </button>
                           )}
                         </div>

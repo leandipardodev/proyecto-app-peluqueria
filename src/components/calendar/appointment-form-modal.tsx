@@ -1,7 +1,7 @@
 "use client";
 
 import { useToast } from "@/components/ui/toast";
-import { X, Plus, Search, Clock, DollarSign, CalendarDays } from "lucide-react";
+import { X, Plus, Search, Clock, DollarSign, CalendarDays, Pencil } from "lucide-react";
 import { useEffect, useRef, useState, useTransition, useMemo, useCallback } from "react";
 import { createAppointment, createCustomerAndAppointment } from "@/lib/dashboard/appointment-actions";
 import { playPop } from "@/lib/sound";
@@ -501,9 +501,17 @@ export default function AppointmentFormModal({
                         className="inline-flex items-center gap-1 px-2.5 py-1 bg-violet-50 dark:bg-violet-900/30 text-violet-800 dark:text-violet-200 rounded-lg text-sm font-medium"
                       >
                         {s.name}
-                        <span className={`text-xs ${isCustom ? 'text-violet-600 dark:text-violet-300 font-semibold' : 'opacity-70'}`}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingDurationId(s.id);
+                            setEditingDurationValue(String(effDuration));
+                          }}
+                          className={`inline-flex items-center gap-0.5 text-xs hover:text-violet-600 transition-colors cursor-pointer select-none ${isCustom ? 'text-violet-600 dark:text-violet-300 font-semibold' : 'opacity-70'}`}
+                        >
                           {effDuration}min
-                        </span>
+                          <Pencil className="w-3 h-3 opacity-60" />
+                        </button>
                         <button
                           type="button"
                           onClick={() => removeService(s.id)}
@@ -591,9 +599,10 @@ export default function AppointmentFormModal({
                                 setEditingDurationId(slot.service.id);
                                 setEditingDurationValue(String(effDuration));
                               }}
-                              className={`text-xs tabular-nums hover:text-violet-600 transition-colors cursor-pointer select-none shrink-0 ${isCustom ? 'text-violet-600 font-semibold' : 'text-zinc-400'}`}
+                              className={`inline-flex items-center gap-0.5 text-xs tabular-nums hover:text-violet-600 transition-colors cursor-pointer select-none shrink-0 ${isCustom ? 'text-violet-600 font-semibold' : 'text-zinc-400'}`}
                             >
                               {effDuration}min
+                              <Pencil className="w-3 h-3 opacity-60" />
                             </button>
                           )}
                         </div>

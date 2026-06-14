@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { createPortal } from "react-dom";
-import { X, Plus, Search, Clock, CalendarDays, ChevronDown, Loader2, Check, AlertCircle } from "lucide-react";
+import { X, Plus, Search, Clock, CalendarDays, ChevronDown, Loader2, Check, AlertCircle, Pencil } from "lucide-react";
 import { createAppointment, createCustomerAndAppointment } from "@/lib/dashboard/appointment-actions";
 import { getArgentinaDateString } from "@/lib/argentina-time";
 import { useToast } from "@/components/ui/toast";
@@ -44,6 +44,7 @@ interface BatchEntry {
   staffId: string;
   date: string;
   time: string;
+  serviceCustomDurations: Record<string, number>;
 }
 
 const STAFF_COLORS = ["#c084fc", "#34d399", "#fbbf24", "#fb7185", "#22d3ee", "#fb923c", "#818cf8", "#f472b6"];
@@ -64,6 +65,7 @@ function createEmptyEntry(date?: string, time?: string): BatchEntry {
     serviceSearchQuery: "",
     serviceSearchOpen: false,
     staffId: "",
+    serviceCustomDurations: {},
     date: date || getArgentinaDateString(),
     time: time || "09:00",
   };
@@ -156,6 +158,7 @@ export default function BatchAppointmentModal({
       }
 
       formData.set("service_ids", entry.serviceIds.join(","));
+      formData.set("service_durations", JSON.stringify(entry.serviceCustomDurations));
       formData.set("start_date", entry.date);
       formData.set("start_time", entry.time);
       if (entry.staffId) formData.set("staff_id", entry.staffId);
@@ -344,6 +347,8 @@ function EntryCard({
   canRemove: boolean;
 }) {
   const [expanded, setExpanded] = useState(true);
+  const [editingDurationId, setEditingDurationId] = useState<string | null>(null);
+  const [editingDurationValue, setEditingDurationValue] = useState("");
   const customerSearchRef = useRef<HTMLInputElement>(null);
   const serviceSearchRef = useRef<HTMLInputElement>(null);
   const customerDropdownRef = useRef<HTMLDivElement>(null);
@@ -388,7 +393,7 @@ function EntryCard({
   }, [entry.customerSearchOpen, entry.serviceSearchOpen, onUpdate, recalcStyles]);
 
   const selServices = services.filter((s) => entry.serviceIds.includes(s.id));
-  const totalDur = selServices.reduce((sum, s) => sum + s.duration_minutes, 0);
+  const totalDur = selServices.reduce((sum, s) => sum + (entry.serviceCustomDurations[s.id] ?? s.duration_minutes), 0);
   const totalPrc = selServices.reduce((sum, s) => sum + s.price, 0);
 
   const timeSlots = useMemo(() => {
@@ -399,11 +404,12 @@ function EntryCard({
     let current = new Date(base);
     svcs.forEach((svc) => {
       const startStr = current.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false });
-      current = new Date(current.getTime() + svc.duration_minutes * 60000);
+      const effDuration = entry.serviceCustomDurations[svc.id] ?? svc.duration_minutes;
+      current = new Date(current.getTime() + effDuration * 60000);
       slots.push({ service: svc, start: startStr, end: current.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false }) });
     });
     return slots;
-  }, [services, entry.serviceIds, entry.time]);
+  }, [services, entry.serviceIds, entry.time, entry.serviceCustomDurations]);
 
   return (
     <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 overflow-hidden">
@@ -608,9 +614,56 @@ function EntryCard({
                 {selServices.length > 0 && (
                   <div className="mt-2 space-y-2">
                     <div className="flex flex-wrap gap-1">
-                      {selServices.map((s) => (
+                      {selServices.map((s) => {
+                        const effDuration = entry.serviceCustomDurations[s.id] ?? s.duration_minutes;
+                        const isCustom = effDuration !== s.duration_minutes;
+                        const isEditing = editingDurationId === s.id;
+                        return (
                         <span key={s.id} className="inline-flex items-center gap-1 px-2 py-0.5 bg-violet-50 dark:bg-violet-900/30 text-violet-800 dark:text-violet-200 rounded-lg text-xs font-medium">
-                          {s.name} {s.duration_minutes}min
+                          {s.name}
+                          {isEditing ? (
+                            <span className="flex items-center gap-0.5">
+                              <input
+                                type="number"
+                                min={1}
+                                max={300}
+                                value={editingDurationValue}
+                                onChange={(e) => setEditingDurationValue(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    const val = parseInt(editingDurationValue, 10);
+                                    if (!isNaN(val) && val >= 1 && val <= 300) {
+                                      onUpdate({ serviceCustomDurations: { ...entry.serviceCustomDurations, [s.id]: val } });
+                                    }
+                                    setEditingDurationId(null);
+                                  }
+                                  if (e.key === "Escape") setEditingDurationId(null);
+                                }}
+                                onBlur={() => {
+                                  const val = parseInt(editingDurationValue, 10);
+                                  if (!isNaN(val) && val >= 1 && val <= 300) {
+                                    onUpdate({ serviceCustomDurations: { ...entry.serviceCustomDurations, [s.id]: val } });
+                                  }
+                                  setEditingDurationId(null);
+                                }}
+                                autoFocus
+                                className="w-14 px-1 py-0.5 rounded border border-violet-300 text-center text-xs tabular-nums bg-white dark:bg-zinc-700"
+                              />
+                              <span className="text-zinc-400 text-[10px]">min</span>
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingDurationId(s.id);
+                                setEditingDurationValue(String(effDuration));
+                              }}
+                              className={`inline-flex items-center gap-0.5 text-xs hover:text-violet-600 transition-colors cursor-pointer select-none ${isCustom ? 'text-violet-600 dark:text-violet-300 font-semibold' : 'opacity-70'}`}
+                            >
+                              {effDuration}min
+                              <Pencil className="w-3 h-3 opacity-60" />
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => onUpdate({ serviceIds: entry.serviceIds.filter((id) => id !== s.id) })}
@@ -619,7 +672,8 @@ function EntryCard({
                             <X className="w-2.5 h-2.5" />
                           </button>
                         </span>
-                      ))}
+                        );
+                      })}
                     </div>
                     <div className="flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl px-3 py-1.5">
                       <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{totalDur} min</span>
@@ -704,12 +758,61 @@ function EntryCard({
                   <div className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 px-3 py-1.5 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700">
                     Secuencia horaria
                   </div>
-                  {timeSlots.map((slot, i) => (
+                  {timeSlots.map((slot, i) => {
+                    const origDuration = slot.service.duration_minutes;
+                    const effDuration = entry.serviceCustomDurations[slot.service.id] ?? origDuration;
+                    const isCustom = effDuration !== origDuration;
+                    const isEditing = editingDurationId === slot.service.id;
+                    return (
                     <div key={i} className="flex items-center gap-2 px-3 py-1.5 text-xs border-b border-zinc-100 dark:border-zinc-800 last:border-b-0">
                       <span className="text-violet-600 dark:text-violet-400 font-medium tabular-nums min-w-[9ch]">{slot.start} — {slot.end}</span>
-                      <span className="text-gray-700 dark:text-gray-300 truncate">{slot.service.name}</span>
+                      <span className="text-gray-700 dark:text-gray-300 truncate flex-1">{slot.service.name}</span>
+                      {isEditing ? (
+                        <span className="flex items-center gap-1 shrink-0">
+                          <input
+                            type="number"
+                            min={1}
+                            max={300}
+                            value={editingDurationValue}
+                            onChange={(e) => setEditingDurationValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                const val = parseInt(editingDurationValue, 10);
+                                if (!isNaN(val) && val >= 1 && val <= 300) {
+                                  onUpdate({ serviceCustomDurations: { ...entry.serviceCustomDurations, [slot.service.id]: val } });
+                                }
+                                setEditingDurationId(null);
+                              }
+                              if (e.key === "Escape") setEditingDurationId(null);
+                            }}
+                            onBlur={() => {
+                              const val = parseInt(editingDurationValue, 10);
+                              if (!isNaN(val) && val >= 1 && val <= 300) {
+                                onUpdate({ serviceCustomDurations: { ...entry.serviceCustomDurations, [slot.service.id]: val } });
+                              }
+                              setEditingDurationId(null);
+                            }}
+                            autoFocus
+                            className="w-14 px-1 py-0.5 rounded border border-violet-300 text-center text-xs tabular-nums bg-white dark:bg-zinc-700"
+                          />
+                          <span className="text-zinc-400 text-[10px]">min</span>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingDurationId(slot.service.id);
+                            setEditingDurationValue(String(effDuration));
+                          }}
+                          className={`inline-flex items-center gap-0.5 text-xs tabular-nums hover:text-violet-600 transition-colors cursor-pointer select-none shrink-0 ${isCustom ? 'text-violet-600 font-semibold' : 'text-zinc-400'}`}
+                        >
+                          {effDuration}min
+                          <Pencil className="w-3 h-3 opacity-60" />
+                        </button>
+                      )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
