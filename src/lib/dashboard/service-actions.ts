@@ -13,6 +13,7 @@ async function createAdminClient() {
 type ServiceRow = {
   id: string;
   name: string;
+  description: string;
   category: string;
   price: number;
   duration_minutes: number;
@@ -68,7 +69,7 @@ export async function fetchServices(shopIdOverride?: string): Promise<ActionResu
 
     const { data, error } = await admin
       .from("services")
-      .select("id, name, category, price, duration_minutes, pay_at_shop, created_at, updated_at, shop_id")
+      .select("id, name, description, category, price, duration_minutes, pay_at_shop, created_at, updated_at, shop_id")
       .eq("shop_id", shopId)
       .order("created_at", { ascending: false });
 
@@ -99,8 +100,8 @@ export async function createService(formData: FormData, shopIdOverride?: string)
     }
 
     const name = formData.get("name") as string;
-    const price = parseFloat(formData.get("price") as string);
     const rawCategory = String(formData.get("category") || "General");
+    const price = parseFloat(formData.get("price") as string);
     const durationMinutes = parseInt(formData.get("duration_minutes") as string);
     const payAtShop = formData.get("pay_at_shop") === "on";
 
@@ -116,9 +117,12 @@ export async function createService(formData: FormData, shopIdOverride?: string)
 
     const category = await resolveCanonicalCategory(admin, shopId, rawCategory);
 
+    const description = String(formData.get("description") ?? "");
+
     const { data: newService, error } = await admin.from("services").insert({
       shop_id: shopId,
       name,
+      description,
       category,
       price,
       duration_minutes: durationMinutes,
@@ -173,9 +177,11 @@ export async function updateService(id: string, formData: FormData, shopIdOverri
 
     const category = await resolveCanonicalCategory(admin, shopId, rawCategory);
 
+    const description = String(formData.get("description") ?? "");
+
     const { error } = await admin
       .from("services")
-      .update({ name, category, price, duration_minutes: durationMinutes, pay_at_shop: payAtShop, updated_at: new Date().toISOString() })
+      .update({ name, description, category, price, duration_minutes: durationMinutes, pay_at_shop: payAtShop, updated_at: new Date().toISOString() })
       .eq("id", id)
       .eq("shop_id", shopId);
 
@@ -261,5 +267,36 @@ export async function deleteService(id: string, shopIdOverride?: string): Promis
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al eliminar servicio" };
+  }
+}
+
+export async function fetchServiceStaffMap(shopId: string): Promise<ActionResult<Record<string, string[]>>> {
+  try {
+    const admin = await createAdminClient();
+    const { data: svcIds } = await admin
+      .from("services")
+      .select("id")
+      .eq("shop_id", shopId);
+    const ids = (svcIds || []).map((s) => s.id);
+    if (ids.length === 0) return { success: true, data: {} };
+
+    const { data: rows, error } = await admin
+      .from("staff_services")
+      .select("service_id, staff_id")
+      .in("service_id", ids);
+
+    if (error) {
+      console.error("[fetchServiceStaffMap] Supabase error:", error);
+      return { success: false, error: error.message };
+    }
+
+    const map: Record<string, string[]> = {};
+    for (const r of rows || []) {
+      if (!map[r.service_id]) map[r.service_id] = [];
+      map[r.service_id].push(r.staff_id);
+    }
+    return { success: true, data: map };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al obtener mapa de profesionales" };
   }
 }

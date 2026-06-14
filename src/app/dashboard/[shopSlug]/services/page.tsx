@@ -1,4 +1,4 @@
-import { fetchServices } from "@/lib/dashboard/service-actions";
+import { fetchServices, fetchServiceStaffMap } from "@/lib/dashboard/service-actions";
 import { fetchCombos } from "@/lib/dashboard/combo-actions";
 import { fetchStaffMembers } from "@/lib/dashboard/staff-actions";
 import ServicesList from "@/components/services/services-list";
@@ -16,27 +16,17 @@ export default async function DashboardShopServicesPage({ params }: { params: Pr
   if (!shopId) redirect("/dashboard");
 
   const supabase = await createServerClient();
-  const [servicesResult, combosResult, staffResult] = await Promise.all([
+  const [servicesResult, combosResult, staffResult, staffMapResult] = await Promise.all([
     fetchServices(shopId),
     fetchCombos(shopId),
     fetchStaffMembers(shopId),
+    fetchServiceStaffMap(shopId),
   ]);
 
   const services = servicesResult.success ? servicesResult.data ?? [] : [];
   const combos = combosResult.success ? combosResult.data ?? [] : [];
   const staffMembers = staffResult.success ? staffResult.data?.map((s) => ({ id: s.id, name: s.name })) ?? [] : [];
-
-  const { data: serviceStaffRows } = await supabase
-    .from("staff_services")
-    .select("service_id, staff_id");
-
-  const serviceStaffMap: Record<string, string[]> = {};
-  if (serviceStaffRows) {
-    for (const row of serviceStaffRows) {
-      if (!serviceStaffMap[row.service_id]) serviceStaffMap[row.service_id] = [];
-      serviceStaffMap[row.service_id].push(row.staff_id);
-    }
-  }
+  const serviceStaffMap = staffMapResult.success ? staffMapResult.data ?? {} : {};
 
   const { data: shop } = await supabase.from("shops").select("industry").eq("id", shopId).maybeSingle();
   const industry = resolveIndustry((shop as { industry?: string | null } | null)?.industry || null);

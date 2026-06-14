@@ -13,6 +13,7 @@ import { getArgentinaDateString } from "@/lib/argentina-time";
 interface Service {
   id: string;
   name: string;
+  description?: string;
   price: number;
   duration_minutes: number;
 }
@@ -301,6 +302,9 @@ export default function BookingFlow({ shopId, services, staffMembers, staffServi
                     <h3 className="font-semibold text-gray-900 dark:text-gray-100">{service.name}</h3>
                     {isSelected && <Check className="w-5 h-5 text-violet-600 shrink-0 ml-2" />}
                   </div>
+                  {service.description && (
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{service.description}</p>
+                  )}
                   <div className="mt-2 flex items-center justify-between">
                     <span className="text-sm text-gray-500 dark:text-gray-400">
                       {service.duration_minutes} min

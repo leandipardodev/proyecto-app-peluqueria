@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import ServiceModal from "./service-modal";
 import ServiceForm from "./service-form";
 import ComboForm from "./combo-form";
-import { deleteService } from "@/lib/dashboard/service-actions";
+import { deleteService, fetchServiceStaffMap } from "@/lib/dashboard/service-actions";
 import { deleteCombo, toggleComboActive, fetchCombos } from "@/lib/dashboard/combo-actions";
 import { supabase } from "@/lib/supabase";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
@@ -18,6 +18,7 @@ import type { Industry } from "@/lib/industry/types";
 type Service = {
   id: string;
   name: string;
+  description?: string;
   category: string;
   price: number;
   duration_minutes: number;
@@ -68,6 +69,7 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
   const { addToast } = useToast();
   const [tutorialActive, setTutorialActive] = useState(false);
   const [staffMembers, setStaffMembers] = useState(initialStaffMembers);
+  const [serviceStaffMap, setServiceStaffMap] = useState(initialServiceStaffMap);
   const serviceWord = INDUSTRY_CONFIG[industry].labels.serviceSingular;
   const serviceWordLower = serviceWord.toLowerCase();
 
@@ -111,7 +113,7 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
           setTimeout(() => { realtimeCooldown.current = false; }, 2000);
           supabase
             .from("services")
-            .select("id, name, category, price, duration_minutes")
+            .select("id, name, description, category, price, duration_minutes")
             .eq("shop_id", shopId)
             .order("created_at", { ascending: false })
             .then(({ data }) => {
@@ -153,16 +155,17 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
   function handleServiceSuccess() {
     setModalOpen(false);
     setEditingService(null);
-    if (realtimeCooldown.current) return;
-    realtimeCooldown.current = true;
-    setTimeout(() => { realtimeCooldown.current = false; }, 2000);
     startTransition(async () => {
-      const { data } = await supabase
+      const { data: svc } = await supabase
         .from("services")
-        .select("id, name, category, price, duration_minutes")
+        .select("id, name, description, category, price, duration_minutes")
         .eq("shop_id", shopId)
         .order("created_at", { ascending: false });
-      if (Array.isArray(data)) setServices(data);
+      if (Array.isArray(svc)) setServices(svc);
+      const mapResult = await fetchServiceStaffMap(shopId);
+      if (mapResult.success && mapResult.data) {
+        setServiceStaffMap(mapResult.data);
+      }
     });
   }
 
@@ -334,7 +337,20 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
                           </div>
                         </div>
                       </div>
-                      <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-end gap-1.5">
+                          {serviceStaffMap[service.id]?.length > 0 && (
+                            <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+                              <span className="font-medium text-zinc-400 dark:text-zinc-500">Profesionales:</span>
+                              {serviceStaffMap[service.id].map((sid) => {
+                                const s = staffMembers.find((m) => m.id === sid);
+                                return s ? (
+                                  <span key={sid} className="inline-flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 px-2 py-0.5 rounded-md">
+                                    {s.name || "Sin nombre"}
+                                  </span>
+                                ) : null;
+                              })}
+                            </div>
+                          )}
+                          <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-end gap-1.5">
                         <button
                           type="button"
                           onClick={() => openEdit(service)}
@@ -512,7 +528,7 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
             service={editingService ?? undefined}
             onSuccess={handleServiceSuccess}
             staffMembers={staffMembers}
-            serviceStaffMap={initialServiceStaffMap}
+            serviceStaffMap={serviceStaffMap}
           />
         )}
       </ServiceModal>

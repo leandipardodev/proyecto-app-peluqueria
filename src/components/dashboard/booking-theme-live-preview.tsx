@@ -9,6 +9,7 @@ import type { Industry } from "@/lib/industry/types";
 type PreviewService = {
   id: string;
   name: string;
+  description?: string;
   price: number;
   duration_minutes: number;
   category: string;
@@ -41,9 +42,9 @@ export default function BookingThemeLivePreview({
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const hasRealServices = services.length > 0;
   const fallbackServices: PreviewService[] = [
-    { id: "demo-1", name: "Corte Clasico", price: 12000, duration_minutes: 45, category: "Cortes" },
-    { id: "demo-2", name: "Barba Completa", price: 9000, duration_minutes: 35, category: "Barberia" },
-    { id: "demo-3", name: "Color Global", price: 25000, duration_minutes: 90, category: "Color" },
+    { id: "demo-1", name: "Corte Clasico", description: "Corte de pelo con navaja y tijera", price: 12000, duration_minutes: 45, category: "Cortes" },
+    { id: "demo-2", name: "Barba Completa", description: "Perfilado de barba con toalla caliente", price: 9000, duration_minutes: 35, category: "Barberia" },
+    { id: "demo-3", name: "Color Global", description: "Coloracion completa con productos profesionales", price: 25000, duration_minutes: 90, category: "Color" },
   ];
   const sourceServices = hasRealServices ? services : fallbackServices;
   const categories = useMemo(() => {
@@ -200,6 +201,9 @@ export default function BookingThemeLivePreview({
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className={`truncate text-sm font-semibold ${styles.heading}`}>{service.name}</p>
+                        {service.description && (
+                          <p className="mt-0.5 text-[10px] leading-tight text-zinc-500 line-clamp-2">{service.description}</p>
+                        )}
                         <p className="text-[11px] text-zinc-500">{service.duration_minutes} min</p>
                       </div>
                       <p className={`text-sm font-semibold ${styles.accent}`}>${service.price.toFixed(0)}</p>

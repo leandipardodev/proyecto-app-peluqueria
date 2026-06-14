@@ -13,6 +13,7 @@ import { supabaseStub, chainableQuery } from "@/__tests__/setup";
 function createFormData(overrides: Record<string, string> = {}): FormData {
   const fd = new FormData();
   fd.set("name", overrides.name ?? "Corte moderno");
+  fd.set("description", overrides.description ?? "");
   fd.set("price", overrides.price ?? "1500");
   fd.set("category", overrides.category ?? "Cortes");
   fd.set("duration_minutes", overrides.duration_minutes ?? "45");
@@ -82,7 +83,7 @@ describe("createService", () => {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
         order: vi.fn().mockResolvedValue({ data: [], error: null }),
-        insert: vi.fn().mockResolvedValue({ data: null, error: null }),
+        insert: vi.fn().mockReturnThis(),
         single: vi.fn().mockResolvedValue({ data: null, error: null }),
       })),
     } as never);
@@ -102,7 +103,7 @@ describe("createService", () => {
         order: vi.fn().mockResolvedValue({ data: [], error: null }),
         insert: vi.fn((row: Record<string, unknown>) => {
           insertedCategory = row.category as string;
-          return { data: null, error: null };
+          return { select: vi.fn().mockReturnThis(), single: vi.fn().mockResolvedValue({ data: null, error: null }) };
         }),
         single: vi.fn().mockResolvedValue({ data: null, error: null }),
       })),

@@ -8,6 +8,7 @@ interface ServiceFormProps {
   service?: {
     id: string;
     name: string;
+    description?: string;
     category: string;
     price: number;
     duration_minutes: number;
@@ -89,6 +90,20 @@ const ServiceForm = memo(function ServiceForm({ shopId, service, onSuccess, staf
           defaultValue={service?.name || ""}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
           placeholder="Ej: Corte de pelo"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1 cursor-pointer">
+          Descripción
+        </label>
+        <textarea
+          id="description"
+          name="description"
+          rows={3}
+          defaultValue={service?.description || ""}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"
+          placeholder="Breve descripción del servicio..."
         />
       </div>
 

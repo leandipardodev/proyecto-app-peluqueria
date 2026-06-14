@@ -44,7 +44,7 @@ export default async function BookPage({ params }: BookPageProps) {
   const [servicesRes, membershipsRes, combosRes] = await Promise.all([
     admin
       .from("services")
-      .select("id, name, price, duration_minutes, category, pay_at_shop")
+      .select("id, name, description, price, duration_minutes, category, pay_at_shop")
       .eq("shop_id", shop.id)
       .order("name", { ascending: true }),
     admin

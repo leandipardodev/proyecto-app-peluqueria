@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   Check,
   ChevronLeft,
+  ChevronRight,
   ExternalLink,
   Loader2,
   LogOut,
@@ -38,7 +39,9 @@ import {
   stepReveal,
   stepItemReveal,
   triggerHaptic,
-  getWeekDates,
+  getMonthDays,
+  MONTH_NAMES,
+  DAY_NAMES,
   formatDate,
   formatDisplayDate,
   parseHHmmToMinutes,
@@ -124,7 +127,31 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
   const staffWordLower = staffWord.toLowerCase();
   const STEP_NAMES = [serviceWord, staffWord, "Fecha", "Tus datos"];
 
-  const weekDates = useMemo(() => getWeekDates(), []);
+  const todayRef = useRef(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
+  const todayDate = useMemo(() => todayRef.current(), []);
+
+  const [viewYear, setViewYear] = useState(() => todayDate.getFullYear());
+  const [viewMonth, setViewMonth] = useState(() => todayDate.getMonth());
+
+  const monthDays = useMemo(() => {
+    const raw = getMonthDays(viewYear, viewMonth);
+    return raw.map((d) => {
+      if (!d) return null;
+      const c = new Date(d);
+      c.setHours(0, 0, 0, 0);
+      return c.getTime() < todayDate.getTime() ? null : d;
+    });
+  }, [viewYear, viewMonth, todayDate]);
+
+  const maxMonthIndex = (todayDate.getFullYear()) * 12 + todayDate.getMonth() + 2;
+  const currentViewIndex = viewYear * 12 + viewMonth;
+  const canNavNext = currentViewIndex < maxMonthIndex;
+  const canNavPrev = currentViewIndex > todayDate.getFullYear() * 12 + todayDate.getMonth();
+
   const isLoggedIn = !!user;
   const hasPhoneFromSession = Boolean(user?.phone?.trim());
   const requiresManualPhone = !isLoggedIn || !hasPhoneFromSession;
@@ -794,12 +821,15 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                   }}
                                   className={`w-full px-6 py-6 text-left ${tactileClass} active:scale-[0.97] transition-transform duration-150`}
                                 >
-                                  <div className="flex items-center justify-between gap-4">
-                                    <div>
+                                  <div className="flex items-start justify-between gap-4">
+                                    <div className="min-w-0 flex-1">
                                       <p className={`text-xl font-medium ${templateStyles.heading}`}>{svc.name}</p>
+                                      {svc.description && (
+                                        <p className={`mt-1 text-xs leading-relaxed line-clamp-2 ${templateStyles.tiny}`}>{svc.description}</p>
+                                      )}
                                       <p className={`mt-1 text-sm ${templateStyles.tiny}`}>{svc.duration_minutes} min</p>
                                     </div>
-                                    <p className={`${templateStyles.priceText} ${templateStyles.priceFx} tabular-nums`}>
+                                    <p className={`shrink-0 ${templateStyles.priceText} ${templateStyles.priceFx} tabular-nums`}>
                                       <span className="mr-1.5 align-top text-[0.72em] font-semibold opacity-85">$</span>
                                       <span className="tracking-[-0.045em]">{svc.price.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
                                     </p>
@@ -878,32 +908,67 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                       <div ref={slotsRef} className="space-y-6">
                         <motion.h2 variants={stepItemReveal} className={`font-semibold leading-[1.02] ${templateStyles.heading} ${templateStyles.headingFx}`}>Elegi fecha y horario</motion.h2>
 
-                        <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 sm:gap-3">
-                          {weekDates.map((d) => {
+                        <motion.div variants={stepItemReveal} className="flex items-center justify-between">
+                          <button
+                            type="button"
+                            onClick={() => { setViewMonth((m) => m === 0 ? 11 : m - 1); setViewYear((y) => viewMonth === 0 ? y - 1 : y); setSelectedDate(null); setSelectedSlot(null); fetchedDatesRef.current = new Set(); }}
+                            disabled={!canNavPrev}
+                            className={`flex items-center gap-1 text-sm font-medium px-3 py-1.5 rounded-full transition-all duration-200 ${
+                              canNavPrev ? `${templateStyles.heading} ${templateStyles.hoverBorder} cursor-pointer` : "opacity-30 cursor-not-allowed"
+                            }`}
+                          >
+                            <ChevronLeft className="w-4 h-4" />
+                            <span className="hidden sm:inline">{MONTH_NAMES[viewMonth === 0 ? 11 : viewMonth - 1]}</span>
+                          </button>
+                          <span className={`text-base font-semibold tracking-tight ${templateStyles.heading}`}>
+                            {MONTH_NAMES[viewMonth]} {viewYear}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => { setViewMonth((m) => m === 11 ? 0 : m + 1); setViewYear((y) => viewMonth === 11 ? y + 1 : y); setSelectedDate(null); setSelectedSlot(null); fetchedDatesRef.current = new Set(); }}
+                            disabled={!canNavNext}
+                            className={`flex items-center gap-1 text-sm font-medium px-3 py-1.5 rounded-full transition-all duration-200 ${
+                              canNavNext ? `${templateStyles.heading} ${templateStyles.hoverBorder} cursor-pointer` : "opacity-30 cursor-not-allowed"
+                            }`}
+                          >
+                            <span className="hidden sm:inline">{MONTH_NAMES[viewMonth === 11 ? 0 : viewMonth + 1]}</span>
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
+                        </motion.div>
+
+                        <motion.div variants={stepItemReveal} className="grid grid-cols-7 gap-1 sm:gap-1.5">
+                          {DAY_NAMES.map((name) => (
+                            <div key={name} className={`text-center text-[10px] uppercase tracking-wider font-semibold py-1 ${templateStyles.tiny}`}>
+                              {name}
+                            </div>
+                          ))}
+                          {monthDays.map((d, idx) => {
+                            if (!d) return <div key={`empty-${idx}`} />;
                             const dateStr = formatDate(d);
                             const isSelected = selectedDate && formatDate(selectedDate) === dateStr;
-                            const dayName = d.toLocaleDateString("es-AR", { weekday: "short" }).replace(".", "");
-                            const dayNum = d.getDate();
-                            const isToday = formatDate(d) === formatDate(new Date());
+                            const isToday = formatDate(d) === formatDate(todayDate);
                             return (
                               <button
                                 key={dateStr}
+                                type="button"
                                 onClick={() => {
+                                  triggerHaptic(10);
                                   setSelectedDate(d);
                                   setSelectedSlot(null);
                                   fetchedDatesRef.current = new Set();
                                 }}
-                                className={`flex flex-col items-center justify-center gap-1 py-3 rounded-[12px] border min-h-[78px] ${tactileClass} ${
-                                  isSelected ? templateStyles.selected : `${templateStyles.plain} ${templateStyles.hoverBorder}`
+                                className={`flex flex-col items-center justify-center gap-0.5 py-2 rounded-[10px] border transition-all duration-200 ${
+                                  isSelected
+                                    ? `${templateStyles.selected} scale-105`
+                                    : `${templateStyles.plain} ${templateStyles.hoverBorder}`
                                 } ${isToday ? "ring-1 ring-blue-400/40" : ""}`}
                               >
-                                <span className={`text-[10px] uppercase ${templateStyles.tiny}`}>{dayName}</span>
-                                <span className={`text-sm font-semibold ${isSelected ? templateStyles.accent : templateStyles.heading}`}>{dayNum}</span>
-                                {isToday && <span className={`text-[8px] font-semibold uppercase ${templateStyles.accent}`}>Hoy</span>}
+                                <span className={`text-xs font-semibold ${isSelected ? templateStyles.accent : templateStyles.heading}`}>{d.getDate()}</span>
+                                {isToday && <span className={`text-[7px] font-bold uppercase ${templateStyles.accent}`}>Hoy</span>}
                               </button>
                             );
                           })}
-                        </div>
+                        </motion.div>
 
                         {loadingSlots ? (
                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">

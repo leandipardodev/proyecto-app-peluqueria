@@ -1,4 +1,4 @@
-export type Service = { id: string; name: string; price: number; duration_minutes: number; category: string | null; pay_at_shop: boolean };
+export type Service = { id: string; name: string; description?: string; price: number; duration_minutes: number; category: string | null; pay_at_shop: boolean };
 export type StaffMember = { id: string; name: string; photo_url?: string | null; description?: string | null; instagram?: string | null; whatsapp?: string | null };
 export type Slot = { start: string; end: string; time: string };
 export type Combo = {
@@ -53,6 +53,13 @@ export const triggerHaptic = (duration = 15, target?: HTMLElement | null) => {
   }
 };
 
+export const MONTH_NAMES = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+];
+
+export const DAY_NAMES = ["Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab"];
+
 export function getWeekDates(): Date[] {
   const today = new Date();
   const dates: Date[] = [];
@@ -62,6 +69,16 @@ export function getWeekDates(): Date[] {
     dates.push(d);
   }
   return dates;
+}
+
+export function getMonthDays(year: number, month: number): (Date | null)[] {
+  const firstDay = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const startDow = firstDay.getDay();
+  const days: (Date | null)[] = [];
+  for (let i = 0; i < startDow; i++) days.push(null);
+  for (let d = 1; d <= daysInMonth; d++) days.push(new Date(year, month, d));
+  return days;
 }
 
 export function formatDate(d: Date): string {
