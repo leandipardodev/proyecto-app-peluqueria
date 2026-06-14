@@ -6,10 +6,11 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, useInView, useMotionValue, useScroll, useSpring, useTransform } from "framer-motion";
-import { Sparkles, CalendarCheck2, Scissors, Boxes, BarChart3, Clock3, Users2 } from "lucide-react";
+import { Sparkles, CalendarCheck2, Scissors, Boxes, BarChart3, Clock3, Users2, LogOut } from "lucide-react";
 import { Playfair_Display } from "next/font/google";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import HomeFeaturesCarousel from "@/components/dashboard/home-features-carousel";
+import { supabase } from "@/lib/supabase";
 
 const playfair = Playfair_Display({ subsets: ["latin"], weight: ["600", "700", "800", "900"] });
 const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"] });
@@ -282,12 +283,22 @@ export default function Home() {
           <div className="text-sm font-medium tracking-wide text-slate-500">Klip</div>
           <div className="flex items-center gap-3">
             {user ? (
-              <Link
-                href="/dashboard"
-                className="rounded-full bg-[#0071E3] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#0064cc]"
-              >
-                Panel
-              </Link>
+              <>
+                <Link
+                  href="/dashboard"
+                  className="rounded-full bg-[#0071E3] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#0064cc]"
+                >
+                  Panel
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => supabase.auth.signOut()}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-[#1D1D1F] transition hover:bg-slate-50"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  Cerrar sesión
+                </button>
+              </>
             ) : (
               <>
                 <Link
