@@ -7,6 +7,8 @@ import { playSound } from "@/lib/sound";
 
 export default function NewAppointmentToast({ shopId }: { shopId: string | null }) {
   const { addToast } = useToast();
+  const addToastRef = useRef(addToast);
+  useEffect(() => { addToastRef.current = addToast; });
   const cooldownRef = useRef(false);
 
   useEffect(() => {
@@ -27,31 +29,33 @@ export default function NewAppointmentToast({ shopId }: { shopId: string | null 
           cooldownRef.current = true;
           setTimeout(() => { cooldownRef.current = false; }, 3000);
 
-          const newAppt = payload.new as { customer_id?: string; service_id?: string };
+          try {
+            const newAppt = payload.new as { customer_id?: string; service_id?: string };
 
-          let customerName = "Cliente";
-          let serviceName = "Servicio";
+            let customerName = "Cliente";
+            let serviceName = "Servicio";
 
-          if (newAppt.customer_id) {
-            const { data: customer } = await supabase
-              .from("customers")
-              .select("nombre")
-              .eq("id", newAppt.customer_id)
-              .single();
-            if (customer) customerName = customer.nombre;
-          }
+            if (newAppt.customer_id) {
+              const { data: customer } = await supabase
+                .from("customers")
+                .select("nombre")
+                .eq("id", newAppt.customer_id)
+                .single();
+              if (customer) customerName = customer.nombre;
+            }
 
-          if (newAppt.service_id) {
-            const { data: service } = await supabase
-              .from("services")
-              .select("name")
-              .eq("id", newAppt.service_id)
-              .single();
-            if (service) serviceName = service.name;
-          }
+            if (newAppt.service_id) {
+              const { data: service } = await supabase
+                .from("services")
+                .select("name")
+                .eq("id", newAppt.service_id)
+                .single();
+              if (service) serviceName = service.name;
+            }
 
-          addToast(`Nuevo turno: ${customerName} - ${serviceName}`, "info");
-          playSound("notification");
+            addToastRef.current(`Nuevo turno: ${customerName} - ${serviceName}`, "info");
+            playSound("notification");
+          } catch {}
         },
       )
       .subscribe();
@@ -59,7 +63,7 @@ export default function NewAppointmentToast({ shopId }: { shopId: string | null 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [shopId, addToast]);
+  }, [shopId]);
 
   return null;
 }
