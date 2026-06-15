@@ -13,7 +13,6 @@ import {
   Wallet,
   Store,
   Gift,
-  Settings,
 } from "lucide-react";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { haptic } from "@/lib/haptic";
@@ -114,7 +113,7 @@ const DashboardSidebar = memo(function DashboardSidebar({
       isMounted = false;
       window.clearInterval(id);
     };
-    }, []);
+  }, []);
 
   useEffect(() => {
     const slug = shop?.slug;
@@ -164,12 +163,14 @@ const DashboardSidebar = memo(function DashboardSidebar({
   }
 
   return (
-    <motion.aside
-      className={`flex flex-col bg-white/30 dark:bg-black/30 backdrop-blur-3xl shadow-sm border-r border-white/10 dark:border-white/5 border-t border-l border-white/30 dark:border-t-white/15 dark:border-l-white/15 h-full ${className}`}
-      initial={false}
-      animate={{ x: 0, opacity: 1 }}
-      transition={performanceMode ? { duration: 0.1 } : { type: "spring", damping: 25, stiffness: 200 }}
-    >
+      <motion.aside
+        key="desktop-sidebar"
+        className={`flex flex-col bg-white/30 dark:bg-black/30 backdrop-blur-3xl shadow-sm border-r border-white/10 dark:border-white/5 border-t border-l border-white/30 dark:border-t-white/15 dark:border-l-white/15 h-full ${className}`}
+        initial={{ x: -300, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        exit={{ x: -300, opacity: 0, transition: { duration: 0.2, ease: "easeIn" } }}
+        transition={performanceMode ? { duration: 0.1 } : { type: "spring", damping: 25, stiffness: 200 }}
+      >
       {showBrand && (
         <div className="px-6 pt-9 pb-7">
           <KlipLogo performanceMode={performanceMode} />
@@ -234,10 +235,10 @@ const DashboardSidebar = memo(function DashboardSidebar({
                   />
                   <span className={`flex-1 relative z-10 ${isBusiness && needsSetup ? "text-amber-600 dark:text-amber-400 font-semibold" : ""}`}>{label}</span>
                   {showAlert && (
-                    <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 relative z-10" title={href === "/dashboard/calendar" ? "Turnos próximos urgentes" : "Stock bajo"} />
+                    <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 relative z-10" title={href === "/dashboard/calendar" ? "Turnos pr├│ximos urgentes" : "Stock bajo"} />
                   )}
                   {isBusiness && needsSetup && (
-                    <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0 relative z-10 animate-pulse" title="Configuración pendiente" />
+                    <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0 relative z-10 animate-pulse" title="Configuraci├│n pendiente" />
                   )}
                 </Link>
               </motion.div>
@@ -246,43 +247,25 @@ const DashboardSidebar = memo(function DashboardSidebar({
         </motion.nav>
       </LayoutGroup>
 
-      {/* bottom section */}
-      <div className="px-3 pb-6 space-y-1">
-        <div className="h-px bg-black/5 dark:bg-white/10 mx-3 my-2" />
-        <Link
-          href={`${dashboardBasePath}/settings`}
-          prefetch={true}
-          draggable={false}
-          onMouseDown={() => {
-            playClick();
-            haptic(6);
-            startNavTransition();
-            onNavigate?.();
-          }}
-          className={`relative flex items-center gap-3 px-3 py-3 rounded-2xl text-sm font-medium transition-colors cursor-pointer select-none ${
-            pathname.startsWith(`${dashboardBasePath}/settings`)
-              ? "text-violet-700 dark:text-white"
-              : "text-zinc-500 dark:text-zinc-400 hover:bg-white/50 dark:hover:bg-white/5 hover:text-zinc-700 dark:hover:text-white"
-          }`}
-        >
-          {pathname.startsWith(`${dashboardBasePath}/settings`) && (
-            <motion.div
-              layoutId="active-pill"
-              className="absolute inset-0 rounded-2xl bg-white/30 dark:bg-white/10 border border-white/20 dark:border-white/10 shadow-sm"
-              transition={performanceMode ? { duration: 0.1 } : { type: "spring", stiffness: 380, damping: 30 }}
-            />
-          )}
-          <Settings className="w-5 h-5 shrink-0 relative z-10 text-zinc-400 dark:text-zinc-500" strokeWidth={1.5} />
-          <span className="relative z-10">Ajustes</span>
-        </Link>
-        <button
-          onClick={onLogout}
-          onMouseDown={() => { playClick(); haptic(6); }}
-          className="w-full relative flex items-center gap-3 px-3 py-3 rounded-2xl text-sm font-medium transition-colors cursor-pointer select-none text-zinc-500 dark:text-zinc-400 hover:bg-white/50 dark:hover:bg-white/5 hover:text-zinc-700 dark:hover:text-white"
-        >
-          <LogOut className="w-5 h-5 shrink-0 relative z-10 text-zinc-400 dark:text-zinc-500" strokeWidth={1.5} />
-          <span className="relative z-10">Salir</span>
-        </button>
+      <div className="px-4 py-5">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400 truncate">
+            {userName}
+          </span>
+          <motion.div
+            whileHover={performanceMode ? undefined : { scale: 1.05 }}
+            transition={performanceMode ? { duration: 0.1 } : { type: "spring", stiffness: 400, damping: 15 }}
+          >
+            <button
+              onMouseDown={playClick}
+              onClick={onLogout}
+              className="p-1.5 rounded-xl text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-white/60 dark:hover:bg-white/5 transition-all cursor-pointer"
+              title="Cerrar Sesi├│n"
+            >
+              <LogOut className="w-5 h-5" strokeWidth={1.5} />
+            </button>
+          </motion.div>
+        </div>
       </div>
     </motion.aside>
   );
