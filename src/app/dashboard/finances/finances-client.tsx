@@ -218,8 +218,8 @@ export default function FinancesClient({
         .order("happened_at", { ascending: true }),
     ]);
     if (!incomeRes.error && !expensesRes.error) {
-      const totalIncome = (incomeRes.data || []).reduce((sum: number, apt: { service_price?: number | null; services?: { price: number } | null }) => {
-        return sum + Number(apt.service_price ?? apt.services?.price ?? 0);
+      const totalIncome = (incomeRes.data || []).reduce((sum: number, apt: { service_price?: number | null; services?: { price: number }[] | null }) => {
+        return sum + Number(apt.service_price ?? apt.services?.[0]?.price ?? 0);
       }, 0);
       const totalExpenses = (expensesRes.data || []).reduce((sum: number, e: { amount: number }) => sum + Number(e.amount), 0);
       setData({
