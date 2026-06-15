@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Gift, Loader2, MessageCircle, Search, X, Download } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Gift, MessageCircle, Search, X, Download } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { supabase } from "@/lib/supabase";
@@ -73,8 +73,6 @@ export default function CustomersPage() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -95,9 +93,6 @@ export default function CustomersPage() {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [portalReady, setPortalReady] = useState(false);
-
-  const initialSessionLoadedRef = useRef(false);
-  const firstAuthEventRef = useRef(true);
 
   useEffect(() => {
     setPortalReady(true);
@@ -175,47 +170,7 @@ export default function CustomersPage() {
   }, [resolveActiveShopIdForUser, customerPlural]);
 
   useEffect(() => {
-    let mounted = true;
-
-    (async () => {
-      setLoading(true);
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!mounted) return;
-
-      const userId = session?.user?.id ?? null;
-      setAuthUserId(userId);
-      initialSessionLoadedRef.current = true;
-
-      if (userId) {
-        await loadCustomers();
-      }
-
-      setLoading(false);
-    })();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (firstAuthEventRef.current) {
-        firstAuthEventRef.current = false;
-        return;
-      }
-
-      const userId = session?.user?.id ?? null;
-      setAuthUserId(userId);
-
-      if (userId) {
-        void loadCustomers();
-      }
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
+    loadCustomers();
   }, [loadCustomers]);
 
   useEffect(() => {
@@ -373,19 +328,6 @@ export default function CustomersPage() {
     playSuccess();
     setSaving(false);
     closeEditor();
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center gap-3 px-5 py-4 text-sm text-slate-500 dark:text-zinc-400">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        Cargando {customerPlural.toLowerCase()}...
-      </div>
-    );
-  }
-
-  if (!authUserId) {
-    return null;
   }
 
   if (error) {
