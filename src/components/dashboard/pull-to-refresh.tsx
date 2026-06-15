@@ -4,22 +4,24 @@ import { useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 
+const DISABLE_PULL_REFRESH_PATHS = ["/calendar", "/customers"];
+
 export default function PullToRefresh({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const isCalendar = pathname.includes("/calendar");
+  const isDisabled = DISABLE_PULL_REFRESH_PATHS.some((p) => pathname.includes(p));
   const startY = useRef(0);
   const [pulling, setPulling] = useState(false);
   const [pullDist, setPullDist] = useState(0);
 
   function onTouchStart(e: React.TouchEvent) {
-    if (isCalendar) return;
+    if (isDisabled) return;
     if (window.scrollY > 0) return;
     startY.current = e.touches[0].clientY;
   }
 
   function onTouchMove(e: React.TouchEvent) {
-    if (isCalendar) return;
+    if (isDisabled) return;
     if (window.scrollY > 0) return;
     const dist = e.touches[0].clientY - startY.current;
     if (dist > 0) {
@@ -29,7 +31,7 @@ export default function PullToRefresh({ children }: { children: ReactNode }) {
   }
 
   function onTouchEnd() {
-    if (isCalendar) return;
+    if (isDisabled) return;
     if (pullDist >= 60) {
       router.refresh();
     }

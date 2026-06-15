@@ -97,6 +97,7 @@ export default function CustomersPage() {
   const [portalReady, setPortalReady] = useState(false);
 
   const initialSessionLoadedRef = useRef(false);
+  const firstAuthEventRef = useRef(true);
 
   useEffect(() => {
     setPortalReady(true);
@@ -204,6 +205,11 @@ export default function CustomersPage() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (firstAuthEventRef.current) {
+        firstAuthEventRef.current = false;
+        return;
+      }
+
       const userId = session?.user?.id ?? null;
       setAuthUserId(userId);
 
