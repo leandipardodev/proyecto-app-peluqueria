@@ -67,6 +67,9 @@ body {
   [role="menuitem"],
   [data-clickable="true"] {
     cursor: pointer;
+    -webkit-user-drag: none;
+    user-select: none;
+    touch-action: manipulation;
   }
 
   button:disabled,

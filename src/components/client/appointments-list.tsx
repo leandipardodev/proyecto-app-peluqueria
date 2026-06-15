@@ -45,8 +45,7 @@ export default function ClientAppointmentsList({
 
   function formatStatus(status: string, isPaid: boolean) {
     if (status === "pending_payment") return "Pago pendiente";
-    if (status === "scheduled" && !isPaid) return "A confirmar";
-    if (status === "scheduled" && isPaid) return "Señado";
+    if (status === "scheduled") return "Nuevo";
     if (status === "confirmed" || status === "in_progress") return "Confirmado";
     if (status === "completed") return "Completado";
     if (status === "cancelled" || status === "no_show") return "Cancelado";

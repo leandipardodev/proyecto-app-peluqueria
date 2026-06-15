@@ -217,9 +217,9 @@ export default function CalendarPageClient({
             ? supabase.from("services").select("id, name, price, duration_minutes").in("id", serviceIds)
             : { data: [] },
         ]);
-        const customersMap = new Map((customersRes.data || []).map((c: any) => [c.id, c]));
-        const staffMap = new Map((staffRes.data || []).map((s: any) => [s.user_id, s]));
-        const servicesMap = new Map((servicesRes.data || []).map((s: any) => [s.id, s]));
+        const customersMap = new Map((customersRes.data || []).map((c: { id: string; nombre: string | null; email: string; telefono: string | null; loyalty_rewards_available?: number | null }) => [c.id, c]));
+        const staffMap = new Map((staffRes.data || []).map((s: { user_id: string; name: string | null; email: string | null }) => [s.user_id, s]));
+        const servicesMap = new Map((servicesRes.data || []).map((s: { id: string; name: string; price: number; duration_minutes: number }) => [s.id, s]));
         const enriched = rows.map((r) => ({
           ...r,
           customers: customersMap.get(r.customer_id) ?? null,
@@ -227,7 +227,7 @@ export default function CalendarPageClient({
           services: servicesMap.get(r.service_id) ?? null,
         }));
         setAppointments((prev) => {
-          if (prev.length === enriched.length && prev.every((a: any, i: any) => a.id === enriched[i].id)) return prev;
+          if (prev.length === enriched.length && prev.every((a, i) => a.id === enriched[i].id)) return prev;
           return enriched as any;
         });
       }
@@ -348,7 +348,7 @@ export default function CalendarPageClient({
           <div className="flex items-center gap-1 flex-wrap">
             {[
               { key: null, label: "Todos" },
-              { key: "scheduled", label: "Pendiente" },
+              { key: "scheduled", label: "Nuevo" },
               { key: "confirmed", label: "Confirmado" },
               { key: "completed", label: "Completado" },
             ].map((opt) => (

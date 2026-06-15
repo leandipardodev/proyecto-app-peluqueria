@@ -207,6 +207,7 @@ const DashboardSidebar = memo(function DashboardSidebar({
                   <Link
                     href={targetHref}
                     prefetch={true}
+                    draggable={false}
                     onMouseDown={() => {
                       playClick();
                       haptic(6);

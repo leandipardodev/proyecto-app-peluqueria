@@ -218,17 +218,17 @@ export default function FinancesClient({
         .order("happened_at", { ascending: true }),
     ]);
     if (!incomeRes.error && !expensesRes.error) {
-      const totalIncome = (incomeRes.data || []).reduce((sum: number, apt: any) => {
+      const totalIncome = (incomeRes.data || []).reduce((sum: number, apt: { service_price?: number | null; services?: { price: number } | null }) => {
         return sum + Number(apt.service_price ?? apt.services?.price ?? 0);
       }, 0);
-      const totalExpenses = (expensesRes.data || []).reduce((sum: number, e: any) => sum + Number(e.amount), 0);
+      const totalExpenses = (expensesRes.data || []).reduce((sum: number, e: { amount: number }) => sum + Number(e.amount), 0);
       setData({
         totalIncome,
         totalExpenses,
         netBalance: totalIncome - totalExpenses,
         appointmentsCount: (incomeRes.data || []).length,
         recentMovements: [],
-        expenses: (expensesRes.data || []).map((e: any) => ({
+        expenses: (expensesRes.data || []).map((e: { id: string; amount: number; category: string; description: string | null; created_at: string }) => ({
           id: e.id,
           amount: Number(e.amount),
           category: e.category,
@@ -280,7 +280,7 @@ export default function FinancesClient({
         });
       }
       if (!movesRes.error && movesRes.data) {
-        setCashMovements(movesRes.data.map((m: any) => ({
+        setCashMovements(movesRes.data.map((m: { id: string; movement_type: string; payment_method: string; amount: number; category: string; description: string | null; happened_at: string }) => ({
           id: m.id,
           movementType: m.movement_type,
           paymentMethod: m.payment_method,
@@ -291,7 +291,7 @@ export default function FinancesClient({
         })));
       }
       if (!historyRes.error && historyRes.data) {
-        setCashSessionsHistory(historyRes.data.map((h: any) => ({
+        setCashSessionsHistory(historyRes.data.map((h: { id: string; status: string; opened_at: string; opening_amount: number; expected_amount: number; counted_amount: number | null; difference_amount: number | null }) => ({
           id: h.id,
           status: h.status as "open" | "closed" | "cancelled",
           openedAt: h.opened_at,

@@ -146,7 +146,7 @@ export default function StaffList({
       const profilesMap = new Map((profilesRes.data || []).map((p) => [p.user_id, p]));
       setStaff((prev) => {
         const updated = prev.map((member) => {
-          const membership = (membershipsRes.data || []).find((m: any) => m.user_id === member.id);
+          const membership = (membershipsRes.data || []).find((m: { user_id: string; role: string; invite_accepted_at: string | null }) => m.user_id === member.id);
           const profile = profilesMap.get(member.id);
           if (!membership) return member;
           return {
@@ -159,8 +159,8 @@ export default function StaffList({
         });
         const existingIds = new Set(prev.map((m) => m.id));
         const newIds = (membershipsRes.data || [])
-          .filter((m: any) => !existingIds.has(m.user_id))
-          .map((m: any) => {
+          .filter((m: { user_id: string; role: string; invite_accepted_at: string | null }) => !existingIds.has(m.user_id))
+          .map((m: { user_id: string; role: string; invite_accepted_at: string | null }) => {
             const profile = profilesMap.get(m.user_id);
             return {
               id: m.user_id,

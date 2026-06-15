@@ -26,7 +26,7 @@ export default async function ReceiptPage({ params }: { params: Promise<{ eventI
 
   if (!shop) redirect("/dashboard");
 
-  const payload = event.payload as any;
+  const payload = event.payload as { amount?: number; payment_id?: string | null };
   const amount = payload?.amount ?? 500;
   const paymentId = payload?.payment_id ?? "-";
   const date = new Date(event.created_at).toLocaleDateString("es-AR", {

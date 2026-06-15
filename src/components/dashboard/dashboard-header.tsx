@@ -284,10 +284,10 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
       }
       setSearchError(null);
       setDbResults([
-        ...(stockRes.data || []).map((item: any) => ({ type: "stock" as const, ...item })),
-        ...(servicesRes.data || []).map((item: any) => ({ type: "service" as const, ...item })),
-        ...(customersRes.data || []).map((item: any) => ({ type: "customer" as const, ...item })),
-        ...(staffRes.data || []).map((item: any) => ({ type: "staff" as const, id: item.user_id, name: item.name, email: item.email, role: item.role })),
+        ...(stockRes.data || []).map((item: { id: string; nombre_producto: string; quantity: number }) => ({ type: "stock" as const, ...item })),
+        ...(servicesRes.data || []).map((item: { id: string; name: string; duration_minutes: number }) => ({ type: "service" as const, ...item })),
+        ...(customersRes.data || []).map((item: { id: string; nombre: string; telefono: string | null }) => ({ type: "customer" as const, ...item })),
+        ...(staffRes.data || []).map((item: { user_id: string; name: string | null; email: string | null; role: string }) => ({ type: "staff" as const, id: item.user_id, name: item.name, email: item.email, role: item.role })),
       ]);
     }, 300);
 

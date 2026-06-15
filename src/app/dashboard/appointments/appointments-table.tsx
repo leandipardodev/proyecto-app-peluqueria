@@ -48,8 +48,7 @@ function getStatusBadgeClass(status: string, isPaid: boolean): string {
 
 function getTurnoStatusLabel(status: string, isPaid: boolean): string {
   if (status === "pending_payment") return "Pago pendiente";
-  if (status === "scheduled" && !isPaid) return "A confirmar";
-  if (status === "scheduled" && isPaid) return "Señado";
+  if (status === "scheduled") return "Nuevo";
   if (status === "confirmed" || status === "in_progress") return "Confirmado";
   if (status === "completed") return "Completado";
   if (status === "cancelled" || status === "no_show") return "Cancelado";
@@ -128,9 +127,9 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
             ? supabase.from("services").select("id, name, price").in("id", serviceIds)
             : { data: [] },
         ]);
-        const customerMap = new Map((customersRes.data || []).map((c: any) => [c.id, c]));
-        const staffMap = new Map((staffRes.data || []).map((s: any) => [s.user_id, s]));
-        const serviceMap = new Map((servicesRes.data || []).map((s: any) => [s.id, s]));
+        const customerMap = new Map((customersRes.data || []).map((c: { id: string; nombre: string | null; email: string; telefono: string | null }) => [c.id, c]));
+        const staffMap = new Map((staffRes.data || []).map((s: { user_id: string; name: string | null }) => [s.user_id, s]));
+        const serviceMap = new Map((servicesRes.data || []).map((s: { id: string; name: string; price: number }) => [s.id, s]));
         const assembled = rows.map((r) => ({
           ...r,
           customers: customerMap.get(r.customer_id) ?? null,

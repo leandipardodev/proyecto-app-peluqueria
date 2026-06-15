@@ -2,11 +2,14 @@
 
 import { format, startOfWeek, addDays, isToday } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Plus, Pointer, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Pointer, X, ExternalLink, Phone } from "lucide-react";
 import { AnimatePresence, motion, useAnimation } from "framer-motion";
 import { useRef, useState, useEffect, useMemo, useCallback, memo } from "react";
 import { createPortal } from "react-dom";
 import { GRID_END_HOUR, GRID_START_HOUR, HOUR_HEIGHT } from "@/lib/calendar-constants";
+import ContextMenu from "@/components/ui/context-menu";
+import type { ContextMenuItem } from "@/components/ui/context-menu";
+import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
 import {
   extractArgentinaTimeHHmm,
   getArgentinaDateKey,
@@ -156,6 +159,7 @@ const AppointmentBlock = memo(function AppointmentBlock({
   onHover,
   onLeave,
   onAppointmentClick,
+  onContextMenu,
 }: {
   appt: NormalizedAppointment;
   startMin: number;
@@ -170,6 +174,7 @@ const AppointmentBlock = memo(function AppointmentBlock({
   onHover: (appt: NormalizedAppointment) => void;
   onLeave: () => void;
   onAppointmentClick: (appt: Appointment | null) => void;
+  onContextMenu?: (appt: NormalizedAppointment, e: React.MouseEvent) => void;
 }) {
   const isWeekMode = viewMode === "week";
   const isCompact = cols >= 3 || durationMin <= 45;
@@ -215,6 +220,7 @@ const AppointmentBlock = memo(function AppointmentBlock({
         onTooltipMove(e.clientX, e.clientY);
       }}
       onMouseLeave={onLeave}
+      onContextMenu={(e) => onContextMenu?.(appt, e)}
     >
       <div className={`relative z-10 flex h-full ${isWeekMode ? "flex-col p-1 gap-0.5" : "flex-col justify-between p-1.5 gap-0.5"}`}>
         <div className="min-w-0 space-y-0.5">
@@ -281,6 +287,8 @@ export default memo(function CalendarView({
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [hoverTooltip, setHoverTooltip] = useState<HoverTooltipState | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ left: -9999, top: -9999 });
+  const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const [contextMenuAppt, setContextMenuAppt] = useState<NormalizedAppointment | null>(null);
   const portalReady = true;
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
@@ -295,6 +303,16 @@ export default memo(function CalendarView({
   }, []);
   const handleAppointmentLeave = useCallback(() => {
     setHoverTooltip(null);
+  }, []);
+  const handleContextMenu = useCallback((appt: NormalizedAppointment, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenuAppt(appt);
+    setContextMenuPos({ x: e.clientX, y: e.clientY });
+  }, []);
+  const handleCloseContextMenu = useCallback(() => {
+    setContextMenuPos(null);
+    setContextMenuAppt(null);
   }, []);
 
   const filteredAppointments = useMemo(() => {
@@ -1153,6 +1171,7 @@ export default memo(function CalendarView({
                             onHover={handleAppointmentHover}
                             onLeave={handleAppointmentLeave}
                             onAppointmentClick={onAppointmentClick}
+                            onContextMenu={handleContextMenu}
                           />
                         ))}
 
@@ -1328,6 +1347,37 @@ export default memo(function CalendarView({
         </div>
       )}
       {styleTag}
+
+      <ContextMenu
+        items={(() => {
+          if (!contextMenuAppt) return [];
+          const items: ContextMenuItem[] = [
+            {
+              label: "Ver detalle",
+              icon: <ExternalLink className="w-3.5 h-3.5" />,
+              onClick: () => onAppointmentClick(contextMenuAppt),
+            },
+          ];
+          const phone = contextMenuAppt.customers?.telefono;
+          if (phone) {
+            const cleanPhone = phone.replace(/[^\d]/g, "").replace(/^00/, "");
+            const customerName = contextMenuAppt.customers?.nombre || "Cliente";
+            const startTime = contextMenuAppt.start_hhmm || "";
+            const template = DEFAULT_WHATSAPP_TEMPLATE
+              .replace(/@Nombre/g, customerName)
+              .replace(/@Hora/g, startTime)
+              .replace(/@Lugar/g, "");
+            items.push({
+              label: "Enviar WhatsApp",
+              icon: <Phone className="w-3.5 h-3.5" />,
+              onClick: () => window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(template)}`, "_blank"),
+            });
+          }
+          return items;
+        })()}
+        position={contextMenuPos}
+        onClose={handleCloseContextMenu}
+      />
     </div>
   );
 })

@@ -77,8 +77,7 @@ const statusFlow: Record<string, { label: string; nextStatus: string }[]> = {
 
 function getTurnoStatusLabel(status: string, isPaid: boolean): string {
   if (status === "pending_payment") return "Pago pendiente";
-  if (status === "scheduled" && !isPaid) return "A confirmar";
-  if (status === "scheduled" && isPaid) return "Señado";
+  if (status === "scheduled") return "Nuevo";
   if (status === "confirmed" || status === "in_progress") return "Confirmado";
   if (status === "completed") return "Completado";
   if (status === "cancelled" || status === "no_show") return "Cancelado";
@@ -89,7 +88,7 @@ function statusColor(status: string, isPaid: boolean): string {
   const label = getTurnoStatusLabel(status, isPaid);
   if (label === "Completado") return "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200";
   if (label === "Confirmado") return "bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200";
-  if (label === "Señado") return "bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200";
+  if (label === "Nuevo") return "bg-sky-100 dark:bg-sky-900/40 text-sky-800 dark:text-sky-200";
   if (label === "Cancelado") return "bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200";
   return "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300";
 }
@@ -165,7 +164,7 @@ export default function AppointmentDetailModal({
   const [editingDurationId, setEditingDurationId] = useState<string | null>(null);
   const [editingDurationValue, setEditingDurationValue] = useState("");
 
-  const [appointmentGroup, setAppointmentGroup] = useState<any[]>([]);
+  const [appointmentGroup, setAppointmentGroup] = useState<SiblingAppointment[]>([]);
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>(
     appointment?.service_id ? [appointment.service_id] : []
   );
@@ -181,7 +180,7 @@ export default function AppointmentDetailModal({
     setPortalReady(true);
   }, []);
 
-  function computeAppointmentGroup(aptId: string, customerId: string, staffId: string | null, startTime: string, allApts: SiblingAppointment[]): { group: any[]; serviceIds: string[]; groupStartTime: string } {
+  function computeAppointmentGroup(aptId: string, customerId: string, staffId: string | null, startTime: string, allApts: SiblingAppointment[]): { group: SiblingAppointment[]; serviceIds: string[]; groupStartTime: string } {
     const dateKey = getArgentinaDateKey(startTime);
     const sameDay = allApts.filter((a) => a.customer_id === customerId && getArgentinaDateKey(a.start_time) === dateKey);
     if (sameDay.length <= 1) {

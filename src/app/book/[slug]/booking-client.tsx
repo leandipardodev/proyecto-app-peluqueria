@@ -754,11 +754,12 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                       setSelectedCombo(combo);
                                       setSelectedService(null);
                                     }}
+                                    draggable={false}
                                     className={`w-full px-6 py-5 text-left ${tactileClass} active:scale-[0.97] transition-transform duration-150`}
                                   >
                                     <div className="flex items-start justify-between gap-4">
                                       <div className="min-w-0 flex-1">
-                                        <p className={`text-xl font-medium ${templateStyles.heading}`}>{combo.name}</p>
+                                        <p className={`truncate text-xl font-medium ${templateStyles.heading}`}>{combo.name}</p>
                                         {combo.description && (
                                           <p className={`mt-1 text-xs leading-relaxed ${templateStyles.tiny}`}>{combo.description}</p>
                                         )}
@@ -819,11 +820,12 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                     setSelectedService(svc);
                                     setSelectedCombo(null);
                                   }}
+                                  draggable={false}
                                   className={`w-full px-6 py-6 text-left ${tactileClass} active:scale-[0.97] transition-transform duration-150`}
                                 >
                                   <div className="flex items-start justify-between gap-4">
                                     <div className="min-w-0 flex-1">
-                                      <p className={`text-xl font-medium ${templateStyles.heading}`}>{svc.name}</p>
+                                      <p className={`truncate text-xl font-medium ${templateStyles.heading}`}>{svc.name}</p>
                                       {svc.description && (
                                         <p className={`mt-1 text-xs leading-relaxed line-clamp-2 ${templateStyles.tiny}`}>{svc.description}</p>
                                       )}
@@ -847,6 +849,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                         <motion.h2 variants={stepItemReveal} className={`font-semibold leading-[1.02] ${templateStyles.heading} ${templateStyles.headingFx}`}>{`Elegi tu ${staffWordLower}`}</motion.h2>
                         <button
                           onClick={() => setSelectedStaff(null)}
+                          draggable={false}
                           className={`w-full px-6 py-5 rounded-[14px] text-left border ${tactileClass} ${
                             !selectedStaff ? templateStyles.selected : `${templateStyles.plain} ${templateStyles.hoverBorder}`
                           }`}
@@ -863,6 +866,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                             <button
                               key={s.id}
                               onClick={() => setSelectedStaff(s)}
+                              draggable={false}
                               className={`w-full px-5 py-4 rounded-[14px] text-left border ${tactileClass} ${
                                 isSelected ? templateStyles.selected : `${templateStyles.plain} ${templateStyles.hoverBorder}`
                               }`}
@@ -994,6 +998,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                       whileHover={{ scale: 1.01 }}
                                       whileTap={{ scale: 0.99 }}
                                       onClick={() => setSelectedSlot(slot)}
+                                      draggable={false}
                                       className={`h-12 sm:h-14 rounded-full text-base font-medium border ${tactileClass} px-3 ${
                                         isSelected
                                           ? `${templateStyles.selected} ${templateStyles.accent}`
@@ -1387,6 +1392,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                   handleConfirm();
                 }}
                 disabled={step !== 3 || submitting || creatingPreference || !canGoNext || !!paymentPreferenceId}
+                draggable={false}
                 className={`relative overflow-hidden inline-flex justify-center items-center gap-2 px-5 py-3 rounded-full text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto ${templateStyles.ctaMain} ${templateStyles.ctaDepth} ${tactileClass} active:scale-[0.97] transition-transform duration-150`}
               >
                 <span className="absolute inset-0 -translate-x-full animate-[shimmer_2.2s_infinite] bg-gradient-to-r from-transparent via-white/25 to-transparent" />

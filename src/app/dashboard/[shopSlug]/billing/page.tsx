@@ -55,8 +55,8 @@ export default async function BillingPage({ params }: { params: Promise<{ shopSl
       events={(eventsResult.data || []).map((e) => ({
         id: e.id,
         type: e.event_type,
-        amount: (e.payload as any)?.amount ?? BILLING_PRICES.monthly,
-        paymentId: (e.payload as any)?.payment_id ?? null,
+        amount: (e.payload as { amount?: number })?.amount ?? BILLING_PRICES.monthly,
+        paymentId: (e.payload as { payment_id?: string | null })?.payment_id ?? null,
         createdAt: e.created_at,
       }))}
     />

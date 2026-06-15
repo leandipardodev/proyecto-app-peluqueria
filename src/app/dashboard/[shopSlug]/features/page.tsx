@@ -2,6 +2,7 @@ import { getCachedUser, getCachedShopIdBySlug, createServiceRoleClient } from "@
 import { redirect } from "next/navigation";
 import { resolveIndustry } from "@/lib/industry/resolve";
 import { getFeatures, getShopFeatures, updateShopFeatureOverride } from "@/lib/industry/features";
+import type { IndustryFeatures } from "@/lib/industry/types";
 import { FEATURE_LABELS } from "./constants";
 import FeaturesToggle from "./features-toggle";
 import { revalidatePath } from "next/cache";
@@ -34,7 +35,7 @@ export default async function DashboardShopFeaturesPage({ params }: { params: Pr
     const feature = formData.get("feature") as string;
     const enabled = formData.get("enabled") === "true";
 
-    const result = await updateShopFeatureOverride(safeShopId, feature as any, enabled);
+    const result = await updateShopFeatureOverride(safeShopId, feature as keyof IndustryFeatures, enabled);
 
     revalidatePath(`/dashboard/${shopSlug}/features`);
     if (!result.success) {
