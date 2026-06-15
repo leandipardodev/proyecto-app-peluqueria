@@ -690,7 +690,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
 
               </div>
 
-              <div className="pt-4 min-h-0 flex-1 overflow-hidden">
+              <div className="pt-4 min-h-0 flex-1">
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={step}
@@ -745,7 +745,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                   whileHover={{ y: -2 }}
                                   whileTap={{ scale: 0.995 }}
                                   transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-                                  className={`overflow-hidden rounded-3xl border transition-all duration-300 ease-[0.16,1,0.3,1] ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected} scale-[1.01]` : `${templateStyles.plain} ${templateStyles.plate} ${templateStyles.hoverBorder}`}`}
+                                  className={`rounded-3xl border transition-all duration-300 ease-[0.16,1,0.3,1] ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected} scale-[1.01]` : `${templateStyles.plain} ${templateStyles.plate} ${templateStyles.hoverBorder}`}`}
                                 >
                                   <button
                                     type="button"
@@ -759,7 +759,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                   >
                                     <div className="flex items-start justify-between gap-4">
                                       <div className="min-w-0 flex-1">
-                                        <p className={`truncate text-xl font-medium ${templateStyles.heading}`}>{combo.name}</p>
+                                        <p className={`${isSelected ? "" : "truncate"} text-xl font-medium ${templateStyles.heading}`}>{combo.name}</p>
                                         {combo.description && (
                                           <p className={`mt-1 text-xs leading-relaxed ${templateStyles.tiny}`}>{combo.description}</p>
                                         )}
@@ -811,7 +811,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                   whileHover={{ y: -2 }}
                                   whileTap={{ scale: 0.995 }}
                                   transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-                                  className={`overflow-hidden rounded-3xl border transition-all duration-300 ease-[0.16,1,0.3,1] ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected} scale-[1.01]` : `${templateStyles.plain} ${templateStyles.plate} ${templateStyles.hoverBorder}`}`}
+                                  className={`rounded-3xl border transition-all duration-300 ease-[0.16,1,0.3,1] ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected} scale-[1.01]` : `${templateStyles.plain} ${templateStyles.plate} ${templateStyles.hoverBorder}`}`}
                                 >
                                   <button
                                     type="button"
@@ -824,11 +824,11 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                   className={`w-full px-6 py-6 text-left ${tactileClass} active:scale-[0.97] transition-transform duration-150`}
                                 >
                                   <div className="flex items-start justify-between gap-4">
-                                    <div className="min-w-0 flex-1">
-                                      <p className={`truncate text-xl font-medium ${templateStyles.heading}`}>{svc.name}</p>
-                                      {svc.description && (
-                                        <p className={`mt-1 text-xs leading-relaxed line-clamp-2 ${templateStyles.tiny}`}>{svc.description}</p>
-                                      )}
+                                <div className="min-w-0 flex-1">
+                                        <p className={`${isSelected ? "" : "truncate"} text-xl font-medium ${templateStyles.heading}`}>{svc.name}</p>
+                                        {svc.description && (
+                                          <p className={`mt-1 text-xs leading-relaxed ${isSelected ? "" : "line-clamp-2"} ${templateStyles.tiny}`}>{svc.description}</p>
+                                        )}
                                       <p className={`mt-1 text-sm ${templateStyles.tiny}`}>{svc.duration_minutes} min</p>
                                     </div>
                                     <p className={`shrink-0 ${templateStyles.priceText} ${templateStyles.priceFx} tabular-nums`}>
