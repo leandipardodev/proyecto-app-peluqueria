@@ -17,7 +17,7 @@ export default function DashboardPageTransition({ children }: { children: React.
 
   return (
     <div className="relative min-h-0 isolate">
-      <AnimatePresence mode="wait" initial={false}>
+      <AnimatePresence mode="sync" initial={false}>
         <motion.div
           key={pathname}
           initial={performanceMode ? { opacity: 1 } : { opacity: 0.98 }}
