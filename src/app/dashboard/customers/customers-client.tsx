@@ -194,12 +194,6 @@ export default function CustomersPage() {
       }
 
       setLoading(false);
-
-      if (!userId) {
-        setTimeout(() => {
-          if (mounted) router.push("/login");
-        }, 120);
-      }
     })();
 
     const {
@@ -215,8 +209,6 @@ export default function CustomersPage() {
 
       if (userId) {
         void loadCustomers();
-      } else if (initialSessionLoadedRef.current) {
-        router.push("/login");
       }
     });
 
@@ -224,7 +216,7 @@ export default function CustomersPage() {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [router, loadCustomers]);
+  }, [loadCustomers]);
 
   useEffect(() => {
     const q = searchParams.get("q");
