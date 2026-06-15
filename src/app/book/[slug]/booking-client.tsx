@@ -745,7 +745,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                   whileHover={{ y: -2 }}
                                   whileTap={{ scale: 0.995 }}
                                   transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-                                  className={`rounded-3xl border transition-all duration-300 ease-[0.16,1,0.3,1] ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected} scale-[1.01]` : `${templateStyles.plain} ${templateStyles.plate} ${templateStyles.hoverBorder}`}`}
+                                  className={`rounded-3xl border transition-all duration-300 ease-[0.16,1,0.3,1] ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected}` : `${templateStyles.plain} ${templateStyles.plate} ${templateStyles.hoverBorder}`}`}
                                 >
                                   <button
                                     type="button"
@@ -811,7 +811,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                   whileHover={{ y: -2 }}
                                   whileTap={{ scale: 0.995 }}
                                   transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-                                  className={`rounded-3xl border transition-all duration-300 ease-[0.16,1,0.3,1] ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected} scale-[1.01]` : `${templateStyles.plain} ${templateStyles.plate} ${templateStyles.hoverBorder}`}`}
+                                  className={`rounded-3xl border transition-all duration-300 ease-[0.16,1,0.3,1] ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected}` : `${templateStyles.plain} ${templateStyles.plate} ${templateStyles.hoverBorder}`}`}
                                 >
                                   <button
                                     type="button"
