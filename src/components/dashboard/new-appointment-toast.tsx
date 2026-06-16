@@ -14,6 +14,11 @@ export default function NewAppointmentToast({ shopId }: { shopId: string | null 
   useEffect(() => {
     if (!shopId) return;
 
+    const topic = `realtime:new-appointment-${shopId}`;
+    supabase.getChannels().forEach((ch) => {
+      if (ch.topic === topic) supabase.removeChannel(ch);
+    });
+
     const channel = supabase
       .channel(`new-appointment-${shopId}`)
       .on(
