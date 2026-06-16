@@ -982,6 +982,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                         </div>
                         <div className="flex-1 overflow-y-auto delicate-scroll pb-4 [scroll-snap-type:y_proximity]">
                           <div className="space-y-5">
+                          <div className={`rounded-[14px] border transition-all duration-300 ease-[0.16,1,0.3,1] ${templateStyles.cardDepth} ${!selectedStaff ? templateStyles.selected : `${templateStyles.plain} ${templateStyles.hoverBorder}`}`}>
                           <div className="overflow-hidden rounded-[14px] relative">
                             {!selectedStaff && (
                               ripplePositions["no-preference"] ? (
@@ -1005,10 +1006,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                               setSelectedStaff(null);
                             }}
                             draggable={false}
-                            className={`w-full px-6 py-6 rounded-[14px] text-center border relative z-10 ${tactileClass} ${
-                              !selectedStaff ? templateStyles.selected : `${templateStyles.plain} ${templateStyles.hoverBorder}`
-                            }`}
-                            style={{ scrollSnapAlign: "start" }}
+                            className={`w-full px-6 py-6 text-center relative z-10 ${tactileClass}`}
                           >
                           <div className="flex flex-col items-center">
                             <p className={`text-lg sm:text-xl font-semibold tracking-tight ${templateStyles.heading}`} style={!selectedStaff ? { color: rippleConfig.text } as React.CSSProperties : undefined}>Sin preferencia</p>
@@ -1016,11 +1014,13 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                           </div>
                         </button>
                         </div>
+                        </div>
                         {availableStaff.map((s) => {
                           const isSelected = selectedStaff?.id === s.id;
                           const initials = s.name.charAt(0).toUpperCase();
                           return (
-                            <div key={s.id} className="overflow-hidden rounded-[14px] relative">
+                            <div key={s.id} className={`rounded-[14px] border transition-all duration-300 ease-[0.16,1,0.3,1] ${templateStyles.cardDepth} ${isSelected ? templateStyles.selected : `${templateStyles.plain} ${templateStyles.hoverBorder}`}`}>
+                            <div className="overflow-hidden rounded-[14px] relative">
                               {isSelected && (
                                 ripplePositions[s.id] ? (
                                 <motion.span
@@ -1043,10 +1043,8 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                 setSelectedStaff(s);
                               }}
                               draggable={false}
-                              className={`w-full px-5 py-6 rounded-[14px] text-left border relative z-10 ${tactileClass} ${
-                                isSelected ? templateStyles.selected : `${templateStyles.plain} ${templateStyles.hoverBorder}`
-                              }`}
-                              style={{ scrollSnapAlign: "start", ...(isSelected ? { color: rippleConfig.text } as React.CSSProperties : {}) }}
+                              className={`w-full px-5 py-6 text-left relative z-10 ${tactileClass}`}
+                              style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}
                             >
                               <div className="flex flex-col items-center text-center gap-3">
                                 <div className="w-20 h-20 rounded-full overflow-hidden ring-2 ring-white/30 shadow-xl flex items-center justify-center shrink-0 bg-violet-100 dark:bg-violet-900">
@@ -1080,6 +1078,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                 </div>
                               </div>
                             </button>
+                            </div>
                             </div>
                           );
                         })}
