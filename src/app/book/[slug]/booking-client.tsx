@@ -125,7 +125,6 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
   const staffWord = industryConfig.labels.staffSingular;
   const serviceWordLower = serviceWord.toLowerCase();
   const staffWordLower = staffWord.toLowerCase();
-  const STEP_NAMES = [serviceWord, staffWord, "Fecha", "Tus datos"];
 
   const todayRef = useRef(() => {
     const d = new Date();
@@ -593,7 +592,6 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
   const templateStyles = BOOKING_THEMES[resolvedTemplate];
 
   const tactileClass = "transition-all duration-500 ease-[0.16,1,0.3,1] hover:scale-[1.01] active:scale-[0.98]";
-  const progressPercent = (step / (STEP_NAMES.length - 1)) * 100;
 
   return (
     <div className={`relative z-0 min-h-screen w-full overflow-hidden pb-28 font-sans ${templateStyles.page} ${templateStyles.isDark ? "bg-[#000000]" : ""}`}>
@@ -665,32 +663,39 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                     >
                       {shop.heroSubtitle || "Reserva online"}
                     </motion.p>
-                    <div className={`mt-3 relative h-[2px] w-full overflow-hidden rounded-full ${templateStyles.progressTrack}`}>
-                      <motion.div
-                        className={`absolute left-0 top-0 h-[2px] rounded-full ${templateStyles.progressFill}`}
-                        animate={{ width: `${progressPercent}%` }}
-                        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-                      >
-                        <motion.div
-                          className="absolute inset-0"
-                          style={{
-                            backgroundImage: "linear-gradient(100deg, transparent 0%, rgba(255,255,255,0.92) 50%, transparent 100%)",
-                            backgroundSize: "54px 100%",
-                            backgroundRepeat: "no-repeat",
-                            filter: "drop-shadow(0 0 5px rgba(255,255,255,0.6))",
-                            willChange: "background-position",
-                          }}
-                          animate={{ backgroundPositionX: ["-50px", "calc(100% + 50px)"] }}
-                          transition={{ duration: 1.15, repeat: Infinity, ease: "linear" }}
-                        />
-                      </motion.div>
-                    </div>
                   </div>
                 </div>
-
+                <div className="flex justify-center pt-7">
+                  <motion.div
+                    className={`h-[3px] rounded-full origin-center ${templateStyles.progressFill}`}
+                    animate={{
+                      width: step === 0 ? "28%" : step === 1 ? "52%" : step === 2 ? "76%" : "100%",
+                      opacity: step === 3 ? 1 : 0.8,
+                    }}
+                    transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                    style={
+                      step === 3
+                        ? { boxShadow: "0 0 18px 2px rgba(168,85,247,0.5), 0 0 40px 6px rgba(168,85,247,0.2)" }
+                        : {}
+                    }
+                  >
+                    <motion.div
+                      className="absolute inset-0 rounded-full"
+                      style={{
+                        backgroundImage: "linear-gradient(100deg, transparent 0%, rgba(255,255,255,0.85) 50%, transparent 100%)",
+                        backgroundSize: "54px 100%",
+                        backgroundRepeat: "no-repeat",
+                        filter: "drop-shadow(0 0 6px rgba(255,255,255,0.5))",
+                        willChange: "background-position",
+                      }}
+                      animate={{ backgroundPositionX: ["-50px", "calc(100% + 50px)"] }}
+                      transition={{ duration: 1.15, repeat: Infinity, ease: "linear" }}
+                    />
+                  </motion.div>
+                </div>
               </div>
 
-              <div className="pt-4 min-h-0 flex-1">
+              <div className="pt-4 min-h-0 flex-1 relative">
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={step}
@@ -699,39 +704,41 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                     initial="initial"
                     animate="animate"
                     exit="exit"
-                    className="h-full overflow-y-auto delicate-scroll pr-1"
+                    className="h-full flex flex-col"
                     style={{ position: "relative" }}
                   >
                     {step === 0 && (
-                      <div className="space-y-8">
-                        <motion.h2 variants={stepItemReveal} className={`text-xl font-medium ${templateStyles.heading} ${templateStyles.headingFx}`}>{`Elegi tu ${serviceWordLower}`}</motion.h2>
-                        <motion.div variants={stepItemReveal} className="-mx-1 overflow-x-auto pb-1">
-                          <div className="flex items-center gap-2 px-1">
-                            {categories.map((category) => {
-                              const active = selectedCategory === category;
-                              const isAll = category === "Todos";
-                              return (
-                                <button
-                                  type="button"
-                                  key={category}
-                                  onClick={(e) => {
-                                    triggerHaptic(10, e.currentTarget);
-                                    setSelectedCategory(category);
-                                  }}
-                                  className={`min-h-10 rounded-full px-3 text-xs sm:text-sm whitespace-nowrap border transition-all duration-300 ${
-                                    isAll
-                                      ? (active ? `${templateStyles.sectionTagActive} font-semibold` : templateStyles.sectionTagAll)
-                                      : (active ? `${templateStyles.sectionTagActive} font-semibold` : templateStyles.sectionTag)
-                                  } ${templateStyles.sectionFocus} active:scale-[0.97] transition-transform duration-150`}
-                                >
-                                  {category}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </motion.div>
-
-                        <motion.div variants={stepItemReveal} className="space-y-4">
+                      <div className="flex flex-col h-full min-h-0">
+                        <div className="shrink-0 space-y-8">
+                          <motion.h2 variants={stepItemReveal} className={`text-xl font-medium ${templateStyles.heading} ${templateStyles.headingFx}`}>{`Elegi tu ${serviceWordLower}`}</motion.h2>
+                          <motion.div variants={stepItemReveal} className="-mx-1 overflow-x-auto pb-1 no-scrollbar">
+                            <div className="flex items-center gap-2 px-1">
+                              {categories.map((category) => {
+                                const active = selectedCategory === category;
+                                const isAll = category === "Todos";
+                                return (
+                                  <button
+                                    type="button"
+                                    key={category}
+                                    onClick={(e) => {
+                                      triggerHaptic(10, e.currentTarget);
+                                      setSelectedCategory(category);
+                                    }}
+                                    className={`min-h-10 rounded-full px-3 text-xs sm:text-sm whitespace-nowrap transition-all duration-300 ${
+                                      isAll
+                                        ? (active ? `${templateStyles.sectionTagActive} font-semibold` : templateStyles.sectionTagAll)
+                                        : (active ? `${templateStyles.sectionTagActive} font-semibold` : templateStyles.sectionTag)
+                                    } ${templateStyles.sectionFocus} active:scale-[0.97] transition-transform duration-150`}
+                                  >
+                                    {category}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </motion.div>
+                        </div>
+                        <div className="flex-1 overflow-y-auto delicate-scroll pb-4 [scroll-snap-type:y_proximity]">
+                          <motion.div variants={stepItemReveal} className="space-y-4">
                           {selectedCategory === "Combos" ? (
                             combos.map((combo) => {
                               const isSelected = selectedCombo?.id === combo.id;
@@ -746,7 +753,9 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                   whileTap={{ scale: 0.995 }}
                                   transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
                                   className={`rounded-3xl border transition-all duration-300 ease-[0.16,1,0.3,1] ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected}` : `${templateStyles.plain} ${templateStyles.plate} ${templateStyles.hoverBorder}`}`}
+                                  style={{ scrollSnapAlign: "start" }}
                                 >
+                                  <div className="overflow-hidden rounded-3xl">
                                   <button
                                     type="button"
                                     onClick={(e) => {
@@ -798,6 +807,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                       </div>
                                     </div>
                                   </button>
+                                  </div>
                                 </motion.div>
                               );
                             })
@@ -812,7 +822,9 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                   whileTap={{ scale: 0.995 }}
                                   transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
                                   className={`rounded-3xl border transition-all duration-300 ease-[0.16,1,0.3,1] ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected}` : `${templateStyles.plain} ${templateStyles.plate} ${templateStyles.hoverBorder}`}`}
+                                  style={{ scrollSnapAlign: "start" }}
                                 >
+                                  <div className="overflow-hidden rounded-3xl">
                                   <button
                                     type="button"
                                   onClick={(e) => {
@@ -836,24 +848,31 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                       <span className="tracking-[-0.045em]">{svc.price.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
                                     </p>
                                   </div>
-                                </button>
-                              </motion.div>
+                                 </button>
+                                  </div>
+                                </motion.div>
                             );
                           }))}
                         </motion.div>
+                        </div>
                       </div>
                     )}
 
                     {step === 1 && (
-                      <div className="space-y-5">
-                        <motion.h2 variants={stepItemReveal} className={`font-semibold leading-[1.02] ${templateStyles.heading} ${templateStyles.headingFx}`}>{`Elegi tu ${staffWordLower}`}</motion.h2>
-                        <button
-                          onClick={() => setSelectedStaff(null)}
-                          draggable={false}
-                          className={`w-full px-6 py-5 rounded-[14px] text-left border ${tactileClass} ${
-                            !selectedStaff ? templateStyles.selected : `${templateStyles.plain} ${templateStyles.hoverBorder}`
-                          }`}
-                        >
+                      <div className="flex flex-col h-full min-h-0">
+                        <div className="shrink-0 pb-4">
+                          <motion.h2 variants={stepItemReveal} className={`font-semibold leading-[1.02] ${templateStyles.heading} ${templateStyles.headingFx}`}>{`Elegi tu ${staffWordLower}`}</motion.h2>
+                        </div>
+                        <div className="flex-1 overflow-y-auto delicate-scroll pb-4 [scroll-snap-type:y_proximity]">
+                          <div className="space-y-5">
+                          <button
+                            onClick={(e) => { setSelectedStaff(null); }}
+                            draggable={false}
+                            className={`w-full px-6 py-5 rounded-[14px] text-left border ${tactileClass} ${
+                              !selectedStaff ? templateStyles.selected : `${templateStyles.plain} ${templateStyles.hoverBorder}`
+                            }`}
+                            style={{ scrollSnapAlign: "start" }}
+                          >
                           <div>
                             <p className={`text-lg sm:text-xl font-semibold tracking-tight ${templateStyles.heading}`}>Sin preferencia</p>
                             <p className={`text-[11px] uppercase tracking-[0.16em] mt-1 ${templateStyles.tiny}`}>{`Cualquier ${staffWordLower} disponible`}</p>
@@ -870,6 +889,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                               className={`w-full px-5 py-4 rounded-[14px] text-left border ${tactileClass} ${
                                 isSelected ? templateStyles.selected : `${templateStyles.plain} ${templateStyles.hoverBorder}`
                               }`}
+                              style={{ scrollSnapAlign: "start" }}
                             >
                               <div className="flex items-start gap-4">
                                 <div className="w-14 h-14 rounded-full overflow-hidden bg-violet-100 dark:bg-violet-900 flex items-center justify-center shrink-0">
@@ -905,10 +925,13 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                             </button>
                           );
                         })}
+                          </div>
+                        </div>
                       </div>
                     )}
 
                     {step === 2 && (
+                      <div className="overflow-y-auto delicate-scroll pb-4 h-full">
                       <div ref={slotsRef} className="space-y-6">
                         <motion.h2 variants={stepItemReveal} className={`font-semibold leading-[1.02] ${templateStyles.heading} ${templateStyles.headingFx}`}>Elegi fecha y horario</motion.h2>
 
@@ -988,7 +1011,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                 initial={{ opacity: 0, y: 8 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -8 }}
-                                className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4"
+                                className="grid grid-cols-4 gap-2"
                               >
                                 {filteredSlots.map((slot) => {
                                   const isSelected = selectedSlot?.start === slot.start;
@@ -999,11 +1022,11 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                       whileTap={{ scale: 0.99 }}
                                       onClick={() => setSelectedSlot(slot)}
                                       draggable={false}
-                                      className={`h-12 sm:h-14 rounded-full text-base font-medium border ${tactileClass} px-3 ${
-                                        isSelected
-                                          ? `${templateStyles.selected} ${templateStyles.accent}`
-                                          : `${templateStyles.plain} ${templateStyles.heading} ${templateStyles.hoverBorder}`
-                                      }`}
+                                       className={`h-9 rounded-lg text-sm font-medium border ${tactileClass} px-2.5 ${
+                                         isSelected
+                                           ? `${templateStyles.selected} ${templateStyles.accent}`
+                                           : `${templateStyles.plain} ${templateStyles.heading} ${templateStyles.hoverBorder}`
+                                       }`}
                                     >
                                       {formatTimeFromIso(slot.start) || to24HourTimeLabel(slot.time)}
                                     </motion.button>
@@ -1026,9 +1049,11 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                           </AnimatePresence>
                         )}
                       </div>
+                      </div>
                     )}
 
                     {step === 3 && (
+                      <div className="overflow-y-auto delicate-scroll pb-4 h-full">
                       <div className="space-y-4">
                         <motion.h2 variants={stepItemReveal} className={`text-xl font-semibold tracking-tight ${templateStyles.heading} ${templateStyles.headingFx}`}>Tus datos</motion.h2>
 
@@ -1236,9 +1261,11 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                           </div>
                         )}
                       </div>
+                      </div>
                     )}
                   </motion.div>
                 </AnimatePresence>
+                <div className="pointer-events-none absolute left-0 right-0 bottom-0 h-16" style={{ background: `linear-gradient(to top, ${templateStyles.scrollFade}, transparent)` }} />
               </div>
 
               <div className="pt-4 flex items-center gap-3">
