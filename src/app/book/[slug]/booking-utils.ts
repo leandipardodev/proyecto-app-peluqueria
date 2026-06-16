@@ -19,7 +19,7 @@ export const stepReveal = {
     filter: "blur(0px)",
     transition: { duration: 0.42, ease: [0.16, 1, 0.3, 1] as const, staggerChildren: 0.055, delayChildren: 0.03 },
   },
-  exit: { opacity: 0, y: -8, filter: "blur(1px)", transition: { duration: 0.2 } },
+  exit: { opacity: 0, y: -8, filter: "blur(1px)", transition: { duration: 0.2 }, pointerEvents: "none" as const },
 };
 
 export const stepItemReveal = {
