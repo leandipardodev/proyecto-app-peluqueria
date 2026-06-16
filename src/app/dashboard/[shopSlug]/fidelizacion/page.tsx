@@ -31,13 +31,19 @@ export default async function DashboardShopFidelizacionPage({ params }: { params
     fetchVouchers(shopId),
     fetchVoucherWhatsappTemplate(shopId),
     fetchBusinessData(shopId),
-    supabase
-      .from("customers")
-      .select("id, nombre, loyalty_rewards_available")
-      .eq("shop_id", shopId)
-      .gt("loyalty_rewards_available", 0)
-      .order("loyalty_rewards_available", { ascending: false })
-      .limit(8),
+    (async () => {
+      try {
+        return await supabase
+          .from("customers")
+          .select("id, nombre, loyalty_rewards_available")
+          .eq("shop_id", shopId)
+          .gt("loyalty_rewards_available", 0)
+          .order("loyalty_rewards_available", { ascending: false })
+          .limit(8);
+      } catch {
+        return { data: null, error: null };
+      }
+    })(),
   ]);
 
   const loyaltyRewardCustomers: LoyaltyRewardCustomer[] = (rewardsResult.data ?? []) as LoyaltyRewardCustomer[];
