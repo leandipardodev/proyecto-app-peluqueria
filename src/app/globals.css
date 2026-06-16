@@ -330,11 +330,12 @@ html.perf-mode .carousel-image-zoom {
 
 .delicate-scroll {
   scrollbar-width: thin;
-  scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+  scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
 }
 
 .delicate-scroll::-webkit-scrollbar {
-  width: 6px;
+  width: 3px;
+  height: 3px;
 }
 
 .delicate-scroll::-webkit-scrollbar-track {
@@ -342,8 +343,17 @@ html.perf-mode .carousel-image-zoom {
 }
 
 .delicate-scroll::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(148, 163, 184, 0.52), rgba(148, 163, 184, 0.28));
+  background: linear-gradient(180deg, rgba(148, 163, 184, 0.65), rgba(148, 163, 184, 0.25));
   border-radius: 999px;
+  background-clip: padding-box;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
