@@ -624,6 +624,16 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
     return map[resolvedTemplate] || map["minimal-light"];
   }, [resolvedTemplate]);
 
+  const rippleWaves = useMemo(() => {
+    const map: Record<string, string[]> = {
+      "minimal-light": ["#b8d5ff", "#7aaeff", "#3b7ddb"],
+      "carbon-glass": ["#dceaff", "#9ec6ff", "#5a99e0"],
+      "editorial-cream": ["#e0c8b0", "#c09870", "#8b5e3c"],
+      "pastel-colorful": ["#c4d0ff", "#9aabf0", "#5b72d1"],
+    };
+    return map[resolvedTemplate] || map["minimal-light"];
+  }, [resolvedTemplate]);
+
   const tactileClass = "transition-all duration-500 ease-[0.16,1,0.3,1] hover:scale-[1.01] active:scale-[0.98]";
 
   const btnEffects = templateStyles.isDark
@@ -829,16 +839,18 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                   <div className="overflow-hidden rounded-3xl relative">
                                     {isSelected && (
                                       ripplePositions[combo.id] ? (
+                                      rippleWaves.map((color, i) => (
                                       <motion.span
-                                        key={`r-${combo.id}`}
-                                        initial={{ width: 0, height: 0, left: ripplePositions[combo.id].x, top: ripplePositions[combo.id].y }}
-                                        animate={{ width: ripplePositions[combo.id].size, height: ripplePositions[combo.id].size, left: ripplePositions[combo.id].x - ripplePositions[combo.id].size / 2, top: ripplePositions[combo.id].y - ripplePositions[combo.id].size / 2 }}
-                                        transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
+                                        key={`r-${combo.id}-w${i}`}
+                                        initial={{ width: 0, height: 0, left: ripplePositions[combo.id].x, top: ripplePositions[combo.id].y, opacity: 1 }}
+                                        animate={{ width: ripplePositions[combo.id].size, height: ripplePositions[combo.id].size, left: ripplePositions[combo.id].x - ripplePositions[combo.id].size / 2, top: ripplePositions[combo.id].y - ripplePositions[combo.id].size / 2, opacity: i < rippleWaves.length - 1 ? 0 : 1 }}
+                                        transition={{ duration: 0.85, ease: [0.22, 1, 0.36, 1], delay: i * 0.08, opacity: { duration: 0.5, delay: i * 0.08 + 0.25, ease: "easeInOut" } }}
                                         className="absolute rounded-full pointer-events-none z-0"
-                                        style={{ background: rippleConfig.bg, willChange: "transform" }}
+                                        style={{ background: color, willChange: "transform" }}
                                       />
+                                      ))
                                       ) : (
-                                      <span key={`s-${combo.id}`} className="absolute inset-0 pointer-events-none z-0" style={{ background: rippleConfig.bg, willChange: "transform" }} />
+                                      <span key={`s-${combo.id}`} className="absolute inset-0 pointer-events-none z-0" style={{ background: rippleWaves[rippleWaves.length - 1], willChange: "transform" }} />
                                       )
                                     )}
                                   <button
@@ -919,16 +931,18 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                   <div className="overflow-hidden rounded-3xl relative">
                                     {isSelected && (
                                       ripplePositions[svc.id] ? (
+                                      rippleWaves.map((color, i) => (
                                       <motion.span
-                                        key={`r-${svc.id}`}
-                                        initial={{ width: 0, height: 0, left: ripplePositions[svc.id].x, top: ripplePositions[svc.id].y }}
-                                        animate={{ width: ripplePositions[svc.id].size, height: ripplePositions[svc.id].size, left: ripplePositions[svc.id].x - ripplePositions[svc.id].size / 2, top: ripplePositions[svc.id].y - ripplePositions[svc.id].size / 2 }}
-                                        transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
+                                        key={`r-${svc.id}-w${i}`}
+                                        initial={{ width: 0, height: 0, left: ripplePositions[svc.id].x, top: ripplePositions[svc.id].y, opacity: 1 }}
+                                        animate={{ width: ripplePositions[svc.id].size, height: ripplePositions[svc.id].size, left: ripplePositions[svc.id].x - ripplePositions[svc.id].size / 2, top: ripplePositions[svc.id].y - ripplePositions[svc.id].size / 2, opacity: i < rippleWaves.length - 1 ? 0 : 1 }}
+                                        transition={{ duration: 0.85, ease: [0.22, 1, 0.36, 1], delay: i * 0.08, opacity: { duration: 0.5, delay: i * 0.08 + 0.25, ease: "easeInOut" } }}
                                         className="absolute rounded-full pointer-events-none z-0"
-                                        style={{ background: rippleConfig.bg, willChange: "transform" }}
+                                        style={{ background: color, willChange: "transform" }}
                                       />
+                                      ))
                                       ) : (
-                                      <span key={`s-${svc.id}`} className="absolute inset-0 pointer-events-none z-0" style={{ background: rippleConfig.bg, willChange: "transform" }} />
+                                      <span key={`s-${svc.id}`} className="absolute inset-0 pointer-events-none z-0" style={{ background: rippleWaves[rippleWaves.length - 1], willChange: "transform" }} />
                                       )
                                     )}
                                   <button
@@ -986,16 +1000,18 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                           <div className="overflow-hidden rounded-[14px] relative">
                             {!selectedStaff && (
                               ripplePositions["no-preference"] ? (
+                              rippleWaves.map((color, i) => (
                               <motion.span
-                                key="r-np"
-                                initial={{ width: 0, height: 0, left: ripplePositions["no-preference"].x, top: ripplePositions["no-preference"].y }}
-                                animate={{ width: ripplePositions["no-preference"].size, height: ripplePositions["no-preference"].size, left: ripplePositions["no-preference"].x - ripplePositions["no-preference"].size / 2, top: ripplePositions["no-preference"].y - ripplePositions["no-preference"].size / 2 }}
-                                transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
+                                key={`r-np-w${i}`}
+                                initial={{ width: 0, height: 0, left: ripplePositions["no-preference"].x, top: ripplePositions["no-preference"].y, opacity: 1 }}
+                                animate={{ width: ripplePositions["no-preference"].size, height: ripplePositions["no-preference"].size, left: ripplePositions["no-preference"].x - ripplePositions["no-preference"].size / 2, top: ripplePositions["no-preference"].y - ripplePositions["no-preference"].size / 2, opacity: i < rippleWaves.length - 1 ? 0 : 1 }}
+                                transition={{ duration: 0.85, ease: [0.22, 1, 0.36, 1], delay: i * 0.08, opacity: { duration: 0.5, delay: i * 0.08 + 0.25, ease: "easeInOut" } }}
                                 className="absolute rounded-full pointer-events-none z-0"
-                                style={{ background: rippleConfig.bg, willChange: "transform" }}
+                                style={{ background: color, willChange: "transform" }}
                               />
+                              ))
                               ) : (
-                              <span key="s-np" className="absolute inset-0 pointer-events-none z-0" style={{ background: rippleConfig.bg, willChange: "transform" }} />
+                              <span key="s-np" className="absolute inset-0 pointer-events-none z-0" style={{ background: rippleWaves[rippleWaves.length - 1], willChange: "transform" }} />
                               )
                             )}
                           <button
@@ -1023,16 +1039,18 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                             <div className="overflow-hidden rounded-[14px] relative">
                               {isSelected && (
                                 ripplePositions[s.id] ? (
+                                rippleWaves.map((color, i) => (
                                 <motion.span
-                                  key={`r-${s.id}`}
-                                  initial={{ width: 0, height: 0, left: ripplePositions[s.id].x, top: ripplePositions[s.id].y }}
-                                  animate={{ width: ripplePositions[s.id].size, height: ripplePositions[s.id].size, left: ripplePositions[s.id].x - ripplePositions[s.id].size / 2, top: ripplePositions[s.id].y - ripplePositions[s.id].size / 2 }}
-                                  transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
+                                  key={`r-${s.id}-w${i}`}
+                                  initial={{ width: 0, height: 0, left: ripplePositions[s.id].x, top: ripplePositions[s.id].y, opacity: 1 }}
+                                  animate={{ width: ripplePositions[s.id].size, height: ripplePositions[s.id].size, left: ripplePositions[s.id].x - ripplePositions[s.id].size / 2, top: ripplePositions[s.id].y - ripplePositions[s.id].size / 2, opacity: i < rippleWaves.length - 1 ? 0 : 1 }}
+                                  transition={{ duration: 0.85, ease: [0.22, 1, 0.36, 1], delay: i * 0.08, opacity: { duration: 0.5, delay: i * 0.08 + 0.25, ease: "easeInOut" } }}
                                   className="absolute rounded-full pointer-events-none z-0"
-                                  style={{ background: rippleConfig.bg, willChange: "transform" }}
+                                  style={{ background: color, willChange: "transform" }}
                                 />
+                                ))
                                 ) : (
-                                <span key={`s-${s.id}`} className="absolute inset-0 pointer-events-none z-0" style={{ background: rippleConfig.bg, willChange: "transform" }} />
+                                <span key={`s-${s.id}`} className="absolute inset-0 pointer-events-none z-0" style={{ background: rippleWaves[rippleWaves.length - 1], willChange: "transform" }} />
                                 )
                               )}
                             <button
@@ -1155,16 +1173,18 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                               >
                                 {isSelected && (
                                   ripplePositions[`date-${dateStr}`] ? (
+                                  rippleWaves.map((color, i) => (
                                   <motion.span
-                                    key={`rd-${dateStr}`}
-                                    initial={{ width: 0, height: 0, left: ripplePositions[`date-${dateStr}`].x, top: ripplePositions[`date-${dateStr}`].y }}
-                                    animate={{ width: ripplePositions[`date-${dateStr}`].size, height: ripplePositions[`date-${dateStr}`].size, left: ripplePositions[`date-${dateStr}`].x - ripplePositions[`date-${dateStr}`].size / 2, top: ripplePositions[`date-${dateStr}`].y - ripplePositions[`date-${dateStr}`].size / 2 }}
-                                    transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
+                                    key={`rd-${dateStr}-w${i}`}
+                                    initial={{ width: 0, height: 0, left: ripplePositions[`date-${dateStr}`].x, top: ripplePositions[`date-${dateStr}`].y, opacity: 1 }}
+                                    animate={{ width: ripplePositions[`date-${dateStr}`].size, height: ripplePositions[`date-${dateStr}`].size, left: ripplePositions[`date-${dateStr}`].x - ripplePositions[`date-${dateStr}`].size / 2, top: ripplePositions[`date-${dateStr}`].y - ripplePositions[`date-${dateStr}`].size / 2, opacity: i < rippleWaves.length - 1 ? 0 : 1 }}
+                                    transition={{ duration: 0.85, ease: [0.22, 1, 0.36, 1], delay: i * 0.08, opacity: { duration: 0.5, delay: i * 0.08 + 0.25, ease: "easeInOut" } }}
                                     className="absolute rounded-full pointer-events-none z-0"
-                                    style={{ background: rippleConfig.bg, willChange: "transform" }}
+                                    style={{ background: color, willChange: "transform" }}
                                   />
+                                  ))
                                   ) : (
-                                  <span key={`sd-${dateStr}`} className="absolute inset-0 pointer-events-none z-0" style={{ background: rippleConfig.bg, willChange: "transform" }} />
+                                  <span key={`sd-${dateStr}`} className="absolute inset-0 pointer-events-none z-0" style={{ background: rippleWaves[rippleWaves.length - 1], willChange: "transform" }} />
                                   )
                                 )}
                               <span className={`relative z-10 text-xs font-semibold ${isSelected ? templateStyles.accent : templateStyles.heading}`} style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}>{d.getDate()}</span>
@@ -1212,16 +1232,18 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                     >
                                       {isSelected && (
                                         ripplePositions[`slot-${slot.start}`] ? (
+                                        rippleWaves.map((color, i) => (
                                         <motion.span
-                                          key={`rs-${slot.start}`}
-                                          initial={{ width: 0, height: 0, left: ripplePositions[`slot-${slot.start}`].x, top: ripplePositions[`slot-${slot.start}`].y }}
-                                          animate={{ width: ripplePositions[`slot-${slot.start}`].size, height: ripplePositions[`slot-${slot.start}`].size, left: ripplePositions[`slot-${slot.start}`].x - ripplePositions[`slot-${slot.start}`].size / 2, top: ripplePositions[`slot-${slot.start}`].y - ripplePositions[`slot-${slot.start}`].size / 2 }}
-                                          transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
+                                          key={`rs-${slot.start}-w${i}`}
+                                          initial={{ width: 0, height: 0, left: ripplePositions[`slot-${slot.start}`].x, top: ripplePositions[`slot-${slot.start}`].y, opacity: 1 }}
+                                          animate={{ width: ripplePositions[`slot-${slot.start}`].size, height: ripplePositions[`slot-${slot.start}`].size, left: ripplePositions[`slot-${slot.start}`].x - ripplePositions[`slot-${slot.start}`].size / 2, top: ripplePositions[`slot-${slot.start}`].y - ripplePositions[`slot-${slot.start}`].size / 2, opacity: i < rippleWaves.length - 1 ? 0 : 1 }}
+                                          transition={{ duration: 0.85, ease: [0.22, 1, 0.36, 1], delay: i * 0.08, opacity: { duration: 0.5, delay: i * 0.08 + 0.25, ease: "easeInOut" } }}
                                           className="absolute rounded-full pointer-events-none z-0"
-                                          style={{ background: rippleConfig.bg, willChange: "transform" }}
+                                          style={{ background: color, willChange: "transform" }}
                                         />
+                                        ))
                                         ) : (
-                                        <span key={`ss-${slot.start}`} className="absolute inset-0 pointer-events-none z-0" style={{ background: rippleConfig.bg, willChange: "transform" }} />
+                                        <span key={`ss-${slot.start}`} className="absolute inset-0 pointer-events-none z-0" style={{ background: rippleWaves[rippleWaves.length - 1], willChange: "transform" }} />
                                         )
                                       )}
                                       <span className="relative z-10" style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}>
@@ -1253,7 +1275,13 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                     )}
 
                     {step === 3 && (
-                      <div className="overflow-y-auto delicate-scroll pb-4 h-full">
+                      <motion.div
+                        initial={{ height: 500 }}
+                        animate={{ height: "auto" }}
+                        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                        className="overflow-hidden"
+                      >
+                      <div className="pb-4">
                       <div className="space-y-4">
                         <motion.h2 variants={stepItemReveal} className={`text-xl font-semibold tracking-tight ${templateStyles.heading} ${templateStyles.headingFx}`}>Tus datos</motion.h2>
 
@@ -1462,6 +1490,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                         )}
                       </div>
                       </div>
+                      </motion.div>
                     )}
                   </motion.div>
                 </AnimatePresence>
