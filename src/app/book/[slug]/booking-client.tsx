@@ -313,11 +313,8 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
     if (prevLoadingSlots.current === true && !loadingSlots) {
       requestAnimationFrame(() => {
         if (stepsScrollRef.current && slotsRef.current) {
-          const slotsContent = slotsRef.current.children[2] as HTMLElement | undefined;
-          if (slotsContent) {
-            const top = slotsContent.offsetTop;
-            stepsScrollRef.current.scrollTo({ top, behavior: "smooth" });
-          }
+          const top = slotsRef.current.offsetTop;
+          stepsScrollRef.current.scrollTo({ top, behavior: "smooth" });
         }
       });
     }
@@ -828,7 +825,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                       <div className="flex flex-col h-full min-h-0">
                         <div className="flex flex-col min-h-0 max-h-full w-full">
                         <div className="shrink-0 space-y-5">
-                          <motion.h2 variants={stepItemReveal} className={`text-xl font-medium text-center ${templateStyles.heading} ${templateStyles.headingFx}`}>{`Elegi tu ${serviceWordLower}`}</motion.h2>
+                           <motion.h2 variants={stepItemReveal} className={`text-xl font-semibold text-center ${templateStyles.heading} ${templateStyles.headingFx}`}>{`Elegi tu ${serviceWordLower}`}</motion.h2>
                           <motion.div variants={stepItemReveal} className="-mx-1 overflow-x-auto pb-1 no-scrollbar">
                             <div className="flex items-center gap-2 px-1">
                               {categories.map((category) => {
@@ -1061,7 +1058,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                       <div className="flex flex-col h-full min-h-0">
                         <div className="flex flex-col min-h-0 max-h-full w-full">
                         <div className="shrink-0 pb-4">
-                          <motion.h2 variants={stepItemReveal} className={`font-semibold leading-[1.02] text-center ${templateStyles.heading} ${templateStyles.headingFx}`}>{`Elegi tu ${staffWordLower}`}</motion.h2>
+                           <motion.h2 variants={stepItemReveal} className={`text-xl font-semibold text-center ${templateStyles.heading} ${templateStyles.headingFx}`}>{`Elegi tu ${staffWordLower}`}</motion.h2>
                         </div>
                         <div className="flex-1 overflow-y-auto delicate-scroll pb-4 [scroll-snap-type:y_proximity]" onScroll={handleScroll}>
                           <div className="space-y-5">
@@ -1209,9 +1206,8 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                     {step === 2 && (
                       <div className="flex flex-col h-full min-h-0">
                         <div className="flex flex-col min-h-0 max-h-full w-full">
-                        <div className="overflow-y-auto delicate-scroll pb-4 flex-1 min-h-0" onScroll={handleScroll}>
-                        <div ref={slotsRef} className="space-y-6">
-                        <motion.h2 variants={stepItemReveal} className={`font-semibold leading-[1.02] text-center ${templateStyles.heading} ${templateStyles.headingFx}`}>Elegi fecha y horario</motion.h2>
+                        <div className="shrink-0 space-y-4">
+                        <motion.h2 variants={stepItemReveal} className={`text-xl font-semibold text-center ${templateStyles.heading} ${templateStyles.headingFx}`}>Elegi fecha y horario</motion.h2>
 
                         <motion.div variants={stepItemReveal} className="flex items-center justify-between">
                            <button
@@ -1240,8 +1236,19 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                              <ChevronRight className="w-4 h-4" />
                            </button>
                         </motion.div>
+                        </div>
+                        <div className="overflow-y-auto delicate-scroll pb-4 flex-1 min-h-0" onScroll={handleScroll}>
+                        <div ref={slotsRef} className="space-y-6">
 
-                        <motion.div variants={stepItemReveal} className="grid grid-cols-7 gap-1">
+                        <AnimatePresence mode="wait">
+                        <motion.div
+                          key={`cal-${viewYear}-${viewMonth}`}
+                          variants={stepItemReveal}
+                          initial="initial"
+                          animate="animate"
+                          exit={{ opacity: 0, transition: { duration: 0.12 } }}
+                          className="grid grid-cols-7 gap-1"
+                        >
                           {DAY_NAMES.map((name) => (
                             <div key={name} className={`text-center text-[10px] uppercase tracking-wider font-semibold pb-3 mb-1 ${templateStyles.tiny}`}>
                               {name}
@@ -1299,6 +1306,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                             );
                           })}
                         </motion.div>
+                        </AnimatePresence>
 
                         {loadingSlots ? (
                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
@@ -1381,9 +1389,11 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
 
                     {step === 3 && (
                       <div className="flex flex-col h-full min-h-0">
+                      <div className="shrink-0">
+                        <motion.h2 variants={stepItemReveal} className={`text-xl font-semibold text-center ${templateStyles.heading} ${templateStyles.headingFx}`}>Tus datos</motion.h2>
+                      </div>
                       <div className="flex-1 overflow-y-auto delicate-scroll pb-4">
                       <div className="space-y-4">
-                        <motion.h2 variants={stepItemReveal} className={`text-xl font-semibold tracking-tight text-center ${templateStyles.heading} ${templateStyles.headingFx}`}>Tus datos</motion.h2>
 
                         {error === "slot_taken" ? (
                           <div className={`text-sm px-5 py-4 rounded-2xl border ${templateStyles.warningBox}`}>
@@ -1595,14 +1605,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                     )}
                   </motion.div>
                 </AnimatePresence>
-                <motion.div
-                  key={step}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: atBottom ? 0 : 1 }}
-                  transition={{ duration: 0.7, ease: "easeOut" }}
-                  className="pointer-events-none absolute left-0 right-0 bottom-0 h-16"
-                  style={{ background: `linear-gradient(to top, ${templateStyles.scrollFade}, transparent)` }}
-                />
+                
               </div>
 
               <motion.div
