@@ -197,7 +197,7 @@ export const BOOKING_THEMES: Record<BookingThemeKey, BookingTheme> = {
     glowC: "bg-[#4e8cf2]/46",
     plate: "bg-neutral-900/30 border-white/10",
     cardDepth: "shadow-[0_24px_46px_-24px_rgba(0,0,0,0.95),inset_0_1px_0_rgba(255,255,255,0.14)]",
-    scrollFade: "#09090b",
+    scrollFade: "#18181b",
     line: "border-white/15",
     skeleton: "bg-white/10 border-white/10",
     successChip: "bg-emerald-400/10 border-emerald-300/20 text-emerald-100",
