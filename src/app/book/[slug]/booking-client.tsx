@@ -726,7 +726,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
         <motion.div
           className={`rounded-[32px] p-6 sm:p-10 lg:p-12 h-[min(860px,calc(100dvh-2rem))] sm:h-[min(900px,calc(100dvh-3rem))] flex flex-col ${templateStyles.shell}`}
           layout
-          transition={{ type: "spring", stiffness: 350, damping: 26, mass: 0.9 }}
+          transition={{ type: "spring", stiffness: 260, damping: 12, mass: 1.5 }}
           style={step === 3 && !done ? { height: 'auto' } as React.CSSProperties : undefined}>
           {!done ? (
             <>
@@ -814,7 +814,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                       <div className="flex flex-col h-full min-h-0">
                         <div className="flex flex-col min-h-0 max-h-full w-full">
                         <div className="shrink-0 space-y-5">
-                          <motion.h2 variants={stepItemReveal} className={`text-xl font-medium ${templateStyles.heading} ${templateStyles.headingFx}`}>{`Elegi tu ${serviceWordLower}`}</motion.h2>
+                          <motion.h2 variants={stepItemReveal} className={`text-xl font-medium text-center ${templateStyles.heading} ${templateStyles.headingFx}`}>{`Elegi tu ${serviceWordLower}`}</motion.h2>
                           <motion.div variants={stepItemReveal} className="-mx-1 overflow-x-auto pb-1 no-scrollbar">
                             <div className="flex items-center gap-2 px-1">
                               {categories.map((category) => {
@@ -835,16 +835,19 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                         : (active ? "font-semibold" : templateStyles.sectionTag)
                                     } ${templateStyles.sectionFocus} active:scale-[0.97] transition-transform duration-150 ${isCombos && !active ? templateStyles.heading : ""}`}
                                   >
-                                    {active && (
-                                      <motion.div
-                                        layoutId="category-indicator"
-                                        className={`absolute inset-0 rounded-full ${templateStyles.sectionTagActive}`}
-                                        transition={{ type: "spring", stiffness: 450, damping: 28, mass: 0.8 }}
-                                      />
-                                    )}
+                                    <AnimatePresence>
+                                      {active && (
+                                        <motion.div
+                                          layoutId="category-indicator"
+                                          className={`absolute inset-0 rounded-full ${templateStyles.sectionTagActive}`}
+                                          transition={{ type: "spring", stiffness: 350, damping: 14, mass: 0.7 }}
+                                          exit={{ opacity: 0, scale: 0.5, transition: { duration: 0.15, ease: "easeInOut" } }}
+                                        />
+                                      )}
+                                    </AnimatePresence>
                                     <span className="relative z-10">
                                       {isCombos ? (
-                                        <span className={`bg-gradient-to-r ${templateStyles.titleGradient} bg-clip-text text-transparent bg-[length:200%_100%]`}>
+                                        <span className={`bg-gradient-to-r ${templateStyles.titleGradient} bg-clip-text text-transparent bg-[length:200%_100%] font-bold drop-shadow-[0_0_6px_rgba(251,191,36,0.3)]`}>
                                           {category}
                                         </span>
                                       ) : (
@@ -1051,7 +1054,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                       <div className="flex flex-col h-full min-h-0">
                         <div className="flex flex-col min-h-0 max-h-full w-full">
                         <div className="shrink-0 pb-4">
-                          <motion.h2 variants={stepItemReveal} className={`font-semibold leading-[1.02] ${templateStyles.heading} ${templateStyles.headingFx}`}>{`Elegi tu ${staffWordLower}`}</motion.h2>
+                          <motion.h2 variants={stepItemReveal} className={`font-semibold leading-[1.02] text-center ${templateStyles.heading} ${templateStyles.headingFx}`}>{`Elegi tu ${staffWordLower}`}</motion.h2>
                         </div>
                         <div className="flex-1 overflow-y-auto delicate-scroll pb-4 [scroll-snap-type:y_proximity]" onScroll={handleScroll}>
                           <div className="space-y-5">
@@ -1201,7 +1204,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                         <div className="flex flex-col min-h-0 max-h-full w-full">
                         <div className="overflow-y-auto delicate-scroll pb-4 flex-1 min-h-0" onScroll={handleScroll}>
                         <div ref={slotsRef} className="space-y-6">
-                        <motion.h2 variants={stepItemReveal} className={`font-semibold leading-[1.02] ${templateStyles.heading} ${templateStyles.headingFx}`}>Elegi fecha y horario</motion.h2>
+                        <motion.h2 variants={stepItemReveal} className={`font-semibold leading-[1.02] text-center ${templateStyles.heading} ${templateStyles.headingFx}`}>Elegi fecha y horario</motion.h2>
 
                         <motion.div variants={stepItemReveal} className="flex items-center justify-between">
                            <button
@@ -1379,7 +1382,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                       >
                       <div className="pb-4">
                       <div className="space-y-4">
-                        <motion.h2 variants={stepItemReveal} className={`text-xl font-semibold tracking-tight ${templateStyles.heading} ${templateStyles.headingFx}`}>Tus datos</motion.h2>
+                        <motion.h2 variants={stepItemReveal} className={`text-xl font-semibold tracking-tight text-center ${templateStyles.heading} ${templateStyles.headingFx}`}>Tus datos</motion.h2>
 
                         {error === "slot_taken" ? (
                           <div className={`text-sm px-5 py-4 rounded-2xl border ${templateStyles.warningBox}`}>
