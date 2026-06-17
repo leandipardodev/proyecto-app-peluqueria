@@ -17,14 +17,26 @@ export const stepReveal = {
     opacity: 1,
     y: 0,
     filter: "blur(0px)",
-    transition: { duration: 0.42, ease: [0.16, 1, 0.3, 1] as const, staggerChildren: 0.055, delayChildren: 0.03 },
+    transition: {
+      type: "spring" as const,
+      stiffness: 300,
+      damping: 20,
+      mass: 0.7,
+      staggerChildren: 0.055,
+      delayChildren: 0.03,
+    },
   },
-  exit: { opacity: 0, y: -8, filter: "blur(1px)", transition: { duration: 0.2 }, pointerEvents: "none" as const },
+  exit: { opacity: 0, y: -8, filter: "blur(1px)", transition: { duration: 0.2, type: "tween" as const } as const, pointerEvents: "none" as const },
 };
 
 export const stepItemReveal = {
-  initial: { opacity: 0, y: 10 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.34, ease: [0.16, 1, 0.3, 1] as const } },
+  initial: { opacity: 0, y: 10, scale: 0.97 },
+  animate: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { type: "spring" as const, stiffness: 350, damping: 22, mass: 0.8 },
+  },
 };
 
 let lastHapticAt = 0;

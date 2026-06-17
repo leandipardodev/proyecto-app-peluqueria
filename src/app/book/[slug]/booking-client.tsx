@@ -104,6 +104,16 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
       transition: { duration: 0.45, ease: [0.34, 1.56, 0.64, 1] },
     });
   }, [step, shellControls]);
+
+  useEffect(() => {
+    for (const s of staffMembers) {
+      if (s.photo_url) {
+        const img = new window.Image();
+        img.src = s.photo_url;
+      }
+    }
+  }, [staffMembers]);
+
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedCombo, setSelectedCombo] = useState<Combo | null>(null);
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
@@ -844,16 +854,13 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                         : (active ? "font-semibold" : templateStyles.sectionTag)
                                     } ${templateStyles.sectionFocus} active:scale-[0.97] transition-transform duration-150 ${isCombos && !active ? templateStyles.heading : ""}`}
                                   >
-                                    <AnimatePresence>
-                                      {active && (
-                                        <motion.div
-                                          layoutId="category-indicator"
-                                          className={`absolute inset-0 rounded-full ${templateStyles.sectionTagActive}`}
-                                          transition={{ type: "spring", stiffness: 350, damping: 14, mass: 0.7 }}
-                                          exit={{ opacity: 0, scale: 0.5, transition: { duration: 0.15, ease: "easeInOut" } }}
-                                        />
-                                      )}
-                                    </AnimatePresence>
+                                    {active && (
+                                      <motion.div
+                                        layoutId="category-indicator"
+                                        className={`absolute inset-0 rounded-full ${templateStyles.sectionTagActive}`}
+                                        transition={{ type: "spring", stiffness: 350, damping: 14, mass: 0.7 }}
+                                      />
+                                    )}
                                     <span className="relative z-10">
                                       {isCombos ? (
                                         <span className={`bg-gradient-to-r ${templateStyles.titleGradient} bg-clip-text text-transparent bg-[length:200%_100%] font-bold drop-shadow-[0_0_6px_rgba(251,191,36,0.3)]`}>
@@ -1169,7 +1176,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                               <div className="flex flex-col items-center text-center gap-3">
                                 <div className="w-20 h-20 rounded-full overflow-hidden ring-2 ring-white/30 shadow-xl flex items-center justify-center shrink-0 bg-violet-100 dark:bg-violet-900">
                                   {s.photo_url ? (
-                                    <img src={s.photo_url} alt="" className="w-full h-full object-cover" />
+                                    <img src={s.photo_url} alt="" fetchPriority="high" className="w-full h-full object-cover" />
                                   ) : (
                                     <span className="text-2xl font-bold text-violet-600 dark:text-violet-300">{initials}</span>
                                   )}
@@ -1449,7 +1456,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
 
                             <div>
                               <label htmlFor="customer-name-auth" className={`block text-sm font-medium mb-1.5 ${templateStyles.label}`}>Nombre</label>
-                              <div className="relative">
+                              <motion.div whileTap={{ scale: 0.99 }} className="relative">
                                 <UserRound className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
                                 <input
                                   id="customer-name-auth"
@@ -1461,13 +1468,13 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                   placeholder="Nombre y apellido"
                                 />
                                 {nameError && <p className="text-xs text-red-500 mt-1">{nameError}</p>}
-                              </div>
+                              </motion.div>
                             </div>
 
                             {requiresManualPhone && (
                               <div>
                                  <label htmlFor="customer-phone-auth" className={`block text-sm font-medium mb-1.5 ${templateStyles.label}`}>WhatsApp / Telefono</label>
-                                <div className="relative">
+                                <motion.div whileTap={{ scale: 0.99 }} className="relative">
                                   <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
                                   <input
                                     id="customer-phone-auth"
@@ -1481,7 +1488,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                     placeholder="11 1234-5678"
                                   />
                                   {phoneError && <p className="text-xs text-red-500 mt-1">{phoneError}</p>}
-                                </div>
+                                </motion.div>
                               </div>
                             )}
                           </>
@@ -1497,7 +1504,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
 
                             <div>
                               <label htmlFor="customer-name" className={`block text-sm font-medium mb-1.5 ${templateStyles.label}`}>Nombre</label>
-                              <div className="relative">
+                              <motion.div whileTap={{ scale: 0.99 }} className="relative">
                                 <UserRound className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
                                 <input
                                   id="customer-name"
@@ -1509,12 +1516,12 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                   placeholder="Nombre y apellido"
                                 />
                                 {nameError && <p className="text-xs text-red-500 mt-1">{nameError}</p>}
-                              </div>
+                              </motion.div>
                             </div>
 
                             <div>
                               <label htmlFor="customer-email" className={`block text-sm font-medium mb-1.5 ${templateStyles.label}`}>Email</label>
-                              <div className="relative">
+                              <motion.div whileTap={{ scale: 0.99 }} className="relative">
                                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
                                 <input
                                   id="customer-email"
@@ -1524,12 +1531,12 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                   className={templateStyles.input}
                                   placeholder="tu@email.com"
                                 />
-                              </div>
+                              </motion.div>
                             </div>
 
                             <div>
                               <label htmlFor="customer-phone" className={`block text-sm font-medium mb-1.5 ${templateStyles.label}`}>WhatsApp / Telefono</label>
-                              <div className="relative">
+                              <motion.div whileTap={{ scale: 0.99 }} className="relative">
                                 <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
                                 <input
                                   id="customer-phone"
@@ -1543,7 +1550,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                   placeholder="11 1234-5678"
                                 />
                                 {phoneError && <p className="text-xs text-red-500 mt-1">{phoneError}</p>}
-                              </div>
+                              </motion.div>
                             </div>
                           </>
                         )}
