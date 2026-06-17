@@ -12,11 +12,9 @@ export type Combo = {
 };
 
 export const stepReveal = {
-  initial: { opacity: 0, y: 14, filter: "blur(2px)" },
+  initial: { opacity: 0 },
   animate: {
     opacity: 1,
-    y: 0,
-    filter: "blur(0px)",
     transition: {
       type: "spring" as const,
       stiffness: 300,
@@ -26,7 +24,7 @@ export const stepReveal = {
       delayChildren: 0.03,
     },
   },
-  exit: { opacity: 0, y: -8, filter: "blur(1px)", transition: { duration: 0.2, type: "tween" as const } as const, pointerEvents: "none" as const },
+  exit: { opacity: 0, transition: { duration: 0.15, type: "tween" as const } as const, pointerEvents: "none" as const },
 };
 
 export const stepItemReveal = {
@@ -35,7 +33,7 @@ export const stepItemReveal = {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { type: "spring" as const, stiffness: 350, damping: 22, mass: 0.8 },
+    transition: { type: "spring" as const, stiffness: 200, damping: 28, mass: 0.6 },
   },
 };
 

@@ -101,7 +101,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
   useEffect(() => {
     shellControls.start({
       scale: [1, 1.008, 0.996, 1.002, 1],
-      transition: { duration: 0.45, ease: [0.34, 1.56, 0.64, 1] },
+      transition: { duration: 0.4, ease: [0.34, 1.2, 0.64, 1] },
     });
   }, [step, shellControls]);
 
@@ -687,7 +687,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
     return map[resolvedTemplate] || map["minimal-light"];
   }, [resolvedTemplate]);
 
-  const tactileClass = "transition-all duration-500 ease-[0.16,1,0.3,1] hover:scale-[1.01] active:scale-[0.98]";
+  const tactileClass = "transition-transform duration-150 hover:scale-[1.01] active:scale-[0.98]";
 
   const btnEffects = templateStyles.isDark
     ? {
@@ -728,24 +728,19 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
         aria-hidden
         className={`pointer-events-none absolute top-[58%] left-[22%] z-[2] h-[160px] w-[160px] sm:h-[260px] sm:w-[260px] rounded-full blur-[78px] sm:blur-[110px] ${templateStyles.glowA} ${templateStyles.glowBlend}`}
       />
-      <motion.div
+      <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 z-[2]"
+        className="pointer-events-none absolute inset-0 z-[2] opacity-15"
         style={{
           background:
             "radial-gradient(circle at 50% 40%, rgba(255,255,255,0.10), transparent 52%), radial-gradient(circle at 28% 68%, rgba(255,255,255,0.08), transparent 48%)",
-          willChange: "opacity",
         }}
-        animate={{ opacity: [0.12, 0.2, 0.12] }}
-        transition={{ duration: 11.5, repeat: Infinity, ease: "easeInOut" }}
       />
       <div className="relative z-10 flex h-full items-start justify-center p-4 sm:p-8 lg:p-12">
         <div className="w-full max-w-md md:max-w-xl">
         <motion.div
           className={`rounded-[32px] p-6 sm:p-10 lg:p-12 h-[min(860px,calc(100dvh-2rem))] sm:h-[min(900px,calc(100dvh-3rem))] flex flex-col ${templateStyles.shell}`}
-          layout
           animate={shellControls}
-          transition={{ layout: { type: "spring", stiffness: 260, damping: 12, mass: 1.5 } }}
           style={step === 3 && !done ? { height: 'auto' } as React.CSSProperties : undefined}>
           {!done ? (
             <>
@@ -818,7 +813,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
               </div>
 
               <div className="pt-2 min-h-0 flex-1 relative">
-                <AnimatePresence mode="wait">
+                <AnimatePresence mode="popLayout">
                   <motion.div
                     key={step}
                     ref={stepsScrollRef}
@@ -887,12 +882,10 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                               return (
                                 <motion.div
                                   key={combo.id}
-                                  layout
                                   onPointerDown={pushCard3D}
                                   onPointerUp={releaseCard3D}
                                   onPointerLeave={releaseCard3D}
-                                  transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-                                  className={`rounded-3xl border transition-all duration-300 ease-[0.16,1,0.3,1] hover:-translate-y-1 ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected}` : `${templateStyles.plain} ${templateStyles.plate} ${templateStyles.hoverBorder}`}`}
+                                  className={`rounded-3xl border transition-[transform,box-shadow] duration-200 hover:-translate-y-1 ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected}` : `${templateStyles.plain} ${templateStyles.plate} ${templateStyles.hoverBorder}`}`}
                                   style={{ scrollSnapAlign: "start" }}
                                 >
                                   <div className="overflow-hidden rounded-3xl relative">
@@ -989,12 +982,10 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                               return (
                                 <motion.div
                                   key={svc.id}
-                                  layout
                                   onPointerDown={pushCard3D}
                                   onPointerUp={releaseCard3D}
                                   onPointerLeave={releaseCard3D}
-                                  transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-                                  className={`rounded-3xl border transition-all duration-300 ease-[0.16,1,0.3,1] hover:-translate-y-1 ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected}` : `${templateStyles.plain} ${templateStyles.plate} ${templateStyles.hoverBorder}`}`}
+                                  className={`rounded-3xl border transition-[transform,box-shadow] duration-200 hover:-translate-y-1 ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected}` : `${templateStyles.plain} ${templateStyles.plate} ${templateStyles.hoverBorder}`}`}
                                   style={{ scrollSnapAlign: "start" }}
                                 >
                                   <div className="overflow-hidden rounded-3xl relative">
@@ -1078,7 +1069,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                             onPointerDown={pushCard3D}
                             onPointerUp={releaseCard3D}
                             onPointerLeave={releaseCard3D}
-                            className={`rounded-[14px] border transition-all duration-300 ease-[0.16,1,0.3,1] hover:-translate-y-1 ${templateStyles.cardDepth} ${!selectedStaff ? templateStyles.selected : `${templateStyles.plain} ${templateStyles.hoverBorder}`}`}
+                            className={`rounded-[14px] border transition-[transform,box-shadow] duration-200 hover:-translate-y-1 ${templateStyles.cardDepth} ${!selectedStaff ? templateStyles.selected : `${templateStyles.plain} ${templateStyles.hoverBorder}`}`}
                           >
                           <div className="overflow-hidden rounded-[14px] relative">
                             {!selectedStaff && (
@@ -1133,7 +1124,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                               onPointerDown={pushCard3D}
                               onPointerUp={releaseCard3D}
                               onPointerLeave={releaseCard3D}
-                              className={`rounded-[14px] border transition-all duration-300 ease-[0.16,1,0.3,1] hover:-translate-y-1 ${templateStyles.cardDepth} ${isSelected ? templateStyles.selected : `${templateStyles.plain} ${templateStyles.hoverBorder}`}`}
+                              className={`rounded-[14px] border transition-[transform,box-shadow] duration-200 hover:-translate-y-1 ${templateStyles.cardDepth} ${isSelected ? templateStyles.selected : `${templateStyles.plain} ${templateStyles.hoverBorder}`}`}
                             >
                             <div className="overflow-hidden rounded-[14px] relative">
                               {isSelected && (
@@ -1330,7 +1321,6 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                   return (
                                     <motion.button
                                       key={slot.start}
-                                      layout
                                       onClick={(e) => {
                                         triggerHaptic(10, e.currentTarget);
                                         setSelectedSlot(slot);
@@ -1390,13 +1380,8 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                     )}
 
                     {step === 3 && (
-                      <motion.div
-                        initial={{ height: 500 }}
-                        animate={{ height: "auto" }}
-                        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                        className="overflow-visible"
-                      >
-                      <div className="pb-4">
+                      <div className="flex flex-col h-full min-h-0">
+                      <div className="flex-1 overflow-y-auto delicate-scroll pb-4">
                       <div className="space-y-4">
                         <motion.h2 variants={stepItemReveal} className={`text-xl font-semibold tracking-tight text-center ${templateStyles.heading} ${templateStyles.headingFx}`}>Tus datos</motion.h2>
 
@@ -1606,11 +1591,18 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                         )}
                       </div>
                       </div>
-                      </motion.div>
+                      </div>
                     )}
                   </motion.div>
                 </AnimatePresence>
-                <div className={`pointer-events-none absolute left-0 right-0 bottom-0 h-16 transition-opacity duration-300 ${atBottom ? 'opacity-0' : ''}`} style={{ background: `linear-gradient(to top, ${templateStyles.scrollFade}, transparent)` }} />
+                <motion.div
+                  key={step}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: atBottom ? 0 : 1 }}
+                  transition={{ duration: 0.7, ease: "easeOut" }}
+                  className="pointer-events-none absolute left-0 right-0 bottom-0 h-16"
+                  style={{ background: `linear-gradient(to top, ${templateStyles.scrollFade}, transparent)` }}
+                />
               </div>
 
               <motion.div
