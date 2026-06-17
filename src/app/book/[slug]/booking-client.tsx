@@ -1089,6 +1089,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                             )}
                           <button
                             onClick={(e) => {
+                              triggerHaptic(15, e.currentTarget);
                               const rect = (e.currentTarget.closest(".overflow-hidden") ?? e.currentTarget.parentElement)!.getBoundingClientRect();
                               const size = Math.ceil(Math.sqrt(rect.width * rect.width + rect.height * rect.height) * 2.5);
                                setRipplePositions(prev => ({ ...prev, "no-preference": { x: e.clientX - rect.left, y: e.clientY - rect.top, size } }));
@@ -1143,6 +1144,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                               )}
                             <button
                               onClick={(e) => {
+                                triggerHaptic(15, e.currentTarget);
                                 const rect = (e.currentTarget.closest(".overflow-hidden") ?? e.currentTarget.parentElement)!.getBoundingClientRect();
                                 const size = Math.ceil(Math.sqrt(rect.width * rect.width + rect.height * rect.height) * 2.5);
                                 setRipplePositions(prev => ({ ...prev, [s.id]: { x: e.clientX - rect.left, y: e.clientY - rect.top, size } }));
@@ -1202,31 +1204,31 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                         <motion.h2 variants={stepItemReveal} className={`font-semibold leading-[1.02] ${templateStyles.heading} ${templateStyles.headingFx}`}>Elegi fecha y horario</motion.h2>
 
                         <motion.div variants={stepItemReveal} className="flex items-center justify-between">
-                          <button
-                            type="button"
-                            onClick={() => { setViewMonth((m) => m === 0 ? 11 : m - 1); setViewYear((y) => viewMonth === 0 ? y - 1 : y); setSelectedDate(null); setSelectedSlot(null); fetchedDatesRef.current = new Set(); }}
-                            disabled={!canNavPrev}
-                            className={`flex items-center gap-1 text-sm font-medium px-3 py-1.5 rounded-full transition-all duration-200 ${
-                              canNavPrev ? `${templateStyles.heading} ${templateStyles.hoverBorder} cursor-pointer` : "opacity-30 cursor-not-allowed"
-                            }`}
-                          >
-                            <ChevronLeft className="w-4 h-4" />
-                            <span className="hidden sm:inline">{MONTH_NAMES[viewMonth === 0 ? 11 : viewMonth - 1]}</span>
-                          </button>
-                          <span className={`text-base font-semibold tracking-tight ${templateStyles.heading}`}>
-                            {MONTH_NAMES[viewMonth]} {viewYear}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => { setViewMonth((m) => m === 11 ? 0 : m + 1); setViewYear((y) => viewMonth === 11 ? y + 1 : y); setSelectedDate(null); setSelectedSlot(null); fetchedDatesRef.current = new Set(); }}
-                            disabled={!canNavNext}
-                            className={`flex items-center gap-1 text-sm font-medium px-3 py-1.5 rounded-full transition-all duration-200 ${
-                              canNavNext ? `${templateStyles.heading} ${templateStyles.hoverBorder} cursor-pointer` : "opacity-30 cursor-not-allowed"
-                            }`}
-                          >
-                            <span className="hidden sm:inline">{MONTH_NAMES[viewMonth === 11 ? 0 : viewMonth + 1]}</span>
-                            <ChevronRight className="w-4 h-4" />
-                          </button>
+                           <button
+                             type="button"
+                             onClick={() => { triggerHaptic(8); setViewMonth((m) => m === 0 ? 11 : m - 1); setViewYear((y) => viewMonth === 0 ? y - 1 : y); setSelectedDate(null); setSelectedSlot(null); fetchedDatesRef.current = new Set(); }}
+                             disabled={!canNavPrev}
+                             className={`flex items-center gap-1 text-sm font-medium px-3 py-1.5 rounded-full transition-all duration-200 ${
+                               canNavPrev ? `${templateStyles.heading} ${templateStyles.hoverBorder} cursor-pointer` : "opacity-30 cursor-not-allowed"
+                             }`}
+                           >
+                             <ChevronLeft className="w-4 h-4" />
+                             <span className="hidden sm:inline">{MONTH_NAMES[viewMonth === 0 ? 11 : viewMonth - 1]}</span>
+                           </button>
+                           <span className={`text-base font-semibold tracking-tight ${templateStyles.heading}`}>
+                             {MONTH_NAMES[viewMonth]} {viewYear}
+                           </span>
+                           <button
+                             type="button"
+                             onClick={() => { triggerHaptic(8); setViewMonth((m) => m === 11 ? 0 : m + 1); setViewYear((y) => viewMonth === 11 ? y + 1 : y); setSelectedDate(null); setSelectedSlot(null); fetchedDatesRef.current = new Set(); }}
+                             disabled={!canNavNext}
+                             className={`flex items-center gap-1 text-sm font-medium px-3 py-1.5 rounded-full transition-all duration-200 ${
+                               canNavNext ? `${templateStyles.heading} ${templateStyles.hoverBorder} cursor-pointer` : "opacity-30 cursor-not-allowed"
+                             }`}
+                           >
+                             <span className="hidden sm:inline">{MONTH_NAMES[viewMonth === 11 ? 0 : viewMonth + 1]}</span>
+                             <ChevronRight className="w-4 h-4" />
+                           </button>
                         </motion.div>
 
                         <motion.div variants={stepItemReveal} className="grid grid-cols-7 gap-1">
@@ -1311,6 +1313,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                       key={slot.start}
                                       layout
                                       onClick={(e) => {
+                                        triggerHaptic(10, e.currentTarget);
                                         setSelectedSlot(slot);
                                         const rect = e.currentTarget.getBoundingClientRect();
                                         const size = Math.ceil(Math.sqrt(rect.width * rect.width + rect.height * rect.height) * 2);
@@ -1604,7 +1607,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                       animate={{ opacity: 1, x: 0, scale: 1 }}
                       exit={{ opacity: 0, x: -70, scale: 0.5 }}
                       transition={{ type: "spring", stiffness: 550, damping: 20, mass: 0.7 }}
-                      onClick={() => setStep((s) => s - 1)}
+                      onClick={(e) => { triggerHaptic(10, e.currentTarget); setStep((s) => s - 1); }}
                       whileHover={{ scale: 1.07, x: -3 }}
                       whileTap={{ scale: 0.88 }}
                       className={`inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors relative overflow-hidden ${templateStyles.back}`}
@@ -1658,8 +1661,9 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                     key="continue"
                     layout
                     transition={{ type: "spring", stiffness: 500, damping: 26, mass: 0.9 }}
-                    onClick={() => {
+                    onClick={(e) => {
                       if (!canGoNext) return;
+                      triggerHaptic(12, e.currentTarget);
                       setStep((s) => s + 1);
                     }}
                     disabled={!canGoNext}

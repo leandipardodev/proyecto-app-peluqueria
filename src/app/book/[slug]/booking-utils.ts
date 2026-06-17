@@ -29,7 +29,7 @@ export const stepItemReveal = {
 
 let lastHapticAt = 0;
 
-export const triggerHaptic = (duration = 15, target?: HTMLElement | null) => {
+export const triggerHaptic = (duration = 15, _target?: HTMLElement | null) => {
   if (typeof window === "undefined") return;
 
   const now = Date.now();
@@ -38,18 +38,6 @@ export const triggerHaptic = (duration = 15, target?: HTMLElement | null) => {
 
   if (navigator.vibrate) {
     navigator.vibrate(duration);
-    return;
-  }
-
-  if (target?.animate) {
-    target.animate(
-      [
-        { transform: "scale(1)", opacity: 1 },
-        { transform: "scale(0.985)", opacity: 0.92 },
-        { transform: "scale(1)", opacity: 1 },
-      ],
-      { duration: 130, easing: "cubic-bezier(0.16, 1, 0.3, 1)" },
-    );
   }
 };
 
