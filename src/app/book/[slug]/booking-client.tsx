@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, memo, useRef } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useAnimationControls } from "framer-motion";
 import Image from "next/image";
 import {
   AlertTriangle,
@@ -96,6 +96,14 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
   const { user, isLoading: isAuthLoading } = useAuth();
 
   const [step, setStep] = useState(0);
+  const shellControls = useAnimationControls();
+
+  useEffect(() => {
+    shellControls.start({
+      scale: [1, 1.008, 0.996, 1.002, 1],
+      transition: { duration: 0.45, ease: [0.34, 1.56, 0.64, 1] },
+    });
+  }, [step, shellControls]);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedCombo, setSelectedCombo] = useState<Combo | null>(null);
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
@@ -726,7 +734,8 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
         <motion.div
           className={`rounded-[32px] p-6 sm:p-10 lg:p-12 h-[min(860px,calc(100dvh-2rem))] sm:h-[min(900px,calc(100dvh-3rem))] flex flex-col ${templateStyles.shell}`}
           layout
-          transition={{ type: "spring", stiffness: 260, damping: 12, mass: 1.5 }}
+          animate={shellControls}
+          transition={{ layout: { type: "spring", stiffness: 260, damping: 12, mass: 1.5 } }}
           style={step === 3 && !done ? { height: 'auto' } as React.CSSProperties : undefined}>
           {!done ? (
             <>
