@@ -79,12 +79,14 @@ function TaggedTextarea({
   onChange,
   onFocus,
   placeholder,
+  disabled,
 }: {
   innerRef: React.RefObject<HTMLTextAreaElement | null>;
   value: string;
   onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   onFocus?: () => void;
   placeholder?: string;
+  disabled?: boolean;
 }) {
   const renderContent = () => {
     if (!value) {
@@ -117,6 +119,7 @@ function TaggedTextarea({
         value={value}
         onChange={onChange}
         onFocus={onFocus}
+        disabled={disabled}
         className="absolute inset-0 w-full h-full bg-transparent text-transparent caret-gray-900 dark:caret-white resize-none overflow-hidden outline-none px-5 py-[10px] text-sm leading-5 font-sans tracking-normal rounded-2xl"
       />
     </div>
@@ -129,6 +132,7 @@ export default function BusinessClient({
   summaryStats,
   metricStats,
   canManageBilling,
+  role = "owner",
   shopSlug,
   initialServices,
   initialBusinessHours,
@@ -151,6 +155,7 @@ export default function BusinessClient({
     expenses: number;
   } | null;
   canManageBilling: boolean;
+  role?: string;
   shopSlug: string | null;
   initialServices: InitialServiceItem[];
   initialBusinessHours: BusinessHoursData | null;
@@ -166,6 +171,7 @@ export default function BusinessClient({
   const servicePlural = industryLabels.servicePlural;
   const customerWord = industryLabels.customerSingular;
   const customerPlural = industryLabels.customerPlural;
+  const isOwnerOrAdmin = role !== "staff";
   const tourSteps = useMemo(() => getTourSteps(staffPlural, servicePlural), [staffPlural, servicePlural]);
   const { playSuccess, playError, playClick } = useKlipSounds();
   const router = useRouter();
@@ -1017,7 +1023,7 @@ export default function BusinessClient({
           <button
             type="button"
             onClick={() => setShowCreateShopModal(true)}
-            disabled={creatingShop}
+            disabled={!isOwnerOrAdmin || creatingShop}
             className="inline-flex items-center rounded-full border border-violet-300/60 dark:border-violet-500/30 bg-violet-100/80 dark:bg-violet-500/15 px-4 py-2 text-sm font-semibold text-violet-800 dark:text-violet-200 hover:bg-violet-100 dark:hover:bg-violet-500/25 shadow-sm transition-all disabled:opacity-60"
           >
             {creatingShop ? "Creando..." : "+ Crear nuevo local"}
@@ -1083,6 +1089,7 @@ export default function BusinessClient({
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                disabled={!isOwnerOrAdmin}
                 className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
                 placeholder="Ej: Klip Barbería"
                 required
@@ -1100,6 +1107,7 @@ export default function BusinessClient({
                     setAddress(e.target.value);
                     if (e.target.value.trim()) setLocationError(null);
                   }}
+                  disabled={!isOwnerOrAdmin}
                   className={`w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 transition-all ${locationError ? "border-red-400 focus:ring-red-400/50" : "border-red-400/0 dark:border-red-400/0 focus:ring-violet-500/50"}`}
                   placeholder="Av. Siempre Viva 123"
                 />
@@ -1113,6 +1121,7 @@ export default function BusinessClient({
                 <input
                   value={localidad}
                   onChange={(e) => setLocalidad(e.target.value)}
+                  disabled={!isOwnerOrAdmin}
                   className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
                   placeholder="Ej: Palermo, CABA"
                 />
@@ -1125,6 +1134,7 @@ export default function BusinessClient({
                 <input
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
+                  disabled={!isOwnerOrAdmin}
                   className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
                   placeholder="11 1234-5678"
                 />
@@ -1146,6 +1156,7 @@ export default function BusinessClient({
                   <input
                     value={instagramUrl}
                     onChange={(e) => setInstagramUrl(e.target.value)}
+                    disabled={!isOwnerOrAdmin}
                     className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
                     placeholder="https://instagram.com/tu-local"
                   />
@@ -1158,6 +1169,7 @@ export default function BusinessClient({
                   <input
                     value={facebookUrl}
                     onChange={(e) => setFacebookUrl(e.target.value)}
+                    disabled={!isOwnerOrAdmin}
                     className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
                     placeholder="https://facebook.com/tu-local"
                   />
@@ -1170,6 +1182,7 @@ export default function BusinessClient({
                   <input
                     value={tiktokUrl}
                     onChange={(e) => setTiktokUrl(e.target.value)}
+                    disabled={!isOwnerOrAdmin}
                     className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
                     placeholder="https://tiktok.com/@tu-local"
                   />
@@ -1191,7 +1204,7 @@ export default function BusinessClient({
           <button
             type="button"
             onClick={handleSaveBookingTheme}
-            disabled={isSaving || uploadingLogo}
+            disabled={!isOwnerOrAdmin || isSaving || uploadingLogo}
             className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#0071E3] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#005fcc] disabled:opacity-60"
           >
             {isSaving ? "Publicando..." : "Publicar cambios"}
@@ -1228,6 +1241,7 @@ export default function BusinessClient({
                   bookingCopyTouchedRef.current = true;
                   setHeroTitle(event.target.value);
                 }}
+                disabled={!isOwnerOrAdmin}
                 className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
                 placeholder={data?.nombre ? `Reserva en ${data.nombre}` : "Reserva tu turno"}
               />
@@ -1240,6 +1254,7 @@ export default function BusinessClient({
                   bookingCopyTouchedRef.current = true;
                   setHeroSubtitle(event.target.value);
                 }}
+                disabled={!isOwnerOrAdmin}
                 className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
                 placeholder={`Elegi ${serviceWord.toLowerCase()}, ${staffWord.toLowerCase()} y horario`}
               />
@@ -1252,6 +1267,7 @@ export default function BusinessClient({
                   bookingCopyTouchedRef.current = true;
                   setAboutTitle(event.target.value);
                 }}
+                disabled={!isOwnerOrAdmin}
                 className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
                 placeholder="Sobre nosotros"
               />
@@ -1264,6 +1280,7 @@ export default function BusinessClient({
                   bookingCopyTouchedRef.current = true;
                   setAboutText(event.target.value);
                 }}
+                disabled={!isOwnerOrAdmin}
                 rows={4}
                 className="w-full rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all resize-none"
                 placeholder={`Contale al ${customerWord.toLowerCase()} el estilo de atencion de tu local`}
@@ -1277,7 +1294,7 @@ export default function BusinessClient({
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <label className="inline-flex min-h-12 cursor-pointer items-center justify-center rounded-full border border-white/30 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800">
                 {uploadingLogo ? "Subiendo..." : "Subir logo"}
-                <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="hidden" onChange={handleLogoUpload} />
+                <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="hidden" onChange={handleLogoUpload} disabled={!isOwnerOrAdmin} />
               </label>
               {logoUrl ? <Image src={logoUrl} alt="Logo" width={80} height={80} sizes="80px" className="h-20 w-20 rounded-2xl object-contain border border-white/20 bg-zinc-100 p-1.5 dark:bg-zinc-900" /> : null}
               {bookingTheme?.logo_url && !logoUrl ? <span className="text-xs text-zinc-500">Logo configurado</span> : null}
@@ -1299,6 +1316,7 @@ export default function BusinessClient({
                         <button
                           type="button"
                           onClick={() => moveSection(section, "up")}
+                          disabled={!isOwnerOrAdmin}
                           className="text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-100"
                           title={`Subir ${section}`}
                         >
@@ -1307,6 +1325,7 @@ export default function BusinessClient({
                         <button
                           type="button"
                           onClick={() => moveSection(section, "down")}
+                          disabled={!isOwnerOrAdmin}
                           className="text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-100"
                           title={`Bajar ${section}`}
                         >
@@ -1315,6 +1334,7 @@ export default function BusinessClient({
                         <button
                           type="button"
                           onClick={() => handleRemoveSection(section)}
+                          disabled={!isOwnerOrAdmin}
                           className="text-zinc-400 hover:text-red-500"
                           title={`Eliminar ${section}`}
                         >
@@ -1329,12 +1349,14 @@ export default function BusinessClient({
                 <input
                   value={newSectionName}
                   onChange={(event) => setNewSectionName(event.target.value)}
+                  disabled={!isOwnerOrAdmin}
                   className="min-h-12 flex-1 rounded-full border border-white/40 bg-white px-4 py-2 text-sm text-zinc-800 outline-none ring-[#0071E3] focus:ring-2 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
                   placeholder="Nueva seccion (ej: Cortes)"
                 />
                 <button
                   type="button"
                   onClick={handleAddSection}
+                  disabled={!isOwnerOrAdmin}
                   className="min-h-12 rounded-full bg-[#111114] px-4 py-2 text-sm font-medium text-white hover:bg-black"
                 >
                   Agregar
@@ -1537,6 +1559,7 @@ export default function BusinessClient({
                                     <button
                                       type="button"
                                       onClick={() => moveServiceToSection(service.id, "General")}
+                                      disabled={!isOwnerOrAdmin}
                                       className="rounded-full border border-white/35 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
                                     >
                                       Quitar
@@ -1609,7 +1632,7 @@ export default function BusinessClient({
                       type="button"
                       onMouseDown={playClick}
                       onClick={handleConnectMercadoPago}
-                      disabled={isConnectingMp || isDisconnectingMp}
+                      disabled={!isOwnerOrAdmin || isConnectingMp || isDisconnectingMp}
                       className="inline-flex items-center justify-center gap-2 rounded-full bg-sky-600 px-5 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50"
                     >
                       <Link2 className="w-4 h-4" />
@@ -1620,7 +1643,7 @@ export default function BusinessClient({
                       type="button"
                       onMouseDown={playClick}
                       onClick={handleDisconnectMercadoPago}
-                      disabled={isDisconnectingMp || isConnectingMp}
+                      disabled={!isOwnerOrAdmin || isDisconnectingMp || isConnectingMp}
                       className="inline-flex items-center justify-center gap-2 rounded-full border border-rose-300 bg-white px-5 py-2 text-sm font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-50 dark:border-rose-700/50 dark:bg-black/30 dark:text-rose-200"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -1639,6 +1662,7 @@ export default function BusinessClient({
                   <button
                     type="button"
                     onClick={() => { setPayAtShop(false); setBookingDepositEnabled(true); }}
+                    disabled={!isOwnerOrAdmin}
                     className={`rounded-full px-4 py-2 text-sm font-medium border transition-colors ${
                       !payAtShop && bookingDepositEnabled
                         ? "ui-btn-primary"
@@ -1655,6 +1679,7 @@ export default function BusinessClient({
                         min={0}
                         value={bookingDepositAmount}
                         onChange={(e) => setBookingDepositAmount(e.target.value)}
+                        disabled={!isOwnerOrAdmin}
                         className="w-20 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 px-2 py-1.5 text-sm text-center text-gray-900 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         placeholder="3000"
                       />
@@ -1663,6 +1688,7 @@ export default function BusinessClient({
                   <button
                     type="button"
                     onClick={() => { setPayAtShop(false); setBookingDepositEnabled(false); }}
+                    disabled={!isOwnerOrAdmin}
                     className={`rounded-full px-4 py-2 text-sm font-medium border transition-colors ${
                       !payAtShop && !bookingDepositEnabled
                         ? "ui-btn-primary"
@@ -1674,6 +1700,7 @@ export default function BusinessClient({
                   <button
                     type="button"
                     onClick={() => { setPayAtShop(true); setBookingDepositEnabled(false); }}
+                    disabled={!isOwnerOrAdmin}
                     className={`rounded-full px-4 py-2 text-sm font-medium border transition-colors ${
                       payAtShop
                         ? "ui-btn-primary"
@@ -1725,6 +1752,7 @@ export default function BusinessClient({
                     <button
                       type="button"
                       onClick={() => setBusinessHours({ ...businessHours, [day.key]: { ...h, open: !h.open } })}
+                      disabled={!isOwnerOrAdmin}
                       className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer select-none shrink-0 ${h.open ? "bg-green-500" : "bg-zinc-300 dark:bg-zinc-600"}`}
                     >
                       <span
@@ -1736,7 +1764,7 @@ export default function BusinessClient({
                       <input
                         type="time"
                         value={h.start}
-                        disabled={!h.open}
+                        disabled={!isOwnerOrAdmin || !h.open}
                         onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, start: e.target.value } })}
                         className="rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
                       />
@@ -1744,14 +1772,14 @@ export default function BusinessClient({
                       <input
                         type="time"
                         value={h.end}
-                        disabled={!h.open}
+                        disabled={!isOwnerOrAdmin || !h.open}
                         onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, end: e.target.value } })}
                         className="rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
                       />
 
                       <button
                         type="button"
-                        disabled={!h.open}
+                        disabled={!isOwnerOrAdmin || !h.open}
                         onClick={() => {
                           const hasBreak = Boolean(h.break_start && h.break_end);
                           setBusinessHours({
@@ -1774,7 +1802,7 @@ export default function BusinessClient({
                           <input
                             type="time"
                             value={h.break_start}
-                            disabled={!h.open}
+                            disabled={!isOwnerOrAdmin || !h.open}
                             onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, break_start: e.target.value } })}
                             className="rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
                           />
@@ -1782,7 +1810,7 @@ export default function BusinessClient({
                           <input
                             type="time"
                             value={h.break_end}
-                            disabled={!h.open}
+                            disabled={!isOwnerOrAdmin || !h.open}
                             onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, break_end: e.target.value } })}
                             className="rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
                           />
@@ -1914,6 +1942,7 @@ export default function BusinessClient({
               value={whatsappTemplate}
               onChange={(e) => setWhatsappTemplate(e.target.value)}
               placeholder="Escribí el mensaje de confirmación..."
+              disabled={!isOwnerOrAdmin}
             />
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500">
               <span className={whatsappTemplate.match(/\@Hora/) ? "text-green-600 dark:text-green-400" : "text-rose-600 dark:text-rose-400"}>
@@ -1942,6 +1971,7 @@ export default function BusinessClient({
               value={voucherWhatsappTemplate}
               onChange={(e) => setVoucherWhatsappTemplate(e.target.value)}
               placeholder="Escribí el mensaje de voucher..."
+              disabled={!isOwnerOrAdmin}
             />
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500">
               <span className={voucherWhatsappTemplate.match(/\@Servicio/) ? "text-green-600 dark:text-green-400" : "text-rose-600 dark:text-rose-400"}>
@@ -1970,6 +2000,7 @@ export default function BusinessClient({
               value={birthdayWhatsappTemplate}
               onChange={(e) => setBirthdayWhatsappTemplate(e.target.value)}
               placeholder="Escribí el mensaje de cumpleaños..."
+              disabled={!isOwnerOrAdmin}
             />
           </div>
 
@@ -1996,7 +2027,7 @@ export default function BusinessClient({
               setIsSaving(false);
             }
           }}
-          disabled={isSaving}
+          disabled={!isOwnerOrAdmin || isSaving}
           className="fixed bottom-4 right-4 z-50 ui-btn-primary inline-flex items-center rounded-full px-6 py-2.5 text-sm font-semibold disabled:opacity-60 shadow-lg"
         >
           {isSaving ? "Guardando todo..." : "Guardar todo"}
@@ -2018,6 +2049,7 @@ export default function BusinessClient({
             <input
               value={closeConfirm}
               onChange={(e) => setCloseConfirm(e.target.value)}
+              disabled={!isOwnerOrAdmin}
               placeholder='Escribí "CONFIRMAR"'
               className="w-full sm:max-w-xs rounded-full border border-red-200 dark:border-red-700 bg-white dark:bg-zinc-900 px-4 py-2 text-sm text-red-800 dark:text-red-200 outline-none"
             />

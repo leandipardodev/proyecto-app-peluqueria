@@ -1,4 +1,5 @@
 import { getCachedUser, getCachedShopIdBySlug, createServiceRoleClient } from "@/lib/dashboard/auth-server";
+import { createServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { resolveIndustry } from "@/lib/industry/resolve";
 import { getFeatures, getShopFeatures, updateShopFeatureOverride } from "@/lib/industry/features";
@@ -14,6 +15,17 @@ export default async function DashboardShopFeaturesPage({ params }: { params: Pr
   if (!user) redirect("/login");
   const shopId = await getCachedShopIdBySlug(shopSlug, user.id);
   if (!shopId) redirect("/dashboard");
+
+  const supabase = await createServerClient();
+  const { data: membership } = await supabase
+    .from("shop_memberships")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("shop_id", shopId)
+    .maybeSingle();
+  if (!membership || membership.role === "staff") {
+    redirect(`/dashboard/${shopSlug}`);
+  }
 
   const admin = await createServiceRoleClient();
   const { data: shop } = await admin

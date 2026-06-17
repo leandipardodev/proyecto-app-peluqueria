@@ -16,6 +16,14 @@ export default async function DashboardShopServicesPage({ params }: { params: Pr
   if (!shopId) redirect("/dashboard");
 
   const supabase = await createServerClient();
+  const { data: membership } = await supabase
+    .from("shop_memberships")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("shop_id", shopId)
+    .maybeSingle();
+  const role = membership?.role ?? "staff";
+
   const [servicesResult, combosResult, staffResult, staffMapResult] = await Promise.all([
     fetchServices(shopId),
     fetchCombos(shopId),
@@ -33,6 +41,7 @@ export default async function DashboardShopServicesPage({ params }: { params: Pr
 
   return (
     <ServicesList
+      role={role}
       shopId={shopId}
       shopSlug={shopSlug}
       industry={industry}

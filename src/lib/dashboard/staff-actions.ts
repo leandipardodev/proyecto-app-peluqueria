@@ -7,7 +7,6 @@ import { trackProductEvent } from "@/lib/analytics/product-events";
 import { revalidateDashboardSegments } from "@/lib/dashboard/revalidate-dashboard";
 import { createStaffInviteToken } from "@/lib/dashboard/staff-invite";
 import type { ActionResult } from "@/lib/types";
-import { sendEmailWithResend } from "@/lib/email/resend";
 import "server-only";
 
 async function createAdminClient() {
@@ -34,30 +33,6 @@ async function requireOwnerAccessForShop(shopId: string): Promise<ActionResult<{
   }
 
   return { success: true, data: { userId: user.id } };
-}
-
-async function sendStaffInviteEmail(params: {
-  to: string;
-  name: string;
-  role: "staff" | "owner";
-}): Promise<void> {
-  const loginUrl = "https://klip.com.ar/login";
-  const roleLabel = params.role === "owner" ? "Owner" : "Staff";
-
-  await sendEmailWithResend({
-    to: params.to,
-    subject: `Invitacion a Klip (${roleLabel})`,
-    html: `
-      <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#111827;">
-        <h1 style="font-size:22px;margin:0 0 12px;">Te invitaron a Klip</h1>
-        <p style="font-size:15px;line-height:1.6;margin:0 0 8px;">Hola ${params.name}, ya tenes acceso como ${roleLabel}.</p>
-        <p style="margin:22px 0;">
-          <a href="${loginUrl}" style="background:#111827;color:#fff;text-decoration:none;padding:10px 14px;border-radius:8px;display:inline-block;">Ingresar a Klip</a>
-        </p>
-        <p style="font-size:13px;color:#6b7280;">Si no esperabas este correo, ignoralo.</p>
-      </div>
-    `,
-  });
 }
 
 type StaffMember = {
@@ -278,12 +253,6 @@ export async function addStaffMember(formData: FormData, shopIdOverride?: string
         { onConflict: "email" }
       );
 
-      try {
-        await sendStaffInviteEmail({ to: normalizedEmail, name, role });
-      } catch (mailError) {
-        console.error("[addStaffMember] invite email error:", mailError);
-      }
-
       if (role === "staff") {
         await trackProductEvent(shopId, "first_staff_added", { metadata: { source: "existing_user" } });
       }
@@ -353,12 +322,6 @@ export async function addStaffMember(formData: FormData, shopIdOverride?: string
       });
     }
 
-    try {
-      await sendStaffInviteEmail({ to: normalizedEmail, name, role });
-    } catch (mailError) {
-      console.error("[addStaffMember] invite email error:", mailError);
-    }
-
     if (role === "staff") {
       await trackProductEvent(shopId, "first_staff_added", { metadata: { source: "new_user" } });
     }
@@ -367,6 +330,42 @@ export async function addStaffMember(formData: FormData, shopIdOverride?: string
     return { success: true, data: { password, login_url: loginUrl } };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al agregar personal" };
+  }
+}
+
+export async function setupStaffAccount(
+  token: string,
+  password: string,
+  name: string
+): Promise<ActionResult<{ email: string }>> {
+  try {
+    const { verifyStaffInviteToken: verify } = await import("@/lib/dashboard/staff-invite");
+    const invite = verify(token);
+    if (!invite) return { success: false, error: "Invitacion invalida o vencida" };
+
+    const admin = await createAdminClient();
+
+    const { data: users, error: listError } = await admin.auth.admin.listUsers();
+    if (listError) return { success: false, error: listError.message };
+
+    const user = users.users.find((u) => u.email?.toLowerCase() === invite.email);
+    if (!user) return { success: false, error: "No encontramos una cuenta con ese email. Pedile al dueño que te invite de nuevo." };
+
+    const { error: updateError } = await admin.auth.admin.updateUserById(user.id, {
+      password,
+      email_confirm: true,
+      user_metadata: { full_name: name },
+    });
+    if (updateError) return { success: false, error: updateError.message };
+
+    await admin
+      .from("user_profiles")
+      .update({ name, updated_at: new Date().toISOString() })
+      .eq("user_id", user.id);
+
+    return { success: true, data: { email: invite.email } };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al configurar la cuenta" };
   }
 }
 

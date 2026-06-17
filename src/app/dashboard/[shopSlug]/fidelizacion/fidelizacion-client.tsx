@@ -24,6 +24,7 @@ type Props = {
   loyaltyCutsRequired: number;
   loyaltyDiscountPercent: number;
   loyaltyRewardCustomers: LoyaltyRewardCustomer[];
+  role?: string;
 };
 
 export default function FidelizacionClient({
@@ -34,11 +35,13 @@ export default function FidelizacionClient({
   loyaltyCutsRequired,
   loyaltyDiscountPercent,
   loyaltyRewardCustomers,
+  role = "staff",
 }: Props) {
   const { shop } = useAuth();
   const industry = resolveIndustry(shop?.industry);
   const customerWord = INDUSTRY_CONFIG[industry].labels.customerSingular;
   const customerWordLower = customerWord.toLowerCase();
+  const isOwnerOrAdmin = role !== "staff";
   const [enabled, setEnabled] = useState(loyaltyEnabled);
   const [cutsRequired, setCutsRequired] = useState(String(loyaltyCutsRequired));
   const [discountPercent, setDiscountPercent] = useState(String(loyaltyDiscountPercent));
@@ -176,6 +179,7 @@ export default function FidelizacionClient({
           </div>
         </div>
 
+        {isOwnerOrAdmin && (
         <div className="rounded-[1.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors bg-white dark:bg-zinc-900">
           <div className="px-5 py-4 border-b border-white/10 flex items-center gap-2.5">
             <div className="p-2 rounded-full bg-cyan-500/15">
@@ -295,8 +299,10 @@ export default function FidelizacionClient({
             )}
           </div>
         </div>
+        )}
       </div>
 
+      {isOwnerOrAdmin && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="rounded-[1.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors bg-white dark:bg-zinc-900">
           <div className="px-5 py-4 border-b border-white/10 flex items-center gap-2.5">
@@ -408,6 +414,7 @@ export default function FidelizacionClient({
       </div>
         </div>
       </div>
+      )}
 
       <VouchersClient shopId={shopId} initialVouchers={vouchers} initialTemplate={voucherTemplate} />
     </div>

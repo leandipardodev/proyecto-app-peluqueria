@@ -9,6 +9,7 @@ import {
 import FinancesClient from "@/app/dashboard/finances/finances-client";
 import { getArgentinaDateString } from "@/lib/argentina-time";
 import { getCachedUser, getCachedShopIdBySlug } from "@/lib/dashboard/auth-server";
+import { createServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +25,15 @@ export default async function DashboardShopFinancesPage({
   if (!user) redirect("/login");
   const shopId = await getCachedShopIdBySlug(shopSlug, user.id);
   if (!shopId) redirect("/dashboard");
+
+  const supabase = await createServerClient();
+  const { data: membership } = await supabase
+    .from("shop_memberships")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("shop_id", shopId)
+    .maybeSingle();
+  const role = membership?.role ?? "staff";
 
   const query = await searchParams;
   const today = getArgentinaDateString();
@@ -45,6 +55,8 @@ export default async function DashboardShopFinancesPage({
 
   return (
     <FinancesClient
+      role={role}
+      userId={user.id}
       shopId={shopId}
       initialData={result.success ? result.data ?? null : null}
       initialStaffProduction={staffResult.success ? staffResult.data ?? [] : []}

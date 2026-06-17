@@ -1335,7 +1335,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                         initial={{ height: 500 }}
                         animate={{ height: "auto" }}
                         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                        className="overflow-hidden"
+                        className="overflow-visible"
                       >
                       <div className="pb-4">
                       <div className="space-y-4">
@@ -1387,10 +1387,11 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                               </div>
                               <button
                                 onClick={handleLogout}
-                                className="shrink-0 p-2 rounded-xl text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer select-none"
+                                className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-zinc-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer select-none bg-white/70 dark:bg-white/5 border border-zinc-200/60 dark:border-white/10"
                                 title="Cerrar sesión"
                               >
                                 <LogOut className="w-4 h-4" />
+                                <span className="text-xs font-medium hidden sm:inline">Salir</span>
                               </button>
                             </div>
 

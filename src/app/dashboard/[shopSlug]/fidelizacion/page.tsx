@@ -26,6 +26,13 @@ export default async function DashboardShopFidelizacionPage({ params }: { params
   }
 
   const supabase = await createServerClient();
+  const { data: membership } = await supabase
+    .from("shop_memberships")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("shop_id", shopId)
+    .maybeSingle();
+  const role = membership?.role ?? "staff";
 
   const [vouchersResult, templateResult, businessResult, rewardsResult] = await Promise.all([
     fetchVouchers(shopId),
@@ -50,6 +57,7 @@ export default async function DashboardShopFidelizacionPage({ params }: { params
 
   return (
     <FidelizacionClient
+      role={role}
       shopId={shopId}
       vouchers={vouchersResult.success ? vouchersResult.data ?? [] : []}
       voucherTemplate={templateResult.success ? templateResult.data ?? undefined : undefined}

@@ -15,29 +15,34 @@ type StockItem = {
 interface InventoryPageClientProps {
   shopId: string;
   initialItems: StockItem[];
+  role?: string;
 }
 
 export default function InventoryPageClient({
   shopId,
   initialItems,
+  role = "staff",
 }: InventoryPageClientProps) {
   const [modalOpen, setModalOpen] = useState(false);
+  const isOwnerOrAdmin = role !== "staff";
 
   return (
     <div>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Inventario</h1>
-        <button
-          type="button"
-          onClick={() => setModalOpen(true)}
-          className="inline-flex items-center justify-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 transition-colors cursor-pointer select-none"
-        >
-          <Plus className="w-4 h-4" />
-          Nuevo producto
-        </button>
+        {isOwnerOrAdmin && (
+          <button
+            type="button"
+            onClick={() => setModalOpen(true)}
+            className="inline-flex items-center justify-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 transition-colors cursor-pointer select-none"
+          >
+            <Plus className="w-4 h-4" />
+            Nuevo producto
+          </button>
+        )}
       </div>
 
-      <StockTable shopId={shopId} items={initialItems} />
+      <StockTable shopId={shopId} items={initialItems} isOwnerOrAdmin={isOwnerOrAdmin} />
 
       <AddProductModal shopId={shopId} open={modalOpen} onClose={() => setModalOpen(false)} />
     </div>

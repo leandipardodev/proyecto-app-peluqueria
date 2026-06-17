@@ -25,9 +25,10 @@ type StockItem = {
 interface StockTableProps {
   shopId: string;
   items: StockItem[];
+  isOwnerOrAdmin?: boolean;
 }
 
-const StockTable = memo(function StockTable({ shopId, items }: StockTableProps) {
+const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = false }: StockTableProps) {
   const [stockItems, setStockItems] = useState(items);
   const [search, setSearch] = useState("");
   const [bulkAmountById, setBulkAmountById] = useState<Record<string, string>>({});
@@ -111,6 +112,7 @@ const StockTable = memo(function StockTable({ shopId, items }: StockTableProps) 
   }
 
   function handleDelete(id: string) {
+    if (!isOwnerOrAdmin) return;
     if (flushTimerRef.current) {
       clearTimeout(flushTimerRef.current);
       flushTimerRef.current = null;

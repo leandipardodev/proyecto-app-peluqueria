@@ -119,6 +119,8 @@ export default function FinancesClient({
   initialCashMovements = [],
   initialCashSessionsHistory = [],
   initialStaffLiquidations = [],
+  role = "owner",
+  userId = "",
 }: {
   shopId: string;
   initialData: FinanceData | null;
@@ -130,7 +132,10 @@ export default function FinancesClient({
   initialCashMovements: CashMovementItem[];
   initialCashSessionsHistory: CashSessionSummary[];
   initialStaffLiquidations: StaffLiquidationListItem[];
+  role: string;
+  userId: string;
 }) {
+  const isOwnerOrAdmin = role !== "staff";
   const today = getArgentinaDate();
   const monthBounds = getMonthBounds(today);
   const weekBounds = getWeekBounds(today);
@@ -479,6 +484,8 @@ export default function FinancesClient({
 
   return (
     <div className="space-y-5">
+      {isOwnerOrAdmin && (
+        <>
       <header className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Finanzas</h1>
         {uiMessage && <span className="ui-badge">{uiMessage}</span>}
@@ -510,8 +517,12 @@ export default function FinancesClient({
           </div>
         </div>
       </div>
+        </>
+      )}
 
-      <Card title="Equipo" icon={<Users2 className="h-4 w-4" />} right={undefined}>
+      <Card title={isOwnerOrAdmin ? "Equipo" : "Mi Produccion"} icon={<Users2 className="h-4 w-4" />} right={undefined}>
+        {isOwnerOrAdmin ? (
+        <>
         {staffProduction.length === 0 ? (
           <div className="flex min-h-[120px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
             <Users2 className="h-7 w-7 text-slate-400" />
@@ -570,8 +581,18 @@ export default function FinancesClient({
             )}
           </div>
         )}
+        </>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="text-left text-slate-500"><th className="py-2 font-medium">Empleado</th><th className="font-medium">Turnos</th><th className="font-medium">Cobrado</th><th className="font-medium">Ticket</th></tr></thead>
+              <tbody>{staffProduction.filter(s => s.staffId === userId).map((s) => <tr key={s.staffId} className="border-t border-slate-100 dark:border-zinc-800"><td className="py-2 font-medium text-slate-900 dark:text-white">{s.staffName}</td><td className="text-slate-700 dark:text-zinc-300">{s.appointmentsCount}</td><td className="text-emerald-600 font-semibold">${s.paidRevenue.toFixed(2)}</td><td className="text-slate-700 dark:text-zinc-300">${s.avgTicketPaid.toFixed(2)}</td></tr>)}</tbody>
+            </table>
+          </div>
+        )}
       </Card>
 
+      {isOwnerOrAdmin && (
       <Card title="Caja" icon={<Vault className="h-4 w-4" />}>
         <div className="flex items-center gap-2 mb-4">
           <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
@@ -682,6 +703,7 @@ export default function FinancesClient({
           </div>
         )}
       </Card>
+      )}
 
     </div>
   );

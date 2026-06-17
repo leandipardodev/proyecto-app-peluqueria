@@ -23,6 +23,7 @@ export default async function DashboardShopBusinessPage({ params }: { params: Pr
     .eq("user_id", user.id)
     .eq("shop_id", shopId)
     .maybeSingle();
+  const role = membership?.role ?? "staff";
   const canManageBilling = Boolean(membership?.is_active && membership.role === "owner");
 
   const [result, summaryResult, metricsResult, servicesResult, businessHoursResult, bookingThemeResult, voucherTemplateResult] = await Promise.all([
@@ -58,6 +59,7 @@ export default async function DashboardShopBusinessPage({ params }: { params: Pr
 
   return (
     <BusinessClient
+      role={role}
       initialData={result.success ? result.data ?? null : null}
       initialError={result.success ? null : result.error}
       summaryStats={summaryStats}

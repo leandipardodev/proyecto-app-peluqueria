@@ -445,11 +445,41 @@ export default function StaffList({
           </form>
 
           {(generatedPassword || loginUrl) && (
-            <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-lg">
+            <div className="mt-4 p-5 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-xl">
+              <p className="text-sm font-semibold text-green-800 dark:text-green-300 mb-3">
+                {staffWord} agregado correctamente
+              </p>
+
+              {loginUrl && (
+                <div className="mb-3">
+                  <p className="text-xs text-green-700 dark:text-green-400 font-medium mb-1.5">
+                    Copi&aacute; este link y env&iacute;aselo al {staffWordLower} para que active su cuenta:
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      readOnly
+                      value={loginUrl}
+                      className="flex-1 bg-white dark:bg-gray-950 px-3 py-2 rounded-lg border border-green-300 dark:border-green-700 text-xs font-mono dark:text-gray-100 truncate outline-none select-all"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        navigator.clipboard.writeText(loginUrl);
+                        addToast("Link copiado al portapapeles", "success");
+                      }}
+                    >
+                      Copiar
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {generatedPassword && (
-                <>
-                  <p className="text-sm text-green-800 dark:text-green-300 font-medium mb-2">
-                    Usuario creado correctamente. Contraseña generada:
+                <div>
+                  <p className="text-xs text-green-700 dark:text-green-400 font-medium mb-1.5">
+                    Contrase&ntilde;a temporal del {staffWordLower}:
                   </p>
                   <div className="flex items-center gap-2">
                     <code className="bg-white dark:bg-gray-950 px-3 py-1.5 rounded border border-green-300 dark:border-green-700 text-sm font-mono dark:text-gray-100">
@@ -467,30 +497,9 @@ export default function StaffList({
                       Copiar
                     </Button>
                   </div>
-                  <p className="text-xs text-green-600 dark:text-green-400 mt-2">
-                     Compartí esta contraseña con el {staffWordLower}.
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-1.5">
+                    Inclu&iacute; la contrase&ntilde;a en el mensaje para que pueda ingresar.
                   </p>
-                </>
-              )}
-              {loginUrl && (
-                <div className="mt-3">
-                  <p className="text-sm text-green-800 dark:text-green-300 font-medium mb-1">Link de ingreso:</p>
-                  <div className="flex items-center gap-2">
-                    <code className="bg-white dark:bg-gray-950 px-3 py-1.5 rounded border border-green-300 dark:border-green-700 text-xs font-mono dark:text-gray-100 truncate">
-                      {loginUrl}
-                    </code>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        navigator.clipboard.writeText(loginUrl);
-                        addToast("Link copiado al portapapeles", "success");
-                      }}
-                    >
-                      Copiar
-                    </Button>
-                  </div>
                 </div>
               )}
             </div>

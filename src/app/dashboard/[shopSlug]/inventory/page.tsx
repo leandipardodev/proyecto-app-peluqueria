@@ -1,6 +1,7 @@
 import { fetchStockItems } from "@/lib/dashboard/inventory-actions";
 import InventoryPageClient from "@/components/inventory/inventory-page-client";
 import { getCachedUser, getCachedShopIdBySlug } from "@/lib/dashboard/auth-server";
+import { createServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getShopFeatures } from "@/lib/industry/features";
 
@@ -17,6 +18,15 @@ export default async function DashboardShopInventoryPage({ params }: { params: P
     redirect(`/dashboard/${shopSlug}`);
   }
 
+  const supabase = await createServerClient();
+  const { data: membership } = await supabase
+    .from("shop_memberships")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("shop_id", shopId)
+    .maybeSingle();
+  const role = membership?.role ?? "staff";
+
   const result = await fetchStockItems(shopId);
-  return <InventoryPageClient shopId={shopId} initialItems={result.success ? result.data ?? [] : []} />;
+  return <InventoryPageClient role={role} shopId={shopId} initialItems={result.success ? result.data ?? [] : []} />;
 }

@@ -53,9 +53,10 @@ interface ServicesListProps {
   initialCombos?: Combo[];
   initialStaffMembers?: { id: string; name: string | null }[];
   initialServiceStaffMap?: Record<string, string[]>;
+  role?: string;
 }
 
-const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, initialServices, initialCombos = [], initialStaffMembers = [], initialServiceStaffMap = {} }: ServicesListProps) {
+const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, initialServices, initialCombos = [], initialStaffMembers = [], initialServiceStaffMap = {}, role = "staff" }: ServicesListProps) {
   const router = useRouter();
   const [services, setServices] = useState(initialServices);
   const [combos, setCombos] = useState(initialCombos);
@@ -72,6 +73,7 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
   const [serviceStaffMap, setServiceStaffMap] = useState(initialServiceStaffMap);
   const serviceWord = INDUSTRY_CONFIG[industry].labels.serviceSingular;
   const serviceWordLower = serviceWord.toLowerCase();
+  const isOwnerOrAdmin = role !== "staff";
 
   useEffect(() => {
     setServices(initialServices);
@@ -129,18 +131,21 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
   }, [shopId]);
 
   function openCreate() {
+    if (!isOwnerOrAdmin) return;
     setEditingService(null);
     setEditingCombo(null);
     setModalOpen(true);
   }
 
   function openEdit(service: Service) {
+    if (!isOwnerOrAdmin) return;
     setEditingService(service);
     setEditingCombo(null);
     setModalOpen(true);
   }
 
   function openEditCombo(combo: Combo) {
+    if (!isOwnerOrAdmin) return;
     setEditingCombo(combo);
     setEditingService(null);
     setModalOpen(true);
@@ -179,6 +184,7 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
   }
 
   function handleDelete(id: string, type: "service" | "combo") {
+    if (!isOwnerOrAdmin) return;
     setDeleteTargetId(id);
     setDeleteTargetType(type);
   }
@@ -207,6 +213,7 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
   }
 
   function handleToggleCombo(id: string) {
+    if (!isOwnerOrAdmin) return;
     startTransition(async () => {
       const result = await toggleComboActive(id, shopId);
       if (!result.success) {

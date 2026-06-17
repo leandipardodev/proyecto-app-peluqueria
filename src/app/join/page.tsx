@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
 import { verifyStaffInviteToken } from "@/lib/dashboard/staff-invite";
+import { StaffSetupForm } from "./staff-setup-form";
 
 export default async function JoinPage({ searchParams }: { searchParams?: Promise<{ token?: string }> }) {
   const params = await searchParams;
@@ -23,8 +24,7 @@ export default async function JoinPage({ searchParams }: { searchParams?: Promis
   } = await supabase.auth.getUser();
 
   if (!user) {
-    const redirectPath = `/join?token=${encodeURIComponent(token)}`;
-    redirect(`/login?redirect=${encodeURIComponent(redirectPath)}`);
+    return <StaffSetupForm token={token} name={""} />;
   }
 
   const userEmail = (user.email || "").trim().toLowerCase();
