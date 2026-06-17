@@ -91,6 +91,8 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
   const [loadingSlots, setLoadingSlots] = useState(false);
   const fetchedDatesRef = useRef(new Set<string>());
 
+  const [atBottom, setAtBottom] = useState(false);
+
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -107,6 +109,24 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
 
   const [submitting, setSubmitting] = useState(false);
   const [creatingPreference, setCreatingPreference] = useState(false);
+
+  const scrollRAF = useRef(0);
+  function handleScroll(e: React.UIEvent<HTMLDivElement>) {
+    cancelAnimationFrame(scrollRAF.current);
+    scrollRAF.current = requestAnimationFrame(() => {
+      const el = e.currentTarget;
+      if (!el) return;
+      setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight <= 1);
+    });
+  }
+
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => {
+      const el = document.querySelector('.delicate-scroll');
+      if (el) setAtBottom(el.scrollHeight - el.clientHeight <= 1);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [step, services, staffMembers]);
   const [paymentPreferenceId, setPaymentPreferenceId] = useState<string | null>(null);
   const [paymentInitPoint, setPaymentInitPoint] = useState<string | null>(null);
   const [chargedAmount, setChargedAmount] = useState<number | null>(null);
@@ -626,10 +646,10 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
 
   const rippleWaves = useMemo(() => {
     const map: Record<string, string[]> = {
-      "minimal-light": ["#b8d5ff", "#7aaeff", "#3b7ddb"],
-      "carbon-glass": ["#dceaff", "#9ec6ff", "#5a99e0"],
-      "editorial-cream": ["#e0c8b0", "#c09870", "#8b5e3c"],
-      "pastel-colorful": ["#c4d0ff", "#9aabf0", "#5b72d1"],
+      "minimal-light": ["#b8d5ff", "#3b7ddb"],
+      "carbon-glass": ["#dceaff", "#5a99e0"],
+      "editorial-cream": ["#e0c8b0", "#8b5e3c"],
+      "pastel-colorful": ["#c4d0ff", "#5b72d1"],
     };
     return map[resolvedTemplate] || map["minimal-light"];
   }, [resolvedTemplate]);
@@ -686,9 +706,9 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
         animate={{ opacity: [0.12, 0.2, 0.12] }}
         transition={{ duration: 11.5, repeat: Infinity, ease: "easeInOut" }}
       />
-      <div className="relative z-10 flex h-full items-center justify-center p-4 sm:p-8 lg:p-12">
+      <div className="relative z-10 flex h-full items-start justify-center p-4 sm:p-8 lg:p-12">
         <div className="w-full max-w-md md:max-w-xl">
-        <div className={`rounded-[32px] p-6 sm:p-10 lg:p-12 h-[min(860px,calc(100dvh-2rem))] sm:h-[min(900px,calc(100dvh-3rem))] flex flex-col ${templateStyles.shell}`}>
+        <div className={`rounded-[32px] p-6 sm:p-10 lg:p-12 h-[min(860px,calc(100dvh-2rem))] sm:h-[min(900px,calc(100dvh-3rem))] flex flex-col ${templateStyles.shell}`} style={step === 3 && !done ? { height: 'auto' } as React.CSSProperties : undefined}>
           {!done ? (
             <>
               <div className="pb-4">
@@ -772,7 +792,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                     style={{ position: "relative" }}
                   >
                     {step === 0 && (
-                      <div className="flex flex-col h-full min-h-0 justify-center">
+                      <div className="flex flex-col h-full min-h-0">
                         <div className="flex flex-col min-h-0 max-h-full w-full">
                         <div className="shrink-0 space-y-5">
                           <motion.h2 variants={stepItemReveal} className={`text-xl font-medium ${templateStyles.heading} ${templateStyles.headingFx}`}>{`Elegi tu ${serviceWordLower}`}</motion.h2>
@@ -818,7 +838,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                             </div>
                           </motion.div>
                         </div>
-                        <div className="flex-1 overflow-y-auto delicate-scroll pb-4 [scroll-snap-type:y_proximity]">
+                        <div className="flex-1 overflow-y-auto delicate-scroll pb-4 [scroll-snap-type:y_proximity]" onScroll={handleScroll}>
                           <motion.div variants={stepItemReveal} className="space-y-4">
                           {selectedCategory === "Combos" ? (
                             combos.map((combo) => {
@@ -844,7 +864,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                         key={`r-${combo.id}-w${i}`}
                                         initial={{ width: 0, height: 0, left: ripplePositions[combo.id].x, top: ripplePositions[combo.id].y, opacity: 1 }}
                                         animate={{ width: ripplePositions[combo.id].size, height: ripplePositions[combo.id].size, left: ripplePositions[combo.id].x - ripplePositions[combo.id].size / 2, top: ripplePositions[combo.id].y - ripplePositions[combo.id].size / 2, opacity: i < rippleWaves.length - 1 ? 0 : 1 }}
-                                        transition={{ duration: 0.85, ease: [0.22, 1, 0.36, 1], delay: i * 0.08, opacity: { duration: 0.5, delay: i * 0.08 + 0.25, ease: "easeInOut" } }}
+                                        transition={{ duration: 1.5, ease: [0.25, 1, 0.08, 1], delay: i * 0.08, opacity: { duration: 0.5, delay: i * 0.08 + 0.25, ease: "easeInOut" } }}
                                         className="absolute rounded-full pointer-events-none z-0"
                                         style={{ background: color, willChange: "transform" }}
                                       />
@@ -852,6 +872,15 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                       ) : (
                                       <span key={`s-${combo.id}`} className="absolute inset-0 pointer-events-none z-0" style={{ background: rippleWaves[rippleWaves.length - 1], willChange: "transform" }} />
                                       )
+                                    )}
+                                    {isSelected && (
+                                      <motion.div
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: [0, 0.25, 0] }}
+                                        transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut", delay: 1.6 }}
+                                        className="absolute inset-0 rounded-3xl pointer-events-none z-[2]"
+                                        style={{ boxShadow: `inset 0 0 10px 1px ${rippleConfig.text}20, 0 0 10px 1px ${rippleConfig.text}12` } as React.CSSProperties}
+                                      />
                                     )}
                                   <button
                                     type="button"
@@ -936,7 +965,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                         key={`r-${svc.id}-w${i}`}
                                         initial={{ width: 0, height: 0, left: ripplePositions[svc.id].x, top: ripplePositions[svc.id].y, opacity: 1 }}
                                         animate={{ width: ripplePositions[svc.id].size, height: ripplePositions[svc.id].size, left: ripplePositions[svc.id].x - ripplePositions[svc.id].size / 2, top: ripplePositions[svc.id].y - ripplePositions[svc.id].size / 2, opacity: i < rippleWaves.length - 1 ? 0 : 1 }}
-                                        transition={{ duration: 0.85, ease: [0.22, 1, 0.36, 1], delay: i * 0.08, opacity: { duration: 0.5, delay: i * 0.08 + 0.25, ease: "easeInOut" } }}
+                                        transition={{ duration: 1.5, ease: [0.25, 1, 0.08, 1], delay: i * 0.08, opacity: { duration: 0.5, delay: i * 0.08 + 0.25, ease: "easeInOut" } }}
                                         className="absolute rounded-full pointer-events-none z-0"
                                         style={{ background: color, willChange: "transform" }}
                                       />
@@ -944,6 +973,15 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                       ) : (
                                       <span key={`s-${svc.id}`} className="absolute inset-0 pointer-events-none z-0" style={{ background: rippleWaves[rippleWaves.length - 1], willChange: "transform" }} />
                                       )
+                                    )}
+                                    {isSelected && (
+                                      <motion.div
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: [0, 0.25, 0] }}
+                                        transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut", delay: 1.6 }}
+                                        className="absolute inset-0 rounded-3xl pointer-events-none z-[2]"
+                                        style={{ boxShadow: `inset 0 0 10px 1px ${rippleConfig.text}20, 0 0 10px 1px ${rippleConfig.text}12` } as React.CSSProperties}
+                                      />
                                     )}
                                   <button
                                     type="button"
@@ -989,12 +1027,12 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                     )}
 
                     {step === 1 && (
-                      <div className="flex flex-col h-full min-h-0 justify-center">
+                      <div className="flex flex-col h-full min-h-0">
                         <div className="flex flex-col min-h-0 max-h-full w-full">
                         <div className="shrink-0 pb-4">
                           <motion.h2 variants={stepItemReveal} className={`font-semibold leading-[1.02] ${templateStyles.heading} ${templateStyles.headingFx}`}>{`Elegi tu ${staffWordLower}`}</motion.h2>
                         </div>
-                        <div className="flex-1 overflow-y-auto delicate-scroll pb-4 [scroll-snap-type:y_proximity]">
+                        <div className="flex-1 overflow-y-auto delicate-scroll pb-4 [scroll-snap-type:y_proximity]" onScroll={handleScroll}>
                           <div className="space-y-5">
                           <div className={`rounded-[14px] border transition-all duration-300 ease-[0.16,1,0.3,1] ${templateStyles.cardDepth} ${!selectedStaff ? templateStyles.selected : `${templateStyles.plain} ${templateStyles.hoverBorder}`}`}>
                           <div className="overflow-hidden rounded-[14px] relative">
@@ -1005,7 +1043,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                 key={`r-np-w${i}`}
                                 initial={{ width: 0, height: 0, left: ripplePositions["no-preference"].x, top: ripplePositions["no-preference"].y, opacity: 1 }}
                                 animate={{ width: ripplePositions["no-preference"].size, height: ripplePositions["no-preference"].size, left: ripplePositions["no-preference"].x - ripplePositions["no-preference"].size / 2, top: ripplePositions["no-preference"].y - ripplePositions["no-preference"].size / 2, opacity: i < rippleWaves.length - 1 ? 0 : 1 }}
-                                transition={{ duration: 0.85, ease: [0.22, 1, 0.36, 1], delay: i * 0.08, opacity: { duration: 0.5, delay: i * 0.08 + 0.25, ease: "easeInOut" } }}
+                                transition={{ duration: 1.5, ease: [0.25, 1, 0.08, 1], delay: i * 0.08, opacity: { duration: 0.5, delay: i * 0.08 + 0.25, ease: "easeInOut" } }}
                                 className="absolute rounded-full pointer-events-none z-0"
                                 style={{ background: color, willChange: "transform" }}
                               />
@@ -1013,6 +1051,15 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                               ) : (
                               <span key="s-np" className="absolute inset-0 pointer-events-none z-0" style={{ background: rippleWaves[rippleWaves.length - 1], willChange: "transform" }} />
                               )
+                            )}
+                            {!selectedStaff && (
+                              <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: [0, 0.25, 0] }}
+                                transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut", delay: 1.6 }}
+                                className="absolute inset-0 rounded-[14px] pointer-events-none z-[2]"
+                                style={{ boxShadow: `inset 0 0 10px 1px ${rippleConfig.text}20, 0 0 10px 1px ${rippleConfig.text}12` } as React.CSSProperties}
+                              />
                             )}
                           <button
                             onClick={(e) => {
@@ -1044,7 +1091,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                   key={`r-${s.id}-w${i}`}
                                   initial={{ width: 0, height: 0, left: ripplePositions[s.id].x, top: ripplePositions[s.id].y, opacity: 1 }}
                                   animate={{ width: ripplePositions[s.id].size, height: ripplePositions[s.id].size, left: ripplePositions[s.id].x - ripplePositions[s.id].size / 2, top: ripplePositions[s.id].y - ripplePositions[s.id].size / 2, opacity: i < rippleWaves.length - 1 ? 0 : 1 }}
-                                  transition={{ duration: 0.85, ease: [0.22, 1, 0.36, 1], delay: i * 0.08, opacity: { duration: 0.5, delay: i * 0.08 + 0.25, ease: "easeInOut" } }}
+                                  transition={{ duration: 1.5, ease: [0.25, 1, 0.08, 1], delay: i * 0.08, opacity: { duration: 0.5, delay: i * 0.08 + 0.25, ease: "easeInOut" } }}
                                   className="absolute rounded-full pointer-events-none z-0"
                                   style={{ background: color, willChange: "transform" }}
                                 />
@@ -1052,6 +1099,15 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                 ) : (
                                 <span key={`s-${s.id}`} className="absolute inset-0 pointer-events-none z-0" style={{ background: rippleWaves[rippleWaves.length - 1], willChange: "transform" }} />
                                 )
+                              )}
+                              {isSelected && (
+                                <motion.div
+                                  initial={{ opacity: 0 }}
+                                  animate={{ opacity: [0, 0.25, 0] }}
+                                  transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut", delay: 1.6 }}
+                                  className="absolute inset-0 rounded-[14px] pointer-events-none z-[2]"
+                                  style={{ boxShadow: `inset 0 0 10px 1px ${rippleConfig.text}20, 0 0 10px 1px ${rippleConfig.text}12` } as React.CSSProperties}
+                                />
                               )}
                             <button
                               onClick={(e) => {
@@ -1107,9 +1163,9 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                     )}
 
                     {step === 2 && (
-                      <div className="flex flex-col h-full min-h-0 justify-center">
+                      <div className="flex flex-col h-full min-h-0">
                         <div className="flex flex-col min-h-0 max-h-full w-full">
-                        <div className="overflow-y-auto delicate-scroll pb-4 flex-1 min-h-0">
+                        <div className="overflow-y-auto delicate-scroll pb-4 flex-1 min-h-0" onScroll={handleScroll}>
                         <div ref={slotsRef} className="space-y-6">
                         <motion.h2 variants={stepItemReveal} className={`font-semibold leading-[1.02] ${templateStyles.heading} ${templateStyles.headingFx}`}>Elegi fecha y horario</motion.h2>
 
@@ -1178,7 +1234,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                     key={`rd-${dateStr}-w${i}`}
                                     initial={{ width: 0, height: 0, left: ripplePositions[`date-${dateStr}`].x, top: ripplePositions[`date-${dateStr}`].y, opacity: 1 }}
                                     animate={{ width: ripplePositions[`date-${dateStr}`].size, height: ripplePositions[`date-${dateStr}`].size, left: ripplePositions[`date-${dateStr}`].x - ripplePositions[`date-${dateStr}`].size / 2, top: ripplePositions[`date-${dateStr}`].y - ripplePositions[`date-${dateStr}`].size / 2, opacity: i < rippleWaves.length - 1 ? 0 : 1 }}
-                                    transition={{ duration: 0.85, ease: [0.22, 1, 0.36, 1], delay: i * 0.08, opacity: { duration: 0.5, delay: i * 0.08 + 0.25, ease: "easeInOut" } }}
+                                    transition={{ duration: 1.5, ease: [0.25, 1, 0.08, 1], delay: i * 0.08, opacity: { duration: 0.5, delay: i * 0.08 + 0.25, ease: "easeInOut" } }}
                                     className="absolute rounded-full pointer-events-none z-0"
                                     style={{ background: color, willChange: "transform" }}
                                   />
@@ -1237,7 +1293,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                           key={`rs-${slot.start}-w${i}`}
                                           initial={{ width: 0, height: 0, left: ripplePositions[`slot-${slot.start}`].x, top: ripplePositions[`slot-${slot.start}`].y, opacity: 1 }}
                                           animate={{ width: ripplePositions[`slot-${slot.start}`].size, height: ripplePositions[`slot-${slot.start}`].size, left: ripplePositions[`slot-${slot.start}`].x - ripplePositions[`slot-${slot.start}`].size / 2, top: ripplePositions[`slot-${slot.start}`].y - ripplePositions[`slot-${slot.start}`].size / 2, opacity: i < rippleWaves.length - 1 ? 0 : 1 }}
-                                          transition={{ duration: 0.85, ease: [0.22, 1, 0.36, 1], delay: i * 0.08, opacity: { duration: 0.5, delay: i * 0.08 + 0.25, ease: "easeInOut" } }}
+                                          transition={{ duration: 1.5, ease: [0.25, 1, 0.08, 1], delay: i * 0.08, opacity: { duration: 0.5, delay: i * 0.08 + 0.25, ease: "easeInOut" } }}
                                           className="absolute rounded-full pointer-events-none z-0"
                                           style={{ background: color, willChange: "transform" }}
                                         />
@@ -1494,7 +1550,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                     )}
                   </motion.div>
                 </AnimatePresence>
-                <div className="pointer-events-none absolute left-0 right-0 bottom-0 h-16" style={{ background: `linear-gradient(to top, ${templateStyles.scrollFade}, transparent)` }} />
+                <div className={`pointer-events-none absolute left-0 right-0 bottom-0 h-16 transition-opacity duration-300 ${atBottom ? 'opacity-0' : ''}`} style={{ background: `linear-gradient(to top, ${templateStyles.scrollFade}, transparent)` }} />
               </div>
 
               <div className="pt-4 flex items-center gap-3">
