@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, memo, useRef } from "react";
-import { AnimatePresence, motion, useAnimationControls } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import {
   AlertTriangle,
@@ -96,14 +96,6 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
   const { user, isLoading: isAuthLoading } = useAuth();
 
   const [step, setStep] = useState(0);
-  const shellControls = useAnimationControls();
-
-  useEffect(() => {
-    shellControls.start({
-      scale: [1, 1.008, 0.996, 1.002, 1],
-      transition: { duration: 0.4, ease: [0.34, 1.2, 0.64, 1] },
-    });
-  }, [step, shellControls]);
 
   useEffect(() => {
     for (const s of staffMembers) {
@@ -737,7 +729,6 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
         <div className="w-full max-w-md md:max-w-xl">
         <motion.div
           className={`rounded-[32px] p-6 sm:p-10 lg:p-12 h-[min(860px,calc(100dvh-2rem))] sm:h-[min(900px,calc(100dvh-3rem))] flex flex-col ${templateStyles.shell}`}
-          animate={shellControls}
           style={step === 3 && !done ? { height: 'auto' } as React.CSSProperties : undefined}>
           {!done ? (
             <>
@@ -882,7 +873,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                   onPointerDown={pushCard3D}
                                   onPointerUp={releaseCard3D}
                                   onPointerLeave={releaseCard3D}
-                                  className={`rounded-3xl border-2 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected} border-transparent` : `${templateStyles.plain} ${templateStyles.plate} ${templateStyles.hoverBorder}`}`}
+                                  className={`rounded-3xl border-2 transition-[transform,box-shadow] duration-200 hover:scale-[1.02] ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected} border-transparent` : `${templateStyles.plain} ${templateStyles.plate} ${templateStyles.hoverBorder}`}`}
                                   style={{ scrollSnapAlign: "start" }}
                                 >
                                   <div className="overflow-hidden rounded-3xl relative">
@@ -982,7 +973,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                   onPointerDown={pushCard3D}
                                   onPointerUp={releaseCard3D}
                                   onPointerLeave={releaseCard3D}
-                                  className={`rounded-3xl border-2 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected} border-transparent` : `${templateStyles.plain} ${templateStyles.plate} ${templateStyles.hoverBorder}`}`}
+                                  className={`rounded-3xl border-2 transition-[transform,box-shadow] duration-200 hover:scale-[1.02] ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected} border-transparent` : `${templateStyles.plain} ${templateStyles.plate} ${templateStyles.hoverBorder}`}`}
                                   style={{ scrollSnapAlign: "start" }}
                                 >
                                   <div className="overflow-hidden rounded-3xl relative">
@@ -1066,7 +1057,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                             onPointerDown={pushCard3D}
                             onPointerUp={releaseCard3D}
                             onPointerLeave={releaseCard3D}
-                            className={`rounded-[14px] border-2 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 ${templateStyles.cardDepth} ${!selectedStaff ? `${templateStyles.selected} border-transparent` : `${templateStyles.plain} ${templateStyles.hoverBorder}`}`}
+                            className={`rounded-[14px] border-2 transition-[transform,box-shadow] duration-200 hover:scale-[1.02] ${templateStyles.cardDepth} ${!selectedStaff ? `${templateStyles.selected} border-transparent` : `${templateStyles.plain} ${templateStyles.hoverBorder}`}`}
                           >
                           <div className="overflow-hidden rounded-[14px] relative">
                             {!selectedStaff && (
@@ -1121,7 +1112,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                               onPointerDown={pushCard3D}
                               onPointerUp={releaseCard3D}
                               onPointerLeave={releaseCard3D}
-                              className={`rounded-[14px] border-2 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected} border-transparent` : `${templateStyles.plain} ${templateStyles.hoverBorder}`}`}
+                              className={`rounded-[14px] border-2 transition-[transform,box-shadow] duration-200 hover:scale-[1.02] ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected} border-transparent` : `${templateStyles.plain} ${templateStyles.hoverBorder}`}`}
                             >
                             <div className="overflow-hidden rounded-[14px] relative">
                               {isSelected && (
