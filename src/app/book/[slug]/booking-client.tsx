@@ -728,7 +728,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
       <div className="relative z-10 flex h-full items-start justify-center p-4 sm:p-8 lg:p-12">
         <div className="w-full max-w-md md:max-w-xl">
         <motion.div
-          className={`rounded-[32px] p-6 sm:p-10 lg:p-12 h-[min(860px,calc(100dvh-2rem))] sm:h-[min(900px,calc(100dvh-3rem))] flex flex-col ${templateStyles.shell}`}
+          className={`rounded-[32px] p-6 sm:p-10 lg:p-12 h-[min(860px,calc(100dvh-2rem))] sm:h-[min(900px,calc(100dvh-3rem))] flex flex-col overflow-y-auto ${templateStyles.shell}`}
           style={step === 3 && !done ? { height: 'auto' } as React.CSSProperties : undefined}>
           {!done ? (
             <>
@@ -1734,92 +1734,122 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                   </p>
                 </div>
               )}
-            </>
-          ) : (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.97 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.25, ease: "easeOut" }}
-              className="py-12 text-center"
-            >
-              <div className="w-20 h-20 rounded-full bg-emerald-500 flex items-center justify-center mx-auto mb-6 shadow-lg">
-                <Check className="w-10 h-10 text-white" />
-              </div>
-              <h2 className={`text-xl font-semibold mb-2 ${templateStyles.doneTitle}`}>Turno reservado</h2>
-              <p className={`text-sm mb-6 ${templateStyles.doneText}`}>Ya quedo todo listo.</p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
-                {googleCalendarUrl && (
+              <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs">
+                {shop.address && (
                   <a
-                    href={googleCalendarUrl}
+                    href={`https://www.google.com/maps/search/${encodeURIComponent(shop.city ? `${shop.address}, ${shop.city}` : shop.address)}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all ${templateStyles.calendar}`}
+                    className={`inline-flex items-center gap-1 transition-colors ${templateStyles.meta} ${templateStyles.metaHover}`}
                   >
-                    Agregar a Calendar
+                    <MapPin className="w-3 h-3" /> <span className="truncate max-w-[180px] sm:max-w-none">{shop.address}</span>
                   </a>
                 )}
-                <button
-                  onClick={handleReset}
-                  className={`px-6 py-2.5 rounded-full text-sm font-medium transition-all border ${templateStyles.ghostBtn}`}
-                >
-                  Nueva reserva
-                </button>
-              </div>
-              <div className="mt-8">
+                {shop.phone && (
+                  <a
+                    href={`tel:${shop.phone.replace(/[^\d+]/g, "")}`}
+                    className={`inline-flex items-center gap-1 transition-colors ${templateStyles.meta} ${templateStyles.metaHover}`}
+                  >
+                    <Phone className="w-3 h-3" /> {shop.phone}
+                  </a>
+                )}
+                {shop.instagramUrl && (
+                  <a
+                    href={shop.instagramUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`inline-flex items-center gap-1 transition-colors ${templateStyles.meta} ${templateStyles.metaHover}`}
+                  >
+                    <ExternalLink className="w-3 h-3" /> Instagram
+                  </a>
+                )}
                 <a
                   href="https://klip.com.ar"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`inline-flex items-center gap-1 text-xs transition-colors ${templateStyles.meta} ${templateStyles.metaHover}`}
+                  className={`inline-flex items-center gap-1 transition-colors ${templateStyles.meta} ${templateStyles.metaHover}`}
                 >
-                  powered by <span className="font-bold">KLIP</span>
+                  <span className="opacity-50 hidden sm:inline">—</span>
+                  <span>powered by</span>
+                  <span className="font-bold tracking-wide ml-0.5">KLIP</span>
                 </a>
               </div>
+            </>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="flex flex-col h-full py-6 text-center"
+            >
+              <div className="flex-1 flex flex-col items-center justify-center">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 15, delay: 0.1 }}
+                  className="w-20 h-20 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg mb-6"
+                >
+                  <Check className="w-10 h-10 text-white" />
+                </motion.div>
+                <motion.h2
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className={`text-xl font-semibold mb-1 ${templateStyles.doneTitle}`}
+                >Turno reservado</motion.h2>
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.3 }}
+                  className={`text-sm mb-8 ${templateStyles.doneText}`}
+                >Ya quedo todo listo.</motion.p>
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.35 }}
+                  className="flex flex-col sm:flex-row items-center justify-center gap-3"
+                >
+                  {googleCalendarUrl && (
+                    <a
+                      href={googleCalendarUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all ${templateStyles.calendar}`}
+                    >
+                      Agregar a Calendar
+                    </a>
+                  )}
+                  <button
+                    onClick={handleReset}
+                    className={`px-6 py-2.5 rounded-full text-sm font-medium transition-all border ${templateStyles.ghostBtn}`}
+                  >
+                    Nueva reserva
+                  </button>
+                </motion.div>
+              </div>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="mt-auto pt-6"
+              >
+                <a
+                  href="https://klip.com.ar"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`inline-flex items-center gap-1.5 text-xs transition-colors ${templateStyles.meta} ${templateStyles.metaHover}`}
+                >
+                  <span className="opacity-50">—</span>
+                  <span>powered by</span>
+                  <span className="font-bold tracking-wide">KLIP</span>
+                  <span className="opacity-50">—</span>
+                </a>
+              </motion.div>
             </motion.div>
           )}
         </motion.div>
 
-        {!done && (
-          <div className={`mt-4 flex flex-wrap items-center justify-center gap-4 text-xs ${templateStyles.meta}`}>
-            {shop.address && (
-              <a
-                href={`https://www.google.com/maps/search/${encodeURIComponent(shop.city ? `${shop.address}, ${shop.city}` : shop.address)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`flex items-center gap-1 transition-colors ${templateStyles.metaHover}`}
-              >
-                <MapPin className="w-3 h-3" /> {shop.address}
-              </a>
-            )}
-            {shop.phone && (
-              <a
-                href={`tel:${shop.phone.replace(/[^\d+]/g, "")}`}
-                className={`flex items-center gap-1 transition-colors ${templateStyles.metaHover}`}
-              >
-                <Phone className="w-3 h-3" /> {shop.phone}
-              </a>
-            )}
-            {shop.instagramUrl && (
-              <a
-                href={shop.instagramUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`flex items-center gap-1 transition-colors ${templateStyles.metaHover}`}
-              >
-                <ExternalLink className="w-3 h-3" /> Instagram
-              </a>
-            )}
-            <a
-              href="https://klip.com.ar"
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`flex items-center gap-1 transition-colors ${templateStyles.metaHover}`}
-            >
-              powered by <span className="font-bold">KLIP</span>
-            </a>
-          </div>
-        )}
-        </div>
+      </div>
       </div>
       </div>
 
