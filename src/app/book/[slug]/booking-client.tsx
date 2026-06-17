@@ -77,6 +77,21 @@ interface BookingClientProps {
   staffServicesMap: Record<string, string[]>;
 }
 
+function pushCard3D(e: React.PointerEvent<HTMLDivElement>) {
+  const card = e.currentTarget;
+  const rect = card.getBoundingClientRect();
+  const x = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+  const y = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
+  card.style.transform = `perspective(800px) rotateX(${-y * 14}deg) rotateY(${x * 14}deg) scale(0.97)`;
+  card.style.transition = 'transform 0.08s cubic-bezier(0.16,1,0.3,1)';
+}
+
+function releaseCard3D(e: React.PointerEvent<HTMLDivElement>) {
+  const card = e.currentTarget;
+  card.style.transform = '';
+  card.style.transition = 'transform 0.5s cubic-bezier(0.16,1,0.3,1)';
+}
+
 const BookingClient = memo(function BookingClient({ shop, services, combos, staffMembers, staffServicesMap }: BookingClientProps) {
   const { user, isLoading: isAuthLoading } = useAuth();
 
@@ -708,7 +723,11 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
       />
       <div className="relative z-10 flex h-full items-start justify-center p-4 sm:p-8 lg:p-12">
         <div className="w-full max-w-md md:max-w-xl">
-        <div className={`rounded-[32px] p-6 sm:p-10 lg:p-12 h-[min(860px,calc(100dvh-2rem))] sm:h-[min(900px,calc(100dvh-3rem))] flex flex-col ${templateStyles.shell}`} style={step === 3 && !done ? { height: 'auto' } as React.CSSProperties : undefined}>
+        <motion.div
+          className={`rounded-[32px] p-6 sm:p-10 lg:p-12 h-[min(860px,calc(100dvh-2rem))] sm:h-[min(900px,calc(100dvh-3rem))] flex flex-col ${templateStyles.shell}`}
+          layout
+          transition={{ type: "spring", stiffness: 350, damping: 26, mass: 0.9 }}
+          style={step === 3 && !done ? { height: 'auto' } as React.CSSProperties : undefined}>
           {!done ? (
             <>
               <div className="pb-4">
@@ -850,10 +869,11 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                 <motion.div
                                   key={combo.id}
                                   layout
-                                  whileHover={{ y: -2 }}
-                                  whileTap={{ scale: 0.995 }}
+                                  onPointerDown={pushCard3D}
+                                  onPointerUp={releaseCard3D}
+                                  onPointerLeave={releaseCard3D}
                                   transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-                                  className={`rounded-3xl border transition-all duration-300 ease-[0.16,1,0.3,1] ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected}` : `${templateStyles.plain} ${templateStyles.plate} ${templateStyles.hoverBorder}`}`}
+                                  className={`rounded-3xl border transition-all duration-300 ease-[0.16,1,0.3,1] hover:-translate-y-1 ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected}` : `${templateStyles.plain} ${templateStyles.plate} ${templateStyles.hoverBorder}`}`}
                                   style={{ scrollSnapAlign: "start" }}
                                 >
                                   <div className="overflow-hidden rounded-3xl relative">
@@ -893,7 +913,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                       setSelectedService(null);
                                     }}
                                     draggable={false}
-                                    className={`w-full px-6 py-5 text-left relative z-10 ${tactileClass} active:scale-[0.97] transition-transform duration-150`}
+                                    className={`w-full px-6 py-5 text-left relative z-10 ${tactileClass}`}
                                     style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}
                                   >
                                     <div className="flex items-start justify-between gap-4">
@@ -951,10 +971,11 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                 <motion.div
                                   key={svc.id}
                                   layout
-                                  whileHover={{ y: -2 }}
-                                  whileTap={{ scale: 0.995 }}
+                                  onPointerDown={pushCard3D}
+                                  onPointerUp={releaseCard3D}
+                                  onPointerLeave={releaseCard3D}
                                   transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-                                  className={`rounded-3xl border transition-all duration-300 ease-[0.16,1,0.3,1] ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected}` : `${templateStyles.plain} ${templateStyles.plate} ${templateStyles.hoverBorder}`}`}
+                                  className={`rounded-3xl border transition-all duration-300 ease-[0.16,1,0.3,1] hover:-translate-y-1 ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected}` : `${templateStyles.plain} ${templateStyles.plate} ${templateStyles.hoverBorder}`}`}
                                   style={{ scrollSnapAlign: "start" }}
                                 >
                                   <div className="overflow-hidden rounded-3xl relative">
@@ -994,7 +1015,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                     setSelectedCombo(null);
                                   }}
                                   draggable={false}
-                                  className={`w-full px-6 py-6 text-left relative z-10 ${tactileClass} active:scale-[0.97] transition-transform duration-150`}
+                                  className={`w-full px-6 py-6 text-left relative z-10 ${tactileClass}`}
                                   style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}
                                 >
                                   <div className="flex items-start justify-between gap-4">
@@ -1034,7 +1055,12 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                         </div>
                         <div className="flex-1 overflow-y-auto delicate-scroll pb-4 [scroll-snap-type:y_proximity]" onScroll={handleScroll}>
                           <div className="space-y-5">
-                          <div className={`rounded-[14px] border transition-all duration-300 ease-[0.16,1,0.3,1] ${templateStyles.cardDepth} ${!selectedStaff ? templateStyles.selected : `${templateStyles.plain} ${templateStyles.hoverBorder}`}`}>
+                          <motion.div
+                            onPointerDown={pushCard3D}
+                            onPointerUp={releaseCard3D}
+                            onPointerLeave={releaseCard3D}
+                            className={`rounded-[14px] border transition-all duration-300 ease-[0.16,1,0.3,1] hover:-translate-y-1 ${templateStyles.cardDepth} ${!selectedStaff ? templateStyles.selected : `${templateStyles.plain} ${templateStyles.hoverBorder}`}`}
+                          >
                           <div className="overflow-hidden rounded-[14px] relative">
                             {!selectedStaff && (
                               ripplePositions["no-preference"] ? (
@@ -1077,12 +1103,18 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                           </div>
                         </button>
                         </div>
-                        </div>
+                        </motion.div>
                         {availableStaff.map((s) => {
                           const isSelected = selectedStaff?.id === s.id;
                           const initials = s.name.charAt(0).toUpperCase();
                           return (
-                            <div key={s.id} className={`rounded-[14px] border transition-all duration-300 ease-[0.16,1,0.3,1] ${templateStyles.cardDepth} ${isSelected ? templateStyles.selected : `${templateStyles.plain} ${templateStyles.hoverBorder}`}`}>
+                            <motion.div
+                              key={s.id}
+                              onPointerDown={pushCard3D}
+                              onPointerUp={releaseCard3D}
+                              onPointerLeave={releaseCard3D}
+                              className={`rounded-[14px] border transition-all duration-300 ease-[0.16,1,0.3,1] hover:-translate-y-1 ${templateStyles.cardDepth} ${isSelected ? templateStyles.selected : `${templateStyles.plain} ${templateStyles.hoverBorder}`}`}
+                            >
                             <div className="overflow-hidden rounded-[14px] relative">
                               {isSelected && (
                                 ripplePositions[s.id] ? (
@@ -1153,7 +1185,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                               </div>
                             </button>
                             </div>
-                            </div>
+                            </motion.div>
                           );
                         })}
                           </div>
@@ -1197,9 +1229,9 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                           </button>
                         </motion.div>
 
-                        <motion.div variants={stepItemReveal} className="grid grid-cols-7 gap-1 sm:gap-1.5">
+                        <motion.div variants={stepItemReveal} className="grid grid-cols-7 gap-1">
                           {DAY_NAMES.map((name) => (
-                            <div key={name} className={`text-center text-[10px] uppercase tracking-wider font-semibold py-1 ${templateStyles.tiny}`}>
+                            <div key={name} className={`text-center text-[10px] uppercase tracking-wider font-semibold pb-3 mb-1 ${templateStyles.tiny}`}>
                               {name}
                             </div>
                           ))}
@@ -1221,11 +1253,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                   const size = Math.ceil(Math.sqrt(rect.width * rect.width + rect.height * rect.height) * 2);
                                   setRipplePositions(prev => ({ ...prev, [`date-${dateStr}`]: { x: e.clientX - rect.left, y: e.clientY - rect.top, size } }));
                                 }}
-                                className={`relative overflow-hidden flex flex-col items-center justify-center gap-0.5 py-2 rounded-[10px] border transition-all duration-200 ${
-                                  isSelected
-                                    ? `${templateStyles.selected} scale-105`
-                                    : `${templateStyles.plain} ${templateStyles.hoverBorder}`
-                                } ${isToday ? "ring-1 ring-blue-400/40" : ""}`}
+                                className={`relative flex flex-col items-center justify-center py-2 transition-all duration-200 overflow-hidden hover:bg-black/[0.03] ${isSelected ? 'bg-black/[0.04]' : ''}`}
                               >
                                 {isSelected && (
                                   ripplePositions[`date-${dateStr}`] ? (
@@ -1243,8 +1271,18 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                   <span key={`sd-${dateStr}`} className="absolute inset-0 pointer-events-none z-0" style={{ background: rippleWaves[rippleWaves.length - 1], willChange: "transform" }} />
                                   )
                                 )}
-                              <span className={`relative z-10 text-xs font-semibold ${isSelected ? templateStyles.accent : templateStyles.heading}`} style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}>{d.getDate()}</span>
-                                {isToday && <span className={`relative z-10 text-[7px] font-bold uppercase ${templateStyles.accent}`} style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}>Hoy</span>}
+                              <span className={`relative text-xs font-semibold ${isSelected ? templateStyles.accent : templateStyles.heading}`} style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}>{d.getDate()}</span>
+                                {isToday && !isSelected && (
+                                  <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-blue-400/60" />
+                                )}
+                                {isSelected && (
+                                  <motion.span
+                                    layoutId="day-selector"
+                                    className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full"
+                                    style={{ background: rippleConfig.bg }}
+                                    transition={{ type: "spring", stiffness: 600, damping: 30 }}
+                                  />
+                                )}
                               </button>
                             );
                           })}
@@ -1271,8 +1309,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                   return (
                                     <motion.button
                                       key={slot.start}
-                                      whileHover={{ scale: 1.01 }}
-                                      whileTap={{ scale: 0.99 }}
+                                      layout
                                       onClick={(e) => {
                                         setSelectedSlot(slot);
                                         const rect = e.currentTarget.getBoundingClientRect();
@@ -1280,11 +1317,11 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                         setRipplePositions(prev => ({ ...prev, [`slot-${slot.start}`]: { x: e.clientX - rect.left, y: e.clientY - rect.top, size } }));
                                       }}
                                       draggable={false}
-                                       className={`relative overflow-hidden h-9 rounded-lg text-sm font-medium border ${tactileClass} px-2.5 ${
-                                         isSelected
-                                           ? `${templateStyles.selected} ${templateStyles.accent}`
-                                           : `${templateStyles.plain} ${templateStyles.heading} ${templateStyles.hoverBorder}`
-                                       }`}
+                                      className={`relative overflow-hidden h-9 text-sm font-medium transition-all duration-200 border-b-2 px-1 ${
+                                        isSelected
+                                          ? `border-blue-500 bg-blue-50/50 ${templateStyles.accent}`
+                                          : `border-transparent ${templateStyles.heading} hover:border-blue-300/40 hover:bg-black/[0.02]`
+                                      }`}
                                     >
                                       {isSelected && (
                                         ripplePositions[`slot-${slot.start}`] ? (
@@ -1554,45 +1591,131 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                 <div className={`pointer-events-none absolute left-0 right-0 bottom-0 h-16 transition-opacity duration-300 ${atBottom ? 'opacity-0' : ''}`} style={{ background: `linear-gradient(to top, ${templateStyles.scrollFade}, transparent)` }} />
               </div>
 
-              <div className="pt-4 flex items-center gap-3">
-                {step > 0 && (
-                  <motion.button
-                    onClick={() => setStep((s) => s - 1)}
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.96 }}
-                    className={`inline-flex items-center justify-center gap-1 px-4 py-2.5 rounded-full text-sm font-medium transition-colors w-full sm:w-auto ${templateStyles.back}`}
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                    Atrás
-                  </motion.button>
-                )}
-                <div className="flex-1" />
+              <motion.div
+                className="pt-4 flex items-center gap-3"
+                layout
+                transition={{ type: "spring", stiffness: 400, damping: 28, mass: 0.8 }}
+              >
+                <AnimatePresence mode="popLayout">
+                  {step > 0 && (
+                    <motion.button
+                      key="back"
+                      initial={{ opacity: 0, x: -70, scale: 0.5 }}
+                      animate={{ opacity: 1, x: 0, scale: 1 }}
+                      exit={{ opacity: 0, x: -70, scale: 0.5 }}
+                      transition={{ type: "spring", stiffness: 550, damping: 20, mass: 0.7 }}
+                      onClick={() => setStep((s) => s - 1)}
+                      whileHover={{ scale: 1.07, x: -3 }}
+                      whileTap={{ scale: 0.88 }}
+                      className={`inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors relative overflow-hidden ${templateStyles.back}`}
+                    >
+                      {/* Glow burst on mount */}
+                      <motion.span
+                        className="absolute inset-0 rounded-full pointer-events-none"
+                        initial={{ opacity: 0.8, scale: 0.6 }}
+                        animate={{ opacity: 0, scale: 2.2 }}
+                        transition={{ duration: 0.7, delay: 0.04, ease: "easeOut" }}
+                        style={{ background: "radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%)" }}
+                      />
+                      {/* Ambient glow drift */}
+                      <motion.span
+                        className="absolute inset-0 rounded-full pointer-events-none opacity-30"
+                        animate={{
+                          background: [
+                            "radial-gradient(circle at 30% 50%, rgba(255,255,255,0.15), transparent 70%)",
+                            "radial-gradient(circle at 70% 50%, rgba(255,255,255,0.15), transparent 70%)",
+                            "radial-gradient(circle at 30% 50%, rgba(255,255,255,0.15), transparent 70%)",
+                          ],
+                        }}
+                        transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
+                      />
+                      {/* Icon with rotation + bounce */}
+                      <motion.span
+                        className="relative z-10"
+                        initial={{ rotate: 180, opacity: 0, scale: 0.3 }}
+                        animate={{ rotate: 0, opacity: 1, scale: 1 }}
+                        transition={{ type: "spring", stiffness: 500, damping: 14, delay: 0.08 }}
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </motion.span>
+                      {/* Text with blur unblur */}
+                      <motion.span
+                        className="relative z-10 overflow-hidden"
+                        initial={{ opacity: 0, x: -18, filter: "blur(8px)" }}
+                        animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+                        transition={{ duration: 0.35, delay: 0.14, ease: [0.16, 1, 0.3, 1] }}
+                      >
+                        Atrás
+                      </motion.span>
+                    </motion.button>
+                  )}
+                </AnimatePresence>
+
+                <motion.div layout className="flex-1" transition={{ type: "spring", stiffness: 400, damping: 28 }} />
+
                 {step < 3 && (
                   <motion.button
+                    key="continue"
+                    layout
+                    transition={{ type: "spring", stiffness: 500, damping: 26, mass: 0.9 }}
                     onClick={() => {
                       if (!canGoNext) return;
                       setStep((s) => s + 1);
                     }}
                     disabled={!canGoNext}
-                    whileHover={canGoNext ? { scale: 1.03 } : {}}
-                    whileTap={canGoNext ? { scale: 0.96 } : {}}
-                    className={`relative overflow-hidden px-6 py-2.5 rounded-full text-sm font-medium transition-all w-full sm:w-auto ${
+                    whileHover={canGoNext ? { scale: 1.06 } : {}}
+                    whileTap={canGoNext ? { scale: 0.9 } : {}}
+                    className={`relative overflow-hidden px-6 py-2.5 rounded-full text-sm font-medium ${
                       canGoNext
                         ? templateStyles.next
                         : `${templateStyles.nextDisabled} cursor-not-allowed`
-                    }`}
+                    } ${step === 0 ? 'flex-1 sm:flex-none' : ''}`}
                   >
+                    {/* Ambient background shimmer */}
+                    <motion.span
+                      className="absolute inset-0 rounded-full pointer-events-none"
+                      style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 50%, rgba(255,255,255,0.08) 100%)" }}
+                      animate={{ opacity: canGoNext ? [0.3, 0.8, 0.3] : 0.08 }}
+                      transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
+                    />
+                    {/* Sweeping shimmer line */}
+                    <motion.span
+                      className="absolute inset-0 rounded-full pointer-events-none"
+                      style={{
+                        background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.25) 50%, transparent 100%)",
+                        width: "60%",
+                      }}
+                      animate={{ x: ["-150%", "250%"] }}
+                      transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut", repeatDelay: 0.6 }}
+                    />
+                    {/* Pulsing outer ring */}
                     {canGoNext && (
                       <motion.span
-                        className="absolute inset-0 rounded-full pointer-events-none"
+                        className="absolute -inset-0.5 rounded-full pointer-events-none"
                         animate={{ boxShadow: btnEffects.nextRing }}
-                        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                        transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
                       />
                     )}
-                    <span className="relative z-10">Continuar</span>
+                    {/* Content */}
+                    <span className="relative z-10 flex items-center gap-1.5">
+                      <motion.span
+                        animate={canGoNext ? { scale: [1, 1.04, 1] } : {}}
+                        transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+                      >
+                        Continuar
+                      </motion.span>
+                      {canGoNext && (
+                        <motion.span
+                          animate={{ x: [0, 5, 0] }}
+                          transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut", repeatDelay: 0.3 }}
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </motion.span>
+                      )}
+                    </span>
                   </motion.button>
                 )}
-              </div>
+              </motion.div>
 
               {(shop.aboutTitle || shop.aboutText) && (
                 <div className="mt-5">
@@ -1645,7 +1768,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
               </div>
             </motion.div>
           )}
-        </div>
+        </motion.div>
 
         {!done && (
           <div className={`mt-4 flex flex-wrap items-center justify-center gap-4 text-xs ${templateStyles.meta}`}>
