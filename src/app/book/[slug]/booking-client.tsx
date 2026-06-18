@@ -425,6 +425,8 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
         const nameHasTwoWords = customerName.trim().includes(" ");
         if (isLoggedIn) return nameHasTwoWords && (!requiresManualPhone || customerPhone.trim().length > 0);
         return nameHasTwoWords && customerEmail.trim().length > 0 && customerPhone.trim().length > 0;
+      case 4:
+        return true;
       default:
         return false;
     }
@@ -603,6 +605,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
       setPaymentInitPoint(prefResult.data.initPoint);
       setChargedAmount(prefResult.data.chargedAmount ?? null);
       setIsDepositPayment(Boolean(prefResult.data.isDeposit));
+      setStep(4);
       return;
     }
 
@@ -646,6 +649,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
     setPaymentInitPoint(bookingResult.data.initPoint);
     setChargedAmount(bookingResult.data.chargedAmount ?? null);
     setIsDepositPayment(Boolean(bookingResult.data.isDeposit));
+    setStep(4);
   }
 
   function handleReset() {
@@ -752,9 +756,10 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
         <div className="w-full max-w-md md:max-w-xl">
         <motion.div
           className={`rounded-[32px] p-6 sm:p-10 lg:p-12 h-[min(860px,calc(100dvh-2rem))] sm:h-[min(900px,calc(100dvh-3rem))] flex flex-col overflow-y-auto ${templateStyles.shell}`}
-          style={step === 3 && !done ? { height: 'auto' } as React.CSSProperties : undefined}>
+          style={(step === 3 || step === 4) && !done ? { height: 'auto' } as React.CSSProperties : undefined}>
           {!done ? (
             <>
+              {step !== 4 && (
               <div className="pb-1 sm:pb-4">
                 <div className="flex items-center gap-2 sm:gap-4">
                   <div
@@ -801,8 +806,8 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                   <motion.div
                     className={`relative h-[2px] rounded-full origin-center ${templateStyles.progressFill}`}
                     animate={{
-                      width: step === 0 ? "28%" : step === 1 ? "52%" : step === 2 ? "76%" : "100%",
-                      opacity: step === 3 ? 1 : 0.8,
+                      width: step === 0 ? "20%" : step === 1 ? "40%" : step === 2 ? "60%" : step === 3 ? "80%" : "100%",
+                      opacity: step === 3 || step === 4 ? 1 : 0.8,
                     }}
                     transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
                     style={
@@ -828,6 +833,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                   </motion.div>
                 </div>
               </div>
+              )}
 
               <div className="pt-0.5 sm:pt-2 min-h-0 flex-1 relative">
                 <AnimatePresence mode="popLayout">
@@ -1567,58 +1573,13 @@ draggable={false}
                           </>
                         )}
 
-                        {paymentPreferenceId && (
-                          <div className={`relative overflow-hidden rounded-3xl border p-5 backdrop-blur-[24px] ${templateStyles.checkout}`}>
-                            <div className={`pointer-events-none absolute -top-14 -right-12 h-36 w-36 rounded-full blur-2xl ${templateStyles.checkoutOrbA}`} />
-                            <div className={`pointer-events-none absolute -bottom-20 -left-10 h-44 w-44 rounded-full blur-2xl ${templateStyles.checkoutOrbB}`} />
-
-                            <div className="relative space-y-4">
-                              <div className="flex items-start justify-between gap-3">
-                                <div>
-                                  <p className={`text-[11px] uppercase tracking-[0.2em] ${templateStyles.checkoutKicker}`}>Checkout seguro</p>
-                                  <p className={`mt-1 text-sm font-semibold ${templateStyles.checkoutTitle}`}>{isDepositPayment ? "Seña lista para completar" : "Pago listo para completar"}</p>
-                                </div>
-                                <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${templateStyles.checkoutBadge}`}>
-                                  Mercado Pago
-                                </span>
-                              </div>
-
-                              {chargedAmount !== null && (
-                                <div className={`rounded-2xl border px-4 py-3 backdrop-blur-sm ${templateStyles.plain}`}>
-                                  <p className={`text-[11px] uppercase tracking-wide ${templateStyles.checkoutKicker}`}>{isDepositPayment ? "Seña online" : "Monto online"}</p>
-                                  <p className={`mt-0.5 text-2xl font-semibold leading-none ${templateStyles.checkoutAmount}`}>
-                                    ${chargedAmount.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                  </p>
-                                </div>
-                              )}
-
-                              {shop.mpPublicKey && mpReady ? (
-                                <div className={`rounded-2xl overflow-hidden border ${templateStyles.checkoutWallet}`}>
-                                  <Wallet initialization={{ preferenceId: paymentPreferenceId }} />
-                                </div>
-                              ) : (
-                                <div className="rounded-2xl border border-amber-300/40 bg-amber-50/80 px-3 py-2 text-xs text-amber-900">
-                                  Falta MP_PUBLIC_KEY en este local. Cargala en Mi Negocio para mostrar el checkout embebido.
-                                </div>
-                              )}
-
-                              {shop.mpPublicKey && paymentInitPoint && (
-                                <a
-                                  href={paymentInitPoint}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className={`inline-flex w-full items-center justify-center gap-2 rounded-2xl border px-4 py-2.5 text-xs font-semibold transition-all ${templateStyles.checkoutLink}`}
-                                >
-                                  Abrir checkout en otra pestaña
-                                  <ExternalLink className="h-3.5 w-3.5" />
-                                </a>
-                              )}
-                            </div>
-                          </div>
-                        )}
                       </div>
                       </div>
                       </div>
+                    )}
+
+                    {step === 4 && (
+                      <div className="flex flex-col h-full min-h-0" />
                     )}
                   </motion.div>
                 </AnimatePresence>
@@ -1631,7 +1592,7 @@ draggable={false}
                 transition={{ type: "spring", stiffness: 400, damping: 28, mass: 0.8 }}
               >
                 <AnimatePresence mode="popLayout">
-                  {step > 0 && (
+                  {step > 0 && step !== 4 && (
                     <motion.button
                       key="back"
                       initial={{ opacity: 0, x: -70, scale: 0.5 }}
@@ -1752,7 +1713,7 @@ draggable={false}
                 )}
               </motion.div>
 
-              {(shop.aboutTitle || shop.aboutText) && (
+              {step !== 4 && (shop.aboutTitle || shop.aboutText) && (
                 <AnimatePresence>
                   {showInfo && (
                     <motion.div
@@ -1771,7 +1732,7 @@ draggable={false}
                   )}
                 </AnimatePresence>
               )}
-                            <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs">
+                            <div className={`mt-5 ${step === 4 ? "hidden" : ""} flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs`}>
                 {shop.address && (
                   <a
                     href={`https://www.google.com/maps/search/${encodeURIComponent(shop.city ? `${shop.address}, ${shop.city}` : shop.address)}`}
@@ -1890,10 +1851,96 @@ draggable={false}
       </div>
       </div>
 
+      {step === 4 && !done && (
+        <>
+        {/* Full-width centered progress bar */}
+        <div className="fixed inset-0 z-20 pointer-events-none flex items-center justify-center">
+          <div className="relative w-full">
+            <motion.div
+              initial={{ scaleX: 0, opacity: 0 }}
+              animate={{ scaleX: 1, opacity: 1 }}
+              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+              className="h-[3px] w-full origin-center bg-gradient-to-r from-transparent via-white/20 to-transparent"
+            >
+              <motion.div
+                className="absolute inset-0 rounded-full"
+                style={{
+                  background: "linear-gradient(100deg, transparent 0%, #f472b6 18%, #fbbf24 36%, #34d399 54%, #60a5fa 72%, transparent 90%)",
+                  backgroundSize: "120px 100%",
+                  backgroundRepeat: "no-repeat",
+                  filter: "drop-shadow(0 0 10px rgba(244,114,182,0.6)) drop-shadow(0 0 20px rgba(96,165,250,0.3))",
+                }}
+                animate={{ backgroundPositionX: ["-50px", "calc(100% + 50px)"] }}
+                transition={{ duration: 0.6, repeat: Infinity, ease: "linear" }}
+              />
+            </motion.div>
+          </div>
+        </div>
 
+        {/* Floating credit card */}
+        <motion.div
+          initial={{ opacity: 0, y: 40, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
+          className="fixed inset-0 z-30 pointer-events-none flex items-center justify-center"
+        >
+          <div className="pointer-events-auto rounded-[28px] bg-gradient-to-br from-blue-600 via-blue-500 to-indigo-600 p-7 shadow-2xl text-white relative overflow-hidden w-full max-w-xs">
+            <div className="pointer-events-none absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
+            <div className="pointer-events-none absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-white/5 blur-xl" />
+
+            <div className="relative space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.2em] opacity-80">Pago seguro</p>
+                  <p className="text-lg font-bold tracking-tight mt-0.5">MERCADO PAGO</p>
+                </div>
+                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                  <span className="text-sm font-black tracking-tight">MP</span>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-[11px] uppercase tracking-[0.15em] opacity-70">Monto</p>
+                <p className="text-3xl font-bold tracking-tight">
+                  ${displayPrice.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3 text-[10px] opacity-60">
+                <span className="flex items-center gap-1"><Check className="w-3 h-3" /> Seguro</span>
+                <span className="flex items-center gap-1"><Check className="w-3 h-3" /> Rápido</span>
+                <span className="flex items-center gap-1"><Check className="w-3 h-3" /> Sin costo extra</span>
+              </div>
+
+              {paymentPreferenceId && shop.mpPublicKey && mpReady ? (
+                <div className="rounded-2xl overflow-hidden bg-white/10 backdrop-blur-sm">
+                  <Wallet initialization={{ preferenceId: paymentPreferenceId }} />
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-sm px-4 py-3 text-center">
+                  <p className="text-xs font-medium opacity-90">Preparando pago...</p>
+                </div>
+              )}
+
+              {shop.mpPublicKey && paymentInitPoint && (
+                <a
+                  href={paymentInitPoint}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full text-center rounded-2xl border border-white/25 bg-white/10 backdrop-blur-sm px-4 py-2.5 text-xs font-semibold hover:bg-white/20 transition-all"
+                >
+                  Abrir checkout en otra pestaña
+                  <ExternalLink className="inline-block w-3 h-3 ml-1.5" />
+                </a>
+              )}
+            </div>
+          </div>
+        </motion.div>
+        </>
+      )}
 
       <AnimatePresence>
-        {!done && step === 3 && (
+        {!done && (step === 3 || step === 4) && (
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1913,7 +1960,7 @@ draggable={false}
                 </div>
 
                 <div className="relative w-full sm:w-auto flex-shrink-0">
-                  {step === 3 && !submitting && !creatingPreference && (
+                  {(step === 3 || step === 4) && !submitting && !creatingPreference && (
                     <>
                       <motion.span
                         className="absolute -inset-0.5 rounded-full pointer-events-none z-0 block"
@@ -1935,9 +1982,17 @@ draggable={false}
                   <motion.button
                     onClick={(e) => {
                       triggerHaptic(20, e.currentTarget);
-                      handleConfirm();
+                      if (step === 4) {
+                        if (paymentInitPoint) window.open(paymentInitPoint, '_blank', 'noopener');
+                      } else {
+                        handleConfirm();
+                      }
                     }}
-                    disabled={step !== 3 || submitting || creatingPreference || !canGoNext || !!paymentPreferenceId}
+                    disabled={
+                      step === 4
+                        ? submitting || creatingPreference
+                        : submitting || creatingPreference || !canGoNext || !!paymentPreferenceId
+                    }
                     draggable={false}
                     whileHover={{ scale: 1.04 }}
                     whileTap={{ scale: 0.96 }}
@@ -1956,7 +2011,7 @@ draggable={false}
                     ) : (
                       <>
                         <Sparkles className="w-4 h-4 relative z-10" />
-                        <span className="relative z-10">Confirmar turno</span>
+                        <span className="relative z-10">{step === 4 ? "Pagar" : "Confirmar turno"}</span>
                       </>
                     )}
                   </motion.button>
