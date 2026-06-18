@@ -96,6 +96,21 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
   const { user, isLoading: isAuthLoading } = useAuth();
 
   const [step, setStep] = useState(0);
+  const [showInfo, setShowInfo] = useState(false);
+  const infoRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      const target = e.target as Node;
+      const isTrigger = !!(target as Element)?.closest('[data-info-trigger]');
+      const isContent = !!(target as Element)?.closest('[data-info-content]');
+      if (!isTrigger && !isContent) {
+        setShowInfo(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   useEffect(() => {
     for (const s of staffMembers) {
@@ -115,6 +130,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
   const [availableSlots, setAvailableSlots] = useState<Slot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const fetchedDatesRef = useRef(new Set<string>());
+  const pendingDateRef = useRef<string | null>(null);
 
   const [atBottom, setAtBottom] = useState(false);
 
@@ -280,6 +296,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
     (async () => {
       try {
         const result = await fetchPublicAvailableSlots(shop.id, slotDuration, dateStr, selectedStaff?.id);
+        if (pendingDateRef.current !== dateStr) return;
         setAvailableSlots(
           result.success
             ? (result.data ?? []).map((slot) => ({
@@ -289,11 +306,14 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
             : [],
         );
       } catch (e) {
+        if (pendingDateRef.current !== dateStr) return;
         console.error("[BookingClient] fetch slots error:", e);
         setAvailableSlots([]);
       } finally {
-        setLoadingSlots(false);
-        fetchedDatesRef.current = new Set(fetchedDatesRef.current).add(dateStr);
+        if (pendingDateRef.current === dateStr) {
+          setLoadingSlots(false);
+          fetchedDatesRef.current = new Set(fetchedDatesRef.current).add(dateStr);
+        }
       }
     })();
   }, [selectedService, selectedCombo, selectedDate, selectedStaff, shop.id]);
@@ -314,6 +334,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
   }, [loadingSlots, selectedDate]);
 
   useEffect(() => {
+    pendingDateRef.current = null;
     fetchedDatesRef.current = new Set();
     setAvailableSlots([]);
     setSelectedSlot(null);
@@ -646,12 +667,14 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
     setIsDepositPayment(false);
     setDone(false);
     setError(null);
+    pendingDateRef.current = null;
     fetchedDatesRef.current = new Set();
   }
 
   const summaryService = selectedCombo?.name || selectedService?.name || "Sin servicio";
   const summaryDate = selectedDate ? formatDisplayDate(selectedDate).replace(/^\w/, (c) => c.toUpperCase()) : "Sin fecha";
   const summaryTime = selectedSlot ? formatTimeFromIso(selectedSlot.start) || to24HourTimeLabel(selectedSlot.time) : "Sin hora";
+  const displayPrice = chargedAmount ?? (isDepositPayment ? (selectedCombo?.price ?? selectedService?.price ?? 0) * 0.3 : selectedCombo?.price ?? selectedService?.price ?? 0);
 
   const resolvedTemplate = resolveTemplate(shop.templateId);
   const templateStyles = BOOKING_THEMES[resolvedTemplate];
@@ -732,9 +755,13 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
           style={step === 3 && !done ? { height: 'auto' } as React.CSSProperties : undefined}>
           {!done ? (
             <>
-              <div className="pb-4">
-                <div className="flex items-center gap-4">
-                  <div className="h-16 w-16 flex items-center justify-center shrink-0 overflow-hidden">
+              <div className="pb-1 sm:pb-4">
+                <div className="flex items-center gap-2 sm:gap-4">
+                  <div
+                    data-info-trigger
+                    className="h-12 w-12 sm:h-16 sm:w-16 flex items-center justify-center shrink-0 overflow-hidden cursor-pointer"
+                    onClick={() => setShowInfo(v => !v)}
+                  >
                     {shop.logoUrl ? (
                       <Image
                         src={shop.logoUrl}
@@ -751,15 +778,17 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                   </div>
                   <div className="min-w-0">
                     <motion.h1
-                      className={`text-[1.85rem] sm:text-[2.35rem] md:text-[2.75rem] font-black truncate leading-[0.98] tracking-[-0.035em] ${templateStyles.headingFx} bg-gradient-to-r ${templateStyles.titleGradient} bg-[length:220%_100%] bg-clip-text text-transparent`}
+                      data-info-trigger
+                      className={`text-[1.85rem] sm:text-[2.35rem] md:text-[2.75rem] font-black leading-[1.1] tracking-[-0.035em] cursor-pointer ${templateStyles.headingFx} bg-gradient-to-r ${templateStyles.titleGradient} bg-[length:220%_100%] bg-clip-text text-transparent`}
                       style={{ willChange: "background-position" }}
                       animate={{ backgroundPositionX: ["0%", "100%", "0%"] }}
                       transition={{ duration: 8.5, repeat: Infinity, ease: "easeInOut" }}
+                      onClick={() => setShowInfo(v => !v)}
                     >
                       {shop.heroTitle || shop.name}
                     </motion.h1>
                     <motion.p
-                      className={`text-xs sm:text-sm truncate uppercase tracking-[0.18em] bg-gradient-to-r ${templateStyles.subtitleGradient} bg-[length:200%_100%] bg-clip-text text-transparent`}
+                      className={`text-xs sm:text-sm uppercase tracking-[0.18em] bg-gradient-to-r ${templateStyles.subtitleGradient} bg-[length:200%_100%] bg-clip-text text-transparent`}
                       style={{ willChange: "background-position" }}
                       animate={{ backgroundPositionX: ["0%", "100%", "0%"] }}
                       transition={{ duration: 10.5, repeat: Infinity, ease: "easeInOut" }}
@@ -768,7 +797,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                     </motion.p>
                   </div>
                 </div>
-                <div className="flex justify-center pt-4">
+                <div className="flex justify-center pt-1 sm:pt-4">
                   <motion.div
                     className={`relative h-[2px] rounded-full origin-center ${templateStyles.progressFill}`}
                     animate={{
@@ -800,7 +829,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                 </div>
               </div>
 
-              <div className="pt-2 min-h-0 flex-1 relative">
+              <div className="pt-0.5 sm:pt-2 min-h-0 flex-1 relative">
                 <AnimatePresence mode="popLayout">
                   <motion.div
                     key={step}
@@ -831,7 +860,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                       triggerHaptic(10, e.currentTarget);
                                       setSelectedCategory(category);
                                     }}
-                                    className={`relative min-h-10 rounded-full px-3 text-xs sm:text-sm whitespace-nowrap overflow-hidden ${
+                                    className={`relative min-h-10 rounded-full px-3 text-xs sm:text-sm whitespace-nowrap text-center ${
                                       isAll
                                         ? (active ? "font-semibold" : templateStyles.sectionTagAll)
                                         : (active ? "font-semibold" : templateStyles.sectionTag)
@@ -873,7 +902,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                   onPointerDown={pushCard3D}
                                   onPointerUp={releaseCard3D}
                                   onPointerLeave={releaseCard3D}
-                                  className={`rounded-3xl border-2 transition-[transform,box-shadow] duration-200 hover:scale-[1.02] ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected} border-transparent` : `${templateStyles.plain} ${templateStyles.plate} ${templateStyles.hoverBorder}`}`}
+                                  className={`rounded-3xl border-2 transition-[transform,box-shadow] duration-200 ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected} border-transparent` : `${templateStyles.plain} ${templateStyles.plate} ${templateStyles.hoverBorder}`}`}
                                   style={{ scrollSnapAlign: "start" }}
                                 >
                                   <div className="overflow-hidden rounded-3xl relative">
@@ -913,12 +942,12 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                       setSelectedService(null);
                                     }}
                                     draggable={false}
-                                    className={`w-full px-6 py-5 text-left relative z-10 ${tactileClass}`}
+                                    className={`w-full px-6 py-5 text-left relative z-10 outline-none focus:outline-none focus-visible:outline-none ${tactileClass}`}
                                     style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}
                                   >
                                     <div className="flex items-start justify-between gap-4">
                                       <div className="min-w-0 flex-1">
-                                        <p className={`${isSelected ? "" : "truncate"} text-xl font-medium break-words ${templateStyles.heading}`} style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}>{combo.name}</p>
+                                        <p className={`text-xl font-medium break-words whitespace-normal text-left ${templateStyles.heading}`} style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}>{combo.name}</p>
                                         {combo.description && (
                                           <p className={`mt-1 text-xs leading-relaxed ${templateStyles.tiny}`} style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}>{combo.description}</p>
                                         )}
@@ -973,7 +1002,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                   onPointerDown={pushCard3D}
                                   onPointerUp={releaseCard3D}
                                   onPointerLeave={releaseCard3D}
-                                  className={`rounded-3xl border-2 transition-[transform,box-shadow] duration-200 hover:scale-[1.02] ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected} border-transparent` : `${templateStyles.plain} ${templateStyles.plate} ${templateStyles.hoverBorder}`}`}
+                                  className={`rounded-3xl border-2 transition-[transform,box-shadow] duration-200 ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected} border-transparent` : `${templateStyles.plain} ${templateStyles.plate} ${templateStyles.hoverBorder}`}`}
                                   style={{ scrollSnapAlign: "start" }}
                                 >
                                   <div className="overflow-hidden rounded-3xl relative">
@@ -1013,12 +1042,12 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                     setSelectedCombo(null);
                                   }}
                                   draggable={false}
-                                  className={`w-full px-6 py-6 text-left relative z-10 ${tactileClass}`}
+                                  className={`w-full px-6 py-6 text-left relative z-10 outline-none focus:outline-none focus-visible:outline-none ${tactileClass}`}
                                   style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}
                                 >
                                   <div className="flex items-start justify-between gap-4">
                                 <div className="min-w-0 flex-1">
-                                        <p className={`${isSelected ? "" : "truncate"} text-xl font-medium break-words ${templateStyles.heading}`} style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}>{svc.name}</p>
+                                        <p className={`text-xl font-medium break-words whitespace-normal text-left ${templateStyles.heading}`} style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}>{svc.name}</p>
                                         {svc.description && (
                                         <p className={`mt-1 text-xs leading-relaxed overflow-hidden ${templateStyles.tiny}`} style={{
                                           maxHeight: isSelected ? "300px" : "2.5em",
@@ -1057,7 +1086,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                             onPointerDown={pushCard3D}
                             onPointerUp={releaseCard3D}
                             onPointerLeave={releaseCard3D}
-                            className={`rounded-[14px] border-2 transition-[transform,box-shadow] duration-200 hover:scale-[1.02] ${templateStyles.cardDepth} ${!selectedStaff ? `${templateStyles.selected} border-transparent` : `${templateStyles.plain} ${templateStyles.hoverBorder}`}`}
+                            className={`rounded-[14px] border-2 transition-[transform,box-shadow] duration-200 ${templateStyles.cardDepth} ${!selectedStaff ? `${templateStyles.selected} border-transparent` : `${templateStyles.plain} ${templateStyles.hoverBorder}`}`}
                           >
                           <div className="overflow-hidden rounded-[14px] relative">
                             {!selectedStaff && (
@@ -1093,8 +1122,8 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                setRipplePositions(prev => ({ ...prev, "no-preference": { x: e.clientX - rect.left, y: e.clientY - rect.top, size } }));
                               setSelectedStaff(null);
                             }}
-                            draggable={false}
-                            className={`w-full px-6 py-6 text-center relative z-10 ${tactileClass}`}
+draggable={false}
+                             className={`w-full px-6 py-6 text-center relative z-10 outline-none focus:outline-none focus-visible:outline-none ${tactileClass}`}
                           >
                           <div className="flex flex-col items-center">
                             <p className={`text-lg sm:text-xl font-semibold tracking-tight ${templateStyles.heading}`} style={!selectedStaff ? { color: rippleConfig.text } as React.CSSProperties : undefined}>Sin preferencia</p>
@@ -1112,7 +1141,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                               onPointerDown={pushCard3D}
                               onPointerUp={releaseCard3D}
                               onPointerLeave={releaseCard3D}
-                              className={`rounded-[14px] border-2 transition-[transform,box-shadow] duration-200 hover:scale-[1.02] ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected} border-transparent` : `${templateStyles.plain} ${templateStyles.hoverBorder}`}`}
+                              className={`rounded-[14px] border-2 transition-[transform,box-shadow] duration-200 ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected} border-transparent` : `${templateStyles.plain} ${templateStyles.hoverBorder}`}`}
                             >
                             <div className="overflow-hidden rounded-[14px] relative">
                               {isSelected && (
@@ -1149,7 +1178,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                 setSelectedStaff(s);
                               }}
                               draggable={false}
-                              className={`w-full px-5 py-6 text-left relative z-10 ${tactileClass}`}
+                              className={`w-full px-5 py-6 text-left relative z-10 outline-none focus:outline-none focus-visible:outline-none ${tactileClass}`}
                               style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}
                             >
                               <div className="flex flex-col items-center text-center gap-3">
@@ -1203,7 +1232,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                         <motion.div variants={stepItemReveal} className="flex items-center justify-between">
                            <button
                              type="button"
-                             onClick={() => { triggerHaptic(8); setViewMonth((m) => m === 0 ? 11 : m - 1); setViewYear((y) => viewMonth === 0 ? y - 1 : y); setSelectedDate(null); setSelectedSlot(null); fetchedDatesRef.current = new Set(); }}
+                             onClick={() => { triggerHaptic(8); pendingDateRef.current = null; setViewMonth((m) => m === 0 ? 11 : m - 1); setViewYear((y) => viewMonth === 0 ? y - 1 : y); setSelectedDate(null); setSelectedSlot(null); fetchedDatesRef.current = new Set(); }}
                              disabled={!canNavPrev}
                              className={`flex items-center gap-1 text-sm font-medium px-3 py-1.5 rounded-full transition-all duration-200 ${
                                canNavPrev ? `${templateStyles.heading} ${templateStyles.hoverBorder} cursor-pointer` : "opacity-30 cursor-not-allowed"
@@ -1217,7 +1246,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                            </span>
                            <button
                              type="button"
-                             onClick={() => { triggerHaptic(8); setViewMonth((m) => m === 11 ? 0 : m + 1); setViewYear((y) => viewMonth === 11 ? y + 1 : y); setSelectedDate(null); setSelectedSlot(null); fetchedDatesRef.current = new Set(); }}
+                             onClick={() => { triggerHaptic(8); pendingDateRef.current = null; setViewMonth((m) => m === 11 ? 0 : m + 1); setViewYear((y) => viewMonth === 11 ? y + 1 : y); setSelectedDate(null); setSelectedSlot(null); fetchedDatesRef.current = new Set(); }}
                              disabled={!canNavNext}
                              className={`flex items-center gap-1 text-sm font-medium px-3 py-1.5 rounded-full transition-all duration-200 ${
                                canNavNext ? `${templateStyles.heading} ${templateStyles.hoverBorder} cursor-pointer` : "opacity-30 cursor-not-allowed"
@@ -1256,6 +1285,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                 type="button"
                                 onClick={(e) => {
                                   triggerHaptic(10);
+                                  pendingDateRef.current = dateStr;
                                   setSelectedDate(d);
                                   setSelectedSlot(null);
                                   fetchedDatesRef.current = new Set();
@@ -1399,11 +1429,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                             </div>
                             <button
                               type="button"
-                              onClick={() => {
-                                setStep(2);
-                                setError(null);
-                                setSelectedSlot(null);
-                              }}
+                              onClick={() => { setStep(2); setError(null); setSelectedSlot(null); }}
                               className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-amber-300/10 text-amber-100 text-sm font-medium hover:bg-amber-300/20 transition-all"
                             >
                               <RefreshCw className="w-4 h-4" />
@@ -1583,7 +1609,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                   rel="noopener noreferrer"
                                   className={`inline-flex w-full items-center justify-center gap-2 rounded-2xl border px-4 py-2.5 text-xs font-semibold transition-all ${templateStyles.checkoutLink}`}
                                 >
-                                  Abrir checkout en otra pestana
+                                  Abrir checkout en otra pestaña
                                   <ExternalLink className="h-3.5 w-3.5" />
                                 </a>
                               )}
@@ -1727,14 +1753,25 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
               </motion.div>
 
               {(shop.aboutTitle || shop.aboutText) && (
-                <div className="mt-5">
-                  <p className={`text-sm font-semibold ${templateStyles.heading}`}>{shop.aboutTitle || "Sobre nosotros"}</p>
-                  <p className={`mt-1 text-xs leading-relaxed ${templateStyles.tiny}`}>
-                    {shop.aboutText || "Tu mensaje de marca aparece aca para reforzar la experiencia del local."}
-                  </p>
-                </div>
+                <AnimatePresence>
+                  {showInfo && (
+                    <motion.div
+                      data-info-content
+                      initial={{ opacity: 0, y: -8, scaleY: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scaleY: 1 }}
+                      exit={{ opacity: 0, y: -6, scaleY: 0.95 }}
+                      transition={{ duration: 0.2, ease: "easeOut" }}
+                      className="mt-5 origin-top"
+                    >
+                      <p className={`text-sm font-semibold ${templateStyles.heading}`}>{shop.aboutTitle || "Sobre nosotros"}</p>
+                      <p className={`mt-1 text-xs leading-relaxed ${templateStyles.tiny}`}>
+                        {shop.aboutText || "Tu mensaje de marca aparece aca para reforzar la experiencia del local."}
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               )}
-              <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs">
+                            <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs">
                 {shop.address && (
                   <a
                     href={`https://www.google.com/maps/search/${encodeURIComponent(shop.city ? `${shop.address}, ${shop.city}` : shop.address)}`}
@@ -1852,6 +1889,8 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
       </div>
       </div>
       </div>
+
+
 
       <AnimatePresence>
         {!done && step === 3 && (
