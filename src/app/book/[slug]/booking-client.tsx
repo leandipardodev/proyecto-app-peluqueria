@@ -276,10 +276,14 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
     const publicKey = shop.mpPublicKey || process.env.NEXT_PUBLIC_MP_PUBLIC_KEY || process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY;
     if (!publicKey) { setMpReady(false); return; }
     setMpReady(false);
-    try {
-      initMercadoPago(publicKey, { locale: "es-AR" });
-    } catch { /* ignore */ }
-    setMpReady(true);
+    (async () => {
+      try {
+        await initMercadoPago(publicKey, { locale: "es-AR" });
+        setMpReady(true);
+      } catch {
+        setMpReady(false);
+      }
+    })();
   }, [shop.mpPublicKey]);
 
   useEffect(() => {
