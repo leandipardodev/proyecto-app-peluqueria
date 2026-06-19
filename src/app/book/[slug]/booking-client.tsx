@@ -18,7 +18,7 @@ import {
   Sparkles,
   UserRound,
 } from "lucide-react";
-import { initMercadoPago, Wallet } from "@mercadopago/sdk-react";
+import { initMercadoPago } from "@mercadopago/sdk-react";
 import { fetchPublicAvailableSlots, createPublicAppointment, createPublicComboAppointment, deletePublicAppointment } from "@/lib/dashboard/public-booking-actions";
 import { createPendingBooking, deletePendingBooking } from "@/lib/dashboard/pending-booking-actions";
 import GoogleSignInButton from "@/components/auth/google-sign-in-button";
@@ -1895,28 +1895,22 @@ draggable={false}
                 ${displayPrice.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
 
-              {/* Wallet */}
-              {paymentPreferenceId && shop.mpPublicKey && mpReady ? (
-                <div className="rounded-2xl overflow-hidden bg-white/10 backdrop-blur-sm">
-                  <Wallet key={paymentPreferenceId} initialization={{ preferenceId: paymentPreferenceId }} />
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-sm px-4 py-3 text-center">
-                  <p className="text-xs font-medium opacity-90">Preparando pago...</p>
-                </div>
-              )}
-
-              {/* Alternative checkout link */}
+              {/* Ir a pagar */}
               {shop.mpPublicKey && paymentInitPoint && (
                 <a
                   href={paymentInitPoint}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block w-full text-center rounded-2xl border border-white/25 bg-white/10 backdrop-blur-sm px-4 py-2.5 text-xs font-semibold hover:bg-white/20 transition-all"
+                  className="block w-full text-center rounded-2xl bg-white/20 backdrop-blur-sm px-4 py-3.5 text-sm font-bold hover:bg-white/30 transition-all"
                 >
-                  Abrir checkout en otra pestaña
-                  <ExternalLink className="inline-block w-3 h-3 ml-1.5" />
+                  Ir a pagar
+                  <ExternalLink className="inline-block w-4 h-4 ml-2" />
                 </a>
+              )}
+              {(!paymentInitPoint) && (
+                <div className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-sm px-4 py-3 text-center">
+                  <p className="text-xs font-medium opacity-90">Preparando pago...</p>
+                </div>
               )}
 
               {/* Back button */}
