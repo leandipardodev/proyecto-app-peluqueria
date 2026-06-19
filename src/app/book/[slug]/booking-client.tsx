@@ -1873,67 +1873,66 @@ draggable={false}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
           className="fixed inset-0 z-30 pointer-events-none flex items-center justify-center"
         >
-          <div className="pointer-events-auto rounded-[28px] bg-gradient-to-br from-blue-600 via-blue-500 to-indigo-600 p-7 shadow-2xl text-white relative overflow-hidden w-full max-w-sm">
+          <div className="pointer-events-auto rounded-[28px] bg-gradient-to-br from-blue-600 via-blue-500 to-indigo-600 p-6 shadow-2xl text-white relative overflow-hidden w-full max-w-sm aspect-[1.586/1]">
             <div className="pointer-events-none absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
             <div className="pointer-events-none absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-white/5 blur-xl" />
 
-            <div className="relative space-y-6">
-              {/* Logo MP */}
-              <div className="flex items-center gap-3">
-                <img src="/mercado-pago-logo.svg" alt="Mercado Pago" className="h-10 w-auto" />
-                <p className="text-[10px] uppercase tracking-[0.2em] opacity-80">Pago seguro</p>
+            <div className="relative h-full flex flex-col justify-between">
+              {/* Top row: price left, logo right */}
+              <div className="flex items-start justify-between">
+                <p className="text-4xl font-bold tracking-tight leading-none">
+                  ${displayPrice.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+                <img src="/mercado-pago-logo.svg" alt="Mercado Pago" className="h-14 w-auto object-contain" />
               </div>
 
-              {/* Service summary */}
-              <div className="space-y-1">
-                <p className="text-sm font-medium opacity-90 truncate">{summaryService}</p>
-                <p className="text-xs opacity-70">{summaryDate} — {summaryTime}</p>
-              </div>
-
-              {/* Price */}
-              <p className="text-3xl font-bold tracking-tight">
-                ${displayPrice.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-
-              {/* Ir a pagar */}
-              {shop.mpPublicKey && paymentInitPoint && (
-                <a
-                  href={paymentInitPoint}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block w-full text-center rounded-2xl bg-white/20 backdrop-blur-sm px-4 py-3.5 text-sm font-bold hover:bg-white/30 transition-all"
-                >
-                  Ir a pagar
-                  <ExternalLink className="inline-block w-4 h-4 ml-2" />
-                </a>
-              )}
-              {(!paymentInitPoint) && (
-                <div className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-sm px-4 py-3 text-center">
-                  <p className="text-xs font-medium opacity-90">Preparando pago...</p>
+              {/* Bottom section */}
+              <div className="space-y-4">
+                {/* Service + date right-aligned */}
+                <div className="text-right">
+                  <p className="text-base font-semibold truncate">{summaryService}</p>
+                  <p className="text-xs opacity-70 mt-0.5">{summaryDate} — {summaryTime}</p>
                 </div>
-              )}
 
-              {/* Back button */}
-              <button
-                onClick={async () => {
-                  const ids = pendingAppointmentIdsRef.current;
-                  if (ids.length > 0) {
-                    if (selectedCombo) {
-                      await Promise.allSettled(ids.map((id) => deletePublicAppointment({ appointmentId: id, shopId: shop.id })));
-                    } else {
-                      await Promise.allSettled(ids.map((id) => deletePendingBooking(id, shop.id)));
+                {/* Ir a pagar */}
+                {shop.mpPublicKey && paymentInitPoint ? (
+                  <a
+                    href={paymentInitPoint}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block text-center rounded-2xl bg-white/20 backdrop-blur-sm px-4 py-3 text-sm font-bold hover:bg-white/30 transition-all"
+                  >
+                    Ir a pagar
+                    <ExternalLink className="inline-block w-4 h-4 ml-1.5" />
+                  </a>
+                ) : (
+                  <div className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-sm px-4 py-3 text-center">
+                    <p className="text-xs font-medium opacity-90">Preparando pago...</p>
+                  </div>
+                )}
+
+                {/* Back button */}
+                <button
+                  onClick={async () => {
+                    const ids = pendingAppointmentIdsRef.current;
+                    if (ids.length > 0) {
+                      if (selectedCombo) {
+                        await Promise.allSettled(ids.map((id) => deletePublicAppointment({ appointmentId: id, shopId: shop.id })));
+                      } else {
+                        await Promise.allSettled(ids.map((id) => deletePendingBooking(id, shop.id)));
+                      }
                     }
-                  }
-                  pendingAppointmentIdsRef.current = [];
-                  setPaymentPreferenceId(null);
-                  setPaymentInitPoint(null);
-                  setChargedAmount(null);
-                  setStep(3);
-                }}
-                className="w-full text-center text-xs opacity-60 hover:opacity-100 transition-opacity py-1"
-              >
-                ← Atrás
-              </button>
+                    pendingAppointmentIdsRef.current = [];
+                    setPaymentPreferenceId(null);
+                    setPaymentInitPoint(null);
+                    setChargedAmount(null);
+                    setStep(3);
+                  }}
+                  className="block w-full text-center text-xs opacity-60 hover:opacity-100 transition-opacity"
+                >
+                  ← Atrás
+                </button>
+              </div>
             </div>
           </div>
         </motion.div>
