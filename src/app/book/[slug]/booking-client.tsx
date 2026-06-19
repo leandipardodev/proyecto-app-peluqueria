@@ -19,7 +19,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { initMercadoPago, Wallet } from "@mercadopago/sdk-react";
-import { fetchPublicAvailableSlots, createPublicAppointment, createPublicComboAppointment } from "@/lib/dashboard/public-booking-actions";
+import { fetchPublicAvailableSlots, createPublicAppointment, createPublicComboAppointment, deletePublicAppointment } from "@/lib/dashboard/public-booking-actions";
 import { createPendingBooking, deletePendingBooking } from "@/lib/dashboard/pending-booking-actions";
 import GoogleSignInButton from "@/components/auth/google-sign-in-button";
 import { useAuth } from "@/lib/auth-context";
@@ -174,6 +174,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
   const [isDepositPayment, setIsDepositPayment] = useState(false);
 
   const recaptchaLoadedRef = useRef(false);
+  const pendingAppointmentIdsRef = useRef<string[]>([]);
   const slotsRef = useRef<HTMLDivElement>(null);
   const stepsScrollRef = useRef<HTMLDivElement>(null);
   const [mpReady, setMpReady] = useState(false);
@@ -605,6 +606,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
         return;
       }
 
+      pendingAppointmentIdsRef.current = comboResult.data.appointmentIds;
       setPaymentPreferenceId(prefResult.data.preferenceId);
       setPaymentInitPoint(prefResult.data.initPoint);
       setChargedAmount(prefResult.data.chargedAmount ?? null);
@@ -649,6 +651,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
       return;
     }
 
+    pendingAppointmentIdsRef.current = [bookingResult.data.bookingId];
     setPaymentPreferenceId(safePreferenceId);
     setPaymentInitPoint(bookingResult.data.initPoint);
     setChargedAmount(bookingResult.data.chargedAmount ?? null);
@@ -1857,29 +1860,11 @@ draggable={false}
 
       {step === 4 && !done && (
         <>
-        {/* Full-width centered progress bar */}
-        <div className="fixed inset-0 z-20 pointer-events-none flex items-center justify-center">
-          <div className="relative w-full">
-            <motion.div
-              initial={{ scaleX: 0, opacity: 0 }}
-              animate={{ scaleX: 1, opacity: 1 }}
-              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-              className="h-[3px] w-full origin-center bg-gradient-to-r from-transparent via-white/20 to-transparent"
-            >
-              <motion.div
-                className="absolute inset-0 rounded-full"
-                style={{
-                  background: "linear-gradient(100deg, transparent 0%, #f472b6 18%, #fbbf24 36%, #34d399 54%, #60a5fa 72%, transparent 90%)",
-                  backgroundSize: "120px 100%",
-                  backgroundRepeat: "no-repeat",
-                  filter: "drop-shadow(0 0 10px rgba(244,114,182,0.6)) drop-shadow(0 0 20px rgba(96,165,250,0.3))",
-                }}
-                animate={{ backgroundPositionX: ["-50px", "calc(100% + 50px)"] }}
-                transition={{ duration: 0.6, repeat: Infinity, ease: "linear" }}
-              />
-            </motion.div>
-          </div>
-        </div>
+        {/* Top gradient overlay */}
+        <div className="fixed inset-x-0 top-0 z-[25] h-1/2 pointer-events-none bg-gradient-to-b from-black/70 via-black/40 to-transparent" />
+
+        {/* Bottom gradient overlay */}
+        <div className="fixed inset-x-0 bottom-0 z-[25] h-1/2 pointer-events-none bg-gradient-to-t from-black/70 via-black/40 to-transparent" />
 
         {/* Floating credit card */}
         <motion.div
@@ -1888,34 +1873,29 @@ draggable={false}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
           className="fixed inset-0 z-30 pointer-events-none flex items-center justify-center"
         >
-          <div className="pointer-events-auto rounded-[28px] bg-gradient-to-br from-blue-600 via-blue-500 to-indigo-600 p-7 shadow-2xl text-white relative overflow-hidden w-full max-w-xs">
+          <div className="pointer-events-auto rounded-[28px] bg-gradient-to-br from-blue-600 via-blue-500 to-indigo-600 p-7 shadow-2xl text-white relative overflow-hidden w-full max-w-sm">
             <div className="pointer-events-none absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
             <div className="pointer-events-none absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-white/5 blur-xl" />
 
             <div className="relative space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.2em] opacity-80">Pago seguro</p>
-                  <p className="text-lg font-bold tracking-tight mt-0.5">MERCADO PAGO</p>
-                </div>
-                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-                  <span className="text-sm font-black tracking-tight">MP</span>
-                </div>
+              {/* Logo MP */}
+              <div className="flex items-center gap-3">
+                <img src="/mercado-pago-logo.svg" alt="Mercado Pago" className="h-10 w-auto" />
+                <p className="text-[10px] uppercase tracking-[0.2em] opacity-80">Pago seguro</p>
               </div>
 
+              {/* Service summary */}
               <div className="space-y-1">
-                <p className="text-[11px] uppercase tracking-[0.15em] opacity-70">Monto</p>
-                <p className="text-3xl font-bold tracking-tight">
-                  ${displayPrice.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
+                <p className="text-sm font-medium opacity-90 truncate">{summaryService}</p>
+                <p className="text-xs opacity-70">{summaryDate} — {summaryTime}</p>
               </div>
 
-              <div className="flex items-center gap-3 text-[10px] opacity-60">
-                <span className="flex items-center gap-1"><Check className="w-3 h-3" /> Seguro</span>
-                <span className="flex items-center gap-1"><Check className="w-3 h-3" /> Rápido</span>
-                <span className="flex items-center gap-1"><Check className="w-3 h-3" /> Sin costo extra</span>
-              </div>
+              {/* Price */}
+              <p className="text-3xl font-bold tracking-tight">
+                ${displayPrice.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
 
+              {/* Wallet */}
               {paymentPreferenceId && shop.mpPublicKey && mpReady ? (
                 <div className="rounded-2xl overflow-hidden bg-white/10 backdrop-blur-sm">
                   <Wallet initialization={{ preferenceId: paymentPreferenceId }} />
@@ -1926,6 +1906,7 @@ draggable={false}
                 </div>
               )}
 
+              {/* Alternative checkout link */}
               {shop.mpPublicKey && paymentInitPoint && (
                 <a
                   href={paymentInitPoint}
@@ -1937,6 +1918,28 @@ draggable={false}
                   <ExternalLink className="inline-block w-3 h-3 ml-1.5" />
                 </a>
               )}
+
+              {/* Back button */}
+              <button
+                onClick={async () => {
+                  const ids = pendingAppointmentIdsRef.current;
+                  if (ids.length > 0) {
+                    if (selectedCombo) {
+                      await Promise.allSettled(ids.map((id) => deletePublicAppointment({ appointmentId: id, shopId: shop.id })));
+                    } else {
+                      await Promise.allSettled(ids.map((id) => deletePendingBooking(id, shop.id)));
+                    }
+                  }
+                  pendingAppointmentIdsRef.current = [];
+                  setPaymentPreferenceId(null);
+                  setPaymentInitPoint(null);
+                  setChargedAmount(null);
+                  setStep(3);
+                }}
+                className="w-full text-center text-xs opacity-60 hover:opacity-100 transition-opacity py-1"
+              >
+                ← Atrás
+              </button>
             </div>
           </div>
         </motion.div>
@@ -1944,7 +1947,7 @@ draggable={false}
       )}
 
       <AnimatePresence>
-        {!done && (step === 3 || step === 4) && (
+        {!done && step === 3 && (
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1964,7 +1967,7 @@ draggable={false}
                 </div>
 
                 <div className="relative w-full sm:w-auto flex-shrink-0">
-                  {(step === 3 || step === 4) && !submitting && !creatingPreference && (
+                  {!submitting && !creatingPreference && (
                     <>
                       <motion.span
                         className="absolute -inset-0.5 rounded-full pointer-events-none z-0 block"
@@ -1986,17 +1989,9 @@ draggable={false}
                   <motion.button
                     onClick={(e) => {
                       triggerHaptic(20, e.currentTarget);
-                      if (step === 4) {
-                        if (paymentInitPoint) window.open(paymentInitPoint, '_blank', 'noopener');
-                      } else {
-                        handleConfirm();
-                      }
+                      handleConfirm();
                     }}
-                    disabled={
-                      step === 4
-                        ? submitting || creatingPreference
-                        : submitting || creatingPreference || !canGoNext || !!paymentPreferenceId
-                    }
+                    disabled={submitting || creatingPreference || !canGoNext || !!paymentPreferenceId}
                     draggable={false}
                     whileHover={{ scale: 1.04 }}
                     whileTap={{ scale: 0.96 }}
@@ -2015,7 +2010,7 @@ draggable={false}
                     ) : (
                       <>
                         <Sparkles className="w-4 h-4 relative z-10" />
-                        <span className="relative z-10">{step === 4 ? "Pagar" : "Confirmar turno"}</span>
+                        <span className="relative z-10">Confirmar turno</span>
                       </>
                     )}
                   </motion.button>

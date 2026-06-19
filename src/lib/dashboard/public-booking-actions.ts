@@ -150,7 +150,7 @@ function resolveDayHours(
 
 type Slot = { start: string; end: string; time: string };
 
-const PENDING_PAYMENT_HOLD_MINUTES = 15;
+const PENDING_PAYMENT_HOLD_MINUTES = 10;
 
 function isPendingPaymentStillBlocking(status: string | null | undefined, createdAt: string | null | undefined): boolean {
   if (status !== "pending_payment") return true;
@@ -591,14 +591,25 @@ export async function createPublicAppointment(data: {
     }
 
     // Conflict check for resolved staff
-    const { data: finalConflicts, error: checkError } = await admin
-      .from("appointments")
-      .select("id, status, created_at")
-      .eq("shop_id", data.shopId)
-      .eq("staff_id", resolvedStaffId)
-      .lt("start_time", data.endTime)
-      .gt("end_time", data.startTime)
-      .not("status", "eq", "cancelled");
+    const [{ data: finalConflicts, error: checkError }, { data: finalPendingConflicts }] = await Promise.all([
+      admin
+        .from("appointments")
+        .select("id, status, created_at")
+        .eq("shop_id", data.shopId)
+        .eq("staff_id", resolvedStaffId)
+        .lt("start_time", data.endTime)
+        .gt("end_time", data.startTime)
+        .not("status", "eq", "cancelled"),
+      admin
+        .from("pending_bookings")
+        .select("id")
+        .eq("shop_id", data.shopId)
+        .eq("staff_id", resolvedStaffId)
+        .eq("status", "pending")
+        .gt("expires_at", new Date().toISOString())
+        .lt("start_time", data.endTime)
+        .gt("end_time", data.startTime),
+    ]);
 
     if (checkError) return { success: false, error: checkError.message };
 
@@ -606,7 +617,7 @@ export async function createPublicAppointment(data: {
       isPendingPaymentStillBlocking(apt.status as string | null | undefined, apt.created_at as string | null | undefined)
     );
 
-    if (hasBlockingConflict) {
+    if (hasBlockingConflict || (finalPendingConflicts && finalPendingConflicts.length > 0)) {
       return { success: false, error: "slot_taken" };
     }
 
@@ -992,14 +1003,25 @@ export async function createPublicComboAppointment(data: {
     }
 
     // Check conflicts for the full time block
-    const { data: finalConflicts, error: checkError } = await admin
-      .from("appointments")
-      .select("id, status, created_at")
-      .eq("shop_id", data.shopId)
-      .eq("staff_id", resolvedStaffId)
-      .lt("start_time", endDate.toISOString())
-      .gt("end_time", data.startTime)
-      .not("status", "eq", "cancelled");
+    const [{ data: finalConflicts, error: checkError }, { data: finalPendingConflicts }] = await Promise.all([
+      admin
+        .from("appointments")
+        .select("id, status, created_at")
+        .eq("shop_id", data.shopId)
+        .eq("staff_id", resolvedStaffId)
+        .lt("start_time", endDate.toISOString())
+        .gt("end_time", data.startTime)
+        .not("status", "eq", "cancelled"),
+      admin
+        .from("pending_bookings")
+        .select("id")
+        .eq("shop_id", data.shopId)
+        .eq("staff_id", resolvedStaffId)
+        .eq("status", "pending")
+        .gt("expires_at", new Date().toISOString())
+        .lt("start_time", endDate.toISOString())
+        .gt("end_time", data.startTime),
+    ]);
 
     if (checkError) return { success: false, error: checkError.message };
 
@@ -1007,7 +1029,7 @@ export async function createPublicComboAppointment(data: {
       isPendingPaymentStillBlocking(apt.status as string | null | undefined, apt.created_at as string | null | undefined)
     );
 
-    if (hasBlockingConflict) {
+    if (hasBlockingConflict || (finalPendingConflicts && finalPendingConflicts.length > 0)) {
       return { success: false, error: "slot_taken" };
     }
 
