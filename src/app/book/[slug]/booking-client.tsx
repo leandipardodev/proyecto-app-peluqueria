@@ -759,7 +759,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
             "radial-gradient(circle at 50% 40%, rgba(255,255,255,0.10), transparent 52%), radial-gradient(circle at 28% 68%, rgba(255,255,255,0.08), transparent 48%)",
         }}
       />
-      <div className="relative z-10 flex h-full items-start justify-center p-4 sm:p-8 lg:p-12">
+      <div className={`relative z-10 flex h-full items-start justify-center p-4 sm:p-8 lg:p-12 ${step === 4 ? "opacity-0" : ""}`}>
         <div className="w-full max-w-md md:max-w-xl">
         <motion.div
           className={`rounded-[32px] p-6 sm:p-10 lg:p-12 h-[min(860px,calc(100dvh-2rem))] sm:h-[min(900px,calc(100dvh-3rem))] flex flex-col overflow-y-auto ${templateStyles.shell}`}
