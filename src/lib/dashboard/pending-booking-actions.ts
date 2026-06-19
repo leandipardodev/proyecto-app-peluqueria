@@ -89,6 +89,7 @@ export async function createPendingBooking(
       .select("id")
       .eq("shop_id", input.shopId)
       .eq("status", "pending")
+      .gt("expires_at", new Date().toISOString())
       .lt("start_time", input.endTime)
       .gt("end_time", input.startTime);
 
@@ -104,7 +105,7 @@ export async function createPendingBooking(
     const hasConflict = (existingAppointments.data || []).some((apt) => {
       if (apt.status === "pending_payment") {
         if (!apt.created_at) return false;
-        const holdMs = 15 * 60 * 1000;
+        const holdMs = 10 * 60 * 1000;
         return Date.now() - new Date(apt.created_at).getTime() <= holdMs;
       }
       return true;

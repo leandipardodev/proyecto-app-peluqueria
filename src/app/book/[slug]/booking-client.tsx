@@ -1884,7 +1884,7 @@ draggable={false}
 
               {/* Price */}
               <p className="text-4xl font-bold tracking-tight leading-none">
-                ${displayPrice.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                ${displayPrice.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
               </p>
 
               {/* Bottom section */}
