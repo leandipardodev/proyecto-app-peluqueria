@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { addWeeks, subWeeks } from "date-fns";
 import { motion } from "framer-motion";
+import { RefreshCcw } from "lucide-react";
 
 import CalendarView from "./calendar-view";
 import AppointmentFormModal from "./appointment-form-modal";
@@ -49,6 +50,7 @@ type Appointment = {
   status: string;
   is_paid: boolean;
   deposit_amount?: number | null;
+  recurring_group_id: string | null;
   notes: string | null;
   customers: { id: string; nombre: string | null; email: string; telefono: string | null } | null;
   staff: { name: string | null; email: string | null } | null;
@@ -188,7 +190,7 @@ export default function CalendarPageClient({
     const rangeStart = new Date(weekStart);
     rangeStart.setUTCDate(weekStart.getUTCDate() - 7);
     const rangeEnd = new Date(weekStart);
-    rangeEnd.setUTCDate(weekStart.getUTCDate() + 14);
+    rangeEnd.setUTCDate(weekStart.getUTCDate() + 60);
     rangeEnd.setUTCHours(23, 59, 59, 999);
 
     const handleChange = async () => {
@@ -197,7 +199,7 @@ export default function CalendarPageClient({
       setTimeout(() => { realtimeCooldown.current = false; }, 2000);
       const { data: rows, error } = await supabase
         .from("appointments")
-        .select("id, customer_id, staff_id, service_id, start_time, end_time, status, is_paid, deposit_amount, loyalty_reward_applied, loyalty_discount_percent_applied, notes")
+        .select("id, customer_id, staff_id, service_id, start_time, end_time, status, is_paid, deposit_amount, loyalty_reward_applied, loyalty_discount_percent_applied, recurring_group_id, notes")
         .eq("shop_id", shopId)
         .gte("start_time", rangeStart.toISOString())
         .lte("start_time", rangeEnd.toISOString())
@@ -273,7 +275,7 @@ export default function CalendarPageClient({
     const rangeStart = new Date(weekStart);
     rangeStart.setUTCDate(weekStart.getUTCDate() - 7);
     const rangeEnd = new Date(weekStart);
-    rangeEnd.setUTCDate(weekStart.getUTCDate() + 14);
+    rangeEnd.setUTCDate(weekStart.getUTCDate() + 60);
     rangeEnd.setUTCHours(23, 59, 59, 999);
     const result = await fetchAppointments(rangeStart.toISOString(), rangeEnd.toISOString(), shopId);
     if (result.success && Array.isArray(result.data)) {
@@ -288,7 +290,21 @@ export default function CalendarPageClient({
   return (
     <div className="h-full flex flex-col">
       {error && (
-        <StatePanel title="Error al cargar turnos" description={error} variant="error" />
+        <StatePanel
+          title="Error al cargar turnos"
+          description={error}
+          variant="error"
+          action={
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-rose-700 dark:text-rose-300 bg-rose-100 dark:bg-rose-900/40 hover:bg-rose-200 dark:hover:bg-rose-800/60 transition-colors cursor-pointer select-none"
+            >
+              <RefreshCcw className="w-4 h-4" />
+              Reintentar
+            </button>
+          }
+        />
       )}
       {(!services || services.length === 0) && (
         <StatePanel title="Sin servicios" description="No hay servicios registrados. Agregá servicios en la sección Servicios." />
@@ -402,7 +418,7 @@ export default function CalendarPageClient({
           const rangeStart = new Date(weekStart);
           rangeStart.setUTCDate(weekStart.getUTCDate() - 7);
           const rangeEnd = new Date(weekStart);
-          rangeEnd.setUTCDate(weekStart.getUTCDate() + 14);
+          rangeEnd.setUTCDate(weekStart.getUTCDate() + 60);
           rangeEnd.setUTCHours(23, 59, 59, 999);
           const result = await fetchAppointments(rangeStart.toISOString(), rangeEnd.toISOString(), shopId);
           if (result.success && Array.isArray(result.data)) {
@@ -426,6 +442,12 @@ export default function CalendarPageClient({
         allAppointments={enrichedAppointments}
         onClose={() => setSelectedAppointment(null)}
         onSuccess={refreshAppointments}
+        onDeleted={() => {
+          const deletedId = selectedAppointment?.id;
+          if (deletedId) {
+            setAppointments((prev) => prev.filter((a) => a.id !== deletedId));
+          }
+        }}
       />
 
       <BatchAppointmentModal

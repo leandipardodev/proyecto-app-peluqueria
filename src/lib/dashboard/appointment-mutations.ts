@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { createServerClient } from "@/lib/supabase/server";
 import { canAccessShopId, requireShopId } from "@/lib/dashboard/auth-server";
 import { trackProductEvent } from "@/lib/analytics/product-events";
@@ -99,6 +100,8 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
       return { success: false, error: "No se puede repetir un turno con múltiples servicios" };
     }
 
+    const recurringGroupId = recurringStarts.length > 1 ? randomUUID() : null;
+
     const rowsToInsert = recurringStarts.flatMap((startAt) => {
       let currentStart = new Date(startAt);
       return orderedServices.map((svc) => {
@@ -116,6 +119,7 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
           status: "scheduled" as const,
           deposit_amount: depositAmount,
           is_paid: depositAmount !== null && depositAmount > 0,
+          recurring_group_id: recurringGroupId,
           notes: notes || null,
         };
         currentStart = currentEnd;
@@ -268,28 +272,41 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
       .single();
     if (customerInsertError) return { success: false, error: `Error al crear cliente: ${customerInsertError.message}` };
     const customerId = newCustomer.id;
+    const recurringFrequency = ((formData.get("recurring_frequency") as string) || "none") as RecurringFrequency;
+    const recurringUntil = ((formData.get("recurring_until") as string) || "").trim() || null;
 
     const { start } = await toArgentinaStartEnd(startDate, startTime, totalDuration);
-    let currentStart = new Date(start);
-    const rowsToInsert = orderedServices.map((svc) => {
-      const effectiveDuration = serviceDurations[svc.id] ?? svc.duration_minutes;
-      const currentEnd = new Date(currentStart.getTime() + effectiveDuration * 60000);
-      const row = {
-        shop_id: shopId,
-        customer_id: customerId,
-        staff_id: staffId || null,
-        service_id: svc.id,
-        service_price: svc.price ?? null,
-        start_time: currentStart.toISOString(),
-        end_time: currentEnd.toISOString(),
-        date_key_ar: getArgentinaDateKey(currentStart.toISOString()),
-        status: "scheduled" as const,
-        deposit_amount: depositAmount,
-        is_paid: depositAmount !== null && depositAmount > 0,
-        notes: notes || null,
-      };
-      currentStart = currentEnd;
-      return row;
+    const recurringStarts = await buildRecurringStarts(start, recurringFrequency, recurringUntil);
+
+    if (recurringFrequency !== "none" && orderedServices.length > 1) {
+      return { success: false, error: "No se puede repetir un turno con múltiples servicios" };
+    }
+
+    const recurringGroupId = recurringStarts.length > 1 ? randomUUID() : null;
+
+    const rowsToInsert = recurringStarts.flatMap((startAt) => {
+      let currentStart = new Date(startAt);
+      return orderedServices.map((svc) => {
+        const effectiveDuration = serviceDurations[svc.id] ?? svc.duration_minutes;
+        const currentEnd = new Date(currentStart.getTime() + effectiveDuration * 60000);
+        const row = {
+          shop_id: shopId,
+          customer_id: customerId,
+          staff_id: staffId || null,
+          service_id: svc.id,
+          service_price: svc.price ?? null,
+          start_time: currentStart.toISOString(),
+          end_time: currentEnd.toISOString(),
+          date_key_ar: getArgentinaDateKey(currentStart.toISOString()),
+          status: "scheduled" as const,
+          deposit_amount: depositAmount,
+          is_paid: depositAmount !== null && depositAmount > 0,
+          recurring_group_id: recurringGroupId,
+          notes: notes || null,
+        };
+        currentStart = currentEnd;
+        return row;
+      });
     });
 
     if (staffId && rowsToInsert.length > 0) {
@@ -322,15 +339,19 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
         const shopAddress = locationParts.length > 0 ? locationParts.join(", ") : undefined;
         const replyTo = sd?.email && sd.email.includes("@") ? sd.email : undefined;
         const serviceNames = orderedServices.map((s) => s.name).join(", ");
-        await sendAppointmentAutomationEmails({
-          to: customerEmail.trim(),
-          customerName: customerName,
-          shopName: sd?.nombre || "Klip",
-          serviceName: serviceNames,
-          startTime: rowsToInsert[0].start_time,
-          shopAddress,
-          replyTo,
-        });
+        await Promise.allSettled(
+          rowsToInsert.map((row) =>
+            sendAppointmentAutomationEmails({
+              to: customerEmail.trim(),
+              customerName: customerName,
+              shopName: sd?.nombre || "Klip",
+              serviceName: serviceNames,
+              startTime: row.start_time,
+              shopAddress,
+              replyTo,
+            })
+          )
+        );
       }
     } catch (mailError) {
       console.error("[createCustomerAndAppointment] email automation error:", mailError);
@@ -830,6 +851,42 @@ export async function deleteAppointment(id: string, shopIdOverride?: string): Pr
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al eliminar turno" };
+  }
+}
+
+export async function cancelRecurringSeries(groupId: string, shopId: string): Promise<ActionResult> {
+  try {
+    if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+
+    const auth = await createServerClient();
+    const { data: { user } } = await auth.auth.getUser();
+    if (!user) return { success: false, error: "SESION_EXPIRADA" };
+
+    const allowed = await canAccessShopId(user.id, shopId);
+    if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
+
+    const { data: target, error: findError } = await auth
+      .from("appointments")
+      .select("id")
+      .eq("recurring_group_id", groupId)
+      .eq("shop_id", shopId)
+      .limit(1);
+    if (findError) return { success: false, error: findError.message };
+    if (!target || target.length === 0) return { success: false, error: "No se encontraron turnos de esta serie" };
+
+    const { error } = await auth
+      .from("appointments")
+      .update({ status: "cancelled", updated_at: new Date().toISOString() })
+      .eq("recurring_group_id", groupId)
+      .eq("shop_id", shopId)
+      .not("status", "eq", "cancelled");
+
+    if (error) return { success: false, error: error.message };
+
+    await revalidateDashboardSegments(shopId, ["/calendar", "/appointments", ""]);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al cancelar la serie de turnos" };
   }
 }
 

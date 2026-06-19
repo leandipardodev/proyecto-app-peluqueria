@@ -53,6 +53,15 @@ export default async function DashboardShopFidelizacionPage({ params }: { params
     })(),
   ]);
 
+  const hasError = !vouchersResult.success || !templateResult.success || !businessResult.success;
+  const initialError = hasError
+    ? [vouchersResult, templateResult, businessResult]
+        .filter((r) => !r.success)
+        .map((r) => r.error)
+        .filter(Boolean)
+        .join(". ") || "Error al cargar datos de fidelización"
+    : null;
+
   const loyaltyRewardCustomers: LoyaltyRewardCustomer[] = (rewardsResult.data ?? []) as LoyaltyRewardCustomer[];
 
   return (
@@ -65,6 +74,7 @@ export default async function DashboardShopFidelizacionPage({ params }: { params
       loyaltyCutsRequired={businessResult.success ? businessResult.data?.loyalty_cuts_required ?? 10 : 10}
       loyaltyDiscountPercent={businessResult.success ? businessResult.data?.loyalty_discount_percent ?? 10 : 10}
       loyaltyRewardCustomers={loyaltyRewardCustomers}
+      initialError={initialError}
     />
   );
 }

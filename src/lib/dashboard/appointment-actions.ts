@@ -6,5 +6,6 @@ export {
   updateAppointmentServices,
   updateCustomerQuick,
   deleteAppointment,
+  cancelRecurringSeries,
   redeemLoyaltyReward,
 } from "./appointment-mutations";

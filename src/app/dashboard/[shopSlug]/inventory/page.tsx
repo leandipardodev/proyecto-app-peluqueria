@@ -28,5 +28,8 @@ export default async function DashboardShopInventoryPage({ params }: { params: P
   const role = membership?.role ?? "staff";
 
   const result = await fetchStockItems(shopId);
-  return <InventoryPageClient role={role} shopId={shopId} initialItems={result.success ? result.data ?? [] : []} />;
+  const initialError = result.success ? null : (result.error || "Error al cargar el inventario");
+  return (
+    <InventoryPageClient role={role} shopId={shopId} initialItems={result.success ? result.data ?? [] : []} initialError={initialError} />
+  );
 }

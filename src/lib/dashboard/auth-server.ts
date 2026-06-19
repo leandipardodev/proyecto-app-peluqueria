@@ -10,13 +10,16 @@ import { withRetry } from "@/lib/retry";
 const ACTIVE_SHOP_ID_COOKIE = "klip_active_shop_id";
 
 async function fetchUser() {
-  return withRetry(async () => {
-    const supabase = await createServerClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    return user;
-  });
+  return withRetry(
+    async () => {
+      const supabase = await createServerClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      return user;
+    },
+    { retries: 4, delayMs: 500 }
+  );
 }
 
 export const getCachedUser = cache(fetchUser);

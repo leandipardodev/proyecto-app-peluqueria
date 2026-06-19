@@ -75,14 +75,18 @@ export default async function CalendarSection({
 export type CustomersData = Array<{ id: string; nombre: string | null; email: string | null; telefono: string | null }>;
 
 export async function fetchCustomersByShop(shopId: string): Promise<CustomersData> {
-  const supabase = await createServerClient();
-  const { data, error } = await supabase
-    .from("customers")
-    .select("id, nombre, email, telefono")
-    .eq("shop_id", shopId)
-    .order("nombre", { ascending: true })
-    .returns<{ id: string; nombre: string | null; email: string | null; telefono: string | null }[]>();
+  try {
+    const supabase = await createServerClient();
+    const { data, error } = await supabase
+      .from("customers")
+      .select("id, nombre, email, telefono")
+      .eq("shop_id", shopId)
+      .order("nombre", { ascending: true })
+      .returns<{ id: string; nombre: string | null; email: string | null; telefono: string | null }[]>();
 
-  if (error) throw error;
-  return data.map((c) => ({ id: c.id, nombre: c.nombre, email: c.email, telefono: c.telefono }));
+    if (error) return [];
+    return data.map((c) => ({ id: c.id, nombre: c.nombre, email: c.email, telefono: c.telefono }));
+  } catch {
+    return [];
+  }
 }

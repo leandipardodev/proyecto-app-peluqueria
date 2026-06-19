@@ -100,6 +100,7 @@ export type AppointmentEnriched = {
   deposit_amount: number | null;
   loyalty_reward_applied?: boolean;
   loyalty_discount_percent_applied?: number;
+  recurring_group_id: string | null;
   notes: string | null;
   customers: { id: string; nombre: string | null; email: string; telefono: string | null; loyalty_rewards_available?: number | null } | null;
   staff: { user_id: string; name: string | null; email: string | null } | null;
@@ -129,8 +130,15 @@ function addMonths(base: Date, months: number): Date {
 }
 
 export async function buildRecurringStarts(start: Date, frequency: RecurringFrequency, untilDate: string | null): Promise<Date[]> {
-  if (frequency === "none" || !untilDate) return [start];
-  const until = new Date(`${untilDate}T23:59:59.999-03:00`);
+  if (frequency === "none") return [start];
+
+  let until: Date;
+  if (untilDate) {
+    until = new Date(`${untilDate}T23:59:59.999-03:00`);
+  } else {
+    until = addDays(start, 84);
+  }
+
   if (Number.isNaN(until.getTime()) || until <= start) return [start];
 
   const starts: Date[] = [start];
@@ -213,6 +221,7 @@ export type AppointmentTableRow = {
   deposit_amount: number | null;
   loyalty_reward_applied?: boolean;
   loyalty_discount_percent_applied?: number;
+  recurring_group_id: string | null;
   customers: { id: string; nombre: string | null; email: string; telefono: string | null; loyalty_rewards_available?: number | null } | null;
   staff: { user_id: string; name: string | null } | null;
   services: { id: string; name: string; price: number } | null;

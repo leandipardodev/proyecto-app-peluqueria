@@ -2,13 +2,14 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Gift, Save, Trophy, Users } from "lucide-react";
+import { Gift, RefreshCcw, Save, Trophy, Users } from "lucide-react";
 import { runLoyaltyRaffleAction, updateLoyaltyProgramAction } from "@/lib/dashboard/business-actions";
 import VouchersClient from "../vouchers/vouchers-client";
 import type { VoucherRow } from "@/lib/dashboard/voucher-actions";
 import { useAuth } from "@/lib/auth-context";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { resolveIndustry } from "@/lib/industry/resolve";
+import { StatePanel } from "@/components/ui/state-panel";
 
 type LoyaltyRewardCustomer = {
   id: string;
@@ -24,6 +25,7 @@ type Props = {
   loyaltyCutsRequired: number;
   loyaltyDiscountPercent: number;
   loyaltyRewardCustomers: LoyaltyRewardCustomer[];
+  initialError?: string | null;
   role?: string;
 };
 
@@ -35,6 +37,7 @@ export default function FidelizacionClient({
   loyaltyCutsRequired,
   loyaltyDiscountPercent,
   loyaltyRewardCustomers,
+  initialError,
   role = "staff",
 }: Props) {
   const { shop } = useAuth();
@@ -43,6 +46,7 @@ export default function FidelizacionClient({
   const customerWordLower = customerWord.toLowerCase();
   const isOwnerOrAdmin = role !== "staff";
   const [enabled, setEnabled] = useState(loyaltyEnabled);
+
   const [cutsRequired, setCutsRequired] = useState(String(loyaltyCutsRequired));
   const [discountPercent, setDiscountPercent] = useState(String(loyaltyDiscountPercent));
   const [message, setMessage] = useState<string | null>(null);
@@ -65,6 +69,27 @@ export default function FidelizacionClient({
       }
     };
   }, []);
+
+  if (initialError) {
+    return (
+      <StatePanel
+        title="Error al cargar fidelización"
+        description={initialError}
+        variant="error"
+        action={
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-rose-700 dark:text-rose-300 bg-rose-100 dark:bg-rose-900/40 hover:bg-rose-200 dark:hover:bg-rose-800/60 transition-colors cursor-pointer select-none"
+          >
+            <RefreshCcw className="w-4 h-4" />
+            Reintentar
+          </button>
+        }
+      />
+    );
+  }
+
   const totalRewardsAvailable = loyaltyRewardCustomers.reduce(
     (sum, c) => sum + Math.max(0, Number(c.loyalty_rewards_available || 0)),
     0

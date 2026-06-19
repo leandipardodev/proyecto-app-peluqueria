@@ -29,6 +29,7 @@ type Appointment = {
   is_paid: boolean;
   loyalty_reward_applied?: boolean;
   deposit_amount?: number | null;
+  recurring_group_id: string | null;
   notes: string | null;
   customers: { id: string; nombre: string | null; email: string; telefono: string | null; loyalty_rewards_available?: number | null } | null;
   staff: { name: string | null; email: string | null } | null;

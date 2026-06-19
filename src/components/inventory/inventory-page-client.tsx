@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, RefreshCcw } from "lucide-react";
 import StockTable from "./stock-table";
 import AddProductModal from "./add-product-modal";
+import { StatePanel } from "@/components/ui/state-panel";
 
 type StockItem = {
   id: string;
@@ -15,16 +16,38 @@ type StockItem = {
 interface InventoryPageClientProps {
   shopId: string;
   initialItems: StockItem[];
+  initialError?: string | null;
   role?: string;
 }
 
 export default function InventoryPageClient({
   shopId,
   initialItems,
+  initialError,
   role = "staff",
 }: InventoryPageClientProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const isOwnerOrAdmin = role !== "staff";
+
+  if (initialError) {
+    return (
+      <StatePanel
+        title="Error al cargar inventario"
+        description={initialError}
+        variant="error"
+        action={
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-rose-700 dark:text-rose-300 bg-rose-100 dark:bg-rose-900/40 hover:bg-rose-200 dark:hover:bg-rose-800/60 transition-colors cursor-pointer select-none"
+          >
+            <RefreshCcw className="w-4 h-4" />
+            Reintentar
+          </button>
+        }
+      />
+    );
+  }
 
   return (
     <div>

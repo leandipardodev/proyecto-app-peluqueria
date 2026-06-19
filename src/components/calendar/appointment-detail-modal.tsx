@@ -2,7 +2,7 @@
 
 import { X, Check, Trash2, MessageCircle, UserRoundPen, Search, Plus, Clock, DollarSign, Pencil } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, useTransition, useMemo } from "react";
-import { deleteAppointment, patchAppointmentQuick, redeemLoyaltyReward, updateCustomerQuick, updateAppointmentServices } from "@/lib/dashboard/appointment-actions";
+import { deleteAppointment, patchAppointmentQuick, redeemLoyaltyReward, updateCustomerQuick, updateAppointmentServices, cancelRecurringSeries } from "@/lib/dashboard/appointment-actions";
 import { getArgentinaDateKey } from "@/lib/argentina-time";
 import { refundMpPayment } from "@/lib/payments/mercadopago-actions";
 import { AnimatePresence, motion } from "framer-motion";
@@ -24,6 +24,7 @@ type Appointment = {
   deposit_amount?: number | null;
   loyalty_reward_applied?: boolean;
   loyalty_discount_percent_applied?: number;
+  recurring_group_id: string | null;
   notes: string | null;
   customers: { id: string; nombre: string | null; email: string; telefono: string | null; loyalty_rewards_available?: number | null } | null;
   staff: { name: string | null; email: string | null } | null;
@@ -59,6 +60,7 @@ interface AppointmentDetailModalProps {
   services: ServiceItem[];
   onClose: () => void;
   onSuccess?: () => void;
+  onDeleted?: () => void;
   allAppointments?: SiblingAppointment[];
 }
 
@@ -122,6 +124,7 @@ export default function AppointmentDetailModal({
   services,
   onClose,
   onSuccess,
+  onDeleted,
   allAppointments,
 }: AppointmentDetailModalProps) {
   const backdropRef = useRef<HTMLDivElement>(null);
@@ -130,6 +133,7 @@ export default function AppointmentDetailModal({
   const [localPaid, setLocalPaid] = useState(appointment?.is_paid || false);
   const [error, setError] = useState<string | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [seriesCancelOpen, setSeriesCancelOpen] = useState(false);
   const [refundConfirmOpen, setRefundConfirmOpen] = useState(false);
   const [selectedStaffId, setSelectedStaffId] = useState(appointment?.staff_id || "");
   const [localRewardsAvailable, setLocalRewardsAvailable] = useState(
@@ -389,6 +393,26 @@ export default function AppointmentDetailModal({
     setDeleteConfirmOpen(true);
   }
 
+  function handleCancelSeriesClick() {
+    setSeriesCancelOpen(true);
+  }
+
+  function confirmCancelSeries() {
+    if (!appointment?.recurring_group_id) return;
+    setError(null);
+    setSeriesCancelOpen(false);
+    startTransition(async () => {
+      const result = await cancelRecurringSeries(appointment.recurring_group_id!, shopId);
+      if (result.success) {
+        addToast("Serie cancelada correctamente", "success");
+        onDeleted?.();
+        onClose();
+      } else {
+        setError(result.error);
+      }
+    });
+  }
+
   function handleRefundClick() {
     if (!appointment) return;
     setRefundConfirmOpen(true);
@@ -442,6 +466,7 @@ export default function AppointmentDetailModal({
       const result = await deleteAppointment(appointment.id, shopId);
       if (result.success) {
         setDeleteConfirmOpen(false);
+        onDeleted?.();
         onClose();
       } else {
         setError(result.error);
@@ -946,29 +971,42 @@ export default function AppointmentDetailModal({
             )}
 
             <div className="flex items-center justify-between gap-4 pt-2">
-              <button
-                onClick={handleDeleteAppointment}
-                disabled={pending}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors cursor-pointer select-none disabled:opacity-50"
-              >
-                <Trash2 className="w-4 h-4" />
-                Eliminar
-              </button>
-
               <div className="flex items-center gap-2">
-                <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                  Canjes: {localRewardsAvailable}
-                </span>
-                {!localRewardApplied && (
+                <button
+                  onClick={handleDeleteAppointment}
+                  disabled={pending}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors cursor-pointer select-none disabled:opacity-50"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Eliminar
+                </button>
+                {appointment?.recurring_group_id && (
                   <button
-                    onClick={handleRedeemLoyaltyReward}
-                    disabled={pending || localRewardsAvailable <= 0}
-                    className="px-4 py-2 rounded-xl text-sm font-semibold text-violet-700 dark:text-violet-200 bg-violet-50 dark:bg-violet-950/40 border border-violet-200 dark:border-violet-800 hover:bg-violet-100 dark:hover:bg-violet-900/40 transition-colors cursor-pointer select-none disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={handleCancelSeriesClick}
+                    disabled={pending}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors cursor-pointer select-none disabled:opacity-50"
                   >
-                    Canjear
+                    Cancelar turnos recurrentes
                   </button>
                 )}
               </div>
+
+              {localRewardsAvailable > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                    Canjes: {localRewardsAvailable}
+                  </span>
+                  {!localRewardApplied && (
+                    <button
+                      onClick={handleRedeemLoyaltyReward}
+                      disabled={pending || localRewardsAvailable <= 0}
+                      className="px-4 py-2 rounded-xl text-sm font-semibold text-violet-700 dark:text-violet-200 bg-violet-50 dark:bg-violet-950/40 border border-violet-200 dark:border-violet-800 hover:bg-violet-100 dark:hover:bg-violet-900/40 transition-colors cursor-pointer select-none disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Canjear
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             {localRewardApplied && (
@@ -1034,6 +1072,16 @@ export default function AppointmentDetailModal({
           document.body
         ) : null;
       })()}
+
+      <ConfirmDialog
+        open={seriesCancelOpen}
+        title="Cancelar serie de turnos"
+        message="Se cancelarán todos los turnos de esta serie (incluyendo el actual). Esta acción no se puede deshacer."
+        confirmLabel="Cancelar serie"
+        danger
+        onCancel={() => setSeriesCancelOpen(false)}
+        onConfirm={confirmCancelSeries}
+      />
 
       <ConfirmDialog
         open={refundConfirmOpen}
