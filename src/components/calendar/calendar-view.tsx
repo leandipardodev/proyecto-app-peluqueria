@@ -1344,9 +1344,10 @@ export default memo(function CalendarView({
       })(), document.body)}
 
       {businessHours && (
-        <div className="mt-3 inline-flex items-center gap-1.5 text-xs bg-zinc-100 dark:bg-zinc-800 rounded-xl px-3 py-1.5 border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400">
-          <div className="w-3 h-3 rounded-sm bg-zinc-300/50 dark:bg-zinc-600/50 border border-zinc-400/30 dark:border-white/10" />
-          <span>Cerrado</span>
+        <div className="mt-3 flex items-center gap-3 text-xs text-zinc-400 dark:text-zinc-500 select-none">
+          <hr className="flex-1 border-t border-zinc-300/60 dark:border-zinc-700/60" />
+          <span className="tracking-wider uppercase">Cerrado</span>
+          <hr className="flex-1 border-t border-zinc-300/60 dark:border-zinc-700/60" />
         </div>
       )}
       {styleTag}
