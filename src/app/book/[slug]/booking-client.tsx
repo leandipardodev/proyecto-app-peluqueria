@@ -1877,14 +1877,15 @@ draggable={false}
             <div className="pointer-events-none absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
             <div className="pointer-events-none absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-white/5 blur-xl" />
 
+            {/* Logo top-right */}
+            <img src="/mercado-pago-logo.svg" alt="Mercado Pago" className="absolute top-3 right-3 h-11 w-auto" />
+
             <div className="relative h-full flex flex-col justify-between">
-              {/* Top row: price left, logo right */}
-              <div className="flex items-start justify-between">
-                <p className="text-4xl font-bold tracking-tight leading-none">
-                  ${displayPrice.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-                <img src="/mercado-pago-logo.svg" alt="Mercado Pago" className="h-14 w-auto object-contain" />
-              </div>
+
+              {/* Price */}
+              <p className="text-4xl font-bold tracking-tight leading-none">
+                ${displayPrice.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
 
               {/* Bottom section */}
               <div className="space-y-4">
