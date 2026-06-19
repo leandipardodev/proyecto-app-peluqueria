@@ -561,8 +561,8 @@ export default memo(function CalendarView({
   const displayedDays = useMemo(() => {
     const baseDays = (() => {
       if (viewMode === "week") return weekDays;
-      const focus = weekDays.find((d) => getArgentinaDateKey(d) === focusedDayKey);
-      return focus ? [focus] : [weekDays[0]];
+      const focus = new Date(`${focusedDayKey}T12:00:00`);
+      return Number.isFinite(focus.getTime()) ? [focus] : [weekDays[0]];
     })();
 
     if (!(isMobileViewport && viewMode === "week")) return baseDays;
@@ -946,6 +946,7 @@ export default memo(function CalendarView({
             <h2 className="text-base font-semibold text-gray-900 dark:text-white hidden sm:block">
             {(() => {
               const f = displayedDays[0];
+              if (displayedDays.length === 1) return format(f, "d 'de' MMMM", { locale: es });
               const l = displayedDays[displayedDays.length - 1];
               const sameMonth = f.getMonth() === l.getMonth() && f.getFullYear() === l.getFullYear();
               return sameMonth
@@ -958,6 +959,7 @@ export default memo(function CalendarView({
           <h2 className="text-sm font-semibold text-gray-900 dark:text-white sm:hidden">
             {(() => {
               const f = displayedDays[0];
+              if (displayedDays.length === 1) return format(f, "d MMM", { locale: es });
               const l = displayedDays[displayedDays.length - 1];
               const sameMonth = f.getMonth() === l.getMonth() && f.getFullYear() === l.getFullYear();
               return sameMonth

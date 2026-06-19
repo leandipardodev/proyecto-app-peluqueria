@@ -75,6 +75,7 @@ export default function AppointmentFormModal({
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [recurringFrequency, setRecurringFrequency] = useState("none");
   const [recurringUntil, setRecurringUntil] = useState("");
+  const [showRecurringPicker, setShowRecurringPicker] = useState(false);
   const [showNewCustomer, setShowNewCustomer] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerEmail, setNewCustomerEmail] = useState("");
@@ -703,38 +704,66 @@ export default function AppointmentFormModal({
               </div>
             )}
 
-            <div className="flex items-center gap-3">
-              <div className="flex-1">
-                <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
-                  Repeticion
-                </label>
-                <GlassSelect
-                  options={[
-                    { value: "none", label: "No repetir" },
-                    { value: "weekly", label: "Semanal" },
-                    { value: "biweekly", label: "Cada 2 semanas" },
-                    { value: "monthly", label: "Mensual" },
-                  ]}
-                  value={selectedServiceIds.length > 1 ? "none" : recurringFrequency}
-                  onChange={setRecurringFrequency}
-                  placeholder="No repetir"
-                  name="recurring_frequency"
-                  className={selectedServiceIds.length > 1 ? "opacity-60 pointer-events-none" : ""}
-                />
-              </div>
-              <div className="flex-1">
-                <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
-                  Repetir hasta
-                </label>
-                <input
-                  type="date"
-                  name="recurring_until"
-                  value={recurringUntil}
-                  onChange={(e) => setRecurringUntil(e.target.value)}
-                  disabled={recurringFrequency === "none" || selectedServiceIds.length > 1}
-                  className="w-full px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all disabled:opacity-50"
-                />
-              </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+                Repeticion
+              </label>
+              <GlassSelect
+                options={[
+                  { value: "none", label: "No repetir" },
+                  { value: "weekly", label: "Semanal" },
+                  { value: "biweekly", label: "Cada 2 semanas" },
+                  { value: "monthly", label: "Mensual" },
+                ]}
+                value={selectedServiceIds.length > 1 ? "none" : recurringFrequency}
+                onChange={setRecurringFrequency}
+                placeholder="No repetir"
+                name="recurring_frequency"
+                className={selectedServiceIds.length > 1 ? "opacity-60 pointer-events-none" : ""}
+              />
+
+              {recurringFrequency !== "none" && selectedServiceIds.length <= 1 && (
+                <div className="mt-2">
+                  {recurringUntil ? (
+                    <div className="flex items-center gap-2">
+                      <input type="hidden" name="recurring_until" value={recurringUntil} />
+                      <div className="flex items-center gap-1.5 px-3 py-2 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-zinc-700 dark:text-zinc-300 shadow-sm">
+                        <CalendarDays className="w-4 h-4 text-zinc-400" />
+                        <span className="font-semibold">{new Date(recurringUntil + "T12:00:00").toLocaleDateString("es-AR")}</span>
+                        <button
+                          type="button"
+                          onClick={() => { setRecurringUntil(""); setShowRecurringPicker(false); }}
+                          className="ml-auto p-0.5 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors cursor-pointer select-none"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : showRecurringPicker ? (
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+                        Hasta
+                      </label>
+                      <input
+                        type="date"
+                        name="recurring_until"
+                        value={recurringUntil}
+                        onChange={(e) => { setRecurringUntil(e.target.value); setShowRecurringPicker(false); }}
+                        className="w-full px-3 py-2 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
+                      />
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowRecurringPicker(true)}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-700 text-sm text-zinc-500 dark:text-zinc-400 hover:border-violet-300 dark:hover:border-violet-700 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/40 transition-all cursor-pointer select-none"
+                    >
+                      <CalendarDays className="w-4 h-4" />
+                      Definir fecha
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
