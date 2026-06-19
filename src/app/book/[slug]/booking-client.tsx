@@ -1897,15 +1897,25 @@ draggable={false}
 
                 {/* Ir a pagar */}
                 {shop.mpPublicKey && paymentInitPoint ? (
-                  <a
+                  <motion.a
                     href={paymentInitPoint}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block text-center rounded-2xl bg-white/20 backdrop-blur-sm px-4 py-3 text-sm font-bold hover:bg-white/30 transition-all"
+                    whileHover={{ scale: 1.04 }}
+                    whileTap={{ scale: 0.96 }}
+                    className="relative overflow-hidden block text-center rounded-2xl bg-white/20 backdrop-blur-sm px-4 py-3.5 text-sm font-bold"
                   >
-                    Ir a pagar
-                    <ExternalLink className="inline-block w-4 h-4 ml-1.5" />
-                  </a>
+                    <motion.span
+                      className="absolute inset-0 rounded-2xl pointer-events-none block"
+                      animate={{ boxShadow: ["0 0 0 0 rgba(255,255,255,0.3)", "0 0 0 10px rgba(255,255,255,0)", "0 0 0 0 rgba(255,255,255,0.3)"] }}
+                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                    />
+                    <span className="absolute inset-0 rounded-2xl bg-gradient-to-b from-white/15 to-transparent pointer-events-none" />
+                    <span className="relative z-10 flex items-center justify-center gap-2">
+                      Ir a pagar
+                      <ExternalLink className="w-4 h-4" />
+                    </span>
+                  </motion.a>
                 ) : (
                   <div className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-sm px-4 py-3 text-center">
                     <p className="text-xs font-medium opacity-90">Preparando pago...</p>
