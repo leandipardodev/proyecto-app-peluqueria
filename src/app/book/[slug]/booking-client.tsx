@@ -1898,7 +1898,7 @@ draggable={false}
               {/* Wallet */}
               {paymentPreferenceId && shop.mpPublicKey && mpReady ? (
                 <div className="rounded-2xl overflow-hidden bg-white/10 backdrop-blur-sm">
-                  <Wallet initialization={{ preferenceId: paymentPreferenceId }} />
+                  <Wallet key={paymentPreferenceId} initialization={{ preferenceId: paymentPreferenceId }} />
                 </div>
               ) : (
                 <div className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-sm px-4 py-3 text-center">
