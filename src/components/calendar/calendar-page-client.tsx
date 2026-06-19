@@ -442,10 +442,14 @@ export default function CalendarPageClient({
         allAppointments={enrichedAppointments}
         onClose={() => setSelectedAppointment(null)}
         onSuccess={refreshAppointments}
-        onDeleted={() => {
-          const deletedId = selectedAppointment?.id;
-          if (deletedId) {
-            setAppointments((prev) => prev.filter((a) => a.id !== deletedId));
+        onDeleted={(recurringGroupId) => {
+          if (recurringGroupId) {
+            setAppointments((prev) => prev.filter((a) => a.recurring_group_id !== recurringGroupId));
+          } else {
+            const deletedId = selectedAppointment?.id;
+            if (deletedId) {
+              setAppointments((prev) => prev.filter((a) => a.id !== deletedId));
+            }
           }
         }}
       />

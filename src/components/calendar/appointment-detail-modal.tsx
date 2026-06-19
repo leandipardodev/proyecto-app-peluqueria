@@ -60,7 +60,7 @@ interface AppointmentDetailModalProps {
   services: ServiceItem[];
   onClose: () => void;
   onSuccess?: () => void;
-  onDeleted?: () => void;
+  onDeleted?: (recurringGroupId?: string) => void;
   allAppointments?: SiblingAppointment[];
 }
 
@@ -405,7 +405,7 @@ export default function AppointmentDetailModal({
       const result = await cancelRecurringSeries(appointment.recurring_group_id!, shopId);
       if (result.success) {
         addToast("Serie cancelada correctamente", "success");
-        onDeleted?.();
+        onDeleted?.(appointment.recurring_group_id!);
         onClose();
       } else {
         setError(result.error);
@@ -427,6 +427,7 @@ export default function AppointmentDetailModal({
       if (result.success) {
         setLocalPaid(false);
         addToast("Reembolso procesado", "success");
+        onSuccess?.();
       } else {
         setError(result.error);
         addToast(result.error || "Error al reembolsar", "error");
@@ -456,6 +457,7 @@ export default function AppointmentDetailModal({
       }
       addToast("Cliente actualizado", "success");
       setShowCustomerEditor(false);
+      onSuccess?.();
     });
   }
 
@@ -486,6 +488,7 @@ export default function AppointmentDetailModal({
       setLocalRewardsAvailable((prev) => Math.max(0, prev - 1));
       setLocalRewardApplied(true);
       addToast(`Canje aplicado (${result.data?.discountPercent ?? 0}% de descuento).`, "success");
+      onSuccess?.();
     });
   }
 

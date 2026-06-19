@@ -177,8 +177,10 @@ export default function BatchAppointmentModal({
     setResults({ ok, fail });
     setSaving(false);
     addToast(`${ok} turno${ok !== 1 ? "s" : ""} creado${ok !== 1 ? "s" : ""}${fail > 0 ? `, ${fail} error${fail !== 1 ? "es" : ""}` : ""}`, fail > 0 ? "error" : "success");
-    if (fail === 0) {
+    if (ok > 0) {
       onSuccess?.();
+    }
+    if (fail === 0) {
       onClose();
     }
   }
