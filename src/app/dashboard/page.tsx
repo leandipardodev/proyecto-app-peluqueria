@@ -323,8 +323,8 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
             Resumen de tu negocio
           </p>
         </div>
-        <div className="hidden lg:block pt-1.5 pr-4">
-          <p className="dashboard-shopname-hero text-5xl xl:text-6xl font-black tracking-[-0.04em] text-gray-900/85 dark:text-white/90 max-w-[32rem] truncate text-right leading-tight">
+        <div className="hidden lg:block pt-1.5 pl-6">
+          <p className="dashboard-shopname-hero text-right text-6xl xl:text-7xl font-extrabold tracking-tight text-gray-900 dark:text-white max-w-[36rem] break-words text-balance leading-[1.15]">
             {summary.shopName}
           </p>
         </div>
