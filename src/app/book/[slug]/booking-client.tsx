@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { initMercadoPago } from "@mercadopago/sdk-react";
 import { fetchPublicAvailableSlots, createPublicAppointment, createPublicComboAppointment, deletePublicAppointment } from "@/lib/dashboard/public-booking-actions";
+import { fetchShopDateOverrides } from "@/lib/dashboard/business-actions";
 import { createPendingBooking, deletePendingBooking } from "@/lib/dashboard/pending-booking-actions";
 import GoogleSignInButton from "@/components/auth/google-sign-in-button";
 import { useAuth } from "@/lib/auth-context";
@@ -48,6 +49,7 @@ import {
   to24HourTimeLabel,
   formatTimeFromIso,
 } from "./booking-utils";
+import { getArgentinaDateString, getArgentinaMinutesSinceMidnight } from "@/lib/argentina-time";
 
 interface BookingClientProps {
   shop: {
@@ -131,6 +133,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
   const [loadingSlots, setLoadingSlots] = useState(false);
   const fetchedDatesRef = useRef(new Set<string>());
   const pendingDateRef = useRef<string | null>(null);
+  const [monthOverrides, setMonthOverrides] = useState<Record<string, { is_closed: boolean; start_time: string | null; end_time: string | null }>>({});
 
   const [atBottom, setAtBottom] = useState(false);
 
@@ -191,12 +194,10 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
   const serviceWordLower = serviceWord.toLowerCase();
   const staffWordLower = staffWord.toLowerCase();
 
-  const todayRef = useRef(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
-  });
-  const todayDate = useMemo(() => todayRef.current(), []);
+  const todayDate = useMemo(() => {
+    const todayStr = getArgentinaDateString();
+    return new Date(`${todayStr}T00:00:00-03:00`);
+  }, []);
 
   const [viewYear, setViewYear] = useState(() => todayDate.getFullYear());
   const [viewMonth, setViewMonth] = useState(() => todayDate.getMonth());
@@ -346,6 +347,23 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
     setSelectedDate(null);
   }, [selectedService, selectedCombo, selectedStaff]);
 
+  useEffect(() => {
+    const startDate = formatDate(new Date(viewYear, viewMonth, 1));
+    const endDate = formatDate(new Date(viewYear, viewMonth + 1, 0));
+    (async () => {
+      const result = await fetchShopDateOverrides(shop.id, startDate, endDate);
+      if (result.success && result.data) {
+        const map: Record<string, { is_closed: boolean; start_time: string | null; end_time: string | null }> = {};
+        for (const o of result.data) {
+          if (o.staff_id === null) {
+            map[o.date] = { is_closed: o.is_closed, start_time: o.start_time, end_time: o.end_time };
+          }
+        }
+        setMonthOverrides(map);
+      }
+    })();
+  }, [viewYear, viewMonth, shop.id]);
+
   const populatedFromSession = useRef(false);
 
   useEffect(() => {
@@ -404,15 +422,14 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
 
   const filteredSlots = useMemo(() => {
     if (!selectedDate) return availableSlots;
-    const now = new Date();
-    const selectedIsToday = selectedDate.toDateString() === now.toDateString();
-    if (!selectedIsToday) return availableSlots;
+    const selectedDateStr = formatDate(selectedDate);
+    const todayArStr = getArgentinaDateString();
+    if (selectedDateStr !== todayArStr) return availableSlots;
 
-    const minMinutes = now.getHours() * 60 + now.getMinutes();
+    const minMinutes = getArgentinaMinutesSinceMidnight(new Date());
     return availableSlots.filter((slot) => {
-      const date = new Date(slot.start);
-      if (Number.isNaN(date.getTime())) return parseHHmmToMinutes(to24HourTimeLabel(slot.time)) >= minMinutes;
-      const slotMinutes = date.getHours() * 60 + date.getMinutes();
+      const slotMinutes = getArgentinaMinutesSinceMidnight(slot.start);
+      if (Number.isNaN(slotMinutes)) return parseHHmmToMinutes(to24HourTimeLabel(slot.time)) >= minMinutes;
       return slotMinutes >= minMinutes;
     });
   }, [availableSlots, selectedDate]);
@@ -685,7 +702,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
   const summaryService = selectedCombo?.name || selectedService?.name || "Sin servicio";
   const summaryDate = selectedDate ? formatDisplayDate(selectedDate).replace(/^\w/, (c) => c.toUpperCase()) : "Sin fecha";
   const summaryTime = selectedSlot ? formatTimeFromIso(selectedSlot.start) || to24HourTimeLabel(selectedSlot.time) : "Sin hora";
-  const displayPrice = chargedAmount ?? (isDepositPayment ? (selectedCombo?.price ?? selectedService?.price ?? 0) * 0.3 : selectedCombo?.price ?? selectedService?.price ?? 0);
+  const displayPrice = chargedAmount ?? (selectedCombo?.price ?? selectedService?.price ?? 0);
 
   const resolvedTemplate = resolveTemplate(shop.templateId);
   const templateStyles = BOOKING_THEMES[resolvedTemplate];
@@ -1292,11 +1309,14 @@ draggable={false}
                             const dateStr = formatDate(d);
                             const isSelected = selectedDate && formatDate(selectedDate) === dateStr;
                             const isToday = formatDate(d) === formatDate(todayDate);
+                            const override = monthOverrides[dateStr];
+                            const isClosed = override?.is_closed === true;
                             return (
                               <button
                                 key={dateStr}
                                 type="button"
-                                onClick={(e) => {
+                                disabled={isClosed}
+                                onClick={isClosed ? undefined : (e) => {
                                   triggerHaptic(10);
                                   pendingDateRef.current = dateStr;
                                   setSelectedDate(d);
@@ -1306,9 +1326,9 @@ draggable={false}
                                   const size = Math.ceil(Math.sqrt(rect.width * rect.width + rect.height * rect.height) * 2);
                                   setRipplePositions(prev => ({ ...prev, [`date-${dateStr}`]: { x: e.clientX - rect.left, y: e.clientY - rect.top, size } }));
                                 }}
-                                className={`relative flex flex-col items-center justify-center py-2 transition-all duration-200 overflow-hidden hover:bg-black/[0.03] ${isSelected ? 'bg-black/[0.04]' : ''}`}
+                                className={`relative flex flex-col items-center justify-center py-2 transition-all duration-200 overflow-hidden hover:bg-black/[0.03] ${isSelected ? 'bg-black/[0.04]' : ''} ${isClosed ? 'opacity-40 cursor-not-allowed' : ''}`}
                               >
-                                {isSelected && (
+                                {isSelected && !isClosed && (
                                   ripplePositions[`date-${dateStr}`] ? (
                                   rippleWaves.map((color, i) => (
                                   <motion.span
@@ -1325,10 +1345,16 @@ draggable={false}
                                   )
                                 )}
                               <span className={`relative text-xs font-semibold ${isSelected ? templateStyles.accent : templateStyles.heading}`} style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}>{d.getDate()}</span>
-                                {isToday && !isSelected && (
+                                {isToday && !isSelected && !isClosed && (
                                   <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-blue-400/60" />
                                 )}
-                                {isSelected && (
+                                {isClosed && (
+                                  <span className="text-[9px] leading-tight text-red-400 font-medium">Cerrado</span>
+                                )}
+                                {override?.start_time && !isClosed && (
+                                  <span className="text-[8px] leading-tight text-amber-500">H. reducido</span>
+                                )}
+                                {isSelected && !isClosed && (
                                   <motion.span
                                     layoutId="day-selector"
                                     className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full"

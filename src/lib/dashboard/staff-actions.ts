@@ -35,6 +35,12 @@ async function requireOwnerAccessForShop(shopId: string): Promise<ActionResult<{
   return { success: true, data: { userId: user.id } };
 }
 
+export type ServiceOverride = {
+  serviceId: string;
+  serviceName: string;
+  percentageRate: number;
+};
+
 type StaffMember = {
   id: string;
   name: string | null;
@@ -47,6 +53,8 @@ type StaffMember = {
   joined: boolean;
   inviteLink: string | null;
   photo_url: string | null;
+  overridesEnabled: boolean;
+  serviceOverrides: ServiceOverride[];
 };
 
 type StaffRpcRow = {
@@ -97,11 +105,25 @@ export async function fetchStaffMembers(shopIdOverride?: string): Promise<Action
     const staffProfileMap = new Map((staffProfiles || []).map((p) => [p.user_id, p.photo_url]));
     const { data: rules } = await admin
       .from("staff_compensation_rules")
-      .select("staff_user_id, percentage_rate, fixed_amount")
+      .select("id, staff_user_id, percentage_rate, fixed_amount, overrides_enabled")
       .eq("shop_id", shopId)
       .eq("is_active", true)
       .order("created_at", { ascending: false, nullsFirst: false });
     const ruleMap = new Map((rules || []).map((r) => [r.staff_user_id as string, r]));
+
+    const ruleIds = (rules || []).map((r) => r.id).filter(Boolean);
+    const overrideMap = new Map<string, { service_id: string; percentage_rate: number }[]>();
+    if (ruleIds.length > 0) {
+      const { data: overrides } = await admin
+        .from("staff_commission_overrides")
+        .select("compensation_rule_id, service_id, percentage_rate")
+        .in("compensation_rule_id", ruleIds);
+      for (const ov of overrides ?? []) {
+        const list = overrideMap.get(ov.compensation_rule_id) ?? [];
+        list.push({ service_id: ov.service_id, percentage_rate: Number(ov.percentage_rate || 0) });
+        overrideMap.set(ov.compensation_rule_id, list);
+      }
+    }
     const staffRows: StaffRpcRow[] = (memberships || []).map((m) => {
       const profile = profileMap.get(m.user_id);
       return {
@@ -144,6 +166,8 @@ export async function fetchStaffMembers(shopIdOverride?: string): Promise<Action
       const inviteLink = !joined && member.email
         ? `${SITE_URL}/join?token=${encodeURIComponent(createStaffInviteToken({ shopId, email: member.email, role: member.role as "staff" | "owner" }))}`
         : null;
+      const overridesEnabled = Boolean(rule?.overrides_enabled);
+      const rawOverrides = rule?.id ? overrideMap.get(rule.id) ?? [] : [];
 
       return {
         id: member.user_id,
@@ -157,6 +181,8 @@ export async function fetchStaffMembers(shopIdOverride?: string): Promise<Action
         joined,
         inviteLink,
         photo_url: staffProfileMap.get(member.user_id) ?? null,
+        overridesEnabled,
+        serviceOverrides: rawOverrides.map((o) => ({ serviceId: o.service_id, serviceName: "", percentageRate: o.percentage_rate })),
       };
     });
 
@@ -185,6 +211,19 @@ export async function addStaffMember(formData: FormData, shopIdOverride?: string
     const payModel = String(formData.get("pay_model") || "percentage").trim();
     const percentageRate = Number(formData.get("percentage_rate") || 0);
     const fixedAmount = Number(formData.get("fixed_amount") || 0);
+    const overridesEnabled = formData.get("overrides_enabled") === "true";
+    const overrides: { serviceId: string; percentageRate: number }[] = [];
+    if (overridesEnabled) {
+      for (const [key, value] of formData.entries()) {
+        if (key.startsWith("override_")) {
+          const serviceId = key.slice("override_".length);
+          const rate = Number(value);
+          if (serviceId && rate >= 0 && rate <= 100) {
+            overrides.push({ serviceId, percentageRate: rate });
+          }
+        }
+      }
+    }
 
     if (!name || !email || !role) {
       return { success: false, error: "Todos los campos son obligatorios" };
@@ -223,17 +262,28 @@ export async function addStaffMember(formData: FormData, shopIdOverride?: string
       const normalizedPercentage = payModel === "fixed" ? 0 : percentageRate;
       const normalizedFixed = payModel === "percentage" ? 0 : fixedAmount;
       if (role === "staff") {
-        await admin.from("staff_compensation_rules").insert(
+        const { data: newRule } = await admin.from("staff_compensation_rules").insert(
           {
             shop_id: shopId,
             staff_user_id: existingUser.user_id,
             model: normalizedFixed > 0 && normalizedPercentage > 0 ? "hybrid" : normalizedFixed > 0 ? "fixed" : "percentage",
             percentage_rate: normalizedPercentage,
             fixed_amount: normalizedFixed,
+            overrides_enabled: overridesEnabled,
             starts_on: new Date().toISOString().slice(0, 10),
             updated_at: new Date().toISOString(),
           },
-        );
+        ).select("id").single();
+        if (newRule && overrides.length > 0) {
+          await admin.from("staff_commission_overrides").insert(
+            overrides.map((o) => ({
+              shop_id: shopId,
+              compensation_rule_id: newRule.id,
+              service_id: o.serviceId,
+              percentage_rate: Math.min(100, Math.max(0, o.percentageRate)),
+            }))
+          );
+        }
       }
 
       await admin
@@ -310,16 +360,27 @@ export async function addStaffMember(formData: FormData, shopIdOverride?: string
     const normalizedPercentage = payModel === "fixed" ? 0 : percentageRate;
     const normalizedFixed = payModel === "percentage" ? 0 : fixedAmount;
     if (role === "staff") {
-      await admin.from("staff_compensation_rules").insert({
+      const { data: newRule } = await admin.from("staff_compensation_rules").insert({
         shop_id: shopId,
         staff_user_id: adminData.user.id,
         model: normalizedFixed > 0 && normalizedPercentage > 0 ? "hybrid" : normalizedFixed > 0 ? "fixed" : "percentage",
         percentage_rate: normalizedPercentage,
         fixed_amount: normalizedFixed,
+        overrides_enabled: overridesEnabled,
         starts_on: new Date().toISOString().slice(0, 10),
         ends_on: null,
         is_active: true,
-      });
+      }).select("id").single();
+      if (newRule && overrides.length > 0) {
+        await admin.from("staff_commission_overrides").insert(
+          overrides.map((o) => ({
+            shop_id: shopId,
+            compensation_rule_id: newRule.id,
+            service_id: o.serviceId,
+            percentage_rate: Math.min(100, Math.max(0, o.percentageRate)),
+          }))
+        );
+      }
     }
 
     if (role === "staff") {
@@ -371,7 +432,7 @@ export async function setupStaffAccount(
 
 export async function updateStaffPayMode(
   id: string,
-  input: { payModel: "percentage" | "fixed" | "mixed"; percentageRate: number; fixedAmount: number },
+  input: { payModel: "percentage" | "fixed" | "mixed"; percentageRate: number; fixedAmount: number; overridesEnabled?: boolean; serviceOverrides?: { serviceId: string; percentageRate: number }[] },
   shopIdOverride?: string,
 ): Promise<ActionResult> {
   try {
@@ -390,6 +451,8 @@ export async function updateStaffPayMode(
     const percentage = input.payModel === "fixed" ? 0 : Math.max(0, Math.min(100, Number(input.percentageRate) || 0));
     const fixed = input.payModel === "percentage" ? 0 : Math.max(0, Number(input.fixedAmount) || 0);
     const today = new Date().toISOString().slice(0, 10);
+    const overridesEnabled = Boolean(input.overridesEnabled);
+    const serviceOverrides = input.serviceOverrides ?? [];
 
     await admin
       .from("staff_compensation_rules")
@@ -399,18 +462,35 @@ export async function updateStaffPayMode(
       .is("ends_on", null)
       .eq("is_active", true);
 
-    const { error } = await admin.from("staff_compensation_rules").insert({
+    const { data: newRule, error } = await admin.from("staff_compensation_rules").insert({
       shop_id: shopId,
       staff_user_id: id,
       model: fixed > 0 && percentage > 0 ? "hybrid" : fixed > 0 ? "fixed" : "percentage",
       percentage_rate: percentage,
       fixed_amount: fixed,
+      overrides_enabled: overridesEnabled,
       starts_on: today,
       ends_on: null,
       is_active: true,
-    });
+    }).select("id").single();
 
     if (error) return { success: false, error: error.message };
+
+    if (newRule && overridesEnabled && serviceOverrides.length > 0) {
+      const rows = serviceOverrides
+        .filter((o) => o.percentageRate > 0)
+        .map((o) => ({
+          shop_id: shopId,
+          compensation_rule_id: newRule.id,
+          service_id: o.serviceId,
+          percentage_rate: Math.min(100, Math.max(0, o.percentageRate)),
+        }));
+      if (rows.length > 0) {
+        const { error: ovError } = await admin.from("staff_commission_overrides").insert(rows);
+        if (ovError) return { success: false, error: ovError.message };
+      }
+    }
+
     await revalidateDashboardSegments(shopId, ["/staff", "/finances"]);
     return { success: true };
   } catch (e) {
@@ -555,6 +635,84 @@ export async function getServiceStaffIds(serviceId: string, shopIdOverride?: str
     return { success: true, data: (data || []).map((r) => r.staff_id) };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al obtener personal del servicio" };
+  }
+}
+
+export async function fetchStaffCommissionOverrides(
+  ruleId: string,
+  shopIdOverride?: string,
+): Promise<ActionResult<{ service_id: string; percentage_rate: number }[]>> {
+  try {
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    }
+    const admin = await createAdminClient();
+    const { data } = await admin
+      .from("staff_commission_overrides")
+      .select("service_id, percentage_rate")
+      .eq("compensation_rule_id", ruleId);
+    return { success: true, data: (data || []).map((r) => ({ service_id: r.service_id, percentage_rate: Number(r.percentage_rate || 0) })) };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al obtener comisiones por servicio" };
+  }
+}
+
+export async function upsertStaffCommissionOverrides(
+  ruleId: string,
+  overrides: { serviceId: string; percentageRate: number }[],
+  shopIdOverride?: string,
+): Promise<ActionResult> {
+  try {
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    }
+
+    const ownerAccess = await requireOwnerAccessForShop(shopId);
+    if (!ownerAccess.success) return ownerAccess;
+
+    const admin = await createAdminClient();
+
+    const { data: rule } = await admin
+      .from("staff_compensation_rules")
+      .select("id")
+      .eq("id", ruleId)
+      .eq("shop_id", shopId)
+      .maybeSingle();
+    if (!rule) return { success: false, error: "Regla de compensacion no encontrada" };
+
+    const { error: deleteError } = await admin
+      .from("staff_commission_overrides")
+      .delete()
+      .eq("compensation_rule_id", ruleId);
+    if (deleteError) return { success: false, error: deleteError.message };
+
+    if (overrides.length > 0) {
+      const rows = overrides
+        .filter((o) => o.percentageRate > 0)
+        .map((o) => ({
+          shop_id: shopId,
+          compensation_rule_id: ruleId,
+          service_id: o.serviceId,
+          percentage_rate: Math.min(100, Math.max(0, o.percentageRate)),
+        }));
+      if (rows.length > 0) {
+        const { error: insertError } = await admin.from("staff_commission_overrides").insert(rows);
+        if (insertError) return { success: false, error: insertError.message };
+      }
+    }
+
+    await revalidateDashboardSegments(shopId, ["/staff", "/finances"]);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al guardar comisiones por servicio" };
   }
 }
 

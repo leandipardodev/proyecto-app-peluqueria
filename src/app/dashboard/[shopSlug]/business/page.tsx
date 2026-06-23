@@ -5,7 +5,7 @@ import { fetchBookingTheme } from "@/lib/dashboard/booking-theme-actions";
 import { fetchVoucherWhatsappTemplate } from "@/lib/dashboard/voucher-actions";
 import BusinessClient from "@/app/dashboard/business/business-client";
 import { createServerClient } from "@/lib/supabase/server";
-import { getCachedUser, getCachedShopIdBySlug } from "@/lib/dashboard/auth-server";
+import { getCachedUser, getCachedShopIdBySlug, createServiceRoleClient } from "@/lib/dashboard/auth-server";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +26,15 @@ export default async function DashboardShopBusinessPage({ params }: { params: Pr
   const role = membership?.role ?? "staff";
   const canManageBilling = Boolean(membership?.is_active && membership.role === "owner");
 
-  const [result, summaryResult, metricsResult, servicesResult, businessHoursResult, bookingThemeResult, voucherTemplateResult] = await Promise.all([
+  const adminClient = await createServiceRoleClient();
+  const staffPromise = adminClient
+    .from("shop_memberships")
+    .select("user_id, role")
+    .eq("shop_id", shopId)
+    .eq("is_active", true)
+    .in("role", ["owner", "staff", "admin"]);
+
+  const [result, summaryResult, metricsResult, servicesResult, businessHoursResult, bookingThemeResult, voucherTemplateResult, staffResult] = await Promise.all([
     fetchBusinessData(shopId),
     fetchDashboardSummary(shopId),
     fetchDashboardMetrics(shopId),
@@ -34,7 +42,20 @@ export default async function DashboardShopBusinessPage({ params }: { params: Pr
     fetchBusinessHours(shopId),
     fetchBookingTheme(shopId),
     fetchVoucherWhatsappTemplate(shopId),
+    staffPromise,
   ]);
+
+  const memberIds = (staffResult.data || []).map((m) => m.user_id).filter(Boolean);
+  const staffNames: { id: string; name: string }[] = [];
+  if (memberIds.length > 0) {
+    const { data: profiles } = await adminClient
+      .from("user_profiles")
+      .select("user_id, name")
+      .in("user_id", memberIds);
+    for (const p of profiles || []) {
+      staffNames.push({ id: p.user_id, name: p.name || "Sin nombre" });
+    }
+  }
 
   const summaryStats =
     summaryResult.success && summaryResult.data
@@ -65,11 +86,13 @@ export default async function DashboardShopBusinessPage({ params }: { params: Pr
       summaryStats={summaryStats}
       metricStats={metricStats}
       canManageBilling={canManageBilling}
+      shopId={shopId}
       shopSlug={shopSlug}
       initialServices={servicesResult.success ? servicesResult.data ?? [] : []}
       initialBusinessHours={businessHoursResult.success ? businessHoursResult.data ?? null : null}
       initialBookingTheme={bookingThemeResult.success ? bookingThemeResult.data ?? null : null}
       initialVoucherWhatsappTemplate={voucherTemplateResult.success ? voucherTemplateResult.data ?? null : null}
+      initialStaff={staffNames}
     />
   );
 }

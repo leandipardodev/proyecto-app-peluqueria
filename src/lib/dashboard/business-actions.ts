@@ -451,6 +451,123 @@ export async function runLoyaltyRaffleAction(prizeName: string, winnersCount: nu
   }
 }
 
+export type DateOverride = {
+  id: string;
+  staff_id: string | null;
+  staff_name: string | null;
+  date: string;
+  is_closed: boolean;
+  start_time: string | null;
+  end_time: string | null;
+  reason: string | null;
+};
+
+export async function fetchShopDateOverrides(
+  shopId: string,
+  startDate: string,
+  endDate: string
+): Promise<ActionResult<DateOverride[]>> {
+  try {
+    const admin = await createAdminClient();
+    const { data, error } = await admin
+      .from("shop_date_overrides")
+      .select("id, staff_id, date, is_closed, start_time, end_time, reason")
+      .eq("shop_id", shopId)
+      .gte("date", startDate)
+      .lte("date", endDate)
+      .order("date", { ascending: true });
+
+    if (error) return { success: false, error: error.message };
+
+    // Fetch staff names for staff-specific overrides
+    const staffIds = (data || []).map((o) => o.staff_id).filter(Boolean) as string[];
+    const nameMap = new Map<string, string>();
+    if (staffIds.length > 0) {
+      const { data: profiles } = await admin
+        .from("user_profiles")
+        .select("user_id, name")
+        .in("user_id", staffIds);
+      for (const p of profiles || []) {
+        nameMap.set(p.user_id, p.name || "Sin nombre");
+      }
+    }
+
+    return {
+      success: true,
+      data: (data || []).map((o) => ({
+        id: o.id,
+        staff_id: o.staff_id,
+        staff_name: o.staff_id ? nameMap.get(o.staff_id) || "Sin nombre" : null,
+        date: o.date,
+        is_closed: o.is_closed,
+        start_time: o.start_time?.slice(0, 5) ?? null,
+        end_time: o.end_time?.slice(0, 5) ?? null,
+        reason: o.reason,
+      })),
+    };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al cargar excepciones" };
+  }
+}
+
+export async function upsertShopDateOverride(
+  shopId: string,
+  date: string,
+  staffId: string | null,
+  isClosed: boolean,
+  startTime?: string | null,
+  endTime?: string | null,
+  reason?: string | null
+): Promise<ActionResult> {
+  try {
+    const admin = await createAdminClient();
+
+    // Delete existing override for this (shop, staff, date) to avoid unique constraint conflicts
+    const delQuery = admin.from("shop_date_overrides").delete().eq("shop_id", shopId).eq("date", date);
+    if (staffId) {
+      await delQuery.eq("staff_id", staffId);
+    } else {
+      await delQuery.is("staff_id", null);
+    }
+
+    const { error } = await admin.from("shop_date_overrides").insert({
+      shop_id: shopId,
+      staff_id: staffId || null,
+      date,
+      is_closed: isClosed,
+      start_time: startTime || null,
+      end_time: endTime || null,
+      reason: reason || null,
+    });
+
+    if (error) return { success: false, error: error.message };
+    await revalidateDashboardSegments(shopId, ["/business", "/book"]);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al guardar excepción" };
+  }
+}
+
+export async function deleteShopDateOverride(
+  overrideId: string,
+  shopId: string
+): Promise<ActionResult> {
+  try {
+    const admin = await createAdminClient();
+    const { error } = await admin
+      .from("shop_date_overrides")
+      .delete()
+      .eq("id", overrideId)
+      .eq("shop_id", shopId);
+
+    if (error) return { success: false, error: error.message };
+    await revalidateDashboardSegments(shopId, ["/business", "/book"]);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al eliminar excepción" };
+  }
+}
+
 export async function updateBookingDepositPolicyAction(enabled: boolean, depositAmount: number, forcePayAtShop?: boolean): Promise<ActionResult> {
   try {
     const shopIdResult = await requireOwnerShopId();

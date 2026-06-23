@@ -320,6 +320,24 @@ export async function POST(request: NextRequest) {
           customerId = newCustomer.id;
         }
 
+        // Re-check slot availability — may have been taken since pending_booking was created
+        if (booking.staff_id) {
+          const startStr = typeof booking.start_time === "string" ? booking.start_time : booking.start_time.toISOString();
+          const endStr = typeof booking.end_time === "string" ? booking.end_time : booking.end_time.toISOString();
+          const { data: conflict } = await admin
+            .from("appointments")
+            .select("id")
+            .eq("shop_id", booking.shop_id)
+            .eq("staff_id", booking.staff_id)
+            .not("status", "eq", "cancelled")
+            .or(`and(end_time.gt.${startStr},start_time.lt.${endStr})`)
+            .limit(1);
+          if (conflict && conflict.length > 0) {
+            await admin.from("pending_bookings").update({ status: "expired" }).eq("id", booking.id);
+            return NextResponse.json({ ok: true });
+          }
+        }
+
         // Create appointment
         const { data: service } = await admin
           .from("services")

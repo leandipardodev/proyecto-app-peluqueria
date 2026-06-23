@@ -15,6 +15,7 @@ import { sendAppointmentConfirmationEmail, scheduleAppointmentReminderEmail } fr
 import { createRateLimiter } from "@/lib/rate-limiter";
 import { verifyRecaptcha } from "@/lib/recaptcha";
 import { headers } from "next/headers";
+import { fetchShopDateOverrides } from "@/lib/dashboard/business-actions";
 import "server-only";
 
 const slotsLimiter = createRateLimiter({ intervalMs: 60_000, maxRequests: 30 });
@@ -98,6 +99,14 @@ const DEFAULT_WEEK_HOURS: Record<string, { open: boolean; start: string; end: st
   friday:    { open: true,  start: "09:00", end: "20:00" },
   saturday:  { open: true,  start: "09:00", end: "20:00" },
 };
+
+function hhmmToMinutes(t: string): number {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+function minutesToHHmm(m: number): string {
+  return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
+}
 
 function normalizeHours(raw: unknown): Record<string, { open?: boolean; start?: string; end?: string; break_start?: string | null; break_end?: string | null }> {
   if (!raw) return {};
@@ -192,9 +201,9 @@ export async function fetchPublicAvailableSlots(
     if (!shopDayConfig.open) return { success: true, data: [] };
 
     const [shopSh, shopSm] = shopDayConfig.start.split(":").map(Number);
-    const shopOpenMinutes = shopSh * 60 + shopSm;
+    let shopOpenMinutes = shopSh * 60 + shopSm;
     const [shopEh, shopEm] = shopDayConfig.end.split(":").map(Number);
-    const shopCloseMinutes = shopEh * 60 + shopEm;
+    let shopCloseMinutes = shopEh * 60 + shopEm;
     if (shopOpenMinutes >= shopCloseMinutes) return { success: true, data: [] };
 
     const { data: allStaff } = await admin
@@ -219,6 +228,32 @@ export async function fetchPublicAvailableSlots(
       scheduleMap.set(s.staff_id, s);
     }
 
+    // Fetch date overrides for this date
+    const overrideResult = await fetchShopDateOverrides(shopId, date, date);
+    const overrides = overrideResult.success ? (overrideResult.data || []) : [];
+    const shopOverride = overrides.find(o => o.staff_id === null);
+
+    // Build staff override map for fast lookup
+    const staffOverrideMap = new Map<string, (typeof overrides)[0]>();
+    for (const o of overrides) {
+      if (o.staff_id) staffOverrideMap.set(o.staff_id, o);
+    }
+
+    if (shopOverride) {
+      if (shopOverride.is_closed) {
+        return { success: true, data: [] };
+      }
+      if (shopOverride.start_time && shopOverride.end_time) {
+        const overrideStart = hhmmToMinutes(shopOverride.start_time);
+        const overrideEnd = hhmmToMinutes(shopOverride.end_time);
+        shopOpenMinutes = Math.max(shopOpenMinutes, overrideStart);
+        shopCloseMinutes = Math.min(shopCloseMinutes, overrideEnd);
+        if (shopOpenMinutes >= shopCloseMinutes) {
+          return { success: true, data: [] };
+        }
+      }
+    }
+
     function getStaffDayConfig(sId: string): { startMinutes: number; closeMinutes: number; breakStart: number | null; breakEnd: number | null } | null {
       const entry = scheduleMap.get(sId);
       if (entry) {
@@ -228,6 +263,10 @@ export async function fetchPublicAvailableSlots(
         const openMinutes = sh * 60 + sm;
         const closeMinutes = eh * 60 + em;
         if (openMinutes >= closeMinutes) return null;
+        // Intersect staff schedule with shop hours
+        const finalOpenMinutes = Math.max(openMinutes, shopOpenMinutes);
+        const finalCloseMinutes = Math.min(closeMinutes, shopCloseMinutes);
+        if (finalOpenMinutes >= finalCloseMinutes) return null;
         let breakStart: number | null = null;
         let breakEnd: number | null = null;
         if (entry.break_start && entry.break_end) {
@@ -236,7 +275,7 @@ export async function fetchPublicAvailableSlots(
           breakStart = bsh * 60 + bsm;
           breakEnd = beh * 60 + bem;
         }
-        return { startMinutes: openMinutes, closeMinutes, breakStart, breakEnd };
+        return { startMinutes: finalOpenMinutes, closeMinutes: finalCloseMinutes, breakStart, breakEnd };
       }
       return {
         startMinutes: shopOpenMinutes,
@@ -301,6 +340,23 @@ export async function fetchPublicAvailableSlots(
       const config = getStaffDayConfig(staffId);
       if (!config) return { success: true, data: [] };
 
+      // Staff-specific override check
+      const staffOverride = staffOverrideMap.get(staffId);
+      if (staffOverride) {
+        if (staffOverride.is_closed) {
+          return { success: true, data: [] };
+        }
+        if (staffOverride.start_time && staffOverride.end_time) {
+          const ovStart = hhmmToMinutes(staffOverride.start_time);
+          const ovEnd = hhmmToMinutes(staffOverride.end_time);
+          config.startMinutes = Math.max(config.startMinutes, ovStart);
+          config.closeMinutes = Math.min(config.closeMinutes, ovEnd);
+          if (config.startMinutes >= config.closeMinutes) {
+            return { success: true, data: [] };
+          }
+        }
+      }
+
       const staffBlocks: Array<{ openMinutes: number; closeMinutes: number }> = [];
       if (config.breakStart !== null && config.breakEnd !== null && config.startMinutes < config.breakStart && config.breakStart < config.breakEnd && config.breakEnd < config.closeMinutes) {
         staffBlocks.push({ openMinutes: config.startMinutes, closeMinutes: config.breakStart });
@@ -360,6 +416,15 @@ export async function fetchPublicAvailableSlots(
           const anyAvailable = allStaffIds.some((sId) => {
             const config = getStaffDayConfig(sId);
             if (!config) return false;
+            const sOverride = staffOverrideMap.get(sId);
+            if (sOverride) {
+              if (sOverride.is_closed) return false;
+              if (sOverride.start_time && sOverride.end_time) {
+                const ovStart = hhmmToMinutes(sOverride.start_time);
+                const ovEnd = hhmmToMinutes(sOverride.end_time);
+                if (slotStartMinute < ovStart || slotEndMinute > ovEnd) return false;
+              }
+            }
             if (slotStartMinute < config.startMinutes || slotEndMinute > config.closeMinutes) return false;
             if (isInBreak(slotStartMinute, slotEndMinute, config.breakStart, config.breakEnd)) return false;
             if (hasTimeConflict(sId, slotStart, slotEnd)) return false;
@@ -414,7 +479,23 @@ export async function createPublicAppointment(data: {
       return { success: false, error: "Horario invalido" };
     }
 
+    if (data.customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.customerEmail)) {
+      return { success: false, error: "Email inválido" };
+    }
+
     const bookingDate = getArgentinaDateKey(data.startTime);
+    const todayAr = getArgentinaDateString();
+    if (bookingDate < todayAr) {
+      return { success: false, error: "No se puede reservar en una fecha pasada" };
+    }
+    if (bookingDate === todayAr) {
+      const nowMinutes = getArgentinaMinutesSinceMidnight(new Date());
+      const bookingMinutes = getArgentinaMinutesSinceMidnight(data.startTime);
+      if (bookingMinutes < nowMinutes) {
+        return { success: false, error: "No se puede reservar en un horario pasado" };
+      }
+    }
+
     const dayIndex = new Date(`${bookingDate}T12:00:00-03:00`).getDay();
     const startMinutes = getArgentinaMinutesSinceMidnight(data.startTime);
     const endMinutes = getArgentinaMinutesSinceMidnight(data.endTime);
@@ -441,12 +522,51 @@ export async function createPublicAppointment(data: {
           break_start: staffSchedule.break_start?.slice(0, 5) ?? null,
           break_end: staffSchedule.break_end?.slice(0, 5) ?? null,
         };
+        // Intersect staff schedule with shop hours
+        const shopConfig = await resolveShopDayConfig(admin, data.shopId, dayIndex);
+        if (shopConfig.open) {
+          const interStart = Math.max(hhmmToMinutes(effectiveDayConfig.start), hhmmToMinutes(shopConfig.start));
+          const interEnd = Math.min(hhmmToMinutes(effectiveDayConfig.end), hhmmToMinutes(shopConfig.end));
+          effectiveDayConfig.start = minutesToHHmm(interStart);
+          effectiveDayConfig.end = minutesToHHmm(interEnd);
+        }
       } else {
         // No schedule entry → fallback to shop hours
         effectiveDayConfig = await resolveShopDayConfig(admin, data.shopId, dayIndex);
       }
     } else {
       effectiveDayConfig = await resolveShopDayConfig(admin, data.shopId, dayIndex);
+    }
+
+    // Apply date overrides (defense in depth)
+    const aptOverrideResult = await fetchShopDateOverrides(data.shopId, bookingDate, bookingDate);
+    if (aptOverrideResult.success && aptOverrideResult.data) {
+      const aptShopOverride = aptOverrideResult.data.find(o => o.staff_id === null);
+      if (aptShopOverride) {
+        if (aptShopOverride.is_closed) {
+          return { success: false, error: "El local esta cerrado este dia" };
+        }
+        if (aptShopOverride.start_time && aptShopOverride.end_time) {
+          const ovStart = Math.max(hhmmToMinutes(effectiveDayConfig.start), hhmmToMinutes(aptShopOverride.start_time));
+          const ovEnd = Math.min(hhmmToMinutes(effectiveDayConfig.end), hhmmToMinutes(aptShopOverride.end_time));
+          effectiveDayConfig.start = minutesToHHmm(ovStart);
+          effectiveDayConfig.end = minutesToHHmm(ovEnd);
+        }
+      }
+      if (data.staffId) {
+        const aptStaffOverride = aptOverrideResult.data.find(o => o.staff_id === data.staffId);
+        if (aptStaffOverride) {
+          if (aptStaffOverride.is_closed) {
+            return { success: false, error: "El profesional no trabaja este dia" };
+          }
+          if (aptStaffOverride.start_time && aptStaffOverride.end_time) {
+            const ovStart = Math.max(hhmmToMinutes(effectiveDayConfig.start), hhmmToMinutes(aptStaffOverride.start_time));
+            const ovEnd = Math.min(hhmmToMinutes(effectiveDayConfig.end), hhmmToMinutes(aptStaffOverride.end_time));
+            effectiveDayConfig.start = minutesToHHmm(ovStart);
+            effectiveDayConfig.end = minutesToHHmm(ovEnd);
+          }
+        }
+      }
     }
 
     if (!effectiveDayConfig.open) {
@@ -777,6 +897,10 @@ export async function createPublicComboAppointment(data: {
       return { success: false, error: "Horario invalido" };
     }
 
+    if (data.customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.customerEmail)) {
+      return { success: false, error: "Email inválido" };
+    }
+
     const totalDuration = data.comboDurationMinutes ?? data.services.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
     if (totalDuration <= 0) {
       return { success: false, error: "Duracion invalida" };
@@ -784,6 +908,18 @@ export async function createPublicComboAppointment(data: {
     const endDate = new Date(startDate.getTime() + totalDuration * 60000);
 
     const bookingDate = getArgentinaDateKey(data.startTime);
+    const todayAr = getArgentinaDateString();
+    if (bookingDate < todayAr) {
+      return { success: false, error: "No se puede reservar en una fecha pasada" };
+    }
+    if (bookingDate === todayAr) {
+      const nowMinutes = getArgentinaMinutesSinceMidnight(new Date());
+      const bookingMinutes = getArgentinaMinutesSinceMidnight(data.startTime);
+      if (bookingMinutes < nowMinutes) {
+        return { success: false, error: "No se puede reservar en un horario pasado" };
+      }
+    }
+
     const dayIndex = new Date(`${bookingDate}T12:00:00-03:00`).getDay();
     const startMinutes = getArgentinaMinutesSinceMidnight(data.startTime);
     const endMinutes = getArgentinaMinutesSinceMidnight(endDate.toISOString());
@@ -810,11 +946,50 @@ export async function createPublicComboAppointment(data: {
           break_start: staffSchedule.break_start?.slice(0, 5) ?? null,
           break_end: staffSchedule.break_end?.slice(0, 5) ?? null,
         };
+        // Intersect staff schedule with shop hours
+        const shopConfig = await resolveShopDayConfig(admin, data.shopId, dayIndex);
+        if (shopConfig.open) {
+          const interStart = Math.max(hhmmToMinutes(effectiveDayConfig.start), hhmmToMinutes(shopConfig.start));
+          const interEnd = Math.min(hhmmToMinutes(effectiveDayConfig.end), hhmmToMinutes(shopConfig.end));
+          effectiveDayConfig.start = minutesToHHmm(interStart);
+          effectiveDayConfig.end = minutesToHHmm(interEnd);
+        }
       } else {
         effectiveDayConfig = await resolveShopDayConfig(admin, data.shopId, dayIndex);
       }
     } else {
       effectiveDayConfig = await resolveShopDayConfig(admin, data.shopId, dayIndex);
+    }
+
+    // Apply date overrides (defense in depth)
+    const comboOverrideResult = await fetchShopDateOverrides(data.shopId, bookingDate, bookingDate);
+    if (comboOverrideResult.success && comboOverrideResult.data) {
+      const comboShopOverride = comboOverrideResult.data.find(o => o.staff_id === null);
+      if (comboShopOverride) {
+        if (comboShopOverride.is_closed) {
+          return { success: false, error: "El local esta cerrado este dia" };
+        }
+        if (comboShopOverride.start_time && comboShopOverride.end_time) {
+          const ovStart = Math.max(hhmmToMinutes(effectiveDayConfig.start), hhmmToMinutes(comboShopOverride.start_time));
+          const ovEnd = Math.min(hhmmToMinutes(effectiveDayConfig.end), hhmmToMinutes(comboShopOverride.end_time));
+          effectiveDayConfig.start = minutesToHHmm(ovStart);
+          effectiveDayConfig.end = minutesToHHmm(ovEnd);
+        }
+      }
+      if (data.staffId) {
+        const comboStaffOverride = comboOverrideResult.data.find(o => o.staff_id === data.staffId);
+        if (comboStaffOverride) {
+          if (comboStaffOverride.is_closed) {
+            return { success: false, error: "El profesional no trabaja este dia" };
+          }
+          if (comboStaffOverride.start_time && comboStaffOverride.end_time) {
+            const ovStart = Math.max(hhmmToMinutes(effectiveDayConfig.start), hhmmToMinutes(comboStaffOverride.start_time));
+            const ovEnd = Math.min(hhmmToMinutes(effectiveDayConfig.end), hhmmToMinutes(comboStaffOverride.end_time));
+            effectiveDayConfig.start = minutesToHHmm(ovStart);
+            effectiveDayConfig.end = minutesToHHmm(ovEnd);
+          }
+        }
+      }
     }
 
     if (!effectiveDayConfig.open) {
@@ -853,7 +1028,7 @@ export async function createPublicComboAppointment(data: {
         .select("service_id")
         .eq("staff_id", resolvedStaffId);
       if (staffServiceRows && staffServiceRows.length > 0) {
-        const assigned = staffServiceRows.some((r) => comboServiceIds.has(r.service_id));
+        const assigned = data.services.every((svc) => staffServiceRows.some((r) => r.service_id === svc.id));
         if (!assigned) {
           return { success: false, error: "El profesional no realiza uno de los servicios del combo" };
         }
@@ -1035,15 +1210,29 @@ export async function createPublicComboAppointment(data: {
 
     // Prorate combo price across services
     const totalOriginalPrice = data.services.reduce((sum, s) => sum + s.price, 0);
+    const proratedPrices: number[] = [];
+
+    for (const svc of data.services) {
+      const rawPrice = totalOriginalPrice > 0
+        ? (data.comboPrice * svc.price) / totalOriginalPrice
+        : data.comboPrice / data.services.length;
+      proratedPrices.push(Math.round(rawPrice * 100) / 100);
+    }
+
+    // Adjust last service to absorb rounding remainder so sum matches comboPrice exactly
+    const priceSum = proratedPrices.reduce((a, b) => a + b, 0);
+    const diff = Math.round((data.comboPrice - priceSum) * 100) / 100;
+    if (proratedPrices.length > 0 && Math.abs(diff) > 0) {
+      proratedPrices[proratedPrices.length - 1] = Math.round((proratedPrices[proratedPrices.length - 1] + diff) * 100) / 100;
+    }
+
     let runningMinutes = 0;
     const appointmentIds: string[] = [];
 
-    for (const svc of data.services) {
+    for (let i = 0; i < data.services.length; i++) {
+      const svc = data.services[i];
       const aptStart = new Date(startDate.getTime() + runningMinutes * 60000);
       const aptEnd = new Date(aptStart.getTime() + svc.duration_minutes * 60000);
-      const proratedPrice = totalOriginalPrice > 0
-        ? (data.comboPrice * svc.price) / totalOriginalPrice
-        : data.comboPrice / data.services.length;
 
       const { data: created, error: aptError } = await admin
         .from("appointments")
@@ -1052,7 +1241,7 @@ export async function createPublicComboAppointment(data: {
           customer_id: customerId,
           staff_id: resolvedStaffId,
           service_id: svc.id,
-          service_price: Math.round(proratedPrice * 100) / 100,
+          service_price: proratedPrices[i],
           start_time: aptStart.toISOString(),
           end_time: aptEnd.toISOString(),
           date_key_ar: getArgentinaDateKey(data.startTime),

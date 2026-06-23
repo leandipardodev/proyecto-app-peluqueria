@@ -18,6 +18,7 @@ import {
   updateStaffSchedule,
   getStaffProfile,
   updateStaffProfile,
+  type ServiceOverride,
 } from "@/lib/dashboard/staff-actions";
 import { supabase } from "@/lib/supabase";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
@@ -39,6 +40,8 @@ type StaffMember = {
   joined: boolean;
   inviteLink: string | null;
   photo_url: string | null;
+  overridesEnabled: boolean;
+  serviceOverrides: ServiceOverride[];
 };
 
 function ActionButton({ icon: Icon, label, onClick, disabled, danger }: { icon: typeof Clock; label: string; onClick: () => void; disabled?: boolean; danger?: boolean }) {
@@ -69,6 +72,7 @@ export default function StaffList({
   initialStaff,
   currentUserId,
   canManageStaff,
+  services,
 }: {
   shopId: string;
   shopSlug?: string;
@@ -76,6 +80,7 @@ export default function StaffList({
   initialStaff: StaffMember[];
   currentUserId: string;
   canManageStaff: boolean;
+  services: { id: string; name: string }[];
 }) {
   const router = useRouter();
   const [staff, setStaff] = useState<StaffMember[]>(initialStaff);
@@ -94,7 +99,9 @@ export default function StaffList({
   const [payModel, setPayModel] = useState<"percentage" | "fixed" | "mixed">("percentage");
   const [payPercentage, setPayPercentage] = useState("40");
   const [payFixed, setPayFixed] = useState("0");
-  const [payEditor, setPayEditor] = useState<{ id: string; name: string; payModel: "percentage" | "fixed" | "mixed"; percentageRate: number; fixedAmount: number } | null>(null);
+  const [overridesEnabled, setOverridesEnabled] = useState(false);
+  const [serviceOverrides, setServiceOverrides] = useState<ServiceOverride[]>([]);
+  const [payEditor, setPayEditor] = useState<{ id: string; name: string; payModel: "percentage" | "fixed" | "mixed"; percentageRate: number; fixedAmount: number; overridesEnabled: boolean; serviceOverrides: ServiceOverride[] } | null>(null);
   const [scheduleEditor, setScheduleEditor] = useState<{ id: string; name: string; schedule: { day_of_week: number; is_active: boolean; start_time: string; end_time: string; break_start: string | null; break_end: string | null }[] } | null>(null);
   const [profileEditor, setProfileEditor] = useState<{ id: string; name: string; description: string; instagram: string; whatsapp: string; photo_url: string; uploading: boolean } | null>(null);
   const [portalReady, setPortalReady] = useState(false);
@@ -171,6 +178,8 @@ export default function StaffList({
               payModel: "percentage" as const,
               percentageRate: 0,
               fixedAmount: 0,
+              overridesEnabled: false,
+              serviceOverrides: [],
               joined: !!m.invite_accepted_at,
               inviteLink: null,
               photo_url: null,
@@ -179,6 +188,10 @@ export default function StaffList({
         return newIds.length > 0 ? [...updated, ...newIds] : updated;
       });
     };
+
+    const topic = `realtime:staff-${shopId}`;
+    const existing = supabase.getChannels().find((c) => c.topic === topic);
+    if (existing) supabase.removeChannel(existing);
 
     const channel = supabase
       .channel(`staff-${shopId}`)
@@ -203,6 +216,12 @@ export default function StaffList({
     formData.append("pay_model", payModel);
     formData.append("percentage_rate", payPercentage || "0");
     formData.append("fixed_amount", payFixed || "0");
+    formData.append("overrides_enabled", String(overridesEnabled));
+    if (overridesEnabled) {
+      for (const ov of serviceOverrides) {
+        formData.append(`override_${ov.serviceId}`, String(ov.percentageRate));
+      }
+    }
 
     const result = await addStaffMember(formData, shopId);
 
@@ -224,6 +243,8 @@ export default function StaffList({
     setPayModel("percentage");
     setPayPercentage("40");
     setPayFixed("0");
+    setOverridesEnabled(false);
+    setServiceOverrides([]);
     const latest = await fetchStaffMembers(shopId);
     if (latest.success) setStaff(latest.data ?? []);
   }
@@ -426,6 +447,60 @@ export default function StaffList({
                 <Input type="number" min="0" value={payFixed} onChange={(e) => setPayFixed(e.target.value)} className="mt-1" />
               </div>
             )}
+            {payModel !== "fixed" && (
+              <div className="border-t border-zinc-100 dark:border-zinc-800 pt-4">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={overridesEnabled}
+                    onChange={(e) => {
+                      setOverridesEnabled(e.target.checked);
+                      if (e.target.checked) {
+                        setServiceOverrides(
+                          services.map((s) => ({
+                            serviceId: s.id,
+                            serviceName: s.name,
+                            percentageRate: Number(payPercentage) || 40,
+                          }))
+                        );
+                      } else {
+                        setServiceOverrides([]);
+                      }
+                    }}
+                    className="rounded border-zinc-300 dark:border-zinc-600"
+                  />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Configuracion detallada por servicio</span>
+                </label>
+                {overridesEnabled && (
+                  <div className="mt-3 space-y-1.5 max-h-48 overflow-y-auto">
+                    {serviceOverrides.map((ov) => {
+                      const svc = services.find((s) => s.id === ov.serviceId);
+                      return (
+                        <div key={ov.serviceId} className="flex items-center gap-2 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5">
+                          <span className="flex-1 text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{svc?.name || ov.serviceName}</span>
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              value={ov.percentageRate}
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                setServiceOverrides((prev) =>
+                                  prev.map((o) => (o.serviceId === ov.serviceId ? { ...o, percentageRate: isNaN(val) ? 0 : val } : o))
+                                );
+                              }}
+                              className="w-16 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-xs text-gray-900 dark:text-gray-100 text-center"
+                            />
+                            <span className="text-xs text-zinc-400">%</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="flex flex-col sm:flex-row gap-3">
               <Button type="submit" disabled={saving}>
                 {saving ? "Guardando..." : "Guardar"}
@@ -569,7 +644,7 @@ export default function StaffList({
                   </div>
                   {canManageStaff && (
                     <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800 flex flex-wrap items-center gap-1.5">
-                      <ActionButton icon={DollarSign} label="Acuerdo de cobro" onClick={() => setPayEditor({ id: member.id, name: member.name || member.email || "Staff", payModel: member.payModel, percentageRate: member.percentageRate, fixedAmount: member.fixedAmount })} disabled={isCurrentOwnerSelf} />
+                      <ActionButton icon={DollarSign} label="Acuerdo de cobro" onClick={() => setPayEditor({ id: member.id, name: member.name || member.email || "Staff", payModel: member.payModel, percentageRate: member.percentageRate, fixedAmount: member.fixedAmount, overridesEnabled: member.overridesEnabled, serviceOverrides: member.serviceOverrides.length > 0 ? member.serviceOverrides : services.map((s) => ({ serviceId: s.id, serviceName: s.name, percentageRate: member.percentageRate })) })} disabled={isCurrentOwnerSelf} />
                       <ActionButton icon={Clock} label="Horarios" onClick={() => openScheduleEditor(member.id, member.name || member.email || "Staff")} />
                       <ActionButton icon={UserCircle} label="Perfil" onClick={() => openProfileEditor(member.id, member.name || member.email || "Staff")} />
                       <ActionButton icon={Pencil} label="Renombrar" onClick={() => { setRenameTarget({ id: member.id, name: member.name || "" }); setRenameValue(member.name || ""); }} disabled={!canManageStaff} />
@@ -648,7 +723,7 @@ export default function StaffList({
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-5 space-y-3">
+            <div className="p-5 space-y-3 max-h-[60vh] overflow-y-auto">
               <div className="rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 px-4 py-3 text-sm">
                 <span className="text-xs text-zinc-500 dark:text-zinc-400">Configuración actual</span>
                 <p className="mt-0.5 font-medium text-zinc-800 dark:text-zinc-200">
@@ -689,6 +764,50 @@ export default function StaffList({
                   />
                 </div>
               )}
+              {payEditor.payModel !== "fixed" && (
+                <div className="border-t border-zinc-100 dark:border-zinc-800 pt-3">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={payEditor.overridesEnabled}
+                      onChange={(e) => setPayEditor((prev) => prev ? { ...prev, overridesEnabled: e.target.checked } : prev)}
+                      className="rounded border-zinc-300 dark:border-zinc-600"
+                    />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Configuracion detallada por servicio</span>
+                  </label>
+                  {payEditor.overridesEnabled && (
+                    <div className="mt-3 space-y-1.5">
+                      {services.map((svc) => {
+                        const ov = payEditor.serviceOverrides.find((o) => o.serviceId === svc.id);
+                        const rate = ov?.percentageRate ?? payEditor.percentageRate;
+                        return (
+                          <div key={svc.id} className="flex items-center gap-2 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5">
+                            <span className="flex-1 text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{svc.name}</span>
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                value={rate}
+                                onChange={(e) => {
+                                  const val = Number(e.target.value);
+                                  setPayEditor((prev) => {
+                                    if (!prev) return prev;
+                                    const existing = prev.serviceOverrides.filter((o) => o.serviceId !== svc.id);
+                                    return { ...prev, serviceOverrides: [...existing, { serviceId: svc.id, serviceName: svc.name, percentageRate: isNaN(val) ? 0 : val }] };
+                                  });
+                                }}
+                                className="w-16 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-xs text-gray-900 dark:text-gray-100 text-center"
+                              />
+                              <span className="text-xs text-zinc-400">%</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <div className="px-5 pb-5 flex items-center justify-end gap-2">
               <button type="button" onClick={() => setPayEditor(null)} className="px-3 py-1.5 rounded-lg text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer select-none">Cancelar</button>
@@ -700,12 +819,14 @@ export default function StaffList({
                     payModel: payEditor.payModel,
                     percentageRate: payEditor.percentageRate,
                     fixedAmount: payEditor.fixedAmount,
+                    overridesEnabled: payEditor.overridesEnabled,
+                    serviceOverrides: payEditor.serviceOverrides,
                   }, shopId);
                   if (!res.success) {
                     setError(res.error);
                     return;
                   }
-                  setStaff((prev) => prev.map((m) => (m.id === payEditor.id ? { ...m, payModel: payEditor.payModel, percentageRate: payEditor.percentageRate, fixedAmount: payEditor.fixedAmount } : m)));
+                  setStaff((prev) => prev.map((m) => (m.id === payEditor.id ? { ...m, payModel: payEditor.payModel, percentageRate: payEditor.percentageRate, fixedAmount: payEditor.fixedAmount, overridesEnabled: payEditor.overridesEnabled, serviceOverrides: payEditor.serviceOverrides } : m)));
                   setPayEditor(null);
                   addToast("Modo de cobro actualizado", "success");
                 }}

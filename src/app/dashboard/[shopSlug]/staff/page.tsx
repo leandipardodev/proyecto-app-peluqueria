@@ -30,5 +30,11 @@ export default async function DashboardShopStaffPage({ params }: { params: Promi
   }
 
   const result = await fetchStaffMembers(shopId);
-  return <StaffList shopId={shopId} shopSlug={shopSlug} industry={industry} initialStaff={result.success ? result.data ?? [] : []} currentUserId={user.id} canManageStaff={canManageStaff} />;
+  const { data: servicesData } = await supabase
+    .from("services")
+    .select("id, name")
+    .eq("shop_id", shopId)
+    .order("name", { ascending: true });
+  const services = (servicesData || []).map((s) => ({ id: s.id, name: s.name }));
+  return <StaffList shopId={shopId} shopSlug={shopSlug} industry={industry} initialStaff={result.success ? result.data ?? [] : []} currentUserId={user.id} canManageStaff={canManageStaff} services={services} />;
 }

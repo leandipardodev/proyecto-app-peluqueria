@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect, useMemo, useRef, useCallback, type DragEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
-import { Store, CreditCard, MessageSquareText, Smartphone, Link2, MapPin, Phone, Clock, Share2, AlertTriangle, Trash2, Users, Scissors, ChevronRight } from "lucide-react";
+import { Store, CreditCard, MessageSquareText, Smartphone, Link2, MapPin, Phone, Clock, Share2, AlertTriangle, Trash2, Users, Scissors, ChevronRight, Calendar, Plus, X } from "lucide-react";
 import { TagChips, useTagInsert } from "@/components/ui/tag-chips";
 import Link from "next/link";
 import Image from "next/image";
@@ -26,8 +26,12 @@ import {
   updateBookingDepositPolicyAction,
   updateWhatsappTemplateAction,
   updateBusinessHours,
+  fetchShopDateOverrides,
+  upsertShopDateOverride,
+  deleteShopDateOverride,
   type BusinessData,
   type BusinessHoursData,
+  type DateOverride,
 } from "@/lib/dashboard/business-actions";
 import { updateVoucherWhatsappTemplate } from "@/lib/dashboard/voucher-actions";
 import { DEFAULT_BIRTHDAY_WHATSAPP_TEMPLATE, DEFAULT_VOUCHER_WHATSAPP_TEMPLATE } from "@/lib/dashboard/voucher-constants";
@@ -134,10 +138,12 @@ export default function BusinessClient({
   canManageBilling,
   role = "owner",
   shopSlug,
+  shopId,
   initialServices,
   initialBusinessHours,
   initialBookingTheme,
   initialVoucherWhatsappTemplate,
+  initialStaff,
 }: {
   initialData: BusinessData | null;
   initialError: string | null;
@@ -157,10 +163,12 @@ export default function BusinessClient({
   canManageBilling: boolean;
   role?: string;
   shopSlug: string | null;
+  shopId: string;
   initialServices: InitialServiceItem[];
   initialBusinessHours: BusinessHoursData | null;
   initialBookingTheme: BookingThemeData | null;
   initialVoucherWhatsappTemplate?: string | null;
+  initialStaff: { id: string; name: string }[];
 }) {
   const { shop } = useAuth();
   const industry = resolveIndustry(shop?.industry);
@@ -204,6 +212,75 @@ export default function BusinessClient({
   const [message, setMessage] = useState<MessageType>(null);
   const [businessHours, setBusinessHours] = useState<BusinessHoursData | null>(initialBusinessHours);
   const [tourAdvancing, setTourAdvancing] = useState(false);
+
+  const [overrides, setOverrides] = useState<DateOverride[]>([]);
+  const [overridesLoading, setOverridesLoading] = useState(false);
+  const [showOverrideModal, setShowOverrideModal] = useState(false);
+  const [editOverride, setEditOverride] = useState<DateOverride | null>(null);
+  const [overrideDate, setOverrideDate] = useState("");
+  const [overrideStaffId, setOverrideStaffId] = useState<string | null>(null);
+  const [overrideIsClosed, setOverrideIsClosed] = useState(true);
+  const [overrideStartTime, setOverrideStartTime] = useState("09:00");
+  const [overrideEndTime, setOverrideEndTime] = useState("18:00");
+  const [overrideReason, setOverrideReason] = useState("");
+
+  const staffList = initialStaff;
+
+  const loadOverrides = useCallback(async () => {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setMonth(end.getMonth() + 3);
+    const fmt = (d: Date) => d.toISOString().split("T")[0];
+    setOverridesLoading(true);
+    const res = await fetchShopDateOverrides(shopId, fmt(start), fmt(end));
+    if (res.success) setOverrides(res.data ?? []);
+    setOverridesLoading(false);
+  }, [shopId]);
+
+  useEffect(() => { loadOverrides(); }, [loadOverrides]);
+
+  function openNewOverride() {
+    setEditOverride(null);
+    setOverrideDate(new Date().toISOString().split("T")[0]);
+    setOverrideStaffId(null);
+    setOverrideIsClosed(true);
+    setOverrideStartTime("09:00");
+    setOverrideEndTime("18:00");
+    setOverrideReason("");
+    setShowOverrideModal(true);
+  }
+
+  function openEditOverride(o: DateOverride) {
+    setEditOverride(o);
+    setOverrideDate(o.date);
+    setOverrideStaffId(o.staff_id);
+    setOverrideIsClosed(o.is_closed);
+    setOverrideStartTime(o.start_time ?? "09:00");
+    setOverrideEndTime(o.end_time ?? "18:00");
+    setOverrideReason(o.reason ?? "");
+    setShowOverrideModal(true);
+  }
+
+  async function handleSaveOverride() {
+    if (!overrideDate) return;
+    const res = await upsertShopDateOverride(
+      shopId, overrideDate, overrideStaffId, overrideIsClosed,
+      overrideIsClosed ? null : overrideStartTime,
+      overrideIsClosed ? null : overrideEndTime,
+      overrideReason || null
+    );
+    if (!res.success) { alert(res.error); return; }
+    setShowOverrideModal(false);
+    await loadOverrides();
+  }
+
+  async function handleDeleteOverride(o: DateOverride) {
+    if (!confirm(`¿Eliminar excepción del ${o.date}?`)) return;
+    const res = await deleteShopDateOverride(o.id, shopId);
+    if (!res.success) { alert(res.error); return; }
+    await loadOverrides();
+  }
   const [hoursLoading, setHoursLoading] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [closeConfirm, setCloseConfirm] = useState("");
@@ -1826,6 +1903,199 @@ export default function BusinessClient({
           )}
         </div>
       </div>
+
+      {/* Card: Feriados y Excepciones */}
+      <div className="order-2 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors bg-white dark:bg-zinc-900">
+        <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/15 text-base font-bold text-amber-700 dark:text-amber-200">
+            <Calendar className="w-5 h-5 text-amber-600" />
+          </span>
+          <div className="flex-1">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Feriados y Excepciones</h2>
+            <p className="text-xs text-zinc-400 dark:text-zinc-500">Cierres totales o horarios reducidos para dias puntuales</p>
+          </div>
+          {isOwnerOrAdmin && (
+            <button
+              type="button"
+              onClick={openNewOverride}
+              className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 text-sm font-medium px-4 py-2 transition-colors"
+            >
+              <Plus className="w-4 h-4" /> Agregar
+            </button>
+          )}
+        </div>
+        <div className="p-4">
+          {overridesLoading ? (
+            <div className="py-8 text-center text-sm text-zinc-400">Cargando excepciones...</div>
+          ) : overrides.length === 0 ? (
+            <div className="py-8 text-center text-sm text-zinc-400">No hay excepciones cargadas</div>
+          ) : (
+            <div className="space-y-2">
+              {overrides.map((o) => (
+                <div key={o.id} className="flex items-center gap-3 py-2.5 px-3 rounded-2xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+                  <div className={`p-1.5 rounded-full shrink-0 ${o.is_closed ? "bg-red-100 dark:bg-red-900/30" : "bg-amber-100 dark:bg-amber-900/30"}`}>
+                    <Calendar className={`w-4 h-4 ${o.is_closed ? "text-red-600" : "text-amber-600"}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      {new Date(o.date + "T12:00:00").toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                    </p>
+                    <p className="text-xs text-zinc-500">
+                      {o.staff_id ? `${o.staff_name} — ` : ""}
+                      {o.is_closed ? "Cerrado todo el día" : `${o.start_time} a ${o.end_time}`}
+                      {o.reason ? ` (${o.reason})` : ""}
+                    </p>
+                  </div>
+                  {isOwnerOrAdmin && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => openEditOverride(o)}
+                        className="p-1.5 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
+                        title="Editar"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteOverride(o)}
+                        className="p-1.5 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30 text-zinc-500 hover:text-red-600 transition-colors"
+                        title="Eliminar"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {portalReady && typeof document !== "undefined" && createPortal(
+        <AnimatePresence>
+          {showOverrideModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 flex items-center justify-center z-[60] bg-black/50 backdrop-blur-sm"
+              onClick={() => setShowOverrideModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-white dark:bg-zinc-900 rounded-[2rem] shadow-xl w-full max-w-md mx-4 overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {editOverride ? "Editar excepción" : "Nueva excepción"}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowOverrideModal(false)}
+                    className="p-1.5 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="p-6 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Fecha</label>
+                    <input
+                      type="date"
+                      value={overrideDate}
+                      onChange={(e) => setOverrideDate(e.target.value)}
+                      className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Afecta a</label>
+                    <select
+                      value={overrideStaffId ?? ""}
+                      onChange={(e) => setOverrideStaffId(e.target.value || null)}
+                      className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
+                    >
+                      <option value="">Todo el local</option>
+                      {staffList.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setOverrideIsClosed(true)}
+                      className={`flex-1 rounded-xl py-2 text-sm font-medium transition-colors ${overrideIsClosed ? "bg-red-500 text-white" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"}`}
+                    >
+                      Cerrado
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOverrideIsClosed(false)}
+                      className={`flex-1 rounded-xl py-2 text-sm font-medium transition-colors ${!overrideIsClosed ? "bg-amber-500 text-white" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"}`}
+                    >
+                      Horario reducido
+                    </button>
+                  </div>
+                  {!overrideIsClosed && (
+                    <div className="flex gap-3">
+                      <div className="flex-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Desde</label>
+                        <input
+                          type="time"
+                          value={overrideStartTime}
+                          onChange={(e) => setOverrideStartTime(e.target.value)}
+                          className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Hasta</label>
+                        <input
+                          type="time"
+                          value={overrideEndTime}
+                          onChange={(e) => setOverrideEndTime(e.target.value)}
+                          className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Motivo (opcional)</label>
+                    <input
+                      type="text"
+                      value={overrideReason}
+                      onChange={(e) => setOverrideReason(e.target.value)}
+                      placeholder="Ej: Feriado nacional, Vacaciones..."
+                      className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3 px-6 py-4 border-t border-zinc-200 dark:border-zinc-800">
+                  <button
+                    type="button"
+                    onClick={() => setShowOverrideModal(false)}
+                    className="rounded-full px-4 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveOverride}
+                    className="rounded-full px-4 py-2 text-sm font-medium bg-amber-500 text-white hover:bg-amber-600 transition-colors"
+                  >
+                    Guardar
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
 
       {portalReady && typeof document !== "undefined" && createPortal(
         <AnimatePresence>

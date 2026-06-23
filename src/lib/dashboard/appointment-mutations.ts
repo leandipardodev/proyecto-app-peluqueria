@@ -118,7 +118,7 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
           date_key_ar: getArgentinaDateKey(currentStart.toISOString()),
           status: "scheduled" as const,
           deposit_amount: depositAmount,
-          is_paid: depositAmount !== null && depositAmount > 0,
+          is_paid: false,
           recurring_group_id: recurringGroupId,
           notes: notes || null,
         };
@@ -300,7 +300,7 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
           date_key_ar: getArgentinaDateKey(currentStart.toISOString()),
           status: "scheduled" as const,
           deposit_amount: depositAmount,
-          is_paid: depositAmount !== null && depositAmount > 0,
+          is_paid: false,
           recurring_group_id: recurringGroupId,
           notes: notes || null,
         };
@@ -756,6 +756,13 @@ export async function updateAppointmentServices(
 
     const allOldIds = [appointmentId, ...siblingIds];
 
+    // Save old data before delete for potential rollback
+    const { data: oldRows } = await supabase
+      .from("appointments")
+      .select("shop_id, customer_id, staff_id, service_id, service_price, start_time, end_time, date_key_ar, status, is_paid, deposit_amount, notes, recurring_group_id, loyalty_reward_applied, loyalty_discount_percent_applied")
+      .in("id", allOldIds)
+      .eq("shop_id", shopId);
+
     const { error: deleteError } = await supabase
       .from("appointments")
       .delete()
@@ -769,7 +776,10 @@ export async function updateAppointmentServices(
       .insert(rowsToInsert);
 
     if (insertError) {
-      console.error("[updateAppointmentServices] insert failed after delete, data may be lost:", insertError);
+      console.error("[updateAppointmentServices] insert failed after delete, restoring old data:", insertError);
+      if (oldRows && oldRows.length > 0) {
+        await supabase.from("appointments").insert(oldRows);
+      }
       return { success: false, error: insertError.message };
     }
 

@@ -55,6 +55,7 @@ type StaffRuleRow = {
   model: "percentage" | "fixed_plus_percentage" | "service_specific";
   percentage_rate: number | null;
   fixed_amount: number | null;
+  overrides_enabled: boolean | null;
 };
 
 export type FinanceData = {
@@ -356,7 +357,7 @@ export async function createStaffPreLiquidation(formData: FormData, shopIdOverri
       fetchShopStaff(admin, shopId),
       admin
         .from("staff_compensation_rules")
-        .select("id, model, percentage_rate, fixed_amount")
+        .select("id, model, percentage_rate, fixed_amount, overrides_enabled")
         .eq("shop_id", shopId)
         .eq("staff_user_id", staffUserId)
         .eq("is_active", true)
@@ -380,15 +381,33 @@ export async function createStaffPreLiquidation(formData: FormData, shopIdOverri
     if (rulesRes.error) return { success: false, error: rulesRes.error.message };
 
     const rule = rulesRes.data as StaffRuleRow | null;
-    const rate = rule?.percentage_rate ?? 40;
+    const defaultRate = rule?.percentage_rate ?? 40;
     const fixed = rule?.fixed_amount ?? 0;
     const appointments = (apptsRes.data || []) as StaffAppointmentRow[];
+
+    const overrideRateMap = new Map<string, number>();
+    if (rule && (rule as any).overrides_enabled && rule.id) {
+      const { data: overrides } = await admin
+        .from("staff_commission_overrides")
+        .select("service_id, percentage_rate")
+        .eq("compensation_rule_id", rule.id);
+      for (const ov of overrides ?? []) {
+        overrideRateMap.set(ov.service_id, Number(ov.percentage_rate || 0));
+      }
+    }
+
+    const getRate = (serviceId: string | null): number => {
+      if (overrideRateMap.size > 0 && serviceId && overrideRateMap.has(serviceId)) {
+        return overrideRateMap.get(serviceId)!;
+      }
+      return defaultRate;
+    };
 
     const grossRevenue = appointments.reduce((sum, appt) => {
       const price = appt.service_price != null ? Number(appt.service_price) : (toService(appt)?.price || 0);
       return sum + price;
     }, 0);
-    const commissionAmount = (grossRevenue * rate) / 100 + fixed;
+    const commissionAmount = (grossRevenue * defaultRate) / 100 + fixed;
     const finalPayable = Math.max(0, commissionAmount + bonuses - deductions);
 
     const { data: liquidation, error: liquidationError } = await admin
@@ -414,7 +433,8 @@ export async function createStaffPreLiquidation(formData: FormData, shopIdOverri
       const items = appointments.map((appt) => {
         const service = toService(appt);
         const gross = appt.service_price != null ? Number(appt.service_price) : (service?.price || 0);
-        const commission = (gross * rate) / 100;
+        const effectiveRate = getRate(appt.service_id);
+        const commission = (gross * effectiveRate) / 100;
         return {
           shop_id: shopId,
           liquidation_id: liquidation.id,
@@ -423,7 +443,7 @@ export async function createStaffPreLiquidation(formData: FormData, shopIdOverri
           service_name_snapshot: service?.name || "Servicio",
           start_time_snapshot: appt.start_time,
           gross_amount: gross,
-          commission_rate_snapshot: rate,
+          commission_rate_snapshot: effectiveRate,
           commission_amount: commission,
           bonus_amount: 0,
           deduction_amount: 0,
