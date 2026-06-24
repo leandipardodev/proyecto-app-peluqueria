@@ -253,8 +253,22 @@ export async function POST(request: NextRequest) {
       const normalizedPaymentId = String(paymentId);
 
       if (paymentResult.status === "approved") {
-        // Try to insert billing event as idempotency lock
-        const { error: lockError } = await admin.from("shop_billing_events").insert({
+        // Atomically claim this pending_booking — only one request succeeds
+        const { data: claimedBooking } = await admin
+          .from("pending_bookings")
+          .update({ status: "completed" })
+          .eq("id", booking.id)
+          .eq("status", "pending")
+          .select("id")
+          .maybeSingle();
+
+        if (!claimedBooking) {
+          // Another request already claimed and processed this booking
+          return NextResponse.json({ ok: true });
+        }
+
+        // Insert billing event as audit trail (no longer used as idempotency lock)
+        await admin.from("shop_billing_events").insert({
           shop_id: booking.shop_id,
           actor_user_id: null,
           event_type: "appointment_payment_applied",
@@ -264,24 +278,6 @@ export async function POST(request: NextRequest) {
             status: paymentResult.status,
           },
         });
-
-        if (lockError) {
-          if (isUniqueViolation(lockError)) {
-            // Billing event already exists — check if appointment was actually created
-            const { data: existingBooking } = await admin
-              .from("pending_bookings")
-              .select("status")
-              .eq("id", booking.id)
-              .maybeSingle();
-
-            if (existingBooking?.status === "completed") {
-              return NextResponse.json({ ok: true });
-            }
-            // If booking is still pending, continue to create appointment below
-          } else {
-            throw lockError;
-          }
-        }
 
         // Create or update customer
         let customerId: string;
@@ -296,7 +292,7 @@ export async function POST(request: NextRequest) {
 
         if (existingCustomer) {
           customerId = existingCustomer.id;
-          await admin
+          const { error: updateCustError } = await admin
             .from("customers")
             .update({
               nombre: booking.customer_name,
@@ -304,6 +300,7 @@ export async function POST(request: NextRequest) {
               updated_at: new Date().toISOString(),
             })
             .eq("id", customerId);
+          if (updateCustError) throw updateCustError;
         } else {
           const { data: newCustomer, error: custError } = await admin
             .from("customers")
@@ -321,21 +318,26 @@ export async function POST(request: NextRequest) {
         }
 
         // Re-check slot availability — may have been taken since pending_booking was created
+        const startStr = typeof booking.start_time === "string" ? booking.start_time : booking.start_time.toISOString();
+        const endStr = typeof booking.end_time === "string" ? booking.end_time : booking.end_time.toISOString();
+
+        let conflictQuery = admin
+          .from("appointments")
+          .select("id")
+          .eq("shop_id", booking.shop_id)
+          .not("status", "eq", "cancelled")
+          .lt("start_time", endStr)
+          .gt("end_time", startStr);
+
         if (booking.staff_id) {
-          const startStr = typeof booking.start_time === "string" ? booking.start_time : booking.start_time.toISOString();
-          const endStr = typeof booking.end_time === "string" ? booking.end_time : booking.end_time.toISOString();
-          const { data: conflict } = await admin
-            .from("appointments")
-            .select("id")
-            .eq("shop_id", booking.shop_id)
-            .eq("staff_id", booking.staff_id)
-            .not("status", "eq", "cancelled")
-            .or(`and(end_time.gt.${startStr},start_time.lt.${endStr})`)
-            .limit(1);
-          if (conflict && conflict.length > 0) {
-            await admin.from("pending_bookings").update({ status: "expired" }).eq("id", booking.id);
-            return NextResponse.json({ ok: true });
-          }
+          conflictQuery = conflictQuery.eq("staff_id", booking.staff_id);
+        }
+
+        const { data: conflict } = await conflictQuery.limit(1);
+
+        if (conflict && conflict.length > 0) {
+          await admin.from("pending_bookings").update({ status: "expired" }).eq("id", booking.id);
+          return NextResponse.json({ ok: true });
         }
 
         // Create appointment
@@ -371,12 +373,6 @@ export async function POST(request: NextRequest) {
           .single();
 
         if (aptError) throw aptError;
-
-        // Mark pending_booking as completed
-        await admin
-          .from("pending_bookings")
-          .update({ status: "completed" })
-          .eq("id", booking.id);
 
         // Send confirmation email
         if (booking.customer_email) {

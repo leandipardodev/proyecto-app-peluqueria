@@ -488,6 +488,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
   }
 
   async function handleConfirm() {
+    try {
     if ((!selectedService && !selectedCombo) || !selectedSlot || !customerName || !customerPhone) return;
     if (!isLoggedIn && !customerEmail.trim()) return;
 
@@ -674,6 +675,11 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
     setChargedAmount(bookingResult.data.chargedAmount ?? null);
     setIsDepositPayment(Boolean(bookingResult.data.isDeposit));
     setStep(4);
+  } catch (e) {
+    setSubmitting(false);
+    setCreatingPreference(false);
+    setError(e instanceof Error ? e.message : "Error inesperado al procesar el turno");
+  }
   }
 
   function handleReset() {

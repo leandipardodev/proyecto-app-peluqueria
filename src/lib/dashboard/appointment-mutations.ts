@@ -943,25 +943,13 @@ export async function redeemLoyaltyReward(appointmentId: string, shopIdOverride?
 
     const discountPercent = Math.max(0, Math.min(100, Number(shopData.loyalty_discount_percent || 0)));
 
-    const { data: customer, error: customerError } = await admin
-      .from("customers")
-      .select("loyalty_rewards_available")
-      .eq("id", appointment.customer_id)
-      .eq("shop_id", shopId)
-      .single();
+    const { data: updatedCustomer, error: customerError } = await admin
+      .rpc("redeem_customer_reward", { p_customer_id: appointment.customer_id, p_shop_id: shopId });
 
     if (customerError) return { success: false, error: customerError.message };
-
-    const rewardsAvailable = Math.max(0, Number(customer?.loyalty_rewards_available || 0));
-    if (rewardsAvailable <= 0) return { success: false, error: "El cliente no tiene canjes disponibles" };
-
-    const { error: updateCustomerError } = await admin
-      .from("customers")
-      .update({ loyalty_rewards_available: rewardsAvailable - 1 })
-      .eq("id", appointment.customer_id)
-      .eq("shop_id", shopId);
-
-    if (updateCustomerError) return { success: false, error: updateCustomerError.message };
+    if (!updatedCustomer || !(updatedCustomer as { success: boolean }).success) {
+      return { success: false, error: "El cliente no tiene canjes disponibles" };
+    }
 
     const appointmentUpdates: Record<string, unknown> = {
       loyalty_reward_applied: true,

@@ -161,7 +161,8 @@ type Slot = { start: string; end: string; time: string };
 
 const PENDING_PAYMENT_HOLD_MINUTES = 10;
 
-function isPendingPaymentStillBlocking(status: string | null | undefined, createdAt: string | null | undefined): boolean {
+function shouldBlockSlot(status: string | null | undefined, createdAt: string | null | undefined): boolean {
+  if (status === "completed" || status === "no_show") return false;
   if (status !== "pending_payment") return true;
   if (!createdAt) return false;
   const createdAtMs = new Date(createdAt).getTime();
@@ -292,10 +293,10 @@ export async function fetchPublicAvailableSlots(
       .eq("shop_id", shopId)
       .gte("start_time", dayStart.toISOString())
       .lte("start_time", dayEnd.toISOString())
-      .not("status", "eq", "cancelled");
+      .not("status", "in", "('cancelled','no_show')");
 
     const appointments = (appointmentsRaw || []).filter((apt) =>
-      isPendingPaymentStillBlocking(apt.status as string | null | undefined, apt.created_at as string | null | undefined)
+      shouldBlockSlot(apt.status as string | null | undefined, apt.created_at as string | null | undefined)
     );
 
     const { data: pendingBookings } = await admin
@@ -645,7 +646,7 @@ export async function createPublicAppointment(data: {
 
       const busyStaffIds = new Set<string>();
       for (const apt of conflictingAppts || []) {
-        if (isPendingPaymentStillBlocking(apt.status, apt.created_at)) {
+        if (shouldBlockSlot(apt.status, apt.created_at)) {
           busyStaffIds.add(apt.staff_id as string);
         }
       }
@@ -734,7 +735,7 @@ export async function createPublicAppointment(data: {
     if (checkError) return { success: false, error: checkError.message };
 
     const hasBlockingConflict = (finalConflicts || []).some((apt) =>
-      isPendingPaymentStillBlocking(apt.status as string | null | undefined, apt.created_at as string | null | undefined)
+      shouldBlockSlot(apt.status as string | null | undefined, apt.created_at as string | null | undefined)
     );
 
     if (hasBlockingConflict || (finalPendingConflicts && finalPendingConflicts.length > 0)) {
@@ -1066,7 +1067,7 @@ export async function createPublicComboAppointment(data: {
 
       const busyStaffIds = new Set<string>();
       for (const apt of conflictingAppts || []) {
-        if (isPendingPaymentStillBlocking(apt.status, apt.created_at)) {
+        if (shouldBlockSlot(apt.status, apt.created_at)) {
           busyStaffIds.add(apt.staff_id as string);
         }
       }
@@ -1201,7 +1202,7 @@ export async function createPublicComboAppointment(data: {
     if (checkError) return { success: false, error: checkError.message };
 
     const hasBlockingConflict = (finalConflicts || []).some((apt) =>
-      isPendingPaymentStillBlocking(apt.status as string | null | undefined, apt.created_at as string | null | undefined)
+      shouldBlockSlot(apt.status as string | null | undefined, apt.created_at as string | null | undefined)
     );
 
     if (hasBlockingConflict || (finalPendingConflicts && finalPendingConflicts.length > 0)) {

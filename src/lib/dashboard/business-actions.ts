@@ -23,7 +23,6 @@ export type BusinessData = {
   facebook_url: string | null;
   tiktok_url: string | null;
   mp_public_key: string;
-  mp_access_token: string;
   whatsapp_template: string;
   loyalty_enabled: boolean;
   loyalty_cuts_required: number;
@@ -68,7 +67,6 @@ export async function fetchBusinessData(shopIdOverride?: string): Promise<Action
         facebook_url: (data as { facebook_url?: string | null }).facebook_url || null,
         tiktok_url: (data as { tiktok_url?: string | null }).tiktok_url || null,
         mp_public_key: (data.mp_public_key as string) || "",
-        mp_access_token: (data.mp_access_token as string) || "",
         whatsapp_template: (data.whatsapp_template as string) || DEFAULT_WHATSAPP_TEMPLATE,
         loyalty_enabled: data.loyalty_enabled !== false,
         loyalty_cuts_required: Number(data.loyalty_cuts_required || 10),

@@ -244,30 +244,16 @@ export async function registerLoyaltyCut(shopId: string, customerId: string): Pr
 
   const requiredCuts = Math.max(1, Number(shopData.loyalty_cuts_required || 1));
 
-  const { data: customerData, error: customerError } = await admin
-    .from("customers")
-    .select("loyalty_cuts_count, loyalty_rewards_available")
-    .eq("id", customerId)
-    .eq("shop_id", shopId)
-    .single();
+  const { data: result, error: rpcError } = await admin
+    .rpc("increment_loyalty_cut", {
+      p_customer_id: customerId,
+      p_shop_id: shopId,
+      p_required_cuts: requiredCuts,
+    });
 
-  if (customerError) return { success: false, error: customerError.message };
-
-  const currentCuts = Math.max(0, Number(customerData?.loyalty_cuts_count || 0));
-  const currentRewards = Math.max(0, Number(customerData?.loyalty_rewards_available || 0));
-  const nextCutsRaw = currentCuts + 1;
-  const rewardsToAdd = Math.floor(nextCutsRaw / requiredCuts);
-  const nextCuts = nextCutsRaw % requiredCuts;
-
-  const { error: updateCustomerError } = await admin
-    .from("customers")
-    .update({
-      loyalty_cuts_count: nextCuts,
-      loyalty_rewards_available: currentRewards + rewardsToAdd,
-    })
-    .eq("id", customerId)
-    .eq("shop_id", shopId);
-
-  if (updateCustomerError) return { success: false, error: updateCustomerError.message };
+  if (rpcError) return { success: false, error: rpcError.message };
+  if (!(result as { success: boolean }).success) {
+    return { success: false, error: (result as { error?: string }).error || "Error al actualizar fidelización" };
+  }
   return { success: true };
 }
