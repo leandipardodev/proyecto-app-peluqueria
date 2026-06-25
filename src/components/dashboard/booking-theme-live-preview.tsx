@@ -120,12 +120,14 @@ function SortableServiceCard({
   s,
   isOver,
   isActive,
+  isDraggingAny,
 }: {
   service: PreviewService;
   disabled: boolean;
   s: PreviewTheme;
   isOver: boolean;
   isActive: boolean;
+  isDraggingAny: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: service.id,
@@ -134,7 +136,7 @@ function SortableServiceCard({
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: isDraggingAny && !isDragging ? 'none' : transition,
     opacity: isDragging ? 0.3 : 1,
   };
 
@@ -225,6 +227,7 @@ export default function BookingThemeLivePreview({
 }: Props) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [activeDragService, setActiveDragService] = useState<PreviewService | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [overId, setOverId] = useState<string | null>(null);
   const [addingSection, setAddingSection] = useState(false);
   const [newSectionInput, setNewSectionInput] = useState("");
@@ -305,6 +308,7 @@ export default function BookingThemeLivePreview({
   const dragPointerRef = useRef({ x: 0, y: 0 });
 
   function handleDragStart(event: DragStartEvent) {
+    setIsDragging(true);
     const service = serviceMap.get(event.active.id as string);
     if (service) setActiveDragService(service);
     const e = event.activatorEvent as PointerEvent | null;
@@ -333,6 +337,7 @@ export default function BookingThemeLivePreview({
   }
 
   function handleDragEnd(event: DragEndEvent) {
+    setIsDragging(false);
     setActiveDragService(null);
     setOverId(null);
     const { active, over } = event;
@@ -616,6 +621,7 @@ export default function BookingThemeLivePreview({
                                         s={s}
                                         isOver={overId === service.id}
                                         isActive={activeDragService?.id === service.id}
+                                        isDraggingAny={isDragging}
                                       />
                                     ))}
                                   </div>
@@ -633,6 +639,7 @@ export default function BookingThemeLivePreview({
                                 s={s}
                                 isOver={overId === service.id}
                                 isActive={activeDragService?.id === service.id}
+                                isDraggingAny={isDragging}
                               />
                             ))}
                           </div>
