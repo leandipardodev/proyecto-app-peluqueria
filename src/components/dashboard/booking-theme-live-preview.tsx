@@ -586,7 +586,7 @@ export default function BookingThemeLivePreview({
                         {labels.servicePlural} de ejemplo hasta que cargues los tuyos.
                       </p>
                     )}
-                    <div className="overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+                    <div className="max-h-[50vh] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
                     <DndContext
                       sensors={sensors}
                       collisionDetection={closestCenter}
@@ -595,14 +595,14 @@ export default function BookingThemeLivePreview({
                       onDragOver={handleDragOver}
                       onDragEnd={handleDragEnd}
                     >
-                      <SortableContext items={allServiceIds} strategy={verticalListSortingStrategy}>
+                      <SortableContext items={currentServiceIds} strategy={verticalListSortingStrategy}>
                         {activeCategory === "Todos" ? (
-                          <div className="space-y-3">
+                          <div className="space-y-1.5">
                             {visibleSections.map((section) => {
                               const sectionServices = (servicesByCategory.get(section) || []);
                               return (
-                                <div key={section} className={`rounded-xl p-2 ${s.sectionBg}`}>
-                                  <p className={`text-xs font-semibold mb-1.5 px-1 ${s.tiny}`}>
+                                <div key={section}>
+                                  <p className={`text-xs font-semibold px-1 py-2 ${s.tiny}`}>
                                     {section} <span className="opacity-50">({sectionServices.length})</span>
                                   </p>
                                   <div className="space-y-1.5">
