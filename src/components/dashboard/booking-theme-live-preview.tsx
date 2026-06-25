@@ -9,7 +9,7 @@ import { resolveTemplate } from "@/app/book/[slug]/booking-themes";
 import type { BookingTheme } from "@/app/book/[slug]/booking-themes";
 import {
   DndContext,
-  closestCenter,
+  pointerWithin,
   PointerSensor,
   TouchSensor,
   useSensor,
@@ -215,6 +215,7 @@ export default function BookingThemeLivePreview({
   onServiceMove,
   onSectionAdd,
   onSectionRemove,
+  onSectionRename,
   onLogoUpload,
   industry = "peluqueria",
   disabled = false,
@@ -590,7 +591,7 @@ export default function BookingThemeLivePreview({
                     <div className="max-h-[50vh] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
                     <DndContext
                       sensors={sensors}
-                      collisionDetection={closestCenter}
+                      collisionDetection={pointerWithin}
                       onDragStart={handleDragStart}
                       onDragMove={handleDragMove}
                       onDragOver={handleDragOver}
