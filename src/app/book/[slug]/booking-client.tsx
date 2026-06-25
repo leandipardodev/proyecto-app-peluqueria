@@ -25,7 +25,7 @@ import { createPendingBooking, deletePendingBooking } from "@/lib/dashboard/pend
 import GoogleSignInButton from "@/components/auth/google-sign-in-button";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
-import { resolveTemplate, BOOKING_THEMES } from "./booking-themes";
+import { resolveTemplate } from "./booking-themes";
 import { InstagramIcon, WhatsappIcon } from "./booking-icons";
 import type { Industry } from "@/lib/industry/types";
 import type { BookingTemplateId } from "@/lib/booking/theme-presets";
@@ -710,28 +710,33 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
   const summaryTime = selectedSlot ? formatTimeFromIso(selectedSlot.start) || to24HourTimeLabel(selectedSlot.time) : "Sin hora";
   const displayPrice = chargedAmount ?? (selectedCombo?.price ?? selectedService?.price ?? 0);
 
-  const resolvedTemplate = resolveTemplate(shop.templateId);
-  const templateStyles = BOOKING_THEMES[resolvedTemplate];
+  const templateStyles = resolveTemplate(shop.templateId);
+
+  function extractHex(className: string): string {
+    const m = className.match(/\[(#[\da-fA-F]+)\]/);
+    return m?.[1] ?? "#0071E3";
+  }
+
+  function lighten(hex: string, amount: number): string {
+    const n = parseInt(hex.replace("#", ""), 16);
+    const r = Math.min(255, (n >> 16) + amount);
+    const g = Math.min(255, ((n >> 8) & 0xff) + amount);
+    const b = Math.min(255, (n & 0xff) + amount);
+    return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, "0")}`;
+  }
 
   const rippleConfig = useMemo(() => {
-    const map: Record<string, { bg: string; text: string }> = {
-      "minimal-light": { bg: "#1a56db", text: "#ffffff" },
-      "carbon-glass": { bg: "#7AB8FF", text: "#000000" },
-      "editorial-cream": { bg: "#8b5e3c", text: "#f5f0eb" },
-      "pastel-colorful": { bg: "#5b72d1", text: "#ffffff" },
+    const accent = extractHex(templateStyles.accent);
+    return {
+      bg: accent,
+      text: templateStyles.isDark ? "#000000" : "#ffffff",
     };
-    return map[resolvedTemplate] || map["minimal-light"];
-  }, [resolvedTemplate]);
+  }, [templateStyles.accent, templateStyles.isDark]);
 
   const rippleWaves = useMemo(() => {
-    const map: Record<string, string[]> = {
-      "minimal-light": ["#b8d5ff", "#3b7ddb"],
-      "carbon-glass": ["#dceaff", "#5a99e0"],
-      "editorial-cream": ["#e0c8b0", "#8b5e3c"],
-      "pastel-colorful": ["#c4d0ff", "#5b72d1"],
-    };
-    return map[resolvedTemplate] || map["minimal-light"];
-  }, [resolvedTemplate]);
+    const accent = extractHex(templateStyles.accent);
+    return [lighten(accent, 80), accent];
+  }, [templateStyles.accent]);
 
   const tactileClass = "transition-transform duration-150 hover:scale-[1.01] active:scale-[0.98]";
 
@@ -754,7 +759,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
   return (
     <>
     <div
-      className={`relative z-0 h-dvh w-full overflow-hidden font-sans ${templateStyles.page} ${templateStyles.isDark ? "bg-[#000000]" : ""}`}
+      className={`relative z-0 h-dvh w-full overflow-hidden font-sans ${templateStyles.page}`}
     >
       <div className={`pointer-events-none absolute inset-0 z-0 bg-gradient-to-br ${templateStyles.pageAura}`} />
       <div className={`pointer-events-none absolute inset-0 z-[1] ${templateStyles.pageLightFx}`} />
@@ -911,7 +916,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                                     )}
                                     <span className="relative z-10">
                                       {isCombos ? (
-                                        <span className={`bg-gradient-to-r ${templateStyles.titleGradient} bg-clip-text text-transparent bg-[length:200%_100%] font-bold drop-shadow-[0_0_6px_rgba(251,191,36,0.3)]`}>
+                                        <span className={`bg-gradient-to-r ${templateStyles.titleGradient} bg-clip-text text-transparent bg-[length:200%_100%] font-bold ${templateStyles.headingFx}`}>
                                           {category}
                                         </span>
                                       ) : (
@@ -1218,11 +1223,11 @@ draggable={false}
                               style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}
                             >
                               <div className="flex flex-col items-center text-center gap-3">
-                                <div className="w-20 h-20 rounded-full overflow-hidden ring-2 ring-white/30 shadow-xl flex items-center justify-center shrink-0 bg-violet-100 dark:bg-violet-900">
+                                <div className={`w-20 h-20 rounded-full overflow-hidden ring-2 ring-white/30 shadow-xl flex items-center justify-center shrink-0 ${templateStyles.plate}`}>
                                   {s.photo_url ? (
                                     <img src={s.photo_url} alt="" fetchPriority="high" className="w-full h-full object-cover" />
                                   ) : (
-                                    <span className="text-2xl font-bold text-violet-600 dark:text-violet-300">{initials}</span>
+                                    <span className={`text-2xl font-bold ${templateStyles.accent}`}>{initials}</span>
                                   )}
                                 </div>
                                 <div className="min-w-0">
@@ -1332,7 +1337,7 @@ draggable={false}
                                   const size = Math.ceil(Math.sqrt(rect.width * rect.width + rect.height * rect.height) * 2);
                                   setRipplePositions(prev => ({ ...prev, [`date-${dateStr}`]: { x: e.clientX - rect.left, y: e.clientY - rect.top, size } }));
                                 }}
-                                className={`relative flex flex-col items-center justify-center py-2 transition-all duration-200 overflow-hidden hover:bg-black/[0.03] ${isSelected ? 'bg-black/[0.04]' : ''} ${isClosed ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                className={`relative flex flex-col items-center justify-center py-2 transition-all duration-200 overflow-hidden ${templateStyles.hoverBorder} ${isSelected ? templateStyles.selected : ''} ${isClosed ? 'opacity-40 cursor-not-allowed' : ''}`}
                               >
                                 {isSelected && !isClosed && (
                                   ripplePositions[`date-${dateStr}`] ? (
@@ -1352,13 +1357,13 @@ draggable={false}
                                 )}
                               <span className={`relative text-xs font-semibold ${isSelected ? templateStyles.accent : templateStyles.heading}`} style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}>{d.getDate()}</span>
                                 {isToday && !isSelected && !isClosed && (
-                                  <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-blue-400/60" />
+                                  <span className={`absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${templateStyles.accent} opacity-60`} />
                                 )}
                                 {isClosed && (
-                                  <span className="text-[9px] leading-tight text-red-400 font-medium">Cerrado</span>
+                                  <span className={`text-[9px] leading-tight font-medium ${templateStyles.tiny}`}>Cerrado</span>
                                 )}
                                 {override?.start_time && !isClosed && (
-                                  <span className="text-[8px] leading-tight text-amber-500">H. reducido</span>
+                                  <span className={`text-[8px] leading-tight ${templateStyles.tiny}`}>H. reducido</span>
                                 )}
                                 {isSelected && !isClosed && (
                                   <motion.span
@@ -1405,8 +1410,8 @@ draggable={false}
                                       draggable={false}
                                       className={`relative overflow-hidden h-9 text-sm font-medium transition-all duration-200 border-b-2 px-1 ${
                                         isSelected
-                                          ? `border-blue-500 bg-blue-50/50 ${templateStyles.accent}`
-                                          : `border-transparent ${templateStyles.heading} hover:border-blue-300/40 hover:bg-black/[0.02]`
+                                          ? `${templateStyles.selected} border-transparent`
+                                          : `border-transparent ${templateStyles.heading} ${templateStyles.hoverBorder}`
                                       }`}
                                     >
                                       {isSelected && (
@@ -1438,7 +1443,7 @@ draggable={false}
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
-                                className="text-sm text-zinc-400 text-center py-4"
+                                className={`text-sm text-center py-4 ${templateStyles.tiny}`}
                               >
                                 {selectedDate
                                   ? "No hay horarios disponibles para este día"
@@ -1493,17 +1498,17 @@ draggable={false}
                         ) : isLoggedIn ? (
                           <>
                             <div className={`flex items-center gap-3 rounded-[20px] border px-4 py-3 ${templateStyles.successChip}`}>
-                              <div className="w-10 h-10 rounded-2xl bg-emerald-100 flex items-center justify-center">
-                                <UserRound className="w-4 h-4 text-emerald-600" />
+                              <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${templateStyles.plate}`}>
+                                <UserRound className={`w-4 h-4 ${templateStyles.accent}`} />
                               </div>
                               <div className="min-w-0 flex-1">
-                                <p className="text-xs uppercase tracking-wide text-emerald-600">Sesion activa</p>
+                                <p className={`text-xs uppercase tracking-wide ${templateStyles.accent}`}>Sesion activa</p>
                                 <p className={`text-sm font-medium truncate ${templateStyles.heading}`}>{user?.name || user?.email || "Cliente"}</p>
                                 {user?.email && <p className={`text-xs ${templateStyles.tiny} truncate`}>{user.email}</p>}
                               </div>
                               <button
                                 onClick={handleLogout}
-                                className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-zinc-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer select-none bg-white/70 dark:bg-white/5 border border-zinc-200/60 dark:border-white/10"
+                                className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl transition-colors cursor-pointer select-none ${templateStyles.back}`}
                                 title="Cerrar sesión"
                               >
                                 <LogOut className="w-4 h-4" />
@@ -1514,7 +1519,7 @@ draggable={false}
                             <div>
                               <label htmlFor="customer-name-auth" className={`block text-sm font-medium mb-1.5 ${templateStyles.label}`}>Nombre</label>
                               <motion.div whileTap={{ scale: 0.99 }} className="relative">
-                                <UserRound className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                                <UserRound className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${templateStyles.tiny}`} />
                                 <input
                                   id="customer-name-auth"
                                   autoComplete="off"
@@ -1532,7 +1537,7 @@ draggable={false}
                               <div>
                                  <label htmlFor="customer-phone-auth" className={`block text-sm font-medium mb-1.5 ${templateStyles.label}`}>WhatsApp / Telefono</label>
                                 <motion.div whileTap={{ scale: 0.99 }} className="relative">
-                                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                                  <Phone className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${templateStyles.tiny}`} />
                                   <input
                                     id="customer-phone-auth"
                                     type="tel"
@@ -1555,7 +1560,7 @@ draggable={false}
 
                             <div className="flex items-center gap-3">
                               <div className={`h-px flex-1 ${templateStyles.divider}`} />
-                              <span className="text-xs uppercase tracking-wide text-zinc-400">OR</span>
+                              <span className={`text-xs uppercase tracking-wide ${templateStyles.tiny}`}>OR</span>
                               <div className={`h-px flex-1 ${templateStyles.divider}`} />
                             </div>
 
@@ -1579,7 +1584,7 @@ draggable={false}
                             <div>
                               <label htmlFor="customer-email" className={`block text-sm font-medium mb-1.5 ${templateStyles.label}`}>Email</label>
                               <motion.div whileTap={{ scale: 0.99 }} className="relative">
-                                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                                <Mail className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${templateStyles.tiny}`} />
                                 <input
                                   id="customer-email"
                                   type="email"
@@ -1594,7 +1599,7 @@ draggable={false}
                             <div>
                               <label htmlFor="customer-phone" className={`block text-sm font-medium mb-1.5 ${templateStyles.label}`}>WhatsApp / Telefono</label>
                               <motion.div whileTap={{ scale: 0.99 }} className="relative">
-                                <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                                <Phone className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${templateStyles.tiny}`} />
                                 <input
                                   id="customer-phone"
                                   type="tel"
@@ -1824,7 +1829,8 @@ draggable={false}
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ type: "spring", stiffness: 400, damping: 15, delay: 0.1 }}
-                  className="w-20 h-20 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg mb-6"
+                  className="w-20 h-20 rounded-full flex items-center justify-center shadow-lg mb-6"
+                  style={{ background: extractHex(templateStyles.accent) }}
                 >
                   <Check className="w-10 h-10 text-white" />
                 </motion.div>
@@ -1893,10 +1899,10 @@ draggable={false}
       {step === 4 && !done && (
         <>
         {/* Top gradient overlay */}
-        <div className="fixed inset-x-0 top-0 z-[25] h-1/2 pointer-events-none bg-gradient-to-b from-black/70 via-black/40 to-transparent" />
+        <div className={`fixed inset-x-0 top-0 z-[25] h-1/2 pointer-events-none bg-gradient-to-b from-black/70 via-black/40 to-transparent ${templateStyles.checkout} mix-blend-multiply`} />
 
         {/* Bottom gradient overlay */}
-        <div className="fixed inset-x-0 bottom-0 z-[25] h-1/2 pointer-events-none bg-gradient-to-t from-black/70 via-black/40 to-transparent" />
+        <div className={`fixed inset-x-0 bottom-0 z-[25] h-1/2 pointer-events-none bg-gradient-to-t from-black/70 via-black/40 to-transparent ${templateStyles.checkout} mix-blend-multiply`} />
 
         {/* Floating credit card */}
         <motion.div
@@ -1905,9 +1911,9 @@ draggable={false}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
           className="fixed inset-0 z-30 pointer-events-none flex items-center justify-center"
         >
-          <div className="pointer-events-auto rounded-[28px] bg-gradient-to-br from-blue-600 via-blue-500 to-indigo-600 p-6 shadow-2xl text-white relative overflow-hidden w-full max-w-sm aspect-[1.586/1]">
-            <div className="pointer-events-none absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
-            <div className="pointer-events-none absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-white/5 blur-xl" />
+          <div className={`pointer-events-auto rounded-[28px] p-6 shadow-2xl relative overflow-hidden w-full max-w-sm aspect-[1.586/1] ${templateStyles.checkout}`}>
+            <div className={`pointer-events-none absolute -top-10 -right-10 w-40 h-40 rounded-full blur-2xl ${templateStyles.checkoutOrbA}`} />
+            <div className={`pointer-events-none absolute -bottom-8 -left-8 w-32 h-32 rounded-full blur-xl ${templateStyles.checkoutOrbB}`} />
 
             {/* Logo top-right */}
             <img src="/mercado-pago-logo.svg" alt="Mercado Pago" className="absolute top-3 right-3 h-11 w-auto" />
@@ -1915,7 +1921,7 @@ draggable={false}
             <div className="relative h-full flex flex-col justify-between">
 
               {/* Price */}
-              <p className="text-4xl font-bold tracking-tight leading-none">
+              <p className={`text-4xl font-bold tracking-tight leading-none ${templateStyles.checkoutAmount}`}>
                 ${displayPrice.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
               </p>
 
@@ -1923,8 +1929,8 @@ draggable={false}
               <div className="space-y-4">
                 {/* Service + date right-aligned */}
                 <div className="text-right">
-                  <p className="text-base font-semibold truncate">{summaryService}</p>
-                  <p className="text-xs opacity-70 mt-0.5">{summaryDate} — {summaryTime}</p>
+                  <p className={`text-base font-semibold truncate ${templateStyles.checkoutTitle}`}>{summaryService}</p>
+                  <p className={`text-xs mt-0.5 ${templateStyles.checkoutKicker}`}>{summaryDate} — {summaryTime}</p>
                 </div>
 
                 {/* Ir a pagar */}
@@ -1935,7 +1941,7 @@ draggable={false}
                     rel="noopener noreferrer"
                     whileHover={{ scale: 1.04 }}
                     whileTap={{ scale: 0.96 }}
-                    className="relative overflow-hidden block text-center rounded-2xl bg-white/20 backdrop-blur-sm px-4 py-3.5 text-sm font-bold"
+                    className={`relative overflow-hidden block text-center rounded-2xl px-4 py-3.5 text-sm font-bold ${templateStyles.checkoutLink}`}
                   >
                     <motion.span
                       className="absolute inset-0 rounded-2xl pointer-events-none block"
@@ -1949,8 +1955,8 @@ draggable={false}
                     </span>
                   </motion.a>
                 ) : (
-                  <div className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-sm px-4 py-3 text-center">
-                    <p className="text-xs font-medium opacity-90">Preparando pago...</p>
+                  <div className={`rounded-2xl px-4 py-3 text-center ${templateStyles.checkoutWallet}`}>
+                    <p className={`text-xs font-medium ${templateStyles.checkoutKicker}`}>Preparando pago...</p>
                   </div>
                 )}
 
@@ -1971,7 +1977,7 @@ draggable={false}
                     setChargedAmount(null);
                     setStep(3);
                   }}
-                  className="block w-full text-center text-xs opacity-60 hover:opacity-100 transition-opacity"
+                  className={`block w-full text-center text-xs transition-opacity ${templateStyles.checkoutKicker}`}
                 >
                   ← Atrás
                 </button>

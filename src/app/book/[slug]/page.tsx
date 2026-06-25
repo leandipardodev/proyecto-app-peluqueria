@@ -2,7 +2,7 @@ import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
 import { fetchPublicCombos } from "@/lib/dashboard/public-booking-actions";
 import BookingClient from "./booking-client";
 import { absoluteUrl } from "@/lib/seo";
-import { DEFAULT_BOOKING_TEMPLATE, type BookingTemplateId } from "@/lib/booking/theme-presets";
+import { DEFAULT_BOOKING_TEMPLATE, BOOKING_TEMPLATE_PRESETS, type BookingTemplateId } from "@/lib/booking/theme-presets";
 import { resolveIndustry } from "@/lib/industry/resolve";
 
 async function createAdminClient() {
@@ -158,8 +158,8 @@ export default async function BookPage({ params }: BookPageProps) {
                 .map((item) => String(item || "").trim())
                 .filter(Boolean))
             : [],
-          templateId: (["classic-dark", "minimal-glass", "editorial-luxury", "street-bold"].includes(String(bookingTheme?.template_id))
-            ? bookingTheme?.template_id
+          templateId: (bookingTheme?.template_id && (BOOKING_TEMPLATE_PRESETS as readonly { id: string }[]).some((p) => p.id === bookingTheme.template_id)
+            ? bookingTheme.template_id
             : DEFAULT_BOOKING_TEMPLATE) as BookingTemplateId,
         }}
         services={services}

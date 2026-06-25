@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient, getAuthSession, getShopIdBySlug, requireShopId } from "@/lib/dashboard/auth-server";
-import { DEFAULT_BOOKING_TEMPLATE, type BookingTemplateId } from "@/lib/booking/theme-presets";
+import { DEFAULT_BOOKING_TEMPLATE, BOOKING_TEMPLATE_PRESETS, type BookingTemplateId } from "@/lib/booking/theme-presets";
 import type { ActionResult } from "@/lib/types";
 
 export type BookingThemeData = {
@@ -35,8 +35,8 @@ async function resolveShopIdFromOptionalSlug(shopSlug?: string): Promise<ActionR
 }
 
 function normalizeTemplateId(value: string | null | undefined): BookingTemplateId {
-  if (value === "classic-dark" || value === "minimal-glass" || value === "editorial-luxury" || value === "street-bold") {
-    return value;
+  if (value && (BOOKING_TEMPLATE_PRESETS as readonly { id: string }[]).some((p) => p.id === value)) {
+    return value as BookingTemplateId;
   }
   return DEFAULT_BOOKING_TEMPLATE;
 }

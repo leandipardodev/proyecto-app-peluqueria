@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect, useMemo, useRef, useCallback, type DragEvent } from "react";
+import { useState, useTransition, useEffect, useMemo, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
 import { Store, CreditCard, MessageSquareText, Smartphone, Link2, MapPin, Phone, Clock, Share2, AlertTriangle, Trash2, Users, Scissors, ChevronRight, Calendar, Plus, X } from "lucide-react";
@@ -10,7 +10,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { withDashboardBase } from "@/lib/dashboard/dashboard-base";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
-import BookingTemplateCarousel from "@/components/dashboard/booking-template-carousel";
+import SkinSelector from "@/components/dashboard/skin-selector";
 import BookingThemeLivePreview from "@/components/dashboard/booking-theme-live-preview";
 import BusinessStatsSection from "@/components/dashboard/business-stats-section";
 import ExportDataCard from "@/components/dashboard/export-data-card";
@@ -338,10 +338,7 @@ export default function BusinessClient({
     if (!unique.includes("General")) unique.unshift("General");
     return unique;
   });
-  const [newSectionName, setNewSectionName] = useState("");
-  const [draggingServiceId, setDraggingServiceId] = useState<string | null>(null);
-  const [dragOverSection, setDragOverSection] = useState<string | null>(null);
-  const [mobileDropFlashSection, setMobileDropFlashSection] = useState<string | null>(null);
+
   const [serviceOrderIds, setServiceOrderIds] = useState<string[]>(() => {
     if (initialBookingTheme?.section_service_order?.length) {
       const ranked = new Map(initialBookingTheme.section_service_order.map((id, index) => [id, index]));
@@ -845,44 +842,6 @@ export default function BusinessClient({
     }
   }
 
-  function handleAddSection() {
-    const clean = newSectionName.trim();
-    if (!clean) return;
-    const normalized = clean
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9\s]/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
-    if (!normalized) return;
-
-    const exists = sectionCatalog.some((section) => {
-      const sectionNorm = section
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-z0-9\s]/g, "")
-        .replace(/\s+/g, " ")
-        .trim();
-      return sectionNorm === normalized;
-    });
-    if (exists) {
-      setNewSectionName("");
-      return;
-    }
-
-    const display = clean
-      .split(/\s+/)
-      .filter(Boolean)
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(" ");
-
-    sectionTouchedRef.current = true;
-    setSectionCatalog((prev) => [...prev, display]);
-    setNewSectionName("");
-  }
-
   function handleRemoveSection(sectionToRemove: string) {
     if (sectionToRemove === "General") return;
     sectionTouchedRef.current = true;
@@ -892,19 +851,6 @@ export default function BusinessClient({
       for (const serviceId of Object.keys(next)) {
         if (next[serviceId] === sectionToRemove) next[serviceId] = "General";
       }
-      return next;
-    });
-  }
-
-  function moveSection(section: string, direction: "up" | "down") {
-    if (section === "General") return;
-    setSectionCatalog((prev) => {
-      const index = prev.indexOf(section);
-      if (index === -1) return prev;
-      const target = direction === "up" ? index - 1 : index + 1;
-      if (target < 1 || target >= prev.length) return prev;
-      const next = [...prev];
-      [next[index], next[target]] = [next[target], next[index]];
       return next;
     });
   }
@@ -939,21 +885,6 @@ export default function BusinessClient({
       return next;
     });
     showSuccess(`Servicio movido a ${section}.`);
-  }
-
-  function placeServiceInSection(serviceId: string, section: string) {
-    moveServiceToSection(serviceId, section);
-    setDraggingServiceId(null);
-    setDragOverSection(null);
-    setMobileDropFlashSection(section);
-    window.setTimeout(() => {
-      setMobileDropFlashSection((prev) => (prev === section ? null : prev));
-    }, 360);
-  }
-
-  function getTransfer(event: unknown): DataTransfer | null {
-    const dragEvent = event as DragEvent<HTMLElement>;
-    return dragEvent?.dataTransfer ?? null;
   }
 
   async function handleLogoUpload(event: React.ChangeEvent<HTMLInputElement>) {
@@ -1151,7 +1082,6 @@ export default function BusinessClient({
       <form id="setup-public-info" onSubmit={handleSavePublicInfo} className="order-1">
         <div className="rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors bg-white dark:bg-zinc-900">
           <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-violet-500/15 text-base font-bold text-violet-700 dark:text-violet-200">1</span>
             <div className="p-2 rounded-full bg-violet-500/15">
               <Store className="w-5 h-5 text-violet-600" />
             </div>
@@ -1273,10 +1203,9 @@ export default function BusinessClient({
 
       <section className="order-4 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors bg-white dark:bg-zinc-900">
         <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
-          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-fuchsia-500/15 text-base font-bold text-fuchsia-700 dark:text-fuchsia-200">4</span>
           <div className="flex-1">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Personalizar web de reservas (/book)</h2>
-            <p className="text-xs text-zinc-400 dark:text-zinc-500">Selecciona template, logo y textos principales</p>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Personalizar mi tienda</h2>
+            <p className="text-xs text-zinc-400 dark:text-zinc-500">Selecciona template y textos principales</p>
           </div>
           <button
             type="button"
@@ -1299,9 +1228,8 @@ export default function BusinessClient({
             </a>
           ) : null}
         </div>
-        <div className="p-6 grid grid-cols-1 gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-          <div className="space-y-5">
-          <BookingTemplateCarousel
+        <div className="p-6 flex flex-col gap-6">
+          <SkinSelector
             selectedTemplateId={selectedTemplateId}
             onSelect={(templateId) => {
               templateTouchedRef.current = true;
@@ -1309,363 +1237,29 @@ export default function BusinessClient({
             }}
           />
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
-              <label className="mb-1.5 block cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300">Titulo principal</label>
-              <input
-                value={heroTitle}
-                onChange={(event) => {
-                  bookingCopyTouchedRef.current = true;
-                  setHeroTitle(event.target.value);
-                }}
-                disabled={!isOwnerOrAdmin}
-                className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
-                placeholder={data?.nombre ? `Reserva en ${data.nombre}` : "Reserva tu turno"}
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300">Subtitulo</label>
-              <input
-                value={heroSubtitle}
-                onChange={(event) => {
-                  bookingCopyTouchedRef.current = true;
-                  setHeroSubtitle(event.target.value);
-                }}
-                disabled={!isOwnerOrAdmin}
-                className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
-                placeholder={`Elegi ${serviceWord.toLowerCase()}, ${staffWord.toLowerCase()} y horario`}
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300">Titulo seccion secundaria</label>
-              <input
-                value={aboutTitle}
-                onChange={(event) => {
-                  bookingCopyTouchedRef.current = true;
-                  setAboutTitle(event.target.value);
-                }}
-                disabled={!isOwnerOrAdmin}
-                className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
-                placeholder="Sobre nosotros"
-              />
-            </div>
-            <div className="sm:row-span-2">
-              <label className="mb-1.5 block cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300">Texto seccion secundaria</label>
-              <textarea
-                value={aboutText}
-                onChange={(event) => {
-                  bookingCopyTouchedRef.current = true;
-                  setAboutText(event.target.value);
-                }}
-                disabled={!isOwnerOrAdmin}
-                rows={4}
-                className="w-full rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all resize-none"
-                placeholder={`Contale al ${customerWord.toLowerCase()} el estilo de atencion de tu local`}
-              />
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-white/20 dark:border-white/10 bg-white dark:bg-zinc-900 p-4">
-            <p className="text-sm font-semibold text-gray-900 dark:text-white">Logo del negocio</p>
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">PNG/JPG/WebP/SVG hasta 2MB. Recomendado: 512x512 o superior para evitar pixelado.</p>
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <label className="inline-flex min-h-12 cursor-pointer items-center justify-center rounded-full border border-white/30 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800">
-                {uploadingLogo ? "Subiendo..." : "Subir logo"}
-                <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="hidden" onChange={handleLogoUpload} disabled={!isOwnerOrAdmin} />
-              </label>
-              {logoUrl ? <Image src={logoUrl} alt="Logo" width={80} height={80} sizes="80px" className="h-20 w-20 rounded-2xl object-contain border border-white/20 bg-zinc-100 p-1.5 dark:bg-zinc-900" /> : null}
-              {bookingTheme?.logo_url && !logoUrl ? <span className="text-xs text-zinc-500">Logo configurado</span> : null}
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-white/20 dark:border-white/10 bg-white dark:bg-zinc-900 p-4">
-            <p className="text-sm font-semibold text-gray-900 dark:text-white">Secciones de {servicePlural.toLowerCase()} (/book)</p>
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Crealas una sola vez y luego asigna cada {serviceWord.toLowerCase()} con un selector.</p>
-
-            <div className="mt-3 rounded-xl border border-white/20 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
-              <p className="text-xs font-medium text-zinc-600 dark:text-zinc-300">Secciones disponibles</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {sectionCatalog.map((section) => (
-                  <span key={section} className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white px-3 py-1 text-xs text-zinc-700 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200">
-                    {section}
-                    {section !== "General" ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => moveSection(section, "up")}
-                          disabled={!isOwnerOrAdmin}
-                          className="text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-100"
-                          title={`Subir ${section}`}
-                        >
-                          ↑
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => moveSection(section, "down")}
-                          disabled={!isOwnerOrAdmin}
-                          className="text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-100"
-                          title={`Bajar ${section}`}
-                        >
-                          ↓
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveSection(section)}
-                          disabled={!isOwnerOrAdmin}
-                          className="text-zinc-400 hover:text-red-500"
-                          title={`Eliminar ${section}`}
-                        >
-                          x
-                        </button>
-                      </>
-                    ) : null}
-                  </span>
-                ))}
-              </div>
-              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                <input
-                  value={newSectionName}
-                  onChange={(event) => setNewSectionName(event.target.value)}
-                  disabled={!isOwnerOrAdmin}
-                  className="min-h-12 flex-1 rounded-full border border-white/40 bg-white px-4 py-2 text-sm text-zinc-800 outline-none ring-[#0071E3] focus:ring-2 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-                  placeholder="Nueva seccion (ej: Cortes)"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddSection}
-                  disabled={!isOwnerOrAdmin}
-                  className="min-h-12 rounded-full bg-[#111114] px-4 py-2 text-sm font-medium text-white hover:bg-black"
-                >
-                  Agregar
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-3 space-y-2">
-              {initialServices.length === 0 ? (
-                  <p className="text-xs text-zinc-500">No hay {servicePlural.toLowerCase()} cargados todavia.</p>
-              ) : (
-                <>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Desktop: arrastra {servicePlural.toLowerCase()} entre secciones. Mobile: usa el selector de cada {serviceWord.toLowerCase()}.</p>
-
-                  <div className="hidden md:grid md:grid-cols-2 md:gap-3">
-                    {sectionCatalog.map((section) => {
-                      const servicesInSection = orderedServices.filter(
-                        (service) => (serviceCategoryDraft[service.id] ?? "General") === section,
-                      );
-                      const avgPrice = servicesInSection.length
-                        ? Math.round(servicesInSection.reduce((sum, service) => sum + Number(service.price || 0), 0) / servicesInSection.length)
-                        : 0;
-                      const avgDuration = servicesInSection.length
-                        ? Math.round(servicesInSection.reduce((sum, service) => sum + Number(service.duration_minutes || 0), 0) / servicesInSection.length)
-                        : 0;
-                      const isDragOver = dragOverSection === section;
-                      return (
-                        <div
-                          key={section}
-                          onDragOver={(event) => {
-                            event.preventDefault();
-                            if (dragOverSection !== section) setDragOverSection(section);
-                          }}
-                          onDragEnter={() => setDragOverSection(section)}
-                          onDragLeave={(event) => {
-                            const currentTarget = event.currentTarget;
-                            const related = event.relatedTarget as Node | null;
-                            if (!related || !currentTarget.contains(related)) {
-                              setDragOverSection((prev) => (prev === section ? null : prev));
-                            }
-                          }}
-                          onDrop={(event) => {
-                            event.preventDefault();
-                            const serviceId = getTransfer(event)?.getData("text/plain") || "";
-                            if (serviceId) moveServiceToSection(serviceId, section);
-                            setDragOverSection(null);
-                            setDraggingServiceId(null);
-                          }}
-                          className={`min-h-[180px] rounded-2xl border p-3 transition-all duration-300 ${
-                            isDragOver
-                              ? "border-[#0071E3]/70 bg-[#0071E3]/10 shadow-[0_0_0_3px_rgba(0,113,227,0.18)] dark:bg-[#0071E3]/20"
-                              : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{section}</p>
-                            <span className="rounded-full bg-white px-2 py-0.5 text-[11px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">{servicesInSection.length}</span>
-                          </div>
-                          <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
-                            {servicesInSection.length > 0 ? `~$${avgPrice} · ${avgDuration} min` : `Sin ${servicePlural.toLowerCase()}`}
-                          </p>
-                          <div className="mt-3 space-y-2">
-                            {servicesInSection.length === 0 ? (
-                              <div className="rounded-xl border border-dashed border-white/30 px-3 py-5 text-center text-xs text-zinc-500 dark:border-white/10 dark:text-zinc-400">
-                                Solta {servicePlural.toLowerCase()} aca
-                              </div>
-                            ) : (
-                              servicesInSection.map((service) => (
-                                <motion.div
-                                  layout
-                                  transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-                                  key={service.id}
-                                  draggable
-                                  onDragStart={(event) => {
-                                    getTransfer(event)?.setData("text/plain", service.id);
-                                    setDraggingServiceId(service.id);
-                                  }}
-                                  onDragOver={(event) => event.preventDefault()}
-                                  onDrop={(event) => {
-                                    event.preventDefault();
-                                    const movingServiceId = getTransfer(event)?.getData("text/plain") || "";
-                                    if (movingServiceId) moveServiceToSection(movingServiceId, section, service.id);
-                                    setDragOverSection(null);
-                                    setDraggingServiceId(null);
-                                  }}
-                                  onDragEnd={() => {
-                                    setDraggingServiceId(null);
-                                    setDragOverSection(null);
-                                  }}
-                                  className={`cursor-grab rounded-xl border px-3 py-2 text-sm active:cursor-grabbing transition-all duration-200 ${
-                                    draggingServiceId === service.id
-                                      ? "border-[#0071E3]/50 bg-[#0071E3]/10 text-zinc-900 dark:text-zinc-100"
-                                      : "border-zinc-200 dark:border-zinc-700 bg-white text-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
-                                  }`}
-                                  title={`Arrastra para mover ${servicePlural.toLowerCase()} de seccion`}
-                                >
-                                  <span>{service.name}</span>
-                                </motion.div>
-                              ))
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="space-y-3 md:hidden">
-                    <div className="rounded-2xl border border-white/25 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
-                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-600 dark:text-zinc-300">Principal (General)</p>
-                      <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">Arrastra un {serviceWord.toLowerCase()} y soltalo en una categoria.</p>
-                      <div className="mt-3 space-y-2">
-                        {orderedServices
-                          .filter((service) => (serviceCategoryDraft[service.id] ?? "General") === "General")
-                          .map((service) => (
-                            <div
-                              key={service.id}
-                              draggable
-                              onPointerDown={() => setDraggingServiceId(service.id)}
-                              onDragStart={(event) => {
-                                getTransfer(event)?.setData("text/plain", service.id);
-                                setDraggingServiceId(service.id);
-                              }}
-                              onDragEnd={() => {
-                                setDraggingServiceId(null);
-                                setDragOverSection(null);
-                              }}
-                              className={`cursor-grab active:cursor-grabbing rounded-xl border px-3 py-2 text-sm transition-all ${
-                                draggingServiceId === service.id
-                                  ? "border-[#0071E3]/55 bg-[#0071E3]/10"
-                                  : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"
-                              }`}
-                            >
-                              <p className="font-medium text-zinc-800 dark:text-zinc-100">{service.name}</p>
-                            </div>
-                          ))}
-                        {orderedServices.filter((service) => (serviceCategoryDraft[service.id] ?? "General") === "General").length === 0 ? (
-                          <div className="rounded-xl border border-dashed border-white/30 px-3 py-4 text-center text-xs text-zinc-500 dark:border-white/10 dark:text-zinc-400">
-                            No hay {servicePlural.toLowerCase()} en principal.
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    {sectionCatalog.filter((section) => section !== "General").map((section) => {
-                      const servicesInSection = orderedServices.filter((service) => (serviceCategoryDraft[service.id] ?? "General") === section);
-                      const isDragOver = dragOverSection === section;
-                      return (
-                        <details
-                          key={section}
-                          className={`rounded-2xl border transition-all ${
-                            isDragOver || mobileDropFlashSection === section
-                              ? "border-[#0071E3]/70 bg-[#0071E3]/10 shadow-[0_0_0_3px_rgba(0,113,227,0.15)]"
-                              : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"
-                          }`}
-                          onDragOver={(event) => {
-                            event.preventDefault();
-                            if (dragOverSection !== section) setDragOverSection(section);
-                          }}
-                          onDragLeave={(event) => {
-                            const currentTarget = event.currentTarget;
-                            const related = event.relatedTarget as Node | null;
-                            if (!related || !currentTarget.contains(related)) setDragOverSection((prev) => (prev === section ? null : prev));
-                          }}
-                          onDrop={(event) => {
-                            event.preventDefault();
-                            const serviceId = getTransfer(event)?.getData("text/plain") || "";
-                            if (serviceId) placeServiceInSection(serviceId, section);
-                          }}
-                        >
-                          <summary
-                            className="cursor-pointer list-none px-3 py-3"
-                            onClick={(event) => {
-                              if (draggingServiceId) {
-                                event.preventDefault();
-                                placeServiceInSection(draggingServiceId, section);
-                              }
-                            }}
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{section}</p>
-                              <span className="rounded-full bg-white px-2 py-0.5 text-[11px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                                {servicesInSection.length}
-                              </span>
-                            </div>
-                            <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
-                              {draggingServiceId ? "Toque para soltar en esta categoria." : `Abri para ver y quitar ${servicePlural.toLowerCase()}.`}
-                            </p>
-                          </summary>
-
-                          <div className="border-t border-white/20 px-3 py-3 dark:border-white/10">
-                            <div className="space-y-2">
-                              {servicesInSection.length === 0 ? (
-                                <div className="rounded-xl border border-dashed border-white/30 px-3 py-4 text-center text-xs text-zinc-500 dark:border-white/10 dark:text-zinc-400">
-                                  Solta {servicePlural.toLowerCase()} aca.
-                                </div>
-                              ) : (
-                                servicesInSection.map((service) => (
-                                  <div key={service.id} className="flex items-center justify-between gap-2 rounded-xl border border-white/30 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900">
-                                    <p className="text-sm font-medium text-zinc-800 dark:text-zinc-100 truncate">{service.name}</p>
-                                    <button
-                                      type="button"
-                                      onClick={() => moveServiceToSection(service.id, "General")}
-                                      disabled={!isOwnerOrAdmin}
-                                      className="rounded-full border border-white/35 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
-                                    >
-                                      Quitar
-                                    </button>
-                                  </div>
-                                ))
-                              )}
-                            </div>
-                          </div>
-                        </details>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-          </div>
-
           <BookingThemeLivePreview
             templateId={selectedTemplateId}
             logoUrl={logoUrl}
             shopName={name || data?.nombre || "Tu negocio"}
             heroTitle={heroTitle}
+            onHeroTitleChange={setHeroTitle}
             heroSubtitle={heroSubtitle}
+            onHeroSubtitleChange={setHeroSubtitle}
             aboutTitle={aboutTitle}
+            onAboutTitleChange={setAboutTitle}
             aboutText={aboutText}
+            onAboutTextChange={setAboutText}
             services={previewServices}
+            sectionCatalog={sectionCatalog}
+            onServiceMove={moveServiceToSection}
+            onSectionAdd={(name) => {
+              sectionTouchedRef.current = true;
+              setSectionCatalog((prev) => [...prev, name]);
+            }}
+            onSectionRemove={handleRemoveSection}
+            onLogoUpload={handleLogoUpload}
             industry={industry}
+            disabled={!isOwnerOrAdmin}
           />
         </div>
       </section>
@@ -1673,7 +1267,6 @@ export default function BusinessClient({
       {/* Card: Configuración Técnica */}
       <div id="setup-payments" className="order-3 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors bg-white dark:bg-zinc-900">
         <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
-          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/15 text-base font-bold text-amber-700 dark:text-amber-200">3</span>
           <div className="p-2 rounded-full bg-amber-500/15">
             <Smartphone className="w-5 h-5 text-amber-600" />
           </div>
@@ -1800,176 +1393,177 @@ export default function BusinessClient({
         </div>
       </div>
 
-      {/* Card: Horarios de Atención */}
-      <div id="setup-hours" className="order-2 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors bg-white dark:bg-zinc-900">
-        <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
-          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/15 text-base font-bold text-blue-700 dark:text-blue-200">2</span>
-          <div className="p-2 rounded-full bg-blue-500/15">
-            <Clock className="w-5 h-5 text-blue-600" />
-          </div>
-          <div className="flex-1">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Horarios de Atención</h2>
-            <p className="text-xs text-zinc-400 dark:text-zinc-500">Días y horarios de apertura del local</p>
-          </div>
-          <div />
-        </div>
-        <div className="p-4">
-          {hoursLoading ? (
-            <div className="py-8 text-center text-sm text-zinc-400">Cargando horarios...</div>
-          ) : businessHours ? (
-            <div className="space-y-1">
-              {DAYS.map((day) => {
-                const h = businessHours[day.key];
-                if (!h) return null;
-                return (
-                  <div key={day.key} className="flex flex-wrap items-center gap-3 py-3 px-3 rounded-2xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
-                    <p className={`text-sm font-medium min-w-[64px] ${h.open ? "text-gray-900 dark:text-white" : "text-zinc-400 dark:text-zinc-500"}`}>
-                      {day.label}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setBusinessHours({ ...businessHours, [day.key]: { ...h, open: !h.open } })}
-                      disabled={!isOwnerOrAdmin}
-                      className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer select-none shrink-0 ${h.open ? "bg-green-500" : "bg-zinc-300 dark:bg-zinc-600"}`}
-                    >
-                      <span
-                        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${h.open ? "translate-x-5" : "translate-x-0"}`}
-                      />
-                    </button>
-                    <span className="hidden sm:block w-px h-6 bg-white/10 shrink-0" />
-                    <div className={`flex flex-wrap items-center gap-2 transition-all duration-200 ${h.open ? "opacity-100" : "opacity-25"}`}>
-                      <input
-                        type="time"
-                        value={h.start}
-                        disabled={!isOwnerOrAdmin || !h.open}
-                        onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, start: e.target.value } })}
-                        className="rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
-                      />
-                      <span className="hidden sm:inline text-xs text-zinc-400">→</span>
-                      <input
-                        type="time"
-                        value={h.end}
-                        disabled={!isOwnerOrAdmin || !h.open}
-                        onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, end: e.target.value } })}
-                        className="rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
-                      />
-
-                      <button
-                        type="button"
-                        disabled={!isOwnerOrAdmin || !h.open}
-                        onClick={() => {
-                          const hasBreak = Boolean(h.break_start && h.break_end);
-                          setBusinessHours({
-                            ...businessHours,
-                            [day.key]: {
-                              ...h,
-                              break_start: hasBreak ? null : "13:00",
-                              break_end: hasBreak ? null : "16:00",
-                            },
-                          });
-                        }}
-                        className="rounded-full border border-white/30 dark:border-white/15 px-3 py-1 text-xs text-zinc-600 dark:text-zinc-300 disabled:opacity-50"
-                      >
-                        {h.break_start && h.break_end ? "Quitar corte" : "Agregar horario cortado"}
-                      </button>
-
-                      {h.break_start && h.break_end && (
-                        <>
-                          <span className="hidden sm:inline text-xs text-zinc-400">Corte</span>
-                          <input
-                            type="time"
-                            value={h.break_start}
-                            disabled={!isOwnerOrAdmin || !h.open}
-                            onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, break_start: e.target.value } })}
-                            className="rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
-                          />
-                          <span className="hidden sm:inline text-xs text-zinc-400">→</span>
-                          <input
-                            type="time"
-                            value={h.break_end}
-                            disabled={!isOwnerOrAdmin || !h.open}
-                            onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, break_end: e.target.value } })}
-                            className="rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
-                          />
-                        </>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+      <div className="order-2 lg:grid lg:grid-cols-2 gap-6">
+        {/* Card: Horarios de Atención */}
+        <div id="setup-hours" className="rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors bg-white dark:bg-zinc-900">
+          <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
+            <div className="p-2 rounded-full bg-blue-500/15">
+              <Clock className="w-5 h-5 text-blue-600" />
             </div>
-          ) : (
-            <div className="py-8 text-center text-sm text-red-500">Error al cargar horarios</div>
-          )}
-        </div>
-      </div>
-
-      {/* Card: Feriados y Excepciones */}
-      <div className="order-2 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors bg-white dark:bg-zinc-900">
-        <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
-          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/15 text-base font-bold text-amber-700 dark:text-amber-200">
-            <Calendar className="w-5 h-5 text-amber-600" />
-          </span>
-          <div className="flex-1">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Feriados y Excepciones</h2>
-            <p className="text-xs text-zinc-400 dark:text-zinc-500">Cierres totales o horarios reducidos para dias puntuales</p>
-          </div>
-          {isOwnerOrAdmin && (
-            <button
-              type="button"
-              onClick={openNewOverride}
-              className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 text-sm font-medium px-4 py-2 transition-colors"
-            >
-              <Plus className="w-4 h-4" /> Agregar
-            </button>
-          )}
-        </div>
-        <div className="p-4">
-          {overridesLoading ? (
-            <div className="py-8 text-center text-sm text-zinc-400">Cargando excepciones...</div>
-          ) : overrides.length === 0 ? (
-            <div className="py-8 text-center text-sm text-zinc-400">No hay excepciones cargadas</div>
-          ) : (
-            <div className="space-y-2">
-              {overrides.map((o) => (
-                <div key={o.id} className="flex items-center gap-3 py-2.5 px-3 rounded-2xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
-                  <div className={`p-1.5 rounded-full shrink-0 ${o.is_closed ? "bg-red-100 dark:bg-red-900/30" : "bg-amber-100 dark:bg-amber-900/30"}`}>
-                    <Calendar className={`w-4 h-4 ${o.is_closed ? "text-red-600" : "text-amber-600"}`} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">
-                      {new Date(o.date + "T12:00:00").toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-                    </p>
-                    <p className="text-xs text-zinc-500">
-                      {o.staff_id ? `${o.staff_name} — ` : ""}
-                      {o.is_closed ? "Cerrado todo el día" : `${o.start_time} a ${o.end_time}`}
-                      {o.reason ? ` (${o.reason})` : ""}
-                    </p>
-                  </div>
-                  {isOwnerOrAdmin && (
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => openEditOverride(o)}
-                        className="p-1.5 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
-                        title="Editar"
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteOverride(o)}
-                        className="p-1.5 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30 text-zinc-500 hover:text-red-600 transition-colors"
-                        title="Eliminar"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
+            <div className="flex-1">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Horarios de Atención</h2>
+              <p className="text-xs text-zinc-400 dark:text-zinc-500">Días y horarios de apertura del local</p>
             </div>
-          )}
+            <div />
+          </div>
+          <div className="p-4">
+            {hoursLoading ? (
+              <div className="py-8 text-center text-sm text-zinc-400">Cargando horarios...</div>
+            ) : businessHours ? (
+              <div className="space-y-1">
+                {DAYS.map((day) => {
+                  const h = businessHours[day.key];
+                  if (!h) return null;
+                  return (
+                    <div key={day.key} className="flex flex-wrap items-center gap-3 py-3 px-3 rounded-2xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+                      <p className={`text-sm font-medium min-w-[64px] ${h.open ? "text-gray-900 dark:text-white" : "text-zinc-400 dark:text-zinc-500"}`}>
+                        {day.label}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setBusinessHours({ ...businessHours, [day.key]: { ...h, open: !h.open } })}
+                        disabled={!isOwnerOrAdmin}
+                        className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer select-none shrink-0 ${h.open ? "bg-green-500" : "bg-zinc-300 dark:bg-zinc-600"}`}
+                      >
+                        <span
+                          className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${h.open ? "translate-x-5" : "translate-x-0"}`}
+                        />
+                      </button>
+                      <span className="hidden sm:block w-px h-6 bg-white/10 shrink-0" />
+                      <div className={`flex flex-wrap items-center gap-2 transition-all duration-200 ${h.open ? "opacity-100" : "opacity-25"}`}>
+                        <input
+                          type="time"
+                          value={h.start}
+                          disabled={!isOwnerOrAdmin || !h.open}
+                          onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, start: e.target.value } })}
+                          className="rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
+                        />
+                        <span className="hidden sm:inline text-xs text-zinc-400">→</span>
+                        <input
+                          type="time"
+                          value={h.end}
+                          disabled={!isOwnerOrAdmin || !h.open}
+                          onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, end: e.target.value } })}
+                          className="rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
+                        />
+
+                        <button
+                          type="button"
+                          disabled={!isOwnerOrAdmin || !h.open}
+                          onClick={() => {
+                            const hasBreak = Boolean(h.break_start && h.break_end);
+                            setBusinessHours({
+                              ...businessHours,
+                              [day.key]: {
+                                ...h,
+                                break_start: hasBreak ? null : "13:00",
+                                break_end: hasBreak ? null : "16:00",
+                              },
+                            });
+                          }}
+                          className="rounded-full border border-white/30 dark:border-white/15 px-3 py-1 text-xs text-zinc-600 dark:text-zinc-300 disabled:opacity-50"
+                        >
+                          {h.break_start && h.break_end ? "Quitar corte" : "Agregar horario cortado"}
+                        </button>
+
+                        {h.break_start && h.break_end && (
+                          <>
+                            <span className="hidden sm:inline text-xs text-zinc-400">Corte</span>
+                            <input
+                              type="time"
+                              value={h.break_start}
+                              disabled={!isOwnerOrAdmin || !h.open}
+                              onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, break_start: e.target.value } })}
+                              className="rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
+                            />
+                            <span className="hidden sm:inline text-xs text-zinc-400">→</span>
+                            <input
+                              type="time"
+                              value={h.break_end}
+                              disabled={!isOwnerOrAdmin || !h.open}
+                              onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, break_end: e.target.value } })}
+                              className="rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
+                            />
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="py-8 text-center text-sm text-red-500">Error al cargar horarios</div>
+            )}
+          </div>
+        </div>
+
+        {/* Card: Feriados y Excepciones */}
+        <div className="rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors bg-white dark:bg-zinc-900">
+          <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
+            <div className="p-2 rounded-full bg-amber-500/15">
+              <Calendar className="w-5 h-5 text-amber-600" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Feriados y Excepciones</h2>
+              <p className="text-xs text-zinc-400 dark:text-zinc-500">Cierres totales o horarios reducidos para dias puntuales</p>
+            </div>
+            {isOwnerOrAdmin && (
+              <button
+                type="button"
+                onClick={openNewOverride}
+                className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 text-sm font-medium px-4 py-2 transition-colors"
+              >
+                <Plus className="w-4 h-4" /> Agregar
+              </button>
+            )}
+          </div>
+          <div className="p-4">
+            {overridesLoading ? (
+              <div className="py-8 text-center text-sm text-zinc-400">Cargando excepciones...</div>
+            ) : overrides.length === 0 ? (
+              <div className="py-8 text-center text-sm text-zinc-400">No hay excepciones cargadas</div>
+            ) : (
+              <div className="space-y-2">
+                {overrides.map((o) => (
+                  <div key={o.id} className="flex items-center gap-3 py-2.5 px-3 rounded-2xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+                    <div className={`p-1.5 rounded-full shrink-0 ${o.is_closed ? "bg-red-100 dark:bg-red-900/30" : "bg-amber-100 dark:bg-amber-900/30"}`}>
+                      <Calendar className={`w-4 h-4 ${o.is_closed ? "text-red-600" : "text-amber-600"}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                        {new Date(o.date + "T12:00:00").toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                      </p>
+                      <p className="text-xs text-zinc-500">
+                        {o.staff_id ? `${o.staff_name} — ` : ""}
+                        {o.is_closed ? "Cerrado todo el día" : `${o.start_time} a ${o.end_time}`}
+                        {o.reason ? ` (${o.reason})` : ""}
+                      </p>
+                    </div>
+                    {isOwnerOrAdmin && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => openEditOverride(o)}
+                          className="p-1.5 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
+                          title="Editar"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteOverride(o)}
+                          className="p-1.5 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30 text-zinc-500 hover:text-red-600 transition-colors"
+                          title="Eliminar"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
