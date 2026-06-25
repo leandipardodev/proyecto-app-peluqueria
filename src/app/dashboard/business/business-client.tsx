@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect, useMemo, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
-import { Store, CreditCard, MessageSquareText, Smartphone, Link2, MapPin, Phone, Clock, Share2, AlertTriangle, Trash2, Users, Scissors, ChevronRight, Calendar, Plus, X } from "lucide-react";
+import { Store, CreditCard, MessageSquareText, Smartphone, Link2, MapPin, Phone, Clock, Share2, AlertTriangle, Trash2, Users, Scissors, ChevronRight, ChevronDown, Calendar, Plus, X } from "lucide-react";
 import { TagChips, useTagInsert } from "@/components/ui/tag-chips";
 import Link from "next/link";
 import Image from "next/image";
@@ -206,6 +206,7 @@ export default function BusinessClient({
   const birthdayRef = useRef<HTMLTextAreaElement>(null);
   const insertBirthdayTag = useTagInsert(birthdayRef, birthdayWhatsappTemplate, setBirthdayWhatsappTemplate);
   const [showStats, setShowStats] = useState(false);
+  const [showThemeCard, setShowThemeCard] = useState(false);
   const [bookingDepositEnabled, setBookingDepositEnabled] = useState(data?.booking_deposit_enabled ?? true);
   const [bookingDepositAmount, setBookingDepositAmount] = useState(String(data?.booking_deposit_amount ?? 3000));
   const [payAtShop, setPayAtShop] = useState(data?.pay_at_shop ?? false);
@@ -1201,67 +1202,89 @@ export default function BusinessClient({
         </div>
       </form>
 
-      <section className="order-4 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors bg-white dark:bg-zinc-900">
-        <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
+      <section className="order-4 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm transition-colors bg-white dark:bg-zinc-900">
+        <button
+          type="button"
+          onClick={() => setShowThemeCard((v) => !v)}
+          className="w-full px-6 py-5 border-b border-white/10 flex items-center gap-3 text-left"
+        >
           <div className="flex-1">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Personalizar mi tienda</h2>
             <p className="text-xs text-zinc-400 dark:text-zinc-500">Selecciona template y textos principales</p>
           </div>
-          <button
-            type="button"
-            onClick={handleSaveBookingTheme}
-            disabled={!isOwnerOrAdmin || isSaving || uploadingLogo}
-            className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#0071E3] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#005fcc] disabled:opacity-60"
-          >
-            {isSaving ? "Publicando..." : "Publicar cambios"}
-          </button>
-          {shopSlug ? (
-            <a
-              href={`/book/${shopSlug}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/30 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
-              title="Abrir version cliente"
-            >
-              <Store className="h-4 w-4" />
-              Ver tienda
-            </a>
-          ) : null}
-        </div>
-        <div className="p-6 flex flex-col gap-6">
-          <SkinSelector
-            selectedTemplateId={selectedTemplateId}
-            onSelect={(templateId) => {
-              templateTouchedRef.current = true;
-              setSelectedTemplateId(templateId);
-            }}
-          />
+          <ChevronDown className={`w-5 h-5 text-zinc-400 transition-transform duration-300 ${showThemeCard ? "rotate-180" : ""}`} />
+        </button>
 
-          <BookingThemeLivePreview
-            templateId={selectedTemplateId}
-            logoUrl={logoUrl}
-            shopName={name || data?.nombre || "Tu negocio"}
-            heroTitle={heroTitle}
-            onHeroTitleChange={setHeroTitle}
-            heroSubtitle={heroSubtitle}
-            onHeroSubtitleChange={setHeroSubtitle}
-            aboutTitle={aboutTitle}
-            onAboutTitleChange={setAboutTitle}
-            aboutText={aboutText}
-            onAboutTextChange={setAboutText}
-            services={previewServices}
-            sectionCatalog={sectionCatalog}
-            onServiceMove={moveServiceToSection}
-            onSectionAdd={(name) => {
-              sectionTouchedRef.current = true;
-              setSectionCatalog((prev) => [...prev, name]);
-            }}
-            onSectionRemove={handleRemoveSection}
-            onLogoUpload={handleLogoUpload}
-            industry={industry}
-            disabled={!isOwnerOrAdmin}
-          />
-        </div>
+        <AnimatePresence initial={false}>
+          {showThemeCard && (
+            <motion.div
+              key="theme-body"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+              className="overflow-hidden"
+            >
+              <div className="p-6 flex flex-col gap-6">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleSaveBookingTheme}
+                    disabled={!isOwnerOrAdmin || isSaving || uploadingLogo}
+                    className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#0071E3] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#005fcc] disabled:opacity-60"
+                  >
+                    {isSaving ? "Publicando..." : "Publicar cambios"}
+                  </button>
+                  {shopSlug ? (
+                    <a
+                      href={`/book/${shopSlug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/30 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                      title="Abrir version cliente"
+                    >
+                      <Store className="h-4 w-4" />
+                      Ver tienda
+                    </a>
+                  ) : null}
+                </div>
+
+                <SkinSelector
+                  selectedTemplateId={selectedTemplateId}
+                  onSelect={(templateId) => {
+                    templateTouchedRef.current = true;
+                    setSelectedTemplateId(templateId);
+                  }}
+                />
+
+                <BookingThemeLivePreview
+                  templateId={selectedTemplateId}
+                  logoUrl={logoUrl}
+                  shopName={name || data?.nombre || "Tu negocio"}
+                  heroTitle={heroTitle}
+                  onHeroTitleChange={setHeroTitle}
+                  heroSubtitle={heroSubtitle}
+                  onHeroSubtitleChange={setHeroSubtitle}
+                  aboutTitle={aboutTitle}
+                  onAboutTitleChange={setAboutTitle}
+                  aboutText={aboutText}
+                  onAboutTextChange={setAboutText}
+                  services={previewServices}
+                  sectionCatalog={sectionCatalog}
+                  onServiceMove={moveServiceToSection}
+                  onSectionAdd={(name) => {
+                    sectionTouchedRef.current = true;
+                    setSectionCatalog((prev) => [...prev, name]);
+                  }}
+                  onSectionRemove={handleRemoveSection}
+                  onLogoUpload={handleLogoUpload}
+                  industry={industry}
+                  disabled={!isOwnerOrAdmin}
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </section>
 
       {/* Card: Configuración Técnica */}

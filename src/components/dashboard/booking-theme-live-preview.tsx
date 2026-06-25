@@ -404,7 +404,7 @@ export default function BookingThemeLivePreview({
   }, [activeCategory, allServiceIds, servicesByCategory]);
 
   return (
-    <section className="self-start rounded-3xl border border-white/30 bg-white p-3 dark:border-white/10 dark:bg-zinc-800">
+    <section className="self-start max-sm:-mx-6 max-sm:w-screen max-sm:rounded-none max-sm:border-x-0 rounded-3xl border border-white/30 bg-white p-3 dark:border-white/10 dark:bg-zinc-800">
       <div className="flex justify-center">
         <div className="w-full max-w-sm">
           <div className={`relative rounded-[2.5rem] overflow-hidden ${s.page}`}>
@@ -418,9 +418,9 @@ export default function BookingThemeLivePreview({
               background: "radial-gradient(circle at 50% 40%, rgba(255,255,255,0.10), transparent 52%), radial-gradient(circle at 28% 68%, rgba(255,255,255,0.08), transparent 48%)",
             }} />
 
-            <div className="relative z-10 flex items-start justify-center p-4">
-              <div className="w-full max-w-sm">
-                <div className={`rounded-[32px] p-5 flex flex-col ${s.shell}`}>
+            <div className="relative z-10 flex items-start justify-center p-2 sm:p-4">
+              <div className="w-full">
+                <div className={`rounded-[32px] p-3 sm:p-5 flex flex-col ${s.shell}`}>
                   {/* Header */}
                   <div className="pb-3">
                     <div className="flex items-center gap-3">
