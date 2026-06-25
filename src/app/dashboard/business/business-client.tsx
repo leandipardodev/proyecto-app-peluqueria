@@ -856,6 +856,19 @@ export default function BusinessClient({
     });
   }
 
+  function handleRenameSection(oldName: string, newName: string) {
+    if (oldName === "General" || oldName === "Todos") return;
+    sectionTouchedRef.current = true;
+    setSectionCatalog((prev) => prev.map((s) => (s === oldName ? newName : s)));
+    setServiceCategoryDraft((prev) => {
+      const next = { ...prev };
+      for (const serviceId of Object.keys(next)) {
+        if (next[serviceId] === oldName) next[serviceId] = newName;
+      }
+      return next;
+    });
+  }
+
   function buildSectionServiceOrder(): string[] {
     const known = new Set(initialServices.map((service) => service.id));
     const ordered = serviceOrderIds.filter((id) => known.has(id));
@@ -1277,6 +1290,7 @@ export default function BusinessClient({
                     setSectionCatalog((prev) => [...prev, name]);
                   }}
                   onSectionRemove={handleRemoveSection}
+                  onSectionRename={handleRenameSection}
                   onLogoUpload={handleLogoUpload}
                   industry={industry}
                   disabled={!isOwnerOrAdmin}

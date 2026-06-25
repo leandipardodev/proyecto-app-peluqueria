@@ -53,6 +53,7 @@ type Props = {
   onServiceMove: (serviceId: string, toSection: string, beforeServiceId?: string) => void;
   onSectionAdd: (sectionName: string) => void;
   onSectionRemove: (sectionName: string) => void;
+  onSectionRename?: (oldName: string, newName: string) => void;
   onLogoUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   industry?: Industry;
   disabled?: boolean;
@@ -228,8 +229,11 @@ export default function BookingThemeLivePreview({
   const [addingSection, setAddingSection] = useState(false);
   const [newSectionInput, setNewSectionInput] = useState("");
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  const [renamingSection, setRenamingSection] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
   const addInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
 
   const hasRealServices = services.length > 0;
   const fallbackServices: PreviewService[] = [
@@ -355,6 +359,10 @@ export default function BookingThemeLivePreview({
     if (addingSection) addInputRef.current?.focus();
   }, [addingSection]);
 
+  useEffect(() => {
+    if (renamingSection) renameInputRef.current?.focus();
+  }, [renamingSection]);
+
   function handleAddSection() {
     const clean = newSectionInput.trim();
     if (!clean) return;
@@ -392,6 +400,15 @@ export default function BookingThemeLivePreview({
     onSectionAdd(display);
     setNewSectionInput("");
     setAddingSection(false);
+  }
+
+  function handleConfirmRename() {
+    const clean = renameValue.trim();
+    if (!clean || !renamingSection) return;
+    if (clean === renamingSection) { setRenamingSection(null); return; }
+    onSectionRename?.(renamingSection, clean);
+    setRenamingSection(null);
+    setRenameValue("");
   }
 
   const allServiceIds = useMemo(() => sourceServices.map((s) => s.id), [sourceServices]);
@@ -467,7 +484,7 @@ export default function BookingThemeLivePreview({
                     <p className={`text-center text-sm font-semibold ${s.heading}`}>
                       Elegi tu {serviceWordLower}
                     </p>
-                    <div className="mt-2 -mx-1 overflow-x-auto pb-0.5 no-scrollbar">
+                    <div className="mt-2 -mx-1 overflow-x-auto pb-0.5 max-sm:no-scrollbar">
                       <div className="flex items-center gap-2 px-1">
                         {["Todos", ...sectionCatalog].map((category) => {
                           const isActive = category === activeCategory;
@@ -475,20 +492,37 @@ export default function BookingThemeLivePreview({
                           const isGeneral = category === "General";
                           return (
                             <div key={category} className="relative shrink-0 group">
-                              <button
-                                type="button"
-                                onClick={() => setSelectedCategory(category)}
-                                className={`relative min-h-10 rounded-full px-4 text-xs sm:text-sm whitespace-nowrap text-center ${
-                                  isAll
-                                    ? (isActive ? "font-semibold" : s.sectionTagAll)
-                                    : (isActive ? "font-semibold" : s.sectionTag)
-                                } ${s.sectionFocus} active:scale-[0.97] transition-transform duration-150`}
-                              >
-                                {isActive && (
-                                  <span className={`absolute inset-0 rounded-full ${s.sectionTagActive}`} />
-                                )}
-                                <span className="relative z-10">{category}</span>
-                              </button>
+                              {renamingSection === category ? (
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    ref={renameInputRef}
+                                    value={renameValue}
+                                    onChange={(e) => setRenameValue(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") handleConfirmRename();
+                                      if (e.key === "Escape") { setRenamingSection(null); setRenameValue(""); }
+                                    }}
+                                    onBlur={handleConfirmRename}
+                                    className="min-h-10 rounded-full border border-white/40 bg-white px-4 py-1 text-xs text-zinc-800 outline-none ring-[#0071E3] focus:ring-2 w-28"
+                                  />
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedCategory(category)}
+                                  onDoubleClick={!isAll && !isGeneral && !disabled ? () => { setRenamingSection(category); setRenameValue(category); } : undefined}
+                                  className={`relative min-h-10 rounded-full px-4 text-xs sm:text-sm whitespace-nowrap text-center ${
+                                    isAll
+                                      ? (isActive ? "font-semibold" : s.sectionTagAll)
+                                      : (isActive ? "font-semibold" : s.sectionTag)
+                                  } ${s.sectionFocus} active:scale-[0.97] transition-transform duration-150`}
+                                >
+                                  {isActive && (
+                                    <span className={`absolute inset-0 rounded-full ${s.sectionTagActive}`} />
+                                  )}
+                                  <span className="relative z-10">{category}</span>
+                                </button>
+                              )}
                               {!isAll && !isGeneral && !disabled && (
                                 <button
                                   type="button"
