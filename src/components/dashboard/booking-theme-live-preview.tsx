@@ -156,8 +156,16 @@ function SortableServiceCard({
         style={style}
         {...attributes}
         {...listeners}
-        className={`rounded-3xl border-2 transition-[transform,box-shadow] duration-200 select-none ${s.cardDepth} ${s.plate} ${s.hoverBorder} ${isOver && !isActive ? "border-blue-400/60 ring-2 ring-blue-400/30 opacity-60" : ""} ${!disabled ? "cursor-grab active:cursor-grabbing" : ""}`}
+        className={`rounded-3xl border-2 transition-[transform,box-shadow] duration-200 select-none group ${s.cardDepth} ${s.plate} ${s.hoverBorder} ${isOver && !isActive ? "border-blue-400/60 ring-2 ring-blue-400/30 opacity-60" : ""} ${!disabled ? "cursor-grab active:cursor-grabbing" : ""}`}
       >
+        {!disabled && (
+          <span className="absolute left-1.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-40 transition-all duration-200 flex flex-col gap-0.5">
+            <span className="w-1 h-1 rounded-full bg-current" />
+            <span className="w-1 h-1 rounded-full bg-current" />
+            <span className="w-1 h-1 rounded-full bg-current" />
+            <span className="w-1 h-1 rounded-full bg-current" />
+          </span>
+        )}
         <div className="overflow-hidden rounded-3xl">
           <div className="px-4 py-3 text-left">
             <div className="flex items-start justify-between gap-3">
@@ -455,12 +463,18 @@ export default function BookingThemeLivePreview({
                   <div className="pb-3">
                     <div className="flex items-center gap-3">
                       <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" ref={logoInputRef} className="hidden" onChange={onLogoUpload} disabled={disabled} />
-                      <button type="button" onClick={() => logoInputRef.current?.click()} disabled={disabled} className="h-12 w-12 flex items-center justify-center shrink-0 overflow-hidden rounded-full focus-visible:ring-2 focus-visible:ring-[#7AB8FF]/50 outline-none">
+                      <button type="button" onClick={() => logoInputRef.current?.click()} disabled={disabled} className="group relative h-12 w-12 flex items-center justify-center shrink-0 overflow-hidden rounded-full focus-visible:ring-2 focus-visible:ring-[#7AB8FF]/50 outline-none cursor-pointer ring-[#0071E3]/0 hover:ring-2 hover:ring-[#0071E3]/30 transition-all duration-200">
                         {logoUrl ? (
                           <Image src={logoUrl} alt="Logo" width={96} height={96} sizes="48px" className="h-full w-full object-contain" />
                         ) : (
                           <span className={`text-lg font-semibold tracking-tight ${s.accent}`}>K</span>
                         )}
+                        <span className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-all duration-200 rounded-full">
+                          <svg className="w-4 h-4 text-white opacity-0 group-hover:opacity-80 transition-all duration-200 drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                        </span>
                       </button>
                       <div className="min-w-0">
                         <InlineEdit
@@ -522,7 +536,7 @@ export default function BookingThemeLivePreview({
                                     isAll
                                       ? (isActive ? "font-semibold" : s.sectionTagAll)
                                       : (isActive ? "font-semibold" : s.sectionTag)
-                                  } ${s.sectionFocus} active:scale-[0.97] transition-transform duration-150`}
+                                  } ${s.sectionFocus} active:scale-[0.97] transition-all duration-150 hover:ring-2 hover:ring-[#0071E3]/20`}
                                 >
                                   {isActive && (
                                     <span className={`absolute inset-0 rounded-full ${s.sectionTagActive}`} />
@@ -549,7 +563,7 @@ export default function BookingThemeLivePreview({
                           <button
                             type="button"
                             onClick={() => setAddingSection(true)}
-                            className="shrink-0 w-10 h-10 rounded-full border border-dashed border-white/40 flex items-center justify-center text-zinc-500 hover:text-zinc-700 hover:border-white/70 transition-colors"
+                            className="shrink-0 w-10 h-10 rounded-full border border-dashed border-white/40 flex items-center justify-center text-zinc-500 hover:text-zinc-700 hover:border-white/70 hover:ring-2 hover:ring-[#0071E3]/20 transition-all duration-150"
                             title="Agregar seccion"
                           >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

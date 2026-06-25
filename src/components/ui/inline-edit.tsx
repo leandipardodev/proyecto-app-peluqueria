@@ -98,10 +98,10 @@ export default function InlineEdit({
       disabled={disabled}
       className={`group relative w-full cursor-text text-left disabled:cursor-default ${className}`}
     >
-      <span>{displayText}</span>
+      <span className="group-hover:underline decoration-dashed decoration-zinc-400/35 underline-offset-2 transition-all duration-200">{displayText}</span>
       {!disabled && (
-        <span className="absolute -right-5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-40 transition-opacity">
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <span className="absolute -right-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-70 transition-all duration-200">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
           </svg>
         </span>
