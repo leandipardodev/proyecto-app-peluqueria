@@ -869,6 +869,11 @@ export default function BusinessClient({
     });
   }
 
+  function handleSectionReorder(reordered: string[]) {
+    sectionTouchedRef.current = true;
+    setSectionCatalog(reordered);
+  }
+
   function buildSectionServiceOrder(): string[] {
     const known = new Set(initialServices.map((service) => service.id));
     const ordered = serviceOrderIds.filter((id) => known.has(id));
@@ -1215,7 +1220,7 @@ export default function BusinessClient({
         </div>
       </form>
 
-      <section className="order-4 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm transition-colors bg-white dark:bg-zinc-900">
+      <section className="order-4 max-sm:rounded-none max-sm:border-x-0 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm transition-colors bg-white dark:bg-zinc-900">
         <button
           type="button"
           onClick={() => setShowThemeCard((v) => !v)}
@@ -1236,39 +1241,34 @@ export default function BusinessClient({
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.3, ease: "easeInOut" }}
-              className="overflow-hidden"
+              className="max-sm:overflow-visible overflow-hidden"
             >
-              <div className="p-6 flex flex-col gap-6">
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={handleSaveBookingTheme}
-                    disabled={!isOwnerOrAdmin || isSaving || uploadingLogo}
-                    className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#0071E3] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#005fcc] disabled:opacity-60"
-                  >
-                    {isSaving ? "Publicando..." : "Publicar cambios"}
-                  </button>
-                  {shopSlug ? (
-                    <a
-                      href={`/book/${shopSlug}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/30 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                      title="Abrir version cliente"
-                    >
-                      <Store className="h-4 w-4" />
-                      Ver tienda
-                    </a>
-                  ) : null}
+              <div className="p-6 max-sm:px-0 flex flex-col gap-6">
+                {/* Skin selector + view store icon */}
+                <div className="flex justify-center px-6 max-sm:px-4">
+                  <div className="w-full max-w-sm flex items-center gap-2">
+                    <div className="flex-1 min-w-0">
+                      <SkinSelector
+                        selectedTemplateId={selectedTemplateId}
+                        onSelect={(templateId) => {
+                          templateTouchedRef.current = true;
+                          setSelectedTemplateId(templateId);
+                        }}
+                      />
+                    </div>
+                    {shopSlug ? (
+                      <a
+                        href={`/book/${shopSlug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="shrink-0 flex items-center justify-center h-12 w-12 rounded-full border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-500 hover:text-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 dark:hover:text-zinc-300 transition-colors"
+                        title="Ver tienda"
+                      >
+                        <Store className="h-5 w-5" />
+                      </a>
+                    ) : null}
+                  </div>
                 </div>
-
-                <SkinSelector
-                  selectedTemplateId={selectedTemplateId}
-                  onSelect={(templateId) => {
-                    templateTouchedRef.current = true;
-                    setSelectedTemplateId(templateId);
-                  }}
-                />
 
                 <BookingThemeLivePreview
                   templateId={selectedTemplateId}
@@ -1291,6 +1291,7 @@ export default function BusinessClient({
                   }}
                   onSectionRemove={handleRemoveSection}
                   onSectionRename={handleRenameSection}
+                  onSectionReorder={handleSectionReorder}
                   onLogoUpload={handleLogoUpload}
                   industry={industry}
                   disabled={!isOwnerOrAdmin}

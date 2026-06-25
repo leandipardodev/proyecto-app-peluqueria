@@ -21,8 +21,11 @@ import {
 } from "@dnd-kit/core";
 import {
   SortableContext,
+  horizontalListSortingStrategy,
   verticalListSortingStrategy,
   useSortable,
+  type AnimateLayoutChanges,
+  defaultAnimateLayoutChanges,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import InlineEdit from "@/components/ui/inline-edit";
@@ -54,6 +57,7 @@ type Props = {
   onSectionAdd: (sectionName: string) => void;
   onSectionRemove: (sectionName: string) => void;
   onSectionRename?: (oldName: string, newName: string) => void;
+  onSectionReorder?: (reordered: string[]) => void;
   onLogoUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   industry?: Industry;
   disabled?: boolean;
@@ -112,6 +116,51 @@ function getPreviewTheme(templateId: BookingTemplateId): PreviewTheme {
     priceFx: t.priceFx,
     sectionBg: t.isDark ? "bg-white/5" : "bg-black/[0.04]",
   };
+}
+
+function SortableSectionChip({
+  name,
+  isActive,
+  onSelect,
+  onDoubleClick,
+  s,
+  disabled,
+}: {
+  name: string;
+  isActive: boolean;
+  onSelect: () => void;
+  onDoubleClick?: () => void;
+  s: PreviewTheme;
+  disabled: boolean;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: name,
+    disabled,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.3 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="relative shrink-0 group">
+      <button
+        type="button"
+        onClick={onSelect}
+        onDoubleClick={onDoubleClick}
+        className={`relative min-h-10 rounded-full px-4 text-xs sm:text-sm whitespace-nowrap text-center cursor-grab active:cursor-grabbing ${
+          isActive ? "font-semibold" : s.sectionTag
+        } ${s.sectionFocus} active:scale-[0.97] transition-all duration-150 hover:ring-2 hover:ring-[#0071E3]/20`}
+      >
+        {isActive && (
+          <span className={`absolute inset-0 rounded-full ${s.sectionTagActive}`} />
+        )}
+        <span className="relative z-10">{name}</span>
+      </button>
+    </div>
+  );
 }
 
 function SortableServiceCard({
@@ -226,6 +275,7 @@ export default function BookingThemeLivePreview({
   onSectionAdd,
   onSectionRemove,
   onSectionRename,
+  onSectionReorder,
   onLogoUpload,
   industry = "peluqueria",
   disabled = false,
@@ -370,6 +420,21 @@ export default function BookingThemeLivePreview({
     }
   }
 
+  function handleSectionDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || !onSectionReorder || disabled) return;
+    if (active.id === over.id) return;
+
+    const oldIndex = sectionCatalog.indexOf(active.id as string);
+    const newIndex = sectionCatalog.indexOf(over.id as string);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = [...sectionCatalog];
+    reordered.splice(oldIndex, 1);
+    reordered.splice(newIndex, 0, active.id as string);
+    onSectionReorder(reordered);
+  }
+
   useEffect(() => {
     if (addingSection) addInputRef.current?.focus();
   }, [addingSection]);
@@ -442,7 +507,7 @@ export default function BookingThemeLivePreview({
   }, [activeCategory, allServiceIds, servicesByCategory]);
 
   return (
-    <section className="self-start max-sm:-mx-6 max-sm:w-screen max-sm:rounded-none max-sm:border-x-0 rounded-3xl border border-white/30 bg-white p-3 dark:border-white/10 dark:bg-zinc-800">
+    <section className="self-start max-sm:w-screen max-sm:rounded-none max-sm:border-x-0 rounded-3xl border border-white/30 bg-white p-3 dark:border-white/10 dark:bg-zinc-800">
       <div className="flex justify-center">
         <div className="w-full max-w-sm">
           <div className={`relative rounded-[2.5rem] overflow-hidden ${s.page}`}>
@@ -507,58 +572,70 @@ export default function BookingThemeLivePreview({
                     </p>
                     <div className="mt-2 -mx-1 overflow-x-auto pb-0.5 max-sm:no-scrollbar">
                       <div className="flex items-center gap-2 px-1">
-                        {["Todos", ...sectionCatalog].map((category) => {
-                          const isActive = category === activeCategory;
-                          const isAll = category === "Todos";
-                          const isGeneral = category === "General";
-                          return (
-                            <div key={category} className="relative shrink-0 group">
-                              {renamingSection === category ? (
-                                <div className="flex items-center gap-1">
-                                  <input
-                                    ref={renameInputRef}
-                                    value={renameValue}
-                                    onChange={(e) => setRenameValue(e.target.value)}
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter") handleConfirmRename();
-                                      if (e.key === "Escape") { setRenamingSection(null); setRenameValue(""); }
-                                    }}
-                                    onBlur={handleConfirmRename}
-                                    className="min-h-10 rounded-full border border-white/40 bg-white px-4 py-1 text-xs text-zinc-800 outline-none ring-[#0071E3] focus:ring-2 w-28"
-                                  />
-                                </div>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => setSelectedCategory(category)}
-                                  onDoubleClick={!isAll && !isGeneral && !disabled ? () => { setRenamingSection(category); setRenameValue(category); } : undefined}
-                                  className={`relative min-h-10 rounded-full px-4 text-xs sm:text-sm whitespace-nowrap text-center ${
-                                    isAll
-                                      ? (isActive ? "font-semibold" : s.sectionTagAll)
-                                      : (isActive ? "font-semibold" : s.sectionTag)
-                                  } ${s.sectionFocus} active:scale-[0.97] transition-all duration-150 hover:ring-2 hover:ring-[#0071E3]/20`}
-                                >
-                                  {isActive && (
-                                    <span className={`absolute inset-0 rounded-full ${s.sectionTagActive}`} />
+                        <button
+                          type="button"
+                          onClick={() => setSelectedCategory("Todos")}
+                          className={`relative shrink-0 min-h-10 rounded-full px-4 text-xs sm:text-sm whitespace-nowrap text-center ${
+                            activeCategory === "Todos" ? "font-semibold" : s.sectionTagAll
+                          } ${s.sectionFocus} active:scale-[0.97] transition-all duration-150 hover:ring-2 hover:ring-[#0071E3]/20`}
+                        >
+                          {activeCategory === "Todos" && (
+                            <span className={`absolute inset-0 rounded-full ${s.sectionTagActive}`} />
+                          )}
+                          <span className="relative z-10">Todos</span>
+                        </button>
+                        <DndContext
+                          sensors={sensors}
+                          collisionDetection={pointerWithin}
+                          onDragEnd={handleSectionDragEnd}
+                        >
+                          <SortableContext items={sectionCatalog} strategy={horizontalListSortingStrategy}>
+                            {sectionCatalog.map((category) => {
+                              const isActive = category === activeCategory;
+                              const isGeneral = category === "General";
+                              return (
+                                <div key={category} className="relative group">
+                                  {renamingSection === category ? (
+                                    <div className="flex items-center gap-1">
+                                      <input
+                                        ref={renameInputRef}
+                                        value={renameValue}
+                                        onChange={(e) => setRenameValue(e.target.value)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter") handleConfirmRename();
+                                          if (e.key === "Escape") { setRenamingSection(null); setRenameValue(""); }
+                                        }}
+                                        onBlur={handleConfirmRename}
+                                        className="min-h-10 rounded-full border border-white/40 bg-white px-4 py-1 text-xs text-zinc-800 outline-none ring-[#0071E3] focus:ring-2 w-28"
+                                      />
+                                    </div>
+                                  ) : (
+                                    <SortableSectionChip
+                                      name={category}
+                                      isActive={isActive}
+                                      onSelect={() => setSelectedCategory(category)}
+                                      onDoubleClick={!isGeneral && !disabled ? () => { setRenamingSection(category); setRenameValue(category); } : undefined}
+                                      s={s}
+                                      disabled={disabled}
+                                    />
                                   )}
-                                  <span className="relative z-10">{category}</span>
-                                </button>
-                              )}
-                              {!isAll && !isGeneral && !disabled && (
-                                <button
-                                  type="button"
-                                  onClick={() => setConfirmRemove(category)}
-                                  className="absolute -top-1 -right-1 z-20 h-4 w-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-                                  title={`Eliminar ${category}`}
-                                >
-                                  <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                  </svg>
-                                </button>
-                              )}
-                            </div>
-                          );
-                        })}
+                                  {!isGeneral && !disabled && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setConfirmRemove(category)}
+                                      className="absolute top-0 -right-1.5 z-20 h-4 w-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                                      title={`Eliminar ${category}`}
+                                    >
+                                      <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                      </svg>
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </SortableContext>
+                        </DndContext>
                         {!disabled && (
                           <button
                             type="button"
