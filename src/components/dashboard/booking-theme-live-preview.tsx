@@ -11,6 +11,7 @@ import {
   DndContext,
   closestCenter,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -152,7 +153,7 @@ function SortableServiceCard({
         style={style}
         {...attributes}
         {...listeners}
-        className={`rounded-3xl border-2 transition-[transform,box-shadow] duration-200 ${s.cardDepth} ${s.plate} ${s.hoverBorder} ${isOver && !isActive ? "border-blue-400/60 ring-2 ring-blue-400/30 opacity-60" : ""} ${!disabled ? "cursor-grab active:cursor-grabbing" : ""}`}
+        className={`rounded-3xl border-2 transition-[transform,box-shadow] duration-200 select-none ${s.cardDepth} ${s.plate} ${s.hoverBorder} ${isOver && !isActive ? "border-blue-400/60 ring-2 ring-blue-400/30 opacity-60" : ""} ${!disabled ? "cursor-grab active:cursor-grabbing" : ""}`}
       >
         <div className="overflow-hidden rounded-3xl">
           <div className="px-4 py-3 text-left">
@@ -283,10 +284,15 @@ export default function BookingThemeLivePreview({
   const serviceWordLower = labels.serviceSingular.toLowerCase();
 
   const sensors = useSensors(
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 150,
+        tolerance: 8,
+      },
+    }),
     useSensor(PointerSensor, {
       activationConstraint: {
-        delay: 300,
-        tolerance: 5,
+        distance: 8,
       },
     }),
   );
@@ -546,7 +552,7 @@ export default function BookingThemeLivePreview({
                         {labels.servicePlural} de ejemplo hasta que cargues los tuyos.
                       </p>
                     )}
-                    <div className="max-h-[50vh] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+                    <div className="overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
                     <DndContext
                       sensors={sensors}
                       collisionDetection={closestCenter}
