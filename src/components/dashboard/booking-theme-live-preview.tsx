@@ -225,7 +225,6 @@ export default function BookingThemeLivePreview({
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [activeDragService, setActiveDragService] = useState<PreviewService | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
-  const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
   const [addingSection, setAddingSection] = useState(false);
   const [newSectionInput, setNewSectionInput] = useState("");
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
@@ -234,6 +233,7 @@ export default function BookingThemeLivePreview({
   const addInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
+  const dragOverlayRef = useRef<HTMLDivElement>(null);
 
   const hasRealServices = services.length > 0;
   const fallbackServices: PreviewService[] = [
@@ -309,19 +309,21 @@ export default function BookingThemeLivePreview({
     const e = event.activatorEvent as PointerEvent | null;
     if (e) {
       dragPointerRef.current = { x: e.clientX, y: e.clientY };
-      setDragPos({ x: e.clientX, y: e.clientY });
+      if (dragOverlayRef.current) {
+        dragOverlayRef.current.style.left = `${e.clientX}px`;
+        dragOverlayRef.current.style.top = `${e.clientY}px`;
+      }
     }
   }
 
   function handleDragMove(event: DragMoveEvent) {
     const e = event.activatorEvent as PointerEvent | null;
-    if (e) {
-      setDragPos({ x: e.clientX, y: e.clientY });
-    } else {
-      setDragPos({
-        x: dragPointerRef.current.x + event.delta.x,
-        y: dragPointerRef.current.y + event.delta.y,
-      });
+    if (e && dragOverlayRef.current) {
+      dragOverlayRef.current.style.left = `${e.clientX}px`;
+      dragOverlayRef.current.style.top = `${e.clientY}px`;
+    } else if (dragOverlayRef.current) {
+      dragOverlayRef.current.style.left = `${dragPointerRef.current.x + event.delta.x}px`;
+      dragOverlayRef.current.style.top = `${dragPointerRef.current.y + event.delta.y}px`;
     }
   }
 
@@ -332,7 +334,6 @@ export default function BookingThemeLivePreview({
   function handleDragEnd(event: DragEndEvent) {
     setActiveDragService(null);
     setOverId(null);
-    setDragPos(null);
     const { active, over } = event;
     if (!over || disabled) return;
 
@@ -697,12 +698,11 @@ export default function BookingThemeLivePreview({
       </div>
 
       {/* Custom drag overlay follows cursor */}
-      {activeDragService && dragPos && (
+      {activeDragService && (
         <div
+          ref={dragOverlayRef}
           className="pointer-events-none fixed z-[9999]"
           style={{
-            left: dragPos.x,
-            top: dragPos.y,
             transform: "translate(-50%, -50%)",
           }}
         >
