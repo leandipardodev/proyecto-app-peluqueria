@@ -17,9 +17,11 @@ export function useAutoCompleteAppointments(shopId: string | null): void {
     async function checkAndComplete() {
       const id = shopIdRef.current;
       if (!id) return;
+      console.log("[AUTO-COMPLETE] checkAndComplete called", new Date().toISOString());
       try {
         await autoCompletePastAppointments(id);
-      } catch {
+      } catch (e) {
+        console.error("[AUTO-COMPLETE] error", e);
       }
     }
 

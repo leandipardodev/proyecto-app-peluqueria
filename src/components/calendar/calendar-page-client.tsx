@@ -135,7 +135,11 @@ export default function CalendarPageClient({
   const calendarViewModeRef = useRef<"week" | "day" | "month">("week");
   const [batchModalOpen, setBatchModalOpen] = useState(false);
 
+  const logCounter = useRef(0);
+  const realtimeCounter = useRef(0);
   useEffect(() => {
+    logCounter.current++;
+    console.log(`[CALENDAR] initialAppointments sync #${logCounter.current}`, initialAppointments?.length ?? 0, "appointments");
     setAppointments(initialAppointments);
   }, [initialAppointments]);
 
@@ -196,44 +200,50 @@ export default function CalendarPageClient({
     rangeEnd.setUTCHours(23, 59, 59, 999);
 
     const handleChange = async () => {
+      realtimeCounter.current++;
+      console.log(`[CALENDAR] handleChange #${realtimeCounter.current}`, new Date().toISOString());
       if (realtimeCooldown.current) return;
       realtimeCooldown.current = true;
       setTimeout(() => { realtimeCooldown.current = false; }, 2000);
-      const { data: rows, error } = await supabase
-        .from("appointments")
-        .select("id, customer_id, staff_id, service_id, start_time, end_time, status, is_paid, deposit_amount, loyalty_reward_applied, loyalty_discount_percent_applied, recurring_group_id, notes")
-        .eq("shop_id", shopId)
-        .gte("start_time", rangeStart.toISOString())
-        .lte("start_time", rangeEnd.toISOString())
-        .order("start_time", { ascending: true });
-      if (!error && rows) {
-        const customerIds = [...new Set(rows.map((r) => r.customer_id))];
-        const staffIds = [...new Set(rows.map((r) => r.staff_id))];
-        const serviceIds = [...new Set(rows.map((r) => r.service_id))];
-        const [customersRes, staffRes, servicesRes] = await Promise.all([
-          customerIds.length > 0
-            ? supabase.from("customers").select("id, nombre, email, telefono, loyalty_rewards_available").eq("shop_id", shopId).in("id", customerIds)
-            : { data: [] },
-          staffIds.length > 0
-            ? supabase.from("user_profiles").select("user_id, name, email").in("user_id", staffIds)
-            : { data: [] },
-          serviceIds.length > 0
-            ? supabase.from("services").select("id, name, price, duration_minutes").in("id", serviceIds)
-            : { data: [] },
-        ]);
-        const customersMap = new Map((customersRes.data || []).map((c: { id: string; nombre: string | null; email: string; telefono: string | null; loyalty_rewards_available?: number | null }) => [c.id, c]));
-        const staffMap = new Map((staffRes.data || []).map((s: { user_id: string; name: string | null; email: string | null }) => [s.user_id, s]));
-        const servicesMap = new Map((servicesRes.data || []).map((s: { id: string; name: string; price: number; duration_minutes: number }) => [s.id, s]));
-        const enriched = rows.map((r) => ({
-          ...r,
-          customers: customersMap.get(r.customer_id) ?? null,
-          staff: staffMap.get(r.staff_id) ?? null,
-          services: servicesMap.get(r.service_id) ?? null,
-        }));
-        setAppointments((prev) => {
-          if (prev.length === enriched.length && prev.every((a, i) => a.id === enriched[i].id)) return prev;
-          return enriched as any;
-        });
+      try {
+        const { data: rows, error } = await supabase
+          .from("appointments")
+          .select("id, customer_id, staff_id, service_id, start_time, end_time, status, is_paid, deposit_amount, loyalty_reward_applied, loyalty_discount_percent_applied, recurring_group_id, notes")
+          .eq("shop_id", shopId)
+          .gte("start_time", rangeStart.toISOString())
+          .lte("start_time", rangeEnd.toISOString())
+          .order("start_time", { ascending: true });
+        if (!error && rows) {
+          const customerIds = [...new Set(rows.map((r) => r.customer_id).filter(Boolean))];
+          const staffIds = [...new Set(rows.map((r) => r.staff_id).filter(Boolean))];
+          const serviceIds = [...new Set(rows.map((r) => r.service_id).filter(Boolean))];
+          const [customersRes, staffRes, servicesRes] = await Promise.all([
+            customerIds.length > 0
+              ? supabase.from("customers").select("id, nombre, email, telefono, loyalty_rewards_available").eq("shop_id", shopId).in("id", customerIds)
+              : { data: [] },
+            staffIds.length > 0
+              ? supabase.from("user_profiles").select("user_id, name, email").in("user_id", staffIds)
+              : { data: [] },
+            serviceIds.length > 0
+              ? supabase.from("services").select("id, name, price, duration_minutes").in("id", serviceIds)
+              : { data: [] },
+          ]);
+          const customersMap = new Map((customersRes.data || []).map((c: { id: string; nombre: string | null; email: string; telefono: string | null; loyalty_rewards_available?: number | null }) => [c.id, c]));
+          const staffMap = new Map((staffRes.data || []).map((s: { user_id: string; name: string | null; email: string | null }) => [s.user_id, s]));
+          const servicesMap = new Map((servicesRes.data || []).map((s: { id: string; name: string; price: number; duration_minutes: number }) => [s.id, s]));
+          const enriched = rows.map((r) => ({
+            ...r,
+            customers: customersMap.get(r.customer_id) ?? null,
+            staff: staffMap.get(r.staff_id) ?? null,
+            services: servicesMap.get(r.service_id) ?? null,
+          }));
+          setAppointments((prev) => {
+            if (prev.length === enriched.length && prev.every((a, i) => a.id === enriched[i].id)) return prev;
+            return enriched as any;
+          });
+        }
+      } catch (e) {
+        console.error("Calendar Realtime: error en handleChange", e);
       }
     };
 
@@ -243,7 +253,11 @@ export default function CalendarPageClient({
       .on("postgres_changes", { event: "*", schema: "public", table: "customers", filter: `shop_id=eq.${shopId}` }, handleChange)
       .on("postgres_changes", { event: "*", schema: "public", table: "services", filter: `shop_id=eq.${shopId}` }, handleChange)
       .on("postgres_changes", { event: "*", schema: "public", table: "shop_memberships", filter: `shop_id=eq.${shopId}` }, handleChange)
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR") {
+          console.error("Calendar Realtime: channel error");
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
@@ -272,7 +286,10 @@ export default function CalendarPageClient({
     setSelectedAppointment(appt);
   }, []);
 
+  const refreshCounter = useRef(0);
   const refreshAppointments = useCallback(async () => {
+    refreshCounter.current++;
+    console.log(`[CALENDAR] refreshAppointments #${refreshCounter.current}`, new Date().toISOString());
     const weekStart = getArgentinaWeekStart();
     const rangeStart = new Date(weekStart);
     rangeStart.setUTCDate(weekStart.getUTCDate() - 7);

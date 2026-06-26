@@ -468,10 +468,6 @@ export async function fetchShopDateOverrides(
 ): Promise<ActionResult<DateOverride[]>> {
   try {
     if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    const user = await getCachedUser();
-    if (!user) return { success: false, error: "SESION_EXPIRADA" };
-    const allowed = await canAccessShopId(user.id, shopId);
-    if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
     const admin = await createAdminClient();
     const { data, error } = await admin
       .from("shop_date_overrides")
