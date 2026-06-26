@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { addProduct, updateStock, applyStockBatchAdjustments, deleteProduct } from "@/lib/dashboard/inventory-actions";
 import { createServerClient as mockCreateServerClient } from "@/lib/supabase/server";
-import { requireShopId as mockRequireShopId } from "@/lib/dashboard/auth-server";
+import { requireOwnerShopId as mockRequireOwnerShopId, requireShopId as mockRequireShopId } from "@/lib/dashboard/auth-server";
 import { supabaseStub, chainableQuery } from "@/__tests__/setup";
 
 function createFormData(overrides: Record<string, string> = {}): FormData {
@@ -15,6 +15,7 @@ function createFormData(overrides: Record<string, string> = {}): FormData {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(mockRequireShopId).mockResolvedValue({ success: true, data: "shop-123" });
+  vi.mocked(mockRequireOwnerShopId).mockResolvedValue({ success: true, data: "shop-123" });
 });
 
 describe("addProduct", () => {
@@ -60,8 +61,8 @@ describe("addProduct", () => {
     expect(result.success).toBe(true);
   });
 
-  it("returns error when requireShopId fails", async () => {
-    vi.mocked(mockRequireShopId).mockResolvedValue({ success: false, error: "SESION_EXPIRADA" });
+  it("returns error when requireOwnerShopId fails", async () => {
+    vi.mocked(mockRequireOwnerShopId).mockResolvedValue({ success: false, error: "SESION_EXPIRADA" });
     const fd = createFormData();
     const result = await addProduct(fd);
     expect(result).toEqual({ success: false, error: "SESION_EXPIRADA" });
@@ -229,8 +230,8 @@ describe("deleteProduct", () => {
     expect(result).toEqual({ success: true });
   });
 
-  it("returns error when requireShopId fails", async () => {
-    vi.mocked(mockRequireShopId).mockResolvedValue({ success: false, error: "SESION_EXPIRADA" });
+  it("returns error when requireOwnerShopId fails", async () => {
+    vi.mocked(mockRequireOwnerShopId).mockResolvedValue({ success: false, error: "SESION_EXPIRADA" });
     const result = await deleteProduct("prod-1");
     expect(result).toEqual({ success: false, error: "SESION_EXPIRADA" });
   });

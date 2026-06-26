@@ -1,6 +1,6 @@
 "use server";
 
-import { createServiceRoleClient, requireShopId } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient, requireOwnerShopId, requireShopId } from "@/lib/dashboard/auth-server";
 import { revalidateDashboardSegments } from "@/lib/dashboard/revalidate-dashboard";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
@@ -109,7 +109,7 @@ export async function createCombo(
   try {
     let shopId: string | undefined = shopIdOverride;
     if (!shopId) {
-      const shopIdResult = await requireShopId();
+      const shopIdResult = await requireOwnerShopId();
       if (!shopIdResult.success) return shopIdResult;
       shopId = shopIdResult.data;
       if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
@@ -162,7 +162,7 @@ export async function updateCombo(
   try {
     let shopId: string | undefined = shopIdOverride;
     if (!shopId) {
-      const shopIdResult = await requireShopId();
+      const shopIdResult = await requireOwnerShopId();
       if (!shopIdResult.success) return shopIdResult;
       shopId = shopIdResult.data;
       if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
@@ -217,7 +217,7 @@ export async function deleteCombo(id: string, shopIdOverride?: string): Promise<
   try {
     let shopId: string | undefined = shopIdOverride;
     if (!shopId) {
-      const shopIdResult = await requireShopId();
+      const shopIdResult = await requireOwnerShopId();
       if (!shopIdResult.success) return shopIdResult;
       shopId = shopIdResult.data;
       if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
@@ -238,7 +238,7 @@ export async function toggleComboActive(id: string, shopIdOverride?: string): Pr
   try {
     let shopId: string | undefined = shopIdOverride;
     if (!shopId) {
-      const shopIdResult = await requireShopId();
+      const shopIdResult = await requireOwnerShopId();
       if (!shopIdResult.success) return shopIdResult;
       shopId = shopIdResult.data;
       if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };

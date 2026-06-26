@@ -1,13 +1,25 @@
 "use server";
 
 import { createServerClient } from "@/lib/supabase/server";
+import { canAccessShopId, getCachedUser, getCurrentUserRole } from "@/lib/dashboard/auth-server";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
+
+async function requireShopAccess(shopId: string): Promise<ActionResult<string>> {
+  if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+  const user = await getCachedUser();
+  if (!user) return { success: false, error: "SESION_EXPIRADA" };
+  const allowed = await canAccessShopId(user.id, shopId);
+  if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
+  return { success: true, data: shopId };
+}
 
 type ExportRow = Record<string, string | number | boolean | null>;
 
 export async function fetchExportCustomers(shopId: string): Promise<ActionResult<ExportRow[]>> {
   try {
+    const accessResult = await requireShopAccess(shopId);
+    if (!accessResult.success) return accessResult;
     const supabase = await createServerClient();
     const { data, error } = await supabase
       .from("customers")
@@ -23,6 +35,8 @@ export async function fetchExportCustomers(shopId: string): Promise<ActionResult
 
 export async function fetchExportStock(shopId: string): Promise<ActionResult<ExportRow[]>> {
   try {
+    const accessResult = await requireShopAccess(shopId);
+    if (!accessResult.success) return accessResult;
     const supabase = await createServerClient();
     const { data, error } = await supabase
       .from("stock")
@@ -38,6 +52,8 @@ export async function fetchExportStock(shopId: string): Promise<ActionResult<Exp
 
 export async function fetchExportAppointments(shopId: string): Promise<ActionResult<ExportRow[]>> {
   try {
+    const accessResult = await requireShopAccess(shopId);
+    if (!accessResult.success) return accessResult;
     const supabase = await createServerClient();
     const { data, error } = await supabase
       .from("appointments")
@@ -67,6 +83,8 @@ export async function fetchExportFinances(
   to: string
 ): Promise<ActionResult<{ totalIncome: number; totalExpenses: number; netBalance: number }>> {
   try {
+    const accessResult = await requireShopAccess(shopId);
+    if (!accessResult.success) return accessResult;
     const supabase = await createServerClient();
     const { data: movements, error } = await supabase
       .from("cash_movements")
@@ -90,6 +108,13 @@ export async function fetchExportStaffProduction(
   to: string
 ): Promise<ActionResult<ExportRow[]>> {
   try {
+    const accessResult = await requireShopAccess(shopId);
+    if (!accessResult.success) return accessResult;
+
+    // Staff cannot see economic data
+    const roleResult = await getCurrentUserRole(shopId);
+    const isStaff = roleResult.success && roleResult.data?.role === "staff";
+
     const supabase = await createServerClient();
     const { data: memberships, error: membershipsError } = await supabase
       .from("shop_memberships")
@@ -119,6 +144,14 @@ export async function fetchExportStaffProduction(
     if (apptError) return { success: false, error: apptError.message };
 
     const rows = (staffList || []).map((staff) => {
+      if (isStaff) {
+        return {
+          empleado: staff.name,
+          turnos: 0,
+          cobrado: "0.00",
+          ticket_promedio: "0.00",
+        };
+      }
       const staffAppts = (appointments || []).filter((a) => a.staff_id === staff.id);
       const count = staffAppts.length;
       const paidRevenue = staffAppts

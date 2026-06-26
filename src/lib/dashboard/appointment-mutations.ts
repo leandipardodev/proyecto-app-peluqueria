@@ -5,7 +5,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { canAccessShopId, requireShopId } from "@/lib/dashboard/auth-server";
 import { trackProductEvent } from "@/lib/analytics/product-events";
 import { revalidateDashboardSegments } from "@/lib/dashboard/revalidate-dashboard";
-import { createArgentinaDate, getArgentinaDateKey } from "@/lib/argentina-time";
+import { createArgentinaDate, getArgentinaDateKey, getArgentinaNow } from "@/lib/argentina-time";
 import type { ActionResult } from "@/lib/types";
 import {
   type RecurringFrequency,
@@ -972,5 +972,32 @@ export async function redeemLoyaltyReward(appointmentId: string, shopIdOverride?
     return { success: true, data: { discountPercent } };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al canjear fidelizacion" };
+  }
+}
+
+export async function autoCompletePastAppointments(shopId: string): Promise<ActionResult<{ count: number }>> {
+  try {
+    if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+
+    const admin = await createAdminClient();
+    const now = getArgentinaNow().toISOString();
+
+    const { data, error } = await admin
+      .from("appointments")
+      .update({ status: "completed", updated_at: new Date().toISOString() })
+      .eq("shop_id", shopId)
+      .in("status", ["scheduled", "confirmed", "pending_payment", "in_progress"])
+      .lt("end_time", now)
+      .select("id");
+
+    if (error) return { success: false, error: error.message };
+
+    if (data && data.length > 0) {
+      await revalidateDashboardSegments(shopId, ["/calendar", "/appointments", "/customers", ""]);
+    }
+
+    return { success: true, data: { count: data?.length ?? 0 } };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al auto-completar turnos" };
   }
 }

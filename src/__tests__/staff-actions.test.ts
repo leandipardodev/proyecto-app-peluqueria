@@ -7,7 +7,7 @@ import {
   updateStaffName,
   removeStaff,
 } from "@/lib/dashboard/staff-actions";
-import { requireShopId as mockRequireShopId, createServiceRoleClient as mockCreateServiceRole } from "@/lib/dashboard/auth-server";
+import { requireShopId as mockRequireShopId, createServiceRoleClient as mockCreateServiceRole, getAuthSession as mockGetAuthSession, getCurrentUserRole as mockGetCurrentUserRole } from "@/lib/dashboard/auth-server";
 import { createServerClient as mockCreateServerClient } from "@/lib/supabase/server";
 import { revalidateDashboardSegments as mockRevalidate } from "@/lib/dashboard/revalidate-dashboard";
 import { trackProductEvent as mockTrackProductEvent } from "@/lib/analytics/product-events";
@@ -70,11 +70,15 @@ describe("fetchStaffMembers", () => {
   }
 
   it("returns staff members with revenue", async () => {
-    // The supabase client is used for the revenue query per staff member
+    vi.mocked(mockGetCurrentUserRole).mockResolvedValue({ success: true, data: { role: "owner", userId: "u1" } });
+
     const revChain = chainableQuery();
     revChain.then = (onfulfilled: any) =>
       Promise.resolve({
-        data: [{ services: [{ price: 5000 }] }, { services: [{ price: 3000 }] }],
+        data: [
+          { staff_id: "u2", services: [{ price: 5000 }] },
+          { staff_id: "u2", services: [{ price: 3000 }] },
+        ],
         error: null,
       }).then(onfulfilled);
 

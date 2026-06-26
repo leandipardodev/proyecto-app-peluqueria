@@ -2,7 +2,7 @@
 
 import crypto from "crypto";
 import { createServerClient } from "@/lib/supabase/server";
-import { createServiceRoleClient, requireShopId } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient, getCurrentUserRole, requireShopId } from "@/lib/dashboard/auth-server";
 import { trackProductEvent } from "@/lib/analytics/product-events";
 import { revalidateDashboardSegments } from "@/lib/dashboard/revalidate-dashboard";
 import { createStaffInviteToken } from "@/lib/dashboard/staff-invite";
@@ -75,6 +75,10 @@ export async function fetchStaffMembers(shopIdOverride?: string): Promise<Action
       shopId = shopIdResult.data;
       if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
     }
+
+    // Check if caller is staff — if so, return members without economic data
+    const callerRole = await getCurrentUserRole(shopId);
+    const isStaffCaller = callerRole.success && callerRole.data?.role === "staff";
 
     const [supabase, admin] = await Promise.all([createServerClient(), createAdminClient()]);
 
@@ -168,6 +172,24 @@ export async function fetchStaffMembers(shopIdOverride?: string): Promise<Action
         : null;
       const overridesEnabled = Boolean(rule?.overrides_enabled);
       const rawOverrides = rule?.id ? overrideMap.get(rule.id) ?? [] : [];
+
+      if (isStaffCaller) {
+        return {
+          id: member.user_id,
+          name: member.name ?? member.nombre,
+          email: member.email,
+          role: member.role,
+          revenue: 0,
+          payModel: "percentage" as const,
+          percentageRate: 0,
+          fixedAmount: 0,
+          joined,
+          inviteLink: null,
+          photo_url: staffProfileMap.get(member.user_id) ?? null,
+          overridesEnabled: false,
+          serviceOverrides: [],
+        };
+      }
 
       return {
         id: member.user_id,
@@ -311,6 +333,81 @@ export async function addStaffMember(formData: FormData, shopIdOverride?: string
       return { success: true, data: { login_url: loginUrl } };
     }
 
+    const { data: authUsers } = await admin.auth.admin.listUsers();
+    if (authUsers?.users) {
+      const existingAuthUser = authUsers.users.find(
+        (u: { email?: string | null }) => u.email?.toLowerCase() === normalizedEmail
+      );
+      if (existingAuthUser) {
+        await admin.from("user_profiles").upsert(
+          {
+            user_id: existingAuthUser.id,
+            shop_id: shopId,
+            name,
+            email: normalizedEmail,
+            role,
+            is_active: true,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id" }
+        );
+
+        await admin.from("shop_memberships").upsert(
+          {
+            user_id: existingAuthUser.id,
+            shop_id: shopId,
+            role,
+            is_active: true,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id,shop_id" }
+        );
+
+        const normalizedPercentage = payModel === "fixed" ? 0 : percentageRate;
+        const normalizedFixed = payModel === "percentage" ? 0 : fixedAmount;
+        if (role === "staff") {
+          const { data: newRule } = await admin.from("staff_compensation_rules").insert({
+            shop_id: shopId,
+            staff_user_id: existingAuthUser.id,
+            model: normalizedFixed > 0 && normalizedPercentage > 0 ? "hybrid" : normalizedFixed > 0 ? "fixed" : "percentage",
+            percentage_rate: normalizedPercentage,
+            fixed_amount: normalizedFixed,
+            overrides_enabled: overridesEnabled,
+            starts_on: new Date().toISOString().slice(0, 10),
+            updated_at: new Date().toISOString(),
+          }).select("id").single();
+          if (newRule && overrides.length > 0) {
+            await admin.from("staff_commission_overrides").insert(
+              overrides.map((o) => ({
+                shop_id: shopId,
+                compensation_rule_id: newRule.id,
+                service_id: o.serviceId,
+                percentage_rate: Math.min(100, Math.max(0, o.percentageRate)),
+              }))
+            );
+          }
+        }
+
+        await admin.from("admin_allowlist").upsert(
+          {
+            email: normalizedEmail,
+            shop_id: shopId,
+            role,
+            is_active: true,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "email" }
+        );
+
+        if (role === "staff") {
+          await trackProductEvent(shopId, "first_staff_added", { metadata: { source: "existing_user" } });
+        }
+
+        await revalidateDashboardSegments(shopId, ["/staff"]);
+        return { success: true, data: { login_url: loginUrl } };
+      }
+    }
+
     const password = crypto.randomBytes(6).toString("hex");
 
     const { data: adminData, error: adminError } = await admin.auth.admin.createUser({
@@ -330,7 +427,7 @@ export async function addStaffMember(formData: FormData, shopIdOverride?: string
       user_id: adminData.user.id,
       shop_id: shopId,
       name,
-      email,
+      email: normalizedEmail,
       role,
       is_active: true,
     });

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient, getAuthSession, getShopIdBySlug, requireShopId } from "@/lib/dashboard/auth-server";
+import { createServerClient } from "@/lib/supabase/server";
 import { DEFAULT_BOOKING_TEMPLATE, BOOKING_TEMPLATE_PRESETS, type BookingTemplateId } from "@/lib/booking/theme-presets";
 import type { ActionResult } from "@/lib/types";
 
@@ -103,6 +104,22 @@ export async function upsertBookingTheme(input: {
     const shopIdResult = await resolveShopIdFromOptionalSlug(input.shopSlug);
     if (!shopIdResult.success) return shopIdResult;
     const shopId = shopIdResult.data;
+
+    // Verify owner role
+    const session = await getAuthSession();
+    if (!session) return { success: false, error: "SESION_EXPIRADA" };
+    const supabase = await createServerClient();
+    const { data: membership } = await supabase
+      .from("shop_memberships")
+      .select("role")
+      .eq("user_id", session.user.id)
+      .eq("shop_id", shopId)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (!membership || membership.role !== "owner") {
+      return { success: false, error: "Solo el owner del local puede modificar el tema" };
+    }
+
     const admin = await createAdminClient();
 
     const { error } = await admin.from("shop_booking_theme").upsert(
@@ -145,6 +162,22 @@ export async function uploadBookingLogo(formData: FormData): Promise<ActionResul
     const shopIdResult = await resolveShopIdFromOptionalSlug(shopSlug);
     if (!shopIdResult.success) return shopIdResult;
     const shopId = shopIdResult.data;
+
+    // Verify owner role
+    const session = await getAuthSession();
+    if (!session) return { success: false, error: "SESION_EXPIRADA" };
+    const supabase = await createServerClient();
+    const { data: membership } = await supabase
+      .from("shop_memberships")
+      .select("role")
+      .eq("user_id", session.user.id)
+      .eq("shop_id", shopId)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (!membership || membership.role !== "owner") {
+      return { success: false, error: "Solo el owner del local puede modificar el logo" };
+    }
+
     const admin = await createAdminClient();
 
     const file = formData.get("logo") as File | null;

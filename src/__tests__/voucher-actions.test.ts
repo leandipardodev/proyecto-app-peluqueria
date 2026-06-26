@@ -9,7 +9,7 @@ import {
   markVoucherRedeemed,
   runVoucherReminderSweep,
 } from "@/lib/dashboard/voucher-actions";
-import { requireShopId as mockRequireShopId, canAccessShopId as mockCanAccessShop } from "@/lib/dashboard/auth-server";
+import { getCachedUser as mockGetCachedUser, requireShopId as mockRequireShopId, canAccessShopId as mockCanAccessShop } from "@/lib/dashboard/auth-server";
 import { createServerClient as mockCreateServerClient } from "@/lib/supabase/server";
 import { revalidateDashboardSegments as mockRevalidate } from "@/lib/dashboard/revalidate-dashboard";
 import { DEFAULT_VOUCHER_WHATSAPP_TEMPLATE } from "@/lib/dashboard/voucher-constants";
@@ -18,6 +18,8 @@ import { supabaseStub, chainableQuery } from "@/__tests__/setup";
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(mockRequireShopId).mockResolvedValue({ success: true, data: "shop-123" });
+  vi.mocked(mockGetCachedUser).mockResolvedValue({ id: "user-1" });
+  vi.mocked(mockCanAccessShop).mockResolvedValue(true);
   vi.mocked(mockCreateServerClient).mockResolvedValue(supabaseStub());
 });
 
@@ -149,7 +151,10 @@ describe("fetchVoucherWhatsappTemplate", () => {
 describe("updateVoucherWhatsappTemplate", () => {
   it("updates and revalidates", async () => {
     vi.mocked(mockCreateServerClient).mockResolvedValue({
-      from: vi.fn(() => chainableQuery({ update: vi.fn().mockReturnThis() })),
+      from: vi.fn(() => chainableQuery({
+        update: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn().mockResolvedValue({ data: { role: "owner" }, error: null }),
+      })),
       auth: { getUser: vi.fn() },
     } as never);
 
@@ -256,23 +261,25 @@ describe("markVoucherRedeemed", () => {
 // ---------------------------------------------------------------------------
 describe("runVoucherReminderSweep", () => {
   it("updates vouchers whose birthday matches today", async () => {
-    const now = new Date();
-    const mm = String(now.getMonth() + 1).padStart(2, "0");
-    const dd = String(now.getDate()).padStart(2, "0");
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2030-06-15T00:00:00.000Z"));
+
+    const shopsChain = chainableQuery();
+    shopsChain.then = (onfulfilled: any) =>
+      Promise.resolve({ data: [{ id: "shop-123" }], error: null }).then(onfulfilled);
 
     const selectChain = chainableQuery();
     selectChain.then = (onfulfilled: any) =>
       Promise.resolve({
         data: [
-          { id: "v1", gifted_to_birthday: `1990-${mm}-${dd}`, status: "pending" },
-          { id: "v2", gifted_to_birthday: `1990-01-01`, status: "pending" },
+          { id: "v1", gifted_to_birthday: "1990-06-15", status: "pending" },
+          { id: "v2", gifted_to_birthday: "1990-01-01", status: "pending" },
         ],
         error: null,
       }).then(onfulfilled);
 
     const updateChain = chainableQuery();
     updateChain.in = vi.fn().mockResolvedValue({ data: null, error: null });
-    // Make updateChain thenable too
     (updateChain as any).then = ((onfulfilled: any) =>
       Promise.resolve({ data: null, error: null }).then(onfulfilled));
 
@@ -280,13 +287,15 @@ describe("runVoucherReminderSweep", () => {
     vi.mocked(mockCreateServerClient).mockResolvedValue({
       from: vi.fn((_table: string) => {
         callCount++;
-        // First call: select, second call: update
-        return callCount === 1 ? selectChain : updateChain;
+        if (callCount === 1) return shopsChain;
+        if (callCount === 2) return selectChain;
+        return updateChain;
       }),
       auth: { getUser: vi.fn() },
     } as never);
 
     const result = await runVoucherReminderSweep();
+    vi.useRealTimers();
     expect(result).toEqual({ success: true, data: { updated: 1 } });
   });
 
@@ -307,17 +316,26 @@ describe("runVoucherReminderSweep", () => {
     expect(result).toEqual({ success: true, data: { updated: 0 } });
   });
 
-  it("returns error on select failure", async () => {
-    const chain = chainableQuery();
-    chain.then = (onfulfilled: any, onrejected: any) =>
+  it("returns zero when select fails", async () => {
+    const shopsChain = chainableQuery();
+    shopsChain.then = (onfulfilled: any) =>
+      Promise.resolve({ data: [{ id: "shop-123" }], error: null }).then(onfulfilled);
+
+    const voucherChain = chainableQuery();
+    voucherChain.then = (onfulfilled: any, onrejected: any) =>
       Promise.resolve({ data: null, error: { message: "DB error" } }).then(onfulfilled, onrejected);
 
+    let callCount = 0;
     vi.mocked(mockCreateServerClient).mockResolvedValue({
-      from: vi.fn(() => chain),
+      from: vi.fn((_table: string) => {
+        callCount++;
+        if (callCount === 1) return shopsChain;
+        return voucherChain;
+      }),
       auth: { getUser: vi.fn() },
     } as never);
 
     const result = await runVoucherReminderSweep();
-    expect(result).toEqual({ success: false, error: "DB error" });
+    expect(result).toEqual({ success: true, data: { updated: 0 } });
   });
 });

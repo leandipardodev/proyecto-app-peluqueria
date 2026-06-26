@@ -14,7 +14,7 @@ import {
   fetchStaffLiquidations,
   fetchCashSessionsHistory,
 } from "@/lib/dashboard/finances-actions";
-import { requireShopId as mockRequireShopId, createServiceRoleClient as mockCreateServiceRole } from "@/lib/dashboard/auth-server";
+import { getCurrentUserRole as mockGetCurrentUserRole, requireOwnerShopId as mockRequireOwnerShopId, requireShopId as mockRequireShopId, createServiceRoleClient as mockCreateServiceRole } from "@/lib/dashboard/auth-server";
 import { createServerClient as mockCreateServerClient } from "@/lib/supabase/server";
 import { revalidateDashboardSegments as mockRevalidate } from "@/lib/dashboard/revalidate-dashboard";
 import { supabaseStub, chainableQuery } from "@/__tests__/setup";
@@ -22,6 +22,8 @@ import { supabaseStub, chainableQuery } from "@/__tests__/setup";
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(mockRequireShopId).mockResolvedValue({ success: true, data: "shop-123" });
+  vi.mocked(mockRequireOwnerShopId).mockResolvedValue({ success: true, data: "shop-123" });
+  vi.mocked(mockGetCurrentUserRole).mockResolvedValue({ success: true, data: { role: "owner", userId: "user-1" } });
   vi.mocked(mockCreateServerClient).mockResolvedValue(supabaseStub());
   vi.mocked(mockCreateServiceRole).mockResolvedValue(supabaseStub());
 });
@@ -141,8 +143,8 @@ describe("openCashSession", () => {
     expect(result).toEqual({ success: false, error: "SESION_EXPIRADA" });
   });
 
-  it("returns error when requireShopId fails", async () => {
-    vi.mocked(mockRequireShopId).mockResolvedValue({ success: false, error: "SESION_EXPIRADA" });
+  it("returns error when requireOwnerShopId fails", async () => {
+    vi.mocked(mockRequireOwnerShopId).mockResolvedValue({ success: false, error: "SESION_EXPIRADA" });
     const fd = createFormData();
     const result = await openCashSession(fd);
     expect(result).toEqual({ success: false, error: "SESION_EXPIRADA" });
@@ -299,8 +301,8 @@ describe("createExpense", () => {
     expect(result).toEqual({ success: false, error: "La categoría es obligatoria" });
   });
 
-  it("returns error when requireShopId fails", async () => {
-    vi.mocked(mockRequireShopId).mockResolvedValue({ success: false, error: "SESION_EXPIRADA" });
+  it("returns error when requireOwnerShopId fails", async () => {
+    vi.mocked(mockRequireOwnerShopId).mockResolvedValue({ success: false, error: "SESION_EXPIRADA" });
     const fd = createFormData();
     const result = await createExpense(fd);
     expect(result).toEqual({ success: false, error: "SESION_EXPIRADA" });
@@ -320,8 +322,8 @@ describe("deleteExpense", () => {
     expect(result).toEqual({ success: true });
   });
 
-  it("returns error when requireShopId fails", async () => {
-    vi.mocked(mockRequireShopId).mockResolvedValue({ success: false, error: "SESION_EXPIRADA" });
+  it("returns error when requireOwnerShopId fails", async () => {
+    vi.mocked(mockRequireOwnerShopId).mockResolvedValue({ success: false, error: "SESION_EXPIRADA" });
     const result = await deleteExpense("exp-1");
     expect(result).toEqual({ success: false, error: "SESION_EXPIRADA" });
   });
@@ -332,13 +334,11 @@ describe("deleteExpense", () => {
 // ---------------------------------------------------------------------------
 describe("fetchStaffProduction", () => {
   it("returns empty list when no staff", async () => {
+    const chain = chainableQuery();
+    (chain as any).then = ((onfulfilled: any) =>
+      Promise.resolve({ data: [], error: null }).then(onfulfilled));
     vi.mocked(mockCreateServiceRole).mockResolvedValue({
-      from: vi.fn(() => chainableQuery({
-        eq: vi.fn().mockReturnThis(),
-        in: vi.fn().mockReturnThis(),
-        gte: vi.fn().mockReturnThis(),
-        lte: vi.fn().mockResolvedValue({ data: [], error: null }),
-      })),
+      from: vi.fn(() => chain),
     } as never);
 
     const result = await fetchStaffProduction("2030-06-15", "2030-06-15", "shop-123");
@@ -418,8 +418,8 @@ describe("markStaffLiquidationPaid", () => {
     expect(result).toEqual({ success: true });
   });
 
-  it("returns error when requireShopId fails", async () => {
-    vi.mocked(mockRequireShopId).mockResolvedValue({ success: false, error: "SESION_EXPIRADA" });
+  it("returns error when requireOwnerShopId fails", async () => {
+    vi.mocked(mockRequireOwnerShopId).mockResolvedValue({ success: false, error: "SESION_EXPIRADA" });
     const result = await markStaffLiquidationPaid("liq-1", 5000);
     expect(result).toEqual({ success: false, error: "SESION_EXPIRADA" });
   });

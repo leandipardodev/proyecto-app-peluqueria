@@ -1,6 +1,7 @@
 "use server";
 
-import { createServiceRoleClient, requireOwnerShopId, requireShopId } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient, getCachedUser, canAccessShopId, requireOwnerShopId, requireShopId } from "@/lib/dashboard/auth-server";
+import { createServerClient } from "@/lib/supabase/server";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
 import type { ActionResult } from "@/lib/types";
 import { revalidateDashboardSegments } from "@/lib/dashboard/revalidate-dashboard";
@@ -84,7 +85,7 @@ export async function fetchBusinessData(shopIdOverride?: string): Promise<Action
 
 export async function updateBusinessInfo(formData: FormData): Promise<ActionResult> {
   try {
-    const shopIdResult = await requireShopId();
+    const shopIdResult = await requireOwnerShopId();
     if (!shopIdResult.success) return shopIdResult;
     const shopId = shopIdResult.data;
     const admin = await createAdminClient();
@@ -257,7 +258,7 @@ export async function fetchBusinessHours(shopIdOverride?: string): Promise<Actio
 
 export async function updateBusinessHours(hours: BusinessHoursData): Promise<ActionResult> {
   try {
-    const shopIdResult = await requireShopId();
+    const shopIdResult = await requireOwnerShopId();
     if (!shopIdResult.success) return shopIdResult;
     const shopId = shopIdResult.data;
     const admin = await createAdminClient();
@@ -319,7 +320,7 @@ export async function updateBusinessHours(hours: BusinessHoursData): Promise<Act
 
 export async function updateWhatsappTemplateAction(template: string): Promise<ActionResult> {
   try {
-    const shopIdResult = await requireShopId();
+    const shopIdResult = await requireOwnerShopId();
     if (!shopIdResult.success) return shopIdResult;
     const shopId = shopIdResult.data;
     const admin = await createAdminClient();
@@ -358,7 +359,7 @@ export async function updateWhatsappTemplateAction(template: string): Promise<Ac
 
 export async function updateLoyaltyProgramAction(enabled: boolean, cutsRequired: number, discountPercent: number): Promise<ActionResult> {
   try {
-    const shopIdResult = await requireShopId();
+    const shopIdResult = await requireOwnerShopId();
     if (!shopIdResult.success) return shopIdResult;
     const shopId = shopIdResult.data;
     const admin = await createAdminClient();
@@ -397,7 +398,7 @@ export type LoyaltyRaffleResult = {
 
 export async function runLoyaltyRaffleAction(prizeName: string, winnersCount: number): Promise<ActionResult<LoyaltyRaffleResult>> {
   try {
-    const shopIdResult = await requireShopId();
+    const shopIdResult = await requireOwnerShopId();
     if (!shopIdResult.success) return shopIdResult;
     const shopId = shopIdResult.data;
     const admin = await createAdminClient();
@@ -466,6 +467,11 @@ export async function fetchShopDateOverrides(
   endDate: string
 ): Promise<ActionResult<DateOverride[]>> {
   try {
+    if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    const user = await getCachedUser();
+    if (!user) return { success: false, error: "SESION_EXPIRADA" };
+    const allowed = await canAccessShopId(user.id, shopId);
+    if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
     const admin = await createAdminClient();
     const { data, error } = await admin
       .from("shop_date_overrides")
@@ -518,6 +524,30 @@ export async function upsertShopDateOverride(
   reason?: string | null
 ): Promise<ActionResult> {
   try {
+    if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    const user = await getCachedUser();
+    if (!user) return { success: false, error: "SESION_EXPIRADA" };
+    const allowed = await canAccessShopId(user.id, shopId);
+    if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
+
+    // Check role: owner can set any override, staff can only set their own
+    const supabase = await createServerClient();
+    const { data: membership } = await supabase
+      .from("shop_memberships")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("shop_id", shopId)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    const isOwner = membership?.role === "owner";
+    if (!isOwner) {
+      // Staff can only create/modify overrides for themselves (staff_id === their user_id)
+      if (staffId !== user.id) {
+        return { success: false, error: "Solo el owner puede modificar excepciones de otros profesionales" };
+      }
+    }
+
     const admin = await createAdminClient();
 
     // Delete existing override for this (shop, staff, date) to avoid unique constraint conflicts
@@ -551,7 +581,38 @@ export async function deleteShopDateOverride(
   shopId: string
 ): Promise<ActionResult> {
   try {
+    if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    const user = await getCachedUser();
+    if (!user) return { success: false, error: "SESION_EXPIRADA" };
+    const allowed = await canAccessShopId(user.id, shopId);
+    if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
+
     const admin = await createAdminClient();
+
+    // Check role: owner can delete any, staff can only delete their own
+    const supabase = await createServerClient();
+    const { data: membership } = await supabase
+      .from("shop_memberships")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("shop_id", shopId)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    const isOwner = membership?.role === "owner";
+    if (!isOwner) {
+      // Staff can only delete overrides that belong to them
+      const { data: override } = await admin
+        .from("shop_date_overrides")
+        .select("staff_id")
+        .eq("id", overrideId)
+        .eq("shop_id", shopId)
+        .maybeSingle();
+      if (!override || override.staff_id !== user.id) {
+        return { success: false, error: "Solo el owner puede eliminar excepciones de otros profesionales" };
+      }
+    }
+
     const { error } = await admin
       .from("shop_date_overrides")
       .delete()

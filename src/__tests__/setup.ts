@@ -214,6 +214,7 @@ vi.mock("@/lib/dashboard/auth-server", () => ({
   getAuthSession: vi.fn(),
   getCachedUser: vi.fn(),
   getShopIdBySlug: vi.fn(),
+  getCurrentUserRole: vi.fn(),
 }));
 
 vi.mock("@/lib/retry", () => ({

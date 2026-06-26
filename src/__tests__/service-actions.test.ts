@@ -6,7 +6,7 @@ import {
 } from "@/lib/dashboard/service-actions";
 import * as serviceActions from "@/lib/dashboard/service-actions";
 import { createServiceRoleClient as mockCreateServiceRole } from "@/lib/dashboard/auth-server";
-import { requireShopId as mockRequireShopId } from "@/lib/dashboard/auth-server";
+import { requireOwnerShopId as mockRequireOwnerShopId, requireShopId as mockRequireShopId } from "@/lib/dashboard/auth-server";
 import { trackProductEvent as mockTrackProductEvent } from "@/lib/analytics/product-events";
 import { supabaseStub, chainableQuery } from "@/__tests__/setup";
 
@@ -42,6 +42,7 @@ function makeServiceRoleMock(
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(mockRequireShopId).mockResolvedValue({ success: true, data: "shop-123" });
+  vi.mocked(mockRequireOwnerShopId).mockResolvedValue({ success: true, data: "shop-123" });
   vi.mocked(mockCreateServiceRole).mockResolvedValue(supabaseStub());
 });
 
@@ -70,8 +71,8 @@ describe("createService", () => {
     expect(result).toEqual({ success: false, error: "El precio no puede ser negativo" });
   });
 
-  it("returns error when requireShopId fails", async () => {
-    vi.mocked(mockRequireShopId).mockResolvedValue({ success: false, error: "SESION_EXPIRADA" });
+  it("returns error when requireOwnerShopId fails", async () => {
+    vi.mocked(mockRequireOwnerShopId).mockResolvedValue({ success: false, error: "SESION_EXPIRADA" });
     const fd = createFormData();
     const result = await createService(fd);
     expect(result).toEqual({ success: false, error: "SESION_EXPIRADA" });
@@ -144,8 +145,8 @@ describe("updateService", () => {
     expect(result).toEqual({ success: true });
   });
 
-  it("returns error when requireShopId fails", async () => {
-    vi.mocked(mockRequireShopId).mockResolvedValue({ success: false, error: "SESION_EXPIRADA" });
+  it("returns error when requireOwnerShopId fails", async () => {
+    vi.mocked(mockRequireOwnerShopId).mockResolvedValue({ success: false, error: "SESION_EXPIRADA" });
     const fd = createFormData();
     const result = await updateService("svc-1", fd);
     expect(result).toEqual({ success: false, error: "SESION_EXPIRADA" });

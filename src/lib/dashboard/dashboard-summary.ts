@@ -1,7 +1,7 @@
 "use server";
 
 import { createServerClient } from "@/lib/supabase/server";
-import { createServiceRoleClient, requireShopId } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient, getCurrentUserRole, requireShopId } from "@/lib/dashboard/auth-server";
 import {
   getArgentinaDateString,
   getArgentinaDayBounds,
@@ -44,6 +44,10 @@ export async function fetchDashboardSummary(shopIdOverride?: string): Promise<Ac
       shopId = shopIdResult.data;
       if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
     }
+
+    // Check if user is staff — if so, hide financial metrics
+    const roleResult = await getCurrentUserRole(shopId);
+    const isStaff = roleResult.success && roleResult.data?.role === "staff";
 
     const supabase = await createServerClient();
 
@@ -147,7 +151,7 @@ export async function fetchDashboardSummary(shopIdOverride?: string): Promise<Ac
       success: true,
       data: {
         appointmentsCount: (appointmentsToday.data ?? []).length,
-        revenue,
+        revenue: isStaff ? 0 : revenue,
         lowStockCount: (lowStock.data ?? []).length,
         nextAppointments,
         loyaltyRewardsReadyCount: (loyaltyReady.data ?? []).length,
@@ -252,6 +256,26 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
       shopId = shopIdResult.data;
       if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
     }
+
+    // Check if user is staff — if so, return empty metrics
+    const roleResult = await getCurrentUserRole(shopId);
+    if (roleResult.success && roleResult.data?.role === "staff") {
+      return {
+        success: true,
+        data: {
+          revenueChart: [],
+          dailyBreakdown: [],
+          hourlyBreakdown: [],
+          monthlyGrowth: [],
+          healthScore: 0,
+          healthBreakdown: { revenue: 0, clients: 0, appointments: 0 },
+          flowByPeriod: { today: { income: 0, expenses: 0 }, week: { income: 0, expenses: 0 }, month: { income: 0, expenses: 0 } },
+          topServices: [],
+          stats: { totalClients: 0, growth: null, totalAppointments: 0 },
+        },
+      };
+    }
+
     const admin = await createAdminClient();
 
     const nowAr = getArgentinaNow();

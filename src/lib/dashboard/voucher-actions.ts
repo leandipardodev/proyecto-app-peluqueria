@@ -1,7 +1,7 @@
 "use server";
 
 import { createServerClient } from "@/lib/supabase/server";
-import { canAccessShopId, requireShopId } from "@/lib/dashboard/auth-server";
+import { canAccessShopId, getCachedUser, requireShopId } from "@/lib/dashboard/auth-server";
 import { revalidateDashboardSegments } from "@/lib/dashboard/revalidate-dashboard";
 import { DEFAULT_VOUCHER_WHATSAPP_TEMPLATE } from "@/lib/dashboard/voucher-constants";
 import type { ActionResult } from "@/lib/types";
@@ -96,6 +96,11 @@ export async function fetchTodayVoucherAlerts(shopIdOverride?: string): Promise<
 
 export async function fetchVoucherWhatsappTemplate(shopId: string): Promise<ActionResult<string>> {
   try {
+    if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    const user = await getCachedUser();
+    if (!user) return { success: false, error: "SESION_EXPIRADA" };
+    const allowed = await canAccessShopId(user.id, shopId);
+    if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
     const supabase = await createServerClient();
     const { data, error } = await supabase
       .from("shops")
@@ -111,7 +116,20 @@ export async function fetchVoucherWhatsappTemplate(shopId: string): Promise<Acti
 
 export async function updateVoucherWhatsappTemplate(shopId: string, template: string): Promise<ActionResult> {
   try {
+    if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    const user = await getCachedUser();
+    if (!user) return { success: false, error: "SESION_EXPIRADA" };
     const supabase = await createServerClient();
+    const { data: membership } = await supabase
+      .from("shop_memberships")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("shop_id", shopId)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (!membership || membership.role !== "owner") {
+      return { success: false, error: "Solo el owner del local puede realizar esta accion" };
+    }
     const { error } = await supabase
       .from("shops")
       .update({ voucher_whatsapp_template: template, updated_at: new Date().toISOString() })
@@ -208,6 +226,11 @@ export async function createVoucher(formData: FormData, shopId: string): Promise
 
 export async function markVoucherReminderSent(voucherId: string, shopId: string): Promise<ActionResult> {
   try {
+    if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    const user = await getCachedUser();
+    if (!user) return { success: false, error: "SESION_EXPIRADA" };
+    const allowed = await canAccessShopId(user.id, shopId);
+    if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
     const supabase = await createServerClient();
     const { error } = await supabase
       .from("vouchers")
@@ -224,6 +247,11 @@ export async function markVoucherReminderSent(voucherId: string, shopId: string)
 
 export async function markVoucherRedeemed(voucherId: string, shopId: string): Promise<ActionResult> {
   try {
+    if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    const user = await getCachedUser();
+    if (!user) return { success: false, error: "SESION_EXPIRADA" };
+    const allowed = await canAccessShopId(user.id, shopId);
+    if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
     const supabase = await createServerClient();
     const { error } = await supabase
       .from("vouchers")

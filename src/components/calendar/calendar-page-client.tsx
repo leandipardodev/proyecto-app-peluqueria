@@ -11,6 +11,7 @@ import AppointmentDetailModal from "./appointment-detail-modal";
 import BatchAppointmentModal from "./batch-appointment-modal";
 import { StatePanel } from "@/components/ui/state-panel";
 import { useAppointmentAlarm } from "@/lib/use-appointment-alarm";
+import { useAutoCompleteAppointments } from "@/lib/use-auto-complete-appointments";
 import { getArgentinaDateKey, getArgentinaWeekStart } from "@/lib/argentina-time";
 import { supabase } from "@/lib/supabase";
 import { fetchAppointments } from "@/lib/dashboard/appointment-query-actions";
@@ -182,6 +183,7 @@ export default function CalendarPageClient({
   }, [initialAppointmentId, enrichedAppointments]);
 
   useAppointmentAlarm(enrichedAppointments);
+  useAutoCompleteAppointments(shopId);
 
   const realtimeCooldown = useRef(false);
 

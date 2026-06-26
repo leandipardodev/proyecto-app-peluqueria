@@ -135,8 +135,8 @@ describe("updateBusinessInfo", () => {
     expect(mockRevalidate).toHaveBeenCalledWith("shop-123", ["/business"]);
   });
 
-  it("returns error when requireShopId fails", async () => {
-    vi.mocked(mockRequireShopId).mockResolvedValue({ success: false, error: "SESION_EXPIRADA" });
+  it("returns error when requireOwnerShopId fails", async () => {
+    vi.mocked(mockRequireOwnerShopId).mockResolvedValue({ success: false, error: "SESION_EXPIRADA" });
     const fd = createFormData();
     const result = await updateBusinessInfo(fd);
     expect(result).toEqual({ success: false, error: "SESION_EXPIRADA" });
@@ -312,8 +312,8 @@ describe("updateBusinessHours", () => {
     expect(result.error).toContain("debe quedar entre apertura y cierre");
   });
 
-  it("returns error when requireShopId fails", async () => {
-    vi.mocked(mockRequireShopId).mockResolvedValue({ success: false, error: "SESION_EXPIRADA" });
+  it("returns error when requireOwnerShopId fails", async () => {
+    vi.mocked(mockRequireOwnerShopId).mockResolvedValue({ success: false, error: "SESION_EXPIRADA" });
     const result = await updateBusinessHours(validHours);
     expect(result).toEqual({ success: false, error: "SESION_EXPIRADA" });
   });
@@ -371,8 +371,8 @@ describe("updateWhatsappTemplateAction", () => {
     expect(result.error).toBe("La ubicación es indispensable para el cliente");
   });
 
-  it("returns error when requireShopId fails", async () => {
-    vi.mocked(mockRequireShopId).mockResolvedValue({ success: false, error: "SESION_EXPIRADA" });
+  it("returns error when requireOwnerShopId fails", async () => {
+    vi.mocked(mockRequireOwnerShopId).mockResolvedValue({ success: false, error: "SESION_EXPIRADA" });
     const result = await updateWhatsappTemplateAction("Hola @Hora @Lugar");
     expect(result).toEqual({ success: false, error: "SESION_EXPIRADA" });
   });
@@ -481,8 +481,8 @@ describe("runLoyaltyRaffleAction", () => {
     expect(result.data.participants).toBe(1);
   });
 
-  it("returns error when requireShopId fails", async () => {
-    vi.mocked(mockRequireShopId).mockResolvedValue({ success: false, error: "SESION_EXPIRADA" });
+  it("returns error when requireOwnerShopId fails", async () => {
+    vi.mocked(mockRequireOwnerShopId).mockResolvedValue({ success: false, error: "SESION_EXPIRADA" });
     const result = await runLoyaltyRaffleAction("Premio", 1);
     expect(result).toEqual({ success: false, error: "SESION_EXPIRADA" });
   });

@@ -1,6 +1,6 @@
 "use server";
 
-import { createServiceRoleClient, requireShopId } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient, requireOwnerShopId, requireShopId } from "@/lib/dashboard/auth-server";
 import { trackProductEvent } from "@/lib/analytics/product-events";
 import { revalidateDashboardSegments } from "@/lib/dashboard/revalidate-dashboard";
 import type { ActionResult } from "@/lib/types";
@@ -93,7 +93,7 @@ export async function createService(formData: FormData, shopIdOverride?: string)
   try {
     let shopId: string | undefined = shopIdOverride;
     if (!shopId) {
-      const shopIdResult = await requireShopId();
+      const shopIdResult = await requireOwnerShopId();
       if (!shopIdResult.success) return shopIdResult;
       shopId = shopIdResult.data;
       if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
@@ -157,7 +157,7 @@ export async function updateService(id: string, formData: FormData, shopIdOverri
   try {
     let shopId: string | undefined = shopIdOverride;
     if (!shopId) {
-      const shopIdResult = await requireShopId();
+      const shopIdResult = await requireOwnerShopId();
       if (!shopIdResult.success) return shopIdResult;
       shopId = shopIdResult.data;
       if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
@@ -215,7 +215,7 @@ export async function bulkUpdateServiceCategories(
   try {
     let shopId: string | undefined = shopIdOverride;
     if (!shopId) {
-      const shopIdResult = await requireShopId();
+      const shopIdResult = await requireOwnerShopId();
       if (!shopIdResult.success) return shopIdResult;
       shopId = shopIdResult.data;
       if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
@@ -244,7 +244,7 @@ export async function deleteService(id: string, shopIdOverride?: string): Promis
   try {
     let shopId: string | undefined = shopIdOverride;
     if (!shopId) {
-      const shopIdResult = await requireShopId();
+      const shopIdResult = await requireOwnerShopId();
       if (!shopIdResult.success) return shopIdResult;
       shopId = shopIdResult.data;
       if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };

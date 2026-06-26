@@ -211,6 +211,21 @@ export async function requireOwnerShopId(): Promise<ActionResult<string>> {
   return { success: false, error: "Solo el owner del local puede realizar esta accion" };
 }
 
+export async function getCurrentUserRole(shopId: string): Promise<ActionResult<{ role: string; userId: string }>> {
+  const session = await getAuthSession();
+  if (!session) return { success: false, error: "SESION_EXPIRADA" };
+  const supabase = await createServerClient();
+  const { data: membership } = await supabase
+    .from("shop_memberships")
+    .select("role")
+    .eq("user_id", session.user.id)
+    .eq("shop_id", shopId)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (!membership) return { success: false, error: "SIN_ACCESO" };
+  return { success: true, data: { role: membership.role, userId: session.user.id } };
+}
+
 export async function checkShopExpired(shopId: string): Promise<{ expired: boolean; active: boolean }> {
   const admin = await createServiceRoleClient();
   const { data: shop } = await admin
