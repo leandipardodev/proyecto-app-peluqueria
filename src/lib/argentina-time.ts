@@ -10,12 +10,12 @@ const AR_FMT = new Intl.DateTimeFormat("en-US", {
   hour12: false,
 });
 
-function getDatePartsInTimezone(tz: string): { year: number; month: number; day: number; weekday: number; hours: number; minutes: number } {
+function getDatePartsInTimezone(tz: string): { year: number; month: number; day: number; weekday: number; hours: number; minutes: number; seconds: number } {
   const now = new Date();
   const fmt = new Intl.DateTimeFormat("en-US", {
     timeZone: tz,
     year: "numeric", month: "numeric", day: "numeric",
-    weekday: "long", hour: "numeric", minute: "numeric", hour12: false,
+    weekday: "long", hour: "numeric", minute: "numeric", second: "numeric", hour12: false,
   });
   const parts = fmt.formatToParts(now);
   const get = (t: string) => parseInt(parts.find(p => p.type === t)?.value || "0", 10);
@@ -26,16 +26,17 @@ function getDatePartsInTimezone(tz: string): { year: number; month: number; day:
   return {
     year: get("year"), month: get("month"), day: get("day"),
     weekday: weekdayMap[parts.find(p => p.type === "weekday")?.value.toLowerCase() || "monday"] ?? 1,
-    hours: get("hour"), minutes: get("minute"),
+    hours: get("hour"), minutes: get("minute"), seconds: get("second"),
   };
 }
 
 export function getArgentinaNow(): Date {
-  const { year, month, day, hours, minutes } = getDatePartsInTimezone(AR_TZ);
+  const { year, month, day, hours, minutes, seconds } = getDatePartsInTimezone(AR_TZ);
   const ds = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
   const hh = String(hours).padStart(2, "0");
   const mm = String(minutes).padStart(2, "0");
-  return new Date(`${ds}T${hh}:${mm}:00-03:00`);
+  const ss = String(seconds).padStart(2, "0");
+  return new Date(`${ds}T${hh}:${mm}:${ss}-03:00`);
 }
 
 export function getArgentinaWeekStart(): Date {

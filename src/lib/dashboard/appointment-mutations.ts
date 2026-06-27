@@ -988,7 +988,8 @@ export async function autoCompletePastAppointments(shopId: string): Promise<Acti
       .eq("shop_id", shopId)
       .in("status", ["scheduled", "confirmed", "pending_payment", "in_progress"])
       .lt("end_time", now)
-      .select("id");
+      .select("id")
+      .limit(500);
 
     if (error) return { success: false, error: error.message };
 

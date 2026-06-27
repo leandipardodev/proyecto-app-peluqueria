@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState, memo, useRef } from "react";
 import { MessageCircle, Bell } from "lucide-react";
 import { useAppointmentAlarm } from "@/lib/use-appointment-alarm";
-import { useAutoCompleteAppointments } from "@/lib/use-auto-complete-appointments";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { supabase } from "@/lib/supabase";
@@ -97,7 +96,6 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
   }, [page, totalPages]);
 
   useAppointmentAlarm(appointments);
-  useAutoCompleteAppointments(shopId);
 
   const realtimeCooldown = useRef(false);
 
