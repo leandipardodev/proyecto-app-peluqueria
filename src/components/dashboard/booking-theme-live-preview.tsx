@@ -365,26 +365,45 @@ export default function BookingThemeLivePreview({
 
   const dragPointerRef = useRef({ x: 0, y: 0 });
 
+  function getClientCoords(event: Event): { x: number; y: number } | null {
+    if ("touches" in event && (event as TouchEvent).touches.length > 0) {
+      const t = (event as TouchEvent).touches[0];
+      return { x: t.clientX, y: t.clientY };
+    }
+    if ("clientX" in event) {
+      return { x: (event as MouseEvent).clientX, y: (event as MouseEvent).clientY };
+    }
+    return null;
+  }
+
   function handleDragStart(event: DragStartEvent) {
     setIsDragging(true);
     const service = serviceMap.get(event.active.id as string);
     if (service) setActiveDragService(service);
-    const e = event.activatorEvent as PointerEvent | null;
-    if (e) {
-      dragPointerRef.current = { x: e.clientX, y: e.clientY };
-      if (dragOverlayRef.current) {
-        dragOverlayRef.current.style.left = `${e.clientX}px`;
-        dragOverlayRef.current.style.top = `${e.clientY}px`;
+    const ae = event.activatorEvent;
+    if (ae) {
+      const coords = getClientCoords(ae);
+      if (coords) {
+        dragPointerRef.current = coords;
+        if (dragOverlayRef.current) {
+          dragOverlayRef.current.style.left = `${coords.x}px`;
+          dragOverlayRef.current.style.top = `${coords.y}px`;
+        }
       }
     }
   }
 
   function handleDragMove(event: DragMoveEvent) {
-    const e = event.activatorEvent as PointerEvent | null;
-    if (e && dragOverlayRef.current) {
-      dragOverlayRef.current.style.left = `${e.clientX}px`;
-      dragOverlayRef.current.style.top = `${e.clientY}px`;
-    } else if (dragOverlayRef.current) {
+    const ae = event.activatorEvent;
+    if (ae) {
+      const coords = getClientCoords(ae);
+      if (coords && dragOverlayRef.current) {
+        dragOverlayRef.current.style.left = `${coords.x}px`;
+        dragOverlayRef.current.style.top = `${coords.y}px`;
+        return;
+      }
+    }
+    if (dragOverlayRef.current) {
       dragOverlayRef.current.style.left = `${dragPointerRef.current.x + event.delta.x}px`;
       dragOverlayRef.current.style.top = `${dragPointerRef.current.y + event.delta.y}px`;
     }
