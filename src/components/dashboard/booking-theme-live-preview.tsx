@@ -10,7 +10,7 @@ import type { BookingTheme } from "@/app/book/[slug]/booking-themes";
 import {
   DndContext,
   pointerWithin,
-  PointerSensor,
+  MouseSensor,
   TouchSensor,
   useSensor,
   useSensors,
@@ -145,7 +145,7 @@ function SortableSectionChip({
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="relative shrink-0 group">
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="relative shrink-0 group touch-none">
       <button
         type="button"
         onClick={onSelect}
@@ -205,7 +205,7 @@ function SortableServiceCard({
         style={style}
         {...attributes}
         {...listeners}
-        className={`rounded-3xl border-2 transition-[transform,box-shadow] duration-200 select-none group ${s.cardDepth} ${s.plate} ${s.hoverBorder} ${isOver && !isActive ? "border-blue-400/60 ring-2 ring-blue-400/30 opacity-60" : ""} ${!disabled ? "cursor-grab active:cursor-grabbing" : ""}`}
+        className={`rounded-3xl border-2 transition-[transform,box-shadow] duration-200 select-none group touch-none ${s.cardDepth} ${s.plate} ${s.hoverBorder} ${isOver && !isActive ? "border-blue-400/60 ring-2 ring-blue-400/30 opacity-60" : ""} ${!disabled ? "cursor-grab active:cursor-grabbing" : ""}`}
       >
         {!disabled && (
           <span className="absolute left-1.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-40 transition-all duration-200 flex flex-col gap-0.5">
@@ -293,7 +293,6 @@ export default function BookingThemeLivePreview({
   const [renamingSection, setRenamingSection] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const addInputRef = useRef<HTMLInputElement>(null);
-  const logoInputRef = useRef<HTMLInputElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
   const dragOverlayRef = useRef<HTMLDivElement>(null);
 
@@ -356,7 +355,7 @@ export default function BookingThemeLivePreview({
         tolerance: 8,
       },
     }),
-    useSensor(PointerSensor, {
+    useSensor(MouseSensor, {
       activationConstraint: {
         distance: 8,
       },
@@ -394,15 +393,6 @@ export default function BookingThemeLivePreview({
   }
 
   function handleDragMove(event: DragMoveEvent) {
-    const ae = event.activatorEvent;
-    if (ae) {
-      const coords = getClientCoords(ae);
-      if (coords && dragOverlayRef.current) {
-        dragOverlayRef.current.style.left = `${coords.x}px`;
-        dragOverlayRef.current.style.top = `${coords.y}px`;
-        return;
-      }
-    }
     if (dragOverlayRef.current) {
       dragOverlayRef.current.style.left = `${dragPointerRef.current.x + event.delta.x}px`;
       dragOverlayRef.current.style.top = `${dragPointerRef.current.y + event.delta.y}px`;
@@ -546,20 +536,20 @@ export default function BookingThemeLivePreview({
                   {/* Header */}
                   <div className="pb-3">
                     <div className="flex items-center gap-3">
-                      <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" ref={logoInputRef} className="hidden" onChange={onLogoUpload} disabled={disabled} />
-                      <button type="button" onClick={() => logoInputRef.current?.click()} disabled={disabled} className="group relative h-12 w-12 flex items-center justify-center shrink-0 overflow-hidden rounded-full focus-visible:ring-2 focus-visible:ring-[#7AB8FF]/50 outline-none cursor-pointer ring-[#0071E3]/0 hover:ring-2 hover:ring-[#0071E3]/30 transition-all duration-200">
+                      <label className="group relative h-12 w-12 flex items-center justify-center shrink-0 overflow-hidden rounded-full focus-visible:ring-2 focus-visible:ring-[#7AB8FF]/50 outline-none cursor-pointer ring-[#0071E3]/0 hover:ring-2 hover:ring-[#0071E3]/30 transition-all duration-200">
+                        <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={onLogoUpload} disabled={disabled} className="sr-only" />
                         {logoUrl ? (
                           <Image src={logoUrl} alt="Logo" width={96} height={96} sizes="48px" className="h-full w-full object-contain" />
                         ) : (
                           <span className={`text-lg font-semibold tracking-tight ${s.accent}`}>K</span>
                         )}
-                        <span className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-all duration-200 rounded-full">
+                        <span className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-all duration-200 rounded-full pointer-events-none">
                           <svg className="w-4 h-4 text-white opacity-0 group-hover:opacity-80 transition-all duration-200 drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                             <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                           </svg>
                         </span>
-                      </button>
+                      </label>
                       <div className="min-w-0">
                         <InlineEdit
                           value={heroTitle || shopName || "Reserva online"}

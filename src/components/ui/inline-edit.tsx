@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, type KeyboardEvent } from "react";
+import { useState, useRef, useEffect, useCallback, type KeyboardEvent } from "react";
 
 type Props = {
   value: string;
@@ -38,16 +38,10 @@ export default function InlineEdit({
     if (!editing) setDraft(value);
   }, [value, editing]);
 
-  function startEditing() {
-    if (disabled) return;
-    setDraft(value);
-    setEditing(true);
-  }
-
-  function commit() {
+  const commit = useCallback(() => {
     onChange(draft);
     setEditing(false);
-  }
+  }, [draft, onChange]);
 
   function handleKeyDown(e: KeyboardEvent) {
     if (e.key === "Enter" && !multiline) {
@@ -60,52 +54,46 @@ export default function InlineEdit({
     }
   }
 
-  if (editing) {
-    const common = `bg-transparent outline-none ring-0 ${inputClassName}`;
-    if (multiline) {
-      return (
-        <textarea
-          ref={inputRef as React.RefObject<HTMLTextAreaElement>}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commit}
-          onKeyDown={handleKeyDown}
-          rows={3}
-          className={`${common} w-full resize-none ${className}`}
-          placeholder={placeholder}
-        />
-      );
-    }
+  const common = `bg-transparent outline-none ring-0 ${inputClassName}`;
+  const displayText = value || placeholder || "";
+
+  if (multiline) {
     return (
-      <input
-        ref={inputRef as React.RefObject<HTMLInputElement>}
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
+      <textarea
+        ref={inputRef as React.RefObject<HTMLTextAreaElement>}
+        value={editing ? draft : value}
+        onChange={(e) => { setDraft(e.target.value); if (!editing) setEditing(true); }}
+        onFocus={() => { if (!editing) { setDraft(value); setEditing(true); } }}
+        onBlur={() => { if (editing) commit(); }}
         onKeyDown={handleKeyDown}
-        className={`${common} w-full ${className}`}
+        rows={3}
+        className={`${common} w-full resize-none ${className}`}
         placeholder={placeholder}
+        disabled={disabled}
       />
     );
   }
 
-  const displayText = value || placeholder || "";
-
   return (
-    <button
-      type="button"
-      onClick={startEditing}
-      disabled={disabled}
-      className={`group relative w-full cursor-text text-left disabled:cursor-default ${className}`}
-    >
-      <span className="group-hover:underline decoration-dashed decoration-zinc-400/35 underline-offset-2 transition-all duration-200">{displayText}</span>
-      {!disabled && (
-        <span className="absolute -right-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-70 transition-all duration-200">
+    <span className="group relative inline-flex items-center w-full">
+      <input
+        ref={inputRef as React.RefObject<HTMLInputElement>}
+        value={editing ? draft : value}
+        onChange={(e) => { setDraft(e.target.value); if (!editing) setEditing(true); }}
+        onFocus={() => { if (!editing) { setDraft(value); setEditing(true); } }}
+        onBlur={() => { if (editing) commit(); }}
+        onKeyDown={handleKeyDown}
+        className={`${common} w-full ${className} ${!editing ? "cursor-text group-hover:underline decoration-dashed decoration-zinc-400/35 underline-offset-2" : ""}`}
+        placeholder={placeholder}
+        disabled={disabled}
+      />
+      {!disabled && !editing && (
+        <span className="absolute -right-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-70 transition-all duration-200 pointer-events-none">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
           </svg>
         </span>
       )}
-    </button>
+    </span>
   );
 }
