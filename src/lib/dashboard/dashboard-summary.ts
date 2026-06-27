@@ -45,9 +45,24 @@ export async function fetchDashboardSummary(shopIdOverride?: string): Promise<Ac
       if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
     }
 
-    // Check if user is staff — if so, hide financial metrics
+    // Staff cannot access financial summary at all
     const roleResult = await getCurrentUserRole(shopId);
     const isStaff = roleResult.success && roleResult.data?.role === "staff";
+    if (isStaff) {
+      return {
+        success: true,
+        data: {
+          appointmentsCount: 0,
+          revenue: 0,
+          lowStockCount: 0,
+          nextAppointments: [],
+          loyaltyRewardsReadyCount: 0,
+          loyaltyRewardCustomerNames: [],
+          shopName: "",
+          shopSlug: "",
+        },
+      };
+    }
 
     const supabase = await createServerClient();
 
@@ -151,7 +166,7 @@ export async function fetchDashboardSummary(shopIdOverride?: string): Promise<Ac
       success: true,
       data: {
         appointmentsCount: (appointmentsToday.data ?? []).length,
-        revenue: isStaff ? 0 : revenue,
+        revenue,
         lowStockCount: (lowStock.data ?? []).length,
         nextAppointments,
         loyaltyRewardsReadyCount: (loyaltyReady.data ?? []).length,
@@ -204,6 +219,7 @@ async function fetchFlowRange(
       .from("finances")
       .select("amount, type, happened_at")
       .eq("shop_id", shopId)
+      .is("appointment_id", null)
       .gte("happened_at", startIso)
       .lte("happened_at", endIso)
       .limit(1000),
@@ -211,6 +227,7 @@ async function fetchFlowRange(
       .from("cash_movements")
       .select("amount, movement_type")
       .eq("shop_id", shopId)
+      .is("appointment_id", null)
       .in("movement_type", ["income", "expense", "withdrawal"])
       .gte("happened_at", startIso)
       .lte("happened_at", endIso)
@@ -312,13 +329,15 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
         .from("finances")
         .select("amount, type, created_at, happened_at")
         .eq("shop_id", shopId)
-        .gte("created_at", sixMonthsAgo.toISOString())
+        .is("appointment_id", null)
+        .gte("happened_at", sixMonthsAgo.toISOString())
         .limit(2000),
       admin
         .from("cash_movements")
-        .select("amount, movement_type, happened_at")
+        .select("amount, movement_type, happened_at, created_at")
         .eq("shop_id", shopId)
-        .gte("created_at", sixMonthsAgo.toISOString())
+        .is("appointment_id", null)
+        .gte("happened_at", sixMonthsAgo.toISOString())
         .limit(2000),
       admin
         .from("customers")

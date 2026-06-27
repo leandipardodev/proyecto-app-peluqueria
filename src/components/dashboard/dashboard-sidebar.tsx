@@ -64,12 +64,15 @@ const DashboardSidebar = memo(function DashboardSidebar({
   showBrand = true,
   onNavigate,
 }: DashboardSidebarProps) {
-  const { shop } = useAuth();
+  const { shop, user } = useAuth();
   const industry = resolveIndustry(shop?.industry);
   const customerPlural = INDUSTRY_CONFIG[industry].labels.customerPlural;
   const features = useShopFeatures();
+  const isOwner = user?.role === "owner";
+  const restrictedForStaff = new Set(["/dashboard/finances", "/dashboard/inventory", "/dashboard/business"]);
   const resolvedNavItems = navItems
     .filter((item) => {
+      if (!isOwner && restrictedForStaff.has(item.href)) return false;
       if (item.href === "/dashboard/inventory") return features.inventory;
       if (item.href === "/dashboard/fidelizacion") return features.marketing;
       return true;

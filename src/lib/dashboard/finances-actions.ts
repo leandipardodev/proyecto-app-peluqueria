@@ -80,10 +80,8 @@ export type StaffProduction = {
   role: string;
   appointmentsCount: number;
   paidAppointmentsCount: number;
-  generatedRevenue: number;
   paidRevenue: number;
   avgTicketPaid: number;
-  unpaidCompletedRevenue: number;
 };
 
 export type StaffLiquidationPreview = {
@@ -226,10 +224,8 @@ export async function fetchStaffProduction(fromDate?: string, toDate?: string, s
           role: s.role,
           appointmentsCount: 0,
           paidAppointmentsCount: 0,
-          generatedRevenue: 0,
           paidRevenue: 0,
           avgTicketPaid: 0,
-          unpaidCompletedRevenue: 0,
         })),
       };
     }
@@ -247,7 +243,8 @@ export async function fetchStaffProduction(fromDate?: string, toDate?: string, s
         .from("appointments")
         .select("id, staff_id, service_id, start_time, status, is_paid, service_price, services:service_id(price, name)")
         .eq("shop_id", shopId)
-        .in("status", ["completed", "confirmed", "scheduled"])
+        .in("status", ["completed"])
+        .eq("is_paid", true)
         .not("staff_id", "is", null)
         .gte("start_time", fromBounds.start.toISOString())
         .lte("start_time", toBounds.end.toISOString())
@@ -267,10 +264,8 @@ export async function fetchStaffProduction(fromDate?: string, toDate?: string, s
         role: s.role,
         appointmentsCount: 0,
         paidAppointmentsCount: 0,
-        generatedRevenue: 0,
         paidRevenue: 0,
         avgTicketPaid: 0,
-        unpaidCompletedRevenue: 0,
       });
     }
 
@@ -281,14 +276,8 @@ export async function fetchStaffProduction(fromDate?: string, toDate?: string, s
       const amount = appt.service_price != null ? Number(appt.service_price) : (toService(appt)?.price || 0);
 
       row.appointmentsCount += 1;
-      row.generatedRevenue += amount;
-      if (appt.status === "completed" && appt.is_paid) {
-        row.paidAppointmentsCount += 1;
-        row.paidRevenue += amount;
-      }
-      if (appt.status === "completed" && !appt.is_paid) {
-        row.unpaidCompletedRevenue += amount;
-      }
+      row.paidAppointmentsCount += 1;
+      row.paidRevenue += amount;
     }
 
     const list = Array.from(stats.values())
