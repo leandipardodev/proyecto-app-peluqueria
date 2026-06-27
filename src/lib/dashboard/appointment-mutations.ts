@@ -980,14 +980,15 @@ export async function autoCompletePastAppointments(shopId: string): Promise<Acti
     if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
 
     const admin = await createAdminClient();
-    const now = getArgentinaNow().toISOString();
+    const graceMs = 30 * 60 * 1000;
+    const cutoff = new Date(getArgentinaNow().getTime() - graceMs).toISOString();
 
     const { data, error } = await admin
       .from("appointments")
       .update({ status: "completed", updated_at: new Date().toISOString() })
       .eq("shop_id", shopId)
-      .in("status", ["scheduled", "confirmed", "pending_payment", "in_progress"])
-      .lt("end_time", now)
+      .in("status", ["in_progress"])
+      .lt("end_time", cutoff)
       .select("id")
       .limit(500);
 
