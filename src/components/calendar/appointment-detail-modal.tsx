@@ -64,7 +64,7 @@ interface AppointmentDetailModalProps {
   allAppointments?: SiblingAppointment[];
 }
 
-const statusFlow: Record<string, { label: string; nextStatus: string }[]> = {
+const statusFlow: Record<string, { label: string; nextStatus: string; setIsPaid?: boolean }[]> = {
   scheduled: [
     { label: "Confirmar", nextStatus: "confirmed" },
   ],
@@ -72,7 +72,11 @@ const statusFlow: Record<string, { label: string; nextStatus: string }[]> = {
     { label: "Completar", nextStatus: "completed" },
   ],
   in_progress: [{ label: "Completar", nextStatus: "completed" }],
-  completed: [],
+  completed: [
+    { label: "No se cobró", nextStatus: "pending_payment", setIsPaid: false },
+    { label: "No se atendió", nextStatus: "cancelled", setIsPaid: false },
+    { label: "Reabrir", nextStatus: "in_progress" },
+  ],
   cancelled: [],
   "no_show": [],
 };
@@ -366,11 +370,12 @@ export default function AppointmentDetailModal({
     setError(null);
   }
 
-  function handleStatusChange(newStatus: string) {
+  function handleStatusChange(newStatus: string, isPaid?: boolean) {
     if (!appointment) return;
     setError(null);
     setLocalStatus(newStatus);
-    queueChange({ status: newStatus });
+    if (isPaid !== undefined) setLocalPaid(isPaid);
+    queueChange({ status: newStatus, ...(isPaid !== undefined ? { isPaid } : {}) });
   }
 
   function handleTogglePaid() {
@@ -958,18 +963,24 @@ export default function AppointmentDetailModal({
             </div>
 
             {actions.length > 0 && (
-              <div className="flex gap-2">
-                {actions.map(({ label, nextStatus }) => (
-                  <button
-                    key={nextStatus}
-                    onClick={() => handleStatusChange(nextStatus)}
-                    disabled={pending}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 transition-colors disabled:opacity-50 cursor-pointer select-none"
-                  >
-                    <Check className="w-4 h-4" />
-                    {label}
-                  </button>
-                ))}
+              <div className="flex flex-wrap gap-2">
+                {actions.map(({ label, nextStatus, setIsPaid }) => {
+                  const isException = nextStatus !== "completed";
+                  return (
+                    <button
+                      key={nextStatus}
+                      onClick={() => handleStatusChange(nextStatus, setIsPaid)}
+                      disabled={pending}
+                      className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 cursor-pointer select-none ${
+                        isException
+                          ? "text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700"
+                          : "text-white bg-violet-600 hover:bg-violet-700"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
               </div>
             )}
 

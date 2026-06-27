@@ -985,7 +985,7 @@ export async function autoCompletePastAppointments(shopId: string): Promise<Acti
 
     const { data, error } = await admin
       .from("appointments")
-      .update({ status: "completed", updated_at: new Date().toISOString() })
+      .update({ status: "completed", is_paid: true, updated_at: new Date().toISOString() })
       .eq("shop_id", shopId)
       .in("status", ["in_progress"])
       .lt("end_time", cutoff)
