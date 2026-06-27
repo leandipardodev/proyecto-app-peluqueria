@@ -1,7 +1,7 @@
 "use server";
 
 import { createServerClient } from "@/lib/supabase/server";
-import { canAccessShopId, getCachedUser, requireShopId } from "@/lib/dashboard/auth-server";
+import { canAccessShopId, getCachedUser, getCurrentUserRole, requireShopId } from "@/lib/dashboard/auth-server";
 import { revalidateDashboardSegments } from "@/lib/dashboard/revalidate-dashboard";
 import { DEFAULT_VOUCHER_WHATSAPP_TEMPLATE } from "@/lib/dashboard/voucher-constants";
 import type { ActionResult } from "@/lib/types";
@@ -194,6 +194,11 @@ export async function createVoucher(formData: FormData, shopId: string): Promise
     const allowed = await canAccessShopId(user.id, shopId);
     if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
 
+    const roleResult = await getCurrentUserRole(shopId);
+    if (!roleResult.success || roleResult.data?.role !== "owner") {
+      return { success: false, error: "Solo el owner puede crear vouchers" };
+    }
+
     const giftedToName = (formData.get("gifted_to_name") as string)?.trim();
     const giftedToPhone = (formData.get("gifted_to_phone") as string)?.trim() || null;
     const giftedToBirthday = (formData.get("gifted_to_birthday") as string)?.trim();
@@ -252,6 +257,10 @@ export async function markVoucherRedeemed(voucherId: string, shopId: string): Pr
     if (!user) return { success: false, error: "SESION_EXPIRADA" };
     const allowed = await canAccessShopId(user.id, shopId);
     if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
+    const roleResult = await getCurrentUserRole(shopId);
+    if (!roleResult.success || roleResult.data?.role !== "owner") {
+      return { success: false, error: "Solo el owner puede canjear vouchers" };
+    }
     const supabase = await createServerClient();
     const { error } = await supabase
       .from("vouchers")

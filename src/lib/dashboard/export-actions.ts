@@ -5,12 +5,16 @@ import { canAccessShopId, getCachedUser, getCurrentUserRole } from "@/lib/dashbo
 import type { ActionResult } from "@/lib/types";
 import "server-only";
 
-async function requireShopAccess(shopId: string): Promise<ActionResult<string>> {
+async function requireOwnerAccess(shopId: string): Promise<ActionResult<string>> {
   if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
   const user = await getCachedUser();
   if (!user) return { success: false, error: "SESION_EXPIRADA" };
   const allowed = await canAccessShopId(user.id, shopId);
   if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
+  const roleResult = await getCurrentUserRole(shopId);
+  if (!roleResult.success || roleResult.data?.role !== "owner") {
+    return { success: false, error: "Solo el owner puede exportar datos" };
+  }
   return { success: true, data: shopId };
 }
 
@@ -18,7 +22,7 @@ type ExportRow = Record<string, string | number | boolean | null>;
 
 export async function fetchExportCustomers(shopId: string): Promise<ActionResult<ExportRow[]>> {
   try {
-    const accessResult = await requireShopAccess(shopId);
+    const accessResult = await requireOwnerAccess(shopId);
     if (!accessResult.success) return accessResult;
     const supabase = await createServerClient();
     const { data, error } = await supabase
@@ -35,7 +39,7 @@ export async function fetchExportCustomers(shopId: string): Promise<ActionResult
 
 export async function fetchExportStock(shopId: string): Promise<ActionResult<ExportRow[]>> {
   try {
-    const accessResult = await requireShopAccess(shopId);
+    const accessResult = await requireOwnerAccess(shopId);
     if (!accessResult.success) return accessResult;
     const supabase = await createServerClient();
     const { data, error } = await supabase
@@ -52,7 +56,7 @@ export async function fetchExportStock(shopId: string): Promise<ActionResult<Exp
 
 export async function fetchExportAppointments(shopId: string): Promise<ActionResult<ExportRow[]>> {
   try {
-    const accessResult = await requireShopAccess(shopId);
+    const accessResult = await requireOwnerAccess(shopId);
     if (!accessResult.success) return accessResult;
     const supabase = await createServerClient();
     const { data, error } = await supabase
@@ -83,19 +87,19 @@ export async function fetchExportFinances(
   to: string
 ): Promise<ActionResult<{ totalIncome: number; totalExpenses: number; netBalance: number }>> {
   try {
-    const accessResult = await requireShopAccess(shopId);
+    const accessResult = await requireOwnerAccess(shopId);
     if (!accessResult.success) return accessResult;
     const supabase = await createServerClient();
     const { data: movements, error } = await supabase
       .from("cash_movements")
-      .select("amount, type")
+      .select("amount, movement_type")
       .eq("shop_id", shopId)
-      .gte("created_at", from)
-      .lte("created_at", to);
+      .gte("happened_at", from)
+      .lte("happened_at", to);
     if (error) return { success: false, error: error.message };
 
-    const totalIncome = (movements || []).filter((m) => m.type === "income").reduce((s, m) => s + Number(m.amount), 0);
-    const totalExpenses = (movements || []).filter((m) => m.type === "expense").reduce((s, m) => s + Number(m.amount), 0);
+    const totalIncome = (movements || []).filter((m) => m.movement_type === "income").reduce((s, m) => s + Number(m.amount), 0);
+    const totalExpenses = (movements || []).filter((m) => m.movement_type === "expense" || m.movement_type === "withdrawal").reduce((s, m) => s + Number(m.amount), 0);
     return { success: true, data: { totalIncome, totalExpenses, netBalance: totalIncome - totalExpenses } };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error" };
@@ -108,12 +112,8 @@ export async function fetchExportStaffProduction(
   to: string
 ): Promise<ActionResult<ExportRow[]>> {
   try {
-    const accessResult = await requireShopAccess(shopId);
+    const accessResult = await requireOwnerAccess(shopId);
     if (!accessResult.success) return accessResult;
-
-    // Staff cannot see economic data
-    const roleResult = await getCurrentUserRole(shopId);
-    const isStaff = roleResult.success && roleResult.data?.role === "staff";
 
     const supabase = await createServerClient();
     const { data: memberships, error: membershipsError } = await supabase
@@ -144,14 +144,6 @@ export async function fetchExportStaffProduction(
     if (apptError) return { success: false, error: apptError.message };
 
     const rows = (staffList || []).map((staff) => {
-      if (isStaff) {
-        return {
-          empleado: staff.name,
-          turnos: 0,
-          cobrado: "0.00",
-          ticket_promedio: "0.00",
-        };
-      }
       const staffAppts = (appointments || []).filter((a) => a.staff_id === staff.id);
       const count = staffAppts.length;
       const paidRevenue = staffAppts
