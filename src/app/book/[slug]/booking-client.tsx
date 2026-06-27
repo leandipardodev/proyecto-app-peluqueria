@@ -26,6 +26,7 @@ import GoogleSignInButton from "@/components/auth/google-sign-in-button";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
 import { resolveTemplate } from "./booking-themes";
+import { toArgentinaLocalIsoString } from "@/lib/argentina-time";
 import { InstagramIcon, WhatsappIcon } from "./booking-icons";
 import type { Industry } from "@/lib/industry/types";
 import type { BookingTemplateId } from "@/lib/booking/theme-presets";
@@ -74,7 +75,9 @@ interface BookingClientProps {
     templateId: BookingTemplateId;
   };
   services: Service[];
+  servicesError?: string | null;
   combos: Combo[];
+  combosError?: string | null;
   staffMembers: StaffMember[];
   staffServicesMap: Record<string, string[]>;
 }
@@ -94,7 +97,7 @@ function releaseCard3D(e: React.PointerEvent<HTMLDivElement>) {
   card.style.transition = 'transform 0.5s cubic-bezier(0.16,1,0.3,1)';
 }
 
-const BookingClient = memo(function BookingClient({ shop, services, combos, staffMembers, staffServicesMap }: BookingClientProps) {
+const BookingClient = memo(function BookingClient({ shop, services, servicesError, combos, combosError, staffMembers, staffServicesMap }: BookingClientProps) {
   const { user, isLoading: isAuthLoading } = useAuth();
 
   const [step, setStep] = useState(0);
@@ -130,6 +133,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
 
   const [availableSlots, setAvailableSlots] = useState<Slot[]>([]);
+  const [slotsError, setSlotsError] = useState<string | null>(null);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const fetchedDatesRef = useRef(new Set<string>());
   const pendingDateRef = useRef<string | null>(null);
@@ -303,17 +307,22 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
       try {
         const result = await fetchPublicAvailableSlots(shop.id, slotDuration, dateStr, selectedStaff?.id);
         if (pendingDateRef.current !== dateStr) return;
-        setAvailableSlots(
-          result.success
-            ? (result.data ?? []).map((slot) => ({
-                ...slot,
-                time: to24HourTimeLabel(slot.time),
-              }))
-            : [],
-        );
+        if (!result.success) {
+          setSlotsError(result.error);
+          setAvailableSlots([]);
+        } else {
+          setSlotsError(null);
+          setAvailableSlots(
+            (result.data ?? []).map((slot) => ({
+              ...slot,
+              time: to24HourTimeLabel(slot.time),
+            }))
+          );
+        }
       } catch (e) {
         if (pendingDateRef.current !== dateStr) return;
         console.error("[BookingClient] fetch slots error:", e);
+        setSlotsError("Error al cargar horarios disponibles");
         setAvailableSlots([]);
       } finally {
         if (pendingDateRef.current === dateStr) {
@@ -343,6 +352,7 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
     pendingDateRef.current = null;
     fetchedDatesRef.current = new Set();
     setAvailableSlots([]);
+    setSlotsError(null);
     setSelectedSlot(null);
     setSelectedDate(null);
   }, [selectedService, selectedCombo, selectedStaff]);
@@ -403,14 +413,14 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
   const googleCalendarUrl = useMemo(() => {
     if (!selectedSlot || (!selectedService && !selectedCombo)) return null;
     const toGoogleDate = (iso: string) => {
-      const d = new Date(iso);
-      const yyyy = d.getUTCFullYear();
-      const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
-      const dd = String(d.getUTCDate()).padStart(2, "0");
-      const hh = String(d.getUTCHours()).padStart(2, "0");
-      const min = String(d.getUTCMinutes()).padStart(2, "0");
-      const ss = String(d.getUTCSeconds()).padStart(2, "0");
-      return `${yyyy}${mm}${dd}T${hh}${min}${ss}Z`;
+      const local = toArgentinaLocalIsoString(iso);
+      const yyyy = local.slice(0, 4);
+      const mm = local.slice(5, 7);
+      const dd = local.slice(8, 10);
+      const hh = local.slice(11, 13);
+      const min = local.slice(14, 16);
+      const ss = "00";
+      return `${yyyy}${mm}${dd}T${hh}${min}${ss}`;
     };
     const name = selectedCombo?.name ?? selectedService?.name ?? "Turno";
     const title = `${shop.name} - ${name}`;
@@ -931,6 +941,16 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                         </div>
                         <div className="flex-1 overflow-y-auto delicate-scroll px-1 pt-3 pb-4 [scroll-snap-type:y_proximity]" onScroll={handleScroll}>
                           <motion.div variants={stepItemReveal} className="space-y-4">
+                          {servicesError && (
+                            <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-4 py-3 text-xs text-amber-700 dark:text-amber-300">
+                              <span className="font-semibold">Error al cargar servicios:</span> {servicesError}
+                            </div>
+                          )}
+                          {combosError && (
+                            <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-4 py-3 text-xs text-amber-700 dark:text-amber-300">
+                              <span className="font-semibold">Error al cargar combos:</span> {combosError}
+                            </div>
+                          )}
                           {selectedCategory === "Combos" ? (
                             combos.map((combo) => {
                               const isSelected = selectedCombo?.id === combo.id;
@@ -940,6 +960,8 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                               return (
                                 <motion.div
                                   key={combo.id}
+                                  role="option"
+                                  aria-selected={isSelected}
                                   onPointerDown={pushCard3D}
                                   onPointerUp={releaseCard3D}
                                   onPointerLeave={releaseCard3D}
@@ -1040,6 +1062,8 @@ const BookingClient = memo(function BookingClient({ shop, services, combos, staf
                               return (
                                 <motion.div
                                   key={svc.id}
+                                  role="option"
+                                  aria-selected={isSelected}
                                   onPointerDown={pushCard3D}
                                   onPointerUp={releaseCard3D}
                                   onPointerLeave={releaseCard3D}
@@ -1337,7 +1361,7 @@ draggable={false}
                                   const size = Math.ceil(Math.sqrt(rect.width * rect.width + rect.height * rect.height) * 2);
                                   setRipplePositions(prev => ({ ...prev, [`date-${dateStr}`]: { x: e.clientX - rect.left, y: e.clientY - rect.top, size } }));
                                 }}
-                                className={`relative flex flex-col items-center justify-center py-2 transition-all duration-200 overflow-hidden ${templateStyles.hoverBorder} ${isSelected ? templateStyles.selected : ''} ${isClosed ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                className={`relative flex flex-col items-center justify-center py-3 min-h-[48px] transition-all duration-200 overflow-hidden ${templateStyles.hoverBorder} ${isSelected ? templateStyles.selected : ''} ${isClosed ? 'opacity-40 cursor-not-allowed' : ''}`}
                               >
                                 {isSelected && !isClosed && (
                                   ripplePositions[`date-${dateStr}`] ? (
@@ -1386,7 +1410,7 @@ draggable={false}
                             ))}
                           </div>
                         ) : (
-                          <AnimatePresence mode="wait">
+                          <AnimatePresence mode="wait" aria-live="polite" aria-atomic="true">
                             {filteredSlots.length > 0 ? (
                               <motion.div
                                 key="slots-grid"
@@ -1437,6 +1461,16 @@ draggable={false}
                                   );
                                 })}
                               </motion.div>
+                            ) : slotsError ? (
+                              <motion.p
+                                key="slots-error"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className={`text-sm text-center py-4 ${templateStyles.tiny}`}
+                              >
+                                {slotsError}
+                              </motion.p>
                             ) : (
                               <motion.p
                                 key="slots-empty"
@@ -1560,7 +1594,7 @@ draggable={false}
 
                             <div className="flex items-center gap-3">
                               <div className={`h-px flex-1 ${templateStyles.divider}`} />
-                              <span className={`text-xs uppercase tracking-wide ${templateStyles.tiny}`}>OR</span>
+                              <span className={`text-xs uppercase tracking-wide ${templateStyles.tiny}`}>O</span>
                               <div className={`h-px flex-1 ${templateStyles.divider}`} />
                             </div>
 

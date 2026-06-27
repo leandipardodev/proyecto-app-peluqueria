@@ -70,7 +70,9 @@ export default async function BookPage({ params }: BookPageProps) {
   const profileExtraMap = new Map((staffExtraRes.data || []).map((p) => [p.user_id, p]));
 
   const services = servicesRes.data || [];
+  const servicesError: string | null = servicesRes.error?.message ?? null;
   const combos = combosRes.success ? (combosRes.data ?? []) : [];
+  const combosError: string | null = combosRes.success ? null : (combosRes.error ?? "Error al cargar combos");
   const staffMembers = memberIds
     .map((id) => {
       const extra = profileExtraMap.get(id);
@@ -163,7 +165,9 @@ export default async function BookPage({ params }: BookPageProps) {
             : DEFAULT_BOOKING_TEMPLATE) as BookingTemplateId,
         }}
         services={services}
+        servicesError={servicesError}
         combos={combos}
+        combosError={combosError}
         staffMembers={staffMembers}
         staffServicesMap={staffServicesMap}
       />

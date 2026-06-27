@@ -353,7 +353,7 @@ export async function fetchPublicAvailableSlots(
           config.startMinutes = Math.max(config.startMinutes, ovStart);
           config.closeMinutes = Math.min(config.closeMinutes, ovEnd);
           if (config.startMinutes >= config.closeMinutes) {
-            return { success: true, data: [] };
+      return { success: false, error: "Demasiadas solicitudes. Esperá unos segundos y volvé a intentar." };
           }
         }
       }
@@ -805,6 +805,35 @@ export async function createPublicAppointment(data: {
       .maybeSingle();
 
     const servicePrice = serviceRow?.price ?? null;
+
+    // Re-check conflict right before insert to minimize TOCTOU window
+    const [{ data: lastMinuteConflict }, { data: lastMinutePending }] = await Promise.all([
+      admin
+        .from("appointments")
+        .select("id, status, created_at")
+        .eq("shop_id", data.shopId)
+        .eq("staff_id", resolvedStaffId)
+        .lt("start_time", data.endTime)
+        .gt("end_time", data.startTime)
+        .not("status", "eq", "cancelled"),
+      admin
+        .from("pending_bookings")
+        .select("id")
+        .eq("shop_id", data.shopId)
+        .eq("staff_id", resolvedStaffId)
+        .eq("status", "pending")
+        .gt("expires_at", new Date().toISOString())
+        .lt("start_time", data.endTime)
+        .gt("end_time", data.startTime),
+    ]);
+
+    const hasLastMinuteConflict = (lastMinuteConflict || []).some((apt) =>
+      shouldBlockSlot(apt.status as string | null | undefined, apt.created_at as string | null | undefined)
+    );
+
+    if (hasLastMinuteConflict || (lastMinutePending && lastMinutePending.length > 0)) {
+      return { success: false, error: "slot_taken" };
+    }
 
     const { data: createdAppointment, error: aptError } = await admin
       .from("appointments")
