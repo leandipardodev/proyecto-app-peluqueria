@@ -211,7 +211,7 @@ const DashboardSidebar = memo(function DashboardSidebar({
                       playClick();
                       haptic(6);
                       startNavTransition();
-                      onNavigate?.();
+                      requestAnimationFrame(() => onNavigate?.());
                     }}
                     className={`relative flex items-center gap-3 px-3 py-3 rounded-2xl text-sm font-medium transition-colors cursor-pointer select-none ${
                     isActive

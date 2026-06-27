@@ -1,9 +1,41 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { Component, useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { addWeeks, subWeeks } from "date-fns";
 import { motion } from "framer-motion";
 import { RefreshCcw } from "lucide-react";
+
+class CalendarErrorBoundary extends Component<{ children: React.ReactNode }, { error: string | null }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError() {
+    return { error: "Ocurrió un error inesperado en el calendario" };
+  }
+  componentDidCatch(error: Error) {
+    console.error("CalendarErrorBoundary caught:", error);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center space-y-4">
+            <p className="text-red-500 dark:text-red-400 text-sm">{this.state.error}</p>
+            <button
+              type="button"
+              onClick={() => { this.setState({ error: null }); window.location.reload(); }}
+              className="px-4 py-2 rounded-xl text-sm font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors cursor-pointer select-none"
+            >
+              Reintentar
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 import CalendarView from "./calendar-view";
 import AppointmentFormModal from "./appointment-form-modal";
@@ -137,7 +169,10 @@ export default function CalendarPageClient({
 
   const logCounter = useRef(0);
   const realtimeCounter = useRef(0);
+  const initialSynced = useRef(false);
   useEffect(() => {
+    if (initialSynced.current) return;
+    initialSynced.current = true;
     logCounter.current++;
     console.log(`[CALENDAR] initialAppointments sync #${logCounter.current}`, initialAppointments?.length ?? 0, "appointments");
     setAppointments(initialAppointments);
@@ -190,8 +225,13 @@ export default function CalendarPageClient({
   useAutoCompleteAppointments(shopId);
 
   const realtimeCooldown = useRef(false);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const channelIdRef = useRef(0);
 
   useEffect(() => {
+    channelIdRef.current += 1;
+    const channelId = channelIdRef.current;
+
     const weekStart = getArgentinaWeekStart();
     const rangeStart = new Date(weekStart);
     rangeStart.setUTCDate(weekStart.getUTCDate() - 7);
@@ -247,20 +287,31 @@ export default function CalendarPageClient({
       }
     };
 
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+
     const channel = supabase
-      .channel(`calendar-${shopId}`)
+      .channel(`calendar-${shopId}-${channelId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "appointments", filter: `shop_id=eq.${shopId}` }, handleChange)
       .on("postgres_changes", { event: "*", schema: "public", table: "customers", filter: `shop_id=eq.${shopId}` }, handleChange)
       .on("postgres_changes", { event: "*", schema: "public", table: "services", filter: `shop_id=eq.${shopId}` }, handleChange)
       .on("postgres_changes", { event: "*", schema: "public", table: "shop_memberships", filter: `shop_id=eq.${shopId}` }, handleChange)
       .subscribe((status) => {
+        if (channelIdRef.current !== channelId) return;
         if (status === "CHANNEL_ERROR") {
           console.error("Calendar Realtime: channel error");
         }
       });
 
+    channelRef.current = channel;
+
     return () => {
       supabase.removeChannel(channel);
+      if (channelRef.current === channel) {
+        channelRef.current = null;
+      }
     };
   }, [shopId]);
 
@@ -307,6 +358,7 @@ export default function CalendarPageClient({
   }
 
   return (
+    <CalendarErrorBoundary>
     <div className="h-full flex flex-col">
       {error && (
         <StatePanel
@@ -483,5 +535,6 @@ export default function CalendarPageClient({
         shopId={shopId}
       />
     </div>
+    </CalendarErrorBoundary>
   );
 }
