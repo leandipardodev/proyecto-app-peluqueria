@@ -55,6 +55,6 @@ async function fetchShopData(shopId: string): Promise<{ name: string; address: s
     .from("shops")
     .select("nombre, address")
     .eq("id", shopId)
-    .single();
+    .maybeSingle();
   return { name: data?.nombre || "", address: data?.address || null };
 }
