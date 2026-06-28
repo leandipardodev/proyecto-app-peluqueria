@@ -33,7 +33,7 @@ export default async function ClientLayout({
     .from("user_profiles")
     .select("role, shop_id")
     .eq("user_id", user.id)
-    .single();
+    .maybeSingle();
 
   // If not a customer role, redirect to main dashboard
   if (!profile || profile.role !== "customer") {
