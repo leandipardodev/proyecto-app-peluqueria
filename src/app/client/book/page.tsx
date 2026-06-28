@@ -24,7 +24,7 @@ export default async function ClientBookPage({ searchParams }: ClientBookPagePro
     .from("user_profiles")
     .select("shop_id")
     .eq("user_id", session.user.id)
-    .single();
+    .maybeSingle();
 
   if (!profile?.shop_id) {
     return (
