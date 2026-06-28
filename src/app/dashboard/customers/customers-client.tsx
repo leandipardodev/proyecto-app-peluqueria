@@ -137,7 +137,7 @@ export default function CustomersPage() {
         .from("shops")
         .select("loyalty_enabled, loyalty_cuts_required")
         .eq("id", activeShopId)
-        .single(),
+        .maybeSingle(),
     ]);
 
     if (fetchError) {
