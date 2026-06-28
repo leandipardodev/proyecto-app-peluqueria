@@ -5,6 +5,8 @@ import { addWeeks, subWeeks } from "date-fns";
 import { motion } from "framer-motion";
 import { RefreshCcw } from "lucide-react";
 
+let realtimeChannelCounter = 0;
+
 class CalendarErrorBoundary extends Component<{ children: React.ReactNode }, { error: string | null }> {
   constructor(props: { children: React.ReactNode }) {
     super(props);
@@ -226,11 +228,9 @@ export default function CalendarPageClient({
 
   const realtimeCooldown = useRef(false);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  const channelIdRef = useRef(0);
 
   useEffect(() => {
-    channelIdRef.current += 1;
-    const channelId = channelIdRef.current;
+    const channelId = ++realtimeChannelCounter;
 
     const weekStart = getArgentinaWeekStart();
     const rangeStart = new Date(weekStart);
@@ -299,7 +299,6 @@ export default function CalendarPageClient({
       .on("postgres_changes", { event: "*", schema: "public", table: "services", filter: `shop_id=eq.${shopId}` }, handleChange)
       .on("postgres_changes", { event: "*", schema: "public", table: "shop_memberships", filter: `shop_id=eq.${shopId}` }, handleChange)
       .subscribe((status) => {
-        if (channelIdRef.current !== channelId) return;
         if (status === "CHANNEL_ERROR") {
           console.error("Calendar Realtime: channel error");
         }
