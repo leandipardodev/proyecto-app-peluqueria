@@ -53,7 +53,19 @@ export default async function BillingRequiredPage({
     .from("shops")
     .select("id, nombre, plan_expiry")
     .eq("id", selectedShopId)
-    .single();
+    .maybeSingle();
+
+  if (!shop) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center px-4 py-10">
+        <div className="w-full max-w-md text-center rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm">
+          <h1 className="text-xl font-semibold">Local no encontrado</h1>
+          <p className="mt-2 text-sm text-gray-600">El local no existe o fue dado de baja.</p>
+          <Link href="/dashboard" className="mt-4 inline-flex rounded-xl border border-zinc-300 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50">Volver al dashboard</Link>
+        </div>
+      </div>
+    );
+  }
 
   const expiry = shop?.plan_expiry ? new Date(shop.plan_expiry) : null;
   const graceUntil = expiry ? new Date(expiry.getTime() + 2 * 24 * 60 * 60 * 1000) : null;
