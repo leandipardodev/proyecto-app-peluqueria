@@ -234,11 +234,12 @@ export async function registerLoyaltyCut(shopId: string, customerId: string): Pr
     .from("shops")
     .select("loyalty_enabled, loyalty_cuts_required")
     .eq("id", shopId)
-    .single();
+    .maybeSingle();
 
   if (shopError) return { success: false, error: shopError.message };
+  if (!shopData) return { success: false, error: "Local no encontrado" };
 
-  if (!shopData?.loyalty_enabled) {
+  if (!shopData.loyalty_enabled) {
     return { success: true };
   }
 
