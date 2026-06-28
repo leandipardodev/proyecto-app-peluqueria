@@ -118,6 +118,12 @@ function getPreviewTheme(templateId: BookingTemplateId): PreviewTheme {
   };
 }
 
+function EditDot() {
+  return (
+    <span className="w-1.5 h-1.5 rounded-full bg-sky-500 shadow-[0_0_6px_rgba(14,165,233,0.6)]" />
+  );
+}
+
 function SortableSectionChip({
   name,
   isActive,
@@ -549,24 +555,31 @@ export default function BookingThemeLivePreview({
                             <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                           </svg>
                         </span>
+                        {!disabled && <span className="absolute -top-0.5 -right-0.5"><EditDot /></span>}
                       </label>
                       <div className="min-w-0">
-                        <InlineEdit
-                          value={heroTitle || shopName || "Reserva online"}
-                          onChange={onHeroTitleChange}
-                          placeholder="Reserva tu turno"
-                          disabled={disabled}
-                          className={`text-xl font-black leading-[1.1] tracking-[-0.035em] cursor-pointer bg-gradient-to-r ${s.titleGradient} bg-clip-text text-transparent ${s.headingFx}`}
-                          inputClassName="text-xl font-black leading-[1.1] tracking-[-0.035em] text-[#1C1C1E] bg-transparent"
-                        />
-                        <InlineEdit
-                          value={heroSubtitle || ""}
-                          onChange={onHeroSubtitleChange}
-                          placeholder="Reserva online"
-                          disabled={disabled}
-                          className={`text-[11px] uppercase tracking-[0.18em] cursor-pointer bg-gradient-to-r ${s.subtitleGradient} bg-clip-text text-transparent`}
-                          inputClassName="text-[11px] uppercase tracking-[0.18em] text-[#6B7280] bg-transparent"
-                        />
+                        <span className="flex items-center gap-1.5">
+                          <InlineEdit
+                            value={heroTitle || shopName || "Reserva online"}
+                            onChange={onHeroTitleChange}
+                            placeholder="Reserva tu turno"
+                            disabled={disabled}
+                            className={`text-xl font-black leading-[1.1] tracking-[-0.035em] cursor-pointer bg-gradient-to-r ${s.titleGradient} bg-clip-text text-transparent ${s.headingFx}`}
+                            inputClassName="text-xl font-black leading-[1.1] tracking-[-0.035em] text-[#1C1C1E] bg-transparent"
+                          />
+                          {!disabled && <EditDot />}
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <InlineEdit
+                            value={heroSubtitle || ""}
+                            onChange={onHeroSubtitleChange}
+                            placeholder="Reserva online"
+                            disabled={disabled}
+                            className={`text-[11px] uppercase tracking-[0.18em] cursor-pointer bg-gradient-to-r ${s.subtitleGradient} bg-clip-text text-transparent`}
+                            inputClassName="text-[11px] uppercase tracking-[0.18em] text-[#6B7280] bg-transparent"
+                          />
+                          {!disabled && <EditDot />}
+                        </span>
                       </div>
                     </div>
                     <div className="flex justify-center pt-3">
@@ -750,23 +763,29 @@ export default function BookingThemeLivePreview({
                   </div>
                   {/* About section */}
                   <div className="pt-3 border-t border-white/15">
-                    <InlineEdit
-                      value={aboutTitle || ""}
-                      onChange={onAboutTitleChange}
-                      placeholder="Sobre nosotros"
-                      disabled={disabled}
-                      className={`text-sm font-semibold bg-gradient-to-r ${s.titleGradient} bg-clip-text text-transparent`}
-                      inputClassName="text-sm font-semibold text-[#1C1C1E] bg-transparent"
-                    />
-                    <InlineEdit
-                      value={aboutText || ""}
-                      onChange={onAboutTextChange}
-                      placeholder="Tu mensaje de marca aparece aca para reforzar la experiencia del local."
-                      multiline
-                      disabled={disabled}
-                      className={`mt-1 text-xs leading-relaxed ${s.tiny}`}
-                      inputClassName="mt-1 text-xs leading-relaxed text-[#6B7280] bg-transparent w-full resize-none"
-                    />
+                    <span className="flex items-center gap-1.5">
+                      <InlineEdit
+                        value={aboutTitle || ""}
+                        onChange={onAboutTitleChange}
+                        placeholder="Sobre nosotros"
+                        disabled={disabled}
+                        className={`text-sm font-semibold bg-gradient-to-r ${s.titleGradient} bg-clip-text text-transparent`}
+                        inputClassName="text-sm font-semibold text-[#1C1C1E] bg-transparent"
+                      />
+                      {!disabled && <EditDot />}
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <InlineEdit
+                        value={aboutText || ""}
+                        onChange={onAboutTextChange}
+                        placeholder="Tu mensaje de marca aparece aca para reforzar la experiencia del local."
+                        multiline
+                        disabled={disabled}
+                        className={`mt-1 text-xs leading-relaxed ${s.tiny}`}
+                        inputClassName="mt-1 text-xs leading-relaxed text-[#6B7280] bg-transparent w-full resize-none"
+                      />
+                      {!disabled && <EditDot />}
+                    </span>
                   </div>
 
                   {/* Footer */}
