@@ -64,6 +64,7 @@ type Props = {
   address?: string;
   phone?: string;
   instagramUrl?: string;
+  toolbar?: React.ReactNode;
 };
 
 type PreviewTheme = Pick<BookingTheme,
@@ -288,6 +289,7 @@ export default function BookingThemeLivePreview({
   address,
   phone,
   instagramUrl,
+  toolbar,
 }: Props) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [activeDragService, setActiveDragService] = useState<PreviewService | null>(null);
@@ -522,7 +524,8 @@ export default function BookingThemeLivePreview({
   }, [activeCategory, allServiceIds, servicesByCategory]);
 
   return (
-    <section className="self-start max-sm:w-screen max-sm:rounded-none max-sm:border-x-0 rounded-3xl border border-white/30 bg-white p-3 dark:border-white/10 dark:bg-zinc-800">
+    <section className="self-start max-sm:w-screen max-sm:rounded-none max-sm:border-x-0 rounded-3xl border border-white/30 bg-white p-3 dark:border-white/10 dark:bg-zinc-800 overflow-hidden">
+      {toolbar && <div className="pb-3">{toolbar}</div>}
       <div className="flex justify-center">
         <div className="w-full max-w-sm">
           <div className={`relative rounded-[2.5rem] overflow-hidden ${s.page}`}>
@@ -565,7 +568,7 @@ export default function BookingThemeLivePreview({
                             placeholder="Reserva tu turno"
                             disabled={disabled}
                             className={`text-xl font-black leading-[1.1] tracking-[-0.035em] cursor-pointer bg-gradient-to-r ${s.titleGradient} bg-clip-text text-transparent ${s.headingFx}`}
-                            inputClassName="text-xl font-black leading-[1.1] tracking-[-0.035em] text-[#1C1C1E] bg-transparent"
+                            inputClassName="!w-auto text-xl font-black leading-[1.1] tracking-[-0.035em] text-[#1C1C1E] bg-transparent"
                           />
                           {!disabled && <EditDot />}
                         </span>
@@ -576,7 +579,7 @@ export default function BookingThemeLivePreview({
                             placeholder="Reserva online"
                             disabled={disabled}
                             className={`text-[11px] uppercase tracking-[0.18em] cursor-pointer bg-gradient-to-r ${s.subtitleGradient} bg-clip-text text-transparent`}
-                            inputClassName="text-[11px] uppercase tracking-[0.18em] text-[#6B7280] bg-transparent"
+                            inputClassName="!w-auto text-[11px] uppercase tracking-[0.18em] text-[#6B7280] bg-transparent"
                           />
                           {!disabled && <EditDot />}
                         </span>
@@ -770,7 +773,7 @@ export default function BookingThemeLivePreview({
                         placeholder="Sobre nosotros"
                         disabled={disabled}
                         className={`text-sm font-semibold bg-gradient-to-r ${s.titleGradient} bg-clip-text text-transparent`}
-                        inputClassName="text-sm font-semibold text-[#1C1C1E] bg-transparent"
+                        inputClassName="!w-auto text-sm font-semibold text-[#1C1C1E] bg-transparent"
                       />
                       {!disabled && <EditDot />}
                     </span>
@@ -782,7 +785,7 @@ export default function BookingThemeLivePreview({
                         multiline
                         disabled={disabled}
                         className={`mt-1 text-xs leading-relaxed ${s.tiny}`}
-                        inputClassName="mt-1 text-xs leading-relaxed text-[#6B7280] bg-transparent w-full resize-none"
+                        inputClassName="!w-auto mt-1 text-xs leading-relaxed text-[#6B7280] bg-transparent resize-none"
                       />
                       {!disabled && <EditDot />}
                     </span>

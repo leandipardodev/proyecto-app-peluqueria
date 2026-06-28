@@ -75,7 +75,7 @@ function InfoTooltip({ text }: { text: string }) {
       >
         ?
       </span>
-      <span className={`absolute bottom-full right-0 mb-2 w-72 p-3 rounded-xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs shadow-lg z-50 pointer-events-none transition-opacity ${open ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+      <span className={`absolute bottom-full right-0 mb-2 w-72 p-3 rounded-xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs shadow-lg z-[100] pointer-events-none transition-opacity ${open ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
         {text}
       </span>
     </span>
@@ -1251,33 +1251,32 @@ export default function BusinessClient({
               transition={{ duration: 0.3, ease: "easeInOut" }}
               className="max-sm:overflow-visible overflow-hidden"
             >
-              <div className="p-6 max-sm:px-0 flex flex-col gap-4">
-                <div className="flex justify-center px-6 max-sm:px-4">
-                  <div className="w-full max-w-sm flex items-center gap-2">
-                    <div className="flex-1 min-w-0">
-                      <SkinSelector
-                        selectedTemplateId={selectedTemplateId}
-                        onSelect={(templateId) => {
-                          templateTouchedRef.current = true;
-                          setSelectedTemplateId(templateId);
-                        }}
-                      />
-                    </div>
-                    {shopSlug ? (
-                      <a
-                        href={`/book/${shopSlug}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="shrink-0 flex items-center justify-center h-12 w-12 rounded-full border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-500 hover:text-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 dark:hover:text-zinc-300 transition-colors"
-                        title="Ver tienda"
-                      >
-                        <Store className="h-5 w-5" />
-                      </a>
-                    ) : null}
-                  </div>
-                </div>
-
+              <div className="p-6 max-sm:px-0">
                 <BookingThemeLivePreview
+                  toolbar={
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <SkinSelector
+                          selectedTemplateId={selectedTemplateId}
+                          onSelect={(templateId) => {
+                            templateTouchedRef.current = true;
+                            setSelectedTemplateId(templateId);
+                          }}
+                        />
+                      </div>
+                      {shopSlug ? (
+                        <a
+                          href={`/book/${shopSlug}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="shrink-0 flex items-center justify-center h-10 w-10 rounded-full border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-500 hover:text-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 dark:hover:text-zinc-300 transition-colors"
+                          title="Ver tienda"
+                        >
+                          <Store className="h-5 w-5" />
+                        </a>
+                      ) : null}
+                    </div>
+                  }
                   templateId={selectedTemplateId}
                   logoUrl={logoUrl}
                   shopName={name || data?.nombre || "Tu negocio"}
