@@ -272,8 +272,13 @@ export default function CustomersPage() {
     };
 
     if (isCreating) {
-      const { data: created, error } = await supabase.from("customers").insert(payload).select().single();
+      const { data: created, error } = await supabase.from("customers").insert(payload).select().maybeSingle();
       if (error) {
+        setSaveMessage("Error al guardar, intentá de nuevo");
+        setSaving(false);
+        return;
+      }
+      if (!created) {
         setSaveMessage("Error al guardar, intentá de nuevo");
         setSaving(false);
         return;
