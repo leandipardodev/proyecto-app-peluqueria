@@ -22,7 +22,7 @@ export async function getTenantAndUser() {
     .from("shops")
     .select("nombre")
     .eq("id", shopId)
-    .single();
+    .maybeSingle();
 
   return {
     shopName: shop?.nombre || "Mi Peluquería",
