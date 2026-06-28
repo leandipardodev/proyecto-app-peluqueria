@@ -628,7 +628,7 @@ async function fetchShopLinks(shopIdOverride?: string): Promise<{ phone: string 
     .from("shops")
     .select("phone, instagram_url, facebook_url, tiktok_url")
     .eq("id", shopId)
-    .single();
+    .maybeSingle();
   if (error) {
     console.error("[fetchShopLinks] error:", error.message);
     return { phone: null, instagramUrl: null, facebookUrl: null, tiktokUrl: null };
