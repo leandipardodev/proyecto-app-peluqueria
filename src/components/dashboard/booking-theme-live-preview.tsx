@@ -525,7 +525,7 @@ export default function BookingThemeLivePreview({
 
   return (
     <section className="self-start max-sm:w-screen max-sm:rounded-none max-sm:border-x-0 rounded-3xl border border-white/30 bg-white p-3 dark:border-white/10 dark:bg-zinc-800 overflow-hidden">
-      {toolbar && <div className="pb-3">{toolbar}</div>}
+      {toolbar && <div className="pb-3"><div className="flex justify-center"><div className="w-full max-w-sm">{toolbar}</div></div></div>}
       <div className="flex justify-center">
         <div className="w-full max-w-sm">
           <div className={`relative rounded-[2.5rem] overflow-hidden ${s.page}`}>
@@ -561,7 +561,7 @@ export default function BookingThemeLivePreview({
                         {!disabled && <span className="absolute -top-0.5 -right-0.5"><EditDot /></span>}
                       </label>
                       <div className="min-w-0">
-                        <span className="flex items-center gap-1.5">
+                        <span className="[&>span]:!w-auto flex items-center gap-1.5">
                           <InlineEdit
                             value={heroTitle || shopName || "Reserva online"}
                             onChange={onHeroTitleChange}
@@ -572,7 +572,7 @@ export default function BookingThemeLivePreview({
                           />
                           {!disabled && <EditDot />}
                         </span>
-                        <span className="flex items-center gap-1.5">
+                        <span className="[&>span]:!w-auto flex items-center gap-1.5">
                           <InlineEdit
                             value={heroSubtitle || ""}
                             onChange={onHeroSubtitleChange}
@@ -766,7 +766,7 @@ export default function BookingThemeLivePreview({
                   </div>
                   {/* About section */}
                   <div className="pt-3 border-t border-white/15">
-                    <span className="flex items-center gap-1.5">
+                    <span className="[&>span]:!w-auto flex items-center gap-1.5">
                       <InlineEdit
                         value={aboutTitle || ""}
                         onChange={onAboutTitleChange}
@@ -777,7 +777,7 @@ export default function BookingThemeLivePreview({
                       />
                       {!disabled && <EditDot />}
                     </span>
-                    <span className="flex items-center gap-1.5">
+                    <span className="[&>span]:!w-auto flex items-center gap-1.5">
                       <InlineEdit
                         value={aboutText || ""}
                         onChange={onAboutTextChange}

@@ -75,7 +75,7 @@ function InfoTooltip({ text }: { text: string }) {
       >
         ?
       </span>
-      <span className={`absolute bottom-full right-0 mb-2 w-72 p-3 rounded-xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs shadow-lg z-[100] pointer-events-none transition-opacity ${open ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+      <span className={`absolute top-full right-0 mt-2 w-72 p-3 rounded-xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs shadow-lg z-[9999] pointer-events-none transition-opacity ${open ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
         {text}
       </span>
     </span>
