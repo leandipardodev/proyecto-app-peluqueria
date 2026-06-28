@@ -48,13 +48,13 @@ export default function DashboardMobileSidebar({ open, onClose, userName, onLogo
             onClick={onClose}
           />
           <motion.div
-            className="absolute inset-y-0 -left-4 w-[17rem] pl-4 bg-gradient-to-b from-white via-white to-zinc-50/90 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-950 shadow-2xl shadow-black/15 dark:shadow-black/60"
+            className="absolute inset-y-0 -left-4 w-[17rem] pl-4 bg-gradient-to-b from-white via-white to-zinc-50/90 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-950 shadow-2xl shadow-black/15 dark:shadow-black/60 flex flex-col max-h-full"
             initial={{ x: -280, opacity: 0, scale: 0.96 }}
             animate={{ x: 0, opacity: 1, scale: 1 }}
             exit={{ x: -280, opacity: 0, scale: 0.96, transition: { duration: 0.18, ease: [0.32, 0, 0.67, 0] } }}
             transition={{ type: "spring", damping: 20, stiffness: 250, mass: 0.8 }}
           >
-            <div className="flex items-center justify-between px-4 pb-3 pt-[max(env(safe-area-inset-top),0.75rem)] border-b border-white/20 dark:border-white/10 bg-white/30 dark:bg-black/30 backdrop-blur-3xl">
+            <div className="flex items-center justify-between px-4 pb-3 pt-[max(env(safe-area-inset-top),0.75rem)] border-b border-white/20 dark:border-white/10 bg-white/30 dark:bg-black/30 backdrop-blur-3xl shrink-0">
               <div
                 onClick={() => {
                   const els = document.querySelectorAll<HTMLSpanElement>("#klip-mobile-logo span");
@@ -83,12 +83,14 @@ export default function DashboardMobileSidebar({ open, onClose, userName, onLogo
                 <X className="w-5 h-5" strokeWidth={1.5} />
               </button>
             </div>
-            <DashboardSidebar
-              userName={userName}
-              showBrand={false}
-              onLogout={onLogout}
-              onNavigate={onClose}
-            />
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <DashboardSidebar
+                userName={userName}
+                showBrand={false}
+                onLogout={onLogout}
+                onNavigate={onClose}
+              />
+            </div>
           </motion.div>
         </motion.div>
       )}
