@@ -161,7 +161,7 @@ function SortableSectionChip({
         onDoubleClick={onDoubleClick}
         className={`relative min-h-10 rounded-full px-4 text-xs sm:text-sm whitespace-nowrap text-center cursor-grab active:cursor-grabbing ${
           isActive ? "font-semibold" : s.sectionTag
-        } ${s.sectionFocus} active:scale-[0.97] transition-all duration-150 hover:ring-2 hover:ring-[#0071E3]/20`}
+        } ${s.sectionFocus} active:scale-[0.97] transition-all duration-150 hover:ring-2 hover:ring-inset hover:ring-[#0071E3]/20`}
       >
         {isActive && (
           <span className={`absolute inset-0 rounded-full ${s.sectionTagActive}`} />
@@ -596,7 +596,7 @@ export default function BookingThemeLivePreview({
                           onClick={() => setSelectedCategory("Todos")}
                           className={`relative shrink-0 min-h-10 rounded-full px-4 text-xs sm:text-sm whitespace-nowrap text-center ${
                             activeCategory === "Todos" ? "font-semibold" : s.sectionTagAll
-                          } ${s.sectionFocus} active:scale-[0.97] transition-all duration-150 hover:ring-2 hover:ring-[#0071E3]/20`}
+                          } ${s.sectionFocus} active:scale-[0.97] transition-all duration-150 hover:ring-2 hover:ring-inset hover:ring-[#0071E3]/20`}
                         >
                           {activeCategory === "Todos" && (
                             <span className={`absolute inset-0 rounded-full ${s.sectionTagActive}`} />
@@ -642,10 +642,10 @@ export default function BookingThemeLivePreview({
                                     <button
                                       type="button"
                                       onClick={() => setConfirmRemove(category)}
-                                      className="absolute top-0 -right-1.5 z-20 h-4 w-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                                      className="absolute -top-1 -right-1 z-20 p-0.5 rounded text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 opacity-0 group-hover:opacity-100 transition-all duration-150"
                                       title={`Eliminar ${category}`}
                                     >
-                                      <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                                       </svg>
                                     </button>
@@ -739,15 +739,15 @@ export default function BookingThemeLivePreview({
                                         {section} <span className="opacity-50">({sectionServices.length})</span>
                                       </p>
                                       {!disabled && (
-                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-60 transition-opacity">
+                                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-40 transition-opacity">
                                           {!isGeneral && (
                                             <button
                                               type="button"
                                               onClick={() => { setRenamingSection(section); setRenameValue(section); }}
-                                              className="p-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                              className="p-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
                                               title={`Renombrar ${section}`}
                                             >
-                                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                               </svg>
                                             </button>
@@ -756,11 +756,11 @@ export default function BookingThemeLivePreview({
                                             <button
                                               type="button"
                                               onClick={() => setConfirmRemove(section)}
-                                              className="p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500"
+                                              className="p-0.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-zinc-400 hover:text-red-500"
                                               title={`Eliminar ${section}`}
                                             >
-                                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                                               </svg>
                                             </button>
                                           )}
