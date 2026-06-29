@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useEffect, memo } from "react";
+import { useMemo, useRef, useState, useEffect, useCallback, memo } from "react";
 import Image from "next/image";
 import type { Industry } from "@/lib/industry/types";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
@@ -9,13 +9,13 @@ import { resolveTemplate } from "@/app/book/[slug]/booking-themes";
 import type { BookingTheme } from "@/app/book/[slug]/booking-themes";
 import {
   DndContext,
+  DragOverlay,
   pointerWithin,
   MouseSensor,
   TouchSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
-  type DragMoveEvent,
   type DragOverEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
@@ -305,7 +305,6 @@ export default function BookingThemeLivePreview({
   const [renameValue, setRenameValue] = useState("");
   const addInputRef = useRef<HTMLInputElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
-  const dragOverlayRef = useRef<HTMLDivElement>(null);
 
   const hasRealServices = services.length > 0;
   const fallbackServices: PreviewService[] = [
@@ -373,48 +372,17 @@ export default function BookingThemeLivePreview({
     }),
   );
 
-  const dragPointerRef = useRef({ x: 0, y: 0 });
-
-  function getClientCoords(event: Event): { x: number; y: number } | null {
-    if ("touches" in event && (event as TouchEvent).touches.length > 0) {
-      const t = (event as TouchEvent).touches[0];
-      return { x: t.clientX, y: t.clientY };
-    }
-    if ("clientX" in event) {
-      return { x: (event as MouseEvent).clientX, y: (event as MouseEvent).clientY };
-    }
-    return null;
-  }
-
-  function handleDragStart(event: DragStartEvent) {
+  const handleDragStart = useCallback((event: DragStartEvent) => {
     setIsDragging(true);
     const service = serviceMap.get(event.active.id as string);
     if (service) setActiveDragService(service);
-    const ae = event.activatorEvent;
-    if (ae) {
-      const coords = getClientCoords(ae);
-      if (coords) {
-        dragPointerRef.current = coords;
-        if (dragOverlayRef.current) {
-          dragOverlayRef.current.style.left = `${coords.x}px`;
-          dragOverlayRef.current.style.top = `${coords.y}px`;
-        }
-      }
-    }
-  }
+  }, [serviceMap]);
 
-  function handleDragMove(event: DragMoveEvent) {
-    if (dragOverlayRef.current) {
-      dragOverlayRef.current.style.left = `${dragPointerRef.current.x + event.delta.x}px`;
-      dragOverlayRef.current.style.top = `${dragPointerRef.current.y + event.delta.y}px`;
-    }
-  }
-
-  function handleDragOver(event: DragOverEvent) {
+  const handleDragOver = useCallback((event: DragOverEvent) => {
     setOverId(event.over ? (event.over.id as string) : null);
-  }
+  }, []);
 
-  function handleDragEnd(event: DragEndEvent) {
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
     setIsDragging(false);
     setActiveDragService(null);
     setOverId(null);
@@ -438,7 +406,7 @@ export default function BookingThemeLivePreview({
     } else if (sectionCatalog.includes(overId)) {
       onServiceMove(activeId, overId);
     }
-  }
+  }, [disabled, serviceMap, sectionCatalog, onServiceMove]);
 
   function handleSectionDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -730,7 +698,6 @@ export default function BookingThemeLivePreview({
                       sensors={sensors}
                       collisionDetection={pointerWithin}
                       onDragStart={handleDragStart}
-                      onDragMove={handleDragMove}
                       onDragOver={handleDragOver}
                       onDragEnd={handleDragEnd}
                     >
@@ -777,6 +744,9 @@ export default function BookingThemeLivePreview({
                           </div>
                         )}
                       </SortableContext>
+                      <DragOverlay>
+                        {activeDragService ? <ServiceCardOverlay service={activeDragService} s={s} /> : null}
+                      </DragOverlay>
                     </DndContext>
                     </div>
                   </div>
@@ -842,19 +812,6 @@ export default function BookingThemeLivePreview({
           </div>
         </div>
       </div>
-
-      {/* Custom drag overlay follows cursor */}
-      {activeDragService && (
-        <div
-          ref={dragOverlayRef}
-          className="pointer-events-none fixed z-[9999]"
-          style={{
-            transform: "translate(-50%, -50%)",
-          }}
-        >
-          <ServiceCardOverlay service={activeDragService} s={s} />
-        </div>
-      )}
 
       {/* Confirm remove section */}
       {confirmRemove && (
