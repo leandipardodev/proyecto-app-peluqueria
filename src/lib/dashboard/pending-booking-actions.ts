@@ -256,7 +256,7 @@ export async function createPendingBooking(
       .from("shops")
       .select("booking_deposit_enabled, booking_deposit_amount")
       .eq("id", input.shopId)
-      .single();
+      .maybeSingle();
 
     const depositEnabled = shopPolicy?.booking_deposit_enabled !== false;
     const configuredDeposit = Math.max(0, Number(shopPolicy?.booking_deposit_amount ?? 0));

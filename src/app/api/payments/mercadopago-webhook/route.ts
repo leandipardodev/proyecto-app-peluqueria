@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
         .from("shops")
         .select("id, mp_access_token")
         .eq("id", shopId)
-        .single();
+        .maybeSingle();
 
       if (!shop?.mp_access_token) {
         return NextResponse.json({ ok: false, error: "Shop Mercado Pago token missing" }, { status: 400 });

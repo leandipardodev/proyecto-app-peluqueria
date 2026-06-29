@@ -45,7 +45,7 @@ export default function NewAppointmentToast({ shopId }: { shopId: string | null 
                 .from("customers")
                 .select("nombre")
                 .eq("id", newAppt.customer_id)
-                .single();
+                .maybeSingle();
               if (customer) customerName = customer.nombre;
             }
 
@@ -54,7 +54,7 @@ export default function NewAppointmentToast({ shopId }: { shopId: string | null 
                 .from("services")
                 .select("name")
                 .eq("id", newAppt.service_id)
-                .single();
+                .maybeSingle();
               if (service) serviceName = service.name;
             }
 

@@ -191,7 +191,7 @@ export async function fetchPublicAvailableSlots(
       .from("shops")
       .select("business_hours")
       .eq("id", shopId)
-      .single();
+      .maybeSingle();
 
     const dbHours = normalizeHours(shop?.business_hours);
     const dayIndex = new Date(date + "T12:00:00-03:00").getDay();
@@ -1382,7 +1382,7 @@ export async function createPaymentPreference(
       .select("id, shop_id, service_id")
       .eq("id", appointmentData.appointmentId)
       .eq("shop_id", appointmentData.shopId)
-      .single();
+      .maybeSingle();
 
     if (appointmentError || !appointment) {
       return { success: false, error: "Turno no encontrado para generar preferencia" };
@@ -1392,7 +1392,7 @@ export async function createPaymentPreference(
       .from("services")
       .select("name, price")
       .eq("id", appointment.service_id)
-      .single();
+      .maybeSingle();
 
     if (serviceError || !service) {
       return { success: false, error: "Servicio no encontrado para generar preferencia" };
@@ -1405,7 +1405,7 @@ export async function createPaymentPreference(
       .from("shops")
       .select("booking_deposit_enabled, booking_deposit_amount, mp_access_token")
       .eq("id", appointment.shop_id)
-      .single();
+      .maybeSingle();
 
     let resolvedShopPolicy = shopPolicy;
     if ((!resolvedShopPolicy || shopPolicyError) && appointmentData.shopSlug) {

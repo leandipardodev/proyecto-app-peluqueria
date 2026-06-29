@@ -21,9 +21,9 @@ export async function fetchShopBySlug(slug: string): Promise<ActionResult<ShopIn
       .from("shops")
       .select("id, nombre, address, phone, business_hours, google_maps_url, slug")
       .eq("slug", slug)
-      .single();
+      .maybeSingle();
 
-    if (error) return { success: false, error: error.message };
+    if (error || !data) return { success: false, error: error?.message || "Local no encontrado" };
     return {
       success: true,
       data: {
@@ -122,7 +122,7 @@ export async function cancelClientAppointment(id: string): Promise<ActionResult>
       .from("appointments")
       .select("customer_id")
       .eq("id", id)
-      .single();
+      .maybeSingle();
 
     if (fetchError || !appointment) {
       return { success: false, error: "Turno no encontrado" };
@@ -173,9 +173,9 @@ export async function fetchClientProfile(): Promise<ActionResult<ClientProfile>>
       .from("user_profiles")
       .select("name, email")
       .eq("user_id", session.user.id)
-      .single();
+      .maybeSingle();
 
-    if (fallbackError) return { success: false, error: fallbackError.message };
+    if (fallbackError || !fallback) return { success: false, error: fallbackError?.message || "Perfil no encontrado" };
     return { success: true, data: { nombre: fallback.name, email: fallback.email, telefono: null } };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al obtener perfil" };

@@ -926,9 +926,9 @@ export async function redeemLoyaltyReward(appointmentId: string, shopIdOverride?
       .select("id, customer_id, service_id, is_paid, loyalty_reward_applied")
       .eq("id", appointmentId)
       .eq("shop_id", shopId)
-      .single();
+      .maybeSingle();
 
-    if (appointmentError) return { success: false, error: appointmentError.message };
+    if (appointmentError || !appointment) return { success: false, error: appointmentError?.message || "Turno no encontrado" };
     if (!appointment?.customer_id) return { success: false, error: "El turno no tiene cliente asignado" };
     if (appointment.loyalty_reward_applied) return { success: false, error: "Este turno ya tiene un canje aplicado" };
 
@@ -936,9 +936,9 @@ export async function redeemLoyaltyReward(appointmentId: string, shopIdOverride?
       .from("shops")
       .select("loyalty_enabled, loyalty_discount_percent")
       .eq("id", shopId)
-      .single();
+      .maybeSingle();
 
-    if (shopError) return { success: false, error: shopError.message };
+    if (shopError || !shopData) return { success: false, error: shopError?.message || "Local no encontrado" };
     if (!shopData?.loyalty_enabled) return { success: false, error: "La fidelizacion esta desactivada" };
 
     const discountPercent = Math.max(0, Math.min(100, Number(shopData.loyalty_discount_percent || 0)));

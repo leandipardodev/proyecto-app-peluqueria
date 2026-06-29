@@ -354,7 +354,7 @@ export async function GET(request: NextRequest) {
         .from("shops")
         .select("id")
         .eq("slug", shopSlug)
-        .single();
+        .maybeSingle();
       shopId = shop?.id || null;
     }
 

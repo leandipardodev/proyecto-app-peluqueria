@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Solo owner puede pagar membresía" }, { status: 403 });
     }
 
-    const { data: shop } = await admin.from("shops").select("id, nombre, slug").eq("id", shopId).single();
+    const { data: shop } = await admin.from("shops").select("id, nombre, slug").eq("id", shopId).maybeSingle();
     if (!shop) return NextResponse.json({ error: "Local no encontrado" }, { status: 404 });
 
     const amount = BILLING_PRICES[cycleRaw];

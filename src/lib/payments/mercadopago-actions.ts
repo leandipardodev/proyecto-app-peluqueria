@@ -23,9 +23,9 @@ export async function fetchMercadoPagoKeys(): Promise<ActionResult<MercadoPagoKe
       .from("shops")
       .select("mp_public_key, mp_access_token")
       .eq("id", shopId)
-      .single();
+      .maybeSingle();
 
-    if (error) {
+    if (error || !data) {
       return { success: true, data: { mp_public_key: "", mp_access_token: "" } };
     }
 
@@ -97,7 +97,7 @@ export async function createPaymentLink(appointmentId: string): Promise<ActionRe
       .from("shops")
       .select("mp_access_token, nombre")
       .eq("id", shopId)
-      .single();
+      .maybeSingle();
 
     if (!mpKeys?.mp_access_token) {
       return { success: false, error: "Configurá tu Access Token de Mercado Pago en Configuración > Pagos y Cobros" };
@@ -110,7 +110,7 @@ export async function createPaymentLink(appointmentId: string): Promise<ActionRe
       .from("appointments")
       .select("id, service_id, start_time, loyalty_discount_percent_applied, customers:customer_id ( id, nombre, email )")
       .eq("id", appointmentId)
-      .single();
+      .maybeSingle();
 
     if (!appointment) {
       return { success: false, error: "Turno no encontrado" };
@@ -120,7 +120,7 @@ export async function createPaymentLink(appointmentId: string): Promise<ActionRe
       .from("services")
       .select("name, price")
       .eq("id", appointment.service_id)
-      .single();
+      .maybeSingle();
 
     if (!service) {
       return { success: false, error: "Servicio no encontrado" };
@@ -219,7 +219,7 @@ export async function refundMpPayment(appointmentId: string): Promise<ActionResu
       .select("id, is_paid, mp_preference_id, shop_id")
       .eq("id", appointmentId)
       .eq("shop_id", shopId)
-      .single();
+      .maybeSingle();
 
     if (!appointment) return { success: false, error: "Turno no encontrado" };
     if (!appointment.is_paid) return { success: false, error: "Este turno no tiene pagos para reembolsar" };
@@ -228,7 +228,7 @@ export async function refundMpPayment(appointmentId: string): Promise<ActionResu
       .from("shops")
       .select("mp_access_token")
       .eq("id", shopId)
-      .single();
+      .maybeSingle();
 
     if (!mpKeys?.mp_access_token) {
       return { success: false, error: "Mercado Pago no esta configurado para este local" };

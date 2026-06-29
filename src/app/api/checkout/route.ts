@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
         .from("shops")
         .select("mp_access_token, nombre, slug")
         .eq("id", shopId)
-        .single();
+        .maybeSingle();
 
       if (!shop || !shop.mp_access_token) {
         return NextResponse.json({ error: "Este local no acepta pagos online" }, { status: 400 });
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
         .from("services")
         .select("id, name, price, shop_id")
         .eq("id", serviceId)
-        .single();
+        .maybeSingle();
 
       if (serviceError || !service) {
         return NextResponse.json({ error: "Servicio no encontrado" }, { status: 404 });
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
         .from("shops")
         .select("mp_access_token, nombre, slug")
         .eq("id", service.shop_id)
-        .single();
+        .maybeSingle();
 
       if (shopError || !shop) {
         return NextResponse.json({ error: "Local no encontrado" }, { status: 404 });

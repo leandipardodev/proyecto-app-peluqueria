@@ -50,10 +50,10 @@ export async function fetchBusinessData(shopIdOverride?: string): Promise<Action
         .from("shops")
         .select("id, nombre, description, address, localidad, phone, instagram_url, facebook_url, tiktok_url, mp_public_key, mp_access_token, whatsapp_template, loyalty_enabled, loyalty_cuts_required, loyalty_discount_percent, booking_deposit_enabled, booking_deposit_amount, pay_at_shop")
         .eq("id", shopId)
-        .single();
+        .maybeSingle();
     });
 
-    if (error) return { success: false, error: error.message };
+    if (error || !data) return { success: false, error: error?.message || "Local no encontrado" };
 
     return {
       success: true,
@@ -219,10 +219,10 @@ export async function fetchBusinessHours(shopIdOverride?: string): Promise<Actio
         .from("shops")
         .select("business_hours")
         .eq("id", shopId)
-        .single();
+        .maybeSingle();
     });
 
-    if (error) return { success: false, error: error.message };
+    if (error || !data) return { success: false, error: error?.message || "Local no encontrado" };
 
     const raw = data.business_hours as Record<string, unknown> | null;
     if (!raw || typeof raw !== "object") return { success: true, data: { ...DEFAULT_BUSINESS_HOURS } };
@@ -329,9 +329,9 @@ export async function updateWhatsappTemplateAction(template: string): Promise<Ac
       .from("shops")
       .select("address, nombre")
       .eq("id", shopId)
-      .single();
+      .maybeSingle();
 
-    if (shopError) return { success: false, error: shopError.message };
+    if (shopError || !shopData) return { success: false, error: shopError?.message || "Local no encontrado" };
 
     const place = String(shopData?.address || shopData?.nombre || "").trim();
     if (!place) {
