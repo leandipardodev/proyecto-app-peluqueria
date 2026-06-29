@@ -12,6 +12,7 @@ import { withDashboardBase } from "@/lib/dashboard/dashboard-base";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import SkinSelector from "@/components/dashboard/skin-selector";
 import BookingThemeLivePreview from "@/components/dashboard/booking-theme-live-preview";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 import BusinessStatsSection from "@/components/dashboard/business-stats-section";
 import ExportDataCard from "@/components/dashboard/export-data-card";
 import CreateShopModal from "@/components/dashboard/create-shop-modal";
@@ -1252,6 +1253,7 @@ export default function BusinessClient({
               className="max-sm:overflow-visible overflow-hidden"
             >
               <div className="p-6 max-sm:px-0">
+                <ErrorBoundary>
                 <BookingThemeLivePreview
                   toolbar={
                     <div className="flex items-center gap-2">
@@ -1302,6 +1304,7 @@ export default function BusinessClient({
                   industry={industry}
                   disabled={!isOwnerOrAdmin}
                 />
+                </ErrorBoundary>
               </div>
             </motion.div>
           )}
