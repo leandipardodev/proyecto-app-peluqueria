@@ -361,6 +361,13 @@ export default function BookingThemeLivePreview({
     return map;
   }, [sourceServices]);
 
+  const allServiceIds = useMemo(() => sourceServices.map((s) => s.id), [sourceServices]);
+
+  const currentServiceIds = useMemo(() => {
+    if (activeCategory === "Todos") return allServiceIds;
+    return (servicesByCategory.get(activeCategory) || []).map((s) => s.id);
+  }, [activeCategory, allServiceIds, servicesByCategory]);
+
   const labels = INDUSTRY_CONFIG[industry].labels;
   const serviceWordLower = labels.serviceSingular.toLowerCase();
 
@@ -408,11 +415,19 @@ export default function BookingThemeLivePreview({
     if (isOverService) {
       const overService = serviceMap.get(overId)!;
       const toSection = (overService.category || "General").trim() || "General";
-      onServiceMove(activeId, toSection, overId);
+      const activeIndex = currentServiceIds.indexOf(activeId);
+      const overIndex = currentServiceIds.indexOf(overId);
+      if (activeIndex >= 0 && overIndex >= 0 && activeIndex < overIndex) {
+        const nextIndex = overIndex + 1;
+        const beforeId = nextIndex < currentServiceIds.length ? currentServiceIds[nextIndex] : undefined;
+        onServiceMove(activeId, toSection, beforeId);
+      } else {
+        onServiceMove(activeId, toSection, overId);
+      }
     } else if (sectionCatalog.includes(overId)) {
       onServiceMove(activeId, overId);
     }
-  }, [disabled, serviceMap, sectionCatalog, onServiceMove]);
+  }, [disabled, serviceMap, sectionCatalog, onServiceMove, currentServiceIds]);
 
   function handleSectionDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -484,13 +499,6 @@ export default function BookingThemeLivePreview({
     setRenamingSection(null);
     setRenameValue("");
   }
-
-  const allServiceIds = useMemo(() => sourceServices.map((s) => s.id), [sourceServices]);
-
-  const currentServiceIds = useMemo(() => {
-    if (activeCategory === "Todos") return allServiceIds;
-    return (servicesByCategory.get(activeCategory) || []).map((s) => s.id);
-  }, [activeCategory, allServiceIds, servicesByCategory]);
 
   return (
     <section className="self-start max-sm:w-screen max-sm:rounded-none max-sm:border-x-0 rounded-3xl border border-white/30 bg-white p-3 dark:border-white/10 dark:bg-zinc-800 overflow-hidden">
