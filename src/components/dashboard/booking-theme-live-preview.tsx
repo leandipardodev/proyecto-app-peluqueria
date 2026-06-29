@@ -148,7 +148,7 @@ function SortableSectionChip({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.3 : 1,
+    opacity: isDragging ? 0 : 1,
   };
 
   return (
@@ -193,7 +193,8 @@ const SortableServiceCard = memo(function SortableServiceCard({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition: isDraggingAny && !isDragging ? 'none' : transition,
-    opacity: isDragging ? 0.3 : 1,
+    opacity: isDragging ? 0 : 1,
+    pointerEvents: isDragging ? 'none' as const : undefined,
   };
 
   return (
