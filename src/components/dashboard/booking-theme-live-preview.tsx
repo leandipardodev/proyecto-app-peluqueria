@@ -10,6 +10,7 @@ import type { BookingTheme } from "@/app/book/[slug]/booking-themes";
 import {
   DndContext,
   DragOverlay,
+  closestCenter,
   pointerWithin,
   MouseSensor,
   TouchSensor,
@@ -702,7 +703,7 @@ export default function BookingThemeLivePreview({
                     <div className="max-h-[50vh] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
                     <DndContext
                       sensors={sensors}
-                      collisionDetection={pointerWithin}
+                      collisionDetection={closestCenter}
                       onDragStart={handleDragStart}
                       onDragOver={handleDragOver}
                       onDragEnd={handleDragEnd}
