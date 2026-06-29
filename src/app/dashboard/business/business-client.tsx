@@ -76,7 +76,7 @@ function InfoTooltip({ text }: { text: string }) {
       >
         ?
       </span>
-      <span className={`absolute top-full right-0 mt-2 w-72 p-3 rounded-xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs shadow-lg z-[9999] pointer-events-none transition-opacity ${open ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+      <span className={`absolute top-full left-1/2 -translate-x-1/2 mt-2 w-max max-w-[calc(100vw-2rem)] sm:max-w-xs p-3 rounded-xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs leading-relaxed shadow-lg z-[9999] pointer-events-none transition-opacity text-left whitespace-normal ${open ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
         {text}
       </span>
     </span>
@@ -1261,7 +1261,7 @@ export default function BusinessClient({
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Personalizar mi tienda</h2>
-                <InfoTooltip text="Elegí un diseño visual y personalizá los textos que se muestran en tu tienda online. Los cambios se guardan automáticamente al cerrar." />
+                <InfoTooltip text="Elegí un diseño visual y personalizá los textos que se muestran en tu tienda online. Hacé clic sobre cualquier texto para editarlo directamente. Los cambios se guardan automáticamente." />
               </div>
               <p className="text-xs text-zinc-400 dark:text-zinc-500">Selecciona template y textos principales</p>
             </div>

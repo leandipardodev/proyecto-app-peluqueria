@@ -769,7 +769,7 @@ export default function BookingThemeLivePreview({
                         multiline
                         disabled={disabled}
                         className={`mt-1 text-xs leading-relaxed ${s.tiny}`}
-                        inputClassName="!w-auto mt-1 text-xs leading-relaxed text-[#6B7280] bg-transparent resize-none"
+                        inputClassName="mt-1 text-xs leading-relaxed text-[#6B7280] bg-transparent resize-none"
                       />
                       {!disabled && <EditDot />}
                     </span>
