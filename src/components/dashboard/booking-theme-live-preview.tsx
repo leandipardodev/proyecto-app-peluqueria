@@ -625,7 +625,7 @@ export default function BookingThemeLivePreview({
                                           if (e.key === "Escape") { setRenamingSection(null); setRenameValue(""); }
                                         }}
                                         onBlur={handleConfirmRename}
-                                        className="min-h-10 rounded-full border-0 bg-white/90 dark:bg-zinc-800/90 px-4 py-1 text-xs text-zinc-800 dark:text-zinc-200 outline-none ring-2 ring-[#0071E3]/25 focus:ring-[#0071E3]/50 shadow-sm w-28"
+                                        className="min-h-10 rounded-full border-0 bg-transparent px-4 py-1 text-xs text-inherit outline-none ring-2 ring-[#0071E3]/25 focus:ring-[#0071E3]/50 shadow-sm w-28"
                                       />
                                     </div>
                                   ) : (
@@ -682,7 +682,7 @@ export default function BookingThemeLivePreview({
                           onBlur={() => {
                             if (!newSectionInput.trim()) { setAddingSection(false); }
                           }}
-                          className="flex-1 min-h-10 rounded-full border-0 bg-white/90 dark:bg-zinc-800/90 px-4 py-1 text-xs text-zinc-800 dark:text-zinc-200 outline-none ring-2 ring-[#0071E3]/25 focus:ring-[#0071E3]/50 shadow-sm"
+                          className="flex-1 min-h-10 rounded-full border-0 bg-transparent px-4 py-1 text-xs text-inherit outline-none ring-2 ring-[#0071E3]/25 focus:ring-[#0071E3]/50 shadow-sm"
                           placeholder="Nueva seccion"
                         />
                         <button
@@ -730,7 +730,7 @@ export default function BookingThemeLivePreview({
                                           if (e.key === "Escape") { setRenamingSection(null); setRenameValue(""); }
                                         }}
                                         onBlur={handleConfirmRename}
-                                        className="min-h-7 rounded-full border-0 bg-white/90 dark:bg-zinc-800/90 px-3 py-0.5 text-xs text-zinc-800 dark:text-zinc-200 outline-none ring-2 ring-[#0071E3]/25 focus:ring-[#0071E3]/50 shadow-sm w-40"
+                                        className="min-h-7 rounded-full border-0 bg-transparent px-3 py-0.5 text-xs text-inherit outline-none ring-2 ring-[#0071E3]/25 focus:ring-[#0071E3]/50 shadow-sm w-40"
                                       />
                                     </div>
                                   ) : (
