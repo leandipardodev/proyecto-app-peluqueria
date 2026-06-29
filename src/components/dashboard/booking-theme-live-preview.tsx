@@ -502,7 +502,7 @@ export default function BookingThemeLivePreview({
   }
 
   return (
-    <section className="self-start max-sm:w-screen max-sm:rounded-none max-sm:border-x-0 rounded-3xl border border-white/30 bg-white p-3 dark:border-white/10 dark:bg-zinc-800 overflow-hidden">
+    <section className="self-start max-sm:w-screen max-sm:rounded-none max-sm:border-x-0 rounded-3xl border border-white/30 bg-white p-3 sm:p-4 dark:border-white/10 dark:bg-zinc-800 overflow-hidden">
       {/* Mobile: toolbar above */}
       {toolbar && <div className="pb-3 lg:hidden"><div className="flex justify-center"><div className="w-full max-w-sm">{toolbar}</div></div></div>}
       <div className="lg:flex lg:gap-6 lg:items-start">
@@ -521,8 +521,8 @@ export default function BookingThemeLivePreview({
             </div>
           )}
           <div className="flex justify-center">
-            <div className="w-full max-w-sm">
-          <div className={`relative rounded-[2.5rem] overflow-hidden ${s.page}`}>
+            <div className="w-full max-w-sm max-h-[calc(100vh-12rem)] overflow-y-auto">
+              <div className={`relative rounded-[2.5rem] overflow-hidden ${s.page}`}>
             <div className={`pointer-events-none absolute inset-0 z-0 bg-gradient-to-br ${s.pageAura}`} />
             <div className={`pointer-events-none absolute inset-0 z-[1] ${s.pageLightFx}`} />
             <div aria-hidden className={`pointer-events-none absolute top-[-12%] right-[-10%] z-[2] h-[170px] w-[170px] rounded-full blur-[90px] ${s.glowA} ${s.glowBlend}`} />
@@ -535,7 +535,7 @@ export default function BookingThemeLivePreview({
 
             <div className="relative z-10 flex items-start justify-center p-2 sm:p-4">
               <div className="w-full">
-                <div className={`rounded-[32px] p-3 sm:p-5 flex flex-col ${s.shell}`}>
+                <div className={`rounded-[32px] p-3 sm:p-4 flex flex-col ${s.shell}`}>
                   {/* Header */}
                   <div className="pb-3">
                     <div className="flex items-center gap-3">
@@ -873,7 +873,7 @@ export default function BookingThemeLivePreview({
 
         {/* Desktop: sidebar with toolbar + tips */}
         {toolbar && (
-          <div className="hidden lg:flex lg:flex-col lg:gap-4 lg:w-72 lg:shrink-0 lg:pt-2">
+          <div className="hidden lg:flex lg:flex-col lg:gap-4 lg:w-72 lg:shrink-0 lg:sticky lg:top-24 lg:self-start">
             <div className="rounded-2xl border border-zinc-200/60 dark:border-zinc-700/60 bg-zinc-50/70 dark:bg-zinc-900/50 p-4">
               <p className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
                 Plantilla
@@ -892,6 +892,10 @@ export default function BookingThemeLivePreview({
                 <li className="flex items-start gap-2">
                   <span className="text-blue-400 mt-0.5 shrink-0">⠿</span>
                   <span>Arrastrá servicios para reordenarlos entre categorías.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-400 mt-0.5 shrink-0">✎</span>
+                  <span>Hacé doble clic en el nombre de una sección para renombrarla.</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-blue-400 mt-0.5 shrink-0">⊕</span>
