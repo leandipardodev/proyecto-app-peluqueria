@@ -2,6 +2,7 @@ import { getCachedUser, getCachedShopIdBySlug, checkShopExpired } from "@/lib/da
 import ActiveShopCookieSetter from "./active-shop-cookie-setter";
 import ShopBlockedOverlay from "./shop-blocked-overlay";
 import NewAppointmentToast from "@/components/dashboard/new-appointment-toast";
+import AuthInit from "@/components/dashboard/auth-init";
 
 export default async function ShopSlugLayout({
   children,
@@ -25,6 +26,7 @@ export default async function ShopSlugLayout({
 
   return (
     <>
+      <AuthInit />
       <ActiveShopCookieSetter shopId={shopId} />
       <NewAppointmentToast shopId={shopId} />
       {children}

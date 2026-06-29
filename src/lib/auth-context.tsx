@@ -31,6 +31,21 @@ type AuthState = {
   isLoading: boolean;
 };
 
+type AuthInitData = { user: UserInfo | null; shop: ShopInfo | null };
+
+function readServerAuthData(): AuthInitData | null {
+  if (typeof document === "undefined") return null;
+  try {
+    const el = document.getElementById("__AUTH_INIT__");
+    if (!el?.textContent) return null;
+    return JSON.parse(el.textContent) as AuthInitData;
+  } catch {
+    return null;
+  }
+}
+
+const serverAuthData = readServerAuthData();
+
 const AuthContext = createContext<AuthState>({
   user: null,
   shop: null,
@@ -42,7 +57,11 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AuthState>({ user: null, shop: null, isLoading: true });
+  const [state, setState] = useState<AuthState>({
+    user: serverAuthData?.user ?? null,
+    shop: serverAuthData?.shop ?? null,
+    isLoading: !serverAuthData,
+  });
   const pathname = usePathname();
 
   const pathnameShopSlug = useMemo(() => {
@@ -180,7 +199,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    fetchSession();
+    if (!serverAuthData) {
+      fetchSession();
+    }
 
     const {
       data: { subscription },
