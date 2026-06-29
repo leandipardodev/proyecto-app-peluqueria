@@ -311,7 +311,10 @@ export default function BookingThemeLivePreview({
     { id: "demo-1", name: "Corte Clasico", description: "Corte de pelo con navaja y tijera", price: 12000, duration_minutes: 45, category: "Cortes" },
     { id: "demo-2", name: "Barba Completa", description: "Perfilado de barba con toalla caliente", price: 9000, duration_minutes: 35, category: "Barberia" },
   ];
-  const sourceServices = hasRealServices ? services : fallbackServices;
+  const sourceServices = useMemo(
+    () => hasRealServices ? services : fallbackServices,
+    [hasRealServices, services]
+  );
 
   const categories = useMemo(() => {
     const counts = new Map<string, number>();
@@ -331,7 +334,7 @@ export default function BookingThemeLivePreview({
     ? selectedCategory
     : "Todos";
 
-  const s = getPreviewTheme(templateId);
+  const s = useMemo(() => getPreviewTheme(templateId), [templateId]);
 
   const servicesByCategory = useMemo(() => {
     const map = new Map<string, PreviewService[]>();
