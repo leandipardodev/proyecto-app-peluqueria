@@ -391,7 +391,6 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   }, []);
 
   useEffect(() => {
-    const els = document.querySelectorAll<HTMLElement>(".delicate-scroll");
     const timeouts = new Map<HTMLElement, ReturnType<typeof setTimeout>>();
     const onScroll = (e: Event) => {
       const el = e.currentTarget as HTMLElement;
@@ -400,15 +399,46 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
       if (existing) clearTimeout(existing);
       timeouts.set(el, setTimeout(() => el.classList.remove("scrolling"), 800));
     };
-    els.forEach((el) => el.addEventListener("scroll", onScroll, { passive: true }));
+    function attach(el: HTMLElement) {
+      if (el.classList.contains("delicate-scroll") && !el.dataset.delicateAttached) {
+        el.addEventListener("scroll", onScroll, { passive: true });
+        el.dataset.delicateAttached = "true";
+      }
+    }
+    function detach(el: HTMLElement) {
+      el.removeEventListener("scroll", onScroll);
+      delete el.dataset.delicateAttached;
+      const t = timeouts.get(el);
+      if (t) { clearTimeout(t); timeouts.delete(el); }
+    }
+    document.querySelectorAll<HTMLElement>(".delicate-scroll").forEach((el) => attach(el));
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node instanceof HTMLElement) {
+            if (node.classList?.contains("delicate-scroll")) attach(node);
+            node.querySelectorAll<HTMLElement>(".delicate-scroll").forEach((el) => attach(el));
+          }
+        }
+        for (const node of mutation.removedNodes) {
+          if (node instanceof HTMLElement) {
+            if (node.dataset?.delicateAttached) detach(node);
+            node.querySelectorAll<HTMLElement>("[data-delicate-attached]").forEach((el) => detach(el));
+          }
+        }
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
     return () => {
-      els.forEach((el) => {
-        el.removeEventListener("scroll", onScroll);
-        const t = timeouts.get(el);
-        if (t) clearTimeout(t);
-      });
+      observer.disconnect();
+      document.querySelectorAll<HTMLElement>("[data-delicate-attached]").forEach((el) => detach(el));
     };
   }, []);
+
+  function getRippleRect(el: HTMLElement): { left: number; top: number; width: number; height: number } {
+    const container = el.closest(".overflow-hidden") ?? el.parentElement;
+    return container?.getBoundingClientRect() ?? { left: 0, top: 0, width: 0, height: 0 };
+  }
 
   const googleCalendarUrl = useMemo(() => {
     if (!selectedSlot || (!selectedService && !selectedCombo)) return null;
@@ -551,9 +581,11 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
         return;
       }
 
+      if (!selectedService) return;
+
       const result = await createPublicAppointment({
         shopId: shop.id,
-        serviceId: selectedService!.id,
+        serviceId: selectedService.id,
         staffId: selectedStaff?.id,
         customerName: customerName.trim(),
         customerEmail: customerEmail.trim() || undefined,
@@ -643,6 +675,8 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
       return;
     }
 
+    if (!selectedService) return;
+
     setCreatingPreference(true);
 
     const { getRecaptchaToken } = await import("@/lib/recaptcha");
@@ -652,9 +686,9 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
       recaptchaToken: recaptchaToken || undefined,
       shopId: shop.id,
       shopSlug: shop.slug,
-      serviceId: selectedService!.id,
-      serviceName: selectedService!.name,
-      servicePrice: selectedService!.price,
+      serviceId: selectedService.id,
+      serviceName: selectedService.name,
+      servicePrice: selectedService.price,
       staffId: selectedStaff?.id,
       customerName: customerName.trim(),
       customerEmail: customerEmail.trim() || undefined,
@@ -998,7 +1032,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                                     type="button"
                                     onClick={(e) => {
                                       triggerHaptic(15, e.currentTarget);
-                                      const rect = e.currentTarget.closest(".overflow-hidden")!.getBoundingClientRect();
+                                      const rect = getRippleRect(e.currentTarget);
                                       const size = Math.ceil(Math.sqrt(rect.width * rect.width + rect.height * rect.height) * 2.5);
                                        setRipplePositions(prev => ({ ...prev, [combo.id]: { x: e.clientX - rect.left, y: e.clientY - rect.top, size } }));
                                       setSelectedCombo(combo);
@@ -1100,7 +1134,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                                     type="button"
                                   onClick={(e) => {
                                     triggerHaptic(15, e.currentTarget);
-                                    const rect = e.currentTarget.closest(".overflow-hidden")!.getBoundingClientRect();
+                                    const rect = getRippleRect(e.currentTarget);
                                     const size = Math.ceil(Math.sqrt(rect.width * rect.width + rect.height * rect.height) * 2.5);
                                      setRipplePositions(prev => ({ ...prev, [svc.id]: { x: e.clientX - rect.left, y: e.clientY - rect.top, size } }));
                                     setSelectedService(svc);
@@ -1182,7 +1216,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                           <button
                             onClick={(e) => {
                               triggerHaptic(15, e.currentTarget);
-                              const rect = (e.currentTarget.closest(".overflow-hidden") ?? e.currentTarget.parentElement)!.getBoundingClientRect();
+                              const rect = getRippleRect(e.currentTarget);
                               const size = Math.ceil(Math.sqrt(rect.width * rect.width + rect.height * rect.height) * 2.5);
                                setRipplePositions(prev => ({ ...prev, "no-preference": { x: e.clientX - rect.left, y: e.clientY - rect.top, size } }));
                               setSelectedStaff(null);
@@ -1237,7 +1271,7 @@ draggable={false}
                             <button
                               onClick={(e) => {
                                 triggerHaptic(15, e.currentTarget);
-                                const rect = (e.currentTarget.closest(".overflow-hidden") ?? e.currentTarget.parentElement)!.getBoundingClientRect();
+                                const rect = getRippleRect(e.currentTarget);
                                 const size = Math.ceil(Math.sqrt(rect.width * rect.width + rect.height * rect.height) * 2.5);
                                 setRipplePositions(prev => ({ ...prev, [s.id]: { x: e.clientX - rect.left, y: e.clientY - rect.top, size } }));
                                 setSelectedStaff(s);

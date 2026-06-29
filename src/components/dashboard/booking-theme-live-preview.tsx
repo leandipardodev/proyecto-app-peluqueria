@@ -344,8 +344,12 @@ export default function BookingThemeLivePreview({
     const map = new Map<string, PreviewService[]>();
     for (const service of sourceServices) {
       const cat = (service.category || "General").trim() || "General";
-      if (!map.has(cat)) map.set(cat, []);
-      map.get(cat)!.push(service);
+      const arr = map.get(cat);
+      if (arr) {
+        arr.push(service);
+      } else {
+        map.set(cat, [service]);
+      }
     }
     return map;
   }, [sourceServices]);
