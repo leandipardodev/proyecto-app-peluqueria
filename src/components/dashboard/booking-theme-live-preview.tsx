@@ -487,14 +487,6 @@ export default function BookingThemeLivePreview({
 
   const allServiceIds = useMemo(() => sourceServices.map((s) => s.id), [sourceServices]);
 
-  const sectionServiceIds = useMemo(() => {
-    const map = new Map<string, string[]>();
-    for (const section of sectionCatalog) {
-      map.set(section, sourceServices.filter((s) => (s.category || "General").trim() || "General" === section).map((s) => s.id));
-    }
-    return map;
-  }, [sectionCatalog, sourceServices]);
-
   const currentServiceIds = useMemo(() => {
     if (activeCategory === "Todos") return allServiceIds;
     return (servicesByCategory.get(activeCategory) || []).map((s) => s.id);
