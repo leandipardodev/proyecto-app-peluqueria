@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useEffect } from "react";
+import { useMemo, useRef, useState, useEffect, memo } from "react";
 import Image from "next/image";
 import type { Industry } from "@/lib/industry/types";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
@@ -152,7 +152,7 @@ function SortableSectionChip({
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="relative shrink-0 group touch-none">
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className={`relative shrink-0 group ${isDragging ? "touch-none" : ""}`}>
       <button
         type="button"
         onClick={onSelect}
@@ -170,7 +170,7 @@ function SortableSectionChip({
   );
 }
 
-function SortableServiceCard({
+const SortableServiceCard = memo(function SortableServiceCard({
   service,
   disabled,
   s,
@@ -212,7 +212,7 @@ function SortableServiceCard({
         style={style}
         {...attributes}
         {...listeners}
-        className={`rounded-3xl border-2 transition-[transform,box-shadow] duration-200 select-none group touch-none ${s.cardDepth} ${s.plate} ${s.hoverBorder} ${isOver && !isActive ? "border-blue-400/60 ring-2 ring-blue-400/30 opacity-60" : ""} ${!disabled ? "cursor-grab active:cursor-grabbing" : ""}`}
+        className={`rounded-3xl border-2 transition-[transform,box-shadow] duration-200 select-none group ${isDragging ? "touch-none" : ""} ${s.cardDepth} ${s.plate} ${s.hoverBorder} ${isOver && !isActive ? "border-blue-400/60 ring-2 ring-blue-400/30 opacity-60" : ""} ${!disabled ? "cursor-grab active:cursor-grabbing" : ""}`}
       >
         {!disabled && (
           <span className="absolute left-1.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-40 transition-all duration-200 flex flex-col gap-0.5">
@@ -242,7 +242,7 @@ function SortableServiceCard({
       </div>
     </div>
   );
-}
+});
 
 function ServiceCardOverlay({ service, s }: { service: PreviewService; s: PreviewTheme }) {
   return (
@@ -359,8 +359,8 @@ export default function BookingThemeLivePreview({
   const sensors = useSensors(
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 150,
-        tolerance: 8,
+        delay: 2000,
+        tolerance: 5,
       },
     }),
     useSensor(MouseSensor, {
