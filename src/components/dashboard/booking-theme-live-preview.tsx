@@ -254,6 +254,9 @@ function ServiceCardOverlay({ service, s }: { service: PreviewService; s: Previe
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <p className={`text-sm font-medium ${s.heading}`}>{service.name}</p>
+              {service.description && (
+                <p className={`mt-0.5 text-[11px] leading-relaxed line-clamp-2 ${s.tiny}`}>{service.description}</p>
+              )}
               <p className={`mt-0.5 text-[11px] ${s.tiny}`}>{service.duration_minutes} min</p>
             </div>
             <p className={`shrink-0 tabular-nums font-semibold ${s.priceText} ${s.priceFx}`}>
