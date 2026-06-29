@@ -55,6 +55,7 @@ export default function InlineEdit({
   }
 
   const common = `bg-transparent outline-none ring-0 ${inputClassName}`;
+  const editingStyles = "ring-2 ring-[#0071E3]/25 bg-white/90 dark:bg-zinc-800/90 shadow-sm rounded-lg px-2 -mx-2 transition-all duration-150";
   const displayText = value || placeholder || "";
 
   if (multiline) {
@@ -67,7 +68,7 @@ export default function InlineEdit({
         onBlur={() => { if (editing) commit(); }}
         onKeyDown={handleKeyDown}
         rows={3}
-        className={`${common} w-full resize-none ${className}`}
+        className={`${common} w-full resize-none transition-all duration-150 ${className} ${editing ? "ring-2 ring-[#0071E3]/25 bg-white/90 dark:bg-zinc-800/90 shadow-sm rounded-lg px-3 -mx-3" : ""}`}
         placeholder={placeholder}
         disabled={disabled}
       />
@@ -83,7 +84,11 @@ export default function InlineEdit({
         onFocus={() => { if (!editing) { setDraft(value); setEditing(true); } }}
         onBlur={() => { if (editing) commit(); }}
         onKeyDown={handleKeyDown}
-        className={`${common} w-full ${className} ${!editing ? "cursor-text group-hover:underline decoration-dashed decoration-zinc-400/35 underline-offset-2" : ""}`}
+        className={`${common} w-full transition-all duration-150 ${className} ${
+          editing
+            ? editingStyles
+            : "cursor-text group-hover:underline decoration-dashed decoration-zinc-400/35 underline-offset-2"
+        }`}
         placeholder={placeholder}
         disabled={disabled}
       />

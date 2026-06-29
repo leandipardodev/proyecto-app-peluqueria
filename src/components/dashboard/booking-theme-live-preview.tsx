@@ -375,7 +375,7 @@ export default function BookingThemeLivePreview({
   const sensors = useSensors(
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 2000,
+        delay: 1000,
         tolerance: 5,
       },
     }),
@@ -502,7 +502,7 @@ export default function BookingThemeLivePreview({
   }
 
   return (
-    <section className="self-start max-sm:w-screen max-sm:rounded-none max-sm:border-x-0 rounded-3xl border border-white/30 bg-white p-3 sm:p-4 dark:border-white/10 dark:bg-zinc-800 overflow-hidden">
+    <section className="self-start max-sm:w-screen max-sm:rounded-none max-sm:border-x-0 rounded-3xl border border-white/30 bg-white p-3 dark:border-white/10 dark:bg-zinc-800 overflow-hidden">
       {/* Mobile: toolbar above */}
       {toolbar && <div className="pb-3 lg:hidden"><div className="flex justify-center"><div className="w-full max-w-sm">{toolbar}</div></div></div>}
       <div className="lg:flex lg:gap-6 lg:items-start">
@@ -521,7 +521,7 @@ export default function BookingThemeLivePreview({
             </div>
           )}
           <div className="flex justify-center">
-            <div className="w-full max-w-sm max-h-[calc(100vh-12rem)] overflow-y-auto">
+            <div className="w-full max-w-sm">
               <div className={`relative rounded-[2.5rem] overflow-hidden ${s.page}`}>
             <div className={`pointer-events-none absolute inset-0 z-0 bg-gradient-to-br ${s.pageAura}`} />
             <div className={`pointer-events-none absolute inset-0 z-[1] ${s.pageLightFx}`} />
@@ -535,7 +535,7 @@ export default function BookingThemeLivePreview({
 
             <div className="relative z-10 flex items-start justify-center p-2 sm:p-4">
               <div className="w-full">
-                <div className={`rounded-[32px] p-3 sm:p-4 flex flex-col ${s.shell}`}>
+                <div className={`rounded-[32px] p-3 sm:p-5 flex flex-col ${s.shell}`}>
                   {/* Header */}
                   <div className="pb-3">
                     <div className="flex items-center gap-3">
@@ -625,7 +625,7 @@ export default function BookingThemeLivePreview({
                                           if (e.key === "Escape") { setRenamingSection(null); setRenameValue(""); }
                                         }}
                                         onBlur={handleConfirmRename}
-                                        className="min-h-10 rounded-full border border-white/40 bg-white px-4 py-1 text-xs text-zinc-800 outline-none ring-[#0071E3] focus:ring-2 w-28"
+                                        className="min-h-10 rounded-full border-0 bg-white/90 dark:bg-zinc-800/90 px-4 py-1 text-xs text-zinc-800 dark:text-zinc-200 outline-none ring-2 ring-[#0071E3]/25 focus:ring-[#0071E3]/50 shadow-sm w-28"
                                       />
                                     </div>
                                   ) : (
@@ -682,7 +682,7 @@ export default function BookingThemeLivePreview({
                           onBlur={() => {
                             if (!newSectionInput.trim()) { setAddingSection(false); }
                           }}
-                          className="flex-1 min-h-10 rounded-full border border-white/40 bg-white px-4 py-1 text-xs text-zinc-800 outline-none ring-[#0071E3] focus:ring-2"
+                          className="flex-1 min-h-10 rounded-full border-0 bg-white/90 dark:bg-zinc-800/90 px-4 py-1 text-xs text-zinc-800 dark:text-zinc-200 outline-none ring-2 ring-[#0071E3]/25 focus:ring-[#0071E3]/50 shadow-sm"
                           placeholder="Nueva seccion"
                         />
                         <button
@@ -730,7 +730,7 @@ export default function BookingThemeLivePreview({
                                           if (e.key === "Escape") { setRenamingSection(null); setRenameValue(""); }
                                         }}
                                         onBlur={handleConfirmRename}
-                                        className="min-h-7 rounded-full border border-white/40 bg-white px-3 py-0.5 text-xs text-zinc-800 outline-none ring-[#0071E3] focus:ring-2 w-40"
+                                        className="min-h-7 rounded-full border-0 bg-white/90 dark:bg-zinc-800/90 px-3 py-0.5 text-xs text-zinc-800 dark:text-zinc-200 outline-none ring-2 ring-[#0071E3]/25 focus:ring-[#0071E3]/50 shadow-sm w-40"
                                       />
                                     </div>
                                   ) : (
