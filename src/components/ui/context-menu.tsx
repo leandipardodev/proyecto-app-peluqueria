@@ -68,7 +68,7 @@ export default function ContextMenu({ items, position, onClose }: ContextMenuPro
                 onClose();
                 item.onClick();
               }}
-              className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2.5 transition-colors cursor-pointer select-none ${
+              className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2.5 transition-all cursor-pointer select-none ${
                 item.disabled
                   ? "text-zinc-300 dark:text-zinc-600 cursor-not-allowed"
                   : item.danger

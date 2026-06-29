@@ -44,7 +44,7 @@ export default function PaymentButton({ serviceId }: PaymentButtonProps) {
       <button
         onClick={handlePayment}
         disabled={loading}
-        className="mt-2 block w-full text-center px-4 py-2 border border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-300 rounded-lg text-sm font-medium hover:bg-violet-50 dark:hover:bg-violet-900/30 transition-colors cursor-pointer select-none disabled:opacity-50"
+        className="mt-2 block w-full text-center px-4 py-2 border border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-300 rounded-lg text-sm font-medium hover:bg-violet-50 dark:hover:bg-violet-900/30 transition-all cursor-pointer select-none disabled:opacity-50"
       >
         {loading ? (
           <span className="flex items-center justify-center gap-2">
