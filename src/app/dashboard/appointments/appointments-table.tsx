@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, memo, useRef } from "react";
+
+let realtimeChannelCounter = 0;
 import { MessageCircle, Bell } from "lucide-react";
 import { useAppointmentAlarm } from "@/lib/use-appointment-alarm";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
@@ -140,8 +142,9 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
       }
     };
 
+    const channelName = `realtime:appointments-${shopId}-${++realtimeChannelCounter}`;
     const channel = supabase
-      .channel(`appointments-${shopId}`)
+      .channel(channelName)
       .on("postgres_changes", { event: "*", schema: "public", table: "appointments", filter: `shop_id=eq.${shopId}` }, handleChange)
       .subscribe();
 
