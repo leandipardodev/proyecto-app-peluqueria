@@ -801,9 +801,31 @@ export default function BusinessClient({
     window.location.href = "/api/payments/mercadopago-oauth/start";
   }
 
-  async function handleSaveBookingTheme() {
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const saveFnRef = useRef(handleSaveBookingTheme);
+
+  useEffect(() => {
+    saveFnRef.current = handleSaveBookingTheme;
+  });
+
+  useEffect(() => {
+    if (!isOwnerOrAdmin) return;
+    if (templateTouchedRef.current || sectionTouchedRef.current) {
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+      autoSaveTimer.current = setTimeout(async () => {
+        await saveFnRef.current(true);
+      }, 2000);
+    }
+    return () => {
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    };
+  }, [heroTitle, heroSubtitle, aboutTitle, aboutText, selectedTemplateId, sectionCatalog, serviceCategoryDraft, isOwnerOrAdmin]);
+
+  async function handleSaveBookingTheme(silent = false) {
     if (isSaving) return;
     setIsSaving(true);
+    setSaveStatus("saving");
     try {
       const categoryUpdates = initialServices.map((service) => ({
         id: service.id,
@@ -831,19 +853,23 @@ export default function BusinessClient({
       });
 
       if (!result.success) {
-        playError();
-        showError(result.error);
+        if (!silent) { playError(); showError(result.error); }
+        setSaveStatus("error");
+        setTimeout(() => setSaveStatus("idle"), 3000);
         return;
       }
 
       const fresh = await fetchBookingTheme(undefined, shopSlug ?? undefined);
       if (fresh.success) setBookingTheme(fresh.data ?? null);
       templateTouchedRef.current = false;
-      playSuccess();
-      showSuccess("Personalizacion de /book guardada");
+      sectionTouchedRef.current = false;
+      if (!silent) { playSuccess(); showSuccess("Personalizacion de /book guardada"); }
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus("idle"), 2000);
     } catch (e) {
-      playError();
-      showError(e instanceof Error ? e.message : "Error al guardar personalización");
+      if (!silent) { playError(); showError(e instanceof Error ? e.message : "Error al guardar personalización"); }
+      setSaveStatus("error");
+      setTimeout(() => setSaveStatus("idle"), 3000);
     } finally {
       setIsSaving(false);
     }
@@ -1303,6 +1329,7 @@ export default function BusinessClient({
                   onLogoUpload={handleLogoUpload}
                   industry={industry}
                   disabled={!isOwnerOrAdmin}
+                  saveStatus={saveStatus}
                 />
                 </ErrorBoundary>
               </div>

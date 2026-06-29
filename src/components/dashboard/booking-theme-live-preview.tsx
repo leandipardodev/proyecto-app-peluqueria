@@ -65,6 +65,7 @@ type Props = {
   phone?: string;
   instagramUrl?: string;
   toolbar?: React.ReactNode;
+  saveStatus?: "idle" | "saving" | "saved" | "error";
 };
 
 type PreviewTheme = Pick<BookingTheme,
@@ -291,6 +292,7 @@ export default function BookingThemeLivePreview({
   phone,
   instagramUrl,
   toolbar,
+  saveStatus,
 }: Props) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [activeDragService, setActiveDragService] = useState<PreviewService | null>(null);
@@ -527,6 +529,19 @@ export default function BookingThemeLivePreview({
   return (
     <section className="self-start max-sm:w-screen max-sm:rounded-none max-sm:border-x-0 rounded-3xl border border-white/30 bg-white p-3 dark:border-white/10 dark:bg-zinc-800 overflow-hidden">
       {toolbar && <div className="pb-3"><div className="flex justify-center"><div className="w-full max-w-sm">{toolbar}</div></div></div>}
+      {saveStatus && saveStatus !== "idle" && (
+        <div className="flex justify-center pb-2">
+          <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-medium ${
+            saveStatus === "saving" ? "bg-amber-100 text-amber-800" :
+            saveStatus === "saved" ? "bg-emerald-100 text-emerald-800" :
+            "bg-rose-100 text-rose-800"
+          }`}>
+            {saveStatus === "saving" && <>Guardando<span className="animate-pulse">...</span></>}
+            {saveStatus === "saved" && <>✓ Guardado</>}
+            {saveStatus === "error" && <>✗ Error al guardar</>}
+          </span>
+        </div>
+      )}
       <div className="flex justify-center">
         <div className="w-full max-w-sm">
           <div className={`relative rounded-[2.5rem] overflow-hidden ${s.page}`}>
