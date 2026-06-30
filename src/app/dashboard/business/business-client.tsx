@@ -1245,7 +1245,7 @@ export default function BusinessClient({
         </div>
       </form>
 
-      <section className="order-4 max-sm:rounded-none max-sm:border-x-0 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm transition-colors bg-white dark:bg-zinc-900">
+      <section className="order-4 max-sm:w-full max-sm:rounded-none max-sm:border-x-0 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm transition-colors bg-white dark:bg-zinc-900 overflow-hidden">
         <button
           type="button"
           onClick={() => setShowThemeCard((v) => !v)}
