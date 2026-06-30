@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, RefreshCcw } from "lucide-react";
+import { Plus, RefreshCcw, Layers } from "lucide-react";
 import StockTable from "./stock-table";
 import AddProductModal from "./add-product-modal";
+import BatchAddProductModal from "./batch-add-product-modal";
 import { StatePanel } from "@/components/ui/state-panel";
 
 type StockItem = {
@@ -27,6 +28,7 @@ export default function InventoryPageClient({
   role = "staff",
 }: InventoryPageClientProps) {
   const [modalOpen, setModalOpen] = useState(false);
+  const [batchModalOpen, setBatchModalOpen] = useState(false);
   const isOwnerOrAdmin = role !== "staff";
 
   if (initialError) {
@@ -54,20 +56,31 @@ export default function InventoryPageClient({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Inventario</h1>
         {isOwnerOrAdmin && (
-          <button
-            type="button"
-            onClick={() => setModalOpen(true)}
-            className="inline-flex items-center justify-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 transition-colors cursor-pointer select-none"
-          >
-            <Plus className="w-4 h-4" />
-            Nuevo producto
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setBatchModalOpen(true)}
+              className="inline-flex items-center justify-center gap-2 bg-white dark:bg-zinc-800 text-violet-700 dark:text-violet-300 border border-violet-300 dark:border-violet-700 px-4 py-2 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-50 dark:hover:bg-violet-900/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 transition-colors cursor-pointer select-none"
+            >
+              <Layers className="w-4 h-4" />
+              Agregar múltiples
+            </button>
+            <button
+              type="button"
+              onClick={() => setModalOpen(true)}
+              className="inline-flex items-center justify-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 transition-colors cursor-pointer select-none"
+            >
+              <Plus className="w-4 h-4" />
+              Nuevo producto
+            </button>
+          </div>
         )}
       </div>
 
       <StockTable shopId={shopId} items={initialItems} isOwnerOrAdmin={isOwnerOrAdmin} />
 
       <AddProductModal shopId={shopId} open={modalOpen} onClose={() => setModalOpen(false)} />
+      <BatchAddProductModal shopId={shopId} open={batchModalOpen} onClose={() => setBatchModalOpen(false)} />
     </div>
   );
 }

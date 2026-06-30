@@ -81,6 +81,49 @@ export async function addProduct(formData: FormData, shopIdOverride?: string): P
   }
 }
 
+export async function addProducts(
+  products: Array<{ nombre_producto: string; quantity: number; unit_cost: number }>,
+  shopIdOverride?: string,
+): Promise<ActionResult> {
+  try {
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireOwnerShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    }
+
+    const validProducts = products.filter((p) => p.nombre_producto?.trim());
+    if (validProducts.length === 0) {
+      return { success: false, error: "Debe completar al menos un producto" };
+    }
+
+    for (const p of validProducts) {
+      if (p.quantity < 0 || p.unit_cost < 0) {
+        return { success: false, error: `"${p.nombre_producto}": los valores no pueden ser negativos` };
+      }
+    }
+
+    const supabase = await createServerClient();
+    const { error } = await supabase.from("stock").insert(
+      validProducts.map((p) => ({
+        shop_id: shopId,
+        nombre_producto: p.nombre_producto.trim(),
+        quantity: p.quantity,
+        unit_cost: p.unit_cost,
+      }))
+    );
+
+    if (error) return { success: false, error: error.message };
+
+    await revalidateDashboardSegments(shopId, ["/inventory"]);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al agregar productos" };
+  }
+}
+
 export async function updateStock(id: string, delta: number, shopIdOverride?: string): Promise<ActionResult> {
   try {
     let shopId: string | undefined = shopIdOverride;
