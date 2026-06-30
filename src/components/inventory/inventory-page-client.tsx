@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Plus, RefreshCcw, Layers } from "lucide-react";
 import StockTable from "./stock-table";
 import AddProductModal from "./add-product-modal";
@@ -27,6 +28,7 @@ export default function InventoryPageClient({
   initialError,
   role = "staff",
 }: InventoryPageClientProps) {
+  const router = useRouter();
   const [modalOpen, setModalOpen] = useState(false);
   const [batchModalOpen, setBatchModalOpen] = useState(false);
   const isOwnerOrAdmin = role !== "staff";
@@ -40,7 +42,7 @@ export default function InventoryPageClient({
         action={
           <button
             type="button"
-            onClick={() => window.location.reload()}
+            onClick={() => router.refresh()}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-rose-700 dark:text-rose-300 bg-rose-100 dark:bg-rose-900/40 hover:bg-rose-200 dark:hover:bg-rose-800/60 transition-colors cursor-pointer select-none"
           >
             <RefreshCcw className="w-4 h-4" />

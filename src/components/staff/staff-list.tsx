@@ -137,7 +137,7 @@ export default function StaffList({
     const refreshStaff = async () => {
       if (realtimeCooldown.current) return;
       realtimeCooldown.current = true;
-      setTimeout(() => { realtimeCooldown.current = false; }, 2000);
+      setTimeout(() => { realtimeCooldown.current = false; }, 5000);
       const [membershipsRes, profilesRes] = await Promise.all([
         supabase
           .from("shop_memberships")

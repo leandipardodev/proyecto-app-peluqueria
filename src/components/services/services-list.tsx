@@ -112,7 +112,7 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
           if (modalOpenRef.current) return;
           if (realtimeCooldown.current) return;
           realtimeCooldown.current = true;
-          setTimeout(() => { realtimeCooldown.current = false; }, 2000);
+          setTimeout(() => { realtimeCooldown.current = false; }, 5000);
           supabase
             .from("services")
             .select("id, name, description, category, price, duration_minutes")

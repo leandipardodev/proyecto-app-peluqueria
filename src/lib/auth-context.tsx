@@ -208,11 +208,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT" || !session?.user) {
         setState({ user: null, shop: null, isLoading: false });
-      } else if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+      } else if (event === "SIGNED_IN") {
         fetchSession(session.user).catch(() => {
           setState({ user: null, shop: null, isLoading: false });
         });
       }
+      // TOKEN_REFRESHED no necesita re-fetchear perfil/shop — el token se renueva silenciosamente
     });
 
     return () => {

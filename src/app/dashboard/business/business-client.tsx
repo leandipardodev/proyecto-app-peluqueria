@@ -38,7 +38,6 @@ import { updateVoucherWhatsappTemplate } from "@/lib/dashboard/voucher-actions";
 import { DEFAULT_BIRTHDAY_WHATSAPP_TEMPLATE, DEFAULT_VOUCHER_WHATSAPP_TEMPLATE } from "@/lib/dashboard/voucher-constants";
 import { deleteCurrentShop } from "@/lib/dashboard/shop-actions";
 import {
-  fetchBookingTheme,
   upsertBookingTheme,
   uploadBookingLogo,
   type BookingThemeData,
@@ -202,6 +201,24 @@ export default function BusinessClient({
   const [instagramUrl, setInstagramUrl] = useState(data?.instagram_url || "");
   const [facebookUrl, setFacebookUrl] = useState(data?.facebook_url || "");
   const [tiktokUrl, setTiktokUrl] = useState(data?.tiktok_url || "");
+  const initialPublicInfo = useMemo(() => ({
+    name: data?.nombre || "",
+    address: data?.address || "",
+    localidad: data?.localidad || "",
+    phone: data?.phone || "",
+    instagramUrl: data?.instagram_url || "",
+    facebookUrl: data?.facebook_url || "",
+    tiktokUrl: data?.tiktok_url || "",
+  }), [data?.nombre, data?.address, data?.localidad, data?.phone, data?.instagram_url, data?.facebook_url, data?.tiktok_url]);
+  const isPublicInfoDirty = useMemo(() =>
+    name !== initialPublicInfo.name ||
+    address !== initialPublicInfo.address ||
+    localidad !== initialPublicInfo.localidad ||
+    phone !== initialPublicInfo.phone ||
+    instagramUrl !== initialPublicInfo.instagramUrl ||
+    facebookUrl !== initialPublicInfo.facebookUrl ||
+    tiktokUrl !== initialPublicInfo.tiktokUrl,
+  [name, address, localidad, phone, instagramUrl, facebookUrl, tiktokUrl, initialPublicInfo]);
   const [whatsappTemplate, setWhatsappTemplate] = useState(data?.whatsapp_template || "");
   const whatsappRef = useRef<HTMLTextAreaElement>(null);
   const insertWhatsappTag = useTagInsert(whatsappRef, whatsappTemplate, setWhatsappTemplate);
@@ -305,9 +322,6 @@ export default function BusinessClient({
   const [selectedTemplateId, setSelectedTemplateId] = useState<BookingTemplateId>(
     initialBookingTheme?.template_id || DEFAULT_BOOKING_TEMPLATE
   );
-  const templateTouchedRef = useRef(false);
-  const bookingCopyTouchedRef = useRef(false);
-  const sectionTouchedRef = useRef(false);
   const messageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [logoUrl, setLogoUrl] = useState<string>(initialBookingTheme?.logo_url || "");
   const [heroTitle, setHeroTitle] = useState(initialBookingTheme?.hero_title || "");
@@ -345,6 +359,8 @@ export default function BusinessClient({
     if (!unique.includes("General")) unique.unshift("General");
     return unique;
   });
+  const initialSectionCatalogRef = useRef(sectionCatalog);
+  const initialCategoryDraftRef = useRef(serviceCategoryDraft);
 
   const [serviceOrderIds, setServiceOrderIds] = useState<string[]>(() => {
     if (initialBookingTheme?.section_service_order?.length) {
@@ -388,6 +404,17 @@ export default function BusinessClient({
       return merged;
     });
   }, [initialServices]);
+
+  const isThemeDirty = useMemo(() =>
+    heroTitle !== (initialBookingTheme?.hero_title ?? "") ||
+    heroSubtitle !== (initialBookingTheme?.hero_subtitle ?? "") ||
+    aboutTitle !== (initialBookingTheme?.about_title ?? "") ||
+    aboutText !== (initialBookingTheme?.about_text ?? "") ||
+    selectedTemplateId !== (initialBookingTheme?.template_id ?? DEFAULT_BOOKING_TEMPLATE) ||
+    JSON.stringify(sectionCatalog) !== JSON.stringify(initialSectionCatalogRef.current) ||
+    JSON.stringify(serviceCategoryDraft) !== JSON.stringify(initialCategoryDraftRef.current),
+  [heroTitle, heroSubtitle, aboutTitle, aboutText, selectedTemplateId, initialBookingTheme, sectionCatalog, serviceCategoryDraft]);
+  const isGlobalDirty = isPublicInfoDirty || isThemeDirty;
 
   const orderedServices = useMemo(() => {
     const rank = new Map(serviceOrderIds.map((id, index) => [id, index]));
@@ -718,6 +745,15 @@ export default function BusinessClient({
     });
     if (!theme.success) return showError(theme.error), false;
 
+    setBookingTheme(prev => prev ? {
+      ...prev,
+      template_id: selectedTemplateId,
+      hero_title: heroTitle,
+      hero_subtitle: heroSubtitle,
+      about_title: aboutTitle,
+      about_text: aboutText,
+    } : prev);
+
     const fresh = await fetchBusinessData();
     if (fresh.success && fresh.data) {
       setData(fresh.data);
@@ -727,7 +763,6 @@ export default function BusinessClient({
       setWhatsappTemplate(fresh.data.whatsapp_template);
     }
 
-    sectionTouchedRef.current = false;
     try { window.localStorage.removeItem(mpDraftKey); } catch {}
     playSuccess();
     showSuccess("Todo guardado correctamente");
@@ -765,10 +800,16 @@ export default function BusinessClient({
       } else {
         playSuccess();
         showSuccess("Información pública guardada");
-        const fresh = await fetchBusinessData();
-        if (fresh.success) {
-          setData(fresh.data ?? null);
-        }
+        setData(prev => prev ? {
+          ...prev,
+          name,
+          address,
+          localidad,
+          phone,
+          instagram_url: instagramUrl,
+          facebook_url: facebookUrl,
+          tiktok_url: tiktokUrl,
+        } : prev);
       }
     } catch (e) {
       playError();
@@ -801,83 +842,10 @@ export default function BusinessClient({
     window.location.href = "/api/payments/mercadopago-oauth/start";
   }
 
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const saveFnRef = useRef(handleSaveBookingTheme);
 
-  useEffect(() => {
-    saveFnRef.current = handleSaveBookingTheme;
-  });
-
-  useEffect(() => {
-    if (!isOwnerOrAdmin) return;
-    if (templateTouchedRef.current || sectionTouchedRef.current) {
-      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-      autoSaveTimer.current = setTimeout(async () => {
-        await saveFnRef.current(true);
-      }, 2000);
-    }
-    return () => {
-      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-    };
-  }, [heroTitle, heroSubtitle, aboutTitle, aboutText, selectedTemplateId, sectionCatalog, serviceCategoryDraft, isOwnerOrAdmin]);
-
-  async function handleSaveBookingTheme(silent = false) {
-    if (isSaving) return;
-    setIsSaving(true);
-    setSaveStatus("saving");
-    try {
-      const categoryUpdates = initialServices.map((service) => ({
-        id: service.id,
-        category: (serviceCategoryDraft[service.id] || "General").trim() || "General",
-      }));
-
-      if (categoryUpdates.length > 0) {
-        const categoryResult = await bulkUpdateServiceCategories(categoryUpdates);
-        if (!categoryResult.success) {
-          playError();
-          showError(categoryResult.error);
-          return;
-        }
-      }
-
-      const result = await upsertBookingTheme({
-        templateId: selectedTemplateId,
-        shopSlug: shopSlug ?? undefined,
-        sectionOrder: sectionCatalog,
-        sectionServiceOrder: buildSectionServiceOrder(),
-        heroTitle,
-        heroSubtitle,
-        aboutTitle,
-        aboutText,
-      });
-
-      if (!result.success) {
-        if (!silent) { playError(); showError(result.error); }
-        setSaveStatus("error");
-        setTimeout(() => setSaveStatus("idle"), 3000);
-        return;
-      }
-
-      const fresh = await fetchBookingTheme(undefined, shopSlug ?? undefined);
-      if (fresh.success) setBookingTheme(fresh.data ?? null);
-      templateTouchedRef.current = false;
-      sectionTouchedRef.current = false;
-      if (!silent) { playSuccess(); showSuccess("Personalizacion de /book guardada"); }
-      setSaveStatus("saved");
-      setTimeout(() => setSaveStatus("idle"), 2000);
-    } catch (e) {
-      if (!silent) { playError(); showError(e instanceof Error ? e.message : "Error al guardar personalización"); }
-      setSaveStatus("error");
-      setTimeout(() => setSaveStatus("idle"), 3000);
-    } finally {
-      setIsSaving(false);
-    }
-  }
 
   function handleRemoveSection(sectionToRemove: string) {
     if (sectionToRemove === "General") return;
-    sectionTouchedRef.current = true;
     setSectionCatalog((prev) => prev.filter((section) => section !== sectionToRemove));
     setServiceCategoryDraft((prev) => {
       const next = { ...prev };
@@ -890,7 +858,6 @@ export default function BusinessClient({
 
   function handleRenameSection(oldName: string, newName: string) {
     if (oldName === "General" || oldName === "Todos") return;
-    sectionTouchedRef.current = true;
     setSectionCatalog((prev) => prev.map((s) => (s === oldName ? newName : s)));
     setServiceCategoryDraft((prev) => {
       const next = { ...prev };
@@ -902,7 +869,6 @@ export default function BusinessClient({
   }
 
   function handleSectionReorder(reordered: string[]) {
-    sectionTouchedRef.current = true;
     setSectionCatalog(reordered);
   }
 
@@ -1247,7 +1213,6 @@ export default function BusinessClient({
                 </div>
               </div>
             </div>
-            <div className="pt-2" />
           </div>
         </div>
       </form>
@@ -1287,7 +1252,6 @@ export default function BusinessClient({
                         <SkinSelector
                           selectedTemplateId={selectedTemplateId}
                           onSelect={(templateId) => {
-                            templateTouchedRef.current = true;
                             setSelectedTemplateId(templateId);
                           }}
                         />
@@ -1320,7 +1284,6 @@ export default function BusinessClient({
                   sectionCatalog={sectionCatalog}
                   onServiceMove={moveServiceToSection}
                   onSectionAdd={(name) => {
-                    sectionTouchedRef.current = true;
                     setSectionCatalog((prev) => [...prev, name]);
                   }}
                   onSectionRemove={handleRemoveSection}
@@ -1329,7 +1292,6 @@ export default function BusinessClient({
                   onLogoUpload={handleLogoUpload}
                   industry={industry}
                   disabled={!isOwnerOrAdmin}
-                  saveStatus={saveStatus}
                 />
                 </ErrorBoundary>
               </div>
@@ -1965,10 +1927,14 @@ export default function BusinessClient({
               setIsSaving(false);
             }
           }}
-          disabled={!isOwnerOrAdmin || isSaving}
-          className="fixed bottom-4 right-4 z-50 ui-btn-primary inline-flex items-center rounded-full px-6 py-2.5 text-sm font-semibold disabled:opacity-60 shadow-lg"
+          disabled={!isOwnerOrAdmin || isSaving || !isGlobalDirty}
+          className={`fixed bottom-4 right-4 z-50 inline-flex items-center rounded-full px-6 py-2.5 text-sm font-semibold shadow-lg transition-all duration-300 ${
+            isGlobalDirty
+              ? "bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white cursor-pointer select-none"
+              : "bg-zinc-300 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 cursor-not-allowed"
+          }`}
         >
-          {isSaving ? "Guardando todo..." : "Guardar todo"}
+          {isSaving ? "Guardando..." : (isGlobalDirty ? "Guardar todo" : "Todo guardado")}
         </button>,
         document.body
       )}

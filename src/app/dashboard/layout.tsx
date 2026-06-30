@@ -12,8 +12,6 @@ const ReleaseNotesModal = dynamicImport(() => import("@/components/dashboard/rel
 const BugReportModal = dynamicImport(() => import("@/components/dashboard/bug-report-modal"));
 const HelpModal = dynamicImport(() => import("@/components/dashboard/help-modal"));
 
-export const dynamic = "force-dynamic";
-
 export const metadata: Metadata = {
   robots: {
     index: false,

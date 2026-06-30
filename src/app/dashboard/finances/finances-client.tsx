@@ -372,21 +372,21 @@ export default function FinancesClient({
         if (skipNextRealtimeRefresh.current) { skipNextRealtimeRefresh.current = false; return; }
         if (realtimeCooldown.current) return;
         realtimeCooldown.current = true;
-        setTimeout(() => { realtimeCooldown.current = false; }, 2000);
+        setTimeout(() => { realtimeCooldown.current = false; }, 5000);
         refreshFinanceDataFast(from, to);
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "cash_movements", filter: `shop_id=eq.${shopId}` }, () => {
         if (skipNextRealtimeRefresh.current) { skipNextRealtimeRefresh.current = false; return; }
         if (realtimeCooldown.current) return;
         realtimeCooldown.current = true;
-        setTimeout(() => { realtimeCooldown.current = false; }, 2000);
+        setTimeout(() => { realtimeCooldown.current = false; }, 5000);
         refreshCashDataFast(from, to);
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "cash_sessions", filter: `shop_id=eq.${shopId}` }, () => {
         if (skipNextRealtimeRefresh.current) { skipNextRealtimeRefresh.current = false; return; }
         if (realtimeCooldown.current) return;
         realtimeCooldown.current = true;
-        setTimeout(() => { realtimeCooldown.current = false; }, 2000);
+        setTimeout(() => { realtimeCooldown.current = false; }, 5000);
         refreshCashDataFast(from, to);
       })
       .subscribe();

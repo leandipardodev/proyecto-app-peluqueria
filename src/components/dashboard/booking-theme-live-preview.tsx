@@ -10,7 +10,6 @@ import type { BookingTheme } from "@/app/book/[slug]/booking-themes";
 import {
   DndContext,
   DragOverlay,
-  closestCenter,
   pointerWithin,
   MouseSensor,
   TouchSensor,
@@ -215,7 +214,7 @@ const SortableServiceCard = memo(function SortableServiceCard({
         style={style}
         {...attributes}
         {...listeners}
-        className={`rounded-3xl border-2 transition-shadow duration-200 select-none group ${isDragging ? "touch-none" : ""} ${s.cardDepth} ${s.plate} ${s.hoverBorder} ${isOver && !isActive ? "border-blue-400/60 ring-2 ring-blue-400/30 opacity-60" : ""} ${!disabled ? "cursor-grab active:cursor-grabbing" : ""}`}
+        className={`rounded-3xl border-2 transition-shadow duration-200 select-none group touch-none ${s.cardDepth} ${s.plate} ${s.hoverBorder} ${isOver && !isActive ? "border-blue-400/60 ring-2 ring-blue-400/30 opacity-60" : ""} ${!disabled ? "cursor-grab active:cursor-grabbing" : ""}`}
       >
         {!disabled && (
           <span className="absolute left-1.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-40 transition-all duration-200 flex flex-col gap-0.5">
@@ -379,7 +378,7 @@ export default function BookingThemeLivePreview({
   const sensors = useSensors(
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 1000,
+        delay: 750,
         tolerance: 5,
       },
     }),
@@ -707,13 +706,14 @@ export default function BookingThemeLivePreview({
                         {labels.servicePlural} de ejemplo hasta que cargues los tuyos.
                       </p>
                     )}
-                    <div className="max-h-[50vh] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+                    <div className="max-h-[50vh] overflow-y-auto" style={{ scrollbarWidth: 'thin', overscrollBehavior: 'contain' }}>
                     <DndContext
                       sensors={sensors}
-                      collisionDetection={closestCenter}
+                      collisionDetection={pointerWithin}
                       onDragStart={handleDragStart}
                       onDragOver={handleDragOver}
                       onDragEnd={handleDragEnd}
+                      autoScroll={{ threshold: 10 }}
                     >
                       <SortableContext items={currentServiceIds} strategy={verticalListSortingStrategy}>
                         {activeCategory === "Todos" ? (

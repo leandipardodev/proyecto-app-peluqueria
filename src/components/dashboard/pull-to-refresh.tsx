@@ -4,7 +4,7 @@ import { useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 
-const DISABLE_PULL_REFRESH_PATHS = ["/calendar", "/customers"];
+const DISABLE_PULL_REFRESH_PATHS = ["/calendar", "/customers", "/inventory", "/finances", "/fidelizacion", "/business", "/services", "/staff"];
 
 export default function PullToRefresh({ children }: { children: ReactNode }) {
   const pathname = usePathname();

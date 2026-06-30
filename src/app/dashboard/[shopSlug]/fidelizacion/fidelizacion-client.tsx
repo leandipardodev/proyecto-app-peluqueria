@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { Gift, RefreshCcw, Save, Trophy, Users } from "lucide-react";
 import { runLoyaltyRaffleAction, updateLoyaltyProgramAction } from "@/lib/dashboard/business-actions";
@@ -40,6 +41,7 @@ export default function FidelizacionClient({
   initialError,
   role = "staff",
 }: Props) {
+  const router = useRouter();
   const { shop } = useAuth();
   const industry = resolveIndustry(shop?.industry);
   const customerWord = INDUSTRY_CONFIG[industry].labels.customerSingular;
@@ -79,7 +81,7 @@ export default function FidelizacionClient({
         action={
           <button
             type="button"
-            onClick={() => window.location.reload()}
+            onClick={() => router.refresh()}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-rose-700 dark:text-rose-300 bg-rose-100 dark:bg-rose-900/40 hover:bg-rose-200 dark:hover:bg-rose-800/60 transition-colors cursor-pointer select-none"
           >
             <RefreshCcw className="w-4 h-4" />

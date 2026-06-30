@@ -1,6 +1,7 @@
 "use client";
 
 import { Component, useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { addWeeks, subWeeks } from "date-fns";
 import { motion } from "framer-motion";
 import { RefreshCcw } from "lucide-react";
@@ -152,6 +153,7 @@ export default function CalendarPageClient({
   initialAppointmentId,
   initialViewMode,
 }: CalendarPageClientProps) {
+  const router = useRouter();
   const [currentDate, setCurrentDate] = useState(() => {
     if (!initialDateParam) return new Date();
     const parsed = new Date(initialDateParam);
@@ -244,7 +246,7 @@ export default function CalendarPageClient({
       console.log(`[CALENDAR] handleChange #${realtimeCounter.current}`, new Date().toISOString());
       if (realtimeCooldown.current) return;
       realtimeCooldown.current = true;
-      setTimeout(() => { realtimeCooldown.current = false; }, 2000);
+      setTimeout(() => { realtimeCooldown.current = false; }, 5000);
       try {
         const { data: rows, error } = await supabase
           .from("appointments")
@@ -367,7 +369,7 @@ export default function CalendarPageClient({
           action={
             <button
               type="button"
-              onClick={() => window.location.reload()}
+              onClick={() => router.refresh()}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-rose-700 dark:text-rose-300 bg-rose-100 dark:bg-rose-900/40 hover:bg-rose-200 dark:hover:bg-rose-800/60 transition-colors cursor-pointer select-none"
             >
               <RefreshCcw className="w-4 h-4" />

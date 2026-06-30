@@ -41,7 +41,7 @@ export default function VouchersClient({ shopId, initialVouchers, initialTemplat
     const handleChange = async () => {
       if (realtimeCooldown.current) return;
       realtimeCooldown.current = true;
-      setTimeout(() => { realtimeCooldown.current = false; }, 2000);
+      setTimeout(() => { realtimeCooldown.current = false; }, 5000);
       const { data, error } = await supabase
         .from("vouchers")
         .select("id, gifted_to_name, gifted_to_phone, gifted_to_birthday, gifted_by_name, service_name, voucher_message, status, reminder_sent_at, redeemed_at, created_at")

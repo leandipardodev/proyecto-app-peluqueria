@@ -53,7 +53,7 @@ const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = fa
         () => {
           if (realtimeCooldown.current) return;
           realtimeCooldown.current = true;
-          setTimeout(() => { realtimeCooldown.current = false; }, 2000);
+          setTimeout(() => { realtimeCooldown.current = false; }, 5000);
           startTransition(async () => {
             const { data } = await supabase
               .from("stock")

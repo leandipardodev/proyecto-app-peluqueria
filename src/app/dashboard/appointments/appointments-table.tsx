@@ -105,7 +105,7 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
     const handleChange = async () => {
       if (realtimeCooldown.current) return;
       realtimeCooldown.current = true;
-      setTimeout(() => { realtimeCooldown.current = false; }, 2000);
+      setTimeout(() => { realtimeCooldown.current = false; }, 5000);
       const now = new Date().toISOString();
       const { data: rows, error } = await supabase
         .from("appointments")
