@@ -863,7 +863,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                   <div className="min-w-0">
                     <motion.h1
                       data-info-trigger
-                      className={`text-[1.85rem] sm:text-[2.35rem] md:text-[2.75rem] font-black leading-[1.1] tracking-[-0.035em] cursor-pointer ${templateStyles.headingFx} bg-gradient-to-r ${templateStyles.titleGradient} bg-[length:220%_100%] bg-clip-text text-transparent`}
+                      className={`text-[1.85rem] sm:text-[2.35rem] md:text-[2.75rem] font-black leading-[1.1] tracking-[-0.035em] cursor-pointer break-words ${templateStyles.headingFx} bg-gradient-to-r ${templateStyles.titleGradient} bg-[length:220%_100%] bg-clip-text text-transparent`}
                       style={{ willChange: "background-position" }}
                       animate={{ backgroundPositionX: ["0%", "100%", "0%"] }}
                       transition={{ duration: 8.5, repeat: Infinity, ease: "easeInOut" }}
