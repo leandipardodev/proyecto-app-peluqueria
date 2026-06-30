@@ -858,7 +858,8 @@ export default function BusinessClient({
 
   function handleRenameSection(oldName: string, newName: string) {
     if (oldName === "General" || oldName === "Todos") return;
-    setSectionCatalog((prev) => prev.map((s) => (s === oldName ? newName : s)));
+    if (newName === oldName) return;
+    setSectionCatalog((prev) => prev.includes(newName) ? prev : prev.map((s) => (s === oldName ? newName : s)));
     setServiceCategoryDraft((prev) => {
       const next = { ...prev };
       for (const serviceId of Object.keys(next)) {
@@ -1284,7 +1285,7 @@ export default function BusinessClient({
                   sectionCatalog={sectionCatalog}
                   onServiceMove={moveServiceToSection}
                   onSectionAdd={(name) => {
-                    setSectionCatalog((prev) => [...prev, name]);
+                    setSectionCatalog((prev) => prev.includes(name) ? prev : [...prev, name]);
                   }}
                   onSectionRemove={handleRemoveSection}
                   onSectionRename={handleRenameSection}

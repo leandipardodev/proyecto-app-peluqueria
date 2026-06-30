@@ -499,6 +499,11 @@ export default function BookingThemeLivePreview({
     const clean = renameValue.trim();
     if (!clean || !renamingSection) return;
     if (clean === renamingSection) { setRenamingSection(null); return; }
+    if (sectionCatalog.some((s) => s !== renamingSection && s.toLowerCase() === clean.toLowerCase())) {
+      setRenamingSection(null);
+      setRenameValue("");
+      return;
+    }
     onSectionRename?.(renamingSection, clean);
     setRenamingSection(null);
     setRenameValue("");
