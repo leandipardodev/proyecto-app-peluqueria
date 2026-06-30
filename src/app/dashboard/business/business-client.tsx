@@ -414,7 +414,23 @@ export default function BusinessClient({
     JSON.stringify(sectionCatalog) !== JSON.stringify(initialSectionCatalogRef.current) ||
     JSON.stringify(serviceCategoryDraft) !== JSON.stringify(initialCategoryDraftRef.current),
   [heroTitle, heroSubtitle, aboutTitle, aboutText, selectedTemplateId, initialBookingTheme, sectionCatalog, serviceCategoryDraft]);
-  const isGlobalDirty = isPublicInfoDirty || isThemeDirty;
+  const cleanSnapshotRef = useRef({
+    whatsapp: data?.whatsapp_template ?? "",
+    depositEnabled: data?.booking_deposit_enabled ?? true,
+    depositAmount: String(data?.booking_deposit_amount ?? 3000),
+    payAtShop: data?.pay_at_shop ?? false,
+    voucher: initialVoucherWhatsappTemplate ?? DEFAULT_VOUCHER_WHATSAPP_TEMPLATE,
+    businessHours: initialBusinessHours,
+  });
+  const isGeneralDirty = useMemo(() =>
+    whatsappTemplate !== cleanSnapshotRef.current.whatsapp ||
+    bookingDepositEnabled !== cleanSnapshotRef.current.depositEnabled ||
+    bookingDepositAmount !== cleanSnapshotRef.current.depositAmount ||
+    payAtShop !== cleanSnapshotRef.current.payAtShop ||
+    voucherWhatsappTemplate !== cleanSnapshotRef.current.voucher ||
+    JSON.stringify(businessHours) !== JSON.stringify(cleanSnapshotRef.current.businessHours),
+  [whatsappTemplate, bookingDepositEnabled, bookingDepositAmount, payAtShop, voucherWhatsappTemplate, businessHours]);
+  const isGlobalDirty = isPublicInfoDirty || isThemeDirty || isGeneralDirty;
 
   const orderedServices = useMemo(() => {
     const rank = new Map(serviceOrderIds.map((id, index) => [id, index]));
@@ -762,6 +778,17 @@ export default function BusinessClient({
       setPayAtShop(fresh.data.pay_at_shop);
       setWhatsappTemplate(fresh.data.whatsapp_template);
     }
+
+    initialSectionCatalogRef.current = sectionCatalog;
+    initialCategoryDraftRef.current = serviceCategoryDraft;
+    cleanSnapshotRef.current = {
+      whatsapp: whatsappTemplate,
+      depositEnabled: bookingDepositEnabled,
+      depositAmount: bookingDepositAmount,
+      payAtShop: payAtShop,
+      voucher: voucherWhatsappTemplate,
+      businessHours: businessHours ?? null,
+    };
 
     try { window.localStorage.removeItem(mpDraftKey); } catch {}
     playSuccess();
