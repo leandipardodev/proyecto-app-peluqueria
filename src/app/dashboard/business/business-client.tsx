@@ -1914,28 +1914,53 @@ export default function BusinessClient({
 
       {/* Guardar todo flotante */}
       {portalReady && typeof document !== "undefined" && createPortal(
-        <button
-          type="button"
-          onClick={async () => {
-            if (isSaving) return;
-            setIsSaving(true);
-            try {
-              await saveAllSections();
-            } catch (e) {
-              showError(e instanceof Error ? e.message : "Error al guardar todo");
-            } finally {
-              setIsSaving(false);
-            }
-          }}
-          disabled={!isOwnerOrAdmin || isSaving || !isGlobalDirty}
-          className={`fixed bottom-4 right-4 z-50 inline-flex items-center rounded-full px-6 py-2.5 text-sm font-semibold shadow-lg transition-all duration-300 ${
-            isGlobalDirty
-              ? "bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white cursor-pointer select-none"
-              : "bg-zinc-300 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 cursor-not-allowed"
-          }`}
-        >
-          {isSaving ? "Guardando..." : (isGlobalDirty ? "Guardar todo" : "Todo guardado")}
-        </button>,
+        isGlobalDirty ? (
+          <button
+            type="button"
+            onClick={async () => {
+              if (isSaving) return;
+              setIsSaving(true);
+              try {
+                await saveAllSections();
+              } catch (e) {
+                showError(e instanceof Error ? e.message : "Error al guardar todo");
+              } finally {
+                setIsSaving(false);
+              }
+            }}
+            disabled={isSaving}
+            className="fixed bottom-4 right-4 z-50 inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold shadow-lg bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white cursor-pointer select-none animate-pulse-glow transition-all duration-300"
+          >
+            {isSaving ? (
+              <>
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Guardando...
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+                Guardar todo
+              </>
+            )}
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled
+            className="fixed bottom-4 right-4 z-50 inline-flex items-center justify-center w-9 h-9 rounded-full bg-zinc-300 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed shadow-sm transition-all duration-300"
+            title="No hay cambios pendientes"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </button>
+        ),
         document.body
       )}
 

@@ -505,7 +505,7 @@ export default function BookingThemeLivePreview({
   }
 
   return (
-    <section className="self-start max-sm:w-screen max-sm:rounded-none max-sm:border-x-0 rounded-3xl border border-white/30 bg-white p-3 dark:border-white/10 dark:bg-zinc-800 overflow-hidden">
+    <section className="self-start max-sm:w-full max-sm:rounded-none max-sm:border-x-0 rounded-3xl border border-white/30 bg-white p-3 dark:border-white/10 dark:bg-zinc-800 overflow-hidden">
       {/* Mobile: toolbar above */}
       {toolbar && <div className="pb-3 lg:hidden"><div className="flex justify-center"><div className="w-full max-w-sm">{toolbar}</div></div></div>}
       <div className="lg:flex lg:gap-6 lg:items-start">
