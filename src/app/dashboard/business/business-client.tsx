@@ -1269,9 +1269,9 @@ export default function BusinessClient({
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.3, ease: "easeInOut" }}
-              className="max-sm:overflow-visible overflow-hidden"
+              className="overflow-hidden"
             >
-              <div className="p-6 max-sm:px-0">
+              <div className="p-6">
                 <ErrorBoundary>
                 <BookingThemeLivePreview
                   toolbar={

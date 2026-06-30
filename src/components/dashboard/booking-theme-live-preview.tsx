@@ -16,7 +16,6 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
-  type DragOverEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
 import {
@@ -175,25 +174,19 @@ const SortableServiceCard = memo(function SortableServiceCard({
   service,
   disabled,
   s,
-  isOver,
-  isActive,
-  isDraggingAny,
 }: {
   service: PreviewService;
   disabled: boolean;
   s: PreviewTheme;
-  isOver: boolean;
-  isActive: boolean;
-  isDraggingAny: boolean;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({
     id: service.id,
     disabled,
   });
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition: isDraggingAny ? 'none' : transition,
+    transition,
     opacity: isDragging ? 0 : 1,
     pointerEvents: isDragging ? 'none' as const : undefined,
   };
@@ -201,7 +194,7 @@ const SortableServiceCard = memo(function SortableServiceCard({
   return (
     <div className="relative">
       {/* Drop indicator line above the card */}
-      {isOver && !isActive && (
+      {isOver && !isDragging && (
         <div className="absolute -top-[1px] left-4 right-4 z-20 flex items-center gap-1 pointer-events-none">
           <div className="h-[3px] flex-1 rounded-full bg-blue-500/80" />
           <svg className="w-2 h-2 text-blue-500/80" viewBox="0 0 10 10" fill="currentColor">
@@ -214,7 +207,7 @@ const SortableServiceCard = memo(function SortableServiceCard({
         style={style}
         {...attributes}
         {...listeners}
-        className={`rounded-3xl border-2 transition-shadow duration-200 select-none group touch-none ${s.cardDepth} ${s.plate} ${s.hoverBorder} ${isOver && !isActive ? "border-blue-400/60 ring-2 ring-blue-400/30 opacity-60" : ""} ${!disabled ? "cursor-grab active:cursor-grabbing" : ""}`}
+        className={`rounded-3xl border-2 transition-shadow duration-200 select-none group touch-none ${s.cardDepth} ${s.plate} ${s.hoverBorder} ${isOver && !isDragging ? "border-blue-400/60 ring-2 ring-blue-400/30 opacity-60" : ""} ${!disabled ? "cursor-grab active:cursor-grabbing" : ""}`}
       >
         {!disabled && (
           <span className="absolute left-1.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-40 transition-all duration-200 flex flex-col gap-0.5">
@@ -299,8 +292,6 @@ export default function BookingThemeLivePreview({
 }: Props) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [activeDragService, setActiveDragService] = useState<PreviewService | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [overId, setOverId] = useState<string | null>(null);
   const [addingSection, setAddingSection] = useState(false);
   const [newSectionInput, setNewSectionInput] = useState("");
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
@@ -390,19 +381,12 @@ export default function BookingThemeLivePreview({
   );
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
-    setIsDragging(true);
     const service = serviceMap.get(event.active.id as string);
     if (service) setActiveDragService(service);
   }, [serviceMap]);
 
-  const handleDragOver = useCallback((event: DragOverEvent) => {
-    setOverId(event.over ? (event.over.id as string) : null);
-  }, []);
-
   const handleDragEnd = useCallback((event: DragEndEvent) => {
-    setIsDragging(false);
     setActiveDragService(null);
-    setOverId(null);
     const { active, over } = event;
     if (!over || disabled) return;
 
@@ -716,9 +700,7 @@ export default function BookingThemeLivePreview({
                       sensors={sensors}
                       collisionDetection={pointerWithin}
                       onDragStart={handleDragStart}
-                      onDragOver={handleDragOver}
                       onDragEnd={handleDragEnd}
-                      autoScroll={{ threshold: 10 }}
                     >
                       <SortableContext items={currentServiceIds} strategy={verticalListSortingStrategy}>
                         {activeCategory === "Todos" ? (
@@ -778,17 +760,14 @@ export default function BookingThemeLivePreview({
                                     </div>
                                   )}
                                   <div className="space-y-1.5">
-                                    {sectionServices.map((service) => (
-                                      <SortableServiceCard
-                                        key={service.id}
-                                        service={service}
-                                        disabled={disabled}
-                                        s={s}
-                                        isOver={overId === service.id}
-                                        isActive={activeDragService?.id === service.id}
-                                        isDraggingAny={isDragging}
-                                      />
-                                    ))}
+                                      {sectionServices.map((service) => (
+                                        <SortableServiceCard
+                                          key={service.id}
+                                          service={service}
+                                          disabled={disabled}
+                                          s={s}
+                                        />
+                                      ))}
                                   </div>
                                 </div>
                               );
@@ -797,16 +776,13 @@ export default function BookingThemeLivePreview({
                         ) : (
                           <div className="space-y-1.5">
                             {(servicesByCategory.get(activeCategory) || []).map((service) => (
-                              <SortableServiceCard
-                                key={service.id}
-                                service={service}
-                                disabled={disabled}
-                                s={s}
-                                isOver={overId === service.id}
-                                isActive={activeDragService?.id === service.id}
-                                isDraggingAny={isDragging}
-                              />
-                            ))}
+                                <SortableServiceCard
+                                  key={service.id}
+                                  service={service}
+                                  disabled={disabled}
+                                  s={s}
+                                />
+                              ))}
                           </div>
                         )}
                       </SortableContext>

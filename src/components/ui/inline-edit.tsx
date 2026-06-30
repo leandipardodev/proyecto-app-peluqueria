@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback, type KeyboardEvent } from "react";
+import { useState, useRef, useEffect, useCallback, memo, type KeyboardEvent } from "react";
 
 type Props = {
   value: string;
@@ -12,7 +12,7 @@ type Props = {
   disabled?: boolean;
 };
 
-export default function InlineEdit({
+function InlineEdit({
   value,
   onChange,
   placeholder,
@@ -102,3 +102,5 @@ export default function InlineEdit({
     </span>
   );
 }
+
+export default memo(InlineEdit);
