@@ -884,7 +884,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                         `width=${w},height=${h},left=${left},top=${top},menubar=no,toolbar=no,location=no`
                       );
                     }}
-                    className="relative mt-3 flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl border border-violet-200/60 bg-gradient-to-r from-violet-600 to-amber-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition-shadow hover:shadow-violet-400/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
+                    className="relative mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-violet-200/60 bg-gradient-to-r from-violet-600 to-amber-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition-shadow hover:shadow-violet-400/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
                     whileTap={{ scale: 0.97 }}
                   >
                     <motion.div

@@ -542,7 +542,7 @@ export default function BookingThemeLivePreview({
                   {/* Header */}
                   <div className="pb-3">
                     <div className="flex items-center gap-3">
-                      <label className="group relative h-12 w-12 flex items-center justify-center shrink-0 overflow-hidden rounded-full focus-visible:ring-2 focus-visible:ring-[#7AB8FF]/50 outline-none cursor-pointer ring-[#0071E3]/0 hover:ring-2 hover:ring-[#0071E3]/30 transition-all duration-200">
+                      <label className="group relative h-12 w-12 flex items-center justify-center shrink-0 rounded-full focus-visible:ring-2 focus-visible:ring-[#7AB8FF]/50 outline-none cursor-pointer ring-[#0071E3]/0 hover:ring-2 hover:ring-[#0071E3]/30 transition-all duration-200">
                         <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={onLogoUpload} disabled={disabled} className="sr-only" />
                         {logoUrl ? (
                           <Image src={logoUrl} alt="Logo" width={96} height={96} sizes="48px" className="h-full w-full object-contain" />

@@ -834,7 +834,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
       <div className={`relative z-10 flex h-full items-start justify-center p-4 sm:p-8 lg:p-12 ${step === 4 ? "opacity-0" : ""}`}>
         <div className="w-full max-w-md md:max-w-xl">
         <motion.div
-          className={`rounded-[32px] p-6 sm:p-10 lg:p-12 h-[min(860px,calc(100dvh-2rem))] sm:h-[min(900px,calc(100dvh-3rem))] flex flex-col overflow-y-auto ${templateStyles.shell}`}
+          className={`rounded-[32px] p-6 sm:p-10 lg:p-12 h-[min(860px,calc(100dvh-2rem))] sm:h-[min(900px,calc(100dvh-3rem))] flex flex-col ${templateStyles.shell}`}
           style={(step === 3 || step === 4) && !done ? { height: 'auto' } as React.CSSProperties : undefined}>
           {!done ? (
             <>

@@ -1014,7 +1014,7 @@ export default function BusinessClient({
           <Link
             id="setup-staff"
             href={withDashboardBase("/dashboard/staff", dashboardBasePath)}
-            className="group relative flex items-center gap-4 rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-zinc-900 px-5 py-5 shadow-md hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 overflow-hidden"
+            className="group relative flex items-center gap-4 rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-zinc-900 px-5 py-5 shadow-md hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/80 to-transparent dark:from-emerald-950/30 to-transparent pointer-events-none" />
             <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-emerald-400 to-emerald-300 dark:from-emerald-500 dark:to-emerald-700" />
@@ -1030,7 +1030,7 @@ export default function BusinessClient({
           <Link
             id="setup-services"
             href={withDashboardBase("/dashboard/services", dashboardBasePath)}
-            className="group relative flex items-center gap-4 rounded-2xl border border-sky-200 dark:border-sky-800 bg-white dark:bg-zinc-900 px-5 py-5 shadow-md hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 overflow-hidden"
+            className="group relative flex items-center gap-4 rounded-2xl border border-sky-200 dark:border-sky-800 bg-white dark:bg-zinc-900 px-5 py-5 shadow-md hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-sky-50/80 to-transparent dark:from-sky-950/30 to-transparent pointer-events-none" />
             <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-sky-400 to-sky-300 dark:from-sky-500 dark:to-sky-700" />
@@ -1097,7 +1097,7 @@ export default function BusinessClient({
       <div className="flex flex-col gap-6">
       {/* Card: Información Pública */}
       <form id="setup-public-info" onSubmit={handleSavePublicInfo} className="order-1">
-        <div className="rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors bg-white dark:bg-zinc-900">
+        <div className="rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm transition-colors bg-white dark:bg-zinc-900">
           <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
             <div className="p-2 rounded-full bg-violet-500/15">
               <Store className="w-5 h-5 text-violet-600" />
@@ -1301,7 +1301,7 @@ export default function BusinessClient({
       </section>
 
       {/* Card: Configuración Técnica */}
-      <div id="setup-payments" className="order-3 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors bg-white dark:bg-zinc-900">
+      <div id="setup-payments" className="order-3 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm transition-colors bg-white dark:bg-zinc-900">
         <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
           <div className="p-2 rounded-full bg-amber-500/15">
             <Smartphone className="w-5 h-5 text-amber-600" />
@@ -1431,7 +1431,7 @@ export default function BusinessClient({
 
       <div className="order-2 lg:grid lg:grid-cols-2 gap-6">
         {/* Card: Horarios de Atención */}
-        <div id="setup-hours" className="rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors bg-white dark:bg-zinc-900">
+        <div id="setup-hours" className="rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm transition-colors bg-white dark:bg-zinc-900">
           <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
             <div className="p-2 rounded-full bg-blue-500/15">
               <Clock className="w-5 h-5 text-blue-600" />
@@ -1534,7 +1534,7 @@ export default function BusinessClient({
         </div>
 
         {/* Card: Feriados y Excepciones */}
-        <div className="rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors bg-white dark:bg-zinc-900">
+        <div className="rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm transition-colors bg-white dark:bg-zinc-900">
           <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
             <div className="p-2 rounded-full bg-amber-500/15">
               <Calendar className="w-5 h-5 text-amber-600" />
