@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { createPortal } from "react-dom";
 import { X, Plus, Loader2, Check, AlertCircle } from "lucide-react";
@@ -10,15 +11,15 @@ import { useToast } from "@/components/ui/toast";
 interface BatchEntry {
   id: string;
   nombre_producto: string;
-  quantity: number;
-  unit_cost: number;
+  quantity: number | "";
+  unit_cost: number | "";
 }
 
 let entryCounter = 0;
 
 function createEmptyEntry(): BatchEntry {
   entryCounter++;
-  return { id: `entry-${entryCounter}`, nombre_producto: "", quantity: 0, unit_cost: 0 };
+  return { id: `entry-${entryCounter}`, nombre_producto: "", quantity: "", unit_cost: "" };
 }
 
 interface BatchAddProductModalProps {
@@ -29,6 +30,7 @@ interface BatchAddProductModalProps {
 
 export default function BatchAddProductModal({ shopId, open, onClose }: BatchAddProductModalProps) {
   const { addToast } = useToast();
+  const router = useRouter();
   const [entries, setEntries] = useState<BatchEntry[]>([createEmptyEntry()]);
   const [saving, setSaving] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
@@ -65,8 +67,8 @@ export default function BatchAddProductModal({ shopId, open, onClose }: BatchAdd
       setProgress({ current: i + 1, total: valid.length });
       const result = await addProducts([{
         nombre_producto: valid[i].nombre_producto,
-        quantity: valid[i].quantity,
-        unit_cost: valid[i].unit_cost,
+        quantity: Number(valid[i].quantity || 0),
+        unit_cost: Number(valid[i].unit_cost || 0),
       }], shopId);
       if (result.success) ok++;
       else fail++;
@@ -74,6 +76,7 @@ export default function BatchAddProductModal({ shopId, open, onClose }: BatchAdd
 
     setResults({ ok, fail });
     setSaving(false);
+    router.refresh();
     addToast(`${ok} producto${ok !== 1 ? "s" : ""} agregado${ok !== 1 ? "s" : ""}${fail > 0 ? `, ${fail} error${fail !== 1 ? "es" : ""}` : ""}`, fail > 0 ? "error" : "success");
     if (fail === 0) {
       onClose();
@@ -265,7 +268,10 @@ function EntryCard({
               type="number"
               min="0"
               value={entry.quantity}
-              onChange={(e) => onUpdate({ quantity: Math.max(0, parseInt(e.target.value) || 0) })}
+              onChange={(e) => {
+                const val = e.target.value;
+                onUpdate({ quantity: val === "" ? "" : Math.max(0, parseInt(val) || 0) });
+              }}
               className="w-full px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
             />
           </div>
@@ -278,7 +284,10 @@ function EntryCard({
               min="0"
               step="0.01"
               value={entry.unit_cost}
-              onChange={(e) => onUpdate({ unit_cost: Math.max(0, parseFloat(e.target.value) || 0) })}
+              onChange={(e) => {
+                const val = e.target.value;
+                onUpdate({ unit_cost: val === "" ? "" : Math.max(0, parseFloat(val) || 0) });
+              }}
               className="w-full px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
             />
           </div>
