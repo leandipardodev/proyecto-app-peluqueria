@@ -207,7 +207,7 @@ const SortableServiceCard = memo(function SortableServiceCard({
         style={style}
         {...attributes}
         {...listeners}
-        className={`rounded-3xl border-2 transition-shadow duration-200 select-none group touch-none ${s.cardDepth} ${s.plate} ${s.hoverBorder} ${isOver && !isDragging ? "border-blue-400/60 ring-2 ring-blue-400/30 opacity-60" : ""} ${!disabled ? "cursor-grab active:cursor-grabbing" : ""}`}
+        className={`rounded-3xl border-2 transition-shadow duration-200 select-none group ${isDragging ? "touch-none" : "touch-pan-y"} ${s.cardDepth} ${s.plate} ${s.hoverBorder} ${isOver && !isDragging ? "border-blue-400/60 ring-2 ring-blue-400/30 opacity-60" : ""} ${!disabled ? "cursor-grab active:cursor-grabbing" : ""}`}
       >
         {!disabled && (
           <span className="absolute left-1.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-40 transition-all duration-200 flex flex-col gap-0.5">
@@ -369,7 +369,7 @@ export default function BookingThemeLivePreview({
   const sensors = useSensors(
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 750,
+        delay: 500,
         tolerance: 5,
       },
     }),
