@@ -45,7 +45,7 @@ export default async function DashboardLayout({
         <HelpModal />
         <DashboardHeaderLoader userEmail={user.email ?? ""} onLogout={logout} />
 
-        <main className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain p-3 sm:p-6 lg:p-8">
+        <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-contain p-3 sm:p-6 lg:p-8">
           <PullToRefresh>
             <DashboardPageTransition>{children}</DashboardPageTransition>
           </PullToRefresh>

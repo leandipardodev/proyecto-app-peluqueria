@@ -1251,7 +1251,7 @@ export default function BusinessClient({
           onClick={() => setShowThemeCard((v) => !v)}
           className="w-full px-6 py-5 border-b border-white/10 flex items-center gap-3 text-left"
         >
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Personalizar mi tienda</h2>
                 <InfoTooltip text="Elegí un diseño visual y personalizá los textos que se muestran en tu tienda online. Hacé clic sobre cualquier texto para editarlo directamente. Los cambios se guardan automáticamente." />
@@ -1464,7 +1464,7 @@ export default function BusinessClient({
             <div className="p-2 rounded-full bg-blue-500/15">
               <Clock className="w-5 h-5 text-blue-600" />
             </div>
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Horarios de Atención</h2>
               <p className="text-xs text-zinc-400 dark:text-zinc-500">Días y horarios de apertura del local</p>
             </div>
@@ -1567,7 +1567,7 @@ export default function BusinessClient({
             <div className="p-2 rounded-full bg-amber-500/15">
               <Calendar className="w-5 h-5 text-amber-600" />
             </div>
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Feriados y Excepciones</h2>
               <p className="text-xs text-zinc-400 dark:text-zinc-500">Cierres totales o horarios reducidos para dias puntuales</p>
             </div>
@@ -1843,7 +1843,7 @@ export default function BusinessClient({
           <div className="p-2 rounded-full bg-violet-500/15">
             <MessageSquareText className="w-5 h-5 text-violet-600" />
           </div>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Comunicaciones con los clientes</h2>
               <InfoTooltip text="Al editar las plantillas, los nuevos mensajes de WhatsApp que se envíen automáticamente usarán el texto personalizado. Las etiquetas (@Nombre, @Servicio, etc.) se reemplazarán con los datos reales de cada turno o voucher." />
