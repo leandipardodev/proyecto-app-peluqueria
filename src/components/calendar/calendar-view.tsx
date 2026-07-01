@@ -6,6 +6,17 @@ import { ChevronLeft, ChevronRight, Plus, Pointer, X, ExternalLink, Phone } from
 import { AnimatePresence, motion, useAnimation } from "framer-motion";
 import { useRef, useState, useEffect, useMemo, useCallback, memo } from "react";
 import { createPortal } from "react-dom";
+import {
+  DndContext,
+  DragOverlay,
+  useDraggable,
+  useDroppable,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragStartEvent,
+  type DragEndEvent,
+} from "@dnd-kit/core";
 import { GRID_END_HOUR, GRID_START_HOUR, HOUR_HEIGHT } from "@/lib/calendar-constants";
 import ContextMenu from "@/components/ui/context-menu";
 import type { ContextMenuItem } from "@/components/ui/context-menu";
@@ -73,6 +84,7 @@ interface CalendarViewProps {
   onViewModeChange?: (mode: "week" | "day" | "month") => void;
   onBatchClick?: () => void;
   initialViewMode?: "week" | "day" | "month";
+  onMoveAppointment?: (appointmentId: string, newStartIso: string) => void;
 }
 
 function hourFromHHmm(v: string): number {
@@ -120,6 +132,38 @@ const NowLine = memo(function NowLine({ day, gridStartHour, gridEndHour }: { day
     && prev.gridEndHour === next.gridEndHour
     && getArgentinaDateKey(prev.day) === getArgentinaDateKey(next.day);
 });
+
+function HourDroppable({ hour, dayStr, isOpenSlot, onSlotClick, mobileLabel }: {
+  hour: number;
+  dayStr: string;
+  isOpenSlot: boolean;
+  onSlotClick: (date: Date, hour: number) => void;
+  mobileLabel?: string;
+}) {
+  const droppableId = `slot-${dayStr}-${hour}`;
+  const { setNodeRef, isOver } = useDroppable({
+    id: droppableId,
+    data: { dayStr, hour },
+  });
+  return (
+    <div
+      ref={setNodeRef}
+      data-droppable-id={droppableId}
+      className={`relative overflow-visible border-b border-zinc-200/30 dark:border-zinc-800/40 last:border-b-0 transition-colors p-1.5 ${
+        isOpenSlot
+          ? "hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer"
+          : "bg-zinc-100/70 dark:bg-zinc-800/50 closed-slot-pattern"
+      } ${isOver ? "bg-sky-200/60 dark:bg-sky-700/40 ring-2 ring-sky-400/50 ring-inset z-20" : ""}`}
+      onClick={isOpenSlot ? () => onSlotClick(new Date(`${dayStr}T12:00:00`), hour) : undefined}
+    >
+      {mobileLabel && (
+        <span className="absolute left-1 top-1 text-[8px] font-medium text-gray-500 dark:text-gray-400 select-none pointer-events-none">
+          {mobileLabel}
+        </span>
+      )}
+    </div>
+  );
+}
 
 const DAY_MAP: Record<number, string> = {
   0: "sunday", 1: "monday", 2: "tuesday", 3: "wednesday",
@@ -177,6 +221,15 @@ const AppointmentBlock = memo(function AppointmentBlock({
   onAppointmentClick: (appt: Appointment | null) => void;
   onContextMenu?: (appt: NormalizedAppointment, e: React.MouseEvent) => void;
 }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `appt-${appt.id}`,
+    data: {
+      appointmentId: appt.id,
+      startMin,
+      customerName: appt.customers?.nombre || "Sin cliente",
+      startHhmm: appt.start_hhmm,
+    },
+  });
   const isWeekMode = viewMode === "week";
   const isCompact = cols >= 3 || durationMin <= 45;
   const topPx = ((startMin - gridStartHour * 60) / 60) * HOUR_HEIGHT;
@@ -196,7 +249,10 @@ const AppointmentBlock = memo(function AppointmentBlock({
   const isConfirmed = appt.status === "confirmed" || appt.status === "in_progress";
   return (
     <div
-      className={`absolute pointer-events-auto min-w-0 text-xs cursor-pointer bg-white dark:bg-zinc-800/90 border border-zinc-200/50 dark:border-zinc-700/50 group overflow-hidden ${isCancelled ? "opacity-0 pointer-events-none" : isCompleted ? "opacity-55" : isNoShow ? "opacity-40" : ""}`}
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      className={`absolute pointer-events-auto min-w-0 text-xs cursor-grab active:cursor-grabbing bg-white dark:bg-zinc-800/90 border border-zinc-200/50 dark:border-zinc-700/50 group overflow-hidden ${isCancelled ? "opacity-0 pointer-events-none" : isCompleted ? "opacity-55" : isNoShow ? "opacity-40" : ""} ${isDragging ? "opacity-30 ring-2 ring-sky-400" : ""}`}
       style={{
         top: `${topPx}px`,
         height: `${Math.max(heightPx - 2, 18)}px`,
@@ -206,10 +262,11 @@ const AppointmentBlock = memo(function AppointmentBlock({
         borderLeft: isCancelled
           ? undefined
           : `3px solid ${staffColor.accent}`,
+        touchAction: "none",
       }}
       onClick={(e) => {
         e.stopPropagation();
-        onAppointmentClick(appt);
+        if (!isDragging) onAppointmentClick(appt);
       }}
       onMouseEnter={(e) => {
         if (isCoarsePointer) return;
@@ -267,6 +324,7 @@ export default memo(function CalendarView({
   onViewModeChange,
   onBatchClick,
   initialViewMode,
+  onMoveAppointment,
 }: CalendarViewProps) {
   const { weekStart, weekEnd, weekDays } = useMemo(() => {
     const ws = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -403,6 +461,68 @@ export default memo(function CalendarView({
       };
     });
   }, [filteredAppointments]);
+
+  const [activeDragInfo, setActiveDragInfo] = useState<{ customerName: string; startHhmm: string } | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    })
+  );
+
+  const pointerPosRef = useRef({ x: 0, y: 0 });
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => { pointerPosRef.current = { x: e.clientX, y: e.clientY }; };
+    window.addEventListener("pointermove", onMove);
+    return () => window.removeEventListener("pointermove", onMove);
+  }, []);
+
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const data = event.active.data.current as {
+      appointmentId?: string;
+      startMin?: number;
+      customerName?: string;
+      startHhmm?: string;
+    } | undefined;
+    if (!data?.appointmentId) return;
+    setActiveDragInfo({
+      customerName: data.customerName || "Sin cliente",
+      startHhmm: data.startHhmm || "",
+    });
+  }, []);
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragInfo(null);
+    if (!over || !onMoveAppointment) return;
+
+    const activeData = active.data.current as { appointmentId?: string; startMin?: number } | undefined;
+    const overData = over.data.current as { dayStr?: string; hour?: number } | undefined;
+    if (!activeData?.appointmentId || !overData?.dayStr || overData.hour === undefined) return;
+
+    const droppableEl = document.querySelector(`[data-droppable-id="slot-${overData.dayStr}-${overData.hour}"]`);
+    let offsetMinutes = 0;
+    if (droppableEl) {
+      const rect = droppableEl.getBoundingClientRect();
+      const pointerY = pointerPosRef.current.y;
+      const offsetY = pointerY - rect.top;
+      offsetMinutes = Math.round((offsetY / HOUR_HEIGHT) * 60 / 15) * 15;
+      offsetMinutes = Math.min(Math.max(offsetMinutes, 0), 45);
+    }
+
+    const totalMinutes = overData.hour * 60 + Math.min(Math.max(offsetMinutes, 0), 45);
+
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    const arDateStr = `${overData.dayStr}T${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00-03:00`;
+    const utcIso = new Date(arDateStr).toISOString();
+
+    onMoveAppointment(activeData.appointmentId, utcIso);
+  }, [onMoveAppointment]);
+
+  const handleDragCancel = useCallback(() => {
+    setActiveDragInfo(null);
+  }, []);
 
   const staffColorMap = useMemo(() => {
     const map: Record<string, (typeof STAFF_COLORS)[0]> = {};
@@ -1026,6 +1146,12 @@ export default memo(function CalendarView({
           </div>
         </div>
       ) : (
+        <DndContext
+          sensors={sensors}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
+        >
         <div
           ref={scrollContainerRef}
           className="flex-1 min-h-0 overflow-auto scroll-smooth"
@@ -1138,21 +1264,14 @@ export default memo(function CalendarView({
                       {hours.map((hour) => {
                         const isOpenSlot = openSlotsByDay.get(dayKey)?.has(hour) ?? false;
                         return (
-                        <div
+                        <HourDroppable
                           key={hour}
-                          className={`relative overflow-visible border-b border-zinc-200/30 dark:border-zinc-800/40 last:border-b-0 transition-colors ${(isMobileDayMode || (isMobileViewport && viewMode === "week" && dayIndex === 0)) ? "pl-7 pr-1 py-1.5" : "p-1.5"} ${
-                            isOpenSlot
-                              ? "hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer"
-                              : "bg-zinc-100/70 dark:bg-zinc-800/50 closed-slot-pattern"
-                          }`}
-                          onClick={isOpenSlot ? () => onSlotClick(day, hour) : undefined}
-                        >
-                          {(isMobileDayMode || (isMobileViewport && viewMode === "week" && dayIndex === 0)) && (
-                            <span className="absolute left-1 top-1 text-[8px] font-medium text-gray-500 dark:text-gray-400 select-none pointer-events-none">
-                              {`${String(hour).padStart(2, "0")}:00`}
-                            </span>
-                          )}
-                        </div>
+                          hour={hour}
+                          dayStr={dayStr}
+                          isOpenSlot={isOpenSlot}
+                          onSlotClick={onSlotClick}
+                          mobileLabel={(isMobileDayMode || (isMobileViewport && viewMode === "week" && dayIndex === 0)) ? `${String(hour).padStart(2, "0")}:00` : undefined}
+                        />
                       );})}
 
                       <div
@@ -1187,6 +1306,17 @@ export default memo(function CalendarView({
             })}
           </div>
         </div>
+        <DragOverlay dropAnimation={null}>
+          {activeDragInfo && (
+            <div
+              className="rounded-lg bg-white dark:bg-zinc-800 border-2 border-sky-400/70 shadow-xl opacity-85 flex items-center px-3 py-1.5 text-xs font-medium text-gray-900 dark:text-gray-100 min-w-[120px] pointer-events-none select-none"
+              style={{ fontFamily: "Inter, sans-serif" }}
+            >
+              {activeDragInfo.customerName} — {activeDragInfo.startHhmm}
+            </div>
+          )}
+        </DragOverlay>
+      </DndContext>
       )}
 
       {portalReady && !isCoarsePointer && hoverTooltip && createPortal((() => {

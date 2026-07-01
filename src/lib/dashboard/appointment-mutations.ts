@@ -975,6 +975,129 @@ export async function redeemLoyaltyReward(appointmentId: string, shopIdOverride?
   }
 }
 
+export async function moveAppointmentGroup(
+  primaryId: string,
+  newStartIso: string,
+  shopId?: string
+): Promise<ActionResult<{ updatedIds: string[] }>> {
+  try {
+    if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+
+    const auth = await createServerClient();
+    const { data: { user } } = await auth.auth.getUser();
+    if (!user) return { success: false, error: "SESION_EXPIRADA" };
+
+    const allowed = await canAccessShopId(user.id, shopId);
+    if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
+
+    const supabase = await createServerClient();
+
+    const { data: primary, error: primaryError } = await supabase
+      .from("appointments")
+      .select("id, start_time, end_time, customer_id, staff_id, shop_id, date_key_ar, status")
+      .eq("id", primaryId)
+      .eq("shop_id", shopId)
+      .maybeSingle();
+
+    if (primaryError) return { success: false, error: primaryError.message };
+    if (!primary) return { success: false, error: "Turno no encontrado" };
+
+    const parsedNewStart = new Date(newStartIso);
+    if (Number.isNaN(parsedNewStart.getTime())) {
+      return { success: false, error: "Fecha/hora invalida" };
+    }
+
+    const originalStart = new Date(primary.start_time);
+    const offsetMs = parsedNewStart.getTime() - originalStart.getTime();
+
+    const staffId = primary.staff_id;
+    const allRows: Array<{ id: string; start_time: string; end_time: string }> = [primary];
+
+    if (staffId && primary.customer_id) {
+      const { data: siblings } = await supabase
+        .from("appointments")
+        .select("id, start_time, end_time")
+        .eq("shop_id", shopId)
+        .eq("customer_id", primary.customer_id)
+        .eq("staff_id", staffId)
+        .eq("date_key_ar", primary.date_key_ar)
+        .neq("id", primaryId)
+        .not("status", "eq", "cancelled")
+        .order("start_time", { ascending: true });
+
+      if (siblings && siblings.length > 0) {
+        const combined = [primary, ...siblings].sort(
+          (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+        );
+        const primaryIdx = combined.findIndex((r) => r.id === primaryId);
+
+        for (let i = primaryIdx + 1; i < combined.length; i++) {
+          const gap = new Date(combined[i].start_time).getTime() - new Date(combined[i - 1].end_time).getTime();
+          if (Math.abs(gap) < 60000) {
+            allRows.push(combined[i]);
+          } else break;
+        }
+
+        for (let i = primaryIdx - 1; i >= 0; i--) {
+          const gap = new Date(combined[i + 1].start_time).getTime() - new Date(combined[i].end_time).getTime();
+          if (Math.abs(gap) < 60000) {
+            allRows.unshift(combined[i]);
+          } else break;
+        }
+      }
+    }
+
+    const updates = allRows.map((row) => {
+      const newStart = new Date(new Date(row.start_time).getTime() + offsetMs);
+      const newEnd = new Date(new Date(row.end_time).getTime() + offsetMs);
+      return {
+        id: row.id,
+        start_time: newStart.toISOString(),
+        end_time: newEnd.toISOString(),
+        date_key_ar: getArgentinaDateKey(newStart.toISOString()),
+      };
+    });
+
+    if (staffId) {
+      const movingIds = updates.map((u) => u.id);
+      const conditions = updates.map(
+        (u) => `and(end_time.gt.${u.start_time},start_time.lt.${u.end_time})`
+      );
+      const { data: conflict } = await supabase
+        .from("appointments")
+        .select("id")
+        .eq("shop_id", shopId)
+        .eq("staff_id", staffId)
+        .not("status", "eq", "cancelled")
+        .or(conditions.join(","));
+
+      const realConflicts = (conflict || []).filter((c) => !movingIds.includes(c.id));
+      if (realConflicts.length > 0) return { success: false, error: "slot_taken" };
+    }
+
+    const updatedIds: string[] = [];
+    for (const u of updates) {
+      const { error } = await supabase
+        .from("appointments")
+        .update({
+          start_time: u.start_time,
+          end_time: u.end_time,
+          date_key_ar: u.date_key_ar,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", u.id)
+        .eq("shop_id", shopId);
+      if (error) return { success: false, error: error.message };
+      updatedIds.push(u.id);
+    }
+
+    await revalidateDashboardSegments(shopId, ["/calendar", "/appointments", ""]);
+    return { success: true, data: { updatedIds } };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al mover turno" };
+  }
+}
+
 export async function autoCompletePastAppointments(shopId: string): Promise<ActionResult<{ count: number }>> {
   try {
     if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };

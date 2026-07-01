@@ -8,4 +8,5 @@ export {
   deleteAppointment,
   cancelRecurringSeries,
   redeemLoyaltyReward,
+  moveAppointmentGroup,
 } from "./appointment-mutations";

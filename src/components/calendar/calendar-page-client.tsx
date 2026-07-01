@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { addWeeks, subWeeks } from "date-fns";
 import { motion } from "framer-motion";
 import { RefreshCcw } from "lucide-react";
+import { moveAppointmentGroup } from "@/lib/dashboard/appointment-actions";
+import { useToast } from "@/components/ui/toast";
 
 let realtimeChannelCounter = 0;
 
@@ -338,6 +340,40 @@ export default function CalendarPageClient({
     setSelectedAppointment(appt);
   }, []);
 
+  const { addToast } = useToast();
+  const appointmentsSnapshot = useRef<Appointment[]>([]);
+  const pendingMove = useRef(false);
+
+  const handleMoveAppointment = useCallback(async (appointmentId: string, newStartIso: string) => {
+    if (pendingMove.current) return;
+    pendingMove.current = true;
+    appointmentsSnapshot.current = appointments;
+
+    const durationMs = (() => {
+      const appt = appointments.find((a) => a.id === appointmentId);
+      if (!appt) return 0;
+      return new Date(appt.end_time).getTime() - new Date(appt.start_time).getTime();
+    })();
+
+    setAppointments((prev) =>
+      prev.map((a) =>
+        a.id === appointmentId
+          ? { ...a, start_time: newStartIso, end_time: new Date(new Date(newStartIso).getTime() + durationMs).toISOString() }
+          : a
+      )
+    );
+
+    const result = await moveAppointmentGroup(appointmentId, newStartIso, shopId);
+    if (result.success) {
+      addToast("Turno movido correctamente", "success");
+    } else {
+      setAppointments(appointmentsSnapshot.current);
+      const msg = result.error === "slot_taken" ? "El horario está ocupado por otro turno" : result.error || "Error al mover turno";
+      addToast(msg, "error");
+    }
+    pendingMove.current = false;
+  }, [appointments, shopId, addToast]);
+
   const refreshCounter = useRef(0);
   const refreshAppointments = useCallback(async () => {
     refreshCounter.current++;
@@ -479,6 +515,7 @@ export default function CalendarPageClient({
           onViewModeChange={(m) => { calendarViewModeRef.current = m; }}
           onBatchClick={() => setBatchModalOpen(true)}
           initialViewMode={initialViewMode as "week" | "day" | "month" | undefined}
+          onMoveAppointment={handleMoveAppointment}
         />
       </div>
 
