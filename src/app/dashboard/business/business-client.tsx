@@ -66,18 +66,44 @@ function getTourSteps(staffPlural: string, servicePlural: string) {
 
 function InfoTooltip({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
 
   return (
-    <span className="group relative inline-flex items-center">
+    <span ref={ref} className="relative inline-flex items-center">
       <span
+        role="button"
+        tabIndex={0}
         className="w-4 h-4 rounded-full bg-zinc-300 dark:bg-zinc-600 text-zinc-700 dark:text-zinc-300 text-[10px] font-bold inline-flex items-center justify-center cursor-help flex-shrink-0"
-        onClick={() => setOpen((v) => !v)}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") setOpen(false);
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setOpen((v) => !v);
+          }
+        }}
       >
         ?
       </span>
-      <span className={`absolute top-full left-1/2 -translate-x-1/2 mt-2 w-max max-w-[calc(100vw-2rem)] sm:max-w-xs p-3 rounded-xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs leading-relaxed shadow-lg z-[9999] pointer-events-none transition-opacity text-left whitespace-normal ${open ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
-        {text}
-      </span>
+      {open && (
+        <span className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-max max-w-[calc(100vw-2rem)] sm:max-w-xs p-3 rounded-xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs leading-relaxed shadow-lg z-[9999] text-left whitespace-normal">
+          {text}
+        </span>
+      )}
     </span>
   );
 }
