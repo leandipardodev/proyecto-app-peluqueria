@@ -176,7 +176,7 @@ export default function CalendarPageClient({
   const [fetchedRangeEnd, setFetchedRangeEnd] = useState(() => {
     const ws = getArgentinaWeekStart();
     const end = new Date(ws);
-    end.setUTCDate(ws.getUTCDate() + 90);
+    end.setUTCDate(ws.getUTCDate() + 45);
     end.setUTCHours(23, 59, 59, 999);
     return end.toISOString();
   });

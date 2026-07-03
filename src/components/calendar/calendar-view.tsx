@@ -404,9 +404,8 @@ function MonthCell({
     id: `month-cell-${cell.dateKey}`,
     data: { dayStr: cell.dateKey },
   });
-  const nonCancelled = appointments.filter((a) => a.status !== "cancelled" && a.status !== "no_show");
-  const visible = nonCancelled.slice(0, maxVisible);
-  const remaining = nonCancelled.length - visible.length;
+  const visible = appointments.slice(0, maxVisible);
+  const remaining = appointments.length - visible.length;
   return (
     <div
       ref={setNodeRef}
@@ -579,28 +578,30 @@ export default memo(function CalendarView({
       if (!byId.has(appt.id)) byId.set(appt.id, appt);
     }
 
-    return Array.from(byId.values()).map((a) => {
-      const startLocalIso = toArgentinaLocalIsoString(a.start_time);
-      const endLocalIso = toArgentinaLocalIsoString(a.end_time);
-      const startHhmm = extractArgentinaTimeHHmm(startLocalIso);
-      const endHhmm = extractArgentinaTimeHHmm(endLocalIso);
-      const startMinutes = minutesFromHHmm(startHhmm);
-      const endMinutes = minutesFromHHmm(endHhmm);
-      const sameDay = getArgentinaDateKey(startLocalIso) === getArgentinaDateKey(endLocalIso);
-      const durationMinutes = sameDay
-        ? Math.max(endMinutes - startMinutes, 1)
-        : Math.max((24 * 60 - startMinutes) + endMinutes, 1);
+    return Array.from(byId.values())
+      .filter((a) => a.status !== "cancelled" && a.status !== "no_show")
+      .map((a) => {
+        const startLocalIso = toArgentinaLocalIsoString(a.start_time);
+        const endLocalIso = toArgentinaLocalIsoString(a.end_time);
+        const startHhmm = extractArgentinaTimeHHmm(startLocalIso);
+        const endHhmm = extractArgentinaTimeHHmm(endLocalIso);
+        const startMinutes = minutesFromHHmm(startHhmm);
+        const endMinutes = minutesFromHHmm(endHhmm);
+        const sameDay = getArgentinaDateKey(startLocalIso) === getArgentinaDateKey(endLocalIso);
+        const durationMinutes = sameDay
+          ? Math.max(endMinutes - startMinutes, 1)
+          : Math.max((24 * 60 - startMinutes) + endMinutes, 1);
 
-      return {
-        ...a,
-        start_local_iso: startLocalIso,
-        end_local_iso: endLocalIso,
-        date_key_ar: getArgentinaDateKey(startLocalIso),
-        start_hhmm: startHhmm,
-        end_hhmm: endHhmm,
-        duration_minutes_ar: durationMinutes,
-      };
-    });
+        return {
+          ...a,
+          start_local_iso: startLocalIso,
+          end_local_iso: endLocalIso,
+          date_key_ar: getArgentinaDateKey(startLocalIso),
+          start_hhmm: startHhmm,
+          end_hhmm: endHhmm,
+          duration_minutes_ar: durationMinutes,
+        };
+      });
   }, [filteredAppointments]);
 
   const [activeDragInfo, setActiveDragInfo] = useState<{ customerName: string; startHhmm: string; targetTime?: string } | null>(null);
@@ -852,7 +853,6 @@ export default memo(function CalendarView({
   const appointmentCountByDateKey = useMemo(() => {
     const map = new Map<string, number>();
     for (const appt of mergedAppointments) {
-      if (appt.status === "cancelled" || appt.status === "no_show") continue;
       map.set(appt.date_key_ar, (map.get(appt.date_key_ar) || 0) + 1);
     }
     return map;
@@ -878,6 +878,17 @@ export default memo(function CalendarView({
     }
     return map;
   }, [mergedAppointments]);
+
+  // Lightweight map for the popover — includes all statuses (cancelled, no_show, etc.)
+  const popoverAppointmentsByKey = useMemo(() => {
+    const map = new Map<string, Appointment[]>();
+    for (const appt of filteredAppointments) {
+      const key = getArgentinaDateKey(appt.start_time);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(appt);
+    }
+    return map;
+  }, [filteredAppointments]);
 
   const maxCountForMonth = useMemo(() => {
     let max = 0;
@@ -916,7 +927,6 @@ export default memo(function CalendarView({
     const computeLayout = (appts: NormalizedAppointment[]) => {
       const dayEvents = appts
         .filter((appt) => {
-          if (appt.status === "cancelled" || appt.status === "no_show") return false;
           const startMin = minutesFromHHmm(appt.start_hhmm);
           const endMin = minutesFromHHmm(appt.end_hhmm);
           return endMin > gridStartHour * 60 && startMin < (gridEndHour + 1) * 60;
@@ -1630,7 +1640,12 @@ export default memo(function CalendarView({
       })(), document.body)}
 
       {selectedDayPopover && portalReady && createPortal((() => {
-        const dayAppts = mergedAppointments.filter((a) => a.date_key_ar === selectedDayPopover.dateKey);
+        const rawDayAppts = popoverAppointmentsByKey.get(selectedDayPopover.dateKey) || [];
+        const dayAppts = rawDayAppts.map((a) => ({
+          ...a,
+          start_hhmm: extractArgentinaTimeHHmm(toArgentinaLocalIsoString(a.start_time)),
+          date_key_ar: getArgentinaDateKey(a.start_time),
+        })).sort((a, b) => a.start_hhmm.localeCompare(b.start_hhmm));
         const cellRect = selectedDayPopover.el.getBoundingClientRect();
         const popLeft = Math.max(8, Math.min(cellRect.left, window.innerWidth - 300));
         const popTop = Math.max(8, cellRect.bottom + 4);
