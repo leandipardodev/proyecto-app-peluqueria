@@ -931,7 +931,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                         <div className="flex flex-col min-h-0 max-h-full w-full">
                         <div className="shrink-0 space-y-5">
                            <motion.h2 variants={stepItemReveal} className={`text-xl font-semibold text-center ${templateStyles.heading} ${templateStyles.headingFx}`}>{`Elegi tu ${serviceWordLower}`}</motion.h2>
-                          <motion.div variants={stepItemReveal} className="-mx-1 overflow-x-auto pb-1 no-scrollbar">
+                          <motion.div variants={stepItemReveal} className="-mx-1 overflow-x-auto pb-1 delicate-scroll">
                             <div className="flex items-center gap-2 px-1">
                               {categories.map((category) => {
                                 const active = selectedCategory === category;
