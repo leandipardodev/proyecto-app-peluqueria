@@ -188,6 +188,9 @@ export default function AppointmentDetailModal({
 
   useEffect(() => {
     setPortalReady(true);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
   }, []);
 
   function computeAppointmentGroup(aptId: string, customerId: string, staffId: string | null, startTime: string, allApts: SiblingAppointment[]): { group: SiblingAppointment[]; serviceIds: string[]; groupStartTime: string } {
@@ -570,13 +573,7 @@ export default function AppointmentDetailModal({
     setServicesJustSaved(true);
     addToast("Servicios actualizados", "success");
     onSuccess?.();
-    // Re-queue any quick changes that arrived during save
-    const remaining = pendingChangesRef.current;
-    if (Object.keys(remaining).length > 0) {
-      debounceRef.current = setTimeout(flushSave, 800);
-    }
-    clearTimeout(servicesSavedTimerRef.current ?? undefined);
-    servicesSavedTimerRef.current = setTimeout(() => { servicesSavedTimerRef.current = null; setServicesJustSaved(false); }, 2500);
+    onClose?.();
   }
 
   if (!appointment) return null;

@@ -138,16 +138,6 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     return () => el.removeEventListener("wheel", handler);
   }, []);
 
-  useEffect(() => {
-    const el = titleRef.current;
-    if (!el) return;
-    const check = () => setTitleOverflows(el.scrollWidth > el.clientWidth);
-    check();
-    const ro = new ResizeObserver(check);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [shop.heroTitle, shop.name]);
-
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedCombo, setSelectedCombo] = useState<Combo | null>(null);
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
@@ -207,8 +197,6 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const slotsRef = useRef<HTMLDivElement>(null);
   const stepsScrollRef = useRef<HTMLDivElement>(null);
   const categoryScrollRef = useRef<HTMLDivElement>(null);
-  const titleRef = useRef<HTMLDivElement>(null);
-  const [titleOverflows, setTitleOverflows] = useState(false);
   const [mpReady, setMpReady] = useState(false);
 
 
@@ -222,6 +210,13 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const staffWord = industryConfig.labels.staffSingular;
   const serviceWordLower = serviceWord.toLowerCase();
   const staffWordLower = staffWord.toLowerCase();
+
+  const stepTitles = useMemo(() => [
+    `Elegí tu ${serviceWordLower}`,
+    `Elegí tu ${staffWordLower}`,
+    "Elegí fecha y horario",
+    "Tus datos",
+  ], [serviceWordLower, staffWordLower]);
 
   const todayDate = useMemo(() => {
     const todayStr = getArgentinaDateString();
@@ -868,7 +863,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                 <div className="flex items-center gap-2 sm:gap-3">
                   <div
                     data-info-trigger
-                    className="h-10 w-10 sm:h-12 sm:w-12 flex items-center justify-center shrink-0 overflow-hidden cursor-pointer"
+                    className="h-14 w-14 sm:h-16 sm:w-16 flex items-center justify-center shrink-0 overflow-hidden rounded-2xl cursor-pointer"
                     onClick={() => setShowInfo(v => !v)}
                   >
                     {shop.logoUrl ? (
@@ -879,7 +874,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                         height={120}
                         sizes="64px"
                         priority
-                        className="h-full w-full object-contain"
+                        className="h-full w-full object-cover rounded-2xl"
                       />
                     ) : (
                       <span className={`text-sm font-semibold tracking-tight ${templateStyles.accent}`}>K</span>
@@ -888,17 +883,13 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                   <div className="min-w-0 flex-1">
                     <div
                       data-info-trigger
-                      ref={titleRef}
-                      className={`marquee-overflow ${titleOverflows ? "marquee-active" : ""} cursor-pointer`}
+                      className="truncate cursor-pointer"
                       onClick={() => setShowInfo(v => !v)}
                     >
                       <div
-                        className={`marquee-track text-[1.4rem] sm:text-[1.85rem] md:text-[2.25rem] font-black leading-[1.1] tracking-[-0.035em] ${templateStyles.headingFx} bg-gradient-to-r ${templateStyles.titleGradient} bg-clip-text text-transparent`}
+                        className={`text-[1.4rem] sm:text-[1.85rem] md:text-[2.25rem] font-black leading-[1.1] tracking-[-0.035em] truncate ${templateStyles.headingFx} bg-gradient-to-r ${templateStyles.titleGradient} bg-clip-text text-transparent`}
                       >
-                        <span>{shop.heroTitle || shop.name}</span>
-                        {titleOverflows && (
-                          <span>{shop.heroTitle || shop.name}</span>
-                        )}
+                        {shop.heroTitle || shop.name}
                       </div>
                     </div>
                     <motion.p
@@ -911,9 +902,10 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                     </motion.p>
                   </div>
                 </div>
-                <div className="flex justify-center pt-0 sm:pt-2">
+                <div className="relative flex items-center justify-center pt-3 pb-1">
+                  <div className={`absolute inset-x-4 h-[2px] rounded-full ${templateStyles.progressTrack}`} />
                   <motion.div
-                    className={`relative h-[2px] rounded-full origin-center ${templateStyles.progressFill}`}
+                    className={`absolute h-[2px] rounded-full origin-center ${templateStyles.progressFill}`}
                     animate={{
                       width: step === 0 ? "20%" : step === 1 ? "40%" : step === 2 ? "60%" : step === 3 ? "80%" : "100%",
                       opacity: step === 3 || step === 4 ? 1 : 0.8,
@@ -940,6 +932,16 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                       transition={{ duration: step === 3 ? 0.6 : 1.15, repeat: Infinity, ease: "linear" }}
                     />
                   </motion.div>
+                  <span
+                    className="relative z-10 px-3 text-[11px] font-semibold whitespace-nowrap rounded-full leading-tight"
+                    style={{
+                      backgroundColor: templateStyles.isDark ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.85)',
+                      backdropFilter: 'blur(6px)',
+                      WebkitBackdropFilter: 'blur(6px)',
+                    }}
+                  >
+                    {step >= 0 && step <= 3 ? stepTitles[step] : ""}
+                  </span>
                 </div>
               </div>
               )}
@@ -959,8 +961,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                     {step === 0 && (
                       <div className="flex flex-col h-full min-h-0">
                         <div className="flex flex-col min-h-0 max-h-full w-full">
-                        <div className="shrink-0 space-y-1">
-                           <motion.p variants={stepItemReveal} className={`text-center text-xs font-medium tracking-wide ${templateStyles.tiny}`}>{`Elegi tu ${serviceWordLower}`}</motion.p>
+                        <div className="shrink-0">
                           <motion.div
                             variants={stepItemReveal}
                             ref={categoryScrollRef}
@@ -1210,10 +1211,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                     {step === 1 && (
                       <div className="flex flex-col h-full min-h-0">
                         <div className="flex flex-col min-h-0 max-h-full w-full">
-                        <div className="shrink-0 pb-4">
-                           <motion.h2 variants={stepItemReveal} className={`text-xl font-semibold text-center ${templateStyles.heading} ${templateStyles.headingFx}`}>{`Elegi tu ${staffWordLower}`}</motion.h2>
-                        </div>
-                         <div className="flex-1 overflow-y-auto overflow-x-hidden delicate-scroll px-1 pt-2 pb-3 [scroll-snap-type:y_proximity]" onScroll={handleScroll}>
+                        <div className="flex-1 overflow-y-auto overflow-x-hidden delicate-scroll px-1 pt-2 pb-3 [scroll-snap-type:y_proximity]" onScroll={handleScroll}>
                            <div className="space-y-3">
                            <motion.div
                              onPointerDown={pushCard3D}
@@ -1359,9 +1357,7 @@ draggable={false}
                     {step === 2 && (
                       <div className="flex flex-col h-full min-h-0">
                         <div className="flex flex-col min-h-0 max-h-full w-full">
-                        <div className="shrink-0 space-y-4">
-                        <motion.h2 variants={stepItemReveal} className={`text-xl font-semibold text-center ${templateStyles.heading} ${templateStyles.headingFx}`}>Elegi fecha y horario</motion.h2>
-
+                        <div className="shrink-0">
                         <motion.div variants={stepItemReveal} className="flex items-center justify-between">
                            <button
                              type="button"
@@ -1562,9 +1558,6 @@ draggable={false}
 
                     {step === 3 && (
                       <div className="flex flex-col h-full min-h-0">
-                      <div className="shrink-0">
-                        <motion.h2 variants={stepItemReveal} className={`text-xl font-semibold text-center ${templateStyles.heading} ${templateStyles.headingFx}`}>Tus datos</motion.h2>
-                      </div>
                       <div className="flex-1 overflow-y-auto delicate-scroll pb-4">
                       <div className="space-y-4">
 

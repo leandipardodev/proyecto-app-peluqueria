@@ -48,25 +48,25 @@ describe("createAppointment — validation", () => {
   it("returns error when customer_id is missing", async () => {
     const fd = createFormData({ customer_id: "" });
     const result = await createAppointment(fd, "shop-123");
-    expect(result).toEqual({ success: false, error: "Todos los campos obligatorios deben completarse" });
+    expect(result).toEqual({ success: false, error: "Faltan campos obligatorios: cliente" });
   });
 
   it("returns error when service_id is missing", async () => {
     const fd = createFormData({ service_id: "" });
     const result = await createAppointment(fd, "shop-123");
-    expect(result).toEqual({ success: false, error: "Todos los campos obligatorios deben completarse" });
+    expect(result).toEqual({ success: false, error: "Faltan campos obligatorios: servicio" });
   });
 
   it("returns error when start_date is missing", async () => {
     const fd = createFormData({ start_date: "" });
     const result = await createAppointment(fd, "shop-123");
-    expect(result).toEqual({ success: false, error: "Todos los campos obligatorios deben completarse" });
+    expect(result).toEqual({ success: false, error: "Faltan campos obligatorios: fecha" });
   });
 
   it("returns error when start_time is missing", async () => {
     const fd = createFormData({ start_time: "" });
     const result = await createAppointment(fd, "shop-123");
-    expect(result).toEqual({ success: false, error: "Todos los campos obligatorios deben completarse" });
+    expect(result).toEqual({ success: false, error: "Faltan campos obligatorios: hora" });
   });
 
   it("returns error for negative deposit amount", async () => {
@@ -116,7 +116,7 @@ describe("createAppointment — auth & conflict", () => {
 
     const fd = createFormData();
     const result = await createAppointment(fd, "shop-123");
-    expect(result).toEqual({ success: false, error: "Servicio no encontrado" });
+    expect(result).toEqual({ success: false, error: "Uno o más servicios no encontrados" });
   });
 
   it("creates appointment successfully without staff assigned", async () => {
@@ -124,7 +124,12 @@ describe("createAppointment — auth & conflict", () => {
     vi.mocked(mockCreateServerClient).mockResolvedValue({
       auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: "user-1" } }, error: null }) },
       from: vi.fn((table: string) => {
-        if (table === "services") return chainableQuery({ single: vi.fn().mockResolvedValue({ data: { duration_minutes: 45 }, error: null }) });
+        if (table === "services") {
+          const svcChain = chainableQuery();
+          svcChain.then = (onfulfilled?: ((value: SupabaseResult) => unknown) | null) =>
+            Promise.resolve({ data: [{ id: "svc-1", duration_minutes: 45, price: 1000, name: "Corte" }], error: null }).then(onfulfilled);
+          return svcChain;
+        }
         if (table === "appointments") return chainableQuery({
           insert: vi.fn((rows: unknown[]) => {
             insertCalled = true;
@@ -149,11 +154,22 @@ describe("createAppointment — auth & conflict", () => {
     vi.mocked(mockCreateServerClient).mockResolvedValue({
       auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: "user-1" } }, error: null }) },
       from: vi.fn((table: string) => {
-        if (table === "services") return chainableQuery({ single: vi.fn().mockResolvedValue({ data: { duration_minutes: 45 }, error: null }) });
-        if (table === "appointments") return chainableQuery({
-          insert: vi.fn(),
-          maybeSingle: vi.fn().mockResolvedValue({ data: { id: "conflicting-apt" }, error: null }),
-        });
+        if (table === "services") {
+          const svcChain = chainableQuery();
+          svcChain.then = (onfulfilled?: ((value: SupabaseResult) => unknown) | null) =>
+            Promise.resolve({ data: [{ id: "svc-1", duration_minutes: 45, price: 1000, name: "Corte" }], error: null }).then(onfulfilled);
+          return svcChain;
+        }
+        if (table === "appointments") {
+          const aptChain = chainableQuery({
+            insert: vi.fn(() => chainableQuery()),
+            maybeSingle: vi.fn().mockResolvedValue({ data: { id: "conflicting-apt" }, error: null }),
+          });
+          // The conflict query uses .limit(1), not .maybeSingle(), so override then
+          aptChain.then = (onfulfilled) =>
+            Promise.resolve({ data: [{ id: "conflicting-apt" }], error: null }).then(onfulfilled);
+          return aptChain;
+        }
         return chainableQuery({ maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }) });
       }),
     } as never);
@@ -207,7 +223,7 @@ describe("updateAppointmentStatus", () => {
 
     vi.mocked(mockCreateServiceRole).mockResolvedValue({
       from: vi.fn(() => chainableQuery({
-        single: vi.fn().mockResolvedValue({ data: { loyalty_enabled: false, loyalty_cuts_required: 5 }, error: null }),
+        maybeSingle: vi.fn().mockResolvedValue({ data: { loyalty_enabled: false, loyalty_cuts_required: 5 }, error: null }),
       })),
     } as never);
 
@@ -238,10 +254,10 @@ describe("updateAppointmentStatus", () => {
 describe("redeemLoyaltyReward", () => {
   it("returns error when appointment has no customer", async () => {
     vi.mocked(mockCreateServiceRole).mockResolvedValue(supabaseStub());
-    // Override the first single() call to return an appointment without customer
+    // Override the first maybeSingle() call to return an appointment without customer
     const svcRoleStub = supabaseStub();
     svcRoleStub.from = vi.fn(() => chainableQuery({
-      single: vi.fn().mockResolvedValue({ data: { id: "apt-1", customer_id: null }, error: null }),
+      maybeSingle: vi.fn().mockResolvedValue({ data: { id: "apt-1", customer_id: null }, error: null }),
     }));
     vi.mocked(mockCreateServiceRole).mockResolvedValue(svcRoleStub as never);
 
@@ -252,7 +268,7 @@ describe("redeemLoyaltyReward", () => {
   it("returns error when reward already applied", async () => {
     const svcRoleStub = supabaseStub();
     svcRoleStub.from = vi.fn(() => chainableQuery({
-      single: vi.fn().mockResolvedValue({ data: { id: "apt-1", customer_id: "cust-1", service_id: "svc-1", is_paid: false, loyalty_reward_applied: true }, error: null }),
+      maybeSingle: vi.fn().mockResolvedValue({ data: { id: "apt-1", customer_id: "cust-1", service_id: "svc-1", is_paid: false, loyalty_reward_applied: true }, error: null }),
     }));
     vi.mocked(mockCreateServiceRole).mockResolvedValue(svcRoleStub as never);
 
@@ -264,14 +280,14 @@ describe("redeemLoyaltyReward", () => {
     let callCount = 0;
     const svcRoleStub = supabaseStub();
     svcRoleStub.from = vi.fn(() => chainableQuery({
-      single: vi.fn().mockImplementation(() => {
+      maybeSingle: vi.fn().mockImplementation(() => {
         callCount++;
         if (callCount === 1) return Promise.resolve({ data: { id: "apt-1", customer_id: "cust-1", service_id: "svc-1", is_paid: false, loyalty_reward_applied: false }, error: null });
         if (callCount === 2) return Promise.resolve({ data: { loyalty_enabled: true, loyalty_discount_percent: 50 }, error: null });
-        if (callCount === 3) return Promise.resolve({ data: { loyalty_rewards_available: 0 }, error: null });
         return Promise.resolve({ data: null, error: null });
       }),
     }));
+    svcRoleStub.rpc = vi.fn().mockResolvedValue({ data: { success: false }, error: null });
     vi.mocked(mockCreateServiceRole).mockResolvedValue(svcRoleStub as never);
 
     const result = await redeemLoyaltyReward("apt-1");
@@ -282,15 +298,15 @@ describe("redeemLoyaltyReward", () => {
     let callCount = 0;
     const svcRoleStub = supabaseStub();
     svcRoleStub.from = vi.fn(() => chainableQuery({
-      single: vi.fn().mockImplementation(() => {
+      maybeSingle: vi.fn().mockImplementation(() => {
         callCount++;
         if (callCount === 1) return Promise.resolve({ data: { id: "apt-1", customer_id: "cust-1", service_id: "svc-1", is_paid: false, loyalty_reward_applied: false }, error: null });
         if (callCount === 2) return Promise.resolve({ data: { loyalty_enabled: true, loyalty_discount_percent: 100 }, error: null });
-        if (callCount === 3) return Promise.resolve({ data: { loyalty_rewards_available: 2 }, error: null });
         return Promise.resolve({ data: null, error: null });
       }),
       update: vi.fn(() => chainableQuery()),
     }));
+    svcRoleStub.rpc = vi.fn().mockResolvedValue({ data: { success: true }, error: null });
     vi.mocked(mockCreateServiceRole).mockResolvedValue(svcRoleStub as never);
 
     const result = await redeemLoyaltyReward("apt-1");
@@ -304,6 +320,7 @@ describe("redeemLoyaltyReward", () => {
 describe("deleteAppointment", () => {
   it("returns success when appointment is deleted", async () => {
     vi.mocked(mockCreateServerClient).mockResolvedValue({
+      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: "user-1" } }, error: null }) },
       from: vi.fn(() => chainableQuery({ delete: vi.fn().mockReturnThis() })),
     } as never);
 
@@ -319,10 +336,10 @@ describe("createCustomerAndAppointment — validation", () => {
   it("returns error when customer_name missing", async () => {
     const fd = createFormData({ customer_id: "x" });
     const result = await createCustomerAndAppointment(fd, "shop-123");
-    expect(result).toEqual({ success: false, error: "Nombre, email, servicio, fecha y hora son obligatorios" });
+    expect(result).toEqual({ success: false, error: "Faltan campos obligatorios: nombre del cliente" });
   });
 
-  it("returns error when customer_email missing", async () => {
+  it("returns error when services are not found (email is optional)", async () => {
     const fd = new FormData();
     fd.set("customer_name", "Juan");
     fd.set("customer_email", "");
@@ -330,7 +347,7 @@ describe("createCustomerAndAppointment — validation", () => {
     fd.set("start_date", "2030-06-15");
     fd.set("start_time", "10:00");
     const result = await createCustomerAndAppointment(fd, "shop-123");
-    expect(result).toEqual({ success: false, error: "Nombre, email, servicio, fecha y hora son obligatorios" });
+    expect(result).toEqual({ success: false, error: "Uno o más servicios no encontrados" });
   });
 });
 

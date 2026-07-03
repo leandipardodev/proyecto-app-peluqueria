@@ -21,6 +21,7 @@ function createQueryMock(override?: Partial<SupabaseQueryMock>) {
     single: vi.fn().mockReturnThis(),
     maybeSingle: vi.fn().mockReturnThis(),
     not: vi.fn().mockReturnThis(),
+    or: vi.fn().mockReturnThis(),
     is: vi.fn().mockReturnThis(),
     textSearch: vi.fn().mockReturnThis(),
     filter: vi.fn().mockReturnThis(),
@@ -58,6 +59,7 @@ export interface SupabaseQueryMock {
   single: ReturnType<typeof vi.fn>;
   maybeSingle: ReturnType<typeof vi.fn>;
   not: ReturnType<typeof vi.fn>;
+  or: ReturnType<typeof vi.fn>;
   is: ReturnType<typeof vi.fn>;
   textSearch: ReturnType<typeof vi.fn>;
   filter: ReturnType<typeof vi.fn>;
@@ -163,6 +165,7 @@ export function chainableQuery(overrides: Record<string, unknown> = {}) {
     single: vi.fn().mockReturnThis(),
     maybeSingle: vi.fn().mockReturnThis(),
     not: vi.fn().mockReturnThis(),
+    or: vi.fn().mockReturnThis(),
     is: vi.fn().mockReturnThis(),
     ...overrides,
   };
