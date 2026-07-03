@@ -126,6 +126,18 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     }
   }, [staffMembers]);
 
+  useEffect(() => {
+    const el = categoryScrollRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      if (e.deltaY === 0) return;
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    };
+    el.addEventListener("wheel", handler, { passive: false });
+    return () => el.removeEventListener("wheel", handler);
+  }, []);
+
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedCombo, setSelectedCombo] = useState<Combo | null>(null);
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
@@ -184,6 +196,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const pendingAppointmentIdsRef = useRef<string[]>([]);
   const slotsRef = useRef<HTMLDivElement>(null);
   const stepsScrollRef = useRef<HTMLDivElement>(null);
+  const categoryScrollRef = useRef<HTMLDivElement>(null);
   const [mpReady, setMpReady] = useState(false);
 
 
@@ -931,7 +944,11 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                         <div className="flex flex-col min-h-0 max-h-full w-full">
                         <div className="shrink-0 space-y-5">
                            <motion.h2 variants={stepItemReveal} className={`text-xl font-semibold text-center ${templateStyles.heading} ${templateStyles.headingFx}`}>{`Elegi tu ${serviceWordLower}`}</motion.h2>
-                          <motion.div variants={stepItemReveal} className="-mx-1 overflow-x-auto pb-1 delicate-scroll">
+                          <motion.div
+                            variants={stepItemReveal}
+                            ref={categoryScrollRef}
+                            className="-mx-1 overflow-x-auto pb-1 delicate-scroll"
+                          >
                             <div className="flex items-center gap-2 px-1">
                               {categories.map((category) => {
                                 const active = selectedCategory === category;
