@@ -447,13 +447,11 @@ export async function fetchPublicAvailableSlots(
   }
 }
 
-async function resolveShopDayConfig(admin: Awaited<ReturnType<typeof createAdminClient>>, shopId: string, dayIndex: number): Promise<{ open: boolean; start: string; end: string; break_start?: string | null; break_end?: string | null }> {
-  const { data: shopHoursData } = await admin
-    .from("shops")
-    .select("business_hours")
-    .eq("id", shopId)
-    .maybeSingle();
-  const normalizedHours = normalizeHours(shopHoursData?.business_hours);
+async function resolveShopDayConfig(admin: Awaited<ReturnType<typeof createAdminClient>>, shopId: string, dayIndex: number, businessHours?: unknown): Promise<{ open: boolean; start: string; end: string; break_start?: string | null; break_end?: string | null }> {
+  const rawHours = businessHours
+    ? businessHours
+    : (await admin.from("shops").select("business_hours").eq("id", shopId).maybeSingle()).data?.business_hours;
+  const normalizedHours = normalizeHours(rawHours);
   const dayName = DAY_KEYS[dayIndex];
   const resolved = resolveDayHours(normalizedHours, dayIndex);
   return resolved || DEFAULT_WEEK_HOURS[dayName] || { open: false, start: "09:00", end: "20:00" };
@@ -505,6 +503,14 @@ export async function createPublicAppointment(data: {
     const startMinutes = getArgentinaMinutesSinceMidnight(data.startTime);
     const endMinutes = getArgentinaMinutesSinceMidnight(data.endTime);
 
+    // Fetch shop hours once for all resolveShopDayConfig calls in this function
+    const { data: shopHoursRow } = await admin
+      .from("shops")
+      .select("business_hours")
+      .eq("id", data.shopId)
+      .maybeSingle();
+    const businessHours = shopHoursRow?.business_hours;
+
     // Resolve effective schedule: staff schedule takes priority, fallback to shop hours
     let effectiveDayConfig: { open: boolean; start: string; end: string; break_start?: string | null; break_end?: string | null };
 
@@ -528,20 +534,19 @@ export async function createPublicAppointment(data: {
           break_end: staffSchedule.break_end?.slice(0, 5) ?? null,
         };
         // Intersect staff schedule with shop hours
-        const shopConfig = await resolveShopDayConfig(admin, data.shopId, dayIndex);
-        if (shopConfig.open) {
-          const interStart = Math.max(hhmmToMinutes(effectiveDayConfig.start), hhmmToMinutes(shopConfig.start));
-          const interEnd = Math.min(hhmmToMinutes(effectiveDayConfig.end), hhmmToMinutes(shopConfig.end));
-          effectiveDayConfig.start = minutesToHHmm(interStart);
-          effectiveDayConfig.end = minutesToHHmm(interEnd);
+          const shopConfig = await resolveShopDayConfig(admin, data.shopId, dayIndex, businessHours);
+          if (shopConfig.open) {
+            const interStart = Math.max(hhmmToMinutes(effectiveDayConfig.start), hhmmToMinutes(shopConfig.start));
+            const interEnd = Math.min(hhmmToMinutes(effectiveDayConfig.end), hhmmToMinutes(shopConfig.end));
+            effectiveDayConfig.start = minutesToHHmm(interStart);
+            effectiveDayConfig.end = minutesToHHmm(interEnd);
+          }
+        } else {
+          effectiveDayConfig = await resolveShopDayConfig(admin, data.shopId, dayIndex, businessHours);
         }
       } else {
-        // No schedule entry → fallback to shop hours
-        effectiveDayConfig = await resolveShopDayConfig(admin, data.shopId, dayIndex);
+        effectiveDayConfig = await resolveShopDayConfig(admin, data.shopId, dayIndex, businessHours);
       }
-    } else {
-      effectiveDayConfig = await resolveShopDayConfig(admin, data.shopId, dayIndex);
-    }
 
     // Apply date overrides (defense in depth)
     const aptOverrideResult = await fetchShopDateOverrides(data.shopId, bookingDate, bookingDate);
@@ -965,6 +970,14 @@ export async function createPublicComboAppointment(data: {
     const startMinutes = getArgentinaMinutesSinceMidnight(data.startTime);
     const endMinutes = getArgentinaMinutesSinceMidnight(endDate.toISOString());
 
+    // Fetch shop hours once for all resolveShopDayConfig calls in this function
+    const { data: shopHoursRow } = await admin
+      .from("shops")
+      .select("business_hours")
+      .eq("id", data.shopId)
+      .maybeSingle();
+    const businessHours = shopHoursRow?.business_hours;
+
     // Resolve effective schedule: staff schedule takes priority, fallback to shop hours
     let effectiveDayConfig: { open: boolean; start: string; end: string; break_start?: string | null; break_end?: string | null };
 
@@ -988,7 +1001,7 @@ export async function createPublicComboAppointment(data: {
           break_end: staffSchedule.break_end?.slice(0, 5) ?? null,
         };
         // Intersect staff schedule with shop hours
-        const shopConfig = await resolveShopDayConfig(admin, data.shopId, dayIndex);
+        const shopConfig = await resolveShopDayConfig(admin, data.shopId, dayIndex, businessHours);
         if (shopConfig.open) {
           const interStart = Math.max(hhmmToMinutes(effectiveDayConfig.start), hhmmToMinutes(shopConfig.start));
           const interEnd = Math.min(hhmmToMinutes(effectiveDayConfig.end), hhmmToMinutes(shopConfig.end));
@@ -996,10 +1009,10 @@ export async function createPublicComboAppointment(data: {
           effectiveDayConfig.end = minutesToHHmm(interEnd);
         }
       } else {
-        effectiveDayConfig = await resolveShopDayConfig(admin, data.shopId, dayIndex);
+        effectiveDayConfig = await resolveShopDayConfig(admin, data.shopId, dayIndex, businessHours);
       }
     } else {
-      effectiveDayConfig = await resolveShopDayConfig(admin, data.shopId, dayIndex);
+      effectiveDayConfig = await resolveShopDayConfig(admin, data.shopId, dayIndex, businessHours);
     }
 
     // Apply date overrides (defense in depth)
