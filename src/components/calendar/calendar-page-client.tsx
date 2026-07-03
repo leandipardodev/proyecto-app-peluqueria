@@ -310,9 +310,9 @@ export default function CalendarPageClient({
       .on("postgres_changes", { event: "*", schema: "public", table: "customers", filter: `shop_id=eq.${shopId}` }, handleChange)
       .on("postgres_changes", { event: "*", schema: "public", table: "services", filter: `shop_id=eq.${shopId}` }, handleChange)
       .on("postgres_changes", { event: "*", schema: "public", table: "shop_memberships", filter: `shop_id=eq.${shopId}` }, handleChange)
-      .subscribe((status) => {
+      .subscribe((status, err) => {
         if (status === "CHANNEL_ERROR") {
-          console.error("Calendar Realtime: channel error");
+          console.warn("Calendar Realtime: channel error — el cliente reconectará automáticamente", err);
         }
       });
 
@@ -355,40 +355,72 @@ export default function CalendarPageClient({
     if (pendingMove.current) return;
     pendingMove.current = true;
 
-    const durationMs = (() => {
-      const appt = appointments.find((a) => a.id === appointmentId);
-      if (!appt) return 0;
-      return new Date(appt.end_time).getTime() - new Date(appt.start_time).getTime();
-    })();
-
-    const movedSnapshot = new Map<string, Appointment>();
-    const movedIds = new Set<string>();
-    movedIds.add(appointmentId);
-
-    // Capture current state for all potentially affected appointments
-    for (const a of appointments) {
-      if (a.id === appointmentId) movedSnapshot.set(a.id, { ...a });
+    const primaryApt = appointments.find((a) => a.id === appointmentId);
+    if (!primaryApt) {
+      pendingMove.current = false;
+      return;
     }
 
-    // Also capture siblings (they might be moved by moveAppointmentGroup too)
-    const primaryApt = appointments.find((x) => x.id === appointmentId);
-    const primaryCustomerId = primaryApt?.customer_id;
-    const primaryStaffId = primaryApt?.staff_id;
-    if (primaryCustomerId && primaryStaffId) {
-      for (const a of appointments) {
-        if (a.id !== appointmentId && a.customer_id === primaryCustomerId && a.staff_id === primaryStaffId) {
-          const sameDay = getArgentinaDateKey(a.start_time) === getArgentinaDateKey(newStartIso);
-          if (sameDay) movedSnapshot.set(a.id, { ...a });
-        }
+    const primaryStartMs = new Date(primaryApt.start_time).getTime();
+    const offsetMs = new Date(newStartIso).getTime() - primaryStartMs;
+
+    // Find siblings with same logic as server: same customer + staff + date_key_ar, consecutive ≤2min gap
+    const siblingIds: string[] = [];
+    const { staff_id: primaryStaffId, customer_id: primaryCustomerId } = primaryApt;
+    if (primaryStaffId && primaryCustomerId) {
+      const primaryDateKey = getArgentinaDateKey(primaryApt.start_time);
+      const sameDay = appointments
+        .filter(
+          (a) =>
+            a.id !== appointmentId &&
+            a.customer_id === primaryCustomerId &&
+            a.staff_id === primaryStaffId &&
+            getArgentinaDateKey(a.start_time) === primaryDateKey &&
+            a.status !== "cancelled"
+        )
+        .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+
+      const combined = [primaryApt, ...sameDay].sort(
+        (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+      );
+      const primaryIdx = combined.findIndex((r) => r.id === appointmentId);
+
+      for (let i = primaryIdx + 1; i < combined.length; i++) {
+        const gap = new Date(combined[i].start_time).getTime() - new Date(combined[i - 1].end_time).getTime();
+        if (Math.abs(gap) <= 120000) siblingIds.push(combined[i].id);
+        else break;
+      }
+      for (let i = primaryIdx - 1; i >= 0; i--) {
+        const gap = new Date(combined[i + 1].start_time).getTime() - new Date(combined[i].end_time).getTime();
+        if (Math.abs(gap) <= 120000) siblingIds.unshift(combined[i].id);
+        else break;
       }
     }
 
+    const allMoveIds = [appointmentId, ...siblingIds];
+
+    // Capture current state for rollback
+    const movedSnapshot = new Map<string, Appointment>();
+    for (const a of appointments) {
+      if (allMoveIds.includes(a.id)) movedSnapshot.set(a.id, { ...a });
+    }
+
+    // Optimistically move all siblings together
     setAppointments((prev) =>
-      prev.map((a) =>
-        a.id === appointmentId
-          ? { ...a, start_time: newStartIso, end_time: new Date(new Date(newStartIso).getTime() + durationMs).toISOString() }
-          : a
-      )
+      prev.map((a) => {
+        if (a.id === appointmentId) {
+          const newEnd = new Date(new Date(newStartIso).getTime() + (new Date(primaryApt.end_time).getTime() - primaryStartMs)).toISOString();
+          return { ...a, start_time: newStartIso, end_time: newEnd };
+        }
+        if (siblingIds.includes(a.id)) {
+          return {
+            ...a,
+            start_time: new Date(new Date(a.start_time).getTime() + offsetMs).toISOString(),
+            end_time: new Date(new Date(a.end_time).getTime() + offsetMs).toISOString(),
+          };
+        }
+        return a;
+      })
     );
 
     const result = await moveAppointmentGroup(appointmentId, newStartIso, shopId);

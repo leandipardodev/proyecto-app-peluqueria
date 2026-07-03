@@ -729,23 +729,7 @@ export async function updateAppointmentServices(
       return row;
     });
 
-    if (effectiveStaffId) {
-      const conditions = rowsToInsert.map(
-        (row) => `and(end_time.gt.${row.start_time},start_time.lt.${row.end_time})`
-      );
-      const { data: conflict } = await supabase
-        .from("appointments")
-        .select("id")
-        .eq("shop_id", shopId)
-        .eq("staff_id", effectiveStaffId)
-        .not("status", "eq", "cancelled")
-        .neq("id", appointmentId)
-        .or(conditions.join(","))
-        .limit(1);
-
-      if (conflict && conflict.length > 0) return { success: false, error: "slot_taken" };
-    }
-
+    // Find sibling rows (consecutive services) that should move together
     const siblingQuery = supabase
       .from("appointments")
       .select("id, start_time, end_time")
@@ -777,6 +761,24 @@ export async function updateAppointmentServices(
 
     const allOldIds = [appointmentId, ...siblingIds];
 
+    if (effectiveStaffId) {
+      const conditions = rowsToInsert.map(
+        (row) => `and(end_time.gt.${row.start_time},start_time.lt.${row.end_time})`
+      );
+      const excludeIds = allOldIds.map((id) => `"${id}"`).join(",");
+      const { data: conflict } = await supabase
+        .from("appointments")
+        .select("id")
+        .eq("shop_id", shopId)
+        .eq("staff_id", effectiveStaffId)
+        .not("status", "eq", "cancelled")
+        .not("id", "in", `(${excludeIds})`)
+        .or(conditions.join(","))
+        .limit(1);
+
+      if (conflict && conflict.length > 0) return { success: false, error: "slot_taken" };
+    }
+
     // Save old data before delete for potential rollback
     const { data: oldRows } = await supabase
       .from("appointments")
@@ -784,16 +786,7 @@ export async function updateAppointmentServices(
       .in("id", allOldIds)
       .eq("shop_id", shopId);
 
-    // Insert-first approach: no crash window between delete and insert
-    const { error: insertError } = await supabase
-      .from("appointments")
-      .insert(rowsToInsert);
-
-    if (insertError) {
-      console.error("[updateAppointmentServices] insert failed, old data untouched:", insertError);
-      return { success: false, error: insertError.message };
-    }
-
+    // Delete old rows first, then insert new ones to avoid unique constraint violation
     const { error: deleteError } = await supabase
       .from("appointments")
       .delete()
@@ -801,8 +794,17 @@ export async function updateAppointmentServices(
       .eq("shop_id", shopId);
 
     if (deleteError) {
-      console.error("[updateAppointmentServices] delete failed after insert, duplicate data may exist:", deleteError);
-      return { success: false, error: "Error al eliminar los datos anteriores. Los nuevos servicios se guardaron pero pueden existir duplicados." };
+      console.error("[updateAppointmentServices] delete failed:", deleteError);
+      return { success: false, error: deleteError.message };
+    }
+
+    const { error: insertError } = await supabase
+      .from("appointments")
+      .insert(rowsToInsert);
+
+    if (insertError) {
+      console.error("[updateAppointmentServices] insert failed after delete:", insertError);
+      return { success: false, error: insertError.message };
     }
 
     const nextStatus = data.status ?? primary.status;
@@ -1050,7 +1052,7 @@ export async function moveAppointmentGroup(
         .eq("staff_id", staffId)
         .eq("date_key_ar", primary.date_key_ar)
         .neq("id", primaryId)
-        .not("status", "eq", "cancelled")
+        .not("status", "in", '("cancelled","no_show")')
         .order("start_time", { ascending: true });
 
       if (siblings && siblings.length > 0) {
@@ -1096,8 +1098,9 @@ export async function moveAppointmentGroup(
         .select("id")
         .eq("shop_id", shopId)
         .eq("staff_id", staffId)
-        .not("status", "eq", "cancelled")
-        .or(conditions.join(","));
+        .not("status", "in", '("cancelled","no_show")')
+        .or(conditions.join(","))
+        .limit(1);
 
       const realConflicts = (conflict || []).filter((c) => !movingIds.includes(c.id));
       if (realConflicts.length > 0) return { success: false, error: "slot_taken" };
