@@ -64,6 +64,10 @@ export async function createPendingBooking(
     if (input.customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.customerEmail)) {
       return { success: false, error: "Email inválido" };
     }
+    const cleanPhone = input.customerPhone.replace(/\D/g, "");
+    if (cleanPhone.length < 7 || cleanPhone.length > 15) {
+      return { success: false, error: "Teléfono inválido" };
+    }
 
     // Validate times
     const startDate = new Date(input.startTime);
@@ -168,6 +172,9 @@ export async function createPendingBooking(
         }
       }
     }
+
+    // Clean up expired pending bookings
+    admin.from("pending_bookings").delete().lt("expires_at", new Date().toISOString()).then(() => {}, () => {});
 
     // Check for conflicts with existing appointments (including old pending_payment within hold window)
     // and other pending bookings

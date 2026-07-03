@@ -353,7 +353,7 @@ export async function fetchPublicAvailableSlots(
           config.startMinutes = Math.max(config.startMinutes, ovStart);
           config.closeMinutes = Math.min(config.closeMinutes, ovEnd);
           if (config.startMinutes >= config.closeMinutes) {
-      return { success: false, error: "Demasiadas solicitudes. Esperá unos segundos y volvé a intentar." };
+      return { success: false, error: "No hay horarios disponibles para este profesional en este día" };
           }
         }
       }
@@ -482,6 +482,10 @@ export async function createPublicAppointment(data: {
 
     if (data.customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.customerEmail)) {
       return { success: false, error: "Email inválido" };
+    }
+    const cleanPhone = data.customerPhone.replace(/\D/g, "");
+    if (cleanPhone.length < 7 || cleanPhone.length > 15) {
+      return { success: false, error: "Teléfono inválido" };
     }
 
     const bookingDate = getArgentinaDateKey(data.startTime);
@@ -711,6 +715,9 @@ export async function createPublicAppointment(data: {
       }
     }
 
+    // Clean up expired pending bookings
+    admin.from("pending_bookings").delete().lt("expires_at", new Date().toISOString()).then(() => {}, () => {});
+
     // Conflict check for resolved staff
     const [{ data: finalConflicts, error: checkError }, { data: finalPendingConflicts }] = await Promise.all([
       admin
@@ -929,6 +936,10 @@ export async function createPublicComboAppointment(data: {
 
     if (data.customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.customerEmail)) {
       return { success: false, error: "Email inválido" };
+    }
+    const cleanPhone = data.customerPhone.replace(/\D/g, "");
+    if (cleanPhone.length < 7 || cleanPhone.length > 15) {
+      return { success: false, error: "Teléfono inválido" };
     }
 
     const totalDuration = data.comboDurationMinutes ?? data.services.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
@@ -1206,6 +1217,9 @@ export async function createPublicComboAppointment(data: {
         customerId = newCustomer.id;
       }
     }
+
+    // Clean up expired pending bookings
+    admin.from("pending_bookings").delete().lt("expires_at", new Date().toISOString()).then(() => {}, () => {});
 
     // Check conflicts for the full time block
     const [{ data: finalConflicts, error: checkError }, { data: finalPendingConflicts }] = await Promise.all([
