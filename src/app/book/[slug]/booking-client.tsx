@@ -844,19 +844,19 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
             "radial-gradient(circle at 50% 40%, rgba(255,255,255,0.10), transparent 52%), radial-gradient(circle at 28% 68%, rgba(255,255,255,0.08), transparent 48%)",
         }}
       />
-      <div className={`relative z-10 flex h-full items-start justify-center p-4 sm:p-8 lg:p-12 ${step === 4 ? "opacity-0" : ""}`}>
+      <div className={`relative z-10 flex h-full items-start justify-center p-3 sm:p-6 lg:p-8 ${step === 4 ? "opacity-0" : ""}`}>
         <div className="w-full max-w-md md:max-w-xl">
         <motion.div
-          className={`rounded-[32px] p-6 sm:p-10 lg:p-12 h-[min(860px,calc(100dvh-2rem))] sm:h-[min(900px,calc(100dvh-3rem))] flex flex-col ${templateStyles.shell}`}
+          className={`rounded-[32px] p-4 sm:p-6 lg:p-8 h-[min(860px,calc(100dvh-2rem))] sm:h-[min(900px,calc(100dvh-3rem))] flex flex-col ${templateStyles.shell}`}
           style={(step === 3 || step === 4) && !done ? { height: 'auto' } as React.CSSProperties : undefined}>
           {!done ? (
             <>
               {step !== 4 && (
-              <div className="pb-1 sm:pb-4">
-                <div className="flex items-center gap-2 sm:gap-4">
+              <div className="pb-0 sm:pb-2">
+                <div className="flex items-center gap-2 sm:gap-3">
                   <div
                     data-info-trigger
-                    className="h-12 w-12 sm:h-16 sm:w-16 flex items-center justify-center shrink-0 overflow-hidden cursor-pointer"
+                    className="h-10 w-10 sm:h-12 sm:w-12 flex items-center justify-center shrink-0 overflow-hidden cursor-pointer"
                     onClick={() => setShowInfo(v => !v)}
                   >
                     {shop.logoUrl ? (
@@ -876,7 +876,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                   <div className="min-w-0">
                     <motion.h1
                       data-info-trigger
-                      className={`text-[1.85rem] sm:text-[2.35rem] md:text-[2.75rem] font-black leading-[1.1] tracking-[-0.035em] cursor-pointer break-words ${templateStyles.headingFx} bg-gradient-to-r ${templateStyles.titleGradient} bg-[length:220%_100%] bg-clip-text text-transparent`}
+                      className={`text-[1.4rem] sm:text-[1.85rem] md:text-[2.25rem] font-black leading-[1.1] tracking-[-0.035em] cursor-pointer break-words ${templateStyles.headingFx} bg-gradient-to-r ${templateStyles.titleGradient} bg-[length:220%_100%] bg-clip-text text-transparent`}
                       style={{ willChange: "background-position" }}
                       animate={{ backgroundPositionX: ["0%", "100%", "0%"] }}
                       transition={{ duration: 8.5, repeat: Infinity, ease: "easeInOut" }}
@@ -894,7 +894,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                     </motion.p>
                   </div>
                 </div>
-                <div className="flex justify-center pt-1 sm:pt-4">
+                <div className="flex justify-center pt-0 sm:pt-2">
                   <motion.div
                     className={`relative h-[2px] rounded-full origin-center ${templateStyles.progressFill}`}
                     animate={{
@@ -927,7 +927,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
               </div>
               )}
 
-              <div className="pt-0.5 sm:pt-2 min-h-0 flex-1 relative">
+              <div className="pt-0 sm:pt-1 min-h-0 flex-1 relative">
                 <AnimatePresence mode="popLayout">
                   <motion.div
                     key={step}
@@ -942,7 +942,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                     {step === 0 && (
                       <div className="flex flex-col h-full min-h-0">
                         <div className="flex flex-col min-h-0 max-h-full w-full">
-                        <div className="shrink-0 space-y-5">
+                        <div className="shrink-0 space-y-3">
                            <motion.h2 variants={stepItemReveal} className={`text-xl font-semibold text-center ${templateStyles.heading} ${templateStyles.headingFx}`}>{`Elegi tu ${serviceWordLower}`}</motion.h2>
                           <motion.div
                             variants={stepItemReveal}
@@ -990,8 +990,8 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                             </div>
                           </motion.div>
                         </div>
-                        <div className="flex-1 overflow-y-auto overflow-x-hidden delicate-scroll px-1 pt-3 pb-4 [scroll-snap-type:y_proximity]" onScroll={handleScroll}>
-                          <motion.div variants={stepItemReveal} className="space-y-4">
+                        <div className="flex-1 overflow-y-auto overflow-x-hidden delicate-scroll px-1 pt-2 pb-3 [scroll-snap-type:y_proximity]" onScroll={handleScroll}>
+                          <motion.div variants={stepItemReveal} className="space-y-3">
                           {servicesError && (
                             <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-4 py-3 text-xs text-amber-700 dark:text-amber-300">
                               <span className="font-semibold">Error al cargar servicios:</span> {servicesError}
@@ -1158,21 +1158,21 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                                     setSelectedCombo(null);
                                   }}
                                   draggable={false}
-                                  className={`w-full px-6 py-6 text-left relative z-10 outline-none focus:outline-none focus-visible:outline-none ${tactileClass}`}
+                                  className={`w-full px-5 py-4 text-left relative z-10 outline-none focus:outline-none focus-visible:outline-none ${tactileClass}`}
                                   style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}
                                 >
                                   <div className="flex items-start justify-between gap-4">
                                 <div className="min-w-0 flex-1">
-                                        <p className={`text-xl font-medium break-words whitespace-normal text-left ${templateStyles.heading}`} style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}>{svc.name}</p>
+                                        <p className={`text-lg font-medium break-words whitespace-normal text-left ${templateStyles.heading}`} style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}>{svc.name}</p>
                                         {svc.description && (
-                                        <p className={`mt-1 text-xs leading-relaxed overflow-hidden ${templateStyles.tiny}`} style={{
+                                        <p className={`mt-0.5 text-xs leading-relaxed overflow-hidden ${templateStyles.tiny}`} style={{
                                           maxHeight: isSelected ? "300px" : "2.5em",
                                           transition: "max-height 0.5s cubic-bezier(0.16,1,0.3,1)",
                                           willChange: "max-height",
                                           ...(isSelected ? { color: rippleConfig.text } as React.CSSProperties : {}),
                                         } as React.CSSProperties}>{svc.description}</p>
                                         )}
-                                      <p className={`mt-1 text-sm ${templateStyles.tiny}`} style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}>{svc.duration_minutes} min</p>
+                                      <p className={`mt-0.5 text-sm ${templateStyles.tiny}`} style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}>{svc.duration_minutes} min</p>
                                     </div>
                                     <p className={`shrink-0 ${templateStyles.priceText} ${templateStyles.priceFx} tabular-nums`} style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}>
                                       <span className="mr-1.5 align-top text-[0.72em] font-semibold opacity-85">$</span>
@@ -1196,8 +1196,8 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                         <div className="shrink-0 pb-4">
                            <motion.h2 variants={stepItemReveal} className={`text-xl font-semibold text-center ${templateStyles.heading} ${templateStyles.headingFx}`}>{`Elegi tu ${staffWordLower}`}</motion.h2>
                         </div>
-                         <div className="flex-1 overflow-y-auto overflow-x-hidden delicate-scroll px-1 pt-3 pb-4 [scroll-snap-type:y_proximity]" onScroll={handleScroll}>
-                           <div className="space-y-5">
+                         <div className="flex-1 overflow-y-auto overflow-x-hidden delicate-scroll px-1 pt-2 pb-3 [scroll-snap-type:y_proximity]" onScroll={handleScroll}>
+                           <div className="space-y-3">
                            <motion.div
                              onPointerDown={pushCard3D}
                              onPointerUp={releaseCard3D}
