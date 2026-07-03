@@ -158,7 +158,7 @@ export default function CalendarPageClient({
   const router = useRouter();
   const [currentDate, setCurrentDate] = useState(() => {
     if (!initialDateParam) return new Date();
-    const parsed = new Date(initialDateParam);
+    const parsed = new Date(`${initialDateParam}T12:00:00-03:00`);
     return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
   });
   const [formModalOpen, setFormModalOpen] = useState(false);
@@ -173,14 +173,20 @@ export default function CalendarPageClient({
   const calendarViewModeRef = useRef<"week" | "day" | "month">("week");
   const [batchModalOpen, setBatchModalOpen] = useState(false);
 
-  const logCounter = useRef(0);
-  const realtimeCounter = useRef(0);
+  const [fetchedRangeEnd, setFetchedRangeEnd] = useState(() => {
+    const ws = getArgentinaWeekStart();
+    const end = new Date(ws);
+    end.setUTCDate(ws.getUTCDate() + 90);
+    end.setUTCHours(23, 59, 59, 999);
+    return end.toISOString();
+  });
+  const fetchedRangeEndRef = useRef(fetchedRangeEnd);
+  useEffect(() => { fetchedRangeEndRef.current = fetchedRangeEnd; }, [fetchedRangeEnd]);
+
   const initialSynced = useRef(false);
   useEffect(() => {
     if (initialSynced.current) return;
     initialSynced.current = true;
-    logCounter.current++;
-    console.log(`[CALENDAR] initialAppointments sync #${logCounter.current}`, initialAppointments?.length ?? 0, "appointments");
     setAppointments(initialAppointments);
   }, [initialAppointments]);
 
@@ -191,15 +197,22 @@ export default function CalendarPageClient({
 
     return appointments.map((appointment) => {
       if (appointment.services?.name) return appointment;
-      const fallbackService = servicesById.get(appointment.service_id);
-      if (!fallbackService) return appointment;
+      const serviceIds = appointment.service_id?.includes(",")
+        ? appointment.service_id.split(",")
+        : [appointment.service_id];
+      const matchedServices = serviceIds.map((id) => servicesById.get(id)).filter(Boolean) as typeof services;
+      if (matchedServices.length === 0) return appointment;
+
+      const mergedName = matchedServices.map((s) => s.name).join(" + ");
+      const mergedPrice = matchedServices.reduce((sum, s) => sum + (s.price ?? 0), 0);
+      const mergedDuration = matchedServices.reduce((sum, s) => sum + (s.duration_minutes ?? 0), 0);
 
       return {
         ...appointment,
         services: {
-          name: fallbackService.name,
-          price: fallbackService.price,
-          duration_minutes: fallbackService.duration_minutes,
+          name: mergedName,
+          price: mergedPrice,
+          duration_minutes: mergedDuration,
         },
       };
     });
@@ -239,13 +252,8 @@ export default function CalendarPageClient({
     const weekStart = getArgentinaWeekStart();
     const rangeStart = new Date(weekStart);
     rangeStart.setUTCDate(weekStart.getUTCDate() - 7);
-    const rangeEnd = new Date(weekStart);
-    rangeEnd.setUTCDate(weekStart.getUTCDate() + 60);
-    rangeEnd.setUTCHours(23, 59, 59, 999);
 
     const handleChange = async () => {
-      realtimeCounter.current++;
-      console.log(`[CALENDAR] handleChange #${realtimeCounter.current}`, new Date().toISOString());
       if (realtimeCooldown.current) return;
       realtimeCooldown.current = true;
       setTimeout(() => { realtimeCooldown.current = false; }, 5000);
@@ -255,7 +263,7 @@ export default function CalendarPageClient({
           .select("id, customer_id, staff_id, service_id, start_time, end_time, status, is_paid, deposit_amount, loyalty_reward_applied, loyalty_discount_percent_applied, recurring_group_id, notes")
           .eq("shop_id", shopId)
           .gte("start_time", rangeStart.toISOString())
-          .lte("start_time", rangeEnd.toISOString())
+          .lte("start_time", fetchedRangeEndRef.current)
           .order("start_time", { ascending: true });
         if (!error && rows) {
           const customerIds = [...new Set(rows.map((r) => r.customer_id).filter(Boolean))];
@@ -341,19 +349,39 @@ export default function CalendarPageClient({
   }, []);
 
   const { addToast } = useToast();
-  const appointmentsSnapshot = useRef<Appointment[]>([]);
   const pendingMove = useRef(false);
 
   const handleMoveAppointment = useCallback(async (appointmentId: string, newStartIso: string) => {
     if (pendingMove.current) return;
     pendingMove.current = true;
-    appointmentsSnapshot.current = appointments;
 
     const durationMs = (() => {
       const appt = appointments.find((a) => a.id === appointmentId);
       if (!appt) return 0;
       return new Date(appt.end_time).getTime() - new Date(appt.start_time).getTime();
     })();
+
+    const movedSnapshot = new Map<string, Appointment>();
+    const movedIds = new Set<string>();
+    movedIds.add(appointmentId);
+
+    // Capture current state for all potentially affected appointments
+    for (const a of appointments) {
+      if (a.id === appointmentId) movedSnapshot.set(a.id, { ...a });
+    }
+
+    // Also capture siblings (they might be moved by moveAppointmentGroup too)
+    const primaryApt = appointments.find((x) => x.id === appointmentId);
+    const primaryCustomerId = primaryApt?.customer_id;
+    const primaryStaffId = primaryApt?.staff_id;
+    if (primaryCustomerId && primaryStaffId) {
+      for (const a of appointments) {
+        if (a.id !== appointmentId && a.customer_id === primaryCustomerId && a.staff_id === primaryStaffId) {
+          const sameDay = getArgentinaDateKey(a.start_time) === getArgentinaDateKey(newStartIso);
+          if (sameDay) movedSnapshot.set(a.id, { ...a });
+        }
+      }
+    }
 
     setAppointments((prev) =>
       prev.map((a) =>
@@ -367,28 +395,37 @@ export default function CalendarPageClient({
     if (result.success) {
       addToast("Turno movido correctamente", "success");
     } else {
-      setAppointments(appointmentsSnapshot.current);
+      // Only restore affected appointments, preserve realtime updates for others
+      setAppointments((prev) => prev.map((a) => movedSnapshot.has(a.id) ? movedSnapshot.get(a.id)! : a));
       const msg = result.error === "slot_taken" ? "El horario está ocupado por otro turno" : result.error || "Error al mover turno";
       addToast(msg, "error");
     }
     pendingMove.current = false;
   }, [appointments, shopId, addToast]);
 
-  const refreshCounter = useRef(0);
-  const refreshAppointments = useCallback(async () => {
-    refreshCounter.current++;
-    console.log(`[CALENDAR] refreshAppointments #${refreshCounter.current}`, new Date().toISOString());
+  const refreshAppointments = useCallback(async (customEnd?: string) => {
     const weekStart = getArgentinaWeekStart();
     const rangeStart = new Date(weekStart);
     rangeStart.setUTCDate(weekStart.getUTCDate() - 7);
-    const rangeEnd = new Date(weekStart);
-    rangeEnd.setUTCDate(weekStart.getUTCDate() + 60);
-    rangeEnd.setUTCHours(23, 59, 59, 999);
-    const result = await fetchAppointments(rangeStart.toISOString(), rangeEnd.toISOString(), shopId);
+    const endStr = customEnd ?? fetchedRangeEndRef.current;
+    const result = await fetchAppointments(rangeStart.toISOString(), endStr, shopId);
     if (result.success && Array.isArray(result.data)) {
       setAppointments(result.data as Appointment[]);
     }
   }, [shopId]);
+
+  const handleMonthChange = useCallback(async (newDate: Date) => {
+    const monthEnd = new Date(newDate.getFullYear(), newDate.getMonth() + 1, 0);
+    monthEnd.setUTCHours(23, 59, 59, 999);
+    const buffer = new Date(monthEnd);
+    buffer.setUTCDate(buffer.getUTCDate() + 30);
+    const newEndStr = buffer.toISOString();
+
+    if (newEndStr <= fetchedRangeEndRef.current) return;
+
+    setFetchedRangeEnd(newEndStr);
+    await refreshAppointments(newEndStr);
+  }, [refreshAppointments]);
 
   if (!hydrated) {
     return <CalendarSkeleton />;
@@ -516,6 +553,7 @@ export default function CalendarPageClient({
           onBatchClick={() => setBatchModalOpen(true)}
           initialViewMode={initialViewMode as "week" | "day" | "month" | undefined}
           onMoveAppointment={handleMoveAppointment}
+          onMonthChange={handleMonthChange}
         />
       </div>
 
@@ -526,10 +564,7 @@ export default function CalendarPageClient({
           const weekStart = getArgentinaWeekStart();
           const rangeStart = new Date(weekStart);
           rangeStart.setUTCDate(weekStart.getUTCDate() - 7);
-          const rangeEnd = new Date(weekStart);
-          rangeEnd.setUTCDate(weekStart.getUTCDate() + 60);
-          rangeEnd.setUTCHours(23, 59, 59, 999);
-          const result = await fetchAppointments(rangeStart.toISOString(), rangeEnd.toISOString(), shopId);
+          const result = await fetchAppointments(rangeStart.toISOString(), fetchedRangeEndRef.current, shopId);
           if (result.success && Array.isArray(result.data)) {
             setAppointments(result.data as Appointment[]);
           }

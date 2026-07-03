@@ -468,6 +468,12 @@ export async function fetchShopDateOverrides(
 ): Promise<ActionResult<DateOverride[]>> {
   try {
     if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    // If authenticated, verify access to the shop
+    const user = await getCachedUser();
+    if (user) {
+      const allowed = await canAccessShopId(user.id, shopId);
+      if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
+    }
     const admin = await createAdminClient();
     const { data, error } = await admin
       .from("shop_date_overrides")
@@ -511,7 +517,6 @@ export async function fetchShopDateOverrides(
 }
 
 export async function upsertShopDateOverride(
-  shopId: string,
   date: string,
   staffId: string | null,
   isClosed: boolean,
@@ -520,30 +525,9 @@ export async function upsertShopDateOverride(
   reason?: string | null
 ): Promise<ActionResult> {
   try {
-    if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    const user = await getCachedUser();
-    if (!user) return { success: false, error: "SESION_EXPIRADA" };
-    const allowed = await canAccessShopId(user.id, shopId);
-    if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
-
-    // Check role: owner can set any override, staff can only set their own
-    const supabase = await createServerClient();
-    const { data: membership } = await supabase
-      .from("shop_memberships")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("shop_id", shopId)
-      .eq("is_active", true)
-      .maybeSingle();
-
-    const isOwner = membership?.role === "owner";
-    if (!isOwner) {
-      // Staff can only create/modify overrides for themselves (staff_id === their user_id)
-      if (staffId !== user.id) {
-        return { success: false, error: "Solo el owner puede modificar excepciones de otros profesionales" };
-      }
-    }
-
+    const shopIdResult = await requireOwnerShopId();
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
     const admin = await createAdminClient();
 
     // Delete existing override for this (shop, staff, date) to avoid unique constraint conflicts
@@ -573,41 +557,13 @@ export async function upsertShopDateOverride(
 }
 
 export async function deleteShopDateOverride(
-  overrideId: string,
-  shopId: string
+  overrideId: string
 ): Promise<ActionResult> {
   try {
-    if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    const user = await getCachedUser();
-    if (!user) return { success: false, error: "SESION_EXPIRADA" };
-    const allowed = await canAccessShopId(user.id, shopId);
-    if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
-
+    const shopIdResult = await requireOwnerShopId();
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
     const admin = await createAdminClient();
-
-    // Check role: owner can delete any, staff can only delete their own
-    const supabase = await createServerClient();
-    const { data: membership } = await supabase
-      .from("shop_memberships")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("shop_id", shopId)
-      .eq("is_active", true)
-      .maybeSingle();
-
-    const isOwner = membership?.role === "owner";
-    if (!isOwner) {
-      // Staff can only delete overrides that belong to them
-      const { data: override } = await admin
-        .from("shop_date_overrides")
-        .select("staff_id")
-        .eq("id", overrideId)
-        .eq("shop_id", shopId)
-        .maybeSingle();
-      if (!override || override.staff_id !== user.id) {
-        return { success: false, error: "Solo el owner puede eliminar excepciones de otros profesionales" };
-      }
-    }
 
     const { error } = await admin
       .from("shop_date_overrides")

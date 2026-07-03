@@ -364,7 +364,7 @@ export async function POST(request: NextRequest) {
             start_time: booking.start_time,
             end_time: booking.end_time,
             date_key_ar: getArgentinaDateKey(booking.start_time),
-            status: "scheduled",
+            status: "confirmed",
             is_paid: true,
             deposit_amount: booking.deposit_amount,
             mp_preference_id: booking.mp_preference_id,

@@ -35,7 +35,7 @@ export default async function CalendarSection({
   const rangeStart = new Date(weekStart);
   rangeStart.setUTCDate(weekStart.getUTCDate() - 7);
   const rangeEnd = new Date(weekStart);
-  rangeEnd.setUTCDate(weekStart.getUTCDate() + 14);
+  rangeEnd.setUTCDate(weekStart.getUTCDate() + 90);
   rangeEnd.setUTCHours(23, 59, 59, 999);
 
   let appointments: AppointmentsData = [];

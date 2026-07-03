@@ -114,21 +114,25 @@ export async function fetchAppointmentGroup(
           }
         }
         if (groupStart && groupEnd) {
-          siblings = sameDay.filter((apt) => {
-            if (apt.id === appointmentId) return true;
-            const os = new Date(apt.start_time).getTime();
-            const oe = new Date(apt.end_time).getTime();
-            const gs = new Date(groupStart!).getTime();
-            const ge = new Date(groupEnd!).getTime();
-            return (
-              Math.abs(os - ge) <= 120000 ||
-              Math.abs(oe - gs) <= 120000
-            );
-          });
-          siblings.sort(
+          sameDay.sort(
             (a, b) =>
               new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
           );
+          const t = (v: string) => new Date(v).getTime();
+          const primaryIdx = sameDay.findIndex((a) => a.id === appointmentId);
+          siblings = [sameDay[primaryIdx]];
+          // Walk forward
+          for (let i = primaryIdx + 1; i < sameDay.length; i++) {
+            const gap = t(sameDay[i].start_time) - t(sameDay[i - 1].end_time);
+            if (Math.abs(gap) <= 120000) siblings.push(sameDay[i]);
+            else break;
+          }
+          // Walk backward
+          for (let i = primaryIdx - 1; i >= 0; i--) {
+            const gap = t(sameDay[i + 1].start_time) - t(sameDay[i].end_time);
+            if (Math.abs(gap) <= 120000) siblings.unshift(sameDay[i]);
+            else break;
+          }
         }
       }
     }

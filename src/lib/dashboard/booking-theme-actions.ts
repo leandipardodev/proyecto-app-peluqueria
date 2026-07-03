@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createServiceRoleClient, getAuthSession, getShopIdBySlug, requireShopId } from "@/lib/dashboard/auth-server";
+import sharp from "sharp";
+import { createServiceRoleClient, getAuthSession, getShopIdBySlug, getCurrentUserRole, requireShopId } from "@/lib/dashboard/auth-server";
 import { createServerClient } from "@/lib/supabase/server";
 import { DEFAULT_BOOKING_TEMPLATE, BOOKING_TEMPLATE_PRESETS, type BookingTemplateId } from "@/lib/booking/theme-presets";
 import type { ActionResult } from "@/lib/types";
@@ -102,21 +103,12 @@ export async function upsertBookingTheme(input: {
 }): Promise<ActionResult> {
   try {
     const shopIdResult = await resolveShopIdFromOptionalSlug(input.shopSlug);
-    if (!shopIdResult.success) return shopIdResult;
+    if (!shopIdResult.success || !shopIdResult.data) return { success: false, error: "LOCAL_INVALIDO" };
     const shopId = shopIdResult.data;
 
     // Verify owner role
-    const session = await getAuthSession();
-    if (!session) return { success: false, error: "SESION_EXPIRADA" };
-    const supabase = await createServerClient();
-    const { data: membership } = await supabase
-      .from("shop_memberships")
-      .select("role")
-      .eq("user_id", session.user.id)
-      .eq("shop_id", shopId)
-      .eq("is_active", true)
-      .maybeSingle();
-    if (!membership || membership.role !== "owner") {
+    const roleResult = await getCurrentUserRole(shopId);
+    if (!roleResult.success || !roleResult.data || roleResult.data.role !== "owner") {
       return { success: false, error: "Solo el owner del local puede modificar el tema" };
     }
 
@@ -160,21 +152,12 @@ export async function uploadBookingLogo(formData: FormData): Promise<ActionResul
   try {
     const shopSlug = String(formData.get("shopSlug") || "").trim();
     const shopIdResult = await resolveShopIdFromOptionalSlug(shopSlug);
-    if (!shopIdResult.success) return shopIdResult;
+    if (!shopIdResult.success || !shopIdResult.data) return { success: false, error: "LOCAL_INVALIDO" };
     const shopId = shopIdResult.data;
 
     // Verify owner role
-    const session = await getAuthSession();
-    if (!session) return { success: false, error: "SESION_EXPIRADA" };
-    const supabase = await createServerClient();
-    const { data: membership } = await supabase
-      .from("shop_memberships")
-      .select("role")
-      .eq("user_id", session.user.id)
-      .eq("shop_id", shopId)
-      .eq("is_active", true)
-      .maybeSingle();
-    if (!membership || membership.role !== "owner") {
+    const roleResult = await getCurrentUserRole(shopId);
+    if (!roleResult.success || !roleResult.data || roleResult.data.role !== "owner") {
       return { success: false, error: "Solo el owner del local puede modificar el logo" };
     }
 
@@ -187,9 +170,30 @@ export async function uploadBookingLogo(formData: FormData): Promise<ActionResul
 
     const ext = file.name.includes(".") ? file.name.split(".").pop()!.toLowerCase() : "png";
     const safeExt = ["png", "jpg", "jpeg", "webp", "svg"].includes(ext) ? ext : "png";
-    const storagePath = `shops/${shopId}/branding/logo.${safeExt}`;
 
-    const uploadRes = await admin.storage.from("booking-assets").upload(storagePath, file, { upsert: true, contentType: file.type });
+    // Read and optionally resize image via sharp
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const MAX_DIMENSION = 1024;
+    let processedBuffer: Buffer = buffer;
+    let finalContentType = file.type;
+    let finalExt = safeExt;
+
+    // Skip sharp for SVG — it handles SVG input poorly for output
+    if (safeExt !== "svg") {
+      const metadata = await sharp(buffer).metadata();
+      if (metadata.width && metadata.height && (metadata.width > MAX_DIMENSION || metadata.height > MAX_DIMENSION)) {
+        processedBuffer = await sharp(buffer)
+          .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: "inside", withoutEnlargement: true })
+          .webp({ quality: 85 })
+          .toBuffer();
+        finalContentType = "image/webp";
+        finalExt = "webp";
+      }
+    }
+
+    const storagePath = `shops/${shopId}/branding/logo.${finalExt}`;
+
+    const uploadRes = await admin.storage.from("booking-assets").upload(storagePath, processedBuffer, { upsert: true, contentType: finalContentType });
     if (uploadRes.error) return { success: false, error: uploadRes.error.message };
 
     const { data: publicData } = admin.storage.from("booking-assets").getPublicUrl(storagePath);

@@ -159,19 +159,18 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
         const shopAddress = locationParts.length > 0 ? locationParts.join(", ") : undefined;
         const replyTo = sd?.email && sd.email.includes("@") ? sd.email : undefined;
         const serviceNames = orderedServices.map((s) => s.name).join(", ");
-        await Promise.allSettled(
-          rowsToInsert.map((row) =>
-            sendAppointmentAutomationEmails({
-              to: emailTo,
-              customerName: customer?.nombre || "Cliente",
-              shopName: sd?.nombre || "Klip",
-              serviceName: serviceNames,
-              startTime: row.start_time,
-              shopAddress,
-              replyTo,
-            })
-          )
-        );
+        const firstRow = rowsToInsert[0];
+        if (firstRow) {
+          await sendAppointmentAutomationEmails({
+            to: emailTo,
+            customerName: customer?.nombre || "Cliente",
+            shopName: sd?.nombre || "Klip",
+            serviceName: serviceNames,
+            startTime: firstRow.start_time,
+            shopAddress,
+            replyTo,
+          }).catch((mailError) => console.error("[createAppointment] email automation error:", mailError));
+        }
       }
     } catch (mailError) {
       console.error("[createAppointment] email automation error:", mailError);
@@ -544,15 +543,17 @@ export async function patchAppointmentQuick(
     }
 
     let durationMinutes = Math.max(1, Math.round((new Date(appointment.end_time).getTime() - new Date(appointment.start_time).getTime()) / 60000));
+    let nextService: { id: string; duration_minutes: number; price: number | null } | null = null;
     if (normalizedServiceId !== undefined) {
-      const { data: nextService, error: nextServiceError } = await supabase
+      const { data: nextServiceData, error: nextServiceError } = await supabase
         .from("services")
-        .select("id, duration_minutes")
+        .select("id, duration_minutes, price")
         .eq("id", normalizedServiceId)
         .eq("shop_id", shopId)
         .maybeSingle();
       if (nextServiceError) return { success: false, error: nextServiceError.message };
-      if (!nextService) return { success: false, error: "Servicio invalido" };
+      if (!nextServiceData) return { success: false, error: "Servicio invalido" };
+      nextService = nextServiceData;
       durationMinutes = Math.max(1, Number(nextService.duration_minutes || durationMinutes));
     }
     const nextEndIso = new Date(new Date(nextStartIso).getTime() + durationMinutes * 60000).toISOString();
@@ -579,7 +580,10 @@ export async function patchAppointmentQuick(
     if (patch.status === "completed" && patch.isPaid === undefined) updates.is_paid = true;
     if (patch.isPaid !== undefined) updates.is_paid = patch.isPaid;
     if (normalizedStaffId !== undefined) updates.staff_id = normalizedStaffId;
-    if (normalizedServiceId !== undefined) updates.service_id = normalizedServiceId;
+    if (normalizedServiceId !== undefined) {
+      updates.service_id = normalizedServiceId;
+      updates.service_price = nextService?.price ?? null;
+    }
     if (patch.startTime !== undefined || normalizedServiceId !== undefined) {
       updates.start_time = nextStartIso;
       updates.end_time = nextEndIso;
@@ -625,6 +629,7 @@ export async function updateAppointmentServices(
     serviceSelections: Array<{ serviceId: string; durationMinutes: number }>;
     startTime: string;
     staffId?: string | null;
+    status?: string;
   },
   shopId?: string,
 ): Promise<ActionResult> {
@@ -640,7 +645,7 @@ export async function updateAppointmentServices(
     const supabase = await createServerClient();
     const { data: primary, error: primaryError } = await supabase
       .from("appointments")
-      .select("id, customer_id, staff_id, start_time, end_time, status, is_paid, deposit_amount, notes, service_id, date_key_ar, loyalty_reward_applied, loyalty_discount_percent_applied")
+      .select("id, customer_id, staff_id, start_time, end_time, status, is_paid, deposit_amount, notes, service_id, date_key_ar, recurring_group_id, loyalty_reward_applied, loyalty_discount_percent_applied")
       .eq("id", appointmentId)
       .eq("shop_id", shopId)
       .maybeSingle();
@@ -712,10 +717,11 @@ export async function updateAppointmentServices(
         start_time: currentStart.toISOString(),
         end_time: currentEnd.toISOString(),
         date_key_ar: getArgentinaDateKey(currentStart.toISOString()),
-        status: primary.status,
+        status: data.status ?? primary.status,
         deposit_amount: primary.deposit_amount,
         is_paid: primary.is_paid,
         notes: primary.notes,
+        recurring_group_id: primary.recurring_group_id,
         loyalty_reward_applied: primary.loyalty_reward_applied,
         loyalty_discount_percent_applied: primary.loyalty_discount_percent_applied,
       };
@@ -740,18 +746,33 @@ export async function updateAppointmentServices(
       if (conflict && conflict.length > 0) return { success: false, error: "slot_taken" };
     }
 
-    const { data: siblings, error: siblingsError } = await supabase
+    const siblingQuery = supabase
       .from("appointments")
-      .select("id")
+      .select("id, start_time, end_time")
       .eq("shop_id", shopId)
       .eq("customer_id", primary.customer_id)
       .eq("date_key_ar", primary.date_key_ar)
+      .neq("id", appointmentId)
+      .not("status", "eq", "cancelled")
       .order("start_time", { ascending: true });
+
+    if (effectiveStaffId) {
+      siblingQuery.eq("staff_id", effectiveStaffId);
+    }
+
+    const { data: siblings, error: siblingsError } = await siblingQuery;
 
     if (siblingsError) return { success: false, error: siblingsError.message };
 
+    const primaryStart = new Date(primary.start_time).getTime();
+    const primaryEnd = new Date(primary.end_time).getTime();
+
     const siblingIds = (siblings || [])
-      .filter((s) => s.id !== appointmentId)
+      .filter((s) => {
+        const sStart = new Date(s.start_time).getTime();
+        const sEnd = new Date(s.end_time).getTime();
+        return Math.abs(sStart - primaryEnd) <= 120000 || Math.abs(sEnd - primaryStart) <= 120000;
+      })
       .map((s) => s.id);
 
     const allOldIds = [appointmentId, ...siblingIds];
@@ -759,9 +780,19 @@ export async function updateAppointmentServices(
     // Save old data before delete for potential rollback
     const { data: oldRows } = await supabase
       .from("appointments")
-      .select("shop_id, customer_id, staff_id, service_id, service_price, start_time, end_time, date_key_ar, status, is_paid, deposit_amount, notes, recurring_group_id, loyalty_reward_applied, loyalty_discount_percent_applied")
+      .select("id, shop_id, customer_id, staff_id, service_id, service_price, start_time, end_time, date_key_ar, status, is_paid, deposit_amount, notes, recurring_group_id, loyalty_reward_applied, loyalty_discount_percent_applied")
       .in("id", allOldIds)
       .eq("shop_id", shopId);
+
+    // Insert-first approach: no crash window between delete and insert
+    const { error: insertError } = await supabase
+      .from("appointments")
+      .insert(rowsToInsert);
+
+    if (insertError) {
+      console.error("[updateAppointmentServices] insert failed, old data untouched:", insertError);
+      return { success: false, error: insertError.message };
+    }
 
     const { error: deleteError } = await supabase
       .from("appointments")
@@ -769,21 +800,12 @@ export async function updateAppointmentServices(
       .in("id", allOldIds)
       .eq("shop_id", shopId);
 
-    if (deleteError) return { success: false, error: deleteError.message };
-
-    const { error: insertError } = await supabase
-      .from("appointments")
-      .insert(rowsToInsert);
-
-    if (insertError) {
-      console.error("[updateAppointmentServices] insert failed after delete, restoring old data:", insertError);
-      if (oldRows && oldRows.length > 0) {
-        await supabase.from("appointments").insert(oldRows);
-      }
-      return { success: false, error: insertError.message };
+    if (deleteError) {
+      console.error("[updateAppointmentServices] delete failed after insert, duplicate data may exist:", deleteError);
+      return { success: false, error: "Error al eliminar los datos anteriores. Los nuevos servicios se guardaron pero pueden existir duplicados." };
     }
 
-    const nextStatus = primary.status;
+    const nextStatus = data.status ?? primary.status;
     const shouldRegisterLoyaltyCut =
       nextStatus === "completed" &&
       typeof primary.customer_id === "string" &&
@@ -846,6 +868,12 @@ export async function deleteAppointment(id: string, shopIdOverride?: string): Pr
       shopId = shopIdResult.data;
       if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
     }
+
+    const auth = await createServerClient();
+    const { data: { user } } = await auth.auth.getUser();
+    if (!user) return { success: false, error: "SESION_EXPIRADA" };
+    const allowed = await canAccessShopId(user.id, shopId);
+    if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
 
     const supabase = await createServerClient();
 
@@ -1033,14 +1061,14 @@ export async function moveAppointmentGroup(
 
         for (let i = primaryIdx + 1; i < combined.length; i++) {
           const gap = new Date(combined[i].start_time).getTime() - new Date(combined[i - 1].end_time).getTime();
-          if (Math.abs(gap) < 60000) {
+          if (Math.abs(gap) <= 120000) {
             allRows.push(combined[i]);
           } else break;
         }
 
         for (let i = primaryIdx - 1; i >= 0; i--) {
           const gap = new Date(combined[i + 1].start_time).getTime() - new Date(combined[i].end_time).getTime();
-          if (Math.abs(gap) < 60000) {
+          if (Math.abs(gap) <= 120000) {
             allRows.unshift(combined[i]);
           } else break;
         }
@@ -1075,6 +1103,13 @@ export async function moveAppointmentGroup(
       if (realConflicts.length > 0) return { success: false, error: "slot_taken" };
     }
 
+    // Save old data for potential rollback
+    const { data: oldRows } = await supabase
+      .from("appointments")
+      .select("id, start_time, end_time, date_key_ar")
+      .in("id", updates.map((u) => u.id))
+      .eq("shop_id", shopId);
+
     const updatedIds: string[] = [];
     for (const u of updates) {
       const { error } = await supabase
@@ -1087,7 +1122,27 @@ export async function moveAppointmentGroup(
         })
         .eq("id", u.id)
         .eq("shop_id", shopId);
-      if (error) return { success: false, error: error.message };
+      if (error) {
+        // Rollback successful updates
+        if (oldRows && oldRows.length > 0) {
+          for (const old of oldRows) {
+            const alreadyUpdated = updatedIds.includes(old.id);
+            if (alreadyUpdated) {
+              await supabase
+                .from("appointments")
+                .update({
+                  start_time: old.start_time,
+                  end_time: old.end_time,
+                  date_key_ar: old.date_key_ar,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", old.id)
+                .eq("shop_id", shopId);
+            }
+          }
+        }
+        return { success: false, error: error.message };
+      }
       updatedIds.push(u.id);
     }
 

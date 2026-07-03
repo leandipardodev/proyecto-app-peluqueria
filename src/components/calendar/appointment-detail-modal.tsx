@@ -3,7 +3,7 @@
 import { X, Check, Trash2, MessageCircle, UserRoundPen, Search, Plus, Clock, DollarSign, Pencil } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, useTransition, useMemo } from "react";
 import { deleteAppointment, patchAppointmentQuick, redeemLoyaltyReward, updateCustomerQuick, updateAppointmentServices, cancelRecurringSeries } from "@/lib/dashboard/appointment-actions";
-import { getArgentinaDateKey } from "@/lib/argentina-time";
+import { getArgentinaDateKey, toArgentinaLocalIsoString } from "@/lib/argentina-time";
 import { refundMpPayment } from "@/lib/payments/mercadopago-actions";
 import { AnimatePresence, motion } from "framer-motion";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
@@ -100,9 +100,7 @@ function statusColor(status: string, isPaid: boolean): string {
 }
 
 function toDateTimeLocalValue(iso: string): string {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return toArgentinaLocalIsoString(iso).slice(0, 16);
 }
 
 function getUserFriendlyError(error: string): string {
@@ -118,7 +116,7 @@ function getUserFriendlyError(error: string): string {
 }
 
 function formatTime(d: Date): string {
-  return d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false });
+  return d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Argentina/Buenos_Aires" });
 }
 
 export default function AppointmentDetailModal({
@@ -161,8 +159,8 @@ export default function AppointmentDetailModal({
   const saveStateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const servicesSavedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveVersionRef = useRef(0);
-
   const pendingChangesRef = useRef<{ status?: string; isPaid?: boolean; staffId?: string | null }>({});
+  const flushSavePromiseRef = useRef<Promise<void> | null>(null);
 
   const serviceSearchRef = useRef<HTMLInputElement>(null);
   const serviceDropdownRef = useRef<HTMLDivElement>(null);
@@ -174,7 +172,11 @@ export default function AppointmentDetailModal({
 
   const [appointmentGroup, setAppointmentGroup] = useState<SiblingAppointment[]>([]);
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>(
-    appointment?.service_id ? [appointment.service_id] : []
+    appointment?.service_id
+      ? appointment.service_id.includes(",")
+        ? appointment.service_id.split(",")
+        : [appointment.service_id]
+      : []
   );
   const [serviceCustomDurations, setServiceCustomDurations] = useState<Record<string, number>>({});
   const [groupStartTime, setGroupStartTime] = useState(
@@ -190,16 +192,28 @@ export default function AppointmentDetailModal({
 
   function computeAppointmentGroup(aptId: string, customerId: string, staffId: string | null, startTime: string, allApts: SiblingAppointment[]): { group: SiblingAppointment[]; serviceIds: string[]; groupStartTime: string } {
     const dateKey = getArgentinaDateKey(startTime);
-    const sameDay = allApts.filter((a) => a.customer_id === customerId && getArgentinaDateKey(a.start_time) === dateKey);
+    const sameDay = allApts.filter((a) => a.customer_id === customerId && getArgentinaDateKey(a.start_time) === dateKey && (!staffId || a.staff_id === staffId));
     if (sameDay.length <= 1) {
       return { group: [], serviceIds: sameDay.map((a) => a.service_id).filter(Boolean), groupStartTime: toDateTimeLocalValue(startTime) };
     }
     const mainApt = sameDay.find((a) => a.id === aptId);
     if (!mainApt) return { group: [], serviceIds: sameDay.map((a) => a.service_id).filter(Boolean), groupStartTime: toDateTimeLocalValue(startTime) };
     const t = (v: string) => new Date(v).getTime();
-    const mainStart = t(mainApt.start_time), mainEnd = t(mainApt.end_time);
-    const siblings = sameDay.filter((a) => a.id === aptId || Math.abs(t(a.start_time) - mainEnd) <= 120000 || Math.abs(t(a.end_time) - mainStart) <= 120000);
-    siblings.sort((a, b) => t(a.start_time) - t(b.start_time));
+    sameDay.sort((a, b) => t(a.start_time) - t(b.start_time));
+    const primaryIdx = sameDay.findIndex((a) => a.id === aptId);
+    const siblings: SiblingAppointment[] = [sameDay[primaryIdx]];
+    // Walk forward
+    for (let i = primaryIdx + 1; i < sameDay.length; i++) {
+      const gap = t(sameDay[i].start_time) - t(sameDay[i - 1].end_time);
+      if (Math.abs(gap) <= 120000) siblings.push(sameDay[i]);
+      else break;
+    }
+    // Walk backward
+    for (let i = primaryIdx - 1; i >= 0; i--) {
+      const gap = t(sameDay[i + 1].start_time) - t(sameDay[i].end_time);
+      if (Math.abs(gap) <= 120000) siblings.unshift(sameDay[i]);
+      else break;
+    }
     return { group: siblings, serviceIds: siblings.map((a) => a.service_id).filter(Boolean), groupStartTime: toDateTimeLocalValue(siblings[0].start_time) };
   }
 
@@ -279,19 +293,30 @@ export default function AppointmentDetailModal({
     const version = ++saveVersionRef.current;
     setSaveState("saving");
 
-    startTransition(async () => {
-      const result = await patchAppointmentQuick(appointment.id, payload, shopId);
-      if (version !== saveVersionRef.current) return;
-      if (!result.success) {
-        setError(result.error);
-        setSaveState("idle");
-        return;
-      }
-      setSaveState("saved");
-      onSuccess?.();
-      clearTimeout(saveStateTimerRef.current ?? undefined);
-      saveStateTimerRef.current = setTimeout(() => { saveStateTimerRef.current = null; setSaveState("idle"); }, 2000);
+    const promise = new Promise<void>((resolve) => {
+      startTransition(async () => {
+        const result = await patchAppointmentQuick(appointment.id, payload, shopId);
+        if (version !== saveVersionRef.current) { resolve(); return; }
+        if (!result.success) {
+          setError(result.error);
+          setSaveState("idle");
+          flushSavePromiseRef.current = null;
+          resolve(); return;
+        }
+        // Re-queue any changes that arrived during save
+        const remaining = pendingChangesRef.current;
+        if (Object.keys(remaining).length > 0) {
+          debounceRef.current = setTimeout(flushSave, 800);
+        }
+        setSaveState("saved");
+        onSuccess?.();
+        clearTimeout(saveStateTimerRef.current ?? undefined);
+        saveStateTimerRef.current = setTimeout(() => { saveStateTimerRef.current = null; setSaveState("idle"); }, 2000);
+        flushSavePromiseRef.current = null;
+        resolve();
+      });
     });
+    flushSavePromiseRef.current = promise;
   }, [appointment, shopId, onSuccess]);
 
   const queueChange = useCallback((next: { status?: string; isPaid?: boolean; staffId?: string | null; startTime?: string }) => {
@@ -305,6 +330,9 @@ export default function AppointmentDetailModal({
   useEffect(() => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (flushSavePromiseRef.current) {
+        flushSavePromiseRef.current.then(() => {}).catch(() => {});
+      }
       if (saveStateTimerRef.current) clearTimeout(saveStateTimerRef.current);
       if (servicesSavedTimerRef.current) clearTimeout(servicesSavedTimerRef.current);
     };
@@ -335,7 +363,7 @@ export default function AppointmentDetailModal({
 
   const timeSlots = useMemo(() => {
     if (selectedServices.length === 0 || !groupStartTime) return [];
-    const base = new Date(groupStartTime);
+    const base = new Date(`${groupStartTime}:00-03:00`);
     if (isNaN(base.getTime())) return [];
     const slots: { service: ServiceItem; start: string; end: string }[] = [];
     let current = new Date(base);
@@ -503,10 +531,20 @@ export default function AppointmentDetailModal({
       setError("Seleccioná al menos un servicio");
       return;
     }
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
     setError(null);
     setServicesSaving(true);
     setServicesJustSaved(false);
 
+    const startTimeStr = groupStartTime || startDateTimeLocal;
+    const startDate = new Date(`${startTimeStr}:00-03:00`);
+    if (Number.isNaN(startDate.getTime())) {
+      setError("Fecha/hora inválida");
+      setServicesSaving(false);
+      return;
+    }
     const result = await updateAppointmentServices(
       appointment.id,
       {
@@ -514,8 +552,9 @@ export default function AppointmentDetailModal({
           serviceId: id,
           durationMinutes: serviceCustomDurations[id] ?? services.find((s) => s.id === id)?.duration_minutes ?? 60,
         })),
-        startTime: new Date(groupStartTime || startDateTimeLocal).toISOString(),
+        startTime: startDate.toISOString(),
         staffId: selectedStaffId || undefined,
+        status: localStatus,
       },
       shopId,
     );
@@ -531,6 +570,11 @@ export default function AppointmentDetailModal({
     setServicesJustSaved(true);
     addToast("Servicios actualizados", "success");
     onSuccess?.();
+    // Re-queue any quick changes that arrived during save
+    const remaining = pendingChangesRef.current;
+    if (Object.keys(remaining).length > 0) {
+      debounceRef.current = setTimeout(flushSave, 800);
+    }
     clearTimeout(servicesSavedTimerRef.current ?? undefined);
     servicesSavedTimerRef.current = setTimeout(() => { servicesSavedTimerRef.current = null; setServicesJustSaved(false); }, 2500);
   }

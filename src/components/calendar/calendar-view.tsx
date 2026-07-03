@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Plus, Pointer, X, ExternalLink, Phone } from
 import { AnimatePresence, motion, useAnimation } from "framer-motion";
 import { useRef, useState, useEffect, useMemo, useCallback, memo } from "react";
 import { createPortal } from "react-dom";
+import { useHotkey } from "@/lib/use-hotkey";
 import {
   DndContext,
   DragOverlay,
@@ -14,8 +15,10 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  pointerWithin,
   type DragStartEvent,
   type DragEndEvent,
+  type DragMoveEvent,
 } from "@dnd-kit/core";
 import { GRID_END_HOUR, GRID_START_HOUR, HOUR_HEIGHT } from "@/lib/calendar-constants";
 import ContextMenu from "@/components/ui/context-menu";
@@ -83,6 +86,7 @@ interface CalendarViewProps {
   businessHours?: BusinessHoursMap;
   onViewModeChange?: (mode: "week" | "day" | "month") => void;
   onBatchClick?: () => void;
+  onMonthChange?: (newDate: Date) => void;
   initialViewMode?: "week" | "day" | "month";
   onMoveAppointment?: (appointmentId: string, newStartIso: string) => void;
 }
@@ -133,12 +137,14 @@ const NowLine = memo(function NowLine({ day, gridStartHour, gridEndHour }: { day
     && getArgentinaDateKey(prev.day) === getArgentinaDateKey(next.day);
 });
 
-function HourDroppable({ hour, dayStr, isOpenSlot, onSlotClick, mobileLabel }: {
+function HourDroppable({ hour, dayStr, isOpenSlot, onSlotClick, mobileLabel, showGuides, activeSnapFrac }: {
   hour: number;
   dayStr: string;
   isOpenSlot: boolean;
   onSlotClick: (date: Date, hour: number) => void;
   mobileLabel?: string;
+  showGuides: boolean;
+  activeSnapFrac: number | null;
 }) {
   const droppableId = `slot-${dayStr}-${hour}`;
   const { setNodeRef, isOver } = useDroppable({
@@ -156,6 +162,22 @@ function HourDroppable({ hour, dayStr, isOpenSlot, onSlotClick, mobileLabel }: {
       } ${isOver ? "bg-sky-200/60 dark:bg-sky-700/40 ring-2 ring-sky-400/50 ring-inset z-20" : ""}`}
       onClick={isOpenSlot ? () => onSlotClick(new Date(`${dayStr}T12:00:00`), hour) : undefined}
     >
+      {[0, 0.25, 0.5, 0.75].map((frac) => {
+        const isActive = showGuides && isOver && activeSnapFrac === frac;
+        return (
+          <div
+            key={frac}
+            className={`absolute left-0 right-0 h-px pointer-events-none transition-all duration-200 ${
+              !showGuides
+                ? "bg-transparent"
+                : isActive
+                  ? "bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.6)]"
+                  : "bg-zinc-300/60 dark:bg-zinc-500/50"
+            }`}
+            style={{ top: `${frac * 100}%` }}
+          />
+        );
+      })}
       {mobileLabel && (
         <span className="absolute left-1 top-1 text-[8px] font-medium text-gray-500 dark:text-gray-400 select-none pointer-events-none">
           {mobileLabel}
@@ -310,6 +332,123 @@ const AppointmentBlock = memo(function AppointmentBlock({
   );
 });
 
+function MonthAppointmentBlock({
+  appt,
+  staffColorMap,
+  onAppointmentClick,
+  onContextMenu,
+}: {
+  appt: NormalizedAppointment;
+  staffColorMap: Record<string, (typeof STAFF_COLORS)[0]>;
+  onAppointmentClick: (appt: Appointment | null) => void;
+  onContextMenu?: (appt: NormalizedAppointment, e: React.MouseEvent) => void;
+}) {
+  const isCancelled = appt.status === "cancelled" || appt.status === "no_show";
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `m-appt-${appt.id}`,
+    data: {
+      appointmentId: appt.id,
+      startMin: minutesFromHHmm(appt.start_hhmm),
+      customerName: appt.customers?.nombre || "Sin cliente",
+      startHhmm: appt.start_hhmm,
+    },
+  });
+  const staffColor = appt.staff_id ? staffColorMap[appt.staff_id] : undefined;
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      className={`text-[10px] leading-tight truncate rounded px-1 py-0.5 cursor-grab active:cursor-grabbing select-none text-white ${isCancelled ? "opacity-0 pointer-events-none" : ""} ${isDragging ? "opacity-30" : "hover:opacity-80"}`}
+      style={{
+        backgroundColor: staffColor?.accent || "#8B5CF6",
+        touchAction: "none",
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (!isDragging) onAppointmentClick(appt);
+      }}
+      onContextMenu={(e) => onContextMenu?.(appt, e)}
+    >
+      {appt.start_hhmm} {appt.customers?.nombre?.split(/\s+/)[0] || "Sin"}
+    </div>
+  );
+}
+
+function MonthCell({
+  cell,
+  count,
+  intensity,
+  isCurrentMonth,
+  isTodayCell,
+  appointments,
+  maxVisible = 3,
+  staffColorMap,
+  onAppointmentClick,
+  onContextMenu,
+  onCellClick,
+}: {
+  cell: { dateKey: string; day: number; date: Date; isCurrentMonth: boolean };
+  count: number;
+  intensity: number;
+  isCurrentMonth: boolean;
+  isTodayCell: boolean;
+  appointments: NormalizedAppointment[];
+  maxVisible?: number;
+  staffColorMap: Record<string, (typeof STAFF_COLORS)[0]>;
+  onAppointmentClick: (appt: Appointment | null) => void;
+  onContextMenu: (appt: NormalizedAppointment, e: React.MouseEvent) => void;
+  onCellClick: (dateKey: string, el: HTMLElement) => void;
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `month-cell-${cell.dateKey}`,
+    data: { dayStr: cell.dateKey },
+  });
+  const nonCancelled = appointments.filter((a) => a.status !== "cancelled" && a.status !== "no_show");
+  const visible = nonCancelled.slice(0, maxVisible);
+  const remaining = nonCancelled.length - visible.length;
+  return (
+    <div
+      ref={setNodeRef}
+      className={`relative min-h-[80px] border-r border-b border-zinc-200/30 dark:border-zinc-800/30 cursor-pointer hover:bg-zinc-100/60 dark:hover:bg-zinc-800/40 transition-colors ${!isCurrentMonth ? "bg-zinc-50/40 dark:bg-zinc-900/30" : ""} ${isTodayCell ? "ring-1 ring-inset ring-sky-400 dark:ring-sky-500" : ""} ${isOver ? "ring-2 ring-sky-400/70 ring-inset bg-sky-100/60 dark:bg-sky-900/40" : ""}`}
+      style={{
+        backgroundColor: count > 0 && !isOver
+          ? `rgba(139, 92, 246, ${(0.08 + intensity * 0.35).toFixed(3)})`
+          : undefined,
+      }}
+      onClick={(e) => onCellClick(cell.dateKey, e.currentTarget)}
+    >
+      <span className="block mt-1 ml-1.5 mb-0.5 text-xs font-medium">
+        {isTodayCell ? (
+          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-sky-500 text-white text-xs font-bold shadow-sm">
+            {cell.day}
+          </span>
+        ) : (
+          <span className={`${!isCurrentMonth ? "text-zinc-300 dark:text-zinc-600" : "text-gray-700 dark:text-gray-300"}`}>
+            {cell.day}
+          </span>
+        )}
+      </span>
+      <div className="px-1 space-y-0.5">
+        {visible.map((appt) => (
+          <MonthAppointmentBlock
+            key={appt.id}
+            appt={appt}
+            staffColorMap={staffColorMap}
+            onAppointmentClick={onAppointmentClick}
+            onContextMenu={onContextMenu}
+          />
+        ))}
+        {remaining > 0 && (
+          <div className="text-[10px] font-semibold text-violet-600 dark:text-violet-400 truncate px-1">
+            +{remaining} más
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default memo(function CalendarView({
   appointments,
   currentDate,
@@ -325,6 +464,7 @@ export default memo(function CalendarView({
   onBatchClick,
   initialViewMode,
   onMoveAppointment,
+  onMonthChange,
 }: CalendarViewProps) {
   const { weekStart, weekEnd, weekDays } = useMemo(() => {
     const ws = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -366,9 +506,10 @@ export default memo(function CalendarView({
   const handleContextMenu = useCallback((appt: NormalizedAppointment, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (isCoarsePointer) return;
     setContextMenuAppt(appt);
     setContextMenuPos({ x: e.clientX, y: e.clientY });
-  }, []);
+  }, [isCoarsePointer]);
   const handleCloseContextMenu = useCallback(() => {
     setContextMenuPos(null);
     setContextMenuAppt(null);
@@ -462,11 +603,16 @@ export default memo(function CalendarView({
     });
   }, [filteredAppointments]);
 
-  const [activeDragInfo, setActiveDragInfo] = useState<{ customerName: string; startHhmm: string } | null>(null);
+  const [activeDragInfo, setActiveDragInfo] = useState<{ customerName: string; startHhmm: string; targetTime?: string } | null>(null);
+  const [activeSnapFrac, setActiveSnapFrac] = useState<number | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 },
+      activationConstraint: {
+        delay: 500,
+        tolerance: 5,
+        distance: 0,
+      },
     })
   );
 
@@ -477,7 +623,10 @@ export default memo(function CalendarView({
     return () => window.removeEventListener("pointermove", onMove);
   }, []);
 
+  const processedDropRef = useRef<string | null>(null);
+
   const handleDragStart = useCallback((event: DragStartEvent) => {
+    processedDropRef.current = null;
     const data = event.active.data.current as {
       appointmentId?: string;
       startMin?: number;
@@ -485,6 +634,7 @@ export default memo(function CalendarView({
       startHhmm?: string;
     } | undefined;
     if (!data?.appointmentId) return;
+    setActiveSnapFrac(null);
     setActiveDragInfo({
       customerName: data.customerName || "Sin cliente",
       startHhmm: data.startHhmm || "",
@@ -494,23 +644,31 @@ export default memo(function CalendarView({
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     setActiveDragInfo(null);
+    setActiveSnapFrac(null);
     if (!over || !onMoveAppointment) return;
 
     const activeData = active.data.current as { appointmentId?: string; startMin?: number } | undefined;
     const overData = over.data.current as { dayStr?: string; hour?: number } | undefined;
-    if (!activeData?.appointmentId || !overData?.dayStr || overData.hour === undefined) return;
+    if (!activeData?.appointmentId || !overData?.dayStr) return;
 
-    const droppableEl = document.querySelector(`[data-droppable-id="slot-${overData.dayStr}-${overData.hour}"]`);
-    let offsetMinutes = 0;
-    if (droppableEl) {
-      const rect = droppableEl.getBoundingClientRect();
-      const pointerY = pointerPosRef.current.y;
-      const offsetY = pointerY - rect.top;
-      offsetMinutes = Math.round((offsetY / HOUR_HEIGHT) * 60 / 15) * 15;
-      offsetMinutes = Math.min(Math.max(offsetMinutes, 0), 45);
+    if (processedDropRef.current === activeData.appointmentId) return;
+    processedDropRef.current = activeData.appointmentId;
+
+    let totalMinutes: number;
+    if (overData.hour !== undefined) {
+      const droppableEl = document.querySelector(`[data-droppable-id="slot-${overData.dayStr}-${overData.hour}"]`);
+      let offsetMinutes = 0;
+      if (droppableEl) {
+        const rect = droppableEl.getBoundingClientRect();
+        const pointerY = pointerPosRef.current.y;
+        const offsetY = pointerY - rect.top;
+        offsetMinutes = Math.round((offsetY / HOUR_HEIGHT) * 60 / 15) * 15;
+        offsetMinutes = Math.min(Math.max(offsetMinutes, 0), 45);
+      }
+      totalMinutes = overData.hour * 60 + offsetMinutes;
+    } else {
+      totalMinutes = activeData.startMin ?? (GRID_START_HOUR * 60);
     }
-
-    const totalMinutes = overData.hour * 60 + Math.min(Math.max(offsetMinutes, 0), 45);
 
     const h = Math.floor(totalMinutes / 60);
     const m = totalMinutes % 60;
@@ -520,8 +678,38 @@ export default memo(function CalendarView({
     onMoveAppointment(activeData.appointmentId, utcIso);
   }, [onMoveAppointment]);
 
+  const handleDragMove = useCallback((event: DragMoveEvent) => {
+    const { over } = event;
+    if (!over) return;
+
+    const overData = over.data.current as { dayStr?: string; hour?: number } | undefined;
+    if (!overData?.dayStr || overData.hour === undefined) return;
+
+    const droppableId = `slot-${overData.dayStr}-${overData.hour}`;
+    const droppableEl = document.querySelector(`[data-droppable-id="${droppableId}"]`);
+    let offsetMinutes = 0;
+    if (droppableEl) {
+      const rect = droppableEl.getBoundingClientRect();
+      const pointerY = pointerPosRef.current.y;
+      const offsetY = pointerY - rect.top;
+      offsetMinutes = Math.round((offsetY / HOUR_HEIGHT) * 60 / 15) * 15;
+      offsetMinutes = Math.min(Math.max(offsetMinutes, 0), 45);
+    }
+
+    const frac = offsetMinutes / 60;
+    setActiveSnapFrac(frac);
+
+    const totalMinutes = overData.hour * 60 + offsetMinutes;
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    const timeStr = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+
+    setActiveDragInfo((prev) => prev ? { ...prev, targetTime: timeStr } : null);
+  }, []);
+
   const handleDragCancel = useCallback(() => {
     setActiveDragInfo(null);
+    setActiveSnapFrac(null);
   }, []);
 
   const staffColorMap = useMemo(() => {
@@ -555,12 +743,13 @@ export default memo(function CalendarView({
 
       const sameCustomer = current.customer_id === appt.customer_id;
       const sameStaff = current.staff_id === appt.staff_id;
-      const consecutive = Math.abs(gap) < 60000;
+      const consecutive = Math.abs(gap) <= 120000;
       const sameDay = current.date_key_ar === appt.date_key_ar;
 
       if (sameCustomer && sameStaff && consecutive && sameDay) {
-        const currentName: string = current.services?.name || "";
-        const nextName: string = appt.services?.name || "";
+        const cancelledFlag: boolean = current.status === "cancelled" || appt.status === "cancelled";
+        const currentName: string = current.status === "cancelled" ? "" : (current.services?.name || "");
+        const nextName: string = appt.status === "cancelled" ? "" : (appt.services?.name || "");
         const mergedName: string = currentName && nextName
           ? `${currentName} + ${nextName}`
           : currentName || nextName;
@@ -578,6 +767,7 @@ export default memo(function CalendarView({
           end_time: appt.end_time,
           end_local_iso: appt.end_local_iso,
           end_hhmm: appt.end_hhmm,
+          status: cancelledFlag ? "cancelled" : current.status,
           service_id: `${current.service_id},${appt.service_id}`,
           services: {
             name: mergedName,
@@ -597,13 +787,13 @@ export default memo(function CalendarView({
   }, [normalizedAppointments]);
 
   const appointmentsByDay = useMemo(() => {
+    const keys = new Set<string>();
+    for (const day of weekDays) keys.add(getArgentinaDateKey(day));
+    for (const appt of mergedAppointments) keys.add(appt.date_key_ar);
     const map = new Map<string, NormalizedAppointment[]>();
-    for (const day of weekDays) {
-      map.set(getArgentinaDateKey(day), []);
-    }
+    for (const key of keys) map.set(key, []);
     for (const appt of mergedAppointments) {
-      const dayAppointments = map.get(appt.date_key_ar);
-      if (dayAppointments) dayAppointments.push(appt);
+      map.get(appt.date_key_ar)?.push(appt);
     }
     for (const [, value] of map) {
       value.sort((a, b) => a.start_hhmm.localeCompare(b.start_hhmm));
@@ -618,6 +808,15 @@ export default memo(function CalendarView({
     d.setMonth(d.getMonth() + monthOffset);
     return d;
   }, [currentDate, monthOffset]);
+
+  const prevMonthKeyRef = useRef("");
+  useEffect(() => {
+    const key = `${monthDate.getFullYear()}-${monthDate.getMonth()}`;
+    if (prevMonthKeyRef.current && prevMonthKeyRef.current !== key) {
+      onMonthChange?.(new Date(monthDate));
+    }
+    prevMonthKeyRef.current = key;
+  }, [monthDate, onMonthChange]);
 
   const monthCells = useMemo(() => {
     const year = monthDate.getFullYear();
@@ -653,6 +852,7 @@ export default memo(function CalendarView({
   const appointmentCountByDateKey = useMemo(() => {
     const map = new Map<string, number>();
     for (const appt of mergedAppointments) {
+      if (appt.status === "cancelled" || appt.status === "no_show") continue;
       map.set(appt.date_key_ar, (map.get(appt.date_key_ar) || 0) + 1);
     }
     return map;
@@ -668,6 +868,16 @@ export default memo(function CalendarView({
   const pillAnimIdxRef = useRef(pillModes.indexOf(
     initialViewMode === "day" || initialViewMode === "month" ? initialViewMode : "week"
   ));
+
+  const monthAppointmentsByDateKey = useMemo(() => {
+    const map = new Map<string, NormalizedAppointment[]>();
+    for (const appt of mergedAppointments) {
+      const list = map.get(appt.date_key_ar);
+      if (list) list.push(appt);
+      else map.set(appt.date_key_ar, [appt]);
+    }
+    return map;
+  }, [mergedAppointments]);
 
   const maxCountForMonth = useMemo(() => {
     let max = 0;
@@ -706,6 +916,7 @@ export default memo(function CalendarView({
     const computeLayout = (appts: NormalizedAppointment[]) => {
       const dayEvents = appts
         .filter((appt) => {
+          if (appt.status === "cancelled" || appt.status === "no_show") return false;
           const startMin = minutesFromHHmm(appt.start_hhmm);
           const endMin = minutesFromHHmm(appt.end_hhmm);
           return endMin > gridStartHour * 60 && startMin < (gridEndHour + 1) * 60;
@@ -920,6 +1131,25 @@ export default memo(function CalendarView({
     };
   }, []);
 
+  const handleCreateAppointment = useCallback(() => {
+    const dateStr = viewMode === "day" && focusedDayKey
+      ? focusedDayKey
+      : getArgentinaDateKey(new Date());
+    const date = new Date(`${dateStr}T12:00:00`);
+    const now = new Date();
+    const currentHour = now.getHours();
+    const hour = Math.max(gridStartHour, Math.min(currentHour, gridEndHour - 1));
+    onSlotClick(date, hour);
+  }, [viewMode, focusedDayKey, gridStartHour, gridEndHour, onSlotClick]);
+
+  useHotkey("ArrowLeft", () => handlePrevPeriod(), { enabled: viewMode !== "month" });
+  useHotkey("ArrowRight", () => handleNextPeriod(), { enabled: viewMode !== "month" });
+  useHotkey("T", () => handleTodayClick());
+  useHotkey("W", () => setViewMode("week"));
+  useHotkey("D", () => setViewMode("day"));
+  useHotkey("M", () => setViewMode("month"));
+  useHotkey("N", () => handleCreateAppointment());
+
   const styleTag = useMemo(() => (
     <style>{`
       .closed-slot-pattern {
@@ -1096,6 +1326,14 @@ export default memo(function CalendarView({
         </div>
       </div>
 
+      <DndContext
+          sensors={sensors}
+          collisionDetection={pointerWithin}
+          onDragStart={handleDragStart}
+          onDragMove={handleDragMove}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
+        >
       {viewMode === "month" ? (
         <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-auto scroll-smooth">
           <div className="border border-zinc-200/60 dark:border-zinc-800 rounded-2xl overflow-hidden bg-zinc-50 dark:bg-zinc-900">
@@ -1112,46 +1350,27 @@ export default memo(function CalendarView({
                 const intensity = count / maxCountForMonth;
                 const isCurrentMonth = cell.isCurrentMonth;
                 const isTodayCell = isToday(cell.date);
+                const dayAppts = monthAppointmentsByDateKey.get(cell.dateKey) || [];
                 return (
-                  <div
+                  <MonthCell
                     key={`${cell.dateKey}-${i}`}
-                    className={`relative min-h-[80px] border-r border-b border-zinc-200/30 dark:border-zinc-800/30 cursor-pointer hover:bg-zinc-100/60 dark:hover:bg-zinc-800/40 transition-colors ${!isCurrentMonth ? "bg-zinc-50/40 dark:bg-zinc-900/30" : ""} ${isTodayCell ? "ring-1 ring-inset ring-sky-400 dark:ring-sky-500" : ""}`}
-                    style={{
-                      backgroundColor: count > 0
-                        ? `rgba(139, 92, 246, ${(0.08 + intensity * 0.35).toFixed(3)})`
-                        : undefined,
-                    }}
-                    onClick={(e) => handleDayCellClick(cell.dateKey, e.currentTarget)}
-                  >
-                    <span className="absolute top-1 left-1.5 text-xs font-medium">
-                      {isTodayCell ? (
-                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-sky-500 text-white text-xs font-bold shadow-sm">
-                          {cell.day}
-                        </span>
-                      ) : (
-                        <span className={`${!isCurrentMonth ? "text-zinc-300 dark:text-zinc-600" : "text-gray-700 dark:text-gray-300"}`}>
-                          {cell.day}
-                        </span>
-                      )}
-                    </span>
-                    {count > 0 && (
-                      <span className="absolute bottom-1.5 right-1.5 inline-flex items-center justify-center min-w-[20px] h-[20px] px-1 rounded-full bg-violet-500/85 text-[10px] font-bold text-white shadow-sm">
-                        {count}
-                      </span>
-                    )}
-                  </div>
+                    cell={cell}
+                    count={count}
+                    intensity={intensity}
+                    isCurrentMonth={isCurrentMonth}
+                    isTodayCell={isTodayCell}
+                    appointments={dayAppts}
+                    staffColorMap={staffColorMap}
+                    onAppointmentClick={onAppointmentClick}
+                    onContextMenu={handleContextMenu}
+                    onCellClick={handleDayCellClick}
+                  />
                 );
               })}
             </div>
           </div>
         </div>
       ) : (
-        <DndContext
-          sensors={sensors}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          onDragCancel={handleDragCancel}
-        >
         <div
           ref={scrollContainerRef}
           className="flex-1 min-h-0 overflow-auto scroll-smooth"
@@ -1271,6 +1490,8 @@ export default memo(function CalendarView({
                           isOpenSlot={isOpenSlot}
                           onSlotClick={onSlotClick}
                           mobileLabel={(isMobileDayMode || (isMobileViewport && viewMode === "week" && dayIndex === 0)) ? `${String(hour).padStart(2, "0")}:00` : undefined}
+                          showGuides={!!activeDragInfo}
+                          activeSnapFrac={activeSnapFrac}
                         />
                       );})}
 
@@ -1306,27 +1527,29 @@ export default memo(function CalendarView({
             })}
           </div>
         </div>
+      )}
         <DragOverlay dropAnimation={null}>
           {activeDragInfo && (
             <div
               className="rounded-lg bg-white dark:bg-zinc-800 border-2 border-sky-400/70 shadow-xl opacity-85 flex items-center px-3 py-1.5 text-xs font-medium text-gray-900 dark:text-gray-100 min-w-[120px] pointer-events-none select-none"
               style={{ fontFamily: "Inter, sans-serif" }}
             >
-              {activeDragInfo.customerName} — {activeDragInfo.startHhmm}
+              <span className="truncate">{activeDragInfo.customerName}</span>
+              <span className="shrink-0 font-bold tabular-nums ml-auto">{activeDragInfo.targetTime ?? activeDragInfo.startHhmm}</span>
             </div>
           )}
         </DragOverlay>
       </DndContext>
-      )}
 
       {portalReady && !isCoarsePointer && hoverTooltip && createPortal((() => {
         const tipAppt = hoverTooltip.appointment;
         const tipStaffColor = tipAppt.staff_id && staffColorMap[tipAppt.staff_id]
           ? staffColorMap[tipAppt.staff_id].accent
           : "rgba(99,102,241,0.35)";
-        const dayName = format(new Date(tipAppt.start_local_iso), "EEE", { locale: es });
-        const dayNum = format(new Date(tipAppt.start_local_iso), "d", { locale: es });
-        const monthName = format(new Date(tipAppt.start_local_iso), "MMM", { locale: es });
+        const arDate = new Date(`${tipAppt.date_key_ar}T12:00:00-03:00`);
+        const dayName = arDate.toLocaleDateString("es-AR", { weekday: "short", timeZone: "America/Argentina/Buenos_Aires" });
+        const dayNum = arDate.toLocaleDateString("es-AR", { day: "numeric", timeZone: "America/Argentina/Buenos_Aires" });
+        const monthName = arDate.toLocaleDateString("es-AR", { month: "short", timeZone: "America/Argentina/Buenos_Aires" });
         const solidStaffColor = tipStaffColor.replace(/[\d.]+\)$/, "1)");
         return (
           <div
@@ -1423,7 +1646,13 @@ export default memo(function CalendarView({
               <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-zinc-100 dark:border-zinc-800">
                 <div>
                   <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                    {format(new Date(`${selectedDayPopover.dateKey}T12:00:00`), "EEEE d 'de' MMMM", { locale: es })}
+                    {(() => {
+                      const d = new Date(`${selectedDayPopover.dateKey}T12:00:00-03:00`);
+                      const wd = d.toLocaleDateString("es-AR", { weekday: "long", timeZone: "America/Argentina/Buenos_Aires" });
+                      const day = d.toLocaleDateString("es-AR", { day: "numeric", timeZone: "America/Argentina/Buenos_Aires" });
+                      const mo = d.toLocaleDateString("es-AR", { month: "long", timeZone: "America/Argentina/Buenos_Aires" });
+                      return `${wd} ${day} de ${mo}`;
+                    })()}
                   </p>
                   <p className="text-[11px] text-zinc-400 dark:text-zinc-500">{dayAppts.length} turno{dayAppts.length !== 1 ? "s" : ""}</p>
                 </div>
@@ -1435,7 +1664,19 @@ export default memo(function CalendarView({
                 {dayAppts.map((appt) => (
                   <div
                     key={appt.id}
-                    className="flex items-center gap-3 px-4 py-2.5 border-b border-zinc-50 dark:border-zinc-800/50 last:border-b-0 hover:bg-zinc-50 dark:hover:bg-zinc-800/30 cursor-pointer transition-colors"
+                    className={`flex items-center gap-3 px-4 py-2.5 border-b border-zinc-50 dark:border-zinc-800/50 last:border-b-0 cursor-pointer transition-colors ${
+                      appt.status === "cancelled"
+                        ? "bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50"
+                        : appt.status === "no_show"
+                          ? "bg-amber-50 dark:bg-amber-950/30 hover:bg-amber-100 dark:hover:bg-amber-950/50"
+                          : appt.status === "completed"
+                            ? "bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-950/50"
+                            : appt.status === "in_progress"
+                              ? "bg-sky-50 dark:bg-sky-950/30 hover:bg-sky-100 dark:hover:bg-sky-950/50"
+                              : appt.status === "confirmed"
+                                ? "bg-indigo-50 dark:bg-indigo-950/30 hover:bg-indigo-100 dark:hover:bg-indigo-950/50"
+                                : "hover:bg-zinc-50 dark:hover:bg-zinc-800/30"
+                    }`}
                     onClick={() => {
                       closeDayPopover();
                       onAppointmentClick(appt);

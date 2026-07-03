@@ -162,7 +162,7 @@ type Slot = { start: string; end: string; time: string };
 const PENDING_PAYMENT_HOLD_MINUTES = 10;
 
 function shouldBlockSlot(status: string | null | undefined, createdAt: string | null | undefined): boolean {
-  if (status === "completed" || status === "no_show") return false;
+  if (status === "no_show") return false;
   if (status !== "pending_payment") return true;
   if (!createdAt) return false;
   const createdAtMs = new Date(createdAt).getTime();

@@ -315,7 +315,7 @@ export default function BusinessClient({
   async function handleSaveOverride() {
     if (!overrideDate) return;
     const res = await upsertShopDateOverride(
-      shopId, overrideDate, overrideStaffId, overrideIsClosed,
+      overrideDate, overrideStaffId, overrideIsClosed,
       overrideIsClosed ? null : overrideStartTime,
       overrideIsClosed ? null : overrideEndTime,
       overrideReason || null
@@ -327,7 +327,7 @@ export default function BusinessClient({
 
   async function handleDeleteOverride(o: DateOverride) {
     if (!confirm(`¿Eliminar excepción del ${o.date}?`)) return;
-    const res = await deleteShopDateOverride(o.id, shopId);
+    const res = await deleteShopDateOverride(o.id);
     if (!res.success) { alert(res.error); return; }
     await loadOverrides();
   }
@@ -1064,49 +1064,62 @@ export default function BusinessClient({
       <div>
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Mi Negocio</h1>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Información pública y configuración técnica de tu local</p>
-        <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Link
-            id="setup-staff"
-            href={withDashboardBase("/dashboard/staff", dashboardBasePath)}
-            className="group relative flex items-center gap-4 rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-zinc-900 px-5 py-5 shadow-md hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/80 to-transparent dark:from-emerald-950/30 to-transparent pointer-events-none" />
-            <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-emerald-400 to-emerald-300 dark:from-emerald-500 dark:to-emerald-700" />
-            <div className="relative flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-500 dark:from-emerald-500 dark:to-emerald-600 text-white shadow-lg shadow-emerald-200/50 dark:shadow-emerald-900/50 shrink-0">
-              <Users className="w-7 h-7" />
-            </div>
-            <div className="relative flex flex-col flex-1 min-w-0">
-              <span className="text-base font-semibold text-gray-900 dark:text-white">Gestionar {staffPlural.toLowerCase()}</span>
-              <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Agregar, horarios y perfiles</span>
-            </div>
-            <ChevronRight className="relative w-5 h-5 text-gray-300 dark:text-gray-600 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all shrink-0" />
-          </Link>
-          <Link
-            id="setup-services"
-            href={withDashboardBase("/dashboard/services", dashboardBasePath)}
-            className="group relative flex items-center gap-4 rounded-2xl border border-sky-200 dark:border-sky-800 bg-white dark:bg-zinc-900 px-5 py-5 shadow-md hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-sky-50/80 to-transparent dark:from-sky-950/30 to-transparent pointer-events-none" />
-            <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-sky-400 to-sky-300 dark:from-sky-500 dark:to-sky-700" />
-            <div className="relative flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-400 to-sky-500 dark:from-sky-500 dark:to-sky-600 text-white shadow-lg shadow-sky-200/50 dark:shadow-sky-900/50 shrink-0">
-              <Scissors className="w-7 h-7" />
-            </div>
-            <div className="relative flex flex-col flex-1 min-w-0">
-              <span className="text-base font-semibold text-gray-900 dark:text-white">Gestionar {servicePlural.toLowerCase()}</span>
-              <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Precios, duración y personal</span>
-            </div>
-            <ChevronRight className="relative w-5 h-5 text-gray-300 dark:text-gray-600 group-hover:text-sky-500 dark:group-hover:text-sky-400 group-hover:translate-x-0.5 transition-all shrink-0" />
-          </Link>
-        </div>
-        <div className="mt-3">
-          <button
-            type="button"
-            onClick={() => setShowCreateShopModal(true)}
-            disabled={!isOwnerOrAdmin || creatingShop}
-            className="inline-flex items-center rounded-full border border-violet-300/60 dark:border-violet-500/30 bg-violet-100/80 dark:bg-violet-500/15 px-4 py-2 text-sm font-semibold text-violet-800 dark:text-violet-200 hover:bg-violet-100 dark:hover:bg-violet-500/25 shadow-sm transition-all disabled:opacity-60"
-          >
-            {creatingShop ? "Creando..." : "+ Crear nuevo local"}
-          </button>
+        <div className="mt-5 flex flex-col sm:flex-row sm:items-start gap-4">
+          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4 min-w-0">
+            <Link
+              id="setup-staff"
+              href={withDashboardBase("/dashboard/staff", dashboardBasePath)}
+              className="group relative flex items-center gap-4 rounded-2xl rounded-t-none border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-zinc-900 px-5 py-5 shadow-md hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/80 to-transparent dark:from-emerald-950/30 to-transparent pointer-events-none" />
+              <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-emerald-400 to-emerald-300 dark:from-emerald-500 dark:to-emerald-700" />
+              <div className="relative flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-500 dark:from-emerald-500 dark:to-emerald-600 text-white shadow-lg shadow-emerald-200/50 dark:shadow-emerald-900/50 shrink-0">
+                <Users className="w-7 h-7" />
+              </div>
+              <div className="relative flex flex-col flex-1 min-w-0">
+                <span className="text-base font-semibold text-gray-900 dark:text-white">Gestionar {staffPlural.toLowerCase()}</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Agregar, horarios y perfiles</span>
+              </div>
+              <ChevronRight className="relative w-5 h-5 text-gray-300 dark:text-gray-600 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all shrink-0" />
+            </Link>
+            <Link
+              id="setup-services"
+              href={withDashboardBase("/dashboard/services", dashboardBasePath)}
+              className="group relative flex items-center gap-4 rounded-2xl rounded-t-none border border-sky-200 dark:border-sky-800 bg-white dark:bg-zinc-900 px-5 py-5 shadow-md hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-sky-50/80 to-transparent dark:from-sky-950/30 to-transparent pointer-events-none" />
+              <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-sky-400 to-sky-300 dark:from-sky-500 dark:to-sky-700" />
+              <div className="relative flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-400 to-sky-500 dark:from-sky-500 dark:to-sky-600 text-white shadow-lg shadow-sky-200/50 dark:shadow-sky-900/50 shrink-0">
+                <Scissors className="w-7 h-7" />
+              </div>
+              <div className="relative flex flex-col flex-1 min-w-0">
+                <span className="text-base font-semibold text-gray-900 dark:text-white">Gestionar {servicePlural.toLowerCase()}</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Precios, duración y personal</span>
+              </div>
+              <ChevronRight className="relative w-5 h-5 text-gray-300 dark:text-gray-600 group-hover:text-sky-500 dark:group-hover:text-sky-400 group-hover:translate-x-0.5 transition-all shrink-0" />
+            </Link>
+          </div>
+          <div className="shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowCreateShopModal(true)}
+              disabled={!isOwnerOrAdmin || creatingShop}
+              className="group relative flex items-center gap-4 rounded-2xl rounded-t-none border border-violet-200 dark:border-violet-800 bg-white dark:bg-zinc-900 px-5 py-5 shadow-md hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 w-full text-left disabled:opacity-60"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-violet-50/80 to-transparent dark:from-violet-950/30 to-transparent pointer-events-none" />
+              <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-violet-400 to-violet-300 dark:from-violet-500 dark:to-violet-700" />
+              <div className="relative flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-400 to-violet-500 dark:from-violet-500 dark:to-violet-600 text-white shadow-lg shadow-violet-200/50 dark:shadow-violet-900/50 shrink-0">
+                <Plus className="w-7 h-7" />
+              </div>
+              <div className="relative flex flex-col flex-1 min-w-0">
+                <span className="text-base font-semibold text-gray-900 dark:text-white">
+                  {creatingShop ? "Creando..." : "Crear nuevo local"}
+                </span>
+                <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Agregar sucursal</span>
+              </div>
+              <Plus className="relative w-5 h-5 text-violet-300 dark:text-violet-600 group-hover:text-violet-500 dark:group-hover:text-violet-400 group-hover:rotate-90 transition-all shrink-0" />
+            </button>
+          </div>
         </div>
       </div>
 

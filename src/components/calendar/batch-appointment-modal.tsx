@@ -659,7 +659,6 @@ function EntryCard({
                               onClick={(e) => {
                                 e.stopPropagation();
                                 try {
-                                  console.log("[batch] duration click", s.id, effDuration);
                                   setEditingDurationId(s.id);
                                   setEditingDurationValue(String(effDuration));
                                 } catch (err) {
@@ -811,7 +810,6 @@ function EntryCard({
                           onClick={(e) => {
                             e.stopPropagation();
                             try {
-                              console.log("[batch] secuencia duration click", slot.service.id, effDuration);
                               setEditingDurationId(slot.service.id);
                               setEditingDurationValue(String(effDuration));
                             } catch (err) {

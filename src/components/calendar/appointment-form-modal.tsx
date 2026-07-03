@@ -2,7 +2,7 @@
 
 import { useToast } from "@/components/ui/toast";
 import { X, Plus, Search, Clock, DollarSign, CalendarDays, Pencil } from "lucide-react";
-import { useEffect, useRef, useState, useTransition, useMemo, useCallback } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { createAppointment, createCustomerAndAppointment } from "@/lib/dashboard/appointment-actions";
 import { playPop } from "@/lib/sound";
 import { getArgentinaDateString } from "@/lib/argentina-time";
@@ -68,7 +68,7 @@ export default function AppointmentFormModal({
   customers,
 }: AppointmentFormModalProps) {
   const backdropRef = useRef<HTMLDivElement>(null);
-  const [pending, startTransition] = useTransition();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [selectedStaffId, setSelectedStaffId] = useState("");
@@ -230,7 +230,8 @@ export default function AppointmentFormModal({
     const formData = new FormData(e.currentTarget);
     formData.set("service_ids", selectedServiceIds.join(","));
 
-    startTransition(async () => {
+    setIsSubmitting(true);
+    try {
       const result = showNewCustomer
         ? await createCustomerAndAppointment(formData, shopId)
         : await createAppointment(formData, shopId);
@@ -245,7 +246,9 @@ export default function AppointmentFormModal({
         onSuccess?.();
         onClose();
       }
-    });
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   if (!open) return null;
@@ -771,11 +774,11 @@ export default function AppointmentFormModal({
             <button
               type="submit"
               form="appointment-form"
-              disabled={pending || selectedServiceIds.length === 0}
+              disabled={isSubmitting || selectedServiceIds.length === 0}
               className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white py-2.5 px-8 rounded-xl text-sm font-semibold shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none transition-all cursor-pointer select-none"
             >
               <Plus className="w-4 h-4" />
-              {pending
+              {isSubmitting
                 ? "Creando..."
                 : selectedServiceIds.length > 1
                   ? `Crear ${selectedServiceIds.length} turnos`

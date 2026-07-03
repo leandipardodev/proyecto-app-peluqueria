@@ -2,6 +2,7 @@
 
 import { Menu, Search, Moon, Sun, Gauge, Repeat2, Check, Volume2, VolumeX, SlidersHorizontal, Sparkles, Bug, CircleHelp } from "lucide-react";
 import { useState, useRef, useEffect, useTransition, useMemo, useCallback, memo, type KeyboardEvent } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import DashboardMobileSidebar from "./dashboard-mobile-sidebar";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
