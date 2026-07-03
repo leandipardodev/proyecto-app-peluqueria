@@ -397,6 +397,36 @@ html.perf-mode .carousel-image-zoom {
   display: none;
 }
 
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+@keyframes shimmer {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.marquee-overflow {
+  overflow: hidden;
+  white-space: nowrap;
+}
+.marquee-overflow > .marquee-track {
+  display: inline-flex;
+  white-space: nowrap;
+  will-change: transform, background-position;
+  animation: shimmer 8.5s ease-in-out infinite;
+  background-size: 220% 100%;
+}
+.marquee-overflow > .marquee-track > span {
+  display: inline-block;
+}
+.marquee-overflow.marquee-active > .marquee-track {
+  animation: marquee 12s linear infinite, shimmer 8.5s ease-in-out infinite;
+}
+.marquee-overflow.marquee-active:hover > .marquee-track {
+  animation-play-state: paused;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

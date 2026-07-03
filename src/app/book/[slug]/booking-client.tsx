@@ -138,6 +138,16 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     return () => el.removeEventListener("wheel", handler);
   }, []);
 
+  useEffect(() => {
+    const el = titleRef.current;
+    if (!el) return;
+    const check = () => setTitleOverflows(el.scrollWidth > el.clientWidth);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [shop.heroTitle, shop.name]);
+
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedCombo, setSelectedCombo] = useState<Combo | null>(null);
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
@@ -197,6 +207,8 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const slotsRef = useRef<HTMLDivElement>(null);
   const stepsScrollRef = useRef<HTMLDivElement>(null);
   const categoryScrollRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLDivElement>(null);
+  const [titleOverflows, setTitleOverflows] = useState(false);
   const [mpReady, setMpReady] = useState(false);
 
 
@@ -873,17 +885,22 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                       <span className={`text-sm font-semibold tracking-tight ${templateStyles.accent}`}>K</span>
                     )}
                   </div>
-                  <div className="min-w-0">
-                    <motion.h1
+                  <div className="min-w-0 flex-1">
+                    <div
                       data-info-trigger
-                      className={`text-[1.4rem] sm:text-[1.85rem] md:text-[2.25rem] font-black leading-[1.1] tracking-[-0.035em] cursor-pointer break-words ${templateStyles.headingFx} bg-gradient-to-r ${templateStyles.titleGradient} bg-[length:220%_100%] bg-clip-text text-transparent`}
-                      style={{ willChange: "background-position" }}
-                      animate={{ backgroundPositionX: ["0%", "100%", "0%"] }}
-                      transition={{ duration: 8.5, repeat: Infinity, ease: "easeInOut" }}
+                      ref={titleRef}
+                      className={`marquee-overflow ${titleOverflows ? "marquee-active" : ""} cursor-pointer`}
                       onClick={() => setShowInfo(v => !v)}
                     >
-                      {shop.heroTitle || shop.name}
-                    </motion.h1>
+                      <div
+                        className={`marquee-track text-[1.4rem] sm:text-[1.85rem] md:text-[2.25rem] font-black leading-[1.1] tracking-[-0.035em] ${templateStyles.headingFx} bg-gradient-to-r ${templateStyles.titleGradient} bg-clip-text text-transparent`}
+                      >
+                        <span>{shop.heroTitle || shop.name}</span>
+                        {titleOverflows && (
+                          <span>{shop.heroTitle || shop.name}</span>
+                        )}
+                      </div>
+                    </div>
                     <motion.p
                       className={`text-xs sm:text-sm uppercase tracking-[0.18em] bg-gradient-to-r ${templateStyles.subtitleGradient} bg-[length:200%_100%] bg-clip-text text-transparent`}
                       style={{ willChange: "background-position" }}
@@ -942,8 +959,8 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                     {step === 0 && (
                       <div className="flex flex-col h-full min-h-0">
                         <div className="flex flex-col min-h-0 max-h-full w-full">
-                        <div className="shrink-0 space-y-3">
-                           <motion.h2 variants={stepItemReveal} className={`text-xl font-semibold text-center ${templateStyles.heading} ${templateStyles.headingFx}`}>{`Elegi tu ${serviceWordLower}`}</motion.h2>
+                        <div className="shrink-0 space-y-1">
+                           <motion.p variants={stepItemReveal} className={`text-center text-xs font-medium tracking-wide ${templateStyles.tiny}`}>{`Elegi tu ${serviceWordLower}`}</motion.p>
                           <motion.div
                             variants={stepItemReveal}
                             ref={categoryScrollRef}
