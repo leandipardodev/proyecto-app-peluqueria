@@ -315,7 +315,7 @@ export default function AppointmentFormModal({
                     <input
                       ref={customerSearchRef}
                       type="text"
-                      placeholder="Buscar cliente por nombre..."
+                      placeholder="Buscar y agregar cliente"
                       value={customerSearchQuery}
                       onChange={(e) => {
                         setCustomerSearchQuery(e.target.value);
@@ -622,7 +622,7 @@ export default function AppointmentFormModal({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Staff
+                Profesional
               </label>
               <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm">
                 <button

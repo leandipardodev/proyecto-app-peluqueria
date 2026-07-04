@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import DashboardHeader from "@/components/dashboard/dashboard-header";
 import DashboardHeaderLite from "@/components/dashboard/dashboard-header-lite";
@@ -16,6 +16,7 @@ export default function DashboardHeaderLoader({
   onLogout: () => Promise<void>;
 }) {
   const pathname = usePathname();
+  const lastFetchedSlugRef = useRef<string | null>(null);
   const [state, setState] = useState<{
     loading: boolean;
     shopName: string;
@@ -33,12 +34,16 @@ export default function DashboardHeaderLoader({
   });
 
   useEffect(() => {
+    const slugMatch = pathname.match(/^\/dashboard\/([^\/]+)/);
+    const currentSlug = slugMatch?.[1] || "";
+    // Only re-fetch when the shop slug actually changes, not on every page navigation
+    if (currentSlug === lastFetchedSlugRef.current && !state.loading) return;
+    lastFetchedSlugRef.current = currentSlug;
+
     let mounted = true;
     const load = async () => {
       try {
-        const slugMatch = pathname.match(/^\/dashboard\/([^\/]+)/);
-        const shopSlug = slugMatch?.[1] || "";
-        const url = `/api/dashboard/header-context${shopSlug ? `?shop_slug=${encodeURIComponent(shopSlug)}` : ""}`;
+        const url = `/api/dashboard/header-context${currentSlug ? `?shop_slug=${encodeURIComponent(currentSlug)}` : ""}`;
         const res = await fetch(url, {
           method: "GET",
           credentials: "include",

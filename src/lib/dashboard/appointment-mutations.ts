@@ -804,6 +804,14 @@ export async function updateAppointmentServices(
 
     if (insertError) {
       console.error("[updateAppointmentServices] insert failed after delete:", insertError);
+      if (oldRows && oldRows.length > 0) {
+        const { error: rollbackError } = await supabase
+          .from("appointments")
+          .insert(oldRows);
+        if (rollbackError) {
+          console.error("[updateAppointmentServices] CRITICAL: rollback also failed:", rollbackError);
+        }
+      }
       return { success: false, error: insertError.message };
     }
 

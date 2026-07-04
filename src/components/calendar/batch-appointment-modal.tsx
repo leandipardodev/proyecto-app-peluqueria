@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { createPortal } from "react-dom";
-import { X, Plus, Search, Clock, CalendarDays, ChevronDown, Loader2, Check, AlertCircle, Pencil } from "lucide-react";
+import { X, Plus, Search, Clock, CalendarDays, ChevronDown, Loader2, Check, AlertCircle, Pencil, ArrowRight } from "lucide-react";
 import { createAppointment, createCustomerAndAppointment } from "@/lib/dashboard/appointment-actions";
 import { getArgentinaDateString } from "@/lib/argentina-time";
 import { useToast } from "@/components/ui/toast";
@@ -95,9 +95,37 @@ export default function BatchAppointmentModal({
   const [saving, setSaving] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [results, setResults] = useState<{ ok: number; fail: number } | null>(null);
+  const [entryErrors, setEntryErrors] = useState<Record<string, string>>({});
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Reset state when modal opens
+  useEffect(() => {
+    if (open) {
+      setEntries([createEmptyEntry()]);
+      setResults(null);
+      setProgress({ current: 0, total: 0 });
+      setEntryErrors({});
+    }
+  }, [open]);
+
+  // Scroll to bottom when a new entry is added
+  useEffect(() => {
+    if (scrollRef.current && entries.length > 0) {
+      requestAnimationFrame(() => {
+        scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+      });
+    }
+  }, [entries.length]);
 
   function updateEntry(id: string, patch: Partial<BatchEntry>) {
     setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+    if (patch.serviceIds || patch.customerId || patch.newCustomerName || patch.isNewCustomer !== undefined) {
+      setEntryErrors((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    }
   }
 
   function addEntry() {
@@ -108,38 +136,91 @@ export default function BatchAppointmentModal({
     setEntries((prev) => prev.filter((e) => e.id !== id));
   }
 
-  const filteredCustomers = useCallback(
-    (query: string) => {
-      if (!query.trim()) return customers;
-      const q = query.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      return customers.filter(
-        (c) =>
-          (c.nombre || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(q)
-      );
-    },
-    [customers]
-  );
+  function filteredCustomers(query: string) {
+    if (!query.trim()) return customers;
+    const q = query.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return customers.filter(
+      (c) =>
+        (c.nombre || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(q)
+    );
+  }
 
-  const filteredServices = useCallback(
-    (query: string) => {
-      if (!query.trim()) return services;
-      const q = query.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      return services.filter((s) => s.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(q));
-    },
-    [services]
-  );
+  function filteredServices(query: string) {
+    if (!query.trim()) return services;
+    const q = query.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return services.filter((s) => s.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(q));
+  }
+
+  function validateEntry(entry: BatchEntry): string | null {
+    if (entry.serviceIds.length === 0) return "Seleccioná al menos un servicio";
+    if (entry.isNewCustomer && !entry.newCustomerName.trim()) return "Completá el nombre del cliente nuevo";
+    if (!entry.isNewCustomer && !entry.customerId) return "Seleccioná un cliente";
+    return null;
+  }
+
+  async function handleSaveEntry(entry: BatchEntry): Promise<boolean> {
+    const err = validateEntry(entry);
+    if (err) {
+      setEntryErrors((prev) => ({ ...prev, [entry.id]: err }));
+      return false;
+    }
+    setEntryErrors((prev) => {
+      const next = { ...prev };
+      delete next[entry.id];
+      return next;
+    });
+
+    const form = document.createElement("form");
+    const formData = new FormData(form);
+    if (entry.isNewCustomer) {
+      formData.set("customer_name", entry.newCustomerName.trim());
+      formData.set("customer_email", entry.newCustomerEmail.trim());
+      formData.set("customer_phone", entry.newCustomerPhone.trim());
+    } else {
+      formData.set("customer_id", entry.customerId);
+    }
+    formData.set("service_ids", entry.serviceIds.join(","));
+    formData.set("service_durations", JSON.stringify(entry.serviceCustomDurations));
+    formData.set("start_date", entry.date);
+    formData.set("start_time", entry.time);
+    if (entry.staffId) formData.set("staff_id", entry.staffId);
+
+    const result = entry.isNewCustomer
+      ? await createCustomerAndAppointment(formData, shopId)
+      : await createAppointment(formData, shopId);
+
+    if (result.success) {
+      addToast("Turno creado", "success");
+      onSuccess?.();
+      // Add next empty entry after this one
+      setEntries((prev) => {
+        const idx = prev.findIndex((e) => e.id === entry.id);
+        const next = [...prev];
+        next.splice(idx + 1, 0, createEmptyEntry(entry.date, entry.time));
+        return next;
+      });
+      return true;
+    } else {
+      setEntryErrors((prev) => ({ ...prev, [entry.id]: result.error || "Error al crear turno" }));
+      return false;
+    }
+  }
 
   async function handleSave() {
     setSaving(true);
     setResults(null);
+    setEntryErrors({});
     let ok = 0;
     let fail = 0;
+    const newErrors: Record<string, string> = {};
 
     for (let i = 0; i < entries.length; i++) {
       setProgress({ current: i + 1, total: entries.length });
       const entry = entries[i];
 
-      if (entry.serviceIds.length === 0) {
+      const err = validateEntry(entry);
+      if (err) {
+        newErrors[entry.id] = err;
         fail++;
         continue;
       }
@@ -148,12 +229,10 @@ export default function BatchAppointmentModal({
       const formData = new FormData(form);
 
       if (entry.isNewCustomer) {
-        if (!entry.newCustomerName.trim()) { fail++; continue; }
         formData.set("customer_name", entry.newCustomerName.trim());
         formData.set("customer_email", entry.newCustomerEmail.trim());
         formData.set("customer_phone", entry.newCustomerPhone.trim());
       } else {
-        if (!entry.customerId) { fail++; continue; }
         formData.set("customer_id", entry.customerId);
       }
 
@@ -170,10 +249,12 @@ export default function BatchAppointmentModal({
       if (result.success) {
         ok++;
       } else {
+        newErrors[entry.id] = result.error || "Error al crear turno";
         fail++;
       }
     }
 
+    setEntryErrors(newErrors);
     setResults({ ok, fail });
     setSaving(false);
     addToast(`${ok} turno${ok !== 1 ? "s" : ""} creado${ok !== 1 ? "s" : ""}${fail > 0 ? `, ${fail} error${fail !== 1 ? "es" : ""}` : ""}`, fail > 0 ? "error" : "success");
@@ -188,6 +269,7 @@ export default function BatchAppointmentModal({
   function handleRetry() {
     setResults(null);
     setProgress({ current: 0, total: 0 });
+    setEntryErrors({});
   }
 
   if (!open) return null;
@@ -226,7 +308,7 @@ export default function BatchAppointmentModal({
               </button>
             </div>
 
-            <div className="overflow-y-auto flex-1 p-4 space-y-3">
+            <div ref={scrollRef} className="overflow-y-auto flex-1 p-4 space-y-3">
               {results ? (
                 <div className="flex flex-col items-center justify-center py-8 gap-3">
                   {results.fail === 0 ? (
@@ -290,17 +372,28 @@ export default function BatchAppointmentModal({
                     onUpdate={(patch) => updateEntry(entry.id, patch)}
                     onRemove={() => removeEntry(entry.id)}
                     canRemove={entries.length > 1}
+                    onSaveEntry={() => handleSaveEntry(entry)}
+                    entryError={entryErrors[entry.id]}
                   />
                 ))
               )}
             </div>
 
-            {!saving && !results && (
+            {!saving && !results && (() => {
+              const lastEntry = entries[entries.length - 1];
+              const lastEntryValid = lastEntry
+                ? lastEntry.serviceIds.length > 0
+                  && (lastEntry.isNewCustomer
+                    ? lastEntry.newCustomerName.trim().length > 0
+                    : !!lastEntry.customerId)
+                : false;
+              return (
               <div className="px-4 py-3 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-3 shrink-0">
                 <button
                   type="button"
                   onClick={addEntry}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer select-none"
+                  disabled={!lastEntryValid}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer select-none disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Plus className="w-4 h-4" />
                   Agregar otro turno
@@ -314,7 +407,8 @@ export default function BatchAppointmentModal({
                   Guardar todos ({entries.length})
                 </button>
               </div>
-            )}
+              );
+            })()}
           </motion.div>
         </motion.div>
       )}
@@ -336,6 +430,8 @@ function EntryCard({
   onUpdate,
   onRemove,
   canRemove,
+  onSaveEntry,
+  entryError,
 }: {
   entry: BatchEntry;
   index: number;
@@ -347,6 +443,8 @@ function EntryCard({
   onUpdate: (patch: Partial<BatchEntry>) => void;
   onRemove: () => void;
   canRemove: boolean;
+  onSaveEntry?: () => void;
+  entryError?: string;
 }) {
   const [expanded, setExpanded] = useState(true);
   const [editingDurationId, setEditingDurationId] = useState<string | null>(null);
@@ -693,7 +791,7 @@ function EntryCard({
               {/* Staff + Fecha + Hora */}
               <div className="flex items-center gap-2">
                 <div className="flex-1">
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Staff</label>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Profesional</label>
                   <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm">
                     <button
                       type="button"
@@ -753,6 +851,12 @@ function EntryCard({
                         type="time"
                         value={entry.time}
                         onChange={(e) => onUpdate({ time: e.target.value })}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            onSaveEntry?.();
+                          }
+                        }}
                         className="w-20 bg-transparent text-xs text-gray-900 dark:text-gray-100 focus:outline-none"
                       />
                     </div>
@@ -825,6 +929,26 @@ function EntryCard({
                     </div>
                     );
                   })}
+                </div>
+              )}
+
+              {entryError && (
+                <p className="text-xs text-red-500 dark:text-red-400 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3 shrink-0" />
+                  {entryError}
+                </p>
+              )}
+
+              {onSaveEntry && (
+                <div className="pt-2 border-t border-zinc-100 dark:border-zinc-700/50 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={onSaveEntry}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-violet-600 hover:text-violet-700 dark:text-violet-400 dark:hover:text-violet-300 transition-colors cursor-pointer select-none"
+                  >
+                    Crear y siguiente
+                    <ArrowRight className="w-3 h-3" />
+                  </button>
                 </div>
               )}
             </div>

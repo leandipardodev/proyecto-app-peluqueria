@@ -57,6 +57,7 @@ type NormalizedAppointment = Appointment & {
   start_hhmm: string;
   end_hhmm: string;
   duration_minutes_ar: number;
+  serviceIds: string[];
 };
 
 type HoverTooltipState = {
@@ -600,6 +601,7 @@ export default memo(function CalendarView({
           start_hhmm: startHhmm,
           end_hhmm: endHhmm,
           duration_minutes_ar: durationMinutes,
+          serviceIds: a.service_id ? [a.service_id] : [],
         };
       });
   }, [filteredAppointments]);
@@ -770,6 +772,7 @@ export default memo(function CalendarView({
           end_hhmm: appt.end_hhmm,
           status: cancelledFlag ? "cancelled" : current.status,
           service_id: `${current.service_id},${appt.service_id}`,
+          serviceIds: [...current.serviceIds, ...appt.serviceIds],
           services: {
             name: mergedName,
             price: mergedPrice,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Gift, MessageCircle, Search, X, Download } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
@@ -98,6 +98,9 @@ export default function CustomersPage() {
     setPortalReady(true);
   }, []);
 
+  const pathnameRef = useRef(pathname);
+  useEffect(() => { pathnameRef.current = pathname; }, [pathname]);
+
   function extractShopSlugFromPath(path: string): string | null {
     const parts = path.split("/").filter(Boolean);
     if (parts[0] !== "dashboard" || !parts[1]) return null;
@@ -105,12 +108,12 @@ export default function CustomersPage() {
   }
 
   const resolveActiveShopIdForUser = useCallback(async (): Promise<string | null> => {
-    const slug = extractShopSlugFromPath(pathname);
+    const slug = extractShopSlugFromPath(pathnameRef.current);
     if (!slug) return null;
     const resolved = await resolveDashboardShopIdBySlug(slug);
     if (!resolved.success || !resolved.data?.shopId) return null;
     return resolved.data.shopId;
-  }, [pathname]);
+  }, []);
 
   const loadCustomers = useCallback(async () => {
     setError(null);

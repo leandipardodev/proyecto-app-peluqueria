@@ -242,11 +242,17 @@ export async function POST(request: NextRequest) {
 
       const { data: booking } = await admin
         .from("pending_bookings")
-        .select("id, shop_id, status, customer_phone, customer_email, customer_name, service_id, service_name, start_time, end_time, created_at, staff_id, deposit_amount, mp_preference_id")
+        .select("id, shop_id, status, customer_phone, customer_email, customer_name, service_id, service_name, start_time, end_time, created_at, expires_at, staff_id, deposit_amount, mp_preference_id")
         .eq("id", bookingId)
         .maybeSingle();
 
       if (!booking || booking.status !== "pending") {
+        return NextResponse.json({ ok: true });
+      }
+
+      if (booking.expires_at && new Date(booking.expires_at) < new Date()) {
+        console.log(`[WEBHOOK] Pending booking ${bookingId} already expired, skipping`);
+        await admin.from("pending_bookings").update({ status: "expired" }).eq("id", booking.id);
         return NextResponse.json({ ok: true });
       }
 

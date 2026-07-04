@@ -721,7 +721,7 @@ export async function createPublicAppointment(data: {
     }
 
     // Clean up expired pending bookings
-    admin.from("pending_bookings").delete().lt("expires_at", new Date().toISOString()).then(() => {}, () => {});
+    try { await admin.from("pending_bookings").delete().lt("expires_at", new Date().toISOString()); } catch (cleanErr) { console.error("[cleanup] expired pending_bookings delete failed:", cleanErr); }
 
     // Conflict check for resolved staff
     const [{ data: finalConflicts, error: checkError }, { data: finalPendingConflicts }] = await Promise.all([
@@ -1311,7 +1311,10 @@ export async function createPublicComboAppointment(data: {
       if (aptError) {
         // Rollback created appointments (batch delete)
         if (appointmentIds.length > 0) {
-          await admin.from("appointments").delete().in("id", appointmentIds);
+          const { error: rollbackError } = await admin.from("appointments").delete().in("id", appointmentIds);
+          if (rollbackError) {
+            console.error("[createPublicComboAppointment] CRITICAL: rollback delete failed:", rollbackError);
+          }
         }
         return { success: false, error: aptError.message };
       }

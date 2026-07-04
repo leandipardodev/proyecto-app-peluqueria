@@ -918,7 +918,7 @@ export default function AppointmentDetailModal({
 
             <div>
               <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium uppercase tracking-wide">
-                Staff
+                Profesional
               </span>
               <div className="mt-1.5">
                 <GlassSelect

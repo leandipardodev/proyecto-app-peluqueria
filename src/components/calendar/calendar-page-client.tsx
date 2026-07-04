@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Component, useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -169,6 +169,7 @@ export default function CalendarPageClient({
   const [staffFilter, setStaffFilter] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [appointments, setAppointments] = useState(initialAppointments);
+  const appointmentsRef = useRef(appointments);
   const [hydrated, setHydrated] = useState(false);
   const calendarViewModeRef = useRef<"week" | "day" | "month">("week");
   const [batchModalOpen, setBatchModalOpen] = useState(false);
@@ -197,9 +198,11 @@ export default function CalendarPageClient({
 
     return appointments.map((appointment) => {
       if (appointment.services?.name) return appointment;
-      const serviceIds = appointment.service_id?.includes(",")
-        ? appointment.service_id.split(",")
-        : [appointment.service_id];
+      const serviceIds = (appointment as Appointment & { serviceIds?: string[] }).serviceIds?.length
+        ? (appointment as Appointment & { serviceIds?: string[] }).serviceIds!
+        : appointment.service_id?.includes(",")
+          ? appointment.service_id.split(",")
+          : [appointment.service_id];
       const matchedServices = serviceIds.map((id) => servicesById.get(id)).filter(Boolean) as typeof services;
       if (matchedServices.length === 0) return appointment;
 
@@ -233,6 +236,10 @@ export default function CalendarPageClient({
   }, []);
 
   useEffect(() => {
+    appointmentsRef.current = appointments;
+  }, [appointments]);
+
+  useEffect(() => {
     if (!initialAppointmentId) return;
     const found = enrichedAppointments.find((a) => a.id === initialAppointmentId);
     if (found) {
@@ -254,7 +261,7 @@ export default function CalendarPageClient({
     rangeStart.setUTCDate(weekStart.getUTCDate() - 7);
 
     const handleChange = async () => {
-      if (realtimeCooldown.current) return;
+      if (realtimeCooldown.current || pendingMove.current) return;
       realtimeCooldown.current = true;
       setTimeout(() => { realtimeCooldown.current = false; }, 5000);
       try {
@@ -354,10 +361,13 @@ export default function CalendarPageClient({
   const handleMoveAppointment = useCallback(async (appointmentId: string, newStartIso: string) => {
     if (pendingMove.current) return;
     pendingMove.current = true;
+    realtimeCooldown.current = true;
+    setTimeout(() => { realtimeCooldown.current = false; }, 5000);
 
-    const primaryApt = appointments.find((a) => a.id === appointmentId);
+    const primaryApt = appointmentsRef.current.find((a) => a.id === appointmentId);
     if (!primaryApt) {
       pendingMove.current = false;
+      realtimeCooldown.current = false;
       return;
     }
 
@@ -369,14 +379,14 @@ export default function CalendarPageClient({
     const { staff_id: primaryStaffId, customer_id: primaryCustomerId } = primaryApt;
     if (primaryStaffId && primaryCustomerId) {
       const primaryDateKey = getArgentinaDateKey(primaryApt.start_time);
-      const sameDay = appointments
+      const sameDay = appointmentsRef.current
         .filter(
           (a) =>
             a.id !== appointmentId &&
             a.customer_id === primaryCustomerId &&
             a.staff_id === primaryStaffId &&
             getArgentinaDateKey(a.start_time) === primaryDateKey &&
-            a.status !== "cancelled"
+            a.status !== "cancelled" && a.status !== "no_show"
         )
         .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
 
@@ -401,7 +411,7 @@ export default function CalendarPageClient({
 
     // Capture current state for rollback
     const movedSnapshot = new Map<string, Appointment>();
-    for (const a of appointments) {
+    for (const a of appointmentsRef.current) {
       if (allMoveIds.includes(a.id)) movedSnapshot.set(a.id, { ...a });
     }
 
@@ -433,7 +443,7 @@ export default function CalendarPageClient({
       addToast(msg, "error");
     }
     pendingMove.current = false;
-  }, [appointments, shopId, addToast]);
+  }, [shopId, addToast]);
 
   const refreshAppointments = useCallback(async (customEnd?: string) => {
     const weekStart = getArgentinaWeekStart();
@@ -643,3 +653,9 @@ export default function CalendarPageClient({
     </CalendarErrorBoundary>
   );
 }
+
+
+
+
+
+

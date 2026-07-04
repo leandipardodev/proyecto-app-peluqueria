@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/toast";
 import { playSound } from "@/lib/sound";
 
 export default function NewAppointmentToast({ shopId }: { shopId: string | null }) {
+  const pathname = usePathname();
   const { addToast } = useToast();
   const addToastRef = useRef(addToast);
   useEffect(() => { addToastRef.current = addToast; });
@@ -13,6 +15,7 @@ export default function NewAppointmentToast({ shopId }: { shopId: string | null 
 
   useEffect(() => {
     if (!shopId) return;
+    if (pathname.includes("/calendar")) return;
 
     const topic = `realtime:new-appointment-${shopId}`;
     supabase.getChannels().forEach((ch) => {
@@ -68,7 +71,7 @@ export default function NewAppointmentToast({ shopId }: { shopId: string | null 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [shopId]);
+  }, [shopId, pathname]);
 
   return null;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { usePerformanceMode } from "@/lib/use-performance-mode";
@@ -17,17 +17,13 @@ export default function DashboardPageTransition({ children }: { children: React.
 
   return (
     <div className="relative min-h-0 isolate">
-      <AnimatePresence mode="sync" initial={false}>
-        <motion.div
-          key={pathname}
-          initial={performanceMode ? { opacity: 1 } : { opacity: 0.98 }}
-          animate={{ opacity: 1 }}
-          exit={performanceMode ? { opacity: 0.99 } : { opacity: 0.96 }}
-          transition={{ duration: performanceMode ? 0.09 : FADE_DURATION, ease: "easeOut" }}
-        >
-          {children}
-        </motion.div>
-      </AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0.98 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: performanceMode ? 0.09 : FADE_DURATION, ease: "easeOut" }}
+      >
+        {children}
+      </motion.div>
     </div>
   );
 }
