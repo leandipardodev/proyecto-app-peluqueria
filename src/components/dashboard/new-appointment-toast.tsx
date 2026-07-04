@@ -8,6 +8,8 @@ import { playSound } from "@/lib/sound";
 
 export default function NewAppointmentToast({ shopId }: { shopId: string | null }) {
   const pathname = usePathname();
+  const isCalendarRef = useRef(false);
+  useEffect(() => { isCalendarRef.current = pathname.includes("/calendar"); }, [pathname]);
   const { addToast } = useToast();
   const addToastRef = useRef(addToast);
   useEffect(() => { addToastRef.current = addToast; });
@@ -15,7 +17,7 @@ export default function NewAppointmentToast({ shopId }: { shopId: string | null 
 
   useEffect(() => {
     if (!shopId) return;
-    if (pathname.includes("/calendar")) return;
+    if (isCalendarRef.current) return;
 
     const topic = `realtime:new-appointment-${shopId}`;
     supabase.getChannels().forEach((ch) => {
@@ -71,7 +73,7 @@ export default function NewAppointmentToast({ shopId }: { shopId: string | null 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [shopId, pathname]);
+  }, [shopId]);
 
   return null;
 }
