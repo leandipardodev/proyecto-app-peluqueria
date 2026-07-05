@@ -435,7 +435,16 @@ export default function CalendarPageClient({
 
     const result = await moveAppointmentGroup(appointmentId, newStartIso, shopId);
     if (result.success) {
-      addToast("Turno movido correctamente", "success");
+      const originalStart = primaryApt.start_time;
+      addToast("Turno movido correctamente", "success", {
+        label: "Deshacer",
+        onClick: async () => {
+          pendingMove.current = true;
+          await moveAppointmentGroup(appointmentId, originalStart, shopId);
+          setAppointments((prev) => prev.map((a) => movedSnapshot.has(a.id) ? movedSnapshot.get(a.id)! : a));
+          pendingMove.current = false;
+        },
+      });
     } else {
       // Only restore affected appointments, preserve realtime updates for others
       setAppointments((prev) => prev.map((a) => movedSnapshot.has(a.id) ? movedSnapshot.get(a.id)! : a));
