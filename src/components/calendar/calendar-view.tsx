@@ -13,6 +13,7 @@ import {
   useDraggable,
   useDroppable,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   pointerWithin,
@@ -285,7 +286,6 @@ const AppointmentBlock = memo(function AppointmentBlock({
         borderLeft: isCancelled
           ? undefined
           : `3px solid ${staffColor.accent}`,
-        touchAction: "none",
       }}
       onClick={(e) => {
         e.stopPropagation();
@@ -363,7 +363,6 @@ function MonthAppointmentBlock({
       className={`text-[10px] leading-tight truncate rounded px-1 py-0.5 cursor-grab active:cursor-grabbing select-none text-white ${isCancelled ? "opacity-0 pointer-events-none" : ""} ${isDragging ? "opacity-30" : "hover:opacity-80"}`}
       style={{
         backgroundColor: staffColor?.accent || "#8B5CF6",
-        touchAction: "none",
       }}
       onClick={(e) => {
         e.stopPropagation();
@@ -612,9 +611,13 @@ export default memo(function CalendarView({
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        delay: 500,
-        tolerance: 5,
-        distance: 0,
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 350,
+        tolerance: 8,
       },
     })
   );
