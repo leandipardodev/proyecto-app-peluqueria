@@ -105,7 +105,7 @@ export default function VouchersClient({ shopId, initialVouchers, initialTemplat
   return (
     <div className="space-y-6 p-3 sm:p-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Vouchers</h1>
+        <h1 className="text-3xl sm:text-5xl font-bold text-gray-900 dark:text-white tracking-tight leading-none">Vouchers</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400">Regalos de cumple y recordatorio por WhatsApp.</p>
       </div>
 

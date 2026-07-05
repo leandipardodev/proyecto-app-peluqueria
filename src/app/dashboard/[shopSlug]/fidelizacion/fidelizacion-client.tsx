@@ -369,7 +369,7 @@ export default function FidelizacionClient({
             <Gift className="w-5 h-5 text-violet-600" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Fidelizacion</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Marketing</h2>
             <p className="text-xs text-zinc-400 dark:text-zinc-500">Configura canjes por cantidad de cortes</p>
           </div>
         </div>

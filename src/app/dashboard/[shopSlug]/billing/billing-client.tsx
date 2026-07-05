@@ -59,7 +59,7 @@ export default function BillingClient({ shopId, shopName, planExpiry, active, ev
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 p-4 sm:p-6">
-      <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Facturación</h1>
+      <h1 className="text-3xl sm:text-5xl font-bold text-gray-900 dark:text-white tracking-tight leading-none">Facturación</h1>
 
       {/* Plan card */}
       <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-3xl p-6 shadow-sm">

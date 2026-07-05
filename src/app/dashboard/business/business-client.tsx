@@ -1064,7 +1064,7 @@ export default function BusinessClient({
     >
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Mi Negocio</h1>
+        <h1 className="text-3xl sm:text-5xl font-bold text-gray-900 dark:text-white tracking-tight leading-none">Negocio</h1>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Información pública y configuración técnica de tu local</p>
         <div className="mt-5 flex flex-col sm:flex-row sm:items-start gap-4">
           <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4 min-w-0">

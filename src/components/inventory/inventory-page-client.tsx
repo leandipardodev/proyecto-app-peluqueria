@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, RefreshCcw, Layers } from "lucide-react";
+import { Plus, RefreshCcw, Layers, Package } from "lucide-react";
 import StockTable from "./stock-table";
 import AddProductModal from "./add-product-modal";
 import BatchAddProductModal from "./batch-add-product-modal";
@@ -56,7 +56,10 @@ export default function InventoryPageClient({
   return (
     <div>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Inventario</h1>
+        <div>
+          <h1 className="text-3xl sm:text-5xl font-bold text-gray-900 dark:text-white tracking-tight leading-none">Inventario</h1>
+          <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">Control de stock y productos</p>
+        </div>
         {isOwnerOrAdmin && (
           <div className="flex items-center gap-2">
             <button

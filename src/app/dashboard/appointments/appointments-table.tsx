@@ -198,7 +198,7 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
   return (
     <div className="p-3 sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Proximos turnos</h1>
+        <h1 className="text-3xl sm:text-5xl font-bold text-gray-900 dark:text-white tracking-tight leading-none">Próximos turnos</h1>
       </div>
 
       <div className="md:hidden space-y-3">
