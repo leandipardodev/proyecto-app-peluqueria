@@ -174,7 +174,7 @@ export default function CustomersPage() {
     loadCustomers(1, "");
   }, [loadCustomers]);
 
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     if (!initialLoadDone.current) {
