@@ -14,6 +14,7 @@ import {
 } from "@/lib/dashboard/appointment-status";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
+import { createAdminClient } from "./appointment-shared";
 
 type NextAppointment = {
   id: string;
@@ -178,10 +179,6 @@ export async function fetchDashboardSummary(shopIdOverride?: string): Promise<Ac
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al cargar resumen" };
   }
-}
-
-async function createAdminClient() {
-  return createServiceRoleClient();
 }
 
 export type DashboardMetrics = {

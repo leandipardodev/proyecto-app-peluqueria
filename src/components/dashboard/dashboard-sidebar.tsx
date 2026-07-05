@@ -167,12 +167,9 @@ const DashboardSidebar = memo(function DashboardSidebar({
 
   return (
       <motion.aside
-        key="desktop-sidebar"
-        className={`flex flex-col bg-white/30 dark:bg-black/30 backdrop-blur-3xl shadow-sm border-r border-white/10 dark:border-white/5 border-t border-l border-white/30 dark:border-t-white/15 dark:border-l-white/15 h-full ${className}`}
-        initial={{ x: -300, opacity: 0 }}
+        initial={false}
         animate={{ x: 0, opacity: 1 }}
-        exit={{ x: -300, opacity: 0, transition: { duration: 0.2, ease: "easeIn" } }}
-        transition={performanceMode ? { duration: 0.1 } : { type: "spring", damping: 25, stiffness: 200 }}
+        className={`flex flex-col bg-white/30 dark:bg-black/30 backdrop-blur-3xl shadow-sm border-r border-white/10 dark:border-white/5 border-t border-l border-white/30 dark:border-t-white/15 dark:border-l-white/15 h-full ${className}`}
       >
       {showBrand && (
         <div className="px-6 pt-9 pb-7">
@@ -185,7 +182,7 @@ const DashboardSidebar = memo(function DashboardSidebar({
         <motion.nav
           className="flex-1 px-3 space-y-1"
           variants={navContainerVariants}
-          initial="hidden"
+          initial={false}
           animate="show"
         >
           {resolvedNavItems.map(({ label, href, icon: Icon }) => {

@@ -4,10 +4,7 @@ import { createServiceRoleClient, requireOwnerShopId, requireShopId } from "@/li
 import { revalidateDashboardSegments } from "@/lib/dashboard/revalidate-dashboard";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
-
-async function createAdminClient() {
-  return createServiceRoleClient();
-}
+import { createAdminClient } from "./appointment-shared";
 
 type ComboService = {
   id: string;

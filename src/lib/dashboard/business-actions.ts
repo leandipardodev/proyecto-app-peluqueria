@@ -8,10 +8,7 @@ import { revalidateDashboardSegments } from "@/lib/dashboard/revalidate-dashboar
 import { withRetry } from "@/lib/retry";
 import crypto from "crypto";
 import "server-only";
-
-async function createAdminClient() {
-  return createServiceRoleClient();
-}
+import { createAdminClient } from "./appointment-shared";
 
 export type BusinessData = {
   id: string;

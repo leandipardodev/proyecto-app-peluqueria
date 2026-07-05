@@ -17,6 +17,7 @@ import { verifyRecaptcha } from "@/lib/recaptcha";
 import { headers } from "next/headers";
 import { fetchShopDateOverrides } from "@/lib/dashboard/business-actions";
 import "server-only";
+import { createAdminClient } from "./appointment-shared";
 
 const slotsLimiter = createRateLimiter({ intervalMs: 60_000, maxRequests: 30 });
 
@@ -82,11 +83,6 @@ export async function fetchPublicCombos(shopId: string): Promise<ActionResult<Co
     return { success: false, error: e instanceof Error ? e.message : "Error al obtener combos" };
   }
 }
-
-async function createAdminClient() {
-  return createServiceRoleClient();
-}
-
 
 const DAY_KEYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 

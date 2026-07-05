@@ -5,7 +5,7 @@
   "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#000000",
+  "background_color": "#f8fafc",
   "theme_color": "#243F5F",
   "orientation": "portrait",
   "lang": "es-AR",
@@ -14,13 +14,13 @@
       "src": "/icons/icon-dark-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/icons/icon-dark-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }

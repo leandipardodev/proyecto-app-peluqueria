@@ -3,10 +3,7 @@
 import { createServiceRoleClient, requireShopId } from "@/lib/dashboard/auth-server";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
-
-async function createAdminClient() {
-  return createServiceRoleClient();
-}
+import { createAdminClient } from "./appointment-shared";
 
 export type CustomerRow = {
   id: string;

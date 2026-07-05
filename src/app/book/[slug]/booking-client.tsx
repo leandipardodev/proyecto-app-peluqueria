@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, memo, useRef } from "react";
+import { useEffect, useMemo, useState, memo, useRef, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import {
@@ -171,14 +171,14 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const [creatingPreference, setCreatingPreference] = useState(false);
 
   const scrollRAF = useRef(0);
-  function handleScroll(e: React.UIEvent<HTMLDivElement>) {
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     cancelAnimationFrame(scrollRAF.current);
     scrollRAF.current = requestAnimationFrame(() => {
       const el = e.currentTarget;
       if (!el) return;
       setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight <= 1);
     });
-  }
+  }, []);
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => {
@@ -521,10 +521,10 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     return "";
   }
 
-  function handlePhoneChange(value: string) {
+  const handlePhoneChange = useCallback((value: string) => {
     setCustomerPhone(value);
     if (phoneError) setPhoneError("");
-  }
+  }, [phoneError]);
 
   function validateName(name: string): string {
     const trimmed = name.trim();
@@ -533,19 +533,19 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     return "";
   }
 
-  function handleNameChange(value: string) {
+  const handleNameChange = useCallback((value: string) => {
     setCustomerName(value);
     if (nameError) setNameError("");
-  }
+  }, [nameError]);
 
-  async function handleLogout() {
+  const handleLogout = useCallback(async () => {
     await supabase.auth.signOut();
     setCustomerName("");
     setCustomerEmail("");
     setCustomerPhone("");
     setNameError("");
     setPhoneError("");
-  }
+  }, []);
 
   async function handleConfirm() {
     try {
@@ -746,7 +746,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   }
   }
 
-  function handleReset() {
+  const handleReset = useCallback(() => {
     setStep(0);
     setSelectedService(null);
     setSelectedCombo(null);
@@ -767,7 +767,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     setError(null);
     pendingDateRef.current = null;
     fetchedDatesRef.current = new Set();
-  }
+  }, []);
 
   const summaryService = selectedCombo?.name || selectedService?.name || "Sin servicio";
   const summaryDate = selectedDate ? formatDisplayDate(selectedDate).replace(/^\w/, (c) => c.toUpperCase()) : "Sin fecha";

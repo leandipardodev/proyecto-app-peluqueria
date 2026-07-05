@@ -9,12 +9,9 @@ import { createRateLimiter, getClientIp } from "@/lib/rate-limiter";
 import { createLogContext, logInfo, logWarn, logError } from "@/lib/api-logger";
 import { withRetry } from "@/lib/retry";
 import crypto from "crypto";
+import { createAdminClient } from "@/lib/dashboard/appointment-shared";
 
 const webhookLimiter = createRateLimiter({ intervalMs: 60_000, maxRequests: 30 });
-
-async function createAdminClient() {
-  return createServiceRoleClient();
-}
 
 function resolveStatusFromPaymentStatus(paymentStatus: string | undefined): "confirmed" | "pending_payment" | "cancelled" {
   if (paymentStatus === "approved") return "confirmed";

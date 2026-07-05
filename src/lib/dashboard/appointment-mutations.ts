@@ -1114,48 +1114,28 @@ export async function moveAppointmentGroup(
       if (realConflicts.length > 0) return { success: false, error: "slot_taken" };
     }
 
-    // Save old data for potential rollback
-    const { data: oldRows } = await supabase
-      .from("appointments")
-      .select("id, start_time, end_time, date_key_ar")
-      .in("id", updates.map((u) => u.id))
-      .eq("shop_id", shopId);
+    const now = new Date().toISOString();
+    const results = await Promise.allSettled(
+      updates.map(u =>
+        supabase
+          .from("appointments")
+          .update({
+            start_time: u.start_time,
+            end_time: u.end_time,
+            date_key_ar: u.date_key_ar,
+            updated_at: now,
+          })
+          .eq("id", u.id)
+          .eq("shop_id", shopId)
+      )
+    );
 
-    const updatedIds: string[] = [];
-    for (const u of updates) {
-      const { error } = await supabase
-        .from("appointments")
-        .update({
-          start_time: u.start_time,
-          end_time: u.end_time,
-          date_key_ar: u.date_key_ar,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", u.id)
-        .eq("shop_id", shopId);
-      if (error) {
-        // Rollback successful updates
-        if (oldRows && oldRows.length > 0) {
-          for (const old of oldRows) {
-            const alreadyUpdated = updatedIds.includes(old.id);
-            if (alreadyUpdated) {
-              await supabase
-                .from("appointments")
-                .update({
-                  start_time: old.start_time,
-                  end_time: old.end_time,
-                  date_key_ar: old.date_key_ar,
-                  updated_at: new Date().toISOString(),
-                })
-                .eq("id", old.id)
-                .eq("shop_id", shopId);
-            }
-          }
-        }
-        return { success: false, error: error.message };
-      }
-      updatedIds.push(u.id);
+    const errors = results.filter(r => r.status === "rejected" || (r.status === "fulfilled" && r.value.error));
+    if (errors.length > 0) {
+      return { success: false, error: "Error al mover uno o más turnos" };
     }
+
+    const updatedIds = updates.map(u => u.id);
 
     await revalidateDashboardSegments(shopId, ["/calendar", "/appointments", ""]);
     return { success: true, data: { updatedIds } };

@@ -6,10 +6,7 @@ import { createServiceRoleClient, getAuthSession, getShopId } from "@/lib/dashbo
 import { getArgentinaDateKey } from "@/lib/argentina-time";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
-
-async function createAdminClient() {
-  return createServiceRoleClient();
-}
+import { createAdminClient } from "./appointment-shared";
 
 type ShopInfo = { id: string; name: string; address: string | null; phone: string | null; business_hours: unknown; google_maps_url: string | null; slug: string };
 

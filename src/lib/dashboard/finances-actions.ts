@@ -6,6 +6,7 @@ import { revalidateDashboardSegments } from "@/lib/dashboard/revalidate-dashboar
 import { getArgentinaDateString, getArgentinaDayBounds } from "@/lib/argentina-time";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
+import { createAdminClient } from "./appointment-shared";
 
 type Movement = {
   id: string;
@@ -140,10 +141,6 @@ export type StaffLiquidationDetailItem = {
   netAmount: number;
   startTime: string | null;
 };
-
-async function createAdminClient() {
-  return createServiceRoleClient();
-}
 
 async function requireActorUserId(): Promise<ActionResult<string>> {
   const supabase = await createServerClient();

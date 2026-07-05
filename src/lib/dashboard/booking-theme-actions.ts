@@ -6,6 +6,7 @@ import { createServiceRoleClient, getAuthSession, getShopIdBySlug, getCurrentUse
 import { createServerClient } from "@/lib/supabase/server";
 import { DEFAULT_BOOKING_TEMPLATE, BOOKING_TEMPLATE_PRESETS, type BookingTemplateId } from "@/lib/booking/theme-presets";
 import type { ActionResult } from "@/lib/types";
+import { createAdminClient } from "./appointment-shared";
 
 export type BookingThemeData = {
   shop_id: string;
@@ -19,10 +20,6 @@ export type BookingThemeData = {
   about_title: string | null;
   about_text: string | null;
 };
-
-async function createAdminClient() {
-  return createServiceRoleClient();
-}
 
 async function resolveShopIdFromOptionalSlug(shopSlug?: string): Promise<ActionResult<string>> {
   const normalizedSlug = (shopSlug || "").trim().toLowerCase();

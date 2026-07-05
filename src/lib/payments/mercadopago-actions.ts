@@ -5,10 +5,7 @@ import { createServiceRoleClient, requireOwnerShopId } from "@/lib/dashboard/aut
 import { MercadoPagoConfig, Preference, PaymentRefund } from "mercadopago";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
-
-async function createAdminClient() {
-  return createServiceRoleClient();
-}
+import { createAdminClient } from "@/lib/dashboard/appointment-shared";
 
 type MercadoPagoKeys = { mp_public_key: string; mp_access_token: string };
 
