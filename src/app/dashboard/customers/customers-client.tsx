@@ -155,7 +155,7 @@ export default function CustomersPage() {
 
     const result = await fetchCustomersPage(activeShopId, { search, page: p, pageSize: 50 });
 
-    if (!result.success) {
+    if (!result.success || !result.data) {
       setError(`Error al cargar ${customerPlural.toLowerCase()}`);
       setLoading(false);
       return;
