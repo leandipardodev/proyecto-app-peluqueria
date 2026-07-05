@@ -125,42 +125,21 @@ export default function RootLayout({
       <link rel="icon" href="/favicon/favicon_light_mode_64x64.png" media="(prefers-color-scheme: light)" sizes="64x64" type="image/png" />
       <link rel="icon" href="/favicon/favicon_dark_mode_64x64.png" media="(prefers-color-scheme: dark)" sizes="64x64" type="image/png" />
       <body className="antialiased bg-gradient-to-br from-slate-50 via-white to-zinc-100 dark:bg-gradient-to-br dark:from-zinc-950 dark:via-zinc-900 dark:to-black text-gray-900 dark:text-zinc-400 transition-colors">
-        {/* Splash screen */}
-        <div id="klip-splash">
-          <img src="/icons/splash-logo.png" alt="" />
-        </div>
-        <style>{`
-          #klip-splash {
-            position: fixed;
-            inset: 0;
-            z-index: 9999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(to bottom, #f8fafc, #ffffff, #f4f4f5);
-            transition: opacity 0.5s ease;
-            pointer-events: auto;
-          }
-          #klip-splash img {
-            width: 180px;
-            height: auto;
-          }
-          #klip-splash.fade-out {
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.5s ease;
-          }
-        `}</style>
         <script
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
-                var splash = document.getElementById('klip-splash');
-                if (!splash) return;
+                var style = document.createElement('style');
+                style.textContent = '#klip-splash{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:linear-gradient(to bottom,#f8fafc,#ffffff,#f4f4f5);transition:opacity .5s ease}#klip-splash img{width:180px;height:auto}#klip-splash.fade-out{opacity:0;pointer-events:none}';
+                document.head.appendChild(style);
+                var el = document.createElement('div');
+                el.id = 'klip-splash';
+                el.innerHTML = '<img src="/icons/splash-logo.png" alt="">';
+                document.body.insertBefore(el, document.body.firstChild);
                 function hide() {
-                  if (splash.classList.contains('fade-out')) return;
-                  splash.classList.add('fade-out');
-                  setTimeout(function() { if (splash.parentNode) splash.remove(); }, 500);
+                  if (el.classList.contains('fade-out')) return;
+                  el.classList.add('fade-out');
+                  setTimeout(function() { if (el.parentNode) el.remove(); }, 500);
                 }
                 if (document.readyState === 'complete') {
                   setTimeout(hide, 0);
