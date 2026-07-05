@@ -29,10 +29,11 @@ export function useAutoCompleteAppointments(shopId: string | null): void {
       }
     }
 
-    checkAndComplete();
+    const initialTimer = setTimeout(checkAndComplete, 8_000);
     intervalRef.current = setInterval(checkAndComplete, 3_600_000);
 
     return () => {
+      clearTimeout(initialTimer);
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [shopId]);
