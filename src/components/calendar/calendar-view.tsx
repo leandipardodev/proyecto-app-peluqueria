@@ -12,7 +12,7 @@ import {
   DragOverlay,
   useDraggable,
   useDroppable,
-  PointerSensor,
+  MouseSensor,
   TouchSensor,
   useSensor,
   useSensors,
@@ -609,7 +609,7 @@ export default memo(function CalendarView({
   const [activeSnapFrac, setActiveSnapFrac] = useState<number | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(MouseSensor, {
       activationConstraint: {
         distance: 8,
       },
