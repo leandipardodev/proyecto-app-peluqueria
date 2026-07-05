@@ -125,31 +125,13 @@ export default function RootLayout({
       <link rel="icon" href="/favicon/favicon_light_mode_64x64.png" media="(prefers-color-scheme: light)" sizes="64x64" type="image/png" />
       <link rel="icon" href="/favicon/favicon_dark_mode_64x64.png" media="(prefers-color-scheme: dark)" sizes="64x64" type="image/png" />
       <body className="antialiased bg-gradient-to-br from-slate-50 via-white to-zinc-100 dark:bg-gradient-to-br dark:from-zinc-950 dark:via-zinc-900 dark:to-black text-gray-900 dark:text-zinc-400 transition-colors">
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                var style = document.createElement('style');
-                style.textContent = '#klip-splash{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:linear-gradient(to bottom,#f8fafc,#ffffff,#f4f4f5);transition:opacity .5s ease}#klip-splash img{width:180px;height:auto}#klip-splash.fade-out{opacity:0;pointer-events:none}';
-                document.head.appendChild(style);
-                var el = document.createElement('div');
-                el.id = 'klip-splash';
-                el.innerHTML = '<img src="/icons/splash-logo.png" alt="">';
-                document.body.insertBefore(el, document.body.firstChild);
-                function hide() {
-                  if (el.classList.contains('fade-out')) return;
-                  el.classList.add('fade-out');
-                  setTimeout(function() { if (el.parentNode) el.remove(); }, 500);
-                }
-                if (document.readyState === 'complete') {
-                  setTimeout(hide, 0);
-                } else {
-                  window.addEventListener('load', hide);
-                }
-              })();
-            `,
-          }}
-        />
+        <div suppressHydrationWarning dangerouslySetInnerHTML={{
+            __html: `\
+<style>#klip-splash{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:linear-gradient(to bottom,#f8fafc,#ffffff,#f4f4f5);transition:opacity .5s ease}#klip-splash img{width:180px;height:auto}#klip-splash.fade-out{opacity:0;pointer-events:none}</style>\
+<div id="klip-splash"><img src="/icons/splash-logo.png" alt=""></div>\
+<script>(function(){var e=document.getElementById('klip-splash');if(!e)return;function h(){if(e.classList.contains('fade-out'))return;e.classList.add('fade-out');setTimeout(function(){if(e.parentNode)e.remove()},500)}if(document.readyState==='complete'){setTimeout(h,0)}else{window.addEventListener('load',h)}})();<\/script>\
+`,
+          }} />
         <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-white focus:text-slate-900 focus:rounded-lg focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-sky-500">
           Saltar al contenido principal
         </a>
