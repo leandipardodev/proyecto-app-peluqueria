@@ -30,7 +30,7 @@ export function useAutoCompleteAppointments(shopId: string | null): void {
     }
 
     checkAndComplete();
-    intervalRef.current = setInterval(checkAndComplete, 3600000);
+    intervalRef.current = setInterval(checkAndComplete, 3_600_000);
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);

@@ -27,7 +27,7 @@ export async function fetchExportCustomers(shopId: string): Promise<ActionResult
     const supabase = await createServerClient();
     const { data, error } = await supabase
       .from("customers")
-      .select('nombre, email, telefono, "cumpleaños", observaciones_tecnicas, es_vip, loyalty_cuts_count')
+      .select('nombre, email, telefono, "cumpleaños", observaciones_tecnicas, tags, loyalty_cuts_count')
       .eq("shop_id", shopId)
       .order("nombre");
     if (error) return { success: false, error: error.message };

@@ -188,6 +188,9 @@ export type DashboardMetrics = {
   revenueChart: Array<{ month: string; income: number; expenses: number }>;
   dailyBreakdown: Array<{ dateKey: string; income: number; expenses: number }>;
   hourlyBreakdown: Array<{ hour: string; income: number; expenses: number }>;
+  weeklyBreakdown: Array<{ weekKey: string; income: number; expenses: number }>;
+  busiestDay: { day: string; count: number } | null;
+  busiestHour: { hour: string; count: number } | null;
   monthlyGrowth: Array<{ month: string; clients: number; growthPct: number | null }>;
   healthScore: number;
   healthBreakdown: { revenue: number; clients: number; appointments: number };
@@ -283,6 +286,9 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
           revenueChart: [],
           dailyBreakdown: [],
           hourlyBreakdown: [],
+          weeklyBreakdown: [],
+          busiestDay: null,
+          busiestHour: null,
           monthlyGrowth: [],
           healthScore: 0,
           healthBreakdown: { revenue: 0, clients: 0, appointments: 0 },
@@ -490,6 +496,90 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
       expenses: expensesByHour.get(hour) ?? 0,
     }));
 
+    const weeksToShow: string[] = [];
+    {
+      const mondayStart = new Date(weekStart);
+      for (let i = 7; i >= 0; i--) {
+        const w = new Date(mondayStart);
+        w.setUTCDate(w.getUTCDate() - i * 7);
+        weeksToShow.push(getArgentinaDateKey(w));
+      }
+    }
+    const incomeByWeek = new Map<string, number>();
+    const expensesByWeek = new Map<string, number>();
+    for (const apt of apptsRevenueRes.data ?? []) {
+      if (!apt.is_paid) continue;
+      const dk = typeof apt.date_key_ar === "string" ? apt.date_key_ar : null;
+      if (!dk) continue;
+      const d = new Date(dk + "T12:00:00-03:00");
+      const day = d.getUTCDay();
+      const diff = day === 0 ? -6 : 1 - day;
+      d.setUTCDate(d.getUTCDate() + diff);
+      const weekKey = getArgentinaDateKey(d);
+      if (!weeksToShow.includes(weekKey)) continue;
+      const price = apt.service_price != null ? Number(apt.service_price) : (() => {
+        const svc = Array.isArray(apt.services) ? apt.services[0] : apt.services;
+        return svc?.price ?? 0;
+      })();
+      incomeByWeek.set(weekKey, (incomeByWeek.get(weekKey) ?? 0) + price);
+    }
+    for (const fin of financesRes.data ?? []) {
+      const dateKey = fin.happened_at || fin.created_at;
+      const dk = dateKey ? getArgentinaDateKey(dateKey) : null;
+      if (!dk) continue;
+      const d = new Date(dk + "T12:00:00-03:00");
+      const day = d.getUTCDay();
+      const diff = day === 0 ? -6 : 1 - day;
+      d.setUTCDate(d.getUTCDate() + diff);
+      const weekKey = getArgentinaDateKey(d);
+      if (!weeksToShow.includes(weekKey)) continue;
+      if (fin.type === "income") {
+        incomeByWeek.set(weekKey, (incomeByWeek.get(weekKey) ?? 0) + fin.amount);
+      } else if (fin.type === "expense") {
+        expensesByWeek.set(weekKey, (expensesByWeek.get(weekKey) ?? 0) + fin.amount);
+      }
+    }
+    for (const mov of cashMovesRes.data ?? []) {
+      const dk = mov.happened_at ? getArgentinaDateKey(mov.happened_at) : null;
+      if (!dk) continue;
+      const d = new Date(dk + "T12:00:00-03:00");
+      const day = d.getUTCDay();
+      const diff = day === 0 ? -6 : 1 - day;
+      d.setUTCDate(d.getUTCDate() + diff);
+      const weekKey = getArgentinaDateKey(d);
+      if (!weeksToShow.includes(weekKey)) continue;
+      if (mov.movement_type === "income") {
+        incomeByWeek.set(weekKey, (incomeByWeek.get(weekKey) ?? 0) + Number(mov.amount || 0));
+      } else if (mov.movement_type === "expense" || mov.movement_type === "withdrawal") {
+        expensesByWeek.set(weekKey, (expensesByWeek.get(weekKey) ?? 0) + Number(mov.amount || 0));
+      }
+    }
+    const weeklyBreakdown = weeksToShow.map((wk) => ({
+      weekKey: wk,
+      income: incomeByWeek.get(wk) ?? 0,
+      expenses: expensesByWeek.get(wk) ?? 0,
+    }));
+
+    const dayNames = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+    const dayCounts = new Map<string, number>();
+    const hourCounts = new Map<string, number>();
+    for (const apt of apptsRevenueRes.data ?? []) {
+      if (!apt.start_time) continue;
+      const d = new Date(apt.start_time);
+      const dayName = dayNames[d.getUTCDay()];
+      dayCounts.set(dayName, (dayCounts.get(dayName) ?? 0) + 1);
+      const hour = String(d.getUTCHours()).padStart(2, "0");
+      hourCounts.set(hour, (hourCounts.get(hour) ?? 0) + 1);
+    }
+    let busiestDay: { day: string; count: number } | null = null;
+    let busiestHour: { hour: string; count: number } | null = null;
+    for (const [day, count] of dayCounts) {
+      if (!busiestDay || count > busiestDay.count) busiestDay = { day, count };
+    }
+    for (const [hour, count] of hourCounts) {
+      if (!busiestHour || count > busiestHour.count) busiestHour = { hour: `${hour}:00`, count };
+    }
+
     const { data: topRaw, error: topErr } = await admin
       .from("appointments")
       .select("service_id, is_paid, services!appointments_service_id_fkey(name)")
@@ -599,6 +689,9 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
         revenueChart,
         dailyBreakdown,
         hourlyBreakdown,
+        weeklyBreakdown,
+        busiestDay,
+        busiestHour,
         monthlyGrowth,
         healthScore,
         healthBreakdown: { revenue: revScore, clients: cliScore, appointments: apptScore },

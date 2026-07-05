@@ -835,7 +835,7 @@ export async function updateAppointmentServices(
 
 export async function updateCustomerQuick(
   customerId: string,
-  patch: { nombre?: string; email?: string; telefono?: string | null; cumpleaños?: string | null; observaciones_tecnicas?: string | null; es_vip?: boolean },
+  patch: { nombre?: string; email?: string; telefono?: string | null; cumpleaños?: string | null; observaciones_tecnicas?: string | null; tags?: string[] },
   shopId?: string,
 ): Promise<ActionResult> {
   try {
@@ -853,7 +853,7 @@ export async function updateCustomerQuick(
     if (patch.telefono !== undefined) updates.telefono = patch.telefono;
     if (patch.cumpleaños !== undefined) updates["cumpleaños"] = patch.cumpleaños;
     if (patch.observaciones_tecnicas !== undefined) updates.observaciones_tecnicas = patch.observaciones_tecnicas;
-    if (patch.es_vip !== undefined) updates.es_vip = patch.es_vip;
+    if (patch.tags !== undefined) updates.tags = patch.tags;
 
     const { error } = await supabase
       .from("customers")
@@ -1164,31 +1164,101 @@ export async function moveAppointmentGroup(
   }
 }
 
-export async function autoCompletePastAppointments(shopId: string): Promise<ActionResult<{ count: number }>> {
+export async function bulkCompleteAppointments(
+  shopId: string,
+  appointmentIds: string[]
+): Promise<ActionResult<{ completed: number }>> {
+  try {
+    if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    if (!appointmentIds.length) return { success: true, data: { completed: 0 } };
+
+    const admin = await createAdminClient();
+
+    const { data: appointments, error: fetchError } = await admin
+      .from("appointments")
+      .select("id, customer_id")
+      .eq("shop_id", shopId)
+      .in("id", appointmentIds)
+      .in("status", ["confirmed", "in_progress"]);
+
+    if (fetchError) return { success: false, error: fetchError.message };
+
+    const idsToUpdate = (appointments ?? []).map((a) => a.id);
+    if (!idsToUpdate.length) return { success: true, data: { completed: 0 } };
+
+    const { error: updateError } = await admin
+      .from("appointments")
+      .update({ status: "completed", is_paid: true, updated_at: new Date().toISOString() })
+      .eq("shop_id", shopId)
+      .in("id", idsToUpdate);
+
+    if (updateError) return { success: false, error: updateError.message };
+
+    for (const apt of appointments ?? []) {
+      if (apt.customer_id) {
+        await registerLoyaltyCut(shopId, apt.customer_id);
+      }
+    }
+
+    await revalidateDashboardSegments(shopId, ["/calendar", "/appointments", "/customers", "/finances", ""]);
+
+    return { success: true, data: { completed: idsToUpdate.length } };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al completar turnos" };
+  }
+}
+
+export async function autoCompletePastAppointments(shopId: string): Promise<ActionResult<{ completed: number; confirmed: number }>> {
   try {
     if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
 
     const admin = await createAdminClient();
-    const graceMs = 30 * 60 * 1000;
-    const cutoff = new Date(getArgentinaNow().getTime() - graceMs).toISOString();
+    const nowAr = getArgentinaNow();
+    const completeGraceMs = 30 * 60 * 1000;
+    const confirmGraceMs = 15 * 60 * 1000;
+    const completeCutoff = new Date(nowAr.getTime() - completeGraceMs).toISOString();
+    const confirmCutoff = new Date(nowAr.getTime() - confirmGraceMs).toISOString();
 
-    const { data, error } = await admin
+    const { data: confirmData, error: confirmError } = await admin
+      .from("appointments")
+      .update({ status: "confirmed", updated_at: new Date().toISOString() })
+      .eq("shop_id", shopId)
+      .in("status", ["scheduled", "pending_payment"])
+      .lt("start_time", confirmCutoff)
+      .select("id")
+      .limit(500);
+
+    if (confirmError) return { success: false, error: confirmError.message };
+
+    const { data: completeData, error: completeError } = await admin
       .from("appointments")
       .update({ status: "completed", is_paid: true, updated_at: new Date().toISOString() })
       .eq("shop_id", shopId)
       .in("status", ["in_progress"])
-      .lt("end_time", cutoff)
-      .select("id")
+      .lt("end_time", completeCutoff)
+      .select("id, customer_id")
       .limit(500);
 
-    if (error) return { success: false, error: error.message };
+    if (completeError) return { success: false, error: completeError.message };
 
-    if (data && data.length > 0) {
+    if (completeData && completeData.length > 0) {
+      for (const apt of completeData) {
+        if (apt.customer_id) {
+          await registerLoyaltyCut(shopId, apt.customer_id);
+        }
+      }
+    }
+
+    const changed = (confirmData?.length ?? 0) + (completeData?.length ?? 0);
+    if (changed > 0) {
       await revalidateDashboardSegments(shopId, ["/calendar", "/appointments", "/customers", ""]);
     }
 
-    return { success: true, data: { count: data?.length ?? 0 } };
+    return {
+      success: true,
+      data: { completed: completeData?.length ?? 0, confirmed: confirmData?.length ?? 0 },
+    };
   } catch (e) {
-    return { success: false, error: e instanceof Error ? e.message : "Error al auto-completar turnos" };
+    return { success: false, error: e instanceof Error ? e.message : "Error al auto-gestionar turnos" };
   }
 }

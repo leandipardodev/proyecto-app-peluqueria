@@ -1,15 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Gift, MessageCircle, Search, X, Download } from "lucide-react";
+import { Gift, MessageCircle, Search, X, Download, Trash2 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { supabase } from "@/lib/supabase";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { resolveDashboardShopIdBySlug } from "@/lib/dashboard/auth-actions";
+import { fetchCustomersPage } from "@/lib/dashboard/customers-actions";
 import { useAuth } from "@/lib/auth-context";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { resolveIndustry } from "@/lib/industry/resolve";
+import { CUSTOMER_TAGS, getTagColor, getTagLabel } from "@/lib/dashboard/customer-tags";
 
 type Customer = {
   id: string;
@@ -19,6 +21,7 @@ type Customer = {
   cumpleaños: string | null;
   observaciones_tecnicas: string | null;
   es_vip: boolean | null;
+  tags: string[];
   recurring_weekday: number | null;
   recurring_frequency: string | null;
   recurring_notes: string | null;
@@ -75,6 +78,10 @@ export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [loyaltyEnabled, setLoyaltyEnabled] = useState(true);
@@ -86,12 +93,15 @@ export default function CustomersPage() {
   const [draftCumple, setDraftCumple] = useState("");
   const [draftObs, setDraftObs] = useState("");
   const [draftVip, setDraftVip] = useState(false);
+  const [draftTags, setDraftTags] = useState<string[]>([]);
   const [draftRecurringWeekday, setDraftRecurringWeekday] = useState("");
   const [draftRecurringFrequency, setDraftRecurringFrequency] = useState("");
   const [draftRecurringNotes, setDraftRecurringNotes] = useState("");
 
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [portalReady, setPortalReady] = useState(false);
 
   useEffect(() => {
@@ -115,71 +125,68 @@ export default function CustomersPage() {
     return resolved.data.shopId;
   }, []);
 
-  const loadCustomers = useCallback(async () => {
+  const shopIdRef = useRef<string | null>(null);
+
+  const loadCustomers = useCallback(async (p: number, search: string) => {
+    setLoading(true);
     setError(null);
 
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      setError("No hay datos");
-      return;
-    }
-
-    const activeShopId = await resolveActiveShopIdForUser();
+    let activeShopId = shopIdRef.current;
     if (!activeShopId) {
-      setError("No se pudo resolver el local");
-      return;
-    }
+      activeShopId = await resolveActiveShopIdForUser();
+      if (!activeShopId) {
+        setError("No se pudo resolver el local");
+        setLoading(false);
+        return;
+      }
+      shopIdRef.current = activeShopId;
 
-    const [{ data, error: fetchError }, { data: shopData, error: shopError }] = await Promise.all([
-      supabase.from("customers").select('id, nombre, email, telefono, "cumpleaños", observaciones_tecnicas, es_vip, recurring_weekday, recurring_frequency, recurring_notes, loyalty_cuts_count, loyalty_rewards_available').eq("shop_id", activeShopId).order("created_at", { ascending: false }).limit(500),
-      supabase
+      const { data: shopData } = await supabase
         .from("shops")
         .select("loyalty_enabled, loyalty_cuts_required")
         .eq("id", activeShopId)
-        .maybeSingle(),
-    ]);
+        .maybeSingle();
 
-    if (fetchError) {
+      if (shopData) {
+        setLoyaltyEnabled(shopData.loyalty_enabled !== false);
+        setLoyaltyCutsRequired(Math.max(1, Number(shopData.loyalty_cuts_required || 10)));
+      }
+    }
+
+    const result = await fetchCustomersPage(activeShopId, { search, page: p, pageSize: 50 });
+
+    if (!result.success) {
       setError(`Error al cargar ${customerPlural.toLowerCase()}`);
+      setLoading(false);
       return;
     }
 
-    if (!shopError && shopData) {
-      setLoyaltyEnabled(shopData.loyalty_enabled !== false);
-      setLoyaltyCutsRequired(Math.max(1, Number(shopData.loyalty_cuts_required || 10)));
-    }
-
-    const normalized: Customer[] = ((data as Array<Record<string, unknown>>) || []).map((row) => ({
-      id: String(row.id || ""),
-      nombre: typeof row.nombre === "string" ? row.nombre : null,
-      email: typeof row.email === "string" ? row.email : null,
-      telefono: typeof row.telefono === "string" ? row.telefono : null,
-      cumpleaños: typeof row["cumpleaños"] === "string" ? (row["cumpleaños"] as string) : null,
-      observaciones_tecnicas:
-        typeof row.observaciones_tecnicas === "string" ? row.observaciones_tecnicas : null,
-      es_vip: typeof row.es_vip === "boolean" ? row.es_vip : false,
-      recurring_weekday: typeof row.recurring_weekday === "number" ? row.recurring_weekday : null,
-      recurring_frequency: typeof row.recurring_frequency === "string" ? row.recurring_frequency : null,
-      recurring_notes: typeof row.recurring_notes === "string" ? row.recurring_notes : null,
-      loyalty_cuts_count: Math.max(0, Number(row.loyalty_cuts_count || 0)),
-      loyalty_rewards_available: Math.max(0, Number(row.loyalty_rewards_available || 0)),
-    }));
-
-    setCustomers(normalized);
+    setCustomers(result.data.customers);
+    setPage(result.data.page);
+    setTotalPages(result.data.totalPages);
+    setTotal(result.data.total);
+    setLoading(false);
   }, [resolveActiveShopIdForUser, customerPlural]);
 
-  useEffect(() => {
-    loadCustomers();
-  }, [loadCustomers]);
+  const initialLoadDone = useRef(false);
 
   useEffect(() => {
-    const q = searchParams.get("q");
-    if (q) setSearchQuery(q);
-  }, [searchParams]);
+    loadCustomers(1, "");
+  }, [loadCustomers]);
+
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    if (!initialLoadDone.current) {
+      initialLoadDone.current = true;
+      return;
+    }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      loadCustomers(1, searchQuery);
+    }, 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [loadCustomers, searchQuery]);
 
   useEffect(() => {
     const customerId = searchParams.get("customerId");
@@ -187,17 +194,6 @@ export default function CustomersPage() {
     const target = customers.find((c) => c.id === customerId);
     if (target) openEditor(target);
   }, [searchParams, customers]);
-
-  const filteredCustomers = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return customers;
-
-    return customers.filter((c) => {
-      const byName = (c.nombre || "").toLowerCase().includes(q);
-      const byObs = (c.observaciones_tecnicas || "").toLowerCase().includes(q);
-      return byName || byObs;
-    });
-  }, [customers, searchQuery]);
 
   const selectedCustomer = selectedId ? customers.find((c) => c.id === selectedId) || null : null;
 
@@ -210,6 +206,7 @@ export default function CustomersPage() {
     setDraftCumple(toInputDate(customer.cumpleaños));
     setDraftObs(customer.observaciones_tecnicas || "");
     setDraftVip(Boolean(customer.es_vip));
+    setDraftTags(customer.tags);
     setDraftRecurringWeekday(customer.recurring_weekday !== null && customer.recurring_weekday !== undefined ? String(customer.recurring_weekday) : "");
     setDraftRecurringFrequency(customer.recurring_frequency || "");
     setDraftRecurringNotes(customer.recurring_notes || "");
@@ -225,6 +222,7 @@ export default function CustomersPage() {
     setDraftCumple("");
     setDraftObs("");
     setDraftVip(false);
+    setDraftTags([]);
     setDraftRecurringWeekday("");
     setDraftRecurringFrequency("");
     setDraftRecurringNotes("");
@@ -267,6 +265,7 @@ export default function CustomersPage() {
       cumpleaños: draftCumple || null,
       observaciones_tecnicas: draftObs || null,
       es_vip: draftVip,
+      tags: draftTags,
       recurring_weekday: draftRecurringWeekday ? Number(draftRecurringWeekday) : null,
       recurring_frequency: draftRecurringFrequency || null,
       recurring_notes: draftRecurringNotes || null,
@@ -294,6 +293,7 @@ export default function CustomersPage() {
         cumpleaños: created.cumpleaños ?? null,
         observaciones_tecnicas: created.observaciones_tecnicas ?? null,
         es_vip: created.es_vip ?? false,
+        tags: draftTags,
         recurring_weekday: created.recurring_weekday ?? null,
         recurring_frequency: created.recurring_frequency ?? null,
         recurring_notes: created.recurring_notes ?? null,
@@ -324,6 +324,7 @@ export default function CustomersPage() {
                 cumpleaños: draftCumple || null,
                 observaciones_tecnicas: draftObs || null,
                 es_vip: draftVip,
+                tags: draftTags,
                 recurring_weekday: draftRecurringWeekday ? Number(draftRecurringWeekday) : null,
                 recurring_frequency: draftRecurringFrequency || null,
                 recurring_notes: draftRecurringNotes || null,
@@ -335,6 +336,24 @@ export default function CustomersPage() {
 
     playSuccess();
     setSaving(false);
+    closeEditor();
+  }
+
+  async function handleDelete() {
+    if (!selectedId) return;
+    setDeleting(true);
+    setSaveMessage(null);
+
+    const { error: deleteError } = await supabase.from("customers").delete().eq("id", selectedId);
+    if (deleteError) {
+      setSaveMessage("Error al eliminar, intentá de nuevo");
+      setDeleting(false);
+      return;
+    }
+
+    setCustomers((prev) => prev.filter((c) => c.id !== selectedId));
+    setDeleting(false);
+    setConfirmDelete(false);
     closeEditor();
   }
 
@@ -369,13 +388,36 @@ export default function CustomersPage() {
         />
       </div>
 
+      <div className="flex items-center justify-between gap-4 text-sm text-slate-500 dark:text-zinc-400">
+        <span>{total > 0 ? `${(page - 1) * 50 + 1}–${Math.min(page * 50, total)} de ${total}` : ""}</span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={page <= 1 || loading}
+            onClick={() => loadCustomers(page - 1, searchQuery)}
+            className="rounded-lg border border-slate-200 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-zinc-800 transition"
+          >
+            Anterior
+          </button>
+          <span className="text-xs font-medium">{page} / {totalPages}</span>
+          <button
+            type="button"
+            disabled={page >= totalPages || loading}
+            onClick={() => loadCustomers(page + 1, searchQuery)}
+            className="rounded-lg border border-slate-200 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-zinc-800 transition"
+          >
+            Siguiente
+          </button>
+        </div>
+      </div>
+
       <div className="md:hidden space-y-3">
-        {filteredCustomers.length === 0 ? (
+        {customers.length === 0 ? (
           <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-2xl px-4 py-8 text-center text-sm text-slate-500 dark:text-zinc-400 shadow-[0_8px_30px_rgb(0,0,0,0.03)]">
             No se encontraron {customerPlural.toLowerCase()}
           </div>
         ) : (
-          filteredCustomers.map((customer) => (
+          customers.map((customer) => (
             <button
               key={customer.id}
               onClick={() => openEditor(customer)}
@@ -401,9 +443,9 @@ export default function CustomersPage() {
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {isBirthdayThisWeek(customer.cumpleaños) && <Gift className="w-4 h-4 text-rose-500" />}
-                  {customer.es_vip && (
-                    <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-700">VIP</span>
-                  )}
+                  {customer.tags.slice(0, 2).map((tag) => (
+                    <span key={tag} className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ${getTagColor(tag)}`}>{getTagLabel(tag)}</span>
+                  ))}
                 </div>
               </div>
               {loyaltyEnabled && (
@@ -433,19 +475,19 @@ export default function CustomersPage() {
                 <th className="px-6 py-3 font-medium">Teléfono</th>
                 <th className="px-6 py-3 font-medium">Cumpleaños</th>
                 <th className="px-6 py-3 font-medium">Observaciones</th>
-                <th className="px-6 py-3 font-medium">VIP</th>
+                <th className="px-6 py-3 font-medium">Etiquetas</th>
                 <th className="px-6 py-3 font-medium">Fidelización</th>
               </tr>
             </thead>
             <tbody>
-              {filteredCustomers.length === 0 ? (
+              {customers.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center text-slate-500 dark:text-zinc-400">
                     No se encontraron {customerPlural.toLowerCase()}
                   </td>
                 </tr>
               ) : (
-                filteredCustomers.map((customer) => (
+                customers.map((customer) => (
                   <tr
                     key={customer.id}
                     onClick={() => openEditor(customer)}
@@ -478,7 +520,13 @@ export default function CustomersPage() {
                     <td className="px-6 py-4 text-slate-700 dark:text-zinc-200 max-w-[280px]">
                       <p className="line-clamp-2">{customer.observaciones_tecnicas || "Sin observaciones"}</p>
                     </td>
-                    <td className="px-6 py-4 text-slate-700 dark:text-zinc-200">{customer.es_vip ? "Sí" : "No"}</td>
+                    <td className="px-6 py-4 text-slate-700 dark:text-zinc-200">
+                      <div className="flex flex-wrap gap-1">
+                        {customer.tags.length > 0 ? customer.tags.map((tag) => (
+                          <span key={tag} className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ${getTagColor(tag)}`}>{getTagLabel(tag)}</span>
+                        )) : <span className="text-xs text-zinc-400">—</span>}
+                      </div>
+                    </td>
                     <td className="px-6 py-4 text-slate-700 dark:text-zinc-200">
                       {loyaltyEnabled ? (
                         <div className="flex items-center gap-2">
@@ -613,27 +661,74 @@ export default function CustomersPage() {
                 </div>
 
                 <div>
-                  <p className="text-sm font-medium text-slate-900 dark:text-zinc-100 mb-2">Preferencias</p>
-                  <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-zinc-300">
-                    <input type="checkbox" checked={draftVip} onChange={(e) => setDraftVip(e.target.checked)} />
-                    VIP
-                  </label>
+                  <p className="text-sm font-medium text-slate-900 dark:text-zinc-100 mb-2">Etiquetas</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {CUSTOMER_TAGS.map((tag) => {
+                      const active = draftTags.includes(tag.value);
+                      return (
+                        <button
+                          key={tag.value}
+                          type="button"
+                          onClick={() => setDraftTags((prev) => active ? prev.filter((t) => t !== tag.value) : [...prev, tag.value])}
+                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium transition-all cursor-pointer select-none ${
+                            active
+                              ? tag.color + " ring-1 ring-current"
+                              : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                          }`}
+                        >
+                          {tag.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
               <div className="px-6 py-4 border-t border-slate-200 dark:border-zinc-700 flex items-center justify-between">
-                {saveMessage ? (
-                  <span className={`text-sm ${saveMessage.includes("Error") ? "text-red-600" : "text-emerald-600"}`}>{saveMessage}</span>
-                ) : (
-                  <span />
-                )}
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="rounded-full bg-blue-600 text-white px-5 py-2 text-sm font-medium hover:bg-blue-700 transition disabled:opacity-60"
-                >
-                  {saving ? "Guardando..." : "Guardar"}
-                </button>
+                <div className="flex items-center gap-2">
+                  {!isCreating && (
+                    <>
+                      {confirmDelete ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-red-600 dark:text-red-400">¿Eliminar?</span>
+                          <button
+                            onClick={handleDelete}
+                            disabled={deleting}
+                            className="rounded-full bg-red-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-red-700 transition disabled:opacity-60"
+                          >
+                            {deleting ? "Eliminando..." : "Sí"}
+                          </button>
+                          <button
+                            onClick={() => setConfirmDelete(false)}
+                            className="rounded-full bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 px-3 py-1.5 text-xs font-medium hover:bg-zinc-300 dark:hover:bg-zinc-600 transition"
+                          >
+                            No
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmDelete(true)}
+                          className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Eliminar
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {saveMessage && (
+                    <span className={`text-sm ${saveMessage.includes("Error") ? "text-red-600" : "text-emerald-600"}`}>{saveMessage}</span>
+                  )}
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="rounded-full bg-blue-600 text-white px-5 py-2 text-sm font-medium hover:bg-blue-700 transition disabled:opacity-60"
+                  >
+                    {saving ? "Guardando..." : "Guardar"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

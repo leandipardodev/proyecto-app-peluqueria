@@ -75,6 +75,8 @@ export default async function DashboardShopBusinessPage({ params }: { params: Pr
           topServicesCount: servicesResult.success && servicesResult.data ? servicesResult.data.length : 0,
           income: metricsResult.data.revenueChart.reduce((sum, point) => sum + point.income, 0),
           expenses: metricsResult.data.revenueChart.reduce((sum, point) => sum + point.expenses, 0),
+          busiestDay: metricsResult.data.busiestDay,
+          busiestHour: metricsResult.data.busiestHour,
         }
       : null;
 

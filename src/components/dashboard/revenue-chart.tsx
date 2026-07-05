@@ -9,6 +9,7 @@ type RevenueChartProps = {
   data: Array<{ month: string; income: number; expenses: number }>;
   dailyBreakdown: Array<{ dateKey: string; income: number; expenses: number }>;
   hourlyBreakdown: Array<{ hour: string; income: number; expenses: number }>;
+  weeklyBreakdown: Array<{ weekKey: string; income: number; expenses: number }>;
   flowByPeriod?: {
     today: { income: number; expenses: number };
     week: { income: number; expenses: number };
@@ -41,7 +42,12 @@ function formatHourLabel(value: string): string {
   return `${value}:00`;
 }
 
-export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, flowByPeriod }: RevenueChartProps) {
+function formatWeekLabel(value: string): string {
+  const d = new Date(value + "T12:00:00-03:00");
+  return `${d.getUTCDate()}/${d.getUTCMonth() + 1}`;
+}
+
+export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, weeklyBreakdown, flowByPeriod }: RevenueChartProps) {
   const [hoveredBar, setHoveredBar] = useState<string | null>(null);
   const [period, setPeriod] = useState<"today" | "week" | "month">("today");
   const chartHostRef = useRef<HTMLDivElement | null>(null);
@@ -77,14 +83,14 @@ export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, fl
   }, []);
 
   const chartData = useMemo(() => {
-    if (period === "today") return hourlyBreakdown;
-    if (period === "week") return dailyBreakdown;
+    if (period === "today") return dailyBreakdown;
+    if (period === "week") return weeklyBreakdown;
     return data;
-  }, [period, data, dailyBreakdown, hourlyBreakdown]);
+  }, [period, data, dailyBreakdown, weeklyBreakdown]);
 
   const tickFormatter = useMemo(() => {
-    if (period === "today") return formatHourLabel;
-    if (period === "week") return formatDayLabel;
+    if (period === "today") return formatDayLabel;
+    if (period === "week") return formatWeekLabel;
     return formatMonthLabel;
   }, [period]);
 
@@ -107,14 +113,14 @@ export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, fl
 
   if (!hasData && period === "month" && data.length === 0) {
     return (
-      <div className="rounded-xl rounded-tr-none border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex flex-col h-full rounded-xl rounded-tr-none border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
         <StatePanel title="Sin datos de ingresos" description="Todavía no hay datos de ingresos para mostrar." />
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl rounded-tr-none border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="flex flex-col h-full rounded-xl rounded-tr-none border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
       <h3 className="mb-1 text-sm font-semibold text-zinc-800 dark:text-zinc-100">Ingresos vs Gastos</h3>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-zinc-500">Resultado neto por periodo</p>
@@ -140,7 +146,7 @@ export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, fl
         </div>
       </div>
 
-      <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-3 shrink-0">
         <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-800">
           <p className="text-[10px] font-semibold tracking-widest text-zinc-500 dark:text-zinc-400">INGRESOS</p>
           <p className="mt-0.5 text-2xl font-bold text-blue-600 dark:text-blue-400" style={{ fontVariantNumeric: "tabular-nums" }}>
@@ -166,7 +172,7 @@ export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, fl
 
       <div
         ref={chartHostRef}
-        className="analytics-bg relative h-64 min-h-[16rem] min-w-0 w-full overflow-hidden rounded-xl bg-zinc-100 p-3 dark:bg-zinc-800"
+        className="analytics-bg relative flex-1 min-h-0 min-w-0 w-full overflow-hidden rounded-xl bg-zinc-100 p-3 dark:bg-zinc-800"
       >
         <div className="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
           <div className="analytics-grid size-full" />
@@ -176,10 +182,10 @@ export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, fl
           <div className="absolute inset-3 rounded-xl bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
         )}
         {canRenderChart && (
-          <ResponsiveContainer width="100%" height={220} minWidth={280} minHeight={180}>
+          <ResponsiveContainer width="100%" height="100%" minWidth={280} minHeight={180}>
             <BarChart data={chartData as Array<Record<string, unknown>>} margin={{ top: 20, right: 4, left: -8, bottom: 0 }} barGap={2} barCategoryGap="8%">
               <XAxis
-                dataKey={period === "today" ? "hour" : period === "week" ? "dateKey" : "month"}
+                dataKey={period === "today" ? "dateKey" : period === "week" ? "weekKey" : "month"}
                 axisLine={false}
                 tickLine={false}
                 tickMargin={8}
@@ -208,7 +214,7 @@ export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, fl
                   const key = `income-${index}`;
                   const isHovered = hoveredBar === key;
                   const hasHover = hoveredBar !== null;
-                  const label = (entry.month || entry.dateKey || entry.hour) as string;
+                  const label = (entry.month || entry.weekKey || entry.dateKey || entry.hour) as string;
                   return (
                     <Cell
                       key={`${label}-income-${index}`}
@@ -263,7 +269,7 @@ export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, fl
                   const key = `expenses-${index}`;
                   const isHovered = hoveredBar === key;
                   const hasHover = hoveredBar !== null;
-                  const label = (entry.month || entry.dateKey || entry.hour) as string;
+                  const label = (entry.month || entry.weekKey || entry.dateKey || entry.hour) as string;
                   return (
                     <Cell
                       key={`${label}-expenses-${index}`}
@@ -352,7 +358,7 @@ export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, fl
           className="rounded-xl border border-zinc-200 bg-white px-4 py-3 shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
         >
           <p className="mb-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
-            {period === "today" ? formatHourLabel(tooltip.label) : period === "week" ? formatDayLabel(tooltip.label) : formatMonthLabel(tooltip.label)}
+            {period === "today" ? formatDayLabel(tooltip.label) : period === "week" ? "Semana del " + formatWeekLabel(tooltip.label) : formatMonthLabel(tooltip.label)}
           </p>
           <div className="space-y-1 text-xs">
             <div className="flex items-center gap-2">

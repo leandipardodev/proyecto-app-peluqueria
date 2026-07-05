@@ -17,6 +17,8 @@ type Props = {
     totalAppointments: number;
     growth: number | null;
     topServicesCount: number;
+    busiestDay: { day: string; count: number } | null;
+    busiestHour: { hour: string; count: number } | null;
   } | null;
   summaryStats: { lowStockCount: number } | null;
   customerPlural: string;
@@ -104,6 +106,20 @@ export default function BusinessStatsSection({
             <StatCard label="Ingresos totales" value={maskValue(`$${incomeValue.toFixed(2)}`)} bgClass="bg-emerald-100 dark:bg-emerald-900/30" barClass="bg-gradient-to-r from-emerald-400 to-emerald-300 dark:from-emerald-500 dark:to-emerald-400" barWidth="w-4/5" />
             <StatCard label={customerPlural + " totales"} value={maskValue(String(metricStats?.totalClients ?? "-"))} bgClass="bg-indigo-100 dark:bg-indigo-900/30" barClass="bg-gradient-to-r from-indigo-400 to-indigo-300 dark:from-indigo-500 dark:to-indigo-400" barWidth="w-2/3" />
             <GrowthCard growth={metricStats?.growth ?? null} maskValue={maskValue} />
+            <StatCard
+              label="Día con más turnos"
+              value={metricStats?.busiestDay ? maskValue(`${metricStats.busiestDay.day} (${metricStats.busiestDay.count})`) : "-"}
+              bgClass="bg-orange-100 dark:bg-orange-900/30"
+              barClass="bg-gradient-to-r from-orange-400 to-orange-300 dark:from-orange-500 dark:to-orange-400"
+              barWidth="w-3/5"
+            />
+            <StatCard
+              label="Horario con más turnos"
+              value={metricStats?.busiestHour ? maskValue(`${metricStats.busiestHour.hour} (${metricStats.busiestHour.count})`) : "-"}
+              bgClass="bg-teal-100 dark:bg-teal-900/30"
+              barClass="bg-gradient-to-r from-teal-400 to-teal-300 dark:from-teal-500 dark:to-teal-400"
+              barWidth="w-3/5"
+            />
             <StatCard label="Alertas de stock" value={maskValue(String(summaryStats?.lowStockCount ?? "-"))} bgClass="bg-amber-100 dark:bg-amber-900/30" barClass="bg-gradient-to-r from-amber-400 to-amber-300 dark:from-amber-500 dark:to-amber-400" barWidth="w-1/2" />
             <StatCard label={servicePlural + " activos"} value={maskValue(String(metricStats?.topServicesCount ?? "-"))} bgClass="bg-cyan-100 dark:bg-cyan-900/30" barClass="bg-gradient-to-r from-cyan-400 to-cyan-300 dark:from-cyan-500 dark:to-cyan-400" barWidth="w-3/5" />
 

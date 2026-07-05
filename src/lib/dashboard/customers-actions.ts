@@ -133,3 +133,75 @@ export async function fetchCustomersOverview(): Promise<ActionResult<CustomerRow
     return { success: false, error: e instanceof Error ? e.message : "Error al cargar clientes" };
   }
 }
+
+export async function fetchCustomersPage(
+  shopId: string,
+  options: { search?: string; page?: number; pageSize?: number }
+): Promise<ActionResult<{ customers: CustomerData[]; total: number; page: number; totalPages: number }>> {
+  try {
+    const admin = await createAdminClient();
+    const { search = "", page = 1, pageSize = 50 } = options;
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    let query = admin
+      .from("customers")
+      .select('id, nombre, email, telefono, "cumpleaños", observaciones_tecnicas, es_vip, tags, recurring_weekday, recurring_frequency, recurring_notes, loyalty_cuts_count, loyalty_rewards_available', { count: "exact" })
+      .eq("shop_id", shopId);
+
+    if (search.trim()) {
+      const q = `%${search.trim()}%`;
+      query = query.or(`nombre.ilike.${q},observaciones_tecnicas.ilike.${q}`);
+    }
+
+    const { data, error, count } = await query
+      .order("created_at", { ascending: false })
+      .range(from, to);
+
+    if (error) return { success: false, error: error.message };
+
+    const customers: CustomerData[] = ((data || []) as Array<Record<string, unknown>>).map((row) => ({
+      id: String(row.id || ""),
+      nombre: typeof row.nombre === "string" ? row.nombre : null,
+      email: typeof row.email === "string" ? row.email : null,
+      telefono: typeof row.telefono === "string" ? row.telefono : null,
+      cumpleaños: typeof row["cumpleaños"] === "string" ? (row["cumpleaños"] as string) : null,
+      observaciones_tecnicas: typeof row.observaciones_tecnicas === "string" ? row.observaciones_tecnicas : null,
+      es_vip: typeof row.es_vip === "boolean" ? row.es_vip : false,
+      tags: Array.isArray(row.tags) ? row.tags as string[] : [],
+      recurring_weekday: typeof row.recurring_weekday === "number" ? row.recurring_weekday : null,
+      recurring_frequency: typeof row.recurring_frequency === "string" ? row.recurring_frequency : null,
+      recurring_notes: typeof row.recurring_notes === "string" ? row.recurring_notes : null,
+      loyalty_cuts_count: Math.max(0, Number(row.loyalty_cuts_count || 0)),
+      loyalty_rewards_available: Math.max(0, Number(row.loyalty_rewards_available || 0)),
+    }));
+
+    return {
+      success: true,
+      data: {
+        customers,
+        total: count ?? 0,
+        page,
+        totalPages: Math.ceil((count ?? 0) / pageSize),
+      },
+    };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al cargar clientes" };
+  }
+}
+
+type CustomerData = {
+  id: string;
+  nombre: string | null;
+  email: string | null;
+  telefono: string | null;
+  cumpleaños: string | null;
+  observaciones_tecnicas: string | null;
+  es_vip: boolean;
+  tags: string[];
+  recurring_weekday: number | null;
+  recurring_frequency: string | null;
+  recurring_notes: string | null;
+  loyalty_cuts_count: number;
+  loyalty_rewards_available: number;
+};

@@ -190,6 +190,8 @@ export default function BusinessClient({
     topServicesCount: number;
     income: number;
     expenses: number;
+    busiestDay: { day: string; count: number } | null;
+    busiestHour: { hour: string; count: number } | null;
   } | null;
   canManageBilling: boolean;
   role?: string;

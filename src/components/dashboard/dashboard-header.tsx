@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { Menu, Search, Moon, Sun, Gauge, Repeat2, Check, Volume2, VolumeX, SlidersHorizontal, Sparkles, Bug, CircleHelp } from "lucide-react";
+import { Menu, Search, Moon, Sun, Gauge, Repeat2, Check, Volume2, VolumeX, SlidersHorizontal, Sparkles, Bell, Bug, CircleHelp } from "lucide-react";
 import { useState, useRef, useEffect, useTransition, useMemo, useCallback, memo, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -22,6 +22,7 @@ import { isMuted, setMuted } from "@/lib/sound";
 import { getDashboardBasePath, withDashboardBase } from "@/lib/dashboard/dashboard-base";
 import { StatePanel } from "@/components/ui/state-panel";
 import { DASHBOARD_LEGACY_SEGMENTS_SET } from "@/lib/dashboard/legacy-segments";
+import NotificationsPanel from "./notifications-panel";
 import { NAV_COMMANDS, ACTION_COMMANDS, type CommandItem, type CommandNav, type CommandAction, type CommandData } from "@/lib/dashboard/search-commands";
 import { getIndustrySearchKeywords, getInitials, normalizeSearchText, scoreQueryAgainstTerms, formatDataLabel, formatDataHint } from "@/lib/dashboard/search-utils";
 
@@ -82,6 +83,8 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
   const [shopMenuOpen, setShopMenuOpen] = useState(false);
   const [logoutPending, startLogoutTransition] = useTransition();
   const [soundMuted, setSoundMuted] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifCount, setNotifCount] = useState(0);
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
@@ -236,6 +239,26 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
+
+  useEffect(() => {
+    if (notifOpen) return;
+    let mounted = true;
+    const fetchCount = async () => {
+      try {
+        const res = await fetch("/api/dashboard/notifications", { cache: "no-store" });
+        if (!res.ok || !mounted) return;
+        const data = await res.json();
+        const read: string[] = [];
+        try { const raw = localStorage.getItem("klip-notifications-read"); if (raw) read.push(...JSON.parse(raw)); } catch {}
+        const unreadItems = (data.items || []).filter((i: { id: string }) => !read.includes(i.id)).length;
+        const pendingCount = data.pendingComplete?.length ?? 0;
+        setNotifCount(unreadItems + pendingCount);
+      } catch { }
+    };
+    fetchCount();
+    const id = window.setInterval(fetchCount, 45_000);
+    return () => { mounted = false; window.clearInterval(id); };
+  }, [notifOpen]);
 
   useEffect(() => {
     const q = query.trim();
@@ -444,9 +467,15 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
       setActiveIndex((v) => (v <= 0 ? total - 1 : v - 1));
       return;
     }
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       void execute(commandItems.flat[activeIndex]);
+      return;
+    }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      setPlaceholderIndex((prev) => (prev + 1) % rotatingWords.length);
+      return;
     }
   }
 
@@ -801,7 +830,39 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
           </motion.div>
         </div>
 
-        <div className="flex items-center gap-3 ml-auto">
+        <div className="flex items-center gap-2 ml-auto">
+          <div className="relative">
+            <motion.button
+              type="button"
+              onClick={() => setNotifOpen((v) => !v)}
+              className="relative p-2 rounded-xl text-zinc-400 hover:text-zinc-600 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/5 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
+              aria-label="Notificaciones"
+              whileTap={{ scale: 0.95 }}
+            >
+              <Bell className="w-5 h-5" strokeWidth={1.5} />
+              {notifCount > 0 && (
+                <motion.span
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-[0_2px_6px_rgba(239,68,68,0.5)]"
+                >
+                  {notifCount > 9 ? "9+" : notifCount}
+                </motion.span>
+              )}
+            </motion.button>
+            <AnimatePresence>
+              {notifOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4, scale: 0.985 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -4, scale: 0.985 }}
+                  transition={{ duration: 0.08, ease: "easeOut" }}
+                >
+                  <NotificationsPanel onClose={() => setNotifOpen(false)} shopId={shop?.id} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
           <div ref={avatarMenuRef} className="relative">
             <div className="flex flex-col items-end gap-1">
               <div className="relative">

@@ -53,7 +53,7 @@ export default function ExportDataCard({ shopId }: Props) {
           rows: data as Record<string, unknown>[], columns: [
             { key: "nombre", label: "Cliente" }, { key: "email", label: "Email" },
             { key: "telefono", label: "Teléfono" }, { key: "cumpleaños", label: "Cumpleaños" },
-            { key: "observaciones_tecnicas", label: "Observaciones" }, { key: "es_vip", label: "VIP" },
+            { key: "observaciones_tecnicas", label: "Observaciones" }, { key: "tags", label: "Etiquetas" },
             { key: "loyalty_cuts_count", label: "Fidelización" },
           ], filename: "clientes",
         })),
