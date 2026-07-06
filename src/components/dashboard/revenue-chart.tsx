@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { motion } from "framer-motion";
 import { StatePanel } from "@/components/ui/state-panel";
 
 type RevenueChartProps = {
@@ -190,56 +191,62 @@ export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, we
           }
 
           return (
-            <g key={i}>
-              <rect
+            <g key={`${period}-${i}`}>
+              <motion.rect
                 x={cx - barW - gap / 2}
-                y={incomeY}
                 width={barW}
-                height={incomeH}
                 rx={2}
                 fill={isIncomeHovered ? "#2563eb" : "#3b82f6"}
                 fillOpacity={hasHover ? (isIncomeHovered ? 1 : 0.25) : 0.85}
-                style={{ transition: "fill-opacity 200ms", cursor: "pointer" }}
+                style={{ cursor: "pointer" }}
+                initial={{ height: 0, y: chartTop + chartH }}
+                animate={{ height: incomeH, y: incomeY }}
+                transition={{ duration: 0.5, ease: "easeOut", delay: i * 0.03 }}
                 {...ev(iKey)}
               />
               {incomeH > 0 && (
-                <text
+                <motion.text
                   x={cx - barW / 2 - gap / 2}
-                  y={incomeY - 5}
                   textAnchor="middle"
                   fontSize={10}
                   fill="#3b82f6"
                   fontWeight={600}
                   fontFamily="Inter, sans-serif"
+                  initial={{ opacity: 0, y: incomeY - 5 + 8 }}
+                  animate={{ opacity: 1, y: incomeY - 5 }}
+                  transition={{ duration: 0.35, delay: 0.15 + i * 0.03 }}
                 >
                   {formatMoney(entry.income).replace("ARS", "").trim()}
-                </text>
+                </motion.text>
               )}
-              <rect
+              <motion.rect
                 x={cx + gap / 2}
-                y={expensesY}
                 width={barW}
-                height={expensesH}
                 rx={2}
                 fill={isExpensesHovered ? "#475569" : "#64748b"}
                 fillOpacity={hasHover ? (isExpensesHovered ? 1 : 0.25) : 0.85}
-                style={{ transition: "fill-opacity 200ms", cursor: "pointer" }}
+                style={{ cursor: "pointer" }}
+                initial={{ height: 0, y: chartTop + chartH }}
+                animate={{ height: expensesH, y: expensesY }}
+                transition={{ duration: 0.5, ease: "easeOut", delay: i * 0.03 }}
                 {...ev(eKey)}
               />
               {expensesH > 0 && (
-                <text
+                <motion.text
                   x={cx + barW / 2 + gap / 2}
-                  y={expensesY - 5}
                   textAnchor="middle"
                   fontSize={10}
                   fill="#64748b"
                   fontWeight={600}
                   fontFamily="Inter, sans-serif"
+                  initial={{ opacity: 0, y: expensesY - 5 + 8 }}
+                  animate={{ opacity: 1, y: expensesY - 5 }}
+                  transition={{ duration: 0.35, delay: 0.15 + i * 0.03 }}
                 >
                   {formatMoney(entry.expenses).replace("ARS", "").trim()}
-                </text>
+                </motion.text>
               )}
-              <text
+              <motion.text
                 x={cx}
                 y={height - 8}
                 textAnchor="middle"
@@ -247,9 +254,12 @@ export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, we
                 fill="#a1a1aa"
                 fontWeight={500}
                 fontFamily="Inter, sans-serif"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.35, delay: 0.2 + i * 0.03 }}
               >
                 {tickFormatter(label)}
-              </text>
+              </motion.text>
             </g>
           );
         })}
