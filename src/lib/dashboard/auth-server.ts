@@ -1,6 +1,7 @@
 import { createServerClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
+import type { Database } from "@/lib/supabase/database.types";
 import type { ActionResult } from "@/lib/types";
 import { headers } from "next/headers";
 import { cookies } from "next/headers";
@@ -258,7 +259,7 @@ export async function createServiceRoleClient() {
     throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY for service-role client");
   }
 
-  return createClient(
+  return createClient<Database>(
     supabaseUrl,
     serviceRoleKey,
     {

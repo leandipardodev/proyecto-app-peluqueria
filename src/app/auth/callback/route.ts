@@ -1,6 +1,7 @@
 import { createServerClient, parseCookieHeader } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import type { Database } from "@/lib/supabase/database.types";
 import { resolveIndustry } from "@/lib/industry/resolve";
 import { DASHBOARD_LEGACY_SEGMENTS_SET } from "@/lib/dashboard/legacy-segments";
 import { trackProductEvent } from "@/lib/analytics/product-events";
@@ -8,7 +9,7 @@ import { trackProductEvent } from "@/lib/analytics/product-events";
 const TRIAL_DAYS = 15;
 
 function createSupabaseClient(request: NextRequest, response: NextResponse) {
-  return createServerClient(
+  return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -37,7 +38,7 @@ function createAdminClient() {
   if (!supabaseUrl || !serviceRoleKey) {
     throw new Error("OAuth callback misconfigured: missing Supabase service role env vars");
   }
-  return createClient(supabaseUrl, serviceRoleKey, {
+  return createClient<Database>(supabaseUrl, serviceRoleKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
