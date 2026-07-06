@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Bar, BarChart, Cell, ResponsiveContainer, XAxis, YAxis, LabelList } from "recharts";
 import { StatePanel } from "@/components/ui/state-panel";
 
 type RevenueChartProps = {
@@ -51,7 +50,7 @@ export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, we
   const [hoveredBar, setHoveredBar] = useState<string | null>(null);
   const [period, setPeriod] = useState<"today" | "week" | "month">("today");
   const chartHostRef = useRef<HTMLDivElement | null>(null);
-  const [canRenderChart, setCanRenderChart] = useState(false);
+  const [dims, setDims] = useState({ width: 0, height: 0 });
   const [chartReady, setChartReady] = useState(false);
   const [tooltip, setTooltip] = useState<{
     x: number;
@@ -68,10 +67,11 @@ export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, we
 
     const update = () => {
       const rect = node.getBoundingClientRect();
-      const hasWidth = rect.width > 0;
+      const w = Math.max(0, Math.floor(rect.width));
+      const h = Math.max(0, Math.floor(rect.height));
       const isVisible = node.offsetParent !== null;
-      setCanRenderChart(hasWidth && isVisible);
-      if (hasWidth && isVisible) {
+      if (w > 0 && h > 0 && isVisible) {
+        setDims({ width: w, height: h });
         setChartReady(true);
       }
     };
@@ -110,6 +110,152 @@ export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, we
   }, [data, flowByPeriod, period]);
 
   const netResult = totals.income - totals.expenses;
+
+  type ChartEntry = (typeof chartData)[number];
+
+  function entryLabel(entry: ChartEntry): string {
+    if ("month" in entry) return entry.month;
+    if ("dateKey" in entry) return entry.dateKey;
+    if ("weekKey" in entry) return entry.weekKey;
+    return "";
+  }
+
+  function renderChart() {
+    const { width, height } = dims;
+    if (width < 200 || height < 120) return null;
+
+    const padTop = 24;
+    const padBottom = 28;
+    const padLeft = 4;
+    const padRight = 8;
+
+    const chartW = width - padLeft - padRight;
+    const chartH = height - padTop - padBottom;
+    const chartTop = padTop;
+    const n = chartData.length;
+    if (n === 0) return null;
+
+    const groupW = chartW / n;
+    const barW = Math.min(14, groupW * 0.3);
+    const gap = 3;
+
+    const maxVal = Math.max(...chartData.map((d) => Math.max(d.income, d.expenses)), 1);
+    const scale = (chartH - 4) / (maxVal * 1.2);
+
+    return (
+      <svg
+        width={width}
+        height={height}
+        style={{ display: "block" }}
+        viewBox={`0 0 ${width} ${height}`}
+      >
+        {chartData.map((entry, i) => {
+          const label = entryLabel(entry);
+          const cx = padLeft + i * groupW + groupW / 2;
+
+          const incomeH = Math.max(0, entry.income * scale);
+          const expensesH = Math.max(0, entry.expenses * scale);
+          const incomeY = chartTop + chartH - incomeH;
+          const expensesY = chartTop + chartH - expensesH;
+
+          const iKey = `income-${i}`;
+          const eKey = `expenses-${i}`;
+          const isIncomeHovered = hoveredBar === iKey;
+          const isExpensesHovered = hoveredBar === eKey;
+          const hasHover = hoveredBar !== null;
+
+          function ev(key: string) {
+            return {
+              onMouseEnter: (e: React.MouseEvent<SVGElement>) => {
+                setHoveredBar(key);
+                setTooltip({
+                  x: e.clientX,
+                  y: e.clientY,
+                  label,
+                  income: entry.income,
+                  expenses: entry.expenses,
+                });
+              },
+              onMouseMove: (e: React.MouseEvent<SVGElement>) => {
+                if (tooltipRef.current) {
+                  tooltipRef.current.style.left = `${e.clientX + 12}px`;
+                  tooltipRef.current.style.top = `${e.clientY - 10}px`;
+                }
+              },
+              onMouseLeave: () => {
+                setHoveredBar(null);
+                setTooltip(null);
+              },
+            };
+          }
+
+          return (
+            <g key={i}>
+              <rect
+                x={cx - barW - gap / 2}
+                y={incomeY}
+                width={barW}
+                height={incomeH}
+                rx={2}
+                fill={isIncomeHovered ? "#2563eb" : "#3b82f6"}
+                fillOpacity={hasHover ? (isIncomeHovered ? 1 : 0.25) : 0.85}
+                style={{ transition: "fill-opacity 200ms", cursor: "pointer" }}
+                {...ev(iKey)}
+              />
+              {incomeH > 0 && (
+                <text
+                  x={cx - barW / 2 - gap / 2}
+                  y={incomeY - 5}
+                  textAnchor="middle"
+                  fontSize={10}
+                  fill="#3b82f6"
+                  fontWeight={600}
+                  fontFamily="Inter, sans-serif"
+                >
+                  {formatMoney(entry.income).replace("ARS", "").trim()}
+                </text>
+              )}
+              <rect
+                x={cx + gap / 2}
+                y={expensesY}
+                width={barW}
+                height={expensesH}
+                rx={2}
+                fill={isExpensesHovered ? "#475569" : "#64748b"}
+                fillOpacity={hasHover ? (isExpensesHovered ? 1 : 0.25) : 0.85}
+                style={{ transition: "fill-opacity 200ms", cursor: "pointer" }}
+                {...ev(eKey)}
+              />
+              {expensesH > 0 && (
+                <text
+                  x={cx + barW / 2 + gap / 2}
+                  y={expensesY - 5}
+                  textAnchor="middle"
+                  fontSize={10}
+                  fill="#64748b"
+                  fontWeight={600}
+                  fontFamily="Inter, sans-serif"
+                >
+                  {formatMoney(entry.expenses).replace("ARS", "").trim()}
+                </text>
+              )}
+              <text
+                x={cx}
+                y={height - 8}
+                textAnchor="middle"
+                fontSize={11}
+                fill="#a1a1aa"
+                fontWeight={500}
+                fontFamily="Inter, sans-serif"
+              >
+                {tickFormatter(label)}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    );
+  }
 
   if (!hasData && period === "month" && data.length === 0) {
     return (
@@ -153,14 +299,12 @@ export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, we
             {formatMoney(totals.income).replace("ARS", "").trim()}
           </p>
         </div>
-
         <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-800">
           <p className="text-[10px] font-semibold tracking-widest text-zinc-500 dark:text-zinc-400">GASTOS</p>
           <p className="mt-0.5 text-2xl font-bold text-slate-600 dark:text-slate-400" style={{ fontVariantNumeric: "tabular-nums" }}>
             {formatMoney(totals.expenses).replace("ARS", "").trim()}
           </p>
         </div>
-
         <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-800">
           <p className="text-[10px] font-semibold tracking-widest text-zinc-500 dark:text-zinc-400">RESULTADO</p>
           <p className={`mt-0.5 text-2xl font-bold ${netResult >= 0 ? "text-blue-600 dark:text-blue-400" : "text-slate-600 dark:text-slate-400"}`} style={{ fontVariantNumeric: "tabular-nums" }}>
@@ -172,140 +316,16 @@ export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, we
 
       <div
         ref={chartHostRef}
-        className="analytics-bg relative flex-1 min-h-0 min-w-0 w-full overflow-hidden rounded-xl bg-zinc-100 p-3 dark:bg-zinc-800"
+        className="analytics-bg relative flex-1 min-h-0 min-w-0 w-full overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-800"
       >
         <div className="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
           <div className="analytics-grid size-full" />
           <div className="analytics-scan size-full" />
         </div>
         {!chartReady && (
-          <div className="absolute inset-3 rounded-xl bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+          <div className="absolute inset-0 rounded-xl bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
         )}
-        {canRenderChart && (
-          <ResponsiveContainer width="100%" height="100%" minWidth={280} minHeight={180}>
-            <BarChart data={chartData as Array<Record<string, unknown>>} margin={{ top: 20, right: 4, left: -8, bottom: 0 }} barGap={2} barCategoryGap="8%">
-              <XAxis
-                dataKey={period === "today" ? "dateKey" : period === "week" ? "weekKey" : "month"}
-                axisLine={false}
-                tickLine={false}
-                tickMargin={8}
-                tick={{ fontSize: 11, fill: "#a1a1aa", fontWeight: 500, fontFamily: "Inter" }}
-                tickFormatter={tickFormatter}
-              />
-              <YAxis hide />
-
-              <Bar
-                dataKey="income"
-                fill="#3b82f6"
-                radius={[2, 2, 0, 0]}
-                barSize={10}
-                isAnimationActive
-                animationBegin={0}
-                animationDuration={500}
-                animationEasing="ease-out"
-              >
-                <LabelList
-                  dataKey="income"
-                  position="top"
-                  formatter={(value) => formatMoney(Number(value)).replace("ARS", "").trim()}
-                  style={{ fontSize: 10, fill: "#3b82f6", fontWeight: 600, fontFamily: "Inter" }}
-                />
-                {chartData.map((entry: Record<string, unknown>, index) => {
-                  const key = `income-${index}`;
-                  const isHovered = hoveredBar === key;
-                  const hasHover = hoveredBar !== null;
-                  const label = (entry.month || entry.weekKey || entry.dateKey || entry.hour) as string;
-                  return (
-                    <Cell
-                      key={`${label}-income-${index}`}
-                      onMouseEnter={(e) => {
-                        setHoveredBar(key);
-                        setTooltip({
-                          x: e.clientX,
-                          y: e.clientY,
-                          label,
-                          income: entry.income as number,
-                          expenses: entry.expenses as number,
-                        });
-                      }}
-                      onMouseMove={(e) => {
-                        if (tooltipRef.current) {
-                          tooltipRef.current.style.left = `${e.clientX + 12}px`;
-                          tooltipRef.current.style.top = `${e.clientY - 10}px`;
-                        }
-                      }}
-                      onMouseLeave={() => {
-                        setHoveredBar(null);
-                        setTooltip(null);
-                      }}
-                      fill={isHovered ? "#2563eb" : "#3b82f6"}
-                      fillOpacity={hasHover ? (isHovered ? 1 : 0.25) : 0.85}
-                      style={{
-                        transition: "fill 200ms, fill-opacity 200ms",
-                        cursor: "pointer",
-                      }}
-                    />
-                  );
-                })}
-              </Bar>
-
-              <Bar
-                dataKey="expenses"
-                fill="#64748b"
-                radius={[2, 2, 0, 0]}
-                barSize={10}
-                isAnimationActive
-                animationBegin={0}
-                animationDuration={500}
-                animationEasing="ease-out"
-              >
-                <LabelList
-                  dataKey="expenses"
-                  position="top"
-                  formatter={(value) => formatMoney(Number(value)).replace("ARS", "").trim()}
-                  style={{ fontSize: 10, fill: "#64748b", fontWeight: 600, fontFamily: "Inter" }}
-                />
-                {chartData.map((entry: Record<string, unknown>, index) => {
-                  const key = `expenses-${index}`;
-                  const isHovered = hoveredBar === key;
-                  const hasHover = hoveredBar !== null;
-                  const label = (entry.month || entry.weekKey || entry.dateKey || entry.hour) as string;
-                  return (
-                    <Cell
-                      key={`${label}-expenses-${index}`}
-                      onMouseEnter={(e) => {
-                        setHoveredBar(key);
-                        setTooltip({
-                          x: e.clientX,
-                          y: e.clientY,
-                          label,
-                          income: entry.income as number,
-                          expenses: entry.expenses as number,
-                        });
-                      }}
-                      onMouseMove={(e) => {
-                        if (tooltipRef.current) {
-                          tooltipRef.current.style.left = `${e.clientX + 12}px`;
-                          tooltipRef.current.style.top = `${e.clientY - 10}px`;
-                        }
-                      }}
-                      onMouseLeave={() => {
-                        setHoveredBar(null);
-                        setTooltip(null);
-                      }}
-                      fill={isHovered ? "#475569" : "#64748b"}
-                      fillOpacity={hasHover ? (isHovered ? 1 : 0.25) : 0.85}
-                      style={{
-                        transition: "fill 200ms, fill-opacity 200ms",
-                        cursor: "pointer",
-                      }}
-                    />
-                  );
-                })}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        )}
+        {chartReady && renderChart()}
       </div>
       <style>{`
         .analytics-bg {
