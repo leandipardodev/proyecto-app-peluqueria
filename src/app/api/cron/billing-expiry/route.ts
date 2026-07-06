@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { NextResponse } from "next/server";
-import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import { trackProductEvent } from "@/lib/analytics/product-events";
 import { createLogContext, logInfo, logError } from "@/lib/api-logger";
 

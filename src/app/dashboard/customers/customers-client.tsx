@@ -6,12 +6,12 @@ import { createPortal } from "react-dom";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { supabase } from "@/lib/supabase";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { resolveDashboardShopIdBySlug } from "@/lib/dashboard/auth-actions";
-import { fetchCustomersPage } from "@/lib/dashboard/customers-actions";
+import { resolveDashboardShopIdBySlug } from "@/lib/dashboard/auth/actions";
+import { fetchCustomersPage } from "@/lib/dashboard/clients/customers-actions";
 import { useAuth } from "@/lib/auth-context";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { resolveIndustry } from "@/lib/industry/resolve";
-import { CUSTOMER_TAGS, getTagColor, getTagLabel } from "@/lib/dashboard/customer-tags";
+import { CUSTOMER_TAGS, getTagColor, getTagLabel } from "@/lib/dashboard/clients/customer-tags";
 
 type Customer = {
   id: string;

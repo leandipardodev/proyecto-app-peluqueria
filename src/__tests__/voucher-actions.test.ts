@@ -8,11 +8,11 @@ import {
   markVoucherReminderSent,
   markVoucherRedeemed,
   runVoucherReminderSweep,
-} from "@/lib/dashboard/voucher-actions";
-import { getCachedUser as mockGetCachedUser, requireShopId as mockRequireShopId, canAccessShopId as mockCanAccessShop } from "@/lib/dashboard/auth-server";
+} from "@/lib/dashboard/vouchers/voucher-actions";
+import { getCachedUser as mockGetCachedUser, requireShopId as mockRequireShopId, canAccessShopId as mockCanAccessShop } from "@/lib/dashboard/auth/server";
 import { createServerClient as mockCreateServerClient } from "@/lib/supabase/server";
-import { revalidateDashboardSegments as mockRevalidate } from "@/lib/dashboard/revalidate-dashboard";
-import { DEFAULT_VOUCHER_WHATSAPP_TEMPLATE } from "@/lib/dashboard/voucher-constants";
+import { revalidateDashboardSegments as mockRevalidate } from "@/lib/dashboard/shared/revalidate-dashboard";
+import { DEFAULT_VOUCHER_WHATSAPP_TEMPLATE } from "@/lib/dashboard/vouchers/voucher-constants";
 import { supabaseStub, chainableQuery } from "@/__tests__/setup";
 
 beforeEach(() => {

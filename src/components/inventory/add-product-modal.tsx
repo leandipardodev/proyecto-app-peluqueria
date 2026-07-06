@@ -3,7 +3,7 @@
 import { X, Plus, Package } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { addProduct } from "@/lib/dashboard/inventory-actions";
+import { addProduct } from "@/lib/dashboard/inventory/inventory-actions";
 import { createPortal } from "react-dom";
 
 interface AddProductModalProps {

@@ -19,7 +19,7 @@ import {
   getStaffProfile,
   updateStaffProfile,
   type ServiceOverride,
-} from "@/lib/dashboard/staff-actions";
+} from "@/lib/dashboard/staff/staff-actions";
 import { supabase } from "@/lib/supabase";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";

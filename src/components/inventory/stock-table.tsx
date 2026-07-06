@@ -11,7 +11,7 @@ import {
   DollarSign,
   ArrowUpDown,
 } from "lucide-react";
-import { applyStockBatchAdjustments, deleteProduct } from "@/lib/dashboard/inventory-actions";
+import { applyStockBatchAdjustments, deleteProduct } from "@/lib/dashboard/inventory/inventory-actions";
 import { supabase } from "@/lib/supabase";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";

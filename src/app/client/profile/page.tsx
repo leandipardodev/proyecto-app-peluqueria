@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState, useEffect } from "react";
-import { updateClientProfile } from "@/lib/dashboard/client-actions";
+import { updateClientProfile } from "@/lib/dashboard/clients/actions";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

@@ -1,4 +1,4 @@
-import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 
 export type ProductEventType =
   | "trial_started"

@@ -1,6 +1,6 @@
 "use client";
 
-import { createCombo, updateCombo } from "@/lib/dashboard/combo-actions";
+import { createCombo, updateCombo } from "@/lib/dashboard/services/combo-actions";
 import { useEffect, useMemo, useRef, useState, useTransition, memo } from "react";
 
 type ServiceOption = {

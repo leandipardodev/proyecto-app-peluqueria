@@ -2,7 +2,7 @@
 
 import { X, Check, Trash2, MessageCircle, UserRoundPen, Search, Plus, Clock, DollarSign, Pencil } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, useTransition, useMemo } from "react";
-import { deleteAppointment, patchAppointmentQuick, redeemLoyaltyReward, updateCustomerQuick, updateAppointmentServices, cancelRecurringSeries } from "@/lib/dashboard/appointment-actions";
+import { deleteAppointment, patchAppointmentQuick, redeemLoyaltyReward, updateCustomerQuick, updateAppointmentServices, cancelRecurringSeries } from "@/lib/dashboard/appointments/actions";
 import { getArgentinaDateKey, toArgentinaLocalIsoString } from "@/lib/argentina-time";
 import { refundMpPayment } from "@/lib/payments/mercadopago-actions";
 import { AnimatePresence, motion } from "framer-motion";
@@ -10,7 +10,7 @@ import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import GlassSelect from "@/components/ui/glass-select";
 import { createPortal } from "react-dom";
-import { CUSTOMER_TAGS } from "@/lib/dashboard/customer-tags";
+import { CUSTOMER_TAGS } from "@/lib/dashboard/clients/customer-tags";
 
 const IOS_MODAL_SPRING = { stiffness: 460, damping: 34, mass: 0.65 };
 

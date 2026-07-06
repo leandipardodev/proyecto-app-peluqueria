@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import { trackProductEvent } from "@/lib/analytics/product-events";
 import { MercadoPagoConfig, Payment } from "mercadopago";
 import { cycleMonths, type BillingCycle } from "@/lib/billing/plans";
@@ -9,7 +9,7 @@ import { createRateLimiter, getClientIp } from "@/lib/rate-limiter";
 import { createLogContext, logInfo, logWarn, logError } from "@/lib/api-logger";
 import { withRetry } from "@/lib/retry";
 import crypto from "crypto";
-import { createAdminClient } from "@/lib/dashboard/appointment-shared";
+import { createAdminClient } from "@/lib/dashboard/appointments/shared";
 
 const webhookLimiter = createRateLimiter({ intervalMs: 60_000, maxRequests: 30 });
 

@@ -18,12 +18,12 @@ import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { haptic } from "@/lib/haptic";
 import { APP_VERSION } from "@/lib/app-version";
 import { usePerformanceMode } from "@/lib/use-performance-mode";
-import { triggerDashboardNavTransition } from "@/lib/dashboard/nav-transition";
+import { triggerDashboardNavTransition } from "@/lib/dashboard/shared/nav-transition";
 import { useAuth } from "@/lib/auth-context";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { resolveIndustry } from "@/lib/industry/resolve";
 import { useShopFeatures } from "@/lib/industry/use-features";
-import { getDashboardBasePath } from "@/lib/dashboard/dashboard-base";
+import { getDashboardBasePath } from "@/lib/dashboard/shared/dashboard-base";
 
 const navItems = [
   { label: "Inicio", href: "/dashboard", icon: Home },

@@ -17,7 +17,7 @@ export function StaffSetupForm({ token, name: defaultName }: { token: string; na
     setError("");
     setLoading(true);
 
-    const { setupStaffAccount } = await import("@/lib/dashboard/staff-actions");
+    const { setupStaffAccount } = await import("@/lib/dashboard/staff/staff-actions");
 
     const result = await setupStaffAccount(token, password, name);
     if (!result.success) {

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { addProduct, updateStock, applyStockBatchAdjustments, deleteProduct } from "@/lib/dashboard/inventory-actions";
+import { addProduct, updateStock, applyStockBatchAdjustments, deleteProduct } from "@/lib/dashboard/inventory/inventory-actions";
 import { createServerClient as mockCreateServerClient } from "@/lib/supabase/server";
-import { requireOwnerShopId as mockRequireOwnerShopId, requireShopId as mockRequireShopId } from "@/lib/dashboard/auth-server";
+import { requireOwnerShopId as mockRequireOwnerShopId, requireShopId as mockRequireShopId } from "@/lib/dashboard/auth/server";
 import { supabaseStub, chainableQuery } from "@/__tests__/setup";
 
 function createFormData(overrides: Record<string, string> = {}): FormData {

@@ -119,7 +119,7 @@ export default function NotificationsPanel({ onClose, shopId }: { onClose: () =>
     if (completingDay || ids.length === 0 || !shopId) return;
     setCompletingDay(dayId);
     try {
-      const { bulkCompleteAppointments } = await import("@/lib/dashboard/appointment-mutations");
+      const { bulkCompleteAppointments } = await import("@/lib/dashboard/appointments/mutations");
       const res = await bulkCompleteAppointments(shopId, ids);
       if (res.success) {
         setPendingComplete((prev) => prev.filter((p) => !ids.includes(p.id)));

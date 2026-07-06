@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
-import { createServiceRoleClient, getShopId } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient, getShopId } from "@/lib/dashboard/auth/server";
 import { getArgentinaNow, getArgentinaDateString, getArgentinaDayBounds } from "@/lib/argentina-time";
-import { APPOINTMENT_STATUS_NEEDS_CONFIRMATION } from "@/lib/dashboard/appointment-status";
+import { APPOINTMENT_STATUS_NEEDS_CONFIRMATION } from "@/lib/dashboard/appointments/status";
 
 export const dynamic = "force-dynamic";
 

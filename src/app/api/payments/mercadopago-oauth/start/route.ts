@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
-import { requireOwnerShopId } from "@/lib/dashboard/auth-server";
+import { requireOwnerShopId } from "@/lib/dashboard/auth/server";
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);

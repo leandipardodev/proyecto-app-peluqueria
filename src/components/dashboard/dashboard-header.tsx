@@ -1,4 +1,4 @@
-Ôªø"use client";
+"use client";
 
 import { Menu, Search, Moon, Sun, Gauge, Repeat2, Check, Volume2, VolumeX, SlidersHorizontal, Sparkles, Bell, Bug, CircleHelp } from "lucide-react";
 import { useState, useRef, useEffect, useTransition, useMemo, useCallback, memo, type KeyboardEvent } from "react";
@@ -10,21 +10,21 @@ import { haptic } from "@/lib/haptic";
 import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import type { OmniSearchResult } from "@/lib/dashboard/global-search-actions";
+import type { OmniSearchResult } from "@/lib/dashboard/search/global-search-actions";
 import { useDarkMode } from "@/lib/use-dark-mode";
 import { usePerformanceMode } from "@/lib/use-performance-mode";
-import { triggerDashboardNavTransition } from "@/lib/dashboard/nav-transition";
+import { triggerDashboardNavTransition } from "@/lib/dashboard/shared/nav-transition";
 import { useAuth } from "@/lib/auth-context";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { resolveIndustry } from "@/lib/industry/resolve";
 import { useShopFeatures } from "@/lib/industry/use-features";
 import { isMuted, setMuted } from "@/lib/sound";
-import { getDashboardBasePath, withDashboardBase } from "@/lib/dashboard/dashboard-base";
+import { getDashboardBasePath, withDashboardBase } from "@/lib/dashboard/shared/dashboard-base";
 import { StatePanel } from "@/components/ui/state-panel";
-import { DASHBOARD_LEGACY_SEGMENTS_SET } from "@/lib/dashboard/legacy-segments";
+import { DASHBOARD_LEGACY_SEGMENTS_SET } from "@/lib/dashboard/shared/legacy-segments";
 import NotificationsPanel from "./notifications-panel";
-import { NAV_COMMANDS, ACTION_COMMANDS, type CommandItem, type CommandNav, type CommandAction, type CommandData } from "@/lib/dashboard/search-commands";
-import { getIndustrySearchKeywords, getInitials, normalizeSearchText, scoreQueryAgainstTerms, formatDataLabel, formatDataHint } from "@/lib/dashboard/search-utils";
+import { NAV_COMMANDS, ACTION_COMMANDS, type CommandItem, type CommandNav, type CommandAction, type CommandData } from "@/lib/dashboard/search/search-commands";
+import { getIndustrySearchKeywords, getInitials, normalizeSearchText, scoreQueryAgainstTerms, formatDataLabel, formatDataHint } from "@/lib/dashboard/search/search-utils";
 
 interface DashboardHeaderProps {
   shopName: string;
@@ -121,9 +121,9 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
     const planSummary = billingStatus.daysRemaining === null
       ? "PLAN PRO"
       : billingStatus.daysRemaining > 0
-        ? `PLAN PRO ‚Ä¢ ${billingStatus.daysRemaining} DIAS RESTANTES`
+        ? `PLAN PRO ï ${billingStatus.daysRemaining} DIAS RESTANTES`
         : billingStatus.inGrace
-          ? `PLAN VENCIDO ‚Ä¢ D√çA ${gracePosition} de 2 DE CORTES√çA`
+          ? `PLAN VENCIDO ï DÕA ${gracePosition} de 2 DE CORTESÕA`
           : "PLAN VENCIDO";
     const showBillingCta = billingStatus.daysRemaining !== null && billingStatus.daysRemaining <= 3;
     const billingCtaTone = billingStatus.daysRemaining !== null && billingStatus.daysRemaining <= 0
@@ -480,7 +480,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
   }
 
   function handleLogoutClick() {
-    if (typeof window !== "undefined" && !window.confirm("¬øCerrar sesi√≥n?")) return;
+    if (typeof window !== "undefined" && !window.confirm("øCerrar sesiÛn?")) return;
     startLogoutTransition(async () => {
       try { await onLogout(); } catch { /* ignore */ }
       router.refresh();
@@ -506,7 +506,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
       <header className="dashboard-mobile-header sticky top-0 z-50 shrink-0 flex items-center gap-4 bg-white/30 dark:bg-black/30 backdrop-blur-xl shadow-sm border-b border-white/10 dark:border-white/5 px-4 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.5rem)] touch-pan-x [overscroll-behavior-y:none] lg:px-6 lg:pt-2.5">
         <button
           onClick={handleMobileOpen}
-          aria-label="Abrir men√∫ de navegaci√≥n"
+          aria-label="Abrir men˙ de navegaciÛn"
           className="lg:hidden p-2 rounded-xl text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/5 transition-all cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
         >
           <Menu className="w-5 h-5" strokeWidth={1.5} />
@@ -599,7 +599,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
               <Search className="w-4 h-4 mr-3" />
               {!searchFocused && query.trim().length === 0 && (
                 <div className="absolute left-11 right-24 pointer-events-none flex items-center text-sm">
-                  <span className="text-zinc-500">Busc√° </span>
+                  <span className="text-zinc-500">Busc· </span>
                   <span className="relative ml-1 inline-flex w-[12ch] overflow-hidden h-5 items-center text-zinc-400">
                     <AnimatePresence mode="wait">
                       <motion.span
@@ -632,7 +632,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                 }}
                 onBlur={() => setSearchFocused(false)}
                 onKeyDown={onPaletteKeyDown}
-                placeholder={searchFocused ? "Escrib√≠ para buscar..." : ""}
+                placeholder={searchFocused ? "EscribÌ para buscar..." : ""}
                 autoComplete="one-time-code"
                 autoCorrect="off"
                 autoCapitalize="none"
@@ -692,7 +692,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                                   <p className="text-sm">{item.label}</p>
                                   <p className="text-xs text-zinc-500">{item.hint}</p>
                                 </div>
-                                <span className="text-xs text-zinc-500">‚Üµ</span>
+                                <span className="text-xs text-zinc-500">?</span>
                               </div>
                             </button>
                           );
@@ -722,7 +722,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                                   <p className="text-sm">{item.label}</p>
                                   <p className="text-xs text-zinc-500">{item.hint}</p>
                                 </div>
-                                <span className="text-xs text-zinc-500">‚Üµ</span>
+                                <span className="text-xs text-zinc-500">?</span>
                               </div>
                             </button>
                           );
@@ -752,7 +752,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                                   <p className="text-sm">{formatDataLabel(item.value)}</p>
                                   <p className={`text-xs ${(item.value.type === "stock" && item.value.quantity < 3) ? "text-red-600" : "text-zinc-500"}`}>{formatDataHint(item.value)}</p>
                                 </div>
-                                <span className="text-xs text-zinc-500">‚Üµ</span>
+                                <span className="text-xs text-zinc-500">?</span>
                               </div>
                             </button>
                           );
@@ -782,7 +782,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                                   <p className="text-sm">{formatDataLabel(item.value)}</p>
                                   <p className="text-xs text-zinc-500">{formatDataHint(item.value)}</p>
                                 </div>
-                                <span className="text-xs text-zinc-500">‚Üµ</span>
+                                <span className="text-xs text-zinc-500">?</span>
                               </div>
                             </button>
                           );
@@ -812,7 +812,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                                   <p className="text-sm">{formatDataLabel(item.value)}</p>
                                   <p className="text-xs text-zinc-500">{formatDataHint(item.value)}</p>
                                 </div>
-                                <span className="text-xs text-zinc-500">‚Üµ</span>
+                                <span className="text-xs text-zinc-500">?</span>
                               </div>
                             </button>
                           );
@@ -821,7 +821,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                     )}
 
                     {!isPending && commandItems.flat.length === 0 && !searchError && query.trim().length > 0 && (
-                      <StatePanel title="Sin resultados" description="No encontramos nada con ese criterio de b√∫squeda." />
+                      <StatePanel title="Sin resultados" description="No encontramos nada con ese criterio de b˙squeda." />
                     )}
                   </div>
                 </motion.div>
@@ -883,7 +883,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                   type="button"
                   onClick={() => setMenuOpen((v) => !v)}
                   className="relative h-10 w-10 rounded-full bg-[#0071E3] border border-[#0b7ff2] flex items-center justify-center text-sm font-semibold text-white shrink-0 select-none hover:bg-[#0b7ff2] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
-                  aria-label="Men√∫ de usuario"
+                  aria-label="Men˙ de usuario"
                   title={userName}
                   animate={billingStatus.isExpired && !shouldReduceMotion ? {
                     boxShadow: [
@@ -927,7 +927,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                   <p className="text-[10px] font-medium text-slate-400 mt-1">{planSummary}</p>
                   {lastPaymentDate ? (
                     <p className="text-[10px] text-slate-400 mt-0.5">
-                      √öltimo pago: {lastPaymentFormatted}
+                      ⁄ltimo pago: {lastPaymentFormatted}
                     </p>
                   ) : (
                     <p className="text-[10px] text-rose-400 mt-0.5 font-medium">Sin pagos registrados</p>
@@ -961,7 +961,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                       transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
                     />
                     <Sparkles className="relative z-10 h-4 w-4" />
-                    <span className="relative z-10">Suscripci√≥n</span>
+                    <span className="relative z-10">SuscripciÛn</span>
                     <motion.span
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wider text-amber-200"
                       animate={{ opacity: [0.5, 1, 0.5] }}
@@ -1003,7 +1003,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                   <div className="flex items-center justify-between rounded-xl border border-white/20 dark:border-white/10 px-3 py-2">
                     <div className="flex items-center gap-2 text-sm text-gray-800 dark:text-gray-100">
                       {soundMuted ? <VolumeX className="w-4 h-4 text-zinc-400" /> : <Volume2 className="w-4 h-4 text-sky-500" />}
-                      Sonido/Vibraci√≥n
+                      Sonido/VibraciÛn
                     </div>
                     <button
                       type="button"

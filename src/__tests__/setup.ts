@@ -130,7 +130,7 @@ vi.mock("next/headers", () => ({
   headers: vi.fn().mockResolvedValue(new Map()),
 }));
 
-vi.mock("@/lib/dashboard/revalidate-dashboard", () => ({
+vi.mock("@/lib/dashboard/shared/revalidate-dashboard", () => ({
   revalidateDashboardSegments: vi.fn(),
 }));
 
@@ -209,7 +209,7 @@ export function makeOwnerCheckClient(userId = "test-owner") {
   } as never;
 }
 
-vi.mock("@/lib/dashboard/auth-server", () => ({
+vi.mock("@/lib/dashboard/auth/server", () => ({
   requireShopId: vi.fn(),
   requireOwnerShopId: vi.fn(),
   canAccessShopId: vi.fn(),

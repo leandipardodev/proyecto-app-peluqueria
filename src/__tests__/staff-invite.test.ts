@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createStaffInviteToken, verifyStaffInviteToken } from "@/lib/dashboard/staff-invite";
+import { createStaffInviteToken, verifyStaffInviteToken } from "@/lib/dashboard/staff/staff-invite";
 
 beforeEach(() => {
   vi.restoreAllMocks();

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { createAdditionalShop } from "@/lib/dashboard/auth-actions";
+import { createAdditionalShop } from "@/lib/dashboard/auth/actions";
 
 export default function CreateShopRecoveryClient({ userEmail }: { userEmail: string }) {
   const [name, setName] = useState("");

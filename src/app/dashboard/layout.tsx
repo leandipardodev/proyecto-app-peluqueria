@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import dynamicImport from "next/dynamic";
 import DashboardSidebar from "@/components/dashboard/dashboard-sidebar";
 import DashboardHeaderLoader from "@/components/dashboard/dashboard-header-loader";
-import { logout } from "@/lib/dashboard/logout-action";
-import { getCachedUser } from "@/lib/dashboard/auth-server";
+import { logout } from "@/lib/dashboard/auth/logout-action";
+import { getCachedUser } from "@/lib/dashboard/auth/server";
 
 const DashboardPageTransition = dynamicImport(() => import("@/components/dashboard/dashboard-page-transition"));
 const PullToRefresh = dynamicImport(() => import("@/components/dashboard/pull-to-refresh"));

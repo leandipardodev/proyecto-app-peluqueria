@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeAll } from "vitest";
 import crypto from "crypto";
 import { POST } from "@/app/api/payments/mercadopago-webhook/route";
-import { createServiceRoleClient as mockCreateServiceRole } from "@/lib/dashboard/auth-server";
-import { requireShopId as mockRequireShopId } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient as mockCreateServiceRole } from "@/lib/dashboard/auth/server";
+import { requireShopId as mockRequireShopId } from "@/lib/dashboard/auth/server";
 import { supabaseStub, chainableQuery } from "@/__tests__/setup";
 
 const { mockPaymentGet, mockRateCheck } = vi.hoisted(() => {

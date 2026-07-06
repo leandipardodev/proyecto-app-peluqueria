@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import pkg from "@/../package.json";
 
 export const runtime = "nodejs";

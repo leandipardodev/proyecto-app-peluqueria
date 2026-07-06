@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getAuthSession } from "@/lib/dashboard/auth-server";
-import { addStaffMember } from "@/lib/dashboard/staff-actions";
+import { getAuthSession } from "@/lib/dashboard/auth/server";
+import { addStaffMember } from "@/lib/dashboard/staff/staff-actions";
 
 export async function POST(request: NextRequest) {
   const session = await getAuthSession();

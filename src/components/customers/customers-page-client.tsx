@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Gift, Mail, Phone, Search } from "lucide-react";
-import type { CustomerRow } from "@/lib/dashboard/customers-actions";
+import type { CustomerRow } from "@/lib/dashboard/clients/customers-actions";
 import { StatePanel } from "@/components/ui/state-panel";
 
 function formatDate(date: string | null): string {

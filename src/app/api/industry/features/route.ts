@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import { DEFAULT_FEATURES, INDUSTRIES } from "@/lib/industry/types";
 import type { Industry } from "@/lib/industry/types";
 import { getFeatures } from "@/lib/industry/features";

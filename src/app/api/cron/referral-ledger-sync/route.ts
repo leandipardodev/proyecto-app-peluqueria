@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { syncReferralLedgerInternal } from "@/lib/admin/referrals";
-import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 
 function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;

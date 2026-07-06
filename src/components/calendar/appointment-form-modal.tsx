@@ -3,7 +3,7 @@
 import { useToast } from "@/components/ui/toast";
 import { X, Plus, Search, Clock, DollarSign, CalendarDays, Pencil } from "lucide-react";
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
-import { createAppointment, createCustomerAndAppointment } from "@/lib/dashboard/appointment-actions";
+import { createAppointment, createCustomerAndAppointment } from "@/lib/dashboard/appointments/actions";
 import { playPop } from "@/lib/sound";
 import { getArgentinaDateString } from "@/lib/argentina-time";
 import { AnimatePresence, motion } from "framer-motion";

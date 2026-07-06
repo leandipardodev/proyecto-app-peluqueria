@@ -1,8 +1,8 @@
 import { createServerClient } from "@/lib/supabase/server";
-import { getAuthSession } from "@/lib/dashboard/auth-server";
+import { getAuthSession } from "@/lib/dashboard/auth/server";
 import { redirect } from "next/navigation";
 import BookingFlow from "@/components/client/booking-flow";
-import { fetchPublicStaff } from "@/lib/dashboard/client-actions";
+import { fetchPublicStaff } from "@/lib/dashboard/clients/actions";
 
 interface ClientBookPageProps {
   searchParams: Promise<{ serviceId?: string; staffId?: string }>;

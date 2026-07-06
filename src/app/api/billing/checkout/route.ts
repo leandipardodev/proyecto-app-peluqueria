@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MercadoPagoConfig, Preference } from "mercadopago";
 import { createServerClient } from "@/lib/supabase/server";
-import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import { BILLING_LABELS, BILLING_PRICES, BillingCycle } from "@/lib/billing/plans";
 
 function isBillingCycle(value: string): value is BillingCycle {

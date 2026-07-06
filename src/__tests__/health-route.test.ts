@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createServiceRoleClient as mockCreateServiceRole } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient as mockCreateServiceRole } from "@/lib/dashboard/auth/server";
 import { chainableQuery } from "@/__tests__/setup";
 import pkg from "@/../package.json";
 
 // Mock the env and package import
-vi.mock("@/lib/dashboard/auth-server", () => ({
+vi.mock("@/lib/dashboard/auth/server", () => ({
   createServiceRoleClient: vi.fn(),
 }));
 

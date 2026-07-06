@@ -1,4 +1,4 @@
-import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import { DEFAULT_FEATURES } from "@/lib/industry/types";
 import type { Industry, IndustryFeatures } from "@/lib/industry/types";
 

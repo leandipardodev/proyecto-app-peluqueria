@@ -5,10 +5,10 @@ import {
   updateAppointmentStatus,
   redeemLoyaltyReward,
   deleteAppointment,
-} from "@/lib/dashboard/appointment-actions";
-import { fetchAppointments } from "@/lib/dashboard/appointment-queries";
+} from "@/lib/dashboard/appointments/actions";
+import { fetchAppointments } from "@/lib/dashboard/appointments/queries";
 import { createServerClient as mockCreateServerClient } from "@/lib/supabase/server";
-import { canAccessShopId as mockCanAccessShopId, createServiceRoleClient as mockCreateServiceRole, requireShopId as mockRequireShopId } from "@/lib/dashboard/auth-server";
+import { canAccessShopId as mockCanAccessShopId, createServiceRoleClient as mockCreateServiceRole, requireShopId as mockRequireShopId } from "@/lib/dashboard/auth/server";
 import { sendEmailWithResend as mockSendEmail } from "@/lib/email/resend";
 import { supabaseStub, chainableQuery } from "@/__tests__/setup";
 

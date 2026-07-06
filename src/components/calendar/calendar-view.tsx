@@ -24,7 +24,7 @@ import {
 import { GRID_END_HOUR, GRID_START_HOUR, HOUR_HEIGHT } from "@/lib/calendar-constants";
 import ContextMenu from "@/components/ui/context-menu";
 import type { ContextMenuItem } from "@/components/ui/context-menu";
-import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
+import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp/whatsapp-constants";
 import {
   extractArgentinaTimeHHmm,
   getArgentinaDateKey,

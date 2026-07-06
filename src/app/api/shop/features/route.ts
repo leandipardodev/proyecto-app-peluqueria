@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthSession } from "@/lib/dashboard/auth-server";
+import { getAuthSession } from "@/lib/dashboard/auth/server";
 import { getShopFeatures } from "@/lib/industry/features";
 
 export const dynamic = "force-dynamic";

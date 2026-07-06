@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { createPortal } from "react-dom";
 import { X, Plus, Search, Clock, CalendarDays, ChevronDown, Loader2, Check, AlertCircle, Pencil, ArrowRight } from "lucide-react";
-import { createAppointment, createCustomerAndAppointment } from "@/lib/dashboard/appointment-actions";
+import { createAppointment, createCustomerAndAppointment } from "@/lib/dashboard/appointments/actions";
 import { getArgentinaDateString } from "@/lib/argentina-time";
 import { useToast } from "@/components/ui/toast";
 

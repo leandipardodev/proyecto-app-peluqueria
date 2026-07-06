@@ -3,8 +3,8 @@
 import { useState, useEffect, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { fetchPublicAvailableSlots } from "@/lib/dashboard/public-booking-actions";
-import { createClientAppointment } from "@/lib/dashboard/client-actions";
+import { fetchPublicAvailableSlots } from "@/lib/dashboard/booking/public-booking-actions";
+import { createClientAppointment } from "@/lib/dashboard/clients/actions";
 import {
   Check, ShoppingCart, CreditCard, Landmark, Smartphone,
 } from "lucide-react";

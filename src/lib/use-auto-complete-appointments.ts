@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { autoCompletePastAppointments } from "@/lib/dashboard/appointment-mutations";
+import { autoCompletePastAppointments } from "@/lib/dashboard/appointments/mutations";
 
 export function useAutoCompleteAppointments(shopId: string | null): void {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);

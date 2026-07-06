@@ -24,7 +24,7 @@ import {
   type StaffLiquidationListItem,
   type CashSessionSummary,
   type CashMovementItem,
-} from "@/lib/dashboard/finances-actions";
+} from "@/lib/dashboard/finances/finances-actions";
 import { supabase } from "@/lib/supabase";
 import CustomSelect from "@/components/ui/custom-select";
 

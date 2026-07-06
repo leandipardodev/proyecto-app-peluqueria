@@ -1,4 +1,4 @@
-import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 
 type ProductEventRow = {
   shop_id: string;

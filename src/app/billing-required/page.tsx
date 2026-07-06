@@ -3,7 +3,7 @@ import Image from "next/image";
 import { Nunito } from "next/font/google";
 import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
-import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import BillingRequiredClient from "./billing-required-client";
 
 const nunito = Nunito({ subsets: ["latin"], weight: ["700", "800"] });

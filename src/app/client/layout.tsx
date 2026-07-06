@@ -1,7 +1,7 @@
 import { createServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import ClientSidebar from "@/components/client/client-sidebar";
-import { getTenantAndUser } from "@/lib/dashboard/get-tenant-and-user";
+import { getTenantAndUser } from "@/lib/dashboard/shared/get-tenant-and-user";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";

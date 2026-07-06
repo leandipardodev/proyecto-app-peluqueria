@@ -9,7 +9,7 @@ import {
   fetchExportAppointments,
   fetchExportFinances,
   fetchExportStaffProduction,
-} from "@/lib/dashboard/export-actions";
+} from "@/lib/dashboard/shared/export-actions";
 
 type Props = {
   shopId: string;

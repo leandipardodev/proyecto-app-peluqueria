@@ -1,6 +1,6 @@
 "use client";
 
-import { registerShop, completeRegistration, resendVerificationCode } from "@/lib/dashboard/auth-actions";
+import { registerShop, completeRegistration, resendVerificationCode } from "@/lib/dashboard/auth/actions";
 import Link from "next/link";
 import { Suspense, useState, useTransition, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";

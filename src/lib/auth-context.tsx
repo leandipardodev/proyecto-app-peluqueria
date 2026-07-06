@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { resolveIndustry } from "@/lib/industry/resolve";
 import type { Industry } from "@/lib/industry/types";
 import { usePathname } from "next/navigation";
-import { DASHBOARD_LEGACY_SEGMENTS_SET } from "@/lib/dashboard/legacy-segments";
+import { DASHBOARD_LEGACY_SEGMENTS_SET } from "@/lib/dashboard/shared/legacy-segments";
 
 export type UserInfo = {
   id: string;

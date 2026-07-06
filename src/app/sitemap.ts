@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import { absoluteUrl } from "@/lib/seo";
 
 export const revalidate = 3600;

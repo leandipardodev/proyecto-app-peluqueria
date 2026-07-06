@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthSession, createServiceRoleClient } from "@/lib/dashboard/auth-server";
+import { getAuthSession, createServiceRoleClient } from "@/lib/dashboard/auth/server";
 
 export async function GET() {
   const session = await getAuthSession();

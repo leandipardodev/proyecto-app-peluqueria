@@ -6,15 +6,15 @@ import {
   updateStaffRole,
   updateStaffName,
   removeStaff,
-} from "@/lib/dashboard/staff-actions";
-import { requireShopId as mockRequireShopId, createServiceRoleClient as mockCreateServiceRole, getAuthSession as mockGetAuthSession, getCurrentUserRole as mockGetCurrentUserRole } from "@/lib/dashboard/auth-server";
+} from "@/lib/dashboard/staff/staff-actions";
+import { requireShopId as mockRequireShopId, createServiceRoleClient as mockCreateServiceRole, getAuthSession as mockGetAuthSession, getCurrentUserRole as mockGetCurrentUserRole } from "@/lib/dashboard/auth/server";
 import { createServerClient as mockCreateServerClient } from "@/lib/supabase/server";
-import { revalidateDashboardSegments as mockRevalidate } from "@/lib/dashboard/revalidate-dashboard";
+import { revalidateDashboardSegments as mockRevalidate } from "@/lib/dashboard/shared/revalidate-dashboard";
 import { trackProductEvent as mockTrackProductEvent } from "@/lib/analytics/product-events";
 import { sendEmailWithResend as mockSendEmail } from "@/lib/email/resend";
 import { supabaseStub, chainableQuery, makeOwnerCheckClient } from "@/__tests__/setup";
 
-vi.mock("@/lib/dashboard/staff-invite", () => ({
+vi.mock("@/lib/dashboard/staff/staff-invite", () => ({
   createStaffInviteToken: vi.fn(() => "mock-invite-token"),
 }));
 

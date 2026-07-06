@@ -8,7 +8,7 @@ import { TagChips, useTagInsert } from "@/components/ui/tag-chips";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { withDashboardBase } from "@/lib/dashboard/dashboard-base";
+import { withDashboardBase } from "@/lib/dashboard/shared/dashboard-base";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import SkinSelector from "@/components/dashboard/skin-selector";
 import BookingThemeLivePreview from "@/components/dashboard/booking-theme-live-preview";
@@ -17,8 +17,8 @@ import BusinessStatsSection from "@/components/dashboard/business-stats-section"
 import ExportDataCard from "@/components/dashboard/export-data-card";
 import CreateShopModal from "@/components/dashboard/create-shop-modal";
 import CloseShopModal from "@/components/dashboard/close-shop-modal";
-import { bulkUpdateServiceCategories } from "@/lib/dashboard/service-actions";
-import { createAdditionalShop } from "@/lib/dashboard/auth-actions";
+import { bulkUpdateServiceCategories } from "@/lib/dashboard/services/service-actions";
+import { createAdditionalShop } from "@/lib/dashboard/auth/actions";
 import {
   fetchBusinessData,
   fetchBusinessHours,
@@ -33,15 +33,15 @@ import {
   type BusinessData,
   type BusinessHoursData,
   type DateOverride,
-} from "@/lib/dashboard/business-actions";
-import { updateVoucherWhatsappTemplate } from "@/lib/dashboard/voucher-actions";
-import { DEFAULT_BIRTHDAY_WHATSAPP_TEMPLATE, DEFAULT_VOUCHER_WHATSAPP_TEMPLATE } from "@/lib/dashboard/voucher-constants";
-import { deleteCurrentShop } from "@/lib/dashboard/shop-actions";
+} from "@/lib/dashboard/shop/business-actions";
+import { updateVoucherWhatsappTemplate } from "@/lib/dashboard/vouchers/voucher-actions";
+import { DEFAULT_BIRTHDAY_WHATSAPP_TEMPLATE, DEFAULT_VOUCHER_WHATSAPP_TEMPLATE } from "@/lib/dashboard/vouchers/voucher-constants";
+import { deleteCurrentShop } from "@/lib/dashboard/shop/shop-actions";
 import {
   upsertBookingTheme,
   uploadBookingLogo,
   type BookingThemeData,
-} from "@/lib/dashboard/booking-theme-actions";
+} from "@/lib/dashboard/shop/booking-theme-actions";
 import { DEFAULT_BOOKING_TEMPLATE, type BookingTemplateId } from "@/lib/booking/theme-presets";
 import { useAuth } from "@/lib/auth-context";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";

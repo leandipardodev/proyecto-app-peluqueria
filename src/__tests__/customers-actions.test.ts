@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { fetchCustomersOverview } from "@/lib/dashboard/customers-actions";
-import { requireShopId as mockRequireShopId, createServiceRoleClient as mockCreateServiceRole } from "@/lib/dashboard/auth-server";
+import { fetchCustomersOverview } from "@/lib/dashboard/clients/customers-actions";
+import { requireShopId as mockRequireShopId, createServiceRoleClient as mockCreateServiceRole } from "@/lib/dashboard/auth/server";
 import { chainableQuery } from "@/__tests__/setup";
 
 beforeEach(() => {

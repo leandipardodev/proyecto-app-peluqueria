@@ -8,7 +8,7 @@ import {
   User,
   LogOut,
 } from "lucide-react";
-import { logout } from "@/lib/dashboard/logout-action";
+import { logout } from "@/lib/dashboard/auth/logout-action";
 
 const navItems = [
   {

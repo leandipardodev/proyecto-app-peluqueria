@@ -1,7 +1,7 @@
 "use server";
 
 import { BILLING_PRICES } from "@/lib/billing/plans";
-import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import { requireSuperAdmin } from "@/lib/admin/auth";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { resolveIndustry } from "@/lib/industry/resolve";

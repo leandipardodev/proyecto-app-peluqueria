@@ -1,5 +1,5 @@
-import { fetchClientAppointments } from "@/lib/dashboard/client-actions";
-import { cancelClientAppointment } from "@/lib/dashboard/client-actions";
+import { fetchClientAppointments } from "@/lib/dashboard/clients/actions";
+import { cancelClientAppointment } from "@/lib/dashboard/clients/actions";
 import { revalidatePath } from "next/cache";
 import ClientAppointmentsList from "@/components/client/appointments-list";
 

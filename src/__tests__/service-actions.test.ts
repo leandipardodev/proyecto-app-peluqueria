@@ -3,10 +3,10 @@ import {
   createService,
   updateService,
   deleteService,
-} from "@/lib/dashboard/service-actions";
-import * as serviceActions from "@/lib/dashboard/service-actions";
-import { createServiceRoleClient as mockCreateServiceRole } from "@/lib/dashboard/auth-server";
-import { requireOwnerShopId as mockRequireOwnerShopId, requireShopId as mockRequireShopId } from "@/lib/dashboard/auth-server";
+} from "@/lib/dashboard/services/service-actions";
+import * as serviceActions from "@/lib/dashboard/services/service-actions";
+import { createServiceRoleClient as mockCreateServiceRole } from "@/lib/dashboard/auth/server";
+import { requireOwnerShopId as mockRequireOwnerShopId, requireShopId as mockRequireShopId } from "@/lib/dashboard/auth/server";
 import { trackProductEvent as mockTrackProductEvent } from "@/lib/analytics/product-events";
 import { supabaseStub, chainableQuery } from "@/__tests__/setup";
 

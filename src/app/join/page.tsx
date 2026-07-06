@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
-import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
-import { verifyStaffInviteToken } from "@/lib/dashboard/staff-invite";
+import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
+import { verifyStaffInviteToken } from "@/lib/dashboard/staff/staff-invite";
 import { StaffSetupForm } from "./staff-setup-form";
 
 export default async function JoinPage({ searchParams }: { searchParams?: Promise<{ token?: string }> }) {

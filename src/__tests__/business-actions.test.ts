@@ -11,13 +11,13 @@ import {
   updateLoyaltyProgramAction,
   runLoyaltyRaffleAction,
   updateBookingDepositPolicyAction,
-} from "@/lib/dashboard/business-actions";
+} from "@/lib/dashboard/shop/business-actions";
 import {
   requireShopId as mockRequireShopId,
   requireOwnerShopId as mockRequireOwnerShopId,
   createServiceRoleClient as mockCreateServiceRole,
-} from "@/lib/dashboard/auth-server";
-import { revalidateDashboardSegments as mockRevalidate } from "@/lib/dashboard/revalidate-dashboard";
+} from "@/lib/dashboard/auth/server";
+import { revalidateDashboardSegments as mockRevalidate } from "@/lib/dashboard/shared/revalidate-dashboard";
 import { supabaseStub, chainableQuery } from "@/__tests__/setup";
 
 beforeEach(() => {

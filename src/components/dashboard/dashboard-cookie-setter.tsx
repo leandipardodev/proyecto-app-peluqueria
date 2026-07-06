@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { usePathname } from "next/navigation";
-import { DASHBOARD_LEGACY_SEGMENTS_SET } from "@/lib/dashboard/legacy-segments";
+import { DASHBOARD_LEGACY_SEGMENTS_SET } from "@/lib/dashboard/shared/legacy-segments";
 
 const COOKIE_NAME = "klip_active_shop_id";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365;

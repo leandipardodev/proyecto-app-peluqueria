@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
-import { createServiceRoleClient, getShopId } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient, getShopId } from "@/lib/dashboard/auth/server";
 import { getArgentinaDateString } from "@/lib/argentina-time";
 
 export const dynamic = "force-dynamic";

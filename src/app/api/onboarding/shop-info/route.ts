@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getAuthSession } from "@/lib/dashboard/auth-server";
-import { updateBusinessInfo } from "@/lib/dashboard/business-actions";
+import { getAuthSession } from "@/lib/dashboard/auth/server";
+import { updateBusinessInfo } from "@/lib/dashboard/shop/business-actions";
 
 export async function POST(request: NextRequest) {
   const session = await getAuthSession();

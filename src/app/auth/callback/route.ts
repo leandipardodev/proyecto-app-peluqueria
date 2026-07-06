@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import type { Database } from "@/lib/supabase/database.types";
 import { resolveIndustry } from "@/lib/industry/resolve";
-import { DASHBOARD_LEGACY_SEGMENTS_SET } from "@/lib/dashboard/legacy-segments";
+import { DASHBOARD_LEGACY_SEGMENTS_SET } from "@/lib/dashboard/shared/legacy-segments";
 import { trackProductEvent } from "@/lib/analytics/product-events";
 
 const TRIAL_DAYS = 15;

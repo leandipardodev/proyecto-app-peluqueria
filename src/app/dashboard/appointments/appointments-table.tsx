@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState, memo, useRef } from "react";
 let realtimeChannelCounter = 0;
 import { MessageCircle, Bell } from "lucide-react";
 import { useAppointmentAlarm } from "@/lib/use-appointment-alarm";
-import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
+import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp/whatsapp-constants";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/toast";

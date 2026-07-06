@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { createPortal } from "react-dom";
 import { X, Plus, Loader2, Check, AlertCircle } from "lucide-react";
-import { addProducts } from "@/lib/dashboard/inventory-actions";
+import { addProducts } from "@/lib/dashboard/inventory/inventory-actions";
 import { useToast } from "@/components/ui/toast";
 
 interface BatchEntry {

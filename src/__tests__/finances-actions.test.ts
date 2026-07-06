@@ -13,10 +13,10 @@ import {
   fetchCashMovements,
   fetchStaffLiquidations,
   fetchCashSessionsHistory,
-} from "@/lib/dashboard/finances-actions";
-import { getCurrentUserRole as mockGetCurrentUserRole, requireOwnerShopId as mockRequireOwnerShopId, requireShopId as mockRequireShopId, createServiceRoleClient as mockCreateServiceRole } from "@/lib/dashboard/auth-server";
+} from "@/lib/dashboard/finances/finances-actions";
+import { getCurrentUserRole as mockGetCurrentUserRole, requireOwnerShopId as mockRequireOwnerShopId, requireShopId as mockRequireShopId, createServiceRoleClient as mockCreateServiceRole } from "@/lib/dashboard/auth/server";
 import { createServerClient as mockCreateServerClient } from "@/lib/supabase/server";
-import { revalidateDashboardSegments as mockRevalidate } from "@/lib/dashboard/revalidate-dashboard";
+import { revalidateDashboardSegments as mockRevalidate } from "@/lib/dashboard/shared/revalidate-dashboard";
 import { supabaseStub, chainableQuery } from "@/__tests__/setup";
 
 beforeEach(() => {

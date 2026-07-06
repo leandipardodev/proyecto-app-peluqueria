@@ -1,4 +1,4 @@
-import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import { BILLING_PRICES } from "@/lib/billing/plans";
 import { INDUSTRIES, type Industry } from "@/lib/industry/types";
 import { resolveIndustry } from "@/lib/industry/resolve";

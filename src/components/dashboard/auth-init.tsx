@@ -1,4 +1,4 @@
-import { getCachedUser } from "@/lib/dashboard/auth-server";
+import { getCachedUser } from "@/lib/dashboard/auth/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { resolveIndustry } from "@/lib/industry/resolve";
 

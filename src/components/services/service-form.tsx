@@ -1,6 +1,6 @@
 "use client";
 
-import { createService, updateService, fetchServices } from "@/lib/dashboard/service-actions";
+import { createService, updateService, fetchServices } from "@/lib/dashboard/services/service-actions";
 import { useEffect, useRef, useState, useTransition, memo } from "react";
 
 interface ServiceFormProps {

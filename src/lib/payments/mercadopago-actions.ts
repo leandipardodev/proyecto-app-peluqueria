@@ -1,11 +1,11 @@
 "use server";
 
 import { createServerClient } from "@/lib/supabase/server";
-import { createServiceRoleClient, requireOwnerShopId } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient, requireOwnerShopId } from "@/lib/dashboard/auth/server";
 import { MercadoPagoConfig, Preference, PaymentRefund } from "mercadopago";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
-import { createAdminClient } from "@/lib/dashboard/appointment-shared";
+import { createAdminClient } from "@/lib/dashboard/appointments/shared";
 
 type MercadoPagoKeys = { mp_public_key: string; mp_access_token: string };
 

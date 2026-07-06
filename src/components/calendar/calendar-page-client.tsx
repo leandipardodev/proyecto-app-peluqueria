@@ -1,11 +1,11 @@
-ï»¿"use client";
+"use client";
 
 import { Component, useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { addWeeks, subWeeks } from "date-fns";
 import { motion } from "framer-motion";
 import { RefreshCcw } from "lucide-react";
-import { moveAppointmentGroup } from "@/lib/dashboard/appointment-actions";
+import { moveAppointmentGroup } from "@/lib/dashboard/appointments/actions";
 import { useToast } from "@/components/ui/toast";
 
 let realtimeChannelCounter = 0;
@@ -16,7 +16,7 @@ class CalendarErrorBoundary extends Component<{ children: React.ReactNode }, { e
     this.state = { error: null };
   }
   static getDerivedStateFromError() {
-    return { error: "OcurriÃ³ un error inesperado en el calendario" };
+    return { error: "Ocurrió un error inesperado en el calendario" };
   }
   componentDidCatch(error: Error) {
     console.error("CalendarErrorBoundary caught:", error);
@@ -51,7 +51,7 @@ import { useAppointmentAlarm } from "@/lib/use-appointment-alarm";
 import { useAutoCompleteAppointments } from "@/lib/use-auto-complete-appointments";
 import { getArgentinaDateKey, getArgentinaWeekStart } from "@/lib/argentina-time";
 import { supabase } from "@/lib/supabase";
-import { fetchAppointments } from "@/lib/dashboard/appointment-query-actions";
+import { fetchAppointments } from "@/lib/dashboard/appointments/query-actions";
 
 function CalendarSkeleton() {
   return (
@@ -319,7 +319,7 @@ export default function CalendarPageClient({
       .on("postgres_changes", { event: "*", schema: "public", table: "shop_memberships", filter: `shop_id=eq.${shopId}` }, handleChange)
       .subscribe((status, err) => {
         if (status === "CHANNEL_ERROR") {
-          console.warn("Calendar Realtime: channel error â€” el cliente reconectarÃ¡ automÃ¡ticamente", err);
+          console.warn("Calendar Realtime: channel error — el cliente reconectará automáticamente", err);
         }
       });
 
@@ -374,7 +374,7 @@ export default function CalendarPageClient({
     const primaryStartMs = new Date(primaryApt.start_time).getTime();
     const offsetMs = new Date(newStartIso).getTime() - primaryStartMs;
 
-    // Find siblings with same logic as server: same customer + staff + date_key_ar, consecutive â‰¤2min gap
+    // Find siblings with same logic as server: same customer + staff + date_key_ar, consecutive =2min gap
     const siblingIds: string[] = [];
     const { staff_id: primaryStaffId, customer_id: primaryCustomerId } = primaryApt;
     if (primaryStaffId && primaryCustomerId) {
@@ -448,7 +448,7 @@ export default function CalendarPageClient({
     } else {
       // Only restore affected appointments, preserve realtime updates for others
       setAppointments((prev) => prev.map((a) => movedSnapshot.has(a.id) ? movedSnapshot.get(a.id)! : a));
-      const msg = result.error === "slot_taken" ? "El horario estÃ¡ ocupado por otro turno" : result.error || "Error al mover turno";
+      const msg = result.error === "slot_taken" ? "El horario está ocupado por otro turno" : result.error || "Error al mover turno";
       addToast(msg, "error");
     }
     pendingMove.current = false;
@@ -503,10 +503,10 @@ export default function CalendarPageClient({
         />
       )}
       {(!services || services.length === 0) && (
-        <StatePanel title="Sin servicios" description="No hay servicios registrados. AgregÃ¡ servicios en la secciÃ³n Servicios." />
+        <StatePanel title="Sin servicios" description="No hay servicios registrados. Agregá servicios en la sección Servicios." />
       )}
       {(!staff || staff.length === 0) && (
-        <StatePanel title="Sin personal" description="No hay personal registrado. AgregÃ¡ personal en la secciÃ³n Personal." />
+        <StatePanel title="Sin personal" description="No hay personal registrado. Agregá personal en la sección Personal." />
       )}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white tracking-tight leading-none">Calendario</h1>

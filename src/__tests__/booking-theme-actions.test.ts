@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { fetchBookingTheme, upsertBookingTheme, uploadBookingLogo } from "@/lib/dashboard/booking-theme-actions";
-import { requireShopId as mockRequireShopId, getAuthSession as mockGetAuthSession, getShopIdBySlug as mockGetShopIdBySlug, getCurrentUserRole as mockGetCurrentUserRole, createServiceRoleClient as mockCreateServiceRole } from "@/lib/dashboard/auth-server";
+import { fetchBookingTheme, upsertBookingTheme, uploadBookingLogo } from "@/lib/dashboard/shop/booking-theme-actions";
+import { requireShopId as mockRequireShopId, getAuthSession as mockGetAuthSession, getShopIdBySlug as mockGetShopIdBySlug, getCurrentUserRole as mockGetCurrentUserRole, createServiceRoleClient as mockCreateServiceRole } from "@/lib/dashboard/auth/server";
 import { revalidatePath as mockRevalidatePath } from "next/cache";
 import { supabaseStub, chainableQuery } from "@/__tests__/setup";
 
