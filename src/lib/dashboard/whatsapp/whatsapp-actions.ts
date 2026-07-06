@@ -4,7 +4,7 @@ import { createServiceRoleClient, requireShopId } from "@/lib/dashboard/auth/ser
 import type { ActionResult } from "@/lib/types";
 import "server-only";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "./whatsapp-constants";
-import { createAdminClient } from "./appointment-shared";
+import { createAdminClient } from "../appointments/shared";
 
 export async function fetchWhatsappTemplate(shopIdOverride?: string): Promise<ActionResult<string>> {
   try {

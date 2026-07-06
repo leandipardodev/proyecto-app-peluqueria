@@ -5,7 +5,7 @@ import type { ActionResult } from "@/lib/types";
 import { createServerClient } from "@/lib/supabase/server";
 import { revalidateDashboardSegments } from "@/lib/dashboard/shared/revalidate-dashboard";
 import "server-only";
-import { createAdminClient } from "./appointment-shared";
+import { createAdminClient } from "../appointments/shared";
 
 export async function updateShopInfo(data: {
   name: string;

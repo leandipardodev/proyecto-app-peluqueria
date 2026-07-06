@@ -9,4 +9,4 @@ export {
   cancelRecurringSeries,
   redeemLoyaltyReward,
   moveAppointmentGroup,
-} from "./appointment-mutations";
+} from "./mutations";

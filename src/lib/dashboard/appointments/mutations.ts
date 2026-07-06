@@ -14,7 +14,7 @@ import {
   toArgentinaStartEnd,
   buildRecurringStarts,
   registerLoyaltyCut,
-} from "./appointment-shared";
+} from "./shared";
 import "server-only";
 
 export async function createAppointment(formData: FormData, shopId: string): Promise<ActionResult> {

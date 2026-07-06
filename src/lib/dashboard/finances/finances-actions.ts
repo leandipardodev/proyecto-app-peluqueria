@@ -6,7 +6,7 @@ import { revalidateDashboardSegments } from "@/lib/dashboard/shared/revalidate-d
 import { getArgentinaDateString, getArgentinaDayBounds } from "@/lib/argentina-time";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
-import { createAdminClient } from "./appointment-shared";
+import { createAdminClient } from "../appointments/shared";
 
 type Movement = {
   id: string;

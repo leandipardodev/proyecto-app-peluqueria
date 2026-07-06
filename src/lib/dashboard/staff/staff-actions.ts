@@ -8,7 +8,7 @@ import { revalidateDashboardSegments } from "@/lib/dashboard/shared/revalidate-d
 import { createStaffInviteToken } from "@/lib/dashboard/staff/staff-invite";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
-import { createAdminClient } from "./appointment-shared";
+import { createAdminClient } from "../appointments/shared";
 
 async function requireOwnerAccessForShop(shopId: string): Promise<ActionResult<{ userId: string }>> {
   const supabase = await createServerClient();

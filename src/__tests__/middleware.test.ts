@@ -55,6 +55,13 @@ function mockServiceRoleShops(shops: Array<{ id: string; slug: string; active: b
   } as never);
 }
 
+function makeShopChain(shops: Array<{ id: string; slug: string; active: boolean; plan_expiry: string | null }>) {
+  const chain = chainableQuery();
+  chain.then = (onfulfilled: any) =>
+    Promise.resolve({ data: shops, error: null }).then(onfulfilled);
+  return chain;
+}
+
 let fetchSpy: ReturnType<typeof vi.spyOn> | null = null;
 
 function runMiddleware(url: string, opts?: Parameters<typeof createMockRequest>[1]) {
@@ -237,7 +244,9 @@ describe("middleware", () => {
       membershipChain.then = (onfulfilled: any) =>
         Promise.resolve({ data: [{ shop_id: "shop-1", role: "owner", is_active: true }], error: null }).then(onfulfilled);
 
-      mockServiceRoleShops([{ id: "shop-1", slug: "mi-local", active: true, plan_expiry: "2099-12-31" }]);
+      const shopsData = [{ id: "shop-1", slug: "mi-local", active: true, plan_expiry: "2099-12-31" }];
+      mockServiceRoleShops(shopsData);
+      const shopsChain = makeShopChain(shopsData);
 
       let callCount = 0;
       return makeMiddlewareClient({
@@ -245,6 +254,7 @@ describe("middleware", () => {
         from: vi.fn((table: string) => {
           callCount++;
           if (table === "user_profiles" && callCount === 1) return profileChain;
+          if (table === "shops") return shopsChain;
           return membershipChain;
         }),
       });
@@ -272,7 +282,9 @@ describe("middleware", () => {
       membershipChain.then = (onfulfilled: any) =>
         Promise.resolve({ data: [{ shop_id: "shop-1", role: "owner", is_active: true }], error: null }).then(onfulfilled);
 
-      mockServiceRoleShops([{ id: "shop-1", slug: "mi-local", active: true, plan_expiry: "2020-01-01" }]);
+      const shopsData = [{ id: "shop-1", slug: "mi-local", active: true, plan_expiry: "2020-01-01" }];
+      mockServiceRoleShops(shopsData);
+      const shopsChain = makeShopChain(shopsData);
 
       let callCount = 0;
       return makeMiddlewareClient({
@@ -280,6 +292,7 @@ describe("middleware", () => {
         from: vi.fn((table: string) => {
           callCount++;
           if (table === "user_profiles" && callCount === 1) return profileChain;
+          if (table === "shops") return shopsChain;
           return membershipChain;
         }),
       });
@@ -303,7 +316,9 @@ describe("middleware", () => {
       membershipChain.then = (onfulfilled: any) =>
         Promise.resolve({ data: [{ shop_id: "shop-1", role: "owner", is_active: true }], error: null }).then(onfulfilled);
 
-      mockServiceRoleShops([{ id: "shop-1", slug: "mi-local", active: true, plan_expiry: today }]);
+      const shopsData = [{ id: "shop-1", slug: "mi-local", active: true, plan_expiry: today }];
+      mockServiceRoleShops(shopsData);
+      const shopsChain = makeShopChain(shopsData);
 
       let callCount = 0;
       return makeMiddlewareClient({
@@ -311,6 +326,7 @@ describe("middleware", () => {
         from: vi.fn((table: string) => {
           callCount++;
           if (table === "user_profiles" && callCount === 1) return profileChain;
+          if (table === "shops") return shopsChain;
           return membershipChain;
         }),
       });
@@ -331,7 +347,9 @@ describe("middleware", () => {
       membershipChain.then = (onfulfilled: any) =>
         Promise.resolve({ data: [{ shop_id: "shop-1", role: "owner", is_active: true }], error: null }).then(onfulfilled);
 
-      mockServiceRoleShops([{ id: "shop-1", slug: "mi-local", active: false, plan_expiry: "2099-12-31" }]);
+      const shopsData = [{ id: "shop-1", slug: "mi-local", active: false, plan_expiry: "2099-12-31" }];
+      mockServiceRoleShops(shopsData);
+      const shopsChain = makeShopChain(shopsData);
 
       let callCount = 0;
       return makeMiddlewareClient({
@@ -339,6 +357,7 @@ describe("middleware", () => {
         from: vi.fn((table: string) => {
           callCount++;
           if (table === "user_profiles" && callCount === 1) return profileChain;
+          if (table === "shops") return shopsChain;
           return membershipChain;
         }),
       });
@@ -362,7 +381,9 @@ describe("middleware", () => {
       membershipChain.then = (onfulfilled: any) =>
         Promise.resolve({ data: [{ shop_id: "shop-1", role: "owner", is_active: true }], error: null }).then(onfulfilled);
 
-      mockServiceRoleShops([{ id: "shop-1", slug: "mi-local", active: true, plan_expiry: "2099-12-31" }]);
+      const shopsData = [{ id: "shop-1", slug: "mi-local", active: true, plan_expiry: "2099-12-31" }];
+      mockServiceRoleShops(shopsData);
+      const shopsChain = makeShopChain(shopsData);
 
       let callCount = 0;
       return makeMiddlewareClient({
@@ -370,6 +391,7 @@ describe("middleware", () => {
         from: vi.fn((table: string) => {
           callCount++;
           if (table === "user_profiles" && callCount === 1) return profileChain;
+          if (table === "shops") return shopsChain;
           return membershipChain;
         }),
       });
@@ -394,7 +416,9 @@ describe("middleware", () => {
       membershipChain.then = (onfulfilled: any) =>
         Promise.resolve({ data: [{ shop_id: "shop-1", role: "owner", is_active: true }], error: null }).then(onfulfilled);
 
-      mockServiceRoleShops([{ id: "shop-1", slug: "mi-local", active: true, plan_expiry: "2099-12-31" }]);
+      const shopsData = [{ id: "shop-1", slug: "mi-local", active: true, plan_expiry: "2099-12-31" }];
+      mockServiceRoleShops(shopsData);
+      const shopsChain = makeShopChain(shopsData);
 
       let callCount = 0;
       return makeMiddlewareClient({
@@ -402,6 +426,7 @@ describe("middleware", () => {
         from: vi.fn((table: string) => {
           callCount++;
           if (table === "user_profiles" && callCount === 1) return profileChain;
+          if (table === "shops") return shopsChain;
           return membershipChain;
         }),
       });

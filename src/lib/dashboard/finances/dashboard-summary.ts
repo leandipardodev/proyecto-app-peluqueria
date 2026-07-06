@@ -14,7 +14,7 @@ import {
 } from "@/lib/dashboard/appointments/status";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
-import { createAdminClient } from "./appointment-shared";
+import { createAdminClient } from "../appointments/shared";
 
 type NextAppointment = {
   id: string;

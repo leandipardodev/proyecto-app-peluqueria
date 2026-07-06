@@ -5,7 +5,7 @@ import { trackProductEvent } from "@/lib/analytics/product-events";
 import { revalidateDashboardSegments } from "@/lib/dashboard/shared/revalidate-dashboard";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
-import { createAdminClient } from "./appointment-shared";
+import { createAdminClient } from "../appointments/shared";
 
 type ServiceRow = {
   id: string;

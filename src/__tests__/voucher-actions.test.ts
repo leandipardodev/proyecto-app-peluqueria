@@ -9,7 +9,7 @@ import {
   markVoucherRedeemed,
   runVoucherReminderSweep,
 } from "@/lib/dashboard/vouchers/voucher-actions";
-import { getCachedUser as mockGetCachedUser, requireShopId as mockRequireShopId, canAccessShopId as mockCanAccessShop } from "@/lib/dashboard/auth/server";
+import { getCachedUser as mockGetCachedUser, requireShopId as mockRequireShopId, canAccessShopId as mockCanAccessShop, getCurrentUserRole as mockGetCurrentUserRole } from "@/lib/dashboard/auth/server";
 import { createServerClient as mockCreateServerClient } from "@/lib/supabase/server";
 import { revalidateDashboardSegments as mockRevalidate } from "@/lib/dashboard/shared/revalidate-dashboard";
 import { DEFAULT_VOUCHER_WHATSAPP_TEMPLATE } from "@/lib/dashboard/vouchers/voucher-constants";
@@ -20,6 +20,7 @@ beforeEach(() => {
   vi.mocked(mockRequireShopId).mockResolvedValue({ success: true, data: "shop-123" });
   vi.mocked(mockGetCachedUser).mockResolvedValue({ id: "user-1" });
   vi.mocked(mockCanAccessShop).mockResolvedValue(true);
+  vi.mocked(mockGetCurrentUserRole).mockResolvedValue({ success: true, data: { role: "owner" } });
   vi.mocked(mockCreateServerClient).mockResolvedValue(supabaseStub());
 });
 

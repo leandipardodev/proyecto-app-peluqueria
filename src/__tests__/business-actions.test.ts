@@ -47,7 +47,7 @@ describe("fetchBusinessData", () => {
   it("returns error on DB failure", async () => {
     vi.mocked(mockCreateServiceRole).mockResolvedValue({
       from: vi.fn(() => chainableQuery({
-        single: vi.fn().mockResolvedValue({ data: null, error: { message: "DB error" } }),
+        maybeSingle: vi.fn().mockResolvedValue({ data: null, error: { message: "DB error" } }),
       })),
     } as never);
 
@@ -58,7 +58,7 @@ describe("fetchBusinessData", () => {
   it("returns success with transformed data", async () => {
     vi.mocked(mockCreateServiceRole).mockResolvedValue({
       from: vi.fn(() => chainableQuery({
-        single: vi.fn().mockResolvedValue({
+        maybeSingle: vi.fn().mockResolvedValue({
           data: {
             id: "shop-123",
             nombre: "Mi Local",
@@ -96,7 +96,7 @@ describe("fetchBusinessData", () => {
   it("uses shopIdOverride instead of requireShopId", async () => {
     vi.mocked(mockCreateServiceRole).mockResolvedValue({
       from: vi.fn(() => chainableQuery({
-        single: vi.fn().mockResolvedValue({
+        maybeSingle: vi.fn().mockResolvedValue({
           data: { id: "override-shop", nombre: "Override", mp_public_key: "", mp_access_token: "" },
           error: null,
         }),
@@ -229,7 +229,7 @@ describe("fetchBusinessHours", () => {
   it("returns default hours when no data", async () => {
     vi.mocked(mockCreateServiceRole).mockResolvedValue({
       from: vi.fn(() => chainableQuery({
-        single: vi.fn().mockResolvedValue({ data: { business_hours: null }, error: null }),
+        maybeSingle: vi.fn().mockResolvedValue({ data: { business_hours: null }, error: null }),
       })),
     } as never);
 
@@ -248,7 +248,7 @@ describe("fetchBusinessHours", () => {
     };
     vi.mocked(mockCreateServiceRole).mockResolvedValue({
       from: vi.fn(() => chainableQuery({
-        single: vi.fn().mockResolvedValue({ data: { business_hours: dbHours }, error: null }),
+        maybeSingle: vi.fn().mockResolvedValue({ data: { business_hours: dbHours }, error: null }),
       })),
     } as never);
 
@@ -338,7 +338,7 @@ describe("updateWhatsappTemplateAction", () => {
   function mockShopWithAddress(address?: string, nombre?: string) {
     vi.mocked(mockCreateServiceRole).mockResolvedValue({
       from: vi.fn(() => chainableQuery({
-        single: vi.fn().mockResolvedValue({ data: { address: address ?? "Calle 123", nombre: nombre ?? "Local" }, error: null }),
+        maybeSingle: vi.fn().mockResolvedValue({ data: { address: address ?? "Calle 123", nombre: nombre ?? "Local" }, error: null }),
         update: vi.fn().mockReturnThis(),
       })),
     } as never);

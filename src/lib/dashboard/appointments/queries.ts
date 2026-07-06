@@ -2,7 +2,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { requireShopId } from "@/lib/dashboard/auth/server";
 import { getArgentinaNow } from "@/lib/argentina-time";
 import type { ActionResult } from "@/lib/types";
-import { type AppointmentEnriched, type ServiceInfo, type StaffMemberInfo, type AppointmentTableRow, type StaffRpcRow, createAdminClient, fetchOperationalStaffByShopId, buildStaffMapFromRpc } from "./appointment-shared";
+import { type AppointmentEnriched, type ServiceInfo, type StaffMemberInfo, type AppointmentTableRow, type StaffRpcRow, createAdminClient, fetchOperationalStaffByShopId, buildStaffMapFromRpc } from "./shared";
 import "server-only";
 
 export async function fetchAppointments(startDate: string, endDate: string, shopIdOverride?: string): Promise<ActionResult<AppointmentEnriched[]>> {
