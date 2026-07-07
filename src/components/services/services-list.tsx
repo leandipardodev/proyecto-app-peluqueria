@@ -518,7 +518,7 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
         {editingCombo || (activeTab === "combos" && !editingService) ? (
           <ComboForm
             shopId={shopId}
-            services={services.map((s) => ({ id: s.id, name: s.name, duration_minutes: s.duration_minutes, price: s.price }))}
+            services={services.map((s) => ({ id: s.id, name: s.name, duration_minutes: s.duration_minutes ?? 0, price: s.price }))}
             combo={editingCombo ? {
               id: editingCombo.id,
               name: editingCombo.name,
