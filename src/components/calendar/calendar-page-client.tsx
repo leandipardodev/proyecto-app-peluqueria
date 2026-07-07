@@ -298,12 +298,6 @@ export default function CalendarPageClient({
             services: servicesMap.get(r.service_id ?? "") ?? null,
           }));
           setAppointments((prev) => {
-            if (prev.length !== enriched.length) return enriched as any;
-            const prevIds = new Set(prev.map(a => a.id));
-            const enrichedIds = new Set(enriched.map(a => a.id));
-            if (prevIds.size === enrichedIds.size && [...prevIds].every(id => enrichedIds.has(id))) {
-              return prev;
-            }
             const prevMap = new Map(prev.map(a => [a.id, a]));
             const merged = enriched.map(e => {
               const prevApt = prevMap.get(e.id);
