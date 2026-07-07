@@ -1529,75 +1529,83 @@ export default function BusinessClient({
                   const h = businessHours[day.key];
                   if (!h) return null;
                   return (
-                    <div key={day.key} className="flex flex-wrap items-center gap-3 py-3 px-3 rounded-2xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+                    <div
+                      key={day.key}
+                      onClick={() => isOwnerOrAdmin && setBusinessHours({ ...businessHours, [day.key]: { ...h, open: !h.open } })}
+                      className="flex flex-wrap items-center gap-3 py-3 px-3 rounded-2xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                    >
                       <p className={`text-sm font-medium min-w-[64px] ${h.open ? "text-gray-900 dark:text-white" : "text-zinc-400 dark:text-zinc-500"}`}>
                         {day.label}
                       </p>
-                      <button
-                        type="button"
-                        onClick={() => setBusinessHours({ ...businessHours, [day.key]: { ...h, open: !h.open } })}
-                        disabled={!isOwnerOrAdmin}
-                        className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer select-none shrink-0 ${h.open ? "bg-green-500" : "bg-zinc-300 dark:bg-zinc-600"}`}
-                      >
-                        <span
-                          className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${h.open ? "translate-x-5" : "translate-x-0"}`}
-                        />
-                      </button>
-                      <span className="hidden sm:block w-px h-6 bg-white/10 shrink-0" />
-                      <div className={`flex flex-wrap items-center gap-2 transition-all duration-200 ${h.open ? "opacity-100" : "opacity-25"}`}>
-                        <input
-                          type="time"
-                          value={h.start}
-                          disabled={!isOwnerOrAdmin || !h.open}
-                          onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, start: e.target.value } })}
-                          className="rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
-                        />
+                      <div className={`flex flex-wrap items-center gap-2 transition-all duration-200 pointer-events-none ${h.open ? "opacity-100" : "opacity-25"}`}>
+                        <div className="pointer-events-auto">
+                          <input
+                            type="time"
+                            value={h.start}
+                            disabled={!isOwnerOrAdmin || !h.open}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, start: e.target.value } })}
+                            className="rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
+                          />
+                        </div>
                         <span className="hidden sm:inline text-xs text-zinc-400">→</span>
-                        <input
-                          type="time"
-                          value={h.end}
-                          disabled={!isOwnerOrAdmin || !h.open}
-                          onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, end: e.target.value } })}
-                          className="rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
-                        />
+                        <div className="pointer-events-auto">
+                          <input
+                            type="time"
+                            value={h.end}
+                            disabled={!isOwnerOrAdmin || !h.open}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, end: e.target.value } })}
+                            className="rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
+                          />
+                        </div>
 
-                        <button
-                          type="button"
-                          disabled={!isOwnerOrAdmin || !h.open}
-                          onClick={() => {
-                            const hasBreak = Boolean(h.break_start && h.break_end);
-                            setBusinessHours({
-                              ...businessHours,
-                              [day.key]: {
-                                ...h,
-                                break_start: hasBreak ? null : "13:00",
-                                break_end: hasBreak ? null : "16:00",
-                              },
-                            });
-                          }}
-                          className="rounded-full border border-white/30 dark:border-white/15 px-3 py-1 text-xs text-zinc-600 dark:text-zinc-300 disabled:opacity-50"
-                        >
-                          {h.break_start && h.break_end ? "Quitar corte" : "Agregar horario cortado"}
-                        </button>
+                        <div className="pointer-events-auto">
+                          <button
+                            type="button"
+                            disabled={!isOwnerOrAdmin || !h.open}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const hasBreak = Boolean(h.break_start && h.break_end);
+                              setBusinessHours({
+                                ...businessHours,
+                                [day.key]: {
+                                  ...h,
+                                  break_start: hasBreak ? null : "13:00",
+                                  break_end: hasBreak ? null : "16:00",
+                                },
+                              });
+                            }}
+                            className="rounded-full border border-white/30 dark:border-white/15 px-3 py-1 text-xs text-zinc-600 dark:text-zinc-300 disabled:opacity-50"
+                          >
+                            {h.break_start && h.break_end ? "Quitar corte" : "Agregar horario cortado"}
+                          </button>
+                        </div>
 
                         {h.break_start && h.break_end && (
                           <>
                             <span className="hidden sm:inline text-xs text-zinc-400">Corte</span>
-                            <input
-                              type="time"
-                              value={h.break_start}
-                              disabled={!isOwnerOrAdmin || !h.open}
-                              onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, break_start: e.target.value } })}
-                              className="rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
-                            />
+                            <div className="pointer-events-auto">
+                              <input
+                                type="time"
+                                value={h.break_start}
+                                disabled={!isOwnerOrAdmin || !h.open}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, break_start: e.target.value } })}
+                                className="rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
+                              />
+                            </div>
                             <span className="hidden sm:inline text-xs text-zinc-400">→</span>
-                            <input
-                              type="time"
-                              value={h.break_end}
-                              disabled={!isOwnerOrAdmin || !h.open}
-                              onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, break_end: e.target.value } })}
-                              className="rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
-                            />
+                            <div className="pointer-events-auto">
+                              <input
+                                type="time"
+                                value={h.break_end}
+                                disabled={!isOwnerOrAdmin || !h.open}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, break_end: e.target.value } })}
+                                className="rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
+                              />
+                            </div>
                           </>
                         )}
                       </div>
