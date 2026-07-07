@@ -21,7 +21,7 @@ type StockItem = {
   id: string;
   nombre_producto: string;
   quantity: number;
-  unit_cost: number;
+  unit_cost: number | null;
 };
 
 interface StockTableProps {

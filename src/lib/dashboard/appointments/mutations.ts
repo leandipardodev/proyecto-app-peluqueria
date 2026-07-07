@@ -414,7 +414,7 @@ export async function updateAppointmentStatus(
 
     const { error } = await supabase
       .from("appointments")
-      .update(updates)
+      .update(updates as any)
       .eq("id", id)
       .eq("shop_id", shopId);
 

@@ -11,7 +11,7 @@ type StockItem = {
   nombre_producto: string;
   quantity: number;
   unit_cost: number | null;
-  created_at: string;
+  created_at: string | null;
   updated_at: string | null;
   shop_id: string;
 };
