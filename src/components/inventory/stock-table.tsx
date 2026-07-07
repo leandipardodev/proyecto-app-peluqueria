@@ -97,9 +97,9 @@ const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = fa
       case "stock_desc":
         return f.sort((a, b) => b.quantity - a.quantity);
       case "price_asc":
-        return f.sort((a, b) => a.unit_cost - b.unit_cost);
+        return f.sort((a, b) => (a.unit_cost ?? 0) - (b.unit_cost ?? 0));
       case "price_desc":
-        return f.sort((a, b) => b.unit_cost - a.unit_cost);
+        return f.sort((a, b) => (b.unit_cost ?? 0) - (a.unit_cost ?? 0));
       default:
         return f.sort((a, b) => a.nombre_producto.localeCompare(b.nombre_producto));
     }
@@ -203,7 +203,7 @@ const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = fa
   }
 
   const totalValue = filtered.reduce(
-    (sum, item) => sum + item.quantity * item.unit_cost,
+    (sum, item) => sum + item.quantity * (item.unit_cost ?? 0),
     0
   );
 
@@ -268,7 +268,7 @@ const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = fa
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {filtered.map((item) => {
             const isLow = item.quantity < 5;
-            const total = item.quantity * item.unit_cost;
+            const total = item.quantity * (item.unit_cost ?? 0);
             const gradient = productColor(item.id);
 
             return (
@@ -300,7 +300,7 @@ const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = fa
                         </div>
                         <div className="flex items-center gap-1 text-sm text-zinc-500 dark:text-zinc-400">
                           <DollarSign className="w-3.5 h-3.5" />
-                          <span className="font-semibold text-zinc-700 dark:text-zinc-300">${item.unit_cost.toFixed(2)}</span>
+                          <span className="font-semibold text-zinc-700 dark:text-zinc-300">${(item.unit_cost ?? 0).toFixed(2)}</span>
                         </div>
                       </div>
 
