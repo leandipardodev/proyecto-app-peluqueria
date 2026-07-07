@@ -161,7 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .eq("id", profile.shop_id)
           .maybeSingle();
         if (shop) {
-          resolvedShop = { id: shop.id, name: shop.nombre, slug: shop.slug, industry: resolveIndustry(shop.industry), planExpiry: shop.plan_expiry, active: shop.active };
+          resolvedShop = { id: shop.id, name: shop.nombre, slug: shop.slug, industry: resolveIndustry(shop.industry), planExpiry: shop.plan_expiry, active: shop.active ?? false };
         }
       }
 
@@ -237,7 +237,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (shop && isMounted) {
         setState(prev => ({
           ...prev,
-          shop: { id: shop.id, name: shop.nombre, slug: shop.slug, industry: resolveIndustry(shop.industry), planExpiry: shop.plan_expiry, active: shop.active },
+          shop: { id: shop.id, name: shop.nombre, slug: shop.slug, industry: resolveIndustry(shop.industry), planExpiry: shop.plan_expiry, active: shop.active ?? false },
         }));
       }
     };

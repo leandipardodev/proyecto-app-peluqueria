@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import { SITE_NAME } from "@/lib/seo";
 
 interface BookLayoutProps {

@@ -1,6 +1,6 @@
-import { fetchStockItems } from "@/lib/dashboard/inventory-actions";
+import { fetchStockItems } from "@/lib/dashboard/inventory/inventory-actions";
 import InventoryPageClient from "@/components/inventory/inventory-page-client";
-import { getCachedUser, getCachedShopIdBySlug } from "@/lib/dashboard/auth-server";
+import { getCachedUser, getCachedShopIdBySlug } from "@/lib/dashboard/auth/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getShopFeatures } from "@/lib/industry/features";

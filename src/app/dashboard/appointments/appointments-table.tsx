@@ -129,14 +129,14 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
             ? supabase.from("services").select("id, name, price").in("id", serviceIds)
             : { data: [] },
         ]);
-        const customerMap = new Map((customersRes.data || []).map((c: { id: string; nombre: string | null; email: string; telefono: string | null }) => [c.id, c]));
+        const customerMap = new Map((customersRes.data || []).map((c) => [c.id, c]));
         const staffMap = new Map((staffRes.data || []).map((s: { user_id: string; name: string | null }) => [s.user_id, s]));
         const serviceMap = new Map((servicesRes.data || []).map((s: { id: string; name: string; price: number }) => [s.id, s]));
         const assembled = rows.map((r) => ({
           ...r,
-          customers: customerMap.get(r.customer_id) ?? null,
-          staff: staffMap.get(r.staff_id) ?? null,
-          services: serviceMap.get(r.service_id) ?? null,
+          customers: customerMap.get(r.customer_id ?? "") ?? null,
+          staff: staffMap.get(r.staff_id ?? "") ?? null,
+          services: serviceMap.get(r.service_id ?? "") ?? null,
         }));
         setAppointments(assembled as Appointment[]);
       }

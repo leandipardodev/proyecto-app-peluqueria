@@ -16,7 +16,7 @@ class CalendarErrorBoundary extends Component<{ children: React.ReactNode }, { e
     this.state = { error: null };
   }
   static getDerivedStateFromError() {
-    return { error: "Ocurrió un error inesperado en el calendario" };
+    return { error: "OcurriÃ³ un error inesperado en el calendario" };
   }
   componentDidCatch(error: Error) {
     console.error("CalendarErrorBoundary caught:", error);
@@ -43,9 +43,10 @@ class CalendarErrorBoundary extends Component<{ children: React.ReactNode }, { e
 }
 
 import CalendarView from "./calendar-view";
-import AppointmentFormModal from "./appointment-form-modal";
-import AppointmentDetailModal from "./appointment-detail-modal";
-import BatchAppointmentModal from "./batch-appointment-modal";
+import dynamic from "next/dynamic";
+const AppointmentFormModal = dynamic(() => import("./appointment-form-modal"), { ssr: false });
+const AppointmentDetailModal = dynamic(() => import("./appointment-detail-modal"), { ssr: false });
+const BatchAppointmentModal = dynamic(() => import("./batch-appointment-modal"), { ssr: false });
 import { StatePanel } from "@/components/ui/state-panel";
 import { useAppointmentAlarm } from "@/lib/use-appointment-alarm";
 import { useAutoCompleteAppointments } from "@/lib/use-auto-complete-appointments";
@@ -177,7 +178,7 @@ export default function CalendarPageClient({
   const [fetchedRangeEnd, setFetchedRangeEnd] = useState(() => {
     const ws = getArgentinaWeekStart();
     const end = new Date(ws);
-    end.setUTCDate(ws.getUTCDate() + 45);
+    end.setUTCDate(ws.getUTCDate() + 90);
     end.setUTCHours(23, 59, 59, 999);
     return end.toISOString();
   });
@@ -261,7 +262,7 @@ export default function CalendarPageClient({
     rangeStart.setUTCDate(weekStart.getUTCDate() - 7);
 
     const handleChange = async () => {
-      if (realtimeCooldown.current || pendingMove.current) return;
+      if (!initialSynced.current || realtimeCooldown.current || pendingMove.current) return;
       realtimeCooldown.current = true;
       setTimeout(() => { realtimeCooldown.current = false; }, 5000);
       try {
@@ -273,9 +274,9 @@ export default function CalendarPageClient({
           .lte("start_time", fetchedRangeEndRef.current)
           .order("start_time", { ascending: true });
         if (!error && rows) {
-          const customerIds = [...new Set(rows.map((r) => r.customer_id).filter(Boolean))];
-          const staffIds = [...new Set(rows.map((r) => r.staff_id).filter(Boolean))];
-          const serviceIds = [...new Set(rows.map((r) => r.service_id).filter(Boolean))];
+          const customerIds = [...new Set(rows.map((r) => r.customer_id).filter((id): id is string => id !== null))];
+          const staffIds = [...new Set(rows.map((r) => r.staff_id).filter((id): id is string => id !== null))];
+          const serviceIds = [...new Set(rows.map((r) => r.service_id).filter((id): id is string => id !== null))];
           const [customersRes, staffRes, servicesRes] = await Promise.all([
             customerIds.length > 0
               ? supabase.from("customers").select("id, nombre, email, telefono, loyalty_rewards_available").eq("shop_id", shopId).in("id", customerIds)
@@ -287,18 +288,31 @@ export default function CalendarPageClient({
               ? supabase.from("services").select("id, name, price, duration_minutes").in("id", serviceIds)
               : { data: [] },
           ]);
-          const customersMap = new Map((customersRes.data || []).map((c: { id: string; nombre: string | null; email: string; telefono: string | null; loyalty_rewards_available?: number | null }) => [c.id, c]));
-          const staffMap = new Map((staffRes.data || []).map((s: { user_id: string; name: string | null; email: string | null }) => [s.user_id, s]));
-          const servicesMap = new Map((servicesRes.data || []).map((s: { id: string; name: string; price: number; duration_minutes: number }) => [s.id, s]));
+          const customersMap = new Map((customersRes.data || []).map((c) => [c.id, { ...c, nombre: c.nombre ?? "", telefono: c.telefono ?? "", loyalty_rewards_available: c.loyalty_rewards_available ?? 0 }]));
+          const staffMap = new Map((staffRes.data || []).map((s) => [s.user_id, { ...s, name: s.name ?? "", email: s.email ?? "" }]));
+          const servicesMap = new Map((servicesRes.data || []).map((s) => [s.id, { ...s, duration_minutes: s.duration_minutes ?? 0 }]));
           const enriched = rows.map((r) => ({
             ...r,
-            customers: customersMap.get(r.customer_id) ?? null,
-            staff: staffMap.get(r.staff_id) ?? null,
-            services: servicesMap.get(r.service_id) ?? null,
+            customers: customersMap.get(r.customer_id ?? "") ?? null,
+            staff: staffMap.get(r.staff_id ?? "") ?? null,
+            services: servicesMap.get(r.service_id ?? "") ?? null,
           }));
           setAppointments((prev) => {
-            if (prev.length === enriched.length && prev.every((a, i) => a.id === enriched[i].id)) return prev;
-            return enriched as any;
+            if (prev.length !== enriched.length) return enriched as any;
+            const prevIds = new Set(prev.map(a => a.id));
+            const enrichedIds = new Set(enriched.map(a => a.id));
+            if (prevIds.size === enrichedIds.size && [...prevIds].every(id => enrichedIds.has(id))) {
+              return prev;
+            }
+            const prevMap = new Map(prev.map(a => [a.id, a]));
+            const merged = enriched.map(e => {
+              const prevApt = prevMap.get(e.id);
+              if (!e.customers && prevApt?.customers) {
+                return { ...e, customers: prevApt.customers };
+              }
+              return e;
+            });
+            return merged as any;
           });
         }
       } catch (e) {
@@ -319,7 +333,7 @@ export default function CalendarPageClient({
       .on("postgres_changes", { event: "*", schema: "public", table: "shop_memberships", filter: `shop_id=eq.${shopId}` }, handleChange)
       .subscribe((status, err) => {
         if (status === "CHANNEL_ERROR") {
-          console.warn("Calendar Realtime: channel error — el cliente reconectará automáticamente", err);
+          console.warn("Calendar Realtime: channel error: el cliente reconectarÃ¡ automÃ¡ticamente", err);
         }
       });
 
@@ -448,7 +462,7 @@ export default function CalendarPageClient({
     } else {
       // Only restore affected appointments, preserve realtime updates for others
       setAppointments((prev) => prev.map((a) => movedSnapshot.has(a.id) ? movedSnapshot.get(a.id)! : a));
-      const msg = result.error === "slot_taken" ? "El horario está ocupado por otro turno" : result.error || "Error al mover turno";
+      const msg = result.error === "slot_taken" ? "El horario estÃ¡ ocupado por otro turno" : result.error || "Error al mover turno";
       addToast(msg, "error");
     }
     pendingMove.current = false;
@@ -503,10 +517,10 @@ export default function CalendarPageClient({
         />
       )}
       {(!services || services.length === 0) && (
-        <StatePanel title="Sin servicios" description="No hay servicios registrados. Agregá servicios en la sección Servicios." />
+        <StatePanel title="Sin servicios" description="No hay servicios registrados. AgregÃ¡ servicios en la secciÃ³n Servicios." />
       )}
       {(!staff || staff.length === 0) && (
-        <StatePanel title="Sin personal" description="No hay personal registrado. Agregá personal en la sección Personal." />
+        <StatePanel title="Sin personal" description="No hay personal registrado. AgregÃ¡ personal en la secciÃ³n Personal." />
       )}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white tracking-tight leading-none">Calendario</h1>

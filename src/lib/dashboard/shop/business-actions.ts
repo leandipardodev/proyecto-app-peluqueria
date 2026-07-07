@@ -2,6 +2,7 @@
 
 import { createServiceRoleClient, getCachedUser, canAccessShopId, requireOwnerShopId, requireShopId } from "@/lib/dashboard/auth/server";
 import { createServerClient } from "@/lib/supabase/server";
+import type { Json } from "@/lib/supabase/database.types";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp/whatsapp-constants";
 import type { ActionResult } from "@/lib/types";
 import { revalidateDashboardSegments } from "@/lib/dashboard/shared/revalidate-dashboard";
@@ -99,7 +100,7 @@ export async function updateBusinessInfo(formData: FormData): Promise<ActionResu
     const { error } = await admin
       .from("shops")
       .update({ nombre, description, address, localidad, phone, instagram_url, facebook_url, tiktok_url, updated_at: new Date().toISOString() })
-      .eq("id", shopId);
+      .eq("id", shopId!);
 
     if (error) return { success: false, error: error.message };
     await revalidateDashboardSegments(shopId, ["/business"]);
@@ -119,10 +120,10 @@ export async function updateMercadoPagoKeysAction(publicKey: string, accessToken
     const { error } = await admin
       .from("shops")
       .update({ mp_public_key: publicKey, mp_access_token: accessToken })
-      .eq("id", shopId);
+      .eq("id", shopId!);
 
     if (error) return { success: false, error: error.message };
-    await revalidateDashboardSegments(shopId, ["/business"]);
+    await revalidateDashboardSegments(shopId!, ["/business"]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al guardar claves de Mercado Pago" };
@@ -170,7 +171,7 @@ export async function disconnectMercadoPagoOauthAction(): Promise<ActionResult> 
     const { error } = await admin
       .from("shops")
       .update({ mp_access_token: "", mp_public_key: "", updated_at: new Date().toISOString() })
-      .eq("id", shopId);
+      .eq("id", shopId!);
 
     if (error) return { success: false, error: error.message };
     await revalidateDashboardSegments(shopId, ["/business"]);
@@ -305,7 +306,7 @@ export async function updateBusinessHours(hours: BusinessHoursData): Promise<Act
     const { error } = await admin
       .from("shops")
       .update({ business_hours: normalized })
-      .eq("id", shopId);
+      .eq("id", shopId!);
 
     if (error) return { success: false, error: error.message };
     await revalidateDashboardSegments(shopId, ["/business"]);
@@ -325,7 +326,7 @@ export async function updateWhatsappTemplateAction(template: string): Promise<Ac
     const { data: shopData, error: shopError } = await admin
       .from("shops")
       .select("address, nombre")
-      .eq("id", shopId)
+      .eq("id", shopId!)
       .maybeSingle();
 
     if (shopError || !shopData) return { success: false, error: shopError?.message || "Local no encontrado" };
@@ -344,10 +345,10 @@ export async function updateWhatsappTemplateAction(template: string): Promise<Ac
     const { error } = await admin
       .from("shops")
       .update({ whatsapp_template: template })
-      .eq("id", shopId);
+      .eq("id", shopId!);
 
     if (error) return { success: false, error: error.message };
-    await revalidateDashboardSegments(shopId, ["/business"]);
+    await revalidateDashboardSegments(shopId!, ["/business"]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al guardar plantilla de WhatsApp" };
@@ -371,10 +372,10 @@ export async function updateLoyaltyProgramAction(enabled: boolean, cutsRequired:
         loyalty_cuts_required: safeCutsRequired,
         loyalty_discount_percent: safeDiscountPercent,
       })
-      .eq("id", shopId);
+      .eq("id", shopId!);
 
     if (error) return { success: false, error: error.message };
-    await revalidateDashboardSegments(shopId, ["/business", "/customers"]);
+    await revalidateDashboardSegments(shopId!, ["/business", "/customers"]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al guardar fidelizacion" };
@@ -406,7 +407,7 @@ export async function runLoyaltyRaffleAction(prizeName: string, winnersCount: nu
     const { data, error } = await admin
       .from("customers")
       .select("id, nombre")
-      .eq("shop_id", shopId)
+      .eq("shop_id", shopId!)
       .order("created_at", { ascending: true });
 
     if (error) return { success: false, error: error.message };
@@ -528,7 +529,7 @@ export async function upsertShopDateOverride(
     const admin = await createAdminClient();
 
     // Delete existing override for this (shop, staff, date) to avoid unique constraint conflicts
-    const delQuery = admin.from("shop_date_overrides").delete().eq("shop_id", shopId).eq("date", date);
+    const delQuery = admin.from("shop_date_overrides").delete().eq("shop_id", shopId!).eq("date", date);
     if (staffId) {
       await delQuery.eq("staff_id", staffId);
     } else {
@@ -536,7 +537,7 @@ export async function upsertShopDateOverride(
     }
 
     const { error } = await admin.from("shop_date_overrides").insert({
-      shop_id: shopId,
+      shop_id: shopId!,
       staff_id: staffId || null,
       date,
       is_closed: isClosed,
@@ -566,10 +567,10 @@ export async function deleteShopDateOverride(
       .from("shop_date_overrides")
       .delete()
       .eq("id", overrideId)
-      .eq("shop_id", shopId);
+      .eq("shop_id", shopId!);
 
     if (error) return { success: false, error: error.message };
-    await revalidateDashboardSegments(shopId, ["/business", "/book"]);
+    await revalidateDashboardSegments(shopId!, ["/business", "/book"]);
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al eliminar excepción" };
@@ -595,8 +596,12 @@ export async function updateBookingDepositPolicyAction(enabled: boolean, deposit
 
     const { error } = await admin
       .from("shops")
-      .update(updateData)
-      .eq("id", shopId);
+      .update({
+        booking_deposit_enabled: Boolean(enabled),
+        booking_deposit_amount: safeAmount,
+        ...(forcePayAtShop !== undefined ? { pay_at_shop: Boolean(forcePayAtShop) } : {}),
+      })
+      .eq("id", shopId!);
 
     if (error) return { success: false, error: error.message };
     await revalidateDashboardSegments(shopId, ["/business", "/book"]);

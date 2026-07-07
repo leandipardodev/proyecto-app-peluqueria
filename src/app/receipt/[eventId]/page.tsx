@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
-import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
-import { getAuthSession } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
+import { getAuthSession } from "@/lib/dashboard/auth/server";
 
 export default async function ReceiptPage({ params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await params;

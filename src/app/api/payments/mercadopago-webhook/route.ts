@@ -239,7 +239,7 @@ export async function POST(request: NextRequest) {
 
       const { data: booking } = await admin
         .from("pending_bookings")
-        .select("id, shop_id, status, customer_phone, customer_email, customer_name, service_id, service_name, start_time, end_time, created_at, expires_at, staff_id, deposit_amount, mp_preference_id")
+        .select("id, shop_id, status, customer_phone, customer_email, customer_name, service_id, start_time, end_time, created_at, expires_at, staff_id, deposit_amount, mp_preference_id")
         .eq("id", bookingId)
         .maybeSingle();
 
@@ -321,8 +321,8 @@ export async function POST(request: NextRequest) {
         }
 
         // Re-check slot availability — may have been taken since pending_booking was created
-        const startStr = typeof booking.start_time === "string" ? booking.start_time : booking.start_time.toISOString();
-        const endStr = typeof booking.end_time === "string" ? booking.end_time : booking.end_time.toISOString();
+        const startStr = booking.start_time;
+        const endStr = booking.end_time;
 
         let conflictQuery = admin
           .from("appointments")

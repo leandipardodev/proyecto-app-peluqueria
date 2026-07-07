@@ -1,8 +1,8 @@
-import { fetchAllAppointmentsForTable } from "@/lib/dashboard/appointment-queries";
+import { fetchAllAppointmentsForTable } from "@/lib/dashboard/appointments/queries";
 import AppointmentsTable from "@/app/dashboard/appointments/appointments-table";
 import { createServerClient } from "@/lib/supabase/server";
-import { fetchWhatsappTemplate } from "@/lib/dashboard/whatsapp-actions";
-import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp-constants";
+import { fetchWhatsappTemplate } from "@/lib/dashboard/whatsapp/whatsapp-actions";
+import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp/whatsapp-constants";
 import type { ActionResult } from "@/lib/types";
 
 type AppointmentsTableData = Awaited<ReturnType<typeof fetchAllAppointmentsForTable>> extends ActionResult<infer T> ? T : never;

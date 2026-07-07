@@ -1,3 +1,4 @@
+import type { Json } from "@/lib/supabase/database.types";
 import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 
 export type ProductEventType =
@@ -41,7 +42,7 @@ export async function trackProductEvent(shopId: string, eventType: ProductEventT
       shop_id: shopId,
       event_type: eventType,
       actor_user_id: options?.actorUserId ?? null,
-      metadata: options?.metadata ?? {},
+      metadata: (options?.metadata ?? {}) as Json,
     });
 
     return !error;

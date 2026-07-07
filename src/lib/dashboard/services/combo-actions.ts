@@ -41,7 +41,7 @@ export async function fetchCombos(shopIdOverride?: string): Promise<ActionResult
 
     const { data: combos, error } = await admin
       .from("combos")
-      .select("*")
+      .select("id, shop_id, name, description, price, duration_minutes, active, created_at, updated_at")
       .eq("shop_id", shopId)
       .order("created_at", { ascending: false });
 

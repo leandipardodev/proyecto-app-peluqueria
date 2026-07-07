@@ -1,4 +1,4 @@
-import { getCachedUser, getCachedShopIdBySlug, checkShopExpired } from "@/lib/dashboard/auth-server";
+import { getCachedUser, getCachedShopIdBySlug, checkShopExpired } from "@/lib/dashboard/auth/server";
 import ActiveShopCookieSetter from "./active-shop-cookie-setter";
 import ShopBlockedOverlay from "./shop-blocked-overlay";
 import NewAppointmentToast from "@/components/dashboard/new-appointment-toast";

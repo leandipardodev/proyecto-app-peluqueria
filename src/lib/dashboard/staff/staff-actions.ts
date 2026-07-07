@@ -152,7 +152,7 @@ export async function fetchStaffMembers(shopIdOverride?: string): Promise<Action
     const revenueByStaff = new Map<string, number>();
     for (const apt of revenueData ?? []) {
       if (!apt.staff_id) continue;
-      const value = apt.service_price != null ? Number(apt.service_price) : (apt.services?.[0]?.price || 0);
+      const value = apt.service_price != null ? Number(apt.service_price) : ((apt.services as { price: number } | null)?.price ?? 0);
       revenueByStaff.set(apt.staff_id, (revenueByStaff.get(apt.staff_id) || 0) + value);
     }
 

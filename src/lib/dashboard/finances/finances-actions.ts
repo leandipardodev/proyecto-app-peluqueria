@@ -622,7 +622,7 @@ export async function fetchCashSession(shopIdOverride?: string): Promise<ActionR
       success: true,
       data: {
         id: data.id,
-        status: data.status,
+        status: data.status as "open" | "cancelled" | "closed",
         openedAt: data.opened_at,
         openingAmount: Number(data.opening_amount || 0),
         expectedAmount,
@@ -1048,7 +1048,7 @@ export async function fetchCashSessionsHistory(fromDate?: string, toDate?: strin
       success: true,
       data: (data || []).map((s) => ({
         id: s.id,
-        status: s.status,
+        status: s.status as "open" | "cancelled" | "closed",
         openedAt: s.opened_at,
         openingAmount: Number(s.opening_amount || 0),
         expectedAmount: Number(s.expected_amount || 0),

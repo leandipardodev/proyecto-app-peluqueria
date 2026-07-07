@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
+import type { Json } from "@/lib/supabase/database.types";
 import {
   sendDunning7Days,
   sendDunning3Days,
@@ -181,6 +182,6 @@ async function logDunningEvent(
     shop_id: shopId,
     actor_user_id: null,
     event_type: eventType,
-    payload,
+    payload: payload as Json,
   });
 }

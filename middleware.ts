@@ -122,7 +122,7 @@ async function middlewareHandler(request: NextRequest) {
     preferredShopSlug = preferredShop.slug;
   }
 
-  const hasDashboardRole = ["owner", "admin", "staff"].includes(userProfile.role);
+  const hasDashboardRole = ["owner", "admin", "staff"].includes(userProfile.role ?? "");
   if (!hasDashboardRole || !preferredShopId || !preferredShopSlug) {
     const landingUrl = request.nextUrl.clone();
     landingUrl.pathname = LANDING_PATH;

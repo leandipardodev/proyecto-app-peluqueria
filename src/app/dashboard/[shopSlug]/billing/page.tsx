@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
-import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
-import { getAuthSession } from "@/lib/dashboard/auth-server";
+import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
+import { getAuthSession } from "@/lib/dashboard/auth/server";
 import { BILLING_PRICES } from "@/lib/billing/plans";
 import BillingClient from "./billing-client";
 

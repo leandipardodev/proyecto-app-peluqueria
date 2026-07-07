@@ -35,28 +35,28 @@ export async function globalSearch(query: string): Promise<ActionResult<OmniSear
       admin
         .from("stock")
         .select("id, nombre_producto, quantity")
-        .eq("shop_id", shopId)
+        .eq("shop_id", shopId!)
         .ilike("nombre_producto", `%${q}%`)
         .order("nombre_producto", { ascending: true })
         .limit(8),
       admin
         .from("services")
         .select("id, name, duration_minutes")
-        .eq("shop_id", shopId)
+        .eq("shop_id", shopId!)
         .ilike("name", `%${q}%`)
         .order("name", { ascending: true })
         .limit(8),
       admin
         .from("customers")
         .select("id, nombre, telefono")
-        .eq("shop_id", shopId)
+        .eq("shop_id", shopId!)
         .or(`nombre.ilike.%${q}%,telefono.ilike.%${q}%`)
         .order("nombre", { ascending: true })
         .limit(8),
       admin
         .from("user_profiles")
         .select("user_id, name, email, role")
-        .eq("shop_id", shopId)
+        .eq("shop_id", shopId!)
         .in("role", ["owner", "staff"])
         .or(`name.ilike.%${q}%,email.ilike.%${q}%`)
         .order("name", { ascending: true })

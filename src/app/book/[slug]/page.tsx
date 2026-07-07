@@ -1,5 +1,5 @@
-import { createServiceRoleClient } from "@/lib/dashboard/auth-server";
-import { fetchPublicCombos } from "@/lib/dashboard/public-booking-actions";
+import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
+import { fetchPublicCombos } from "@/lib/dashboard/booking/public-booking-actions";
 import BookingClient from "./booking-client";
 import { absoluteUrl } from "@/lib/seo";
 import { DEFAULT_BOOKING_TEMPLATE, BOOKING_TEMPLATE_PRESETS, type BookingTemplateId } from "@/lib/booking/theme-presets";
@@ -133,6 +133,7 @@ export default async function BookPage({ params }: BookPageProps) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessJsonLd).replace(/</g, "\\u003C") }}
       />
       <BookingClient
+        services={services.map((s) => ({ ...s, duration_minutes: s.duration_minutes ?? 0 }))}
         shop={{
           id: shop.id,
           name: shop.nombre,
@@ -164,7 +165,6 @@ export default async function BookPage({ params }: BookPageProps) {
             ? bookingTheme.template_id
             : DEFAULT_BOOKING_TEMPLATE) as BookingTemplateId,
         }}
-        services={services}
         servicesError={servicesError}
         combos={combos}
         combosError={combosError}

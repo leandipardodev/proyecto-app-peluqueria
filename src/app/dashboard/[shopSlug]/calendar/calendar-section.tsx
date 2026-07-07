@@ -1,8 +1,8 @@
-import { fetchAppointments } from "@/lib/dashboard/appointment-queries";
+import { fetchAppointments } from "@/lib/dashboard/appointments/queries";
 import CalendarPageClient from "@/components/calendar/calendar-page-client";
 import { createServerClient } from "@/lib/supabase/server";
 import { getArgentinaWeekStart } from "@/lib/argentina-time";
-import { fetchBusinessHours } from "@/lib/dashboard/business-actions";
+import { fetchBusinessHours } from "@/lib/dashboard/shop/business-actions";
 import type { ActionResult } from "@/lib/types";
 
 type AppointmentsData = Awaited<ReturnType<typeof fetchAppointments>> extends ActionResult<infer T> ? T : never;

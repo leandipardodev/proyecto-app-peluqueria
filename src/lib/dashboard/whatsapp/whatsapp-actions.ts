@@ -43,7 +43,7 @@ export async function updateWhatsappTemplate(template: string): Promise<ActionRe
     const { error } = await admin
       .from("shops")
       .update({ whatsapp_template: template })
-      .eq("id", shopId);
+      .eq("id", shopId!);
 
     if (error) {
       if (error.message?.includes("column") || error.code === "42703") {

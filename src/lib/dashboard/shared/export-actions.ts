@@ -31,7 +31,7 @@ export async function fetchExportCustomers(shopId: string): Promise<ActionResult
       .eq("shop_id", shopId)
       .order("nombre");
     if (error) return { success: false, error: error.message };
-    return { success: true, data: data || [] };
+    return { success: true, data: (data || []).map((row) => ({ ...row, tags: Array.isArray(row.tags) ? (row.tags as string[]).join(", ") : row.tags })) };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error" };
   }

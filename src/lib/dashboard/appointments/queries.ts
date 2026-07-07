@@ -36,20 +36,20 @@ export async function fetchAppointments(startDate: string, endDate: string, shop
     const admin = await createAdminClient();
 
     const [customersData, staffRows, servicesData] = await Promise.all([
-      supabase.from("customers").select("id, nombre, email, telefono, loyalty_rewards_available").eq("shop_id", shopId).in("id", customerIds),
+      supabase.from("customers").select("id, nombre, email, telefono, loyalty_rewards_available").eq("shop_id", shopId).in("id", customerIds.filter((id): id is string => id !== null)),
       fetchOperationalStaffByShopId(shopId),
-      admin.from("services").select("id, name, price, duration_minutes").eq("shop_id", shopId).in("id", serviceIds),
+      admin.from("services").select("id, name, price, duration_minutes").eq("shop_id", shopId).in("id", serviceIds.filter((id): id is string => id !== null)),
     ]);
 
-    const customersMap = new Map((customersData.data || []).map(c => [c.id, c]));
-    const staffMap = await buildStaffMapFromRpc(staffRows as StaffRpcRow[], staffIds);
-    const servicesMap = new Map((servicesData.data || []).map(s => [s.id, s]));
+    const customersMap = new Map((customersData.data || []).map(c => [c.id, { ...c, nombre: c.nombre ?? "" }]));
+    const staffMap = await buildStaffMapFromRpc(staffRows as StaffRpcRow[], staffIds.filter((id): id is string => id !== null));
+    const servicesMap = new Map((servicesData.data || []).map(s => [s.id, { ...s, duration_minutes: s.duration_minutes ?? 0 }]));
 
     const enriched = appointments.map(apt => ({
       ...apt,
-      customers: customersMap.get(apt.customer_id) || null,
-      staff: staffMap.get(apt.staff_id) || null,
-      services: servicesMap.get(apt.service_id) || null,
+      customers: customersMap.get(apt.customer_id ?? "") || null,
+      staff: staffMap.get(apt.staff_id ?? "") || null,
+      services: servicesMap.get(apt.service_id ?? "") || null,
     })) as AppointmentEnriched[];
 
     return { success: true, data: enriched };
@@ -146,23 +146,23 @@ export async function fetchAppointmentGroup(
 
     const [customersData, staffRows, servicesData] = await Promise.all([
       customerIds.length > 0
-        ? supabase.from("customers").select("id, nombre, email, telefono, loyalty_rewards_available").eq("shop_id", shopId).in("id", customerIds)
+        ? supabase.from("customers").select("id, nombre, email, telefono, loyalty_rewards_available").eq("shop_id", shopId).in("id", customerIds.filter((id): id is string => id !== null))
         : { data: [], error: null },
       staffIds.length > 0 ? fetchOperationalStaffByShopId(shopId) : Promise.resolve([] as StaffRpcRow[]),
       serviceIds.length > 0
-        ? admin.from("services").select("id, name, price, duration_minutes").eq("shop_id", shopId).in("id", serviceIds)
+        ? admin.from("services").select("id, name, price, duration_minutes").eq("shop_id", shopId).in("id", serviceIds.filter((id): id is string => id !== null))
         : { data: [], error: null },
     ]);
 
-    const customersMap = new Map((customersData.data || []).map((c: { id: string; nombre: string | null; email: string; telefono: string | null; loyalty_rewards_available?: number | null }) => [c.id, c]));
-    const staffMap = await buildStaffMapFromRpc(staffRows as StaffRpcRow[], staffIds);
-    const servicesMap = new Map((servicesData.data || []).map((s: { id: string; name: string; price: number; duration_minutes: number }) => [s.id, s]));
+    const customersMap = new Map((customersData.data || []).map((c: { id: string; nombre: string | null; email: string | null; telefono: string | null; loyalty_rewards_available?: number | null }) => [c.id, { ...c, nombre: c.nombre ?? "" }]));
+    const staffMap = await buildStaffMapFromRpc(staffRows as StaffRpcRow[], staffIds.filter((id): id is string => id !== null));
+    const servicesMap = new Map((servicesData.data || []).map((s: { id: string; name: string; price: number; duration_minutes: number | null }) => [s.id, { ...s, duration_minutes: s.duration_minutes ?? 0 }]));
 
     const result = (siblings.length > 0 ? siblings : [primary]).map((apt) => ({
       ...apt,
-      customers: customersMap.get(apt.customer_id) || null,
-      staff: staffMap.get(apt.staff_id) || null,
-      services: servicesMap.get(apt.service_id) || null,
+      customers: customersMap.get(apt.customer_id ?? "") || null,
+      staff: staffMap.get(apt.staff_id ?? "") || null,
+      services: servicesMap.get(apt.service_id ?? "") || null,
     })) as AppointmentEnriched[];
 
     return { success: true, data: result };
@@ -190,7 +190,7 @@ export async function fetchActiveServices(shopIdOverride?: string): Promise<Acti
       .order("name", { ascending: true });
 
     if (error) return { success: false, error: error.message };
-    return { success: true, data: data || [] };
+    return { success: true, data: (data || []).map(s => ({ ...s, duration_minutes: s.duration_minutes ?? 0 })) };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al obtener servicios" };
   }
@@ -262,18 +262,18 @@ export async function fetchAllAppointmentsForTable(
 
     const [customersRes, staffRows, servicesRes] = await Promise.all([
       customerIds.length > 0
-        ? admin.from("customers").select("id, nombre, email, telefono, loyalty_rewards_available").eq("shop_id", shopId).in("id", customerIds)
+        ? admin.from("customers").select("id, nombre, email, telefono, loyalty_rewards_available").eq("shop_id", shopId).in("id", customerIds.filter((id): id is string => id !== null))
         : { data: [], error: null },
       staffIds.length > 0 ? fetchOperationalStaffByShopId(shopId) : Promise.resolve([] as StaffRpcRow[]),
       serviceIds.length > 0
-        ? admin.from("services").select("id, name, price").in("id", serviceIds)
+        ? admin.from("services").select("id, name, price").in("id", serviceIds.filter((id): id is string => id !== null))
         : { data: [], error: null },
     ]);
 
     const customerRows = (customersRes.data || []) as Array<{ id: string; nombre: string | null; email: string; telefono: string | null; loyalty_rewards_available?: number | null }>;
-    const customerMap = new Map(customerRows.map((c) => [c.id, c]));
+    const customerMap = new Map(customerRows.map((c) => [c.id, { ...c, nombre: c.nombre ?? "" }]));
     const staffMap = new Map(
-      Array.from(await buildStaffMapFromRpc(staffRows as StaffRpcRow[], staffIds)).map(([userId, row]) => [
+      Array.from(await buildStaffMapFromRpc(staffRows as StaffRpcRow[], staffIds.filter((id): id is string => id !== null))).map(([userId, row]) => [
         userId,
         { user_id: row.user_id, name: row.name },
       ])
@@ -291,10 +291,10 @@ export async function fetchAllAppointmentsForTable(
       loyalty_reward_applied: apt.loyalty_reward_applied,
       loyalty_discount_percent_applied: apt.loyalty_discount_percent_applied,
       recurring_group_id: apt.recurring_group_id,
-      customers: customerMap.get(apt.customer_id) || null,
-      staff: staffMap.get(apt.staff_id) || null,
-      services: serviceMap.get(apt.service_id) || null,
-    }));
+      customers: customerMap.get(apt.customer_id ?? "") || null,
+      staff: staffMap.get(apt.staff_id ?? "") || null,
+      services: serviceMap.get(apt.service_id ?? "") || null,
+    })) as AppointmentTableRow[];
 
     return { success: true, data: rows };
   } catch (e) {

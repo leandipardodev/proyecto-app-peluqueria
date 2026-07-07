@@ -76,7 +76,7 @@ const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = fa
               .select("id, nombre_producto, quantity, unit_cost")
               .eq("shop_id", shopId)
               .order("nombre_producto", { ascending: true });
-            if (Array.isArray(data)) setStockItems(data);
+            if (Array.isArray(data)) setStockItems(data.map((d) => ({ ...d, quantity: d.quantity ?? 0, unit_cost: d.unit_cost ?? 0 })));
           });
         }
       )

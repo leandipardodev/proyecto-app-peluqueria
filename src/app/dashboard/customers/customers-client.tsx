@@ -259,7 +259,7 @@ export default function CustomersPage() {
     }
 
     const payload = {
-      nombre: draftNombre || null,
+      nombre: draftNombre || "",
       email: draftEmail || null,
       telefono: draftTelefono || null,
       cumpleaños: draftCumple || null,
@@ -318,7 +318,7 @@ export default function CustomersPage() {
           c.id === selectedId
             ? {
                 ...c,
-                nombre: draftNombre || null,
+      nombre: draftNombre || "",
                 email: draftEmail || null,
                 telefono: draftTelefono || null,
                 cumpleaños: draftCumple || null,

@@ -4,6 +4,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient, requireOwnerShopId } from "@/lib/dashboard/auth/server";
 import { MercadoPagoConfig, Preference, PaymentRefund } from "mercadopago";
 import type { ActionResult } from "@/lib/types";
+import type { Json } from "@/lib/supabase/database.types";
 import "server-only";
 import { createAdminClient } from "@/lib/dashboard/appointments/shared";
 
@@ -19,7 +20,7 @@ export async function fetchMercadoPagoKeys(): Promise<ActionResult<MercadoPagoKe
     const { data, error } = await admin
       .from("shops")
       .select("mp_public_key, mp_access_token")
-      .eq("id", shopId)
+      .eq("id", shopId!)
       .maybeSingle();
 
     if (error || !data) {
@@ -52,7 +53,7 @@ export async function updateMercadoPagoKeys(publicKey: string, accessToken: stri
     const { error } = await admin
       .from("shops")
       .update({ mp_public_key: publicKey, mp_access_token: accessToken })
-      .eq("id", shopId);
+      .eq("id", shopId!);
 
     if (error) {
       if (error.message?.includes("column") || error.code === "42703") {
@@ -62,13 +63,13 @@ export async function updateMercadoPagoKeys(publicKey: string, accessToken: stri
     }
 
     await admin.from("shop_billing_events").insert({
-      shop_id: shopId,
+      shop_id: shopId!,
       actor_user_id: user?.id || null,
       event_type: "mercadopago_keys_updated",
       payload: {
         has_public_key: Boolean(publicKey),
         has_access_token: Boolean(accessToken),
-      },
+      } as Json,
     });
 
     return { success: true };
@@ -93,7 +94,7 @@ export async function createPaymentLink(appointmentId: string): Promise<ActionRe
     const { data: mpKeys } = await admin
       .from("shops")
       .select("mp_access_token, nombre")
-      .eq("id", shopId)
+      .eq("id", shopId!)
       .maybeSingle();
 
     if (!mpKeys?.mp_access_token) {
@@ -116,7 +117,7 @@ export async function createPaymentLink(appointmentId: string): Promise<ActionRe
     const { data: service } = await supabase
       .from("services")
       .select("name, price")
-      .eq("id", appointment.service_id)
+      .eq("id", appointment.service_id!)
       .maybeSingle();
 
     if (!service) {
@@ -133,7 +134,7 @@ export async function createPaymentLink(appointmentId: string): Promise<ActionRe
         .from("appointments")
         .update({ is_paid: true, updated_at: new Date().toISOString() })
         .eq("id", appointmentId)
-        .eq("shop_id", shopId);
+        .eq("shop_id", shopId!);
 
       return { success: false, error: "Este turno quedo bonificado al 100%. Ya figura como pagado." };
     }
@@ -166,7 +167,7 @@ export async function createPaymentLink(appointmentId: string): Promise<ActionRe
         .from("appointments")
         .update({ mp_preference_id: preferenceId, updated_at: new Date().toISOString() })
         .eq("id", appointmentId)
-        .eq("shop_id", shopId);
+        .eq("shop_id", shopId!);
 
       await admin.from("mercadopago_logs").insert({
         shop_id: shopId,
@@ -177,18 +178,18 @@ export async function createPaymentLink(appointmentId: string): Promise<ActionRe
           init_point: result.init_point ?? "",
           title,
           amount: price,
-        },
+        } as Json,
       });
 
-      await admin.from("shop_billing_events").insert({
-        shop_id: shopId,
+      await admin      .from("shop_billing_events").insert({
+        shop_id: shopId!,
         actor_user_id: user?.id || null,
         event_type: "payment_link_created",
         payload: {
           appointment_id: appointmentId,
           mp_preference_id: preferenceId,
           amount: price,
-        },
+        } as Json,
       });
     }
 
@@ -215,7 +216,7 @@ export async function refundMpPayment(appointmentId: string): Promise<ActionResu
       .from("appointments")
       .select("id, is_paid, mp_preference_id, shop_id")
       .eq("id", appointmentId)
-      .eq("shop_id", shopId)
+      .eq("shop_id", shopId!)
       .maybeSingle();
 
     if (!appointment) return { success: false, error: "Turno no encontrado" };
@@ -224,7 +225,7 @@ export async function refundMpPayment(appointmentId: string): Promise<ActionResu
     const { data: mpKeys } = await admin
       .from("shops")
       .select("mp_access_token")
-      .eq("id", shopId)
+      .eq("id", shopId!)
       .maybeSingle();
 
     if (!mpKeys?.mp_access_token) {
@@ -241,7 +242,7 @@ export async function refundMpPayment(appointmentId: string): Promise<ActionResu
       .order("created_at", { ascending: false })
       .limit(1);
 
-    const mpPaymentId = logs?.[0]?.payload?.payment_id as string | undefined;
+    const mpPaymentId = (logs?.[0]?.payload as { payment_id?: string } | null)?.payment_id;
     if (!mpPaymentId) {
       return { success: false, error: "No se encontro el pago en Mercado Pago para reembolsar" };
     }
@@ -254,7 +255,7 @@ export async function refundMpPayment(appointmentId: string): Promise<ActionResu
       .from("appointments")
       .update({ is_paid: false, updated_at: new Date().toISOString() })
       .eq("id", appointmentId)
-      .eq("shop_id", shopId);
+      .eq("shop_id", shopId!);
 
     await admin.from("mercadopago_logs").insert({
       shop_id: shopId,

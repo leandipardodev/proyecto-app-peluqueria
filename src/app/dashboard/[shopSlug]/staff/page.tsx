@@ -1,6 +1,6 @@
-import { fetchStaffMembers } from "@/lib/dashboard/staff-actions";
+import { fetchStaffMembers } from "@/lib/dashboard/staff/staff-actions";
 import StaffList from "@/components/staff/staff-list";
-import { getCachedUser, getCachedShopIdBySlug } from "@/lib/dashboard/auth-server";
+import { getCachedUser, getCachedShopIdBySlug } from "@/lib/dashboard/auth/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { resolveIndustry } from "@/lib/industry/resolve";
 import { getShopFeatures } from "@/lib/industry/features";

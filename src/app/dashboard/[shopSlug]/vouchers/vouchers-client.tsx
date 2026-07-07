@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition, useRef } from "react";
-import { createVoucher, markVoucherRedeemed, markVoucherReminderSent, type VoucherRow } from "@/lib/dashboard/voucher-actions";
-import { DEFAULT_VOUCHER_WHATSAPP_TEMPLATE } from "@/lib/dashboard/voucher-constants";
+import { createVoucher, markVoucherRedeemed, markVoucherReminderSent, type VoucherRow } from "@/lib/dashboard/vouchers/voucher-actions";
+import { DEFAULT_VOUCHER_WHATSAPP_TEMPLATE } from "@/lib/dashboard/vouchers/voucher-constants";
 import { CheckCircle2, Gift, MessageCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 

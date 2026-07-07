@@ -116,7 +116,7 @@ export async function fetchDashboardSummary(shopIdOverride?: string): Promise<Ac
 
       supabase
         .from("appointments")
-        .select("*, customers(nombre, telefono), services(name, price)")
+        .select("id, start_time, end_time, status, customers(nombre, telefono), services(name, price)")
         .eq("shop_id", shopId)
         .gte("start_time", nowIso)
         .lte("start_time", todayEndIso)
@@ -593,9 +593,9 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
       const svc = Array.isArray(apt.services) ? apt.services[0] : apt.services;
       const name = svc?.name;
       if (!name) continue;
-      const entry = serviceCount.get(apt.service_id) ?? { name, count: 0 };
+      const entry = serviceCount.get(apt.service_id ?? "") ?? { name, count: 0 };
       entry.count++;
-      serviceCount.set(apt.service_id, entry);
+      serviceCount.set(apt.service_id ?? "", entry);
     }
 
     const topServices = [...serviceCount.values()]

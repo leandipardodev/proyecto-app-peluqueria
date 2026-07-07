@@ -331,7 +331,6 @@ html.perf-mode .flow-bar::before,
 html.perf-mode .analytics-chart-wave::before,
 html.perf-mode .analytics-chart-wave::after,
 html.perf-mode .analytics-metric-wave-svg,
-html.perf-mode .recharts-rectangle,
 html.perf-mode .animate-pulse-border {
   animation: none !important;
 }

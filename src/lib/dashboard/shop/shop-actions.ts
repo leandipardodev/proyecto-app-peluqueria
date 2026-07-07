@@ -4,6 +4,7 @@ import { createServiceRoleClient, requireOwnerShopId, requireShopId } from "@/li
 import type { ActionResult } from "@/lib/types";
 import { createServerClient } from "@/lib/supabase/server";
 import { revalidateDashboardSegments } from "@/lib/dashboard/shared/revalidate-dashboard";
+import type { Json } from "@/lib/supabase/database.types";
 import "server-only";
 import { createAdminClient } from "../appointments/shared";
 
@@ -30,7 +31,7 @@ export async function updateShopInfo(data: {
         instagram_url: data.instagram_url || null,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", shopId);
+      .eq("id", shopId!);
 
     if (error) return { success: false, error: error.message };
 
@@ -65,8 +66,8 @@ export async function deleteCurrentShop(shopSlug?: string): Promise<ActionResult
       const { data: membership } = await supabase
         .from("shop_memberships")
         .select("role, is_active")
-        .eq("user_id", user?.id)
-        .eq("shop_id", shopId)
+        .eq("user_id", user?.id ?? "")
+        .eq("shop_id", shopId!)
         .maybeSingle();
 
       if (!membership?.is_active || membership.role !== "owner") {
@@ -79,16 +80,16 @@ export async function deleteCurrentShop(shopSlug?: string): Promise<ActionResult
     }
 
     await admin.from("shop_billing_events").insert({
-      shop_id: shopId,
+      shop_id: shopId!,
       actor_user_id: user?.id || null,
       event_type: "shop_deletion_requested",
-      payload: {},
+      payload: {} as Json,
     });
 
     const { error } = await admin
       .from("shops")
       .delete()
-      .eq("id", shopId);
+      .eq("id", shopId!);
 
     if (error) return { success: false, error: error.message };
 

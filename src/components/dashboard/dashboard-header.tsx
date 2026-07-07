@@ -121,9 +121,9 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
     const planSummary = billingStatus.daysRemaining === null
       ? "PLAN PRO"
       : billingStatus.daysRemaining > 0
-        ? `PLAN PRO ï ${billingStatus.daysRemaining} DIAS RESTANTES`
+        ? `PLAN PRO ‚Ä¢ ${billingStatus.daysRemaining} DIAS RESTANTES`
         : billingStatus.inGrace
-          ? `PLAN VENCIDO ï DÕA ${gracePosition} de 2 DE CORTESÕA`
+          ? `PLAN VENCIDO ‚Ä¢ D√çA ${gracePosition} de 2 DE CORTES√çA`
           : "PLAN VENCIDO";
     const showBillingCta = billingStatus.daysRemaining !== null && billingStatus.daysRemaining <= 3;
     const billingCtaTone = billingStatus.daysRemaining !== null && billingStatus.daysRemaining <= 0
@@ -273,28 +273,28 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
         supabase
           .from("stock")
           .select("id, nombre_producto, quantity")
-          .eq("shop_id", shop?.id)
+          .eq("shop_id", shop?.id ?? "")
           .ilike("nombre_producto", `%${q}%`)
           .order("nombre_producto", { ascending: true })
           .limit(8),
         supabase
           .from("services")
           .select("id, name, duration_minutes")
-          .eq("shop_id", shop?.id)
+          .eq("shop_id", shop?.id ?? "")
           .ilike("name", `%${q}%`)
           .order("name", { ascending: true })
           .limit(8),
         supabase
           .from("customers")
           .select("id, nombre, telefono")
-          .eq("shop_id", shop?.id)
+          .eq("shop_id", shop?.id ?? "")
           .or(`nombre.ilike.%${q}%,telefono.ilike.%${q}%`)
           .order("nombre", { ascending: true })
           .limit(8),
         supabase
           .from("user_profiles")
           .select("user_id, name, email, role")
-          .eq("shop_id", shop?.id)
+          .eq("shop_id", shop?.id ?? "")
           .in("role", ["owner", "staff"])
           .or(`name.ilike.%${q}%,email.ilike.%${q}%`)
           .order("name", { ascending: true })
@@ -308,10 +308,10 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
       }
       setSearchError(null);
       setDbResults([
-        ...(stockRes.data || []).map((item: { id: string; nombre_producto: string; quantity: number }) => ({ type: "stock" as const, ...item })),
-        ...(servicesRes.data || []).map((item: { id: string; name: string; duration_minutes: number }) => ({ type: "service" as const, ...item })),
+        ...(stockRes.data || []).map((item: { id: string; nombre_producto: string; quantity: number | null }) => ({ type: "stock" as const, ...item, quantity: item.quantity ?? 0 })),
+        ...(servicesRes.data || []).map((item: { id: string; name: string; duration_minutes: number | null }) => ({ type: "service" as const, ...item, duration_minutes: item.duration_minutes ?? 0 })),
         ...(customersRes.data || []).map((item: { id: string; nombre: string; telefono: string | null }) => ({ type: "customer" as const, ...item })),
-        ...(staffRes.data || []).map((item: { user_id: string; name: string | null; email: string | null; role: string }) => ({ type: "staff" as const, id: item.user_id, name: item.name, email: item.email, role: item.role })),
+        ...(staffRes.data || []).map((item: { user_id: string; name: string | null; email: string | null; role: string | null }) => ({ type: "staff" as const, id: item.user_id, name: item.name ?? "", email: item.email ?? "", role: item.role ?? "" })),
       ]);
     }, 300);
 
@@ -480,7 +480,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
   }
 
   function handleLogoutClick() {
-    if (typeof window !== "undefined" && !window.confirm("øCerrar sesiÛn?")) return;
+    if (typeof window !== "undefined" && !window.confirm("¬øCerrar sesi√≥n?")) return;
     startLogoutTransition(async () => {
       try { await onLogout(); } catch { /* ignore */ }
       router.refresh();
@@ -506,7 +506,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
       <header className="dashboard-mobile-header sticky top-0 z-50 shrink-0 flex items-center gap-4 bg-white/30 dark:bg-black/30 backdrop-blur-xl shadow-sm border-b border-white/10 dark:border-white/5 px-4 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.5rem)] touch-pan-x [overscroll-behavior-y:none] lg:px-6 lg:pt-2.5">
         <button
           onClick={handleMobileOpen}
-          aria-label="Abrir men˙ de navegaciÛn"
+          aria-label="Abrir men√∫ de navegaci√≥n"
           className="lg:hidden p-2 rounded-xl text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/5 transition-all cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
         >
           <Menu className="w-5 h-5" strokeWidth={1.5} />
@@ -599,7 +599,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
               <Search className="w-4 h-4 mr-3" />
               {!searchFocused && query.trim().length === 0 && (
                 <div className="absolute left-11 right-24 pointer-events-none flex items-center text-sm">
-                  <span className="text-zinc-500">Busc· </span>
+                  <span className="text-zinc-500">Busc√° </span>
                   <span className="relative ml-1 inline-flex w-[12ch] overflow-hidden h-5 items-center text-zinc-400">
                     <AnimatePresence mode="wait">
                       <motion.span
@@ -632,7 +632,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                 }}
                 onBlur={() => setSearchFocused(false)}
                 onKeyDown={onPaletteKeyDown}
-                placeholder={searchFocused ? "EscribÌ para buscar..." : ""}
+                placeholder={searchFocused ? "Escrib√≠ para buscar..." : ""}
                 autoComplete="one-time-code"
                 autoCorrect="off"
                 autoCapitalize="none"
@@ -821,7 +821,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                     )}
 
                     {!isPending && commandItems.flat.length === 0 && !searchError && query.trim().length > 0 && (
-                      <StatePanel title="Sin resultados" description="No encontramos nada con ese criterio de b˙squeda." />
+                      <StatePanel title="Sin resultados" description="No encontramos nada con ese criterio de b√∫squeda." />
                     )}
                   </div>
                 </motion.div>
@@ -883,7 +883,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                   type="button"
                   onClick={() => setMenuOpen((v) => !v)}
                   className="relative h-10 w-10 rounded-full bg-[#0071E3] border border-[#0b7ff2] flex items-center justify-center text-sm font-semibold text-white shrink-0 select-none hover:bg-[#0b7ff2] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
-                  aria-label="Men˙ de usuario"
+                  aria-label="Men√∫ de usuario"
                   title={userName}
                   animate={billingStatus.isExpired && !shouldReduceMotion ? {
                     boxShadow: [
@@ -927,7 +927,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                   <p className="text-[10px] font-medium text-slate-400 mt-1">{planSummary}</p>
                   {lastPaymentDate ? (
                     <p className="text-[10px] text-slate-400 mt-0.5">
-                      ⁄ltimo pago: {lastPaymentFormatted}
+                      √öltimo pago: {lastPaymentFormatted}
                     </p>
                   ) : (
                     <p className="text-[10px] text-rose-400 mt-0.5 font-medium">Sin pagos registrados</p>
@@ -961,7 +961,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                       transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
                     />
                     <Sparkles className="relative z-10 h-4 w-4" />
-                    <span className="relative z-10">SuscripciÛn</span>
+                    <span className="relative z-10">Suscripci√≥n</span>
                     <motion.span
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wider text-amber-200"
                       animate={{ opacity: [0.5, 1, 0.5] }}
@@ -1003,7 +1003,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                   <div className="flex items-center justify-between rounded-xl border border-white/20 dark:border-white/10 px-3 py-2">
                     <div className="flex items-center gap-2 text-sm text-gray-800 dark:text-gray-100">
                       {soundMuted ? <VolumeX className="w-4 h-4 text-zinc-400" /> : <Volume2 className="w-4 h-4 text-sky-500" />}
-                      Sonido/VibraciÛn
+                      Sonido/Vibraci√≥n
                     </div>
                     <button
                       type="button"

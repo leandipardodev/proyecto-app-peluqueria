@@ -5,10 +5,10 @@ import {
   fetchCashMovements,
   fetchCashSessionsHistory,
   fetchStaffLiquidations,
-} from "@/lib/dashboard/finances-actions";
+} from "@/lib/dashboard/finances/finances-actions";
 import FinancesClient from "@/app/dashboard/finances/finances-client";
 import { getArgentinaDateString } from "@/lib/argentina-time";
-import { getCachedUser, getCachedShopIdBySlug } from "@/lib/dashboard/auth-server";
+import { getCachedUser, getCachedShopIdBySlug } from "@/lib/dashboard/auth/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 

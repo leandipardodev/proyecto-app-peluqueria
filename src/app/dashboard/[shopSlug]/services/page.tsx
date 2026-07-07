@@ -1,8 +1,8 @@
-import { fetchServices, fetchServiceStaffMap } from "@/lib/dashboard/service-actions";
-import { fetchCombos } from "@/lib/dashboard/combo-actions";
-import { fetchStaffMembers } from "@/lib/dashboard/staff-actions";
+import { fetchServices, fetchServiceStaffMap } from "@/lib/dashboard/services/service-actions";
+import { fetchCombos } from "@/lib/dashboard/services/combo-actions";
+import { fetchStaffMembers } from "@/lib/dashboard/staff/staff-actions";
 import ServicesList from "@/components/services/services-list";
-import { getCachedUser, getCachedShopIdBySlug } from "@/lib/dashboard/auth-server";
+import { getCachedUser, getCachedShopIdBySlug } from "@/lib/dashboard/auth/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { resolveIndustry } from "@/lib/industry/resolve";
 import { redirect } from "next/navigation";

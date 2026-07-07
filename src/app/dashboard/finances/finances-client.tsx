@@ -202,7 +202,7 @@ export default function FinancesClient({
   }
 
   async function refreshFinanceDataFast(nextFrom: string, nextTo: string) {
-    const sid = shopRef.current || undefined;
+    const sid = shopRef.current || "";
     const [incomeRes, expensesRes] = await Promise.all([
       supabase
         .from("appointments")
@@ -223,8 +223,8 @@ export default function FinancesClient({
         .order("happened_at", { ascending: true }),
     ]);
     if (!incomeRes.error && !expensesRes.error) {
-      const totalIncome = (incomeRes.data || []).reduce((sum: number, apt: { service_price?: number | null; services?: { price: number }[] | null }) => {
-        return sum + Number(apt.service_price ?? apt.services?.[0]?.price ?? 0);
+      const totalIncome = (incomeRes.data || []).reduce((sum: number, apt: { service_price: number | null; services: { price: number } | null }) => {
+        return sum + Number(apt.service_price ?? apt.services?.price ?? 0);
       }, 0);
       const totalExpenses = (expensesRes.data || []).reduce((sum: number, e: { amount: number }) => sum + Number(e.amount), 0);
       setData({
@@ -233,19 +233,19 @@ export default function FinancesClient({
         netBalance: totalIncome - totalExpenses,
         appointmentsCount: (incomeRes.data || []).length,
         recentMovements: [],
-        expenses: (expensesRes.data || []).map((e: { id: string; amount: number; category: string; description: string | null; created_at: string }) => ({
+        expenses: (expensesRes.data || []).map((e: { id: string; amount: number; category: string; description: string | null; created_at: string | null }) => ({
           id: e.id,
           amount: Number(e.amount),
           category: e.category,
           description: e.description,
-          created_at: e.created_at,
+          created_at: e.created_at ?? "",
         })),
       });
     }
   }
 
   async function refreshCashDataFast(nextFrom: string, nextTo: string) {
-    const sid = shopRef.current || undefined;
+    const sid = shopRef.current || "";
     try {
       const [sessionRes, movesRes, historyRes] = await Promise.all([
         supabase
@@ -296,7 +296,7 @@ export default function FinancesClient({
         })));
       }
       if (!historyRes.error && historyRes.data) {
-        setCashSessionsHistory(historyRes.data.map((h: { id: string; status: string; opened_at: string; opening_amount: number; expected_amount: number; counted_amount: number | null; difference_amount: number | null }) => ({
+        setCashSessionsHistory(historyRes.data.map((h: { id: string; status: string; opened_at: string; opening_amount: number; expected_amount: number | null; counted_amount: number | null; difference_amount: number | null }) => ({
           id: h.id,
           status: h.status as "open" | "closed" | "cancelled",
           openedAt: h.opened_at,

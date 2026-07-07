@@ -1417,7 +1417,7 @@ export async function createPaymentPreference(
     const { data: service, error: serviceError } = await admin
       .from("services")
       .select("name, price")
-      .eq("id", appointment.service_id)
+      .eq("id", appointment.service_id ?? "")
       .maybeSingle();
 
     if (serviceError || !service) {

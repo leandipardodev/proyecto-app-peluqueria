@@ -51,7 +51,7 @@ export async function fetchPublicServices(shopId: string): Promise<ActionResult<
       .order("name", { ascending: true });
 
     if (error) return { success: false, error: error.message };
-    return { success: true, data: data || [] };
+    return { success: true, data: (data || []).map(s => ({ ...s, duration_minutes: s.duration_minutes ?? 0 })) as PublicService[] };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al obtener servicios" };
   }
@@ -284,7 +284,7 @@ export async function createClientAppointment(formData: FormData): Promise<Actio
     let currentStart = new Date(startDate);
     const payload = serviceIds.map((id, index) => {
       const svc = serviceMap.get(id)!;
-      const duration = svc.duration;
+      const duration = svc.duration ?? 0;
       const currentEnd = new Date(currentStart.getTime() + duration * 60000);
       const appointment = {
         shop_id: shopId,

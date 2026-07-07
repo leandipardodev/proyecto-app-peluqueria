@@ -3,6 +3,7 @@
 import { BILLING_PRICES } from "@/lib/billing/plans";
 import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import { requireSuperAdmin } from "@/lib/admin/auth";
+import type { Json } from "@/lib/supabase/database.types";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { resolveIndustry } from "@/lib/industry/resolve";
 
@@ -145,7 +146,7 @@ async function appendAdminAudit(action: string, payload: Record<string, unknown>
     action,
     target_type: "referrals",
     target_id: null,
-    payload,
+    payload: payload as Json,
   });
 }
 
@@ -238,7 +239,7 @@ async function syncReferralLedger(admin: Awaited<ReturnType<typeof createService
   }
 
   if (inserts.length > 0) {
-    await admin.from("referral_commission_ledger").upsert(inserts, {
+    await admin.from("referral_commission_ledger").upsert(inserts as any, {
       onConflict: "billing_event_id",
       ignoreDuplicates: true,
     });

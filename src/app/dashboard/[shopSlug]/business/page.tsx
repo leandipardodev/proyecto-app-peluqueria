@@ -1,11 +1,11 @@
-import { fetchBusinessData, fetchBusinessHours } from "@/lib/dashboard/business-actions";
-import { fetchDashboardSummary, fetchDashboardMetrics } from "@/lib/dashboard/dashboard-summary";
-import { fetchServices } from "@/lib/dashboard/service-actions";
-import { fetchBookingTheme } from "@/lib/dashboard/booking-theme-actions";
-import { fetchVoucherWhatsappTemplate } from "@/lib/dashboard/voucher-actions";
+import { fetchBusinessData, fetchBusinessHours } from "@/lib/dashboard/shop/business-actions";
+import { fetchDashboardSummary, fetchDashboardMetrics } from "@/lib/dashboard/finances/dashboard-summary";
+import { fetchServices } from "@/lib/dashboard/services/service-actions";
+import { fetchBookingTheme } from "@/lib/dashboard/shop/booking-theme-actions";
+import { fetchVoucherWhatsappTemplate } from "@/lib/dashboard/vouchers/voucher-actions";
 import BusinessClient from "@/app/dashboard/business/business-client";
 import { createServerClient } from "@/lib/supabase/server";
-import { getCachedUser, getCachedShopIdBySlug, createServiceRoleClient } from "@/lib/dashboard/auth-server";
+import { getCachedUser, getCachedShopIdBySlug, createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";

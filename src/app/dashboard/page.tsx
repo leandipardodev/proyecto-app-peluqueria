@@ -583,7 +583,7 @@ export default async function DashboardPage() {
 
   const { count: servicesCount } = await admin
     .from("services")
-    .select("*", { count: "exact", head: true })
+    .select("id", { count: "exact", head: true })
     .eq("shop_id", firstShopId);
 
   const needsTutorial = !shop?.nombre?.trim() || !shop?.address?.trim() || !servicesCount;

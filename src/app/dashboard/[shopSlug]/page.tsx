@@ -1,5 +1,5 @@
 import { DashboardHomeContent } from "@/app/dashboard/page";
-import { getCachedUser, getCachedShopIdBySlug } from "@/lib/dashboard/auth-server";
+import { getCachedUser, getCachedShopIdBySlug } from "@/lib/dashboard/auth/server";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";

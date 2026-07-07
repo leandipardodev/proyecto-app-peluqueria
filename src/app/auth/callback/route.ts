@@ -415,11 +415,10 @@ export async function GET(request: NextRequest) {
       const { error: customerError } = await adminClient
         .from("customers")
         .upsert({
-          id: user.id,
           user_id: user.id,
-          shop_id: shopId,
-          nombre: user.user_metadata?.full_name || user.email || "Cliente",
-          email: user.email || "",
+          shop_id: shopId!,
+          nombre: String(user.user_metadata?.full_name || user.email || "Cliente"),
+          email: user.email ?? "",
           telefono: null,
         });
 

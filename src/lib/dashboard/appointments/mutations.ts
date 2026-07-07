@@ -484,9 +484,11 @@ export async function updateAppointmentStaff(
       if (conflict) return { success: false, error: "slot_taken" };
     }
 
+    const updates: Record<string, unknown> = { updated_at: new Date().toISOString(), staff_id: normalizedStaffId };
+
     const { error } = await supabase
       .from("appointments")
-      .update({ staff_id: normalizedStaffId, updated_at: new Date().toISOString() })
+      .update(updates as never)
       .eq("id", id)
       .eq("shop_id", shopId);
 
@@ -553,8 +555,8 @@ export async function patchAppointmentQuick(
         .maybeSingle();
       if (nextServiceError) return { success: false, error: nextServiceError.message };
       if (!nextServiceData) return { success: false, error: "Servicio invalido" };
-      nextService = nextServiceData;
-      durationMinutes = Math.max(1, Number(nextService.duration_minutes || durationMinutes));
+      nextService = { ...nextServiceData, duration_minutes: nextServiceData.duration_minutes ?? 0 };
+      durationMinutes = Math.max(1, Number(nextService?.duration_minutes ?? durationMinutes));
     }
     const nextEndIso = new Date(new Date(nextStartIso).getTime() + durationMinutes * 60000).toISOString();
 
@@ -592,7 +594,7 @@ export async function patchAppointmentQuick(
 
     const { error } = await supabase
       .from("appointments")
-      .update(updates)
+      .update(updates as never)
       .eq("id", id)
       .eq("shop_id", shopId);
     if (error) return { success: false, error: error.message };
@@ -734,8 +736,8 @@ export async function updateAppointmentServices(
       .from("appointments")
       .select("id, start_time, end_time")
       .eq("shop_id", shopId)
-      .eq("customer_id", primary.customer_id)
-      .eq("date_key_ar", primary.date_key_ar)
+      .eq("customer_id", primary.customer_id ?? "")
+      .eq("date_key_ar", primary.date_key_ar ?? "")
       .neq("id", appointmentId)
       .not("status", "eq", "cancelled")
       .order("start_time", { ascending: true });
@@ -847,7 +849,7 @@ export async function updateCustomerQuick(
     if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
 
     const supabase = await createServerClient();
-    const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    const updates: Record<string, Json> = { updated_at: new Date().toISOString() };
     if (patch.nombre !== undefined) updates.nombre = patch.nombre;
     if (patch.email !== undefined) updates.email = patch.email;
     if (patch.telefono !== undefined) updates.telefono = patch.telefono;
@@ -857,7 +859,7 @@ export async function updateCustomerQuick(
 
     const { error } = await supabase
       .from("customers")
-      .update(updates)
+      .update(updates as never)
       .eq("id", customerId)
       .eq("shop_id", shopId);
     if (error) return { success: false, error: error.message };
@@ -989,7 +991,7 @@ export async function redeemLoyaltyReward(appointmentId: string, shopIdOverride?
       return { success: false, error: "El cliente no tiene canjes disponibles" };
     }
 
-    const appointmentUpdates: Record<string, unknown> = {
+    const appointmentUpdates: Record<string, Json> = {
       loyalty_reward_applied: true,
       loyalty_discount_percent_applied: discountPercent,
       updated_at: new Date().toISOString(),
@@ -1000,7 +1002,7 @@ export async function redeemLoyaltyReward(appointmentId: string, shopIdOverride?
 
     const { error: updateAppointmentError } = await admin
       .from("appointments")
-      .update(appointmentUpdates)
+      .update(appointmentUpdates as never)
       .eq("id", appointmentId)
       .eq("shop_id", shopId);
 
@@ -1056,9 +1058,9 @@ export async function moveAppointmentGroup(
         .from("appointments")
         .select("id, start_time, end_time")
         .eq("shop_id", shopId)
-        .eq("customer_id", primary.customer_id)
+        .eq("customer_id", primary.customer_id ?? "")
         .eq("staff_id", staffId)
-        .eq("date_key_ar", primary.date_key_ar)
+        .eq("date_key_ar", primary.date_key_ar ?? "")
         .neq("id", primaryId)
         .not("status", "in", '("cancelled","no_show")')
         .order("start_time", { ascending: true });

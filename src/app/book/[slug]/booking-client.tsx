@@ -19,9 +19,9 @@ import {
   UserRound,
 } from "lucide-react";
 import { initMercadoPago } from "@mercadopago/sdk-react";
-import { fetchPublicAvailableSlots, createPublicAppointment, createPublicComboAppointment, deletePublicAppointment } from "@/lib/dashboard/public-booking-actions";
-import { fetchShopDateOverrides } from "@/lib/dashboard/business-actions";
-import { createPendingBooking, deletePendingBooking } from "@/lib/dashboard/pending-booking-actions";
+import { fetchPublicAvailableSlots, createPublicAppointment, createPublicComboAppointment, deletePublicAppointment } from "@/lib/dashboard/booking/public-booking-actions";
+import { fetchShopDateOverrides } from "@/lib/dashboard/shop/business-actions";
+import { createPendingBooking, deletePendingBooking } from "@/lib/dashboard/appointments/pending-booking-actions";
 import GoogleSignInButton from "@/components/auth/google-sign-in-button";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
@@ -665,7 +665,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
       }
 
       // Create a payment preference with the total combo price and all appointment IDs
-      const { createPaymentPreference } = await import("@/lib/dashboard/public-booking-actions");
+      const { createPaymentPreference } = await import("@/lib/dashboard/booking/public-booking-actions");
       const prefResult = await createPaymentPreference({
         appointmentId: comboResult.data.appointmentIds[0],
         shopId: shop.id,

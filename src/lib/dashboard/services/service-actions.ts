@@ -13,7 +13,7 @@ type ServiceRow = {
   description: string;
   category: string;
   price: number;
-  duration_minutes: number;
+  duration_minutes: number | null;
   pay_at_shop: boolean;
   created_at: string;
   updated_at: string | null;
@@ -42,7 +42,7 @@ function toDisplayCategory(value: string): string {
 async function resolveCanonicalCategory(admin: Awaited<ReturnType<typeof createAdminClient>>, shopId: string, rawCategory: string): Promise<string> {
   const candidate = toDisplayCategory(rawCategory || "General") || "General";
   const candidateKey = normalizeCategoryKey(candidate);
-  const { data } = await admin.from("services").select("category").eq("shop_id", shopId);
+  const { data } = await admin.from("services").select("category").eq("shop_id", shopId).limit(500);
   const existing = Array.from(new Set((data || []).map((row) => String(row.category || "General").trim()).filter(Boolean)));
 
   for (const current of existing) {

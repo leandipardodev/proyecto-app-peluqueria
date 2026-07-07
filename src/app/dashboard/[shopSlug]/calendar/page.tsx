@@ -1,8 +1,8 @@
 import { Suspense } from "react";
-import { getCachedUser, getCachedShopIdBySlug, getShopId } from "@/lib/dashboard/auth-server";
+import { getCachedUser, getCachedShopIdBySlug, getShopId } from "@/lib/dashboard/auth/server";
 import { redirect } from "next/navigation";
-import { fetchActiveServices, fetchStaffMembers } from "@/lib/dashboard/appointment-queries";
-import { fetchStaffMembers as fetchStaffMembersFull } from "@/lib/dashboard/staff-actions";
+import { fetchActiveServices, fetchStaffMembers } from "@/lib/dashboard/appointments/queries";
+import { fetchStaffMembers as fetchStaffMembersFull } from "@/lib/dashboard/staff/staff-actions";
 import CalendarSection, { fetchCustomersByShop, type CustomersData } from "./calendar-section";
 import AppointmentsTableSection from "./appointments-table-section";
 import type { ActionResult } from "@/lib/types";

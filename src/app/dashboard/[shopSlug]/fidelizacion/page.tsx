@@ -1,7 +1,7 @@
-import { getCachedUser, getCachedShopIdBySlug } from "@/lib/dashboard/auth-server";
+import { getCachedUser, getCachedShopIdBySlug } from "@/lib/dashboard/auth/server";
 import { createServerClient } from "@/lib/supabase/server";
-import { fetchVouchers, fetchVoucherWhatsappTemplate } from "@/lib/dashboard/voucher-actions";
-import { fetchBusinessData } from "@/lib/dashboard/business-actions";
+import { fetchVouchers, fetchVoucherWhatsappTemplate } from "@/lib/dashboard/vouchers/voucher-actions";
+import { fetchBusinessData } from "@/lib/dashboard/shop/business-actions";
 import { redirect } from "next/navigation";
 import { getShopFeatures } from "@/lib/industry/features";
 import FidelizacionClient from "./fidelizacion-client";

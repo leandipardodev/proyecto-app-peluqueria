@@ -119,7 +119,7 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
             .eq("shop_id", shopId)
             .order("created_at", { ascending: false })
             .then(({ data }) => {
-              if (Array.isArray(data)) setServices(data);
+              if (Array.isArray(data)) setServices(data.map((d) => ({ ...d, duration_minutes: d.duration_minutes ?? 0 })));
             });
         }
       )
@@ -166,7 +166,7 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
         .select("id, name, description, category, price, duration_minutes")
         .eq("shop_id", shopId)
         .order("created_at", { ascending: false });
-      if (Array.isArray(svc)) setServices(svc);
+      if (Array.isArray(svc)) setServices(svc.map((d) => ({ ...d, duration_minutes: d.duration_minutes ?? 0 })));
       const mapResult = await fetchServiceStaffMap(shopId);
       if (mapResult.success && mapResult.data) {
         setServiceStaffMap(mapResult.data);

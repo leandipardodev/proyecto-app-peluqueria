@@ -35,7 +35,7 @@ export async function fetchStockItems(shopIdOverride?: string): Promise<ActionRe
       .order("nombre_producto", { ascending: true });
 
     if (error) return { success: false, error: error.message };
-    return { success: true, data: data || [] };
+    return { success: true, data: (data || []).map((item) => ({ ...item, quantity: item.quantity ?? 0 })) };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al obtener stock" };
   }
@@ -147,7 +147,7 @@ export async function updateStock(id: string, delta: number, shopIdOverride?: st
       return { success: false, error: "Producto no encontrado" };
     }
 
-    const newQuantity = existing.quantity + delta;
+    const newQuantity = (existing.quantity ?? 0) + delta;
     if (newQuantity < 0) {
       return { success: false, error: "La cantidad no puede ser negativa" };
     }

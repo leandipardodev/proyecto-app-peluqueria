@@ -136,7 +136,7 @@ export async function GET() {
 
     if (staffRes.data && staffRes.data.length > 0) {
       for (const s of staffRes.data) {
-        items.push({ id: `nuevo-miembro-${s.user_id}`, type: "nuevo_miembro", category: "info", title: "Nuevo miembro del equipo", description: `${s.name || "Nuevo miembro"} se unió como ${s.role === "owner" ? "dueño" : "staff"}`, href: "/dashboard/staff", timestamp: s.created_at });
+        items.push({ id: `nuevo-miembro-${s.user_id}`, type: "nuevo_miembro", category: "info", title: "Nuevo miembro del equipo", description: `${s.name || "Nuevo miembro"} se unió como ${s.role === "owner" ? "dueño" : "staff"}`, href: "/dashboard/staff", timestamp: s.created_at ?? "" });
       }
     }
 

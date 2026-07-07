@@ -40,14 +40,14 @@ export async function fetchCustomersOverview(): Promise<ActionResult<CustomerRow
       await Promise.all([
         admin
           .from("customers")
-          .select("id, nombre, email, telefono, birthday, birth_date, observations, created_at")
-          .eq("shop_id", shopId)
+          .select("id, nombre, email, telefono, cumpleaños, observations, created_at")
+          .eq("shop_id", shopId!)
           .order("created_at", { ascending: false })
           .limit(500),
         admin
           .from("appointments")
           .select("customer_id, start_time, status, services:service_id(name, price)")
-          .eq("shop_id", shopId)
+          .eq("shop_id", shopId!)
           .gte("start_time", twelveMonthsAgo.toISOString())
           .in("status", ["completed", "confirmed", "scheduled"]),
       ]);
@@ -94,11 +94,9 @@ export async function fetchCustomersOverview(): Promise<ActionResult<CustomerRow
             : "Nuevo";
 
       const birthdayValue =
-        typeof customer.birthday === "string"
-          ? customer.birthday
-          : typeof customer.birth_date === "string"
-            ? String(customer.birth_date)
-            : null;
+        typeof customer.cumpleaños === "string"
+          ? customer.cumpleaños.toString()
+          : null;
 
       const observationsValue =
         typeof customer.observations === "string"

@@ -1,4 +1,4 @@
-import { getCachedUser, getCachedShopIdBySlug, createServiceRoleClient } from "@/lib/dashboard/auth-server";
+import { getCachedUser, getCachedShopIdBySlug, createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { resolveIndustry } from "@/lib/industry/resolve";

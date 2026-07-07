@@ -80,7 +80,7 @@ export default async function ClientBookPage({ searchParams }: ClientBookPagePro
 
       <BookingFlow
         shopId={profile.shop_id}
-        services={services || []}
+        services={(services || []).map((s) => ({ ...s, duration_minutes: s.duration_minutes ?? 0 }))}
         staffMembers={staffMembers}
         staffServicesMap={staffServicesMap}
         selectedServiceId={serviceId}
