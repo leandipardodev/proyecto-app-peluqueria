@@ -21,7 +21,7 @@ type Service = {
   description?: string;
   category: string;
   price: number;
-  duration_minutes: number;
+  duration_minutes: number | null;
 };
 
 type ComboService = {
