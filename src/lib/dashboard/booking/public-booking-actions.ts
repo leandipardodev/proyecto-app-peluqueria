@@ -194,7 +194,7 @@ export async function fetchPublicAvailableSlots(
     const dayName = DAY_KEYS[dayIndex];
 
     const resolved = resolveDayHours(dbHours, dayIndex);
-    const shopDayConfig = (resolved || DEFAULT_WEEK_HOURS[dayName])!;
+    let shopDayConfig = (resolved || DEFAULT_WEEK_HOURS[dayName])!;
     if (!shopDayConfig.open) return { success: true, data: [] };
 
     const [shopSh, shopSm] = shopDayConfig.start.split(":").map(Number);
@@ -247,6 +247,18 @@ export async function fetchPublicAvailableSlots(
         shopCloseMinutes = Math.min(shopCloseMinutes, overrideEnd);
         if (shopOpenMinutes >= shopCloseMinutes) {
           return { success: true, data: [] };
+        }
+      }
+      // Override break from shop override if provided
+      if (shopOverride.break_start && shopOverride.break_end) {
+        const bs = hhmmToMinutes(shopOverride.break_start);
+        const be = hhmmToMinutes(shopOverride.break_end);
+        if (shopOpenMinutes < bs && bs < be && be < shopCloseMinutes) {
+          shopDayConfig = {
+            ...shopDayConfig,
+            break_start: shopOverride.break_start,
+            break_end: shopOverride.break_end,
+          };
         }
       }
     }
@@ -350,6 +362,15 @@ export async function fetchPublicAvailableSlots(
           config.closeMinutes = Math.min(config.closeMinutes, ovEnd);
           if (config.startMinutes >= config.closeMinutes) {
       return { success: false, error: "No hay horarios disponibles para este profesional en este día" };
+          }
+        }
+        // Override break from staff override if provided
+        if (staffOverride.break_start && staffOverride.break_end) {
+          const bs = hhmmToMinutes(staffOverride.break_start);
+          const be = hhmmToMinutes(staffOverride.break_end);
+          if (config.startMinutes < bs && bs < be && be < config.closeMinutes) {
+            config.breakStart = bs;
+            config.breakEnd = be;
           }
         }
       }
@@ -558,6 +579,16 @@ export async function createPublicAppointment(data: {
           effectiveDayConfig.start = minutesToHHmm(ovStart);
           effectiveDayConfig.end = minutesToHHmm(ovEnd);
         }
+        if (aptShopOverride.break_start && aptShopOverride.break_end) {
+          const bs = hhmmToMinutes(aptShopOverride.break_start);
+          const be = hhmmToMinutes(aptShopOverride.break_end);
+          const st = hhmmToMinutes(effectiveDayConfig.start);
+          const en = hhmmToMinutes(effectiveDayConfig.end);
+          if (st < bs && bs < be && be < en) {
+            effectiveDayConfig.break_start = aptShopOverride.break_start;
+            effectiveDayConfig.break_end = aptShopOverride.break_end;
+          }
+        }
       }
       if (data.staffId) {
         const aptStaffOverride = aptOverrideResult.data.find(o => o.staff_id === data.staffId);
@@ -570,6 +601,16 @@ export async function createPublicAppointment(data: {
             const ovEnd = Math.min(hhmmToMinutes(effectiveDayConfig.end), hhmmToMinutes(aptStaffOverride.end_time));
             effectiveDayConfig.start = minutesToHHmm(ovStart);
             effectiveDayConfig.end = minutesToHHmm(ovEnd);
+          }
+          if (aptStaffOverride.break_start && aptStaffOverride.break_end) {
+            const bs = hhmmToMinutes(aptStaffOverride.break_start);
+            const be = hhmmToMinutes(aptStaffOverride.break_end);
+            const st = hhmmToMinutes(effectiveDayConfig.start);
+            const en = hhmmToMinutes(effectiveDayConfig.end);
+            if (st < bs && bs < be && be < en) {
+              effectiveDayConfig.break_start = aptStaffOverride.break_start;
+              effectiveDayConfig.break_end = aptStaffOverride.break_end;
+            }
           }
         }
       }
@@ -617,6 +658,13 @@ export async function createPublicAppointment(data: {
         }
       }
     } else {
+      // Build staff override map for auto-assign candidate checks
+      const aptOverrides = aptOverrideResult.success ? (aptOverrideResult.data || []) : [];
+      const staffOverrideMap = new Map<string, (typeof aptOverrides)[0]>();
+      for (const o of aptOverrides) {
+        if (o.staff_id) staffOverrideMap.set(o.staff_id, o);
+      }
+
       // Sin preferencia → auto-assign first available staff
       const { data: allStaff } = await admin
         .from("shop_memberships")
@@ -704,6 +752,15 @@ export async function createPublicAppointment(data: {
             const breakEnd = beh * 60 + bem;
             if (startMinutes < breakEnd && endMinutes > breakStart) continue;
           }
+        }
+        // Check staff override break
+        const staffOv = staffOverrideMap.get(sid);
+        if (staffOv && staffOv.break_start && staffOv.break_end) {
+          const [bsh, bsm] = staffOv.break_start.split(":").map(Number);
+          const [beh, bem] = staffOv.break_end.split(":").map(Number);
+          const breakStart = bsh * 60 + bsm;
+          const breakEnd = beh * 60 + bem;
+          if (startMinutes < breakEnd && endMinutes > breakStart) continue;
         }
         // else: no schedule → falls within shop hours (already validated above)
 
@@ -1025,6 +1082,16 @@ export async function createPublicComboAppointment(data: {
           effectiveDayConfig.start = minutesToHHmm(ovStart);
           effectiveDayConfig.end = minutesToHHmm(ovEnd);
         }
+        if (comboShopOverride.break_start && comboShopOverride.break_end) {
+          const bs = hhmmToMinutes(comboShopOverride.break_start);
+          const be = hhmmToMinutes(comboShopOverride.break_end);
+          const st = hhmmToMinutes(effectiveDayConfig.start);
+          const en = hhmmToMinutes(effectiveDayConfig.end);
+          if (st < bs && bs < be && be < en) {
+            effectiveDayConfig.break_start = comboShopOverride.break_start;
+            effectiveDayConfig.break_end = comboShopOverride.break_end;
+          }
+        }
       }
       if (data.staffId) {
         const comboStaffOverride = comboOverrideResult.data.find(o => o.staff_id === data.staffId);
@@ -1037,6 +1104,16 @@ export async function createPublicComboAppointment(data: {
             const ovEnd = Math.min(hhmmToMinutes(effectiveDayConfig.end), hhmmToMinutes(comboStaffOverride.end_time));
             effectiveDayConfig.start = minutesToHHmm(ovStart);
             effectiveDayConfig.end = minutesToHHmm(ovEnd);
+          }
+          if (comboStaffOverride.break_start && comboStaffOverride.break_end) {
+            const bs = hhmmToMinutes(comboStaffOverride.break_start);
+            const be = hhmmToMinutes(comboStaffOverride.break_end);
+            const st = hhmmToMinutes(effectiveDayConfig.start);
+            const en = hhmmToMinutes(effectiveDayConfig.end);
+            if (st < bs && bs < be && be < en) {
+              effectiveDayConfig.break_start = comboStaffOverride.break_start;
+              effectiveDayConfig.break_end = comboStaffOverride.break_end;
+            }
           }
         }
       }
@@ -1143,6 +1220,13 @@ export async function createPublicComboAppointment(data: {
 
       const scheduleMap = new Map((daySchedules || []).map((s) => [s.staff_id, s]));
 
+      // Build staff override map for auto-assign candidate checks
+      const comboOverrides = comboOverrideResult.success ? (comboOverrideResult.data || []) : [];
+      const staffOverrideMap = new Map<string, (typeof comboOverrides)[0]>();
+      for (const o of comboOverrides) {
+        if (o.staff_id) staffOverrideMap.set(o.staff_id, o);
+      }
+
       for (const sid of staffIds) {
         if (busyStaffIds.has(sid)) continue;
 
@@ -1167,6 +1251,15 @@ export async function createPublicComboAppointment(data: {
             const breakEnd = beh * 60 + bem;
             if (startMinutes < breakEnd && endMinutes > breakStart) continue;
           }
+        }
+        // Check staff override break
+        const staffOv = staffOverrideMap.get(sid);
+        if (staffOv && staffOv.break_start && staffOv.break_end) {
+          const [bsh, bsm] = staffOv.break_start.split(":").map(Number);
+          const [beh, bem] = staffOv.break_end.split(":").map(Number);
+          const breakStart = bsh * 60 + bsm;
+          const breakEnd = beh * 60 + bem;
+          if (startMinutes < breakEnd && endMinutes > breakStart) continue;
         }
 
         resolvedStaffId = sid;

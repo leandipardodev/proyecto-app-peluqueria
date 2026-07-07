@@ -153,6 +153,15 @@ export async function createPendingBooking(
             return { success: false, error: "El horario seleccionado esta fuera del horario de atencion" };
           }
         }
+        if (pbShopOverride.break_start && pbShopOverride.break_end) {
+          const [bsh, bsm] = pbShopOverride.break_start.split(":").map(Number);
+          const [beh, bem] = pbShopOverride.break_end.split(":").map(Number);
+          const breakStart = bsh * 60 + bsm;
+          const breakEnd = beh * 60 + bem;
+          if (startMinutes < breakEnd && endMinutes > breakStart) {
+            return { success: false, error: "El horario seleccionado coincide con el descanso" };
+          }
+        }
       }
       if (input.staffId) {
         const pbStaffOverride = pbOverrideResult.data.find(o => o.staff_id === input.staffId);
@@ -167,6 +176,15 @@ export async function createPendingBooking(
             const ovClose = ovEh * 60 + ovEm;
             if (startMinutes < ovOpen || endMinutes > ovClose) {
               return { success: false, error: "El horario seleccionado esta fuera del horario de atencion" };
+            }
+          }
+          if (pbStaffOverride.break_start && pbStaffOverride.break_end) {
+            const [bsh, bsm] = pbStaffOverride.break_start.split(":").map(Number);
+            const [beh, bem] = pbStaffOverride.break_end.split(":").map(Number);
+            const breakStart = bsh * 60 + bsm;
+            const breakEnd = beh * 60 + bem;
+            if (startMinutes < breakEnd && endMinutes > breakStart) {
+              return { success: false, error: "El horario seleccionado coincide con el descanso" };
             }
           }
         }

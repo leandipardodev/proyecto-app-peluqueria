@@ -1190,6 +1190,8 @@ export type Database = {
       }
       shop_date_overrides: {
         Row: {
+          break_end: string | null
+          break_start: string | null
           created_at: string | null
           date: string
           end_time: string | null
@@ -1201,6 +1203,8 @@ export type Database = {
           start_time: string | null
         }
         Insert: {
+          break_end?: string | null
+          break_start?: string | null
           created_at?: string | null
           date: string
           end_time?: string | null
@@ -1212,6 +1216,8 @@ export type Database = {
           start_time?: string | null
         }
         Update: {
+          break_end?: string | null
+          break_start?: string | null
           created_at?: string | null
           date?: string
           end_time?: string | null

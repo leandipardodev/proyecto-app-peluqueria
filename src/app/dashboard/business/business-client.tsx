@@ -274,6 +274,8 @@ export default function BusinessClient({
   const [overrideIsClosed, setOverrideIsClosed] = useState(true);
   const [overrideStartTime, setOverrideStartTime] = useState("09:00");
   const [overrideEndTime, setOverrideEndTime] = useState("18:00");
+  const [overrideBreakStart, setOverrideBreakStart] = useState("");
+  const [overrideBreakEnd, setOverrideBreakEnd] = useState("");
   const [overrideReason, setOverrideReason] = useState("");
 
   const staffList = initialStaff;
@@ -299,6 +301,8 @@ export default function BusinessClient({
     setOverrideIsClosed(true);
     setOverrideStartTime("09:00");
     setOverrideEndTime("18:00");
+    setOverrideBreakStart("");
+    setOverrideBreakEnd("");
     setOverrideReason("");
     setShowOverrideModal(true);
   }
@@ -310,17 +314,22 @@ export default function BusinessClient({
     setOverrideIsClosed(o.is_closed);
     setOverrideStartTime(o.start_time ?? "09:00");
     setOverrideEndTime(o.end_time ?? "18:00");
+    setOverrideBreakStart(o.break_start ?? "");
+    setOverrideBreakEnd(o.break_end ?? "");
     setOverrideReason(o.reason ?? "");
     setShowOverrideModal(true);
   }
 
   async function handleSaveOverride() {
     if (!overrideDate) return;
+    const hasBreak = !overrideIsClosed && Boolean(overrideBreakStart) && Boolean(overrideBreakEnd);
     const res = await upsertShopDateOverride(
       overrideDate, overrideStaffId, overrideIsClosed,
       overrideIsClosed ? null : overrideStartTime,
       overrideIsClosed ? null : overrideEndTime,
-      overrideReason || null
+      overrideReason || null,
+      hasBreak ? overrideBreakStart : null,
+      hasBreak ? overrideBreakEnd : null
     );
     if (!res.success) { alert(res.error); return; }
     setShowOverrideModal(false);
@@ -1640,7 +1649,7 @@ export default function BusinessClient({
                       </p>
                       <p className="text-xs text-zinc-500">
                         {o.staff_id ? `${o.staff_name} — ` : ""}
-                        {o.is_closed ? "Cerrado todo el día" : `${o.start_time} a ${o.end_time}`}
+                        {o.is_closed ? "Cerrado todo el día" : `${o.start_time} a ${o.end_time}${o.break_start && o.break_end ? ` (corte ${o.break_start}-${o.break_end})` : ""}`}
                         {o.reason ? ` (${o.reason})` : ""}
                       </p>
                     </div>
@@ -1741,26 +1750,71 @@ export default function BusinessClient({
                     </button>
                   </div>
                   {!overrideIsClosed && (
-                    <div className="flex gap-3">
-                      <div className="flex-1">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Desde</label>
-                        <input
-                          type="time"
-                          value={overrideStartTime}
-                          onChange={(e) => setOverrideStartTime(e.target.value)}
-                          className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
-                        />
+                    <>
+                      <div className="flex gap-3">
+                        <div className="flex-1">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Desde</label>
+                          <input
+                            type="time"
+                            value={overrideStartTime}
+                            onChange={(e) => setOverrideStartTime(e.target.value)}
+                            className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Hasta</label>
+                          <input
+                            type="time"
+                            value={overrideEndTime}
+                            onChange={(e) => setOverrideEndTime(e.target.value)}
+                            className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
+                          />
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Hasta</label>
-                        <input
-                          type="time"
-                          value={overrideEndTime}
-                          onChange={(e) => setOverrideEndTime(e.target.value)}
-                          className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
-                        />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (overrideBreakStart && overrideBreakEnd) {
+                              setOverrideBreakStart("");
+                              setOverrideBreakEnd("");
+                            } else {
+                              setOverrideBreakStart("12:00");
+                              setOverrideBreakEnd("13:00");
+                            }
+                          }}
+                          className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors ${
+                            overrideBreakStart && overrideBreakEnd
+                              ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"
+                              : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
+                          }`}
+                        >
+                          {overrideBreakStart && overrideBreakEnd ? "Quitar corte" : "+ Agregar corte"}
+                        </button>
                       </div>
-                    </div>
+                      {overrideBreakStart && overrideBreakEnd && (
+                        <div className="flex gap-3">
+                          <div className="flex-1">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Corte desde</label>
+                            <input
+                              type="time"
+                              value={overrideBreakStart}
+                              onChange={(e) => setOverrideBreakStart(e.target.value)}
+                              className="w-full rounded-xl border border-amber-200 dark:border-amber-800 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Corte hasta</label>
+                            <input
+                              type="time"
+                              value={overrideBreakEnd}
+                              onChange={(e) => setOverrideBreakEnd(e.target.value)}
+                              className="w-full rounded-xl border border-amber-200 dark:border-amber-800 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Motivo (opcional)</label>

@@ -456,6 +456,8 @@ export type DateOverride = {
   is_closed: boolean;
   start_time: string | null;
   end_time: string | null;
+  break_start: string | null;
+  break_end: string | null;
   reason: string | null;
 };
 
@@ -475,7 +477,7 @@ export async function fetchShopDateOverrides(
     const admin = await createAdminClient();
     const { data, error } = await admin
       .from("shop_date_overrides")
-      .select("id, staff_id, date, is_closed, start_time, end_time, reason")
+      .select("id, staff_id, date, is_closed, start_time, end_time, break_start, break_end, reason")
       .eq("shop_id", shopId)
       .gte("date", startDate)
       .lte("date", endDate)
@@ -506,6 +508,8 @@ export async function fetchShopDateOverrides(
         is_closed: o.is_closed,
         start_time: o.start_time?.slice(0, 5) ?? null,
         end_time: o.end_time?.slice(0, 5) ?? null,
+        break_start: o.break_start?.slice(0, 5) ?? null,
+        break_end: o.break_end?.slice(0, 5) ?? null,
         reason: o.reason,
       })),
     };
@@ -520,13 +524,28 @@ export async function upsertShopDateOverride(
   isClosed: boolean,
   startTime?: string | null,
   endTime?: string | null,
-  reason?: string | null
+  reason?: string | null,
+  breakStart?: string | null,
+  breakEnd?: string | null
 ): Promise<ActionResult> {
   try {
     const shopIdResult = await requireOwnerShopId();
     if (!shopIdResult.success) return shopIdResult;
     const shopId = shopIdResult.data;
     const admin = await createAdminClient();
+
+    // Validate break is within working hours when not closed
+    if (!isClosed && startTime && endTime) {
+      const toMins = (v: string) => { const [h, m] = v.split(":").map(Number); return h * 60 + m; };
+      const s = toMins(startTime);
+      const e = toMins(endTime);
+      if (breakStart && breakEnd) {
+        const bs = toMins(breakStart);
+        const be = toMins(breakEnd);
+        if (bs >= be) return { success: false, error: "El inicio del corte debe ser anterior al fin" };
+        if (bs <= s || be >= e) return { success: false, error: "El corte debe estar dentro del horario de atencion" };
+      }
+    }
 
     // Delete existing override for this (shop, staff, date) to avoid unique constraint conflicts
     const delQuery = admin.from("shop_date_overrides").delete().eq("shop_id", shopId!).eq("date", date);
@@ -543,6 +562,8 @@ export async function upsertShopDateOverride(
       is_closed: isClosed,
       start_time: startTime || null,
       end_time: endTime || null,
+      break_start: breakStart || null,
+      break_end: breakEnd || null,
       reason: reason || null,
     });
 
