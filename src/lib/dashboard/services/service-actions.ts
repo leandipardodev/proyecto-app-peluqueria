@@ -15,7 +15,7 @@ type ServiceRow = {
   price: number;
   duration_minutes: number | null;
   pay_at_shop: boolean;
-  created_at: string;
+  created_at: string | null;
   updated_at: string | null;
   shop_id: string;
 };

@@ -15,6 +15,7 @@ import {
   buildRecurringStarts,
   registerLoyaltyCut,
 } from "./shared";
+import type { Json } from "@/lib/supabase/database.types";
 import "server-only";
 
 export async function createAppointment(formData: FormData, shopId: string): Promise<ActionResult> {
@@ -394,7 +395,7 @@ export async function updateAppointmentStatus(
     if (currentAppointmentError) return { success: false, error: currentAppointmentError.message };
     if (!currentAppointment) return { success: false, error: "Turno no encontrado" };
 
-    const updates: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
+    const updates: Record<string, Json> = { status, updated_at: new Date().toISOString() };
     if (status === "completed" && isPaid === undefined) {
       updates.is_paid = true;
     }

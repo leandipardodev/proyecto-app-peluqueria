@@ -11,7 +11,7 @@ interface ServiceFormProps {
     description?: string;
     category: string;
     price: number;
-    duration_minutes: number;
+    duration_minutes: number | null;
     pay_at_shop?: boolean;
   };
   onSuccess: () => void;

@@ -64,7 +64,7 @@ export async function fetchCustomersOverview(): Promise<ActionResult<CustomerRow
       appointmentsByCustomer.set(apt.customer_id, list);
     }
 
-    const rows: CustomerRow[] = ((customersRaw || []) as Array<Record<string, unknown>>).map((customer) => {
+    const rows: CustomerRow[] = ((customersRaw || []) as unknown as Array<Record<string, unknown>>).map((customer) => {
       const id = String(customer.id || "");
       const customerAppointments = appointmentsByCustomer.get(id) || [];
 
