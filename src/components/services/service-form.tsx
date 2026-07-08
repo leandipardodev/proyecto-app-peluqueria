@@ -2,6 +2,7 @@
 
 import { createService, updateService, fetchServices } from "@/lib/dashboard/services/service-actions";
 import { useEffect, useRef, useState, useTransition, memo } from "react";
+import { FormWithKeyboardNav } from "@/lib/use-form-keyboard-nav";
 
 interface ServiceFormProps {
   shopId: string;
@@ -70,7 +71,7 @@ const ServiceForm = memo(function ServiceForm({ shopId, service, onSuccess, staf
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <FormWithKeyboardNav onSubmit={handleSubmit} className="space-y-5">
       {error && (
         <div className="bg-red-50 text-red-700 text-sm px-4 py-2 rounded-lg">
           {error}
@@ -205,7 +206,7 @@ const ServiceForm = memo(function ServiceForm({ shopId, service, onSuccess, staf
               : "Crear Servicio"}
         </button>
       </div>
-    </form>
+    </FormWithKeyboardNav>
   );
 });
 

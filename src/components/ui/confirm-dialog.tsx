@@ -36,7 +36,7 @@ export default function ConfirmDialog({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.15 }}
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 px-4"
           role="dialog"
           aria-modal="true"
         >
@@ -60,10 +60,10 @@ export default function ConfirmDialog({
               <button
                 type="button"
                 onClick={onConfirm}
-                className={`px-3 py-1.5 rounded-lg text-sm text-white font-semibold transition-colors ${
+                className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
                   danger
-                    ? "bg-red-600 hover:bg-red-700"
-                    : "bg-violet-600 hover:bg-violet-700"
+                    ? "bg-red-600 hover:bg-red-700 text-white"
+                    : "ui-btn-primary"
                 }`}
               >
                 {confirmLabel}

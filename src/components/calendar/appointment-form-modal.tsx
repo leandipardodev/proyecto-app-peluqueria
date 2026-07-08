@@ -9,6 +9,7 @@ import { getArgentinaDateString } from "@/lib/argentina-time";
 import { AnimatePresence, motion } from "framer-motion";
 import GlassSelect from "@/components/ui/glass-select";
 import { createPortal } from "react-dom";
+import { FormWithKeyboardNav } from "@/lib/use-form-keyboard-nav";
 
 const STAFF_COLORS = ["#c084fc", "#34d399", "#fbbf24", "#fb7185", "#22d3ee", "#fb923c", "#818cf8", "#f472b6"];
 const STAFF_SPRING = { type: "spring" as const, stiffness: 500, damping: 30 };
@@ -309,7 +310,7 @@ export default function AppointmentFormModal({
           </button>
         </div>
 
-        <form id="appointment-form" onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+        <FormWithKeyboardNav onSubmit={handleSubmit} onCancel={onClose} id="appointment-form" className="flex flex-col flex-1 min-h-0">
           <div className="p-5 overflow-y-auto overscroll-y-contain flex-1 space-y-5">
             {error === "slot_taken" ? (
               <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-sm px-4 py-3 rounded-xl flex items-start gap-3">
@@ -895,7 +896,7 @@ export default function AppointmentFormModal({
                   : "Crear Turno"}
             </button>
           </div>
-        </form>
+        </FormWithKeyboardNav>
       </motion.div>
     </motion.div>,
     document.body

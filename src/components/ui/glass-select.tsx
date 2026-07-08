@@ -73,6 +73,20 @@ export default function GlassSelect({
     if (!open) setSearchQuery("");
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    const raf = requestAnimationFrame(() => {
+      if (searchable) {
+        const searchInput = dropdownRef.current?.querySelector<HTMLInputElement>('input[type="text"]');
+        searchInput?.focus();
+      } else {
+        const first = dropdownRef.current?.querySelector<HTMLButtonElement>("button");
+        first?.focus();
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [open, searchable]);
+
   const handleToggle = useCallback(() => {
     if (!open && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();

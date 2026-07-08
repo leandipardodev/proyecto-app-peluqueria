@@ -28,6 +28,7 @@ import { StatePanel } from "@/components/ui/state-panel";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import type { Industry } from "@/lib/industry/types";
 import { Copy, Check, Clock, UserCircle, Pencil, Trash2, DollarSign, Link2, MoreHorizontal, UserRound, ShieldCheck, ArrowLeft } from "lucide-react";
+import { FormWithKeyboardNav } from "@/lib/use-form-keyboard-nav";
 
 type StaffMember = {
   id: string;
@@ -396,7 +397,7 @@ export default function StaffList({
             <br />
             El {staffWordLower} debe abrir ese enlace e iniciar sesión con ese mismo correo para quedar asociado al local.
           </div>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <FormWithKeyboardNav onSubmit={handleSubmit} onCancel={() => setShowForm(false)} className="space-y-4">
             <div>
               <Label htmlFor="name">Nombre</Label>
               <Input
@@ -518,7 +519,7 @@ export default function StaffList({
                 Cancelar
               </Button>
             </div>
-          </form>
+          </FormWithKeyboardNav>
 
           {(generatedPassword || loginUrl) && (
             <div className="mt-4 p-5 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-xl">
