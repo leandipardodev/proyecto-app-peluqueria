@@ -329,14 +329,14 @@ export default function BatchAppointmentModal({
                       <button
                         type="button"
                         onClick={handleRetry}
-                        className="rounded-full border border-zinc-200 dark:border-zinc-700 px-4 py-1.5 text-sm text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer select-none"
+                        className="ui-btn-ghost rounded-lg px-4 py-1.5 text-sm"
                       >
                         Revisar errores
                       </button>
                       <button
                         type="button"
                         onClick={() => { onSuccess?.(); onClose(); }}
-                        className="rounded-full bg-[#0071E3] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#005fcc] transition-colors cursor-pointer select-none"
+                        className="ui-btn-primary rounded-lg px-4 py-1.5 text-sm font-medium"
                       >
                         Cerrar
                       </button>
@@ -393,7 +393,7 @@ export default function BatchAppointmentModal({
                   type="button"
                   onClick={addEntry}
                   disabled={!lastEntryValid}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer select-none disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="ui-btn-ghost inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm"
                 >
                   <Plus className="w-4 h-4" />
                   Agregar otro turno

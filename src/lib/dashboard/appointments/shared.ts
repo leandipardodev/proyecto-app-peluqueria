@@ -102,6 +102,8 @@ export type AppointmentEnriched = {
   loyalty_discount_percent_applied?: number;
   recurring_group_id: string | null;
   notes: string | null;
+  custom_service_name: string | null;
+  custom_service_duration: number | null;
   customers: { id: string; nombre: string | null; email: string; telefono: string | null; loyalty_rewards_available?: number | null } | null;
   staff: { user_id: string; name: string | null; email: string | null } | null;
   services: { id: string; name: string; price: number; duration_minutes: number } | null;
@@ -225,6 +227,7 @@ export type AppointmentTableRow = {
   customers: { id: string; nombre: string | null; email: string; telefono: string | null; loyalty_rewards_available?: number | null } | null;
   staff: { user_id: string; name: string | null } | null;
   services: { id: string; name: string; price: number } | null;
+  custom_service_name: string | null;
 };
 
 export async function registerLoyaltyCut(shopId: string, customerId: string): Promise<ActionResult> {

@@ -32,7 +32,7 @@ export default function DashboardMobileSidebar({ open, onClose, userName, onLogo
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-50 lg:hidden overflow-hidden"
+          className="fixed inset-0 z-50 min-[1367px]:hidden overflow-hidden"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

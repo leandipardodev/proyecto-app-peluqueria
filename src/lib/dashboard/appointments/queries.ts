@@ -19,7 +19,7 @@ export async function fetchAppointments(startDate: string, endDate: string, shop
 
     const { data, error } = await supabase
       .from("appointments")
-      .select("id, customer_id, staff_id, service_id, start_time, end_time, status, is_paid, deposit_amount, loyalty_reward_applied, loyalty_discount_percent_applied, recurring_group_id, notes")
+      .select("id, customer_id, staff_id, service_id, custom_service_name, custom_service_duration, start_time, end_time, status, is_paid, deposit_amount, loyalty_reward_applied, loyalty_discount_percent_applied, recurring_group_id, notes")
       .eq("shop_id", shopId)
       .gte("start_time", startDate)
       .lte("start_time", endDate)
@@ -75,7 +75,7 @@ export async function fetchAppointmentGroup(
 
     const { data: primary, error: primaryError } = await supabase
       .from("appointments")
-      .select("id, customer_id, staff_id, start_time, end_time, date_key_ar, status, is_paid, deposit_amount, loyalty_reward_applied, loyalty_discount_percent_applied, recurring_group_id, notes, service_id")
+      .select("id, customer_id, staff_id, start_time, end_time, date_key_ar, status, is_paid, deposit_amount, loyalty_reward_applied, loyalty_discount_percent_applied, recurring_group_id, notes, service_id, custom_service_name, custom_service_duration")
       .eq("id", appointmentId)
       .eq("shop_id", shopId)
       .maybeSingle();
@@ -92,7 +92,7 @@ export async function fetchAppointmentGroup(
     if (dateKey && customerId) {
       const query = supabase
         .from("appointments")
-        .select("id, customer_id, staff_id, service_id, start_time, end_time, date_key_ar, status, is_paid, deposit_amount, loyalty_reward_applied, loyalty_discount_percent_applied, recurring_group_id, notes")
+        .select("id, customer_id, staff_id, service_id, custom_service_name, custom_service_duration, start_time, end_time, date_key_ar, status, is_paid, deposit_amount, loyalty_reward_applied, loyalty_discount_percent_applied, recurring_group_id, notes")
         .eq("shop_id", shopId)
         .eq("customer_id", customerId)
         .eq("date_key_ar", dateKey)
@@ -237,7 +237,7 @@ export async function fetchAllAppointmentsForTable(
     const upcomingOnly = options?.upcomingOnly === true;
     let appointmentsQuery = admin
       .from("appointments")
-      .select("id, start_time, end_time, status, is_paid, deposit_amount, loyalty_reward_applied, loyalty_discount_percent_applied, recurring_group_id, customer_id, staff_id, service_id")
+      .select("id, start_time, end_time, status, is_paid, deposit_amount, loyalty_reward_applied, loyalty_discount_percent_applied, recurring_group_id, customer_id, staff_id, service_id, custom_service_name")
       .eq("shop_id", shopId)
       .order("start_time", { ascending: true });
 
@@ -294,6 +294,7 @@ export async function fetchAllAppointmentsForTable(
       customers: customerMap.get(apt.customer_id ?? "") || null,
       staff: staffMap.get(apt.staff_id ?? "") || null,
       services: serviceMap.get(apt.service_id ?? "") || null,
+      custom_service_name: apt.custom_service_name || null,
     })) as AppointmentTableRow[];
 
     return { success: true, data: rows };

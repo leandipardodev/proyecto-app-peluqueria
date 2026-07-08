@@ -908,7 +908,7 @@ export default function BookingThemeLivePreview({
               <button
                 type="button"
                 onClick={() => setConfirmRemove(null)}
-                className="rounded-full border border-zinc-200 px-4 py-1.5 text-xs font-medium text-zinc-600"
+                className="ui-btn-ghost rounded-lg px-4 py-1.5 text-xs font-medium"
               >
                 Cancelar
               </button>
@@ -918,7 +918,7 @@ export default function BookingThemeLivePreview({
                   onSectionRemove(confirmRemove);
                   setConfirmRemove(null);
                 }}
-                className="rounded-full bg-red-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-red-700"
+                className="ui-btn-primary rounded-lg px-4 py-1.5 text-xs font-medium"
               >
                 Eliminar
               </button>

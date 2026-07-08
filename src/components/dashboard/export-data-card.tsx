@@ -123,7 +123,7 @@ export default function ExportDataCard({ shopId }: Props) {
     <div className="relative inline-flex" onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
       <button
         type="button"
-        className="inline-flex items-center gap-2 rounded-full border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:border-violet-300 dark:hover:border-violet-600 transition-colors"
+        className="ui-btn-ghost inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium"
       >
         <Download className="w-4 h-4" />
         Descargar datos

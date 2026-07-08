@@ -432,7 +432,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
                       {clientName}
                     </p>
                     <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
-                      {(appt.services?.name || "Sin servicio") + (appt.services?.price ? ` · $${Number(appt.services.price).toFixed(2)}` : "")}
+                      {(appt.services?.name || appt.custom_service_name || "Sin servicio") + (appt.services?.price || appt.service_price ? ` · $${Number(appt.services?.price ?? appt.service_price).toFixed(2)}` : "")}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">

@@ -38,6 +38,8 @@ type Appointment = {
   staff_id: string | null;
   customer_id: string;
   service_id: string;
+  custom_service_name: string | null;
+  custom_service_duration: number | null;
   start_time: string;
   end_time: string;
   status: string;
@@ -265,7 +267,7 @@ const AppointmentBlock = memo(function AppointmentBlock({
     ? staffColorMap[appt.staff_id || ""] || STAFF_COLORS[0]
     : STAFF_COLORS[0];
 
-  const svcName = appt.services?.name || "";
+  const svcName = appt.services?.name || appt.custom_service_name || "";
 
   const isCancelled = appt.status === "cancelled";
   const isNoShow = appt.status === "no_show";
@@ -754,8 +756,8 @@ export default memo(function CalendarView({
 
       if (sameCustomer && sameStaff && consecutive && sameDay) {
         const cancelledFlag: boolean = current.status === "cancelled" || appt.status === "cancelled";
-        const currentName: string = current.status === "cancelled" ? "" : (current.services?.name || "");
-        const nextName: string = appt.status === "cancelled" ? "" : (appt.services?.name || "");
+        const currentName: string = current.status === "cancelled" ? "" : (current.services?.name || current.custom_service_name || "");
+        const nextName: string = appt.status === "cancelled" ? "" : (appt.services?.name || appt.custom_service_name || "");
         const mergedName: string = currentName && nextName
           ? `${currentName} + ${nextName}`
           : currentName || nextName;
@@ -1594,13 +1596,13 @@ export default memo(function CalendarView({
                   <span className="tabular-nums font-medium">{tipAppt.start_hhmm}</span>
                 </div>
                 <div className="mt-3.5 mb-3.5 h-px bg-gradient-to-r from-zinc-200/80 via-zinc-200/30 to-transparent dark:from-zinc-700/50 dark:via-zinc-700/20" />
-                {tipAppt.services?.name && (
+                {(tipAppt.services?.name || tipAppt.custom_service_name) && (
                   <div className="flex items-baseline gap-2">
                     <span className="text-[11px] text-zinc-400 dark:text-zinc-500 shrink-0">Servicio</span>
                     <div className="flex items-center gap-2 min-w-0">
                       <div className="w-[5px] h-[5px] rounded-full shrink-0" style={{ backgroundColor: solidStaffColor }} />
                       <span className="text-sm font-medium text-gray-800 dark:text-gray-200 leading-tight truncate">
-                        {tipAppt.services.name}
+                        {tipAppt.services?.name || tipAppt.custom_service_name}
                       </span>
                     </div>
                   </div>
@@ -1707,7 +1709,7 @@ export default memo(function CalendarView({
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{appt.customers?.nombre || "Sin cliente"}</p>
                       <p className="text-[11px] text-zinc-400 dark:text-zinc-500 truncate">
-                        {appt.services?.name || "Sin servicio"}
+                        {appt.services?.name || appt.custom_service_name || "Sin servicio"}
                         <span className="mx-1">·</span>
                         {appt.staff?.name || "Sin asignar"}
                       </p>

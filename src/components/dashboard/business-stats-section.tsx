@@ -50,7 +50,7 @@ export default function BusinessStatsSection({
           <button
             type="button"
             onClick={() => setShowStats(!showStats)}
-            className="inline-flex items-center gap-2 rounded-full border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-300 transition hover:bg-zinc-100 dark:hover:bg-zinc-700"
+            className="ui-btn-ghost inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em]"
             aria-label={showStats ? "Ocultar estadísticas" : "Mostrar estadísticas"}
           >
             {showStats ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}

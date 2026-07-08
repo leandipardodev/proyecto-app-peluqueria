@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect, useMemo, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
-import { Store, CreditCard, MessageSquareText, Smartphone, Link2, MapPin, Phone, Clock, Share2, AlertTriangle, Trash2, Users, Scissors, ChevronRight, ChevronDown, Calendar, Plus, X } from "lucide-react";
+import { Store, CreditCard, MessageSquareText, Smartphone, Link2, MapPin, Phone, Clock, Share2, AlertTriangle, Trash2, Users, Scissors, ChevronRight, ChevronDown, Calendar, Plus } from "lucide-react";
 import { TagChips, useTagInsert } from "@/components/ui/tag-chips";
 import Link from "next/link";
 import Image from "next/image";
@@ -17,6 +17,7 @@ import BusinessStatsSection from "@/components/dashboard/business-stats-section"
 import ExportDataCard from "@/components/dashboard/export-data-card";
 import CreateShopModal from "@/components/dashboard/create-shop-modal";
 import CloseShopModal from "@/components/dashboard/close-shop-modal";
+import BaseModal from "@/components/ui/modal";
 import { bulkUpdateServiceCategories } from "@/lib/dashboard/services/service-actions";
 import { createAdditionalShop } from "@/lib/dashboard/auth/actions";
 import {
@@ -258,6 +259,11 @@ export default function BusinessClient({
   const insertBirthdayTag = useTagInsert(birthdayRef, birthdayWhatsappTemplate, setBirthdayWhatsappTemplate);
   const [showStats, setShowStats] = useState(false);
   const [showThemeCard, setShowThemeCard] = useState(false);
+  const [showPublicInfo, setShowPublicInfo] = useState(false);
+  const [showPaymentsCard, setShowPaymentsCard] = useState(false);
+  const [showHoursCard, setShowHoursCard] = useState(false);
+  const [showHolidaysCard, setShowHolidaysCard] = useState(false);
+  const [showCommsCard, setShowCommsCard] = useState(false);
   const [bookingDepositEnabled, setBookingDepositEnabled] = useState(data?.booking_deposit_enabled ?? true);
   const [bookingDepositAmount, setBookingDepositAmount] = useState(String(data?.booking_deposit_amount ?? 3000));
   const [payAtShop, setPayAtShop] = useState(data?.pay_at_shop ?? false);
@@ -1176,16 +1182,31 @@ export default function BusinessClient({
       {/* Card: Información Pública */}
       <form id="setup-public-info" onSubmit={handleSavePublicInfo} className="order-1">
         <div className="rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm transition-colors bg-white dark:bg-zinc-900">
-          <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowPublicInfo((v) => !v)}
+            className="w-full px-6 py-5 border-b border-white/10 flex items-center gap-3 text-left"
+          >
             <div className="p-2 rounded-full bg-violet-500/15">
               <Store className="w-5 h-5 text-violet-600" />
             </div>
-            <div>
+            <div className="flex-1 min-w-0">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Información Pública</h2>
               <p className="text-xs text-zinc-400 dark:text-zinc-500">Estos datos se muestran en tu página de reservas</p>
             </div>
-          </div>
-          <div className="p-6 space-y-5">
+            <ChevronDown className={`w-5 h-5 text-zinc-400 transition-transform duration-300 ${showPublicInfo ? "rotate-180" : ""}`} />
+          </button>
+          <AnimatePresence initial={false}>
+            {showPublicInfo && (
+              <motion.div
+                key="public-info-body"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+                className="overflow-hidden"
+              >
+                <div className="p-6 space-y-5">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 cursor-pointer">Nombre del Local</label>
               <input
@@ -1292,6 +1313,9 @@ export default function BusinessClient({
               </div>
             </div>
           </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </form>
 
@@ -1380,16 +1404,31 @@ export default function BusinessClient({
 
       {/* Card: Configuración Técnica */}
       <div id="setup-payments" className="order-3 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm transition-colors bg-white dark:bg-zinc-900">
-        <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setShowPaymentsCard((v) => !v)}
+          className="w-full px-6 py-5 border-b border-white/10 flex items-center gap-3 text-left"
+        >
           <div className="p-2 rounded-full bg-amber-500/15">
             <Smartphone className="w-5 h-5 text-amber-600" />
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Forma de cobro</h2>
             <p className="text-xs text-zinc-400 dark:text-zinc-500">Mercado Pago, seña online y mensaje automático</p>
           </div>
-        </div>
-        <div className="p-6 space-y-8">
+          <ChevronDown className={`w-5 h-5 text-zinc-400 transition-transform duration-300 ${showPaymentsCard ? "rotate-180" : ""}`} />
+        </button>
+        <AnimatePresence initial={false}>
+          {showPaymentsCard && (
+            <motion.div
+              key="payments-body"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+              className="overflow-hidden"
+            >
+              <div className="p-6 space-y-8">
 
           {/* Mercado Pago OAuth */}
           {canManageBilling ? (
@@ -1417,7 +1456,7 @@ export default function BusinessClient({
                       onMouseDown={playClick}
                       onClick={handleConnectMercadoPago}
                       disabled={!isOwnerOrAdmin || isConnectingMp || isDisconnectingMp}
-                      className="inline-flex items-center justify-center gap-2 rounded-full bg-sky-600 px-5 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50"
+                      className="ui-btn-primary inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2 text-sm font-medium"
                     >
                       <Link2 className="w-4 h-4" />
                       {isConnectingMp ? "Conectando..." : "Conectar Mercado Pago"}
@@ -1428,7 +1467,7 @@ export default function BusinessClient({
                       onMouseDown={playClick}
                       onClick={handleDisconnectMercadoPago}
                       disabled={!isOwnerOrAdmin || isDisconnectingMp || isConnectingMp}
-                      className="inline-flex items-center justify-center gap-2 rounded-full border border-rose-300 bg-white px-5 py-2 text-sm font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-50 dark:border-rose-700/50 dark:bg-black/30 dark:text-rose-200"
+                      className="ui-btn-ghost inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2 text-sm font-medium"
                     >
                       <Trash2 className="w-4 h-4" />
                       {isDisconnectingMp ? "Desconectando..." : "Desconectar"}
@@ -1505,12 +1544,19 @@ export default function BusinessClient({
           )}
 
         </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
       </div>
 
       <div className="order-2 lg:grid lg:grid-cols-2 gap-6">
         {/* Card: Horarios de Atención */}
         <div id="setup-hours" className="rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm transition-colors bg-white dark:bg-zinc-900">
-          <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowHoursCard((v) => !v)}
+            className="w-full px-6 py-5 border-b border-white/10 flex items-center gap-3 text-left"
+          >
             <div className="p-2 rounded-full bg-blue-500/15">
               <Clock className="w-5 h-5 text-blue-600" />
             </div>
@@ -1518,9 +1564,19 @@ export default function BusinessClient({
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Horarios de Atención</h2>
               <p className="text-xs text-zinc-400 dark:text-zinc-500">Días y horarios de apertura del local</p>
             </div>
-            <div />
-          </div>
-          <div className="p-4">
+            <ChevronDown className={`w-5 h-5 text-zinc-400 transition-transform duration-300 ${showHoursCard ? "rotate-180" : ""}`} />
+          </button>
+          <AnimatePresence initial={false}>
+            {showHoursCard && (
+              <motion.div
+                key="hours-body"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+                className="overflow-hidden"
+              >
+              <div className="p-4">
             {hoursLoading ? (
               <div className="py-8 text-center text-sm text-zinc-400">Cargando horarios...</div>
             ) : businessHours ? (
@@ -1617,29 +1673,49 @@ export default function BusinessClient({
               <div className="py-8 text-center text-sm text-red-500">Error al cargar horarios</div>
             )}
           </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Card: Feriados y Excepciones */}
         <div className="rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm transition-colors bg-white dark:bg-zinc-900">
-          <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
-            <div className="p-2 rounded-full bg-amber-500/15">
-              <Calendar className="w-5 h-5 text-amber-600" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Feriados y Excepciones</h2>
-              <p className="text-xs text-zinc-400 dark:text-zinc-500">Cierres totales o horarios reducidos para dias puntuales</p>
-            </div>
+          <div className="flex items-center px-6 py-5 border-b border-white/10 gap-3">
+            <button
+              type="button"
+              onClick={() => setShowHolidaysCard((v) => !v)}
+              className="flex items-center gap-3 flex-1 text-left cursor-pointer"
+            >
+              <div className="p-2 rounded-full bg-amber-500/15 shrink-0">
+                <Calendar className="w-5 h-5 text-amber-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Feriados y Excepciones</h2>
+                <p className="text-xs text-zinc-400 dark:text-zinc-500">Cierres totales o horarios reducidos para dias puntuales</p>
+              </div>
+              <ChevronDown className={`w-5 h-5 text-zinc-400 transition-transform duration-300 shrink-0 ${showHolidaysCard ? "rotate-180" : ""}`} />
+            </button>
             {isOwnerOrAdmin && (
               <button
                 type="button"
-                onClick={openNewOverride}
-                className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 text-sm font-medium px-4 py-2 transition-colors"
+                onClick={(e) => { e.stopPropagation(); openNewOverride(); }}
+                className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 text-sm font-medium px-4 py-2 transition-colors cursor-pointer"
               >
                 <Plus className="w-4 h-4" /> Agregar
               </button>
             )}
           </div>
-          <div className="p-4">
+          <AnimatePresence initial={false}>
+            {showHolidaysCard && (
+              <motion.div
+                key="holidays-body"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+                className="overflow-hidden"
+              >
+              <div className="p-4">
             {overridesLoading ? (
               <div className="py-8 text-center text-sm text-zinc-400">Cargando excepciones...</div>
             ) : overrides.length === 0 ? (
@@ -1686,177 +1762,140 @@ export default function BusinessClient({
               </div>
             )}
           </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
-      {portalReady && typeof document !== "undefined" && createPortal(
-        <AnimatePresence>
-          {showOverrideModal && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 flex items-center justify-center z-[60] bg-black/50 backdrop-blur-sm"
-              onClick={() => setShowOverrideModal(false)}
+      <BaseModal
+        open={showOverrideModal}
+        onClose={() => setShowOverrideModal(false)}
+        title={editOverride ? "Editar excepción" : "Nueva excepción"}
+        maxWidth="sm"
+      >
+        <div className="p-5 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Fecha</label>
+            <input
+              type="date"
+              value={overrideDate}
+              onChange={(e) => setOverrideDate(e.target.value)}
+              className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Afecta a</label>
+            <select
+              value={overrideStaffId ?? ""}
+              onChange={(e) => setOverrideStaffId(e.target.value || null)}
+              className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
             >
-              <motion.div
-                initial={{ scale: 0.95, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.95, opacity: 0 }}
-                className="bg-white dark:bg-zinc-900 rounded-[2rem] shadow-xl w-full max-w-md mx-4 overflow-hidden"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    {editOverride ? "Editar excepción" : "Nueva excepción"}
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={() => setShowOverrideModal(false)}
-                    className="p-1.5 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+              <option value="">Todo el local</option>
+              {staffList.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setOverrideIsClosed(true)}
+              className={`flex-1 rounded-xl py-2 text-sm font-medium transition-colors ${overrideIsClosed ? "bg-red-500 text-white" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"}`}
+            >
+              Cerrado
+            </button>
+            <button
+              type="button"
+              onClick={() => setOverrideIsClosed(false)}
+              className={`flex-1 rounded-xl py-2 text-sm font-medium transition-colors ${!overrideIsClosed ? "bg-amber-500 text-white" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"}`}
+            >
+              Horario reducido
+            </button>
+          </div>
+          {!overrideIsClosed && (
+            <>
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Desde</label>
+                  <input
+                    type="time"
+                    value={overrideStartTime}
+                    onChange={(e) => setOverrideStartTime(e.target.value)}
+                    className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
+                  />
                 </div>
-                <div className="p-6 space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Fecha</label>
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Hasta</label>
+                  <input
+                    type="time"
+                    value={overrideEndTime}
+                    onChange={(e) => setOverrideEndTime(e.target.value)}
+                    className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (overrideBreakStart && overrideBreakEnd) {
+                      setOverrideBreakStart("");
+                      setOverrideBreakEnd("");
+                    } else {
+                      setOverrideBreakStart("12:00");
+                      setOverrideBreakEnd("13:00");
+                    }
+                  }}
+                  className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors ${
+                    overrideBreakStart && overrideBreakEnd
+                      ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"
+                      : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
+                  }`}
+                >
+                  {overrideBreakStart && overrideBreakEnd ? "Quitar corte" : "+ Agregar corte"}
+                </button>
+              </div>
+              {overrideBreakStart && overrideBreakEnd && (
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Corte desde</label>
                     <input
-                      type="date"
-                      value={overrideDate}
-                      onChange={(e) => setOverrideDate(e.target.value)}
-                      className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
+                      type="time"
+                      value={overrideBreakStart}
+                      onChange={(e) => setOverrideBreakStart(e.target.value)}
+                      className="w-full rounded-xl border border-amber-200 dark:border-amber-800 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Afecta a</label>
-                    <select
-                      value={overrideStaffId ?? ""}
-                      onChange={(e) => setOverrideStaffId(e.target.value || null)}
-                      className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
-                    >
-                      <option value="">Todo el local</option>
-                      {staffList.map((s) => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setOverrideIsClosed(true)}
-                      className={`flex-1 rounded-xl py-2 text-sm font-medium transition-colors ${overrideIsClosed ? "bg-red-500 text-white" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"}`}
-                    >
-                      Cerrado
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setOverrideIsClosed(false)}
-                      className={`flex-1 rounded-xl py-2 text-sm font-medium transition-colors ${!overrideIsClosed ? "bg-amber-500 text-white" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"}`}
-                    >
-                      Horario reducido
-                    </button>
-                  </div>
-                  {!overrideIsClosed && (
-                    <>
-                      <div className="flex gap-3">
-                        <div className="flex-1">
-                          <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Desde</label>
-                          <input
-                            type="time"
-                            value={overrideStartTime}
-                            onChange={(e) => setOverrideStartTime(e.target.value)}
-                            className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Hasta</label>
-                          <input
-                            type="time"
-                            value={overrideEndTime}
-                            onChange={(e) => setOverrideEndTime(e.target.value)}
-                            className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
-                          />
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (overrideBreakStart && overrideBreakEnd) {
-                              setOverrideBreakStart("");
-                              setOverrideBreakEnd("");
-                            } else {
-                              setOverrideBreakStart("12:00");
-                              setOverrideBreakEnd("13:00");
-                            }
-                          }}
-                          className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors ${
-                            overrideBreakStart && overrideBreakEnd
-                              ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"
-                              : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
-                          }`}
-                        >
-                          {overrideBreakStart && overrideBreakEnd ? "Quitar corte" : "+ Agregar corte"}
-                        </button>
-                      </div>
-                      {overrideBreakStart && overrideBreakEnd && (
-                        <div className="flex gap-3">
-                          <div className="flex-1">
-                            <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Corte desde</label>
-                            <input
-                              type="time"
-                              value={overrideBreakStart}
-                              onChange={(e) => setOverrideBreakStart(e.target.value)}
-                              className="w-full rounded-xl border border-amber-200 dark:border-amber-800 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
-                            />
-                          </div>
-                          <div className="flex-1">
-                            <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Corte hasta</label>
-                            <input
-                              type="time"
-                              value={overrideBreakEnd}
-                              onChange={(e) => setOverrideBreakEnd(e.target.value)}
-                              className="w-full rounded-xl border border-amber-200 dark:border-amber-800 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Motivo (opcional)</label>
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Corte hasta</label>
                     <input
-                      type="text"
-                      value={overrideReason}
-                      onChange={(e) => setOverrideReason(e.target.value)}
-                      placeholder="Ej: Feriado nacional, Vacaciones..."
-                      className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
+                      type="time"
+                      value={overrideBreakEnd}
+                      onChange={(e) => setOverrideBreakEnd(e.target.value)}
+                      className="w-full rounded-xl border border-amber-200 dark:border-amber-800 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
                     />
                   </div>
                 </div>
-                <div className="flex justify-end gap-3 px-6 py-4 border-t border-zinc-200 dark:border-zinc-800">
-                  <button
-                    type="button"
-                    onClick={() => setShowOverrideModal(false)}
-                    className="rounded-full px-4 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSaveOverride}
-                    className="rounded-full px-4 py-2 text-sm font-medium bg-amber-500 text-white hover:bg-amber-600 transition-colors"
-                  >
-                    Guardar
-                  </button>
-                </div>
-              </motion.div>
-            </motion.div>
+              )}
+            </>
           )}
-        </AnimatePresence>,
-        document.body,
-      )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Motivo (opcional)</label>
+            <input
+              type="text"
+              value={overrideReason}
+              onChange={(e) => setOverrideReason(e.target.value)}
+              placeholder="Ej: Feriado nacional, Vacaciones..."
+              className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
+            />
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 px-5 pb-5">
+          <button type="button" onClick={() => setShowOverrideModal(false)} className="ui-btn-ghost rounded-lg px-4 py-2 text-sm font-medium">Cancelar</button>
+          <button type="button" onClick={handleSaveOverride} className="ui-btn-primary rounded-lg px-4 py-2 text-sm font-medium">Guardar</button>
+        </div>
+      </BaseModal>
 
       {portalReady && typeof document !== "undefined" && createPortal(
         <AnimatePresence>
@@ -1942,7 +1981,11 @@ export default function BusinessClient({
 
       {/* Comunicaciones con los clientes */}
       <div className="rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm transition-colors bg-white dark:bg-zinc-900">
-        <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setShowCommsCard((v) => !v)}
+          className="w-full px-6 py-5 border-b border-white/10 flex items-center gap-3 text-left"
+        >
           <div className="p-2 rounded-full bg-violet-500/15">
             <MessageSquareText className="w-5 h-5 text-violet-600" />
           </div>
@@ -1953,8 +1996,19 @@ export default function BusinessClient({
             </div>
             <p className="text-xs text-zinc-400 dark:text-zinc-500">Personalizá los mensajes que reciben tus clientes</p>
           </div>
-        </div>
-        <div className="p-6 space-y-6">
+          <ChevronDown className={`w-5 h-5 text-zinc-400 transition-transform duration-300 ${showCommsCard ? "rotate-180" : ""}`} />
+        </button>
+        <AnimatePresence initial={false}>
+          {showCommsCard && (
+            <motion.div
+              key="comms-body"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+              className="overflow-hidden"
+            >
+              <div className="p-6 space-y-6">
 
           {/* Mensaje de confirmación de turno */}
           <div className="rounded-2xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/30 p-5">
@@ -2036,6 +2090,9 @@ export default function BusinessClient({
           </div>
 
         </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
       </div>
 
       {/* Exportar datos */}
@@ -2118,7 +2175,7 @@ export default function BusinessClient({
               onMouseDown={playClick}
               onClick={() => setShowCloseModal(true)}
               disabled={isDeleting}
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-red-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              className="ui-btn-primary inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium"
             >
               <Trash2 className="w-4 h-4" />
               {isDeleting ? "Cerrando local..." : "Continuar cierre"}
@@ -2134,7 +2191,6 @@ export default function BusinessClient({
         onShopNameChange={setNewShopName}
         onCreate={handleCreateNewShop}
         creating={creatingShop}
-        portalReady={portalReady}
       />
 
       <CloseShopModal
@@ -2144,7 +2200,6 @@ export default function BusinessClient({
         onConfirmTextChange={setCloseConfirm}
         onConfirm={handleCloseShop}
         pending={isDeleting}
-        portalReady={portalReady}
       />
 
       <p className="text-xs text-center text-zinc-400 dark:text-zinc-600 pt-2">

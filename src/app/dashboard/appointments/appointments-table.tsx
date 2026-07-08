@@ -23,6 +23,7 @@ type Appointment = {
   customers: { id: string; nombre: string | null; email: string; telefono: string | null } | null;
   staff: { user_id: string; name: string | null } | null;
   services: { id: string; name: string; price: number } | null;
+  custom_service_name: string | null;
 };
 
 
@@ -109,7 +110,7 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
       const now = new Date().toISOString();
       const { data: rows, error } = await supabase
         .from("appointments")
-        .select("id, start_time, end_time, status, is_paid, deposit_amount, customer_id, staff_id, service_id")
+        .select("id, start_time, end_time, status, is_paid, deposit_amount, customer_id, staff_id, service_id, custom_service_name")
         .eq("shop_id", shopId)
         .gte("start_time", now)
         .order("start_time", { ascending: true })
@@ -137,6 +138,7 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
           customers: customerMap.get(r.customer_id ?? "") ?? null,
           staff: staffMap.get(r.staff_id ?? "") ?? null,
           services: serviceMap.get(r.service_id ?? "") ?? null,
+          custom_service_name: (r as Record<string, unknown>).custom_service_name as string | null ?? null,
         }));
         setAppointments(assembled as Appointment[]);
       }
@@ -211,7 +213,8 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
             const svc = apt.services?.name ? extractEmoji(apt.services.name) : null;
             const urgent = needsStatusAttention(apt.start_time);
             const phone = apt.customers?.telefono || null;
-            const serviceNames = apt.services?.name ? [apt.services.name] : undefined;
+            const serviceName = apt.services?.name || apt.custom_service_name || "";
+            const serviceNames = serviceName ? [serviceName] : undefined;
             const whatsappUrl = buildWhatsAppUrl(phone, apt.customers?.nombre || customerWord, apt.start_time, serviceNames);
             return (
               <div key={apt.id} className="bg-white dark:bg-zinc-900 rounded-[1.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm p-4">
@@ -229,7 +232,7 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
                   {" - "}
                   {new Date(apt.end_time).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
                 </p>
-                <p className="text-sm text-gray-700 dark:text-gray-300">{svc ? `${svc.emoji} ${svc.label}` : apt.services?.name || "N/A"}</p>
+                <p className="text-sm text-gray-700 dark:text-gray-300">{svc ? `${svc.emoji} ${svc.label}` : serviceName || "N/A"}</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">{staffWord}: {apt.staff?.name || "N/A"}</p>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <button
@@ -285,7 +288,8 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
               </tr>
             ) : (
               pagedAppointments.map((apt) => {
-                const svc = apt.services?.name ? extractEmoji(apt.services.name) : null;
+                const svcT = apt.services?.name ? extractEmoji(apt.services.name) : null;
+                const serviceNameT = apt.services?.name || apt.custom_service_name || "";
                 return (
                   <tr key={apt.id} className="hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer">
                     <td suppressHydrationWarning className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
@@ -300,7 +304,7 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
                       {apt.customers?.nombre || "N/A"}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100 max-w-[220px]">
-                      {svc ? `${svc.emoji} ${svc.label}` : apt.services?.name || "N/A"}
+                      {svcT ? `${svcT.emoji} ${svcT.label}` : serviceNameT || "N/A"}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100 max-w-[160px]">
                       {apt.staff?.name || "N/A"}
@@ -321,7 +325,7 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
                         {(() => {
                           const urgent = needsStatusAttention(apt.start_time);
                           const phone = apt.customers?.telefono || null;
-                          const serviceNames = apt.services?.name ? [apt.services.name] : undefined;
+                          const serviceNames = (apt.services?.name || apt.custom_service_name) ? [apt.services?.name || apt.custom_service_name!] : undefined;
                           const whatsappUrl = buildWhatsAppUrl(phone, apt.customers?.nombre || customerWord, apt.start_time, serviceNames);
                           return (
                             <>

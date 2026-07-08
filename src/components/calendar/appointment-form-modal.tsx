@@ -98,6 +98,10 @@ export default function AppointmentFormModal({
   const [serviceCustomDurations, setServiceCustomDurations] = useState<Record<string, number>>({});
   const [editingDurationId, setEditingDurationId] = useState<string | null>(null);
   const [editingDurationValue, setEditingDurationValue] = useState("");
+  const [isCustomService, setIsCustomService] = useState(false);
+  const [customServiceName, setCustomServiceName] = useState("");
+  const [customServicePrice, setCustomServicePrice] = useState("");
+  const [customServiceDuration, setCustomServiceDuration] = useState("");
   const { addToast } = useToast();
 
   useEffect(() => {
@@ -136,6 +140,10 @@ export default function AppointmentFormModal({
       setServiceCustomDurations({});
       setEditingDurationId(null);
       setEditingDurationValue("");
+      setIsCustomService(false);
+      setCustomServiceName("");
+      setCustomServicePrice("");
+      setCustomServiceDuration("");
       setSelectedDate(initialDate || getArgentinaDateString());
       setSelectedTime(initialHour ? `${String(initialHour).padStart(2, "0")}:00` : "09:00");
       setError(null);
@@ -222,13 +230,26 @@ export default function AppointmentFormModal({
     e.preventDefault();
     setError(null);
 
-    if (selectedServiceIds.length === 0) {
+    if (!isCustomService && selectedServiceIds.length === 0) {
       setError("Seleccioná al menos un servicio");
       return;
     }
 
+    if (isCustomService && !customServiceName.trim()) {
+      setError("Ingresá el nombre del servicio");
+      return;
+    }
+
     const formData = new FormData(e.currentTarget);
-    formData.set("service_ids", selectedServiceIds.join(","));
+    if (isCustomService) {
+      formData.set("is_custom_service", "true");
+      formData.set("custom_service_name", customServiceName.trim());
+      formData.set("custom_service_price", customServicePrice || "0");
+      const dur = customServiceDuration ? customServiceDuration : "30";
+      formData.set("custom_service_duration", dur);
+    } else {
+      formData.set("service_ids", selectedServiceIds.join(","));
+    }
 
     setIsSubmitting(true);
     try {
@@ -240,9 +261,11 @@ export default function AppointmentFormModal({
         setError(result.error);
       } else {
         playPop();
-        addToast(result.success
-          ? `Turno${selectedServiceIds.length > 1 ? "s" : ""} creado${selectedServiceIds.length > 1 ? "s" : ""}`
-          : "Turno guardado", "success");
+        const serviceCount = isCustomService ? 1 : selectedServiceIds.length;
+        addToast(
+          `Turno${serviceCount > 1 ? "s" : ""} creado${serviceCount > 1 ? "s" : ""}`,
+          "success"
+        );
         onSuccess?.();
         onClose();
       }
@@ -434,189 +457,266 @@ export default function AppointmentFormModal({
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                 Servicios <span className="text-red-500">*</span>
               </label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
-                <input
-                  ref={serviceSearchRef}
-                  type="text"
-                  placeholder="Buscar y agregar servicio..."
-                  value={serviceSearchQuery}
-                  onChange={(e) => {
-                    setServiceSearchQuery(e.target.value);
-                    if (!serviceSearchOpen) setServiceSearchOpen(true);
-                  }}
-                  onFocus={() => {
-                    setServiceSearchOpen(true);
-                    if (serviceSearchRef.current) {
-                      const r = serviceSearchRef.current.getBoundingClientRect();
-                      setServiceDropdownStyle({ top: r.bottom + 4, left: r.left, width: r.width });
-                    }
-                  }}
-                  onBlur={() => setTimeout(() => setServiceSearchOpen(false), 200)}
-                  className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
-                />
-                {serviceSearchOpen && filteredServices.length > 0 && serviceDropdownStyle && typeof document !== "undefined" && createPortal(
-                  <div
-                    ref={serviceDropdownRef}
-                    style={{
-                      position: "fixed",
-                      top: serviceDropdownStyle.top,
-                      left: serviceDropdownStyle.left,
-                      width: serviceDropdownStyle.width,
-                      zIndex: 9999,
-                    }}
-                    className="bg-white dark:bg-zinc-800 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden py-1 max-h-48 overflow-y-auto"
-                  >
-                    {filteredServices.map((s) => {
-                      const already = selectedServiceIds.includes(s.id);
-                      return (
-                        <button
-                          key={s.id}
-                          type="button"
-                          onMouseDown={() => { if (!already) addService(s.id); }}
-                          disabled={already}
-                          className={`w-full text-left px-3 py-2.5 text-sm transition-colors cursor-pointer select-none flex items-center justify-between ${
-                            already
-                              ? "text-zinc-400 dark:text-zinc-500 bg-zinc-50 dark:bg-zinc-800 cursor-not-allowed"
-                              : "text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20"
-                          }`}
-                        >
-                          <span className="font-medium">{s.name}</span>
-                          <span className="text-xs text-zinc-400 tabular-nums">
-                            ${s.price.toFixed(2)} · {s.duration_minutes}min
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>,
-                  document.body
-                )}
+
+              <div className="flex rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden mb-3 bg-white dark:bg-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setIsCustomService(false)}
+                  className={`flex-1 py-2 text-sm font-medium transition-colors cursor-pointer select-none ${
+                    !isCustomService
+                      ? "bg-violet-600 text-white shadow-sm"
+                      : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+                  }`}
+                >
+                  Servicios del local
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsCustomService(true)}
+                  className={`flex-1 py-2 text-sm font-medium transition-colors cursor-pointer select-none ${
+                    isCustomService
+                      ? "bg-violet-600 text-white shadow-sm"
+                      : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+                  }`}
+                >
+                  Servicio personalizado
+                </button>
               </div>
 
-              {selectedServices.length > 0 && (
-                <div className="mt-3 space-y-3">
-                  <div className="flex flex-wrap gap-1.5">
-                    {selectedServices.map((s) => {
-                      const effDuration = serviceCustomDurations[s.id] ?? s.duration_minutes;
-                      const isCustom = effDuration !== s.duration_minutes;
-                      return (
-                      <span
-                        key={s.id}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-violet-50 dark:bg-violet-900/30 text-violet-800 dark:text-violet-200 rounded-lg text-sm font-medium"
+              {!isCustomService && (
+                <>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                    <input
+                      ref={serviceSearchRef}
+                      type="text"
+                      placeholder="Buscar y agregar servicio..."
+                      value={serviceSearchQuery}
+                      onChange={(e) => {
+                        setServiceSearchQuery(e.target.value);
+                        if (!serviceSearchOpen) setServiceSearchOpen(true);
+                      }}
+                      onFocus={() => {
+                        setServiceSearchOpen(true);
+                        if (serviceSearchRef.current) {
+                          const r = serviceSearchRef.current.getBoundingClientRect();
+                          setServiceDropdownStyle({ top: r.bottom + 4, left: r.left, width: r.width });
+                        }
+                      }}
+                      onBlur={() => setTimeout(() => setServiceSearchOpen(false), 200)}
+                      className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
+                    />
+                    {serviceSearchOpen && filteredServices.length > 0 && serviceDropdownStyle && typeof document !== "undefined" && createPortal(
+                      <div
+                        ref={serviceDropdownRef}
+                        style={{
+                          position: "fixed",
+                          top: serviceDropdownStyle.top,
+                          left: serviceDropdownStyle.left,
+                          width: serviceDropdownStyle.width,
+                          zIndex: 9999,
+                        }}
+                        className="bg-white dark:bg-zinc-800 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden py-1 max-h-48 overflow-y-auto"
                       >
-                        {s.name}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingDurationId(s.id);
-                            setEditingDurationValue(String(effDuration));
-                          }}
-                          className={`inline-flex items-center gap-0.5 text-xs hover:text-violet-600 transition-colors cursor-pointer select-none ${isCustom ? 'text-violet-600 dark:text-violet-300 font-semibold' : 'opacity-70'}`}
-                        >
-                          {effDuration}min
-                          <Pencil className="w-3 h-3 opacity-60" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => removeService(s.id)}
-                          className="hover:bg-violet-200 dark:hover:bg-violet-800 rounded p-0.5 transition-colors cursor-pointer select-none"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                      );
-                    })}
+                        {filteredServices.map((s) => {
+                          const already = selectedServiceIds.includes(s.id);
+                          return (
+                            <button
+                              key={s.id}
+                              type="button"
+                              onMouseDown={() => { if (!already) addService(s.id); }}
+                              disabled={already}
+                              className={`w-full text-left px-3 py-2.5 text-sm transition-colors cursor-pointer select-none flex items-center justify-between ${
+                                already
+                                  ? "text-zinc-400 dark:text-zinc-500 bg-zinc-50 dark:bg-zinc-800 cursor-not-allowed"
+                                  : "text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20"
+                              }`}
+                            >
+                              <span className="font-medium">{s.name}</span>
+                              <span className="text-xs text-zinc-400 tabular-nums">
+                                ${s.price.toFixed(2)} · {s.duration_minutes}min
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>,
+                      document.body
+                    )}
                   </div>
 
-                  <div className="flex items-center gap-4 text-sm text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl px-4 py-2">
-                    <span className="flex items-center gap-1.5">
-                      <Clock className="w-4 h-4" />
-                      {totalDuration} min
-                    </span>
-                    <span className="flex items-center gap-1.5 font-medium text-gray-900 dark:text-gray-100">
-                      <DollarSign className="w-4 h-4" />
-                      ${totalPrice.toFixed(2)}
-                    </span>
-                  </div>
-
-                  {timeSlots.length > 1 && (
-                    <div className="border border-zinc-200 dark:border-zinc-700 rounded-xl overflow-hidden">
-                      <div className="text-xs font-medium text-zinc-500 dark:text-zinc-400 px-4 py-2 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700">
-                        Secuencia horaria
-                      </div>
-                      {timeSlots.map((slot, i) => {
-                        const origDuration = slot.service.duration_minutes;
-                        const effDuration = serviceCustomDurations[slot.service.id] ?? origDuration;
-                        const isCustom = effDuration !== origDuration;
-                        const isEditing = editingDurationId === slot.service.id;
-                        return (
-                        <div
-                          key={i}
-                          className="flex items-center gap-3 px-4 py-2 text-sm border-b border-zinc-100 dark:border-zinc-800 last:border-b-0"
-                        >
-                          <span className="text-violet-600 dark:text-violet-400 font-medium tabular-nums min-w-[8.5ch]">
-                            {slot.start} — {slot.end}
-                          </span>
-                          <span className="text-gray-700 dark:text-gray-300 flex-1">{slot.service.name}</span>
-                          {isEditing ? (
-                            <span className="flex items-center gap-1 shrink-0">
-                              <input
-                                type="number"
-                                min={1}
-                                max={300}
-                                value={editingDurationValue}
-                                onChange={(e) => setEditingDurationValue(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    const val = parseInt(editingDurationValue, 10);
-                                    if (!isNaN(val) && val >= 1 && val <= 300) {
-                                      setServiceCustomDurations((prev) => ({ ...prev, [slot.service.id]: val }));
-                                    } else {
-                                      setError("La duración debe ser entre 1 y 300 minutos (5 hs)");
-                                      setServiceCustomDurations((prev) => { const n = { ...prev }; delete n[slot.service.id]; return n; });
-                                    }
-                                    setEditingDurationId(null);
-                                  }
-                                  if (e.key === "Escape") {
-                                    setEditingDurationId(null);
-                                  }
-                                }}
-                                onBlur={() => {
-                                  const val = parseInt(editingDurationValue, 10);
-                                  if (!isNaN(val) && val >= 1 && val <= 300) {
-                                    setServiceCustomDurations((prev) => ({ ...prev, [slot.service.id]: val }));
-                                  } else {
-                                    setError("La duración debe ser entre 1 y 300 minutos (5 hs)");
-                                    setServiceCustomDurations((prev) => { const n = { ...prev }; delete n[slot.service.id]; return n; });
-                                  }
-                                  setEditingDurationId(null);
-                                }}
-                                autoFocus
-                                className="w-16 px-1.5 py-0.5 rounded border border-violet-300 text-center text-xs tabular-nums"
-                              />
-                              <span className="text-zinc-400 text-xs">min</span>
-                            </span>
-                          ) : (
+                  {selectedServices.length > 0 && (
+                    <div className="mt-3 space-y-3">
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedServices.map((s) => {
+                          const effDuration = serviceCustomDurations[s.id] ?? s.duration_minutes;
+                          const isCustom = effDuration !== s.duration_minutes;
+                          return (
+                          <span
+                            key={s.id}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-violet-50 dark:bg-violet-900/30 text-violet-800 dark:text-violet-200 rounded-lg text-sm font-medium"
+                          >
+                            {s.name}
                             <button
                               type="button"
                               onClick={() => {
-                                setEditingDurationId(slot.service.id);
+                                setEditingDurationId(s.id);
                                 setEditingDurationValue(String(effDuration));
                               }}
-                              className={`inline-flex items-center gap-0.5 text-xs tabular-nums hover:text-violet-600 transition-colors cursor-pointer select-none shrink-0 ${isCustom ? 'text-violet-600 font-semibold' : 'text-zinc-400'}`}
+                              className={`inline-flex items-center gap-0.5 text-xs hover:text-violet-600 transition-colors cursor-pointer select-none ${isCustom ? 'text-violet-600 dark:text-violet-300 font-semibold' : 'opacity-70'}`}
                             >
                               {effDuration}min
                               <Pencil className="w-3 h-3 opacity-60" />
                             </button>
-                          )}
+                            <button
+                              type="button"
+                              onClick={() => removeService(s.id)}
+                              className="hover:bg-violet-200 dark:hover:bg-violet-800 rounded p-0.5 transition-colors cursor-pointer select-none"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                          );
+                        })}
+                      </div>
+
+                      <div className="flex items-center gap-4 text-sm text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl px-4 py-2">
+                        <span className="flex items-center gap-1.5">
+                          <Clock className="w-4 h-4" />
+                          {totalDuration} min
+                        </span>
+                        <span className="flex items-center gap-1.5 font-medium text-gray-900 dark:text-gray-100">
+                          <DollarSign className="w-4 h-4" />
+                          ${totalPrice.toFixed(2)}
+                        </span>
+                      </div>
+
+                      {timeSlots.length > 1 && (
+                        <div className="border border-zinc-200 dark:border-zinc-700 rounded-xl overflow-hidden">
+                          <div className="text-xs font-medium text-zinc-500 dark:text-zinc-400 px-4 py-2 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700">
+                            Secuencia horaria
+                          </div>
+                          {timeSlots.map((slot, i) => {
+                            const origDuration = slot.service.duration_minutes;
+                            const effDuration = serviceCustomDurations[slot.service.id] ?? origDuration;
+                            const isCustom = effDuration !== origDuration;
+                            const isEditing = editingDurationId === slot.service.id;
+                            return (
+                            <div
+                              key={i}
+                              className="flex items-center gap-3 px-4 py-2 text-sm border-b border-zinc-100 dark:border-zinc-800 last:border-b-0"
+                            >
+                              <span className="text-violet-600 dark:text-violet-400 font-medium tabular-nums min-w-[8.5ch]">
+                                {slot.start} — {slot.end}
+                              </span>
+                              <span className="text-gray-700 dark:text-gray-300 flex-1">{slot.service.name}</span>
+                              {isEditing ? (
+                                <span className="flex items-center gap-1 shrink-0">
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={300}
+                                    value={editingDurationValue}
+                                    onChange={(e) => setEditingDurationValue(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        const val = parseInt(editingDurationValue, 10);
+                                        if (!isNaN(val) && val >= 1 && val <= 300) {
+                                          setServiceCustomDurations((prev) => ({ ...prev, [slot.service.id]: val }));
+                                        } else {
+                                          setError("La duración debe ser entre 1 y 300 minutos (5 hs)");
+                                          setServiceCustomDurations((prev) => { const n = { ...prev }; delete n[slot.service.id]; return n; });
+                                        }
+                                        setEditingDurationId(null);
+                                      }
+                                      if (e.key === "Escape") {
+                                        setEditingDurationId(null);
+                                      }
+                                    }}
+                                    onBlur={() => {
+                                      const val = parseInt(editingDurationValue, 10);
+                                      if (!isNaN(val) && val >= 1 && val <= 300) {
+                                        setServiceCustomDurations((prev) => ({ ...prev, [slot.service.id]: val }));
+                                      } else {
+                                        setError("La duración debe ser entre 1 y 300 minutos (5 hs)");
+                                        setServiceCustomDurations((prev) => { const n = { ...prev }; delete n[slot.service.id]; return n; });
+                                      }
+                                      setEditingDurationId(null);
+                                    }}
+                                    autoFocus
+                                    className="w-16 px-1.5 py-0.5 rounded border border-violet-300 text-center text-xs tabular-nums"
+                                  />
+                                  <span className="text-zinc-400 text-xs">min</span>
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingDurationId(slot.service.id);
+                                    setEditingDurationValue(String(effDuration));
+                                  }}
+                                  className={`inline-flex items-center gap-0.5 text-xs tabular-nums hover:text-violet-600 transition-colors cursor-pointer select-none shrink-0 ${isCustom ? 'text-violet-600 font-semibold' : 'text-zinc-400'}`}
+                                >
+                                  {effDuration}min
+                                  <Pencil className="w-3 h-3 opacity-60" />
+                                </button>
+                              )}
+                            </div>
+                            );
+                          })}
                         </div>
-                        );
-                      })}
+                      )}
                     </div>
                   )}
+                  <input type="hidden" name="service_ids" value={selectedServiceIds.join(",")} />
+                  <input type="hidden" name="service_durations" value={JSON.stringify(serviceCustomDurations)} />
+                </>
+              )}
+
+              {isCustomService && (
+                <div className="space-y-3 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-700">
+                  <input
+                    type="text"
+                    placeholder="Nombre del servicio"
+                    value={customServiceName}
+                    onChange={(e) => setCustomServiceName(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
+                  />
+                  <div className="flex gap-3">
+                    <div className="flex-1">
+                      <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Precio</label>
+                      <div className="relative">
+                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          placeholder="0.00"
+                          value={customServicePrice}
+                          onChange={(e) => setCustomServicePrice(e.target.value)}
+                          className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Duración</label>
+                      <div className="relative">
+                        <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                        <input
+                          type="number"
+                          min={1}
+                          max={300}
+                          placeholder="30"
+                          value={customServiceDuration}
+                          onChange={(e) => setCustomServiceDuration(e.target.value)}
+                          className="w-full pl-9 pr-10 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400">min</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
-              <input type="hidden" name="service_ids" value={selectedServiceIds.join(",")} />
+
               <input type="hidden" name="service_durations" value={JSON.stringify(serviceCustomDurations)} />
             </div>
 
@@ -698,12 +798,22 @@ export default function AppointmentFormModal({
               </div>
             </div>
 
-            {selectedServices.length > 0 && timeSlots.length > 0 && (
+            {!isCustomService && selectedServices.length > 0 && timeSlots.length > 0 && (
               <div className="text-sm text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl px-4 py-2.5 flex items-center gap-2 tabular-nums">
                 <Clock className="w-4 h-4 shrink-0" />
                 {timeSlots[0].start} → {timeSlots[timeSlots.length - 1].end}
                 <span className="text-zinc-300 dark:text-zinc-600">·</span>
                 {totalDuration} min total
+              </div>
+            )}
+            {isCustomService && customServiceName.trim() && (
+              <div className="text-sm text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl px-4 py-2.5 flex items-center gap-2 tabular-nums">
+                <Clock className="w-4 h-4 shrink-0" />
+                {customServiceName.trim()}
+                <span className="text-zinc-300 dark:text-zinc-600">·</span>
+                {customServiceDuration || "30"} min
+                <span className="text-zinc-300 dark:text-zinc-600">·</span>
+                ${(customServicePrice ? Number(customServicePrice) : 0).toFixed(2)}
               </div>
             )}
 
@@ -774,13 +884,13 @@ export default function AppointmentFormModal({
             <button
               type="submit"
               form="appointment-form"
-              disabled={isSubmitting || selectedServiceIds.length === 0}
+              disabled={isSubmitting || (!isCustomService && selectedServiceIds.length === 0)}
               className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white py-2.5 px-8 rounded-xl text-sm font-semibold shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none transition-all cursor-pointer select-none"
             >
               <Plus className="w-4 h-4" />
               {isSubmitting
                 ? "Creando..."
-                : selectedServiceIds.length > 1
+                : !isCustomService && selectedServiceIds.length > 1
                   ? `Crear ${selectedServiceIds.length} turnos`
                   : "Crear Turno"}
             </button>

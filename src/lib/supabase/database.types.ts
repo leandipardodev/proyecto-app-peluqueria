@@ -111,6 +111,8 @@ export type Database = {
         Row: {
           created_at: string | null
           customer_id: string | null
+          custom_service_duration: number | null
+          custom_service_name: string | null
           date_key_ar: string | null
           deposit_amount: number | null
           end_time: string
@@ -132,6 +134,8 @@ export type Database = {
         Insert: {
           created_at?: string | null
           customer_id?: string | null
+          custom_service_duration?: number | null
+          custom_service_name?: string | null
           date_key_ar?: string | null
           deposit_amount?: number | null
           end_time: string
@@ -153,6 +157,8 @@ export type Database = {
         Update: {
           created_at?: string | null
           customer_id?: string | null
+          custom_service_duration?: number | null
+          custom_service_name?: string | null
           date_key_ar?: string | null
           deposit_amount?: number | null
           end_time?: string

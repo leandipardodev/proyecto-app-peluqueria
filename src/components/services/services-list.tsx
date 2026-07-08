@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Trash2, Plus, Sparkles, EyeOff, Clock, DollarSign, Tag, Package } from "lucide-react";
+import { Pencil, Trash2, Plus, Sparkles, EyeOff, Clock, DollarSign, Tag, Package, ArrowLeft } from "lucide-react";
 import { useEffect, useState, useTransition, memo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ServiceModal from "./service-modal";
@@ -247,9 +247,14 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
         </div>
       )}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
-        <div>
-          <h1 className="text-3xl sm:text-5xl font-bold text-gray-900 dark:text-white tracking-tight leading-none">{serviceWord}s</h1>
-          <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">Las secciones/categorías de /book ahora se editan en Mi Negocio - Personalización.</p>
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={() => router.back()} className="p-2 rounded-xl text-zinc-400 hover:text-zinc-600 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer select-none shrink-0">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div>
+            <h1 className="text-3xl sm:text-5xl font-bold text-gray-900 dark:text-white tracking-tight leading-none">{serviceWord}s</h1>
+            <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">Las secciones/categorías de /book ahora se editan en Mi Negocio - Personalización.</p>
+          </div>
         </div>
         <button
           type="button"

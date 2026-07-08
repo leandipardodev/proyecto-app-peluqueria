@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import BaseModal from "@/components/ui/modal";
 
 type AlertItem = {
   id: string;
@@ -46,35 +47,31 @@ export default function VoucherBirthdayAlert({ shopSlug, items }: Props) {
   if (!open || items.length === 0) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] bg-black/35 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-xl rounded-3xl border border-amber-300/40 bg-amber-50/95 p-5 shadow-2xl">
-        <h3 className="text-lg font-semibold text-amber-900">Cumpleanos con voucher hoy</h3>
-        <p className="text-sm text-amber-800 mt-1">Tenes {items.length} voucher(s) para recordar hoy.</p>
-        <div className="mt-4 space-y-2 max-h-60 overflow-auto pr-1">
-          {items.map((v) => (
-            <div key={v.id} className="rounded-xl bg-white/70 border border-amber-200 px-3 py-2 text-sm text-amber-900">
-              <span className="font-medium">{v.gifted_to_name}</span>
-              <span> - {v.service_name}</span>
-              {v.gifted_by_name ? <span className="text-amber-700"> (regala: {v.gifted_by_name})</span> : null}
-            </div>
-          ))}
-        </div>
-        <div className="mt-4 flex items-center justify-end gap-2">
-          <Link
-            href={`/dashboard/${shopSlug}/vouchers`}
-            className="rounded-xl bg-amber-600 text-white px-3 py-1.5 text-sm font-medium hover:bg-amber-700"
-          >
-            Ver vouchers
-          </Link>
-          <button
-            type="button"
-            onClick={handleDismiss}
-            className="rounded-xl bg-zinc-900 text-white px-3 py-1.5 text-sm font-medium"
-          >
-            Entendido
-          </button>
-        </div>
+    <BaseModal open={open} onClose={handleDismiss} title="Cumpleanos con voucher hoy" subtitle={`Tenes ${items.length} voucher(s) para recordar hoy.`} maxWidth="md">
+      <div className="p-5 space-y-2 max-h-60 overflow-auto">
+        {items.map((v) => (
+          <div key={v.id} className="rounded-xl bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-700/50 px-3 py-2 text-sm text-amber-900 dark:text-amber-100">
+            <span className="font-medium">{v.gifted_to_name}</span>
+            <span> - {v.service_name}</span>
+            {v.gifted_by_name ? <span className="text-amber-700 dark:text-amber-400"> (regala: {v.gifted_by_name})</span> : null}
+          </div>
+        ))}
       </div>
-    </div>
+      <div className="px-5 pb-5 flex items-center justify-end gap-2">
+        <Link
+          href={`/dashboard/${shopSlug}/vouchers`}
+          className="ui-btn-primary rounded-lg px-3 py-1.5 text-sm font-medium"
+        >
+          Ver vouchers
+        </Link>
+        <button
+          type="button"
+          onClick={handleDismiss}
+          className="ui-btn-ghost rounded-lg px-3 py-1.5 text-sm font-medium"
+        >
+          Entendido
+        </button>
+      </div>
+    </BaseModal>
   );
 }

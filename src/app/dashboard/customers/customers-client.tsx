@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Gift, MessageCircle, Search, X, Download, Trash2 } from "lucide-react";
-import { createPortal } from "react-dom";
+import { Gift, MessageCircle, Search, Download, Trash2 } from "lucide-react";
+import Sheet from "@/components/ui/sheet";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { supabase } from "@/lib/supabase";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -102,11 +102,6 @@ export default function CustomersPage() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [portalReady, setPortalReady] = useState(false);
-
-  useEffect(() => {
-    setPortalReady(true);
-  }, []);
 
   const pathnameRef = useRef(pathname);
   useEffect(() => { pathnameRef.current = pathname; }, [pathname]);
@@ -549,191 +544,175 @@ export default function CustomersPage() {
         </div>
       </div>
 
-      {portalReady && (selectedCustomer || isCreating) && createPortal((
-        <>
-          <div
-            className="fixed inset-0 bg-black/50 z-40"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) closeEditor();
-            }}
-          />
-          <div className="fixed right-0 top-0 h-[100dvh] w-full max-w-xl z-50 bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 shadow-lg">
-            <div className="h-full flex flex-col">
-              <div className="px-6 py-4 border-b border-slate-200 dark:border-zinc-700 flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-900 dark:text-zinc-100">{isCreating ? `Nuevo ${customerWord.toLowerCase()}` : `Ficha de ${customerWord.toLowerCase()}`}</h2>
-                  {!isCreating && <p className="text-sm text-slate-500 dark:text-zinc-400">{selectedCustomer?.nombre || "Sin nombre"}</p>}
-                </div>
-                <button onClick={closeEditor} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500 dark:text-zinc-400">
-                  <X className="w-5 h-5" />
-                </button>
+      <Sheet
+        open={!!(selectedCustomer || isCreating)}
+        onClose={closeEditor}
+        title={isCreating ? `Nuevo ${customerWord.toLowerCase()}` : `Ficha de ${customerWord.toLowerCase()}`}
+      >
+        <div className="h-full flex flex-col">
+          <div className="flex-1 overflow-y-auto overscroll-y-contain px-6 py-5 space-y-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-900 dark:text-zinc-100 mb-1.5">Nombre</label>
+                <input
+                  value={draftNombre}
+                  onChange={(e) => setDraftNombre(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-900 dark:text-zinc-100 mb-1.5">Email</label>
+                <input
+                  value={draftEmail}
+                  onChange={(e) => setDraftEmail(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                />
+              </div>
+            </div>
 
-              <div className="flex-1 overflow-y-auto overscroll-y-contain px-6 py-5 space-y-5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-900 dark:text-zinc-100 mb-1.5">Nombre</label>
-                    <input
-                      value={draftNombre}
-                      onChange={(e) => setDraftNombre(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-900 dark:text-zinc-100 mb-1.5">Email</label>
-                    <input
-                      value={draftEmail}
-                      onChange={(e) => setDraftEmail(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                    />
-                  </div>
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-900 dark:text-zinc-100 mb-1.5">{customerWord} recurrente (dia)</label>
+                <select
+                  value={draftRecurringWeekday}
+                  onChange={(e) => setDraftRecurringWeekday(e.target.value)}
+                  className="ui-select w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                >
+                  <option value="">No recurrente</option>
+                  <option value="1">Lunes</option>
+                  <option value="2">Martes</option>
+                  <option value="3">Miércoles</option>
+                  <option value="4">Jueves</option>
+                  <option value="5">Viernes</option>
+                  <option value="6">Sábado</option>
+                  <option value="0">Domingo</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-900 dark:text-zinc-100 mb-1.5">Frecuencia</label>
+                <input
+                  value={draftRecurringFrequency}
+                  onChange={(e) => setDraftRecurringFrequency(e.target.value)}
+                  placeholder="Ej: semanal"
+                  className="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                />
+              </div>
+            </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-900 dark:text-zinc-100 mb-1.5">{customerWord} recurrente (dia)</label>
-                    <select
-                      value={draftRecurringWeekday}
-                      onChange={(e) => setDraftRecurringWeekday(e.target.value)}
-                      className="ui-select w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            <div>
+              <label className="block text-sm font-medium text-slate-900 dark:text-zinc-100 mb-1.5">Notas de recurrencia</label>
+              <textarea
+                value={draftRecurringNotes}
+                onChange={(e) => setDraftRecurringNotes(e.target.value)}
+                placeholder="Ej: siempre viernes por la tarde"
+                className="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                rows={2}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-900 dark:text-zinc-100 mb-1.5">Teléfono</label>
+                <input
+                  value={draftTelefono}
+                  onChange={(e) => setDraftTelefono(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-900 dark:text-zinc-100 mb-1.5">Cumpleaños</label>
+                <input
+                  type="date"
+                  value={draftCumple}
+                  onChange={(e) => setDraftCumple(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-900 dark:text-zinc-100 mb-1.5">Observaciones Técnicas</label>
+              <textarea
+                value={draftObs}
+                onChange={(e) => setDraftObs(e.target.value)}
+                rows={8}
+                className="w-full rounded-2xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 py-3 text-sm text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                placeholder="Notas de colorimetría, sensibilidades, tipo de cabello..."
+              />
+            </div>
+
+            <div>
+              <p className="text-sm font-medium text-slate-900 dark:text-zinc-100 mb-2">Etiquetas</p>
+              <div className="flex flex-wrap gap-1.5">
+                {CUSTOMER_TAGS.map((tag) => {
+                  const active = draftTags.includes(tag.value);
+                  return (
+                    <button
+                      key={tag.value}
+                      type="button"
+                      onClick={() => setDraftTags((prev) => active ? prev.filter((t) => t !== tag.value) : [...prev, tag.value])}
+                      className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium transition-all cursor-pointer select-none ${
+                        active
+                          ? tag.color + " ring-1 ring-current"
+                          : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                      }`}
                     >
-                      <option value="">No recurrente</option>
-                      <option value="1">Lunes</option>
-                      <option value="2">Martes</option>
-                      <option value="3">Miércoles</option>
-                      <option value="4">Jueves</option>
-                      <option value="5">Viernes</option>
-                      <option value="6">Sábado</option>
-                      <option value="0">Domingo</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-900 dark:text-zinc-100 mb-1.5">Frecuencia</label>
-                    <input
-                      value={draftRecurringFrequency}
-                      onChange={(e) => setDraftRecurringFrequency(e.target.value)}
-                      placeholder="Ej: semanal"
-                      className="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-900 dark:text-zinc-100 mb-1.5">Notas de recurrencia</label>
-                  <textarea
-                    value={draftRecurringNotes}
-                    onChange={(e) => setDraftRecurringNotes(e.target.value)}
-                    placeholder="Ej: siempre viernes por la tarde"
-                    className="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                    rows={2}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-900 dark:text-zinc-100 mb-1.5">Teléfono</label>
-                    <input
-                      value={draftTelefono}
-                      onChange={(e) => setDraftTelefono(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-900 dark:text-zinc-100 mb-1.5">Cumpleaños</label>
-                    <input
-                      type="date"
-                      value={draftCumple}
-                      onChange={(e) => setDraftCumple(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-900 dark:text-zinc-100 mb-1.5">Observaciones Técnicas</label>
-                  <textarea
-                    value={draftObs}
-                    onChange={(e) => setDraftObs(e.target.value)}
-                    rows={8}
-                    className="w-full rounded-2xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 py-3 text-sm text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                    placeholder="Notas de colorimetría, sensibilidades, tipo de cabello..."
-                  />
-                </div>
-
-                <div>
-                  <p className="text-sm font-medium text-slate-900 dark:text-zinc-100 mb-2">Etiquetas</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {CUSTOMER_TAGS.map((tag) => {
-                      const active = draftTags.includes(tag.value);
-                      return (
-                        <button
-                          key={tag.value}
-                          type="button"
-                          onClick={() => setDraftTags((prev) => active ? prev.filter((t) => t !== tag.value) : [...prev, tag.value])}
-                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium transition-all cursor-pointer select-none ${
-                            active
-                              ? tag.color + " ring-1 ring-current"
-                              : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-                          }`}
-                        >
-                          {tag.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              <div className="px-6 py-4 border-t border-slate-200 dark:border-zinc-700 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {!isCreating && (
-                    <>
-                      {confirmDelete ? (
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs text-red-600 dark:text-red-400">¿Eliminar?</span>
-                          <button
-                            onClick={handleDelete}
-                            disabled={deleting}
-                            className="rounded-full bg-red-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-red-700 transition disabled:opacity-60"
-                          >
-                            {deleting ? "Eliminando..." : "Sí"}
-                          </button>
-                          <button
-                            onClick={() => setConfirmDelete(false)}
-                            className="rounded-full bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 px-3 py-1.5 text-xs font-medium hover:bg-zinc-300 dark:hover:bg-zinc-600 transition"
-                          >
-                            No
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setConfirmDelete(true)}
-                          className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          Eliminar
-                        </button>
-                      )}
-                    </>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  {saveMessage && (
-                    <span className={`text-sm ${saveMessage.includes("Error") ? "text-red-600" : "text-emerald-600"}`}>{saveMessage}</span>
-                  )}
-                  <button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="rounded-full bg-blue-600 text-white px-5 py-2 text-sm font-medium hover:bg-blue-700 transition disabled:opacity-60"
-                  >
-                    {saving ? "Guardando..." : "Guardar"}
-                  </button>
-                </div>
+                      {tag.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
-        </>
-      ), document.body)}
+
+          <div className="px-6 py-4 border-t border-slate-200 dark:border-zinc-700 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {!isCreating && (
+                <>
+                  {confirmDelete ? (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-red-600 dark:text-red-400">¿Eliminar?</span>
+                      <button
+                        onClick={handleDelete}
+                        disabled={deleting}
+                        className="ui-btn-primary rounded-lg px-3 py-1.5 text-xs font-medium"
+                      >
+                        {deleting ? "Eliminando..." : "Sí"}
+                      </button>
+                      <button
+                        onClick={() => setConfirmDelete(false)}
+                        className="ui-btn-ghost rounded-lg px-3 py-1.5 text-xs font-medium"
+                      >
+                        No
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmDelete(true)}
+                      className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Eliminar
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {saveMessage && (
+                <span className={`text-sm ${saveMessage.includes("Error") ? "text-red-600" : "text-emerald-600"}`}>{saveMessage}</span>
+              )}
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="ui-btn-primary rounded-lg px-5 py-2 text-sm font-medium"
+              >
+                {saving ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Sheet>
     </div>
   );
 }

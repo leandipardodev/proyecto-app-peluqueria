@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { createPortal } from "react-dom";
+
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import CustomSelect from "@/components/ui/custom-select";
 import { Label } from "@/components/ui/label";
+import BaseModal from "@/components/ui/modal";
 import {
   fetchStaffMembers,
   addStaffMember,
@@ -26,7 +27,7 @@ import { useToast } from "@/components/ui/toast";
 import { StatePanel } from "@/components/ui/state-panel";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import type { Industry } from "@/lib/industry/types";
-import { Copy, Check, X, Clock, UserCircle, Pencil, Trash2, DollarSign, Link2, MoreHorizontal, UserRound, ShieldCheck } from "lucide-react";
+import { Copy, Check, Clock, UserCircle, Pencil, Trash2, DollarSign, Link2, MoreHorizontal, UserRound, ShieldCheck, ArrowLeft } from "lucide-react";
 
 type StaffMember = {
   id: string;
@@ -104,16 +105,11 @@ export default function StaffList({
   const [payEditor, setPayEditor] = useState<{ id: string; name: string; payModel: "percentage" | "fixed" | "mixed"; percentageRate: number; fixedAmount: number; overridesEnabled: boolean; serviceOverrides: ServiceOverride[] } | null>(null);
   const [scheduleEditor, setScheduleEditor] = useState<{ id: string; name: string; schedule: { day_of_week: number; is_active: boolean; start_time: string; end_time: string; break_start: string | null; break_end: string | null }[] } | null>(null);
   const [profileEditor, setProfileEditor] = useState<{ id: string; name: string; description: string; instagram: string; whatsapp: string; photo_url: string; uploading: boolean } | null>(null);
-  const [portalReady, setPortalReady] = useState(false);
   const [tutorialActive, setTutorialActive] = useState(false);
   const { addToast } = useToast();
   const staffWord = INDUSTRY_CONFIG[industry].labels.staffSingular;
   const staffWordLower = staffWord.toLowerCase();
   const staffPlural = INDUSTRY_CONFIG[industry].labels.staffPlural;
-
-  useEffect(() => {
-    setPortalReady(true);
-  }, []);
 
   useEffect(() => {
     const key = `klip-business-onboarding-v1:${shopSlug || "default"}`;
@@ -373,7 +369,12 @@ export default function StaffList({
         </div>
       )}
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-6">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white tracking-tight">{staffPlural}</h2>
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={() => router.back()} className="p-2 rounded-xl text-zinc-400 hover:text-zinc-600 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer select-none">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white tracking-tight">{staffPlural}</h2>
+        </div>
         {canManageStaff ? (
           <Button type="button" onClick={() => setShowForm(true)}>Agregar {staffWord}</Button>
         ) : (
@@ -665,467 +666,420 @@ export default function StaffList({
         )}
       </div>
 
-      {portalReady && renameTarget && createPortal((
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm px-4">
-          <div className="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-lg overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200/50 dark:border-zinc-700/50">
-              <h3 className="text-base font-semibold text-gray-900 dark:text-white">Renombrar {staffWordLower}</h3>
-              <button
-                type="button"
-                onClick={() => { setRenameTarget(null); setRenameValue(""); }}
-                className="p-1 rounded-md text-gray-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer select-none"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-5">
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Actualizá el nombre visible en staff, turnos y calendario.</p>
+      <BaseModal
+        open={!!renameTarget}
+        onClose={() => { setRenameTarget(null); setRenameValue(""); }}
+        title={`Renombrar ${staffWordLower}`}
+        maxWidth="sm"
+      >
+        <div className="p-5">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Actualizá el nombre visible en staff, turnos y calendario.</p>
+          <Input
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            placeholder="Nombre"
+            autoFocus
+          />
+          <div className="mt-4 flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => { setRenameTarget(null); setRenameValue(""); }}
+              className="ui-btn-ghost rounded-lg px-3 py-1.5 text-sm"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={submitRename}
+              className="ui-btn-primary rounded-lg px-3 py-1.5 text-sm"
+            >
+              Guardar
+            </button>
+          </div>
+        </div>
+      </BaseModal>
+
+      <BaseModal
+        open={!!payEditor}
+        onClose={() => setPayEditor(null)}
+        title="Modo de cobro"
+        subtitle={payEditor?.name}
+        maxWidth="sm"
+      >
+        <div className="p-5 space-y-3 max-h-[60vh] overflow-y-auto">
+          <div className="rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 px-4 py-3 text-sm">
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">Configuración actual</span>
+            <p className="mt-0.5 font-medium text-zinc-800 dark:text-zinc-200">
+              {payEditor?.payModel === "percentage"
+                ? `${payEditor?.percentageRate}% de comisión`
+                : payEditor?.payModel === "fixed"
+                  ? `$${payEditor?.fixedAmount} fijo por turno`
+                  : `${payEditor?.percentageRate}% + $${payEditor?.fixedAmount} fijo`}
+            </p>
+          </div>
+          <CustomSelect
+            value={payEditor?.payModel ?? "percentage"}
+            onChange={(v) => setPayEditor((prev) => (prev ? { ...prev, payModel: v as "percentage" | "fixed" | "mixed" } : prev))}
+            options={[{ value: "percentage", label: "%" }, { value: "fixed", label: "$ fijo" }, { value: "mixed", label: "% + $" }]}
+          />
+          {payEditor?.payModel !== "fixed" && (
+            <div>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Porcentaje (%)</label>
               <Input
-                value={renameValue}
-                onChange={(e) => setRenameValue(e.target.value)}
-                placeholder="Nombre"
-                autoFocus
+                type="number"
+                min="0"
+                max="100"
+                value={String(payEditor?.percentageRate ?? 0)}
+                onChange={(e) => setPayEditor((prev) => (prev ? { ...prev, percentageRate: Number(e.target.value || 0) } : prev))}
+                placeholder="Ej: 40"
               />
-              <div className="mt-4 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => { setRenameTarget(null); setRenameValue(""); }}
-                  className="px-3 py-1.5 rounded-lg text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer select-none"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={submitRename}
-                  className="px-3 py-1.5 rounded-lg text-sm bg-violet-600 text-white hover:bg-violet-700 transition-colors cursor-pointer select-none"
-                >
-                  Guardar
-                </button>
-              </div>
             </div>
-          </div>
-        </div>
-      ), document.body)}
-
-      {portalReady && payEditor && createPortal((
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm px-4">
-          <div className="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-lg overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200/50 dark:border-zinc-700/50">
-              <div>
-                <h3 className="text-base font-semibold text-gray-900 dark:text-white">Modo de cobro</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{payEditor.name}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setPayEditor(null)}
-                className="p-1 rounded-md text-gray-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer select-none"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-5 space-y-3 max-h-[60vh] overflow-y-auto">
-              <div className="rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 px-4 py-3 text-sm">
-                <span className="text-xs text-zinc-500 dark:text-zinc-400">Configuración actual</span>
-                <p className="mt-0.5 font-medium text-zinc-800 dark:text-zinc-200">
-                  {payEditor.payModel === "percentage"
-                    ? `${payEditor.percentageRate}% de comisión`
-                    : payEditor.payModel === "fixed"
-                      ? `$${payEditor.fixedAmount} fijo por turno`
-                      : `${payEditor.percentageRate}% + $${payEditor.fixedAmount} fijo`}
-                </p>
-              </div>
-              <CustomSelect
-                value={payEditor.payModel}
-                onChange={(v) => setPayEditor((prev) => (prev ? { ...prev, payModel: v as "percentage" | "fixed" | "mixed" } : prev))}
-                options={[{ value: "percentage", label: "%" }, { value: "fixed", label: "$ fijo" }, { value: "mixed", label: "% + $" }]}
+          )}
+          {payEditor?.payModel !== "percentage" && (
+            <div>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Monto fijo ($)</label>
+              <Input
+                type="number"
+                min="0"
+                value={String(payEditor?.fixedAmount ?? 0)}
+                onChange={(e) => setPayEditor((prev) => (prev ? { ...prev, fixedAmount: Number(e.target.value || 0) } : prev))}
+                placeholder="Ej: 5000"
               />
-              {payEditor.payModel !== "fixed" && (
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Porcentaje (%)</label>
-                  <Input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={String(payEditor.percentageRate)}
-                    onChange={(e) => setPayEditor((prev) => (prev ? { ...prev, percentageRate: Number(e.target.value || 0) } : prev))}
-                    placeholder="Ej: 40"
-                  />
-                </div>
-              )}
-              {payEditor.payModel !== "percentage" && (
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Monto fijo ($)</label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={String(payEditor.fixedAmount)}
-                    onChange={(e) => setPayEditor((prev) => (prev ? { ...prev, fixedAmount: Number(e.target.value || 0) } : prev))}
-                    placeholder="Ej: 5000"
-                  />
-                </div>
-              )}
-              {payEditor.payModel !== "fixed" && (
-                <div className="border-t border-zinc-100 dark:border-zinc-800 pt-3">
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={payEditor.overridesEnabled}
-                      onChange={(e) => setPayEditor((prev) => prev ? { ...prev, overridesEnabled: e.target.checked } : prev)}
-                      className="rounded border-zinc-300 dark:border-zinc-600"
-                    />
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Configuracion detallada por servicio</span>
-                  </label>
-                  {payEditor.overridesEnabled && (
-                    <div className="mt-3 space-y-1.5">
-                      {services.map((svc) => {
-                        const ov = payEditor.serviceOverrides.find((o) => o.serviceId === svc.id);
-                        const rate = ov?.percentageRate ?? payEditor.percentageRate;
-                        return (
-                          <div key={svc.id} className="flex items-center gap-2 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5">
-                            <span className="flex-1 text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{svc.name}</span>
-                            <div className="flex items-center gap-1">
-                              <input
-                                type="number"
-                                min="0"
-                                max="100"
-                                value={rate}
-                                onChange={(e) => {
-                                  const val = Number(e.target.value);
-                                  setPayEditor((prev) => {
-                                    if (!prev) return prev;
-                                    const existing = prev.serviceOverrides.filter((o) => o.serviceId !== svc.id);
-                                    return { ...prev, serviceOverrides: [...existing, { serviceId: svc.id, serviceName: svc.name, percentageRate: isNaN(val) ? 0 : val }] };
-                                  });
-                                }}
-                                className="w-16 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-xs text-gray-900 dark:text-gray-100 text-center"
-                              />
-                              <span className="text-xs text-zinc-400">%</span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
-            <div className="px-5 pb-5 flex items-center justify-end gap-2">
-              <button type="button" onClick={() => setPayEditor(null)} className="px-3 py-1.5 rounded-lg text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer select-none">Cancelar</button>
-              <button
-                type="button"
-                onClick={async () => {
-                  if (!payEditor) return;
-                  const res = await updateStaffPayMode(payEditor.id, {
-                    payModel: payEditor.payModel,
-                    percentageRate: payEditor.percentageRate,
-                    fixedAmount: payEditor.fixedAmount,
-                    overridesEnabled: payEditor.overridesEnabled,
-                    serviceOverrides: payEditor.serviceOverrides,
-                  }, shopId);
-                  if (!res.success) {
-                    setError(res.error);
-                    return;
-                  }
-                  setStaff((prev) => prev.map((m) => (m.id === payEditor.id ? { ...m, payModel: payEditor.payModel, percentageRate: payEditor.percentageRate, fixedAmount: payEditor.fixedAmount, overridesEnabled: payEditor.overridesEnabled, serviceOverrides: payEditor.serviceOverrides } : m)));
-                  setPayEditor(null);
-                  addToast("Modo de cobro actualizado", "success");
-                }}
-                className="px-3 py-1.5 rounded-lg text-sm bg-violet-600 text-white hover:bg-violet-700 transition-colors cursor-pointer select-none"
-              >
-                Guardar
-              </button>
-            </div>
-          </div>
-        </div>
-      ), document.body)}
-
-      {portalReady && scheduleEditor && createPortal((
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm px-4">
-          <div className="w-full max-w-lg bg-white dark:bg-zinc-900 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-lg overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200/50 dark:border-zinc-700/50">
-              <div>
-                <h3 className="text-base font-semibold text-gray-900 dark:text-white">Horarios de {scheduleEditor.name}</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Configurá los horarios disponibles para cada día.</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setScheduleEditor(null)}
-                className="p-1 rounded-md text-gray-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer select-none"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="max-h-[60vh] overflow-y-auto p-5 space-y-2">
-              {scheduleEditor.schedule.map((day, i) => {
-                const dayNames = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
-                return (
-                  <div key={day.day_of_week} className="flex flex-wrap items-center gap-2 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 px-3 py-2">
-                    <span className="w-10 text-sm font-medium text-gray-700 dark:text-gray-300">{dayNames[day.day_of_week]}</span>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={day.is_active}
-                        onChange={() => {
-                          const next = [...scheduleEditor.schedule];
-                          next[i] = { ...next[i], is_active: !next[i].is_active };
-                          setScheduleEditor({ ...scheduleEditor, schedule: next });
-                        }}
-                        className="sr-only peer"
-                      />
-                      <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500" />
-                    </label>
-                    {day.is_active && (
-                      <>
-                        <input
-                          type="time"
-                          value={day.start_time}
-                          onChange={(e) => {
-                            const next = [...scheduleEditor.schedule];
-                            next[i] = { ...next[i], start_time: e.target.value };
-                            setScheduleEditor({ ...scheduleEditor, schedule: next });
-                          }}
-                          className="w-24 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-xs text-gray-900 dark:text-gray-100"
-                        />
-                        <span className="text-xs text-gray-400">a</span>
-                        <input
-                          type="time"
-                          value={day.end_time}
-                          onChange={(e) => {
-                            const next = [...scheduleEditor.schedule];
-                            next[i] = { ...next[i], end_time: e.target.value };
-                            setScheduleEditor({ ...scheduleEditor, schedule: next });
-                          }}
-                          className="w-24 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-xs text-gray-900 dark:text-gray-100"
-                        />
-                        {(day.break_start || day.break_end) && (
-                          <>
-                            <span className="text-xs text-zinc-300 dark:text-zinc-600 mx-1">|</span>
-                            <input
-                              type="time"
-                              value={day.break_start ?? ""}
-                              onChange={(e) => {
-                                const next = [...scheduleEditor.schedule];
-                                next[i] = { ...next[i], break_start: e.target.value || null };
-                                setScheduleEditor({ ...scheduleEditor, schedule: next });
-                              }}
-                              className="w-24 rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-zinc-800 px-2 py-1 text-xs text-gray-900 dark:text-gray-100"
-                            />
-                            <span className="text-xs text-amber-500">break</span>
-                            <input
-                              type="time"
-                              value={day.break_end ?? ""}
-                              onChange={(e) => {
-                                const next = [...scheduleEditor.schedule];
-                                next[i] = { ...next[i], break_end: e.target.value || null };
-                                setScheduleEditor({ ...scheduleEditor, schedule: next });
-                              }}
-                              className="w-24 rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-zinc-800 px-2 py-1 text-xs text-gray-900 dark:text-gray-100"
-                            />
-                          </>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const next = [...scheduleEditor.schedule];
-                            next[i] = { ...next[i], break_start: "12:00", break_end: "13:00" };
-                            setScheduleEditor({ ...scheduleEditor, schedule: next });
-                          }}
-                          className="text-xs text-amber-600 dark:text-amber-400 hover:text-amber-700 hover:underline ml-1 cursor-pointer select-none"
-                        >
-                          + agregar corte
-                        </button>
-                        {day.break_start && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const next = [...scheduleEditor.schedule];
-                              next[i] = { ...next[i], break_start: null, break_end: null };
-                              setScheduleEditor({ ...scheduleEditor, schedule: next });
+          )}
+          {payEditor?.payModel !== "fixed" && (
+            <div className="border-t border-zinc-100 dark:border-zinc-800 pt-3">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={payEditor?.overridesEnabled ?? false}
+                  onChange={(e) => setPayEditor((prev) => prev ? { ...prev, overridesEnabled: e.target.checked } : prev)}
+                  className="rounded border-zinc-300 dark:border-zinc-600"
+                />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Configuracion detallada por servicio</span>
+              </label>
+              {payEditor?.overridesEnabled && (
+                <div className="mt-3 space-y-1.5">
+                  {services.map((svc) => {
+                    const ov = payEditor?.serviceOverrides.find((o) => o.serviceId === svc.id);
+                    const rate = ov?.percentageRate ?? payEditor?.percentageRate;
+                    return (
+                      <div key={svc.id} className="flex items-center gap-2 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5">
+                        <span className="flex-1 text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{svc.name}</span>
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={rate}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              setPayEditor((prev) => {
+                                if (!prev) return prev;
+                                const existing = prev.serviceOverrides.filter((o) => o.serviceId !== svc.id);
+                                return { ...prev, serviceOverrides: [...existing, { serviceId: svc.id, serviceName: svc.name, percentageRate: isNaN(val) ? 0 : val }] };
+                              });
                             }}
-                            className="text-xs text-red-500 hover:text-red-600 hover:underline ml-1 cursor-pointer select-none"
-                          >
-                            quitar
-                          </button>
-                        )}
+                            className="w-16 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-xs text-gray-900 dark:text-gray-100 text-center"
+                          />
+                          <span className="text-xs text-zinc-400">%</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="px-5 pb-5 flex items-center justify-end gap-2">
+          <button type="button" onClick={() => setPayEditor(null)} className="ui-btn-ghost rounded-lg px-3 py-1.5 text-sm">Cancelar</button>
+          <button
+            type="button"
+            onClick={async () => {
+              if (!payEditor) return;
+              const res = await updateStaffPayMode(payEditor.id, {
+                payModel: payEditor.payModel,
+                percentageRate: payEditor.percentageRate,
+                fixedAmount: payEditor.fixedAmount,
+                overridesEnabled: payEditor.overridesEnabled,
+                serviceOverrides: payEditor.serviceOverrides,
+              }, shopId);
+              if (!res.success) {
+                setError(res.error);
+                return;
+              }
+              setStaff((prev) => prev.map((m) => (m.id === payEditor.id ? { ...m, payModel: payEditor.payModel, percentageRate: payEditor.percentageRate, fixedAmount: payEditor.fixedAmount, overridesEnabled: payEditor.overridesEnabled, serviceOverrides: payEditor.serviceOverrides } : m)));
+              setPayEditor(null);
+              addToast("Modo de cobro actualizado", "success");
+            }}
+            className="ui-btn-primary rounded-lg px-3 py-1.5 text-sm"
+          >
+            Guardar
+          </button>
+        </div>
+      </BaseModal>
+
+      <BaseModal
+        open={!!scheduleEditor}
+        onClose={() => setScheduleEditor(null)}
+        title={scheduleEditor ? `Horarios de ${scheduleEditor.name}` : ""}
+        subtitle="Configurá los horarios disponibles para cada día."
+        maxWidth="md"
+      >
+        <div className="max-h-[60vh] overflow-y-auto p-5 space-y-2">
+          {scheduleEditor?.schedule.map((day, i) => {
+            const dayNames = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+            return (
+              <div key={day.day_of_week} className="flex flex-wrap items-center gap-2 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 px-3 py-2">
+                <span className="w-10 text-sm font-medium text-gray-700 dark:text-gray-300">{dayNames[day.day_of_week]}</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={day.is_active}
+                    onChange={() => {
+                      if (!scheduleEditor) return;
+                      const next = [...scheduleEditor.schedule];
+                      next[i] = { ...next[i], is_active: !next[i].is_active };
+                      setScheduleEditor({ ...scheduleEditor, schedule: next });
+                    }}
+                    className="sr-only peer"
+                  />
+                  <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500" />
+                </label>
+                {day.is_active && (
+                  <>
+                    <input
+                      type="time"
+                      value={day.start_time}
+                      onChange={(e) => {
+                        if (!scheduleEditor) return;
+                        const next = [...scheduleEditor.schedule];
+                        next[i] = { ...next[i], start_time: e.target.value };
+                        setScheduleEditor({ ...scheduleEditor, schedule: next });
+                      }}
+                      className="w-24 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-xs text-gray-900 dark:text-gray-100"
+                    />
+                    <span className="text-xs text-gray-400">a</span>
+                    <input
+                      type="time"
+                      value={day.end_time}
+                      onChange={(e) => {
+                        if (!scheduleEditor) return;
+                        const next = [...scheduleEditor.schedule];
+                        next[i] = { ...next[i], end_time: e.target.value };
+                        setScheduleEditor({ ...scheduleEditor, schedule: next });
+                      }}
+                      className="w-24 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-xs text-gray-900 dark:text-gray-100"
+                    />
+                    {(day.break_start || day.break_end) && (
+                      <>
+                        <span className="text-xs text-zinc-300 dark:text-zinc-600 mx-1">|</span>
+                        <input
+                          type="time"
+                          value={day.break_start ?? ""}
+                          onChange={(e) => {
+                            if (!scheduleEditor) return;
+                            const next = [...scheduleEditor.schedule];
+                            next[i] = { ...next[i], break_start: e.target.value || null };
+                            setScheduleEditor({ ...scheduleEditor, schedule: next });
+                          }}
+                          className="w-24 rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-zinc-800 px-2 py-1 text-xs text-gray-900 dark:text-gray-100"
+                        />
+                        <span className="text-xs text-amber-500">break</span>
+                        <input
+                          type="time"
+                          value={day.break_end ?? ""}
+                          onChange={(e) => {
+                            if (!scheduleEditor) return;
+                            const next = [...scheduleEditor.schedule];
+                            next[i] = { ...next[i], break_end: e.target.value || null };
+                            setScheduleEditor({ ...scheduleEditor, schedule: next });
+                          }}
+                          className="w-24 rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-zinc-800 px-2 py-1 text-xs text-gray-900 dark:text-gray-100"
+                        />
                       </>
                     )}
-                  </div>
-                );
-              })}
-            </div>
-            <div className="px-5 pb-5 flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setScheduleEditor(null)}
-                className="px-3 py-1.5 rounded-lg text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer select-none"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  if (!scheduleEditor) return;
-                  const res = await updateStaffSchedule(scheduleEditor.id, scheduleEditor.schedule, shopId);
-                  if (!res.success) {
-                    setError(res.error);
-                    return;
-                  }
-                  setScheduleEditor(null);
-                  addToast("Horarios actualizados", "success");
-                }}
-                className="px-3 py-1.5 rounded-lg text-sm bg-emerald-600 text-white hover:bg-emerald-700 transition-colors cursor-pointer select-none"
-              >
-                Guardar
-              </button>
-            </div>
-          </div>
-        </div>
-      ), document.body)}
-
-      {portalReady && profileEditor && createPortal((
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm px-4">
-          <div className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-lg overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200/50 dark:border-zinc-700/50">
-              <div>
-                <h3 className="text-base font-semibold text-gray-900 dark:text-white">Perfil de {profileEditor.name}</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Foto, descripción y redes sociales.</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setProfileEditor(null)}
-                className="p-1 rounded-md text-gray-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer select-none"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-5 space-y-4">
-              {/* Photo */}
-              <div>
-                <Label>Foto</Label>
-                <div className="mt-1 flex items-center gap-4">
-                  <div className="relative w-16 h-16 rounded-full overflow-hidden bg-violet-100 dark:bg-violet-900 flex items-center justify-center shrink-0">
-                    {profileEditor.photo_url ? (
-                      <img src={profileEditor.photo_url} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-lg font-bold text-violet-600 dark:text-violet-300">
-                        {profileEditor.name.charAt(0).toUpperCase()}
-                      </span>
-                    )}
-                    {profileEditor.uploading && (
-                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-full">
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      </div>
-                    )}
-                  </div>
-                  <label className="cursor-pointer select-none">
-                    <span className="text-sm text-sky-600 hover:text-sky-800 font-medium">
-                      {profileEditor.photo_url ? "Cambiar foto" : "Subir foto"}
-                    </span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      disabled={profileEditor.uploading}
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (!file || !profileEditor) return;
-                        setProfileEditor((prev) => prev ? { ...prev, uploading: true } : prev);
-                        const url = await uploadStaffPhoto(file);
-                        if (url) {
-                          setProfileEditor((prev) => prev ? { ...prev, photo_url: url, uploading: false } : prev);
-                        } else {
-                          setProfileEditor((prev) => prev ? { ...prev, uploading: false } : prev);
-                        }
-                      }}
-                    />
-                  </label>
-                  {profileEditor.photo_url && (
                     <button
                       type="button"
-                      onClick={() => setProfileEditor((prev) => prev ? { ...prev, photo_url: "" } : prev)}
-                      className="text-xs text-red-500 hover:text-red-700 cursor-pointer select-none"
+                      onClick={() => {
+                        if (!scheduleEditor) return;
+                        const next = [...scheduleEditor.schedule];
+                        next[i] = { ...next[i], break_start: "12:00", break_end: "13:00" };
+                        setScheduleEditor({ ...scheduleEditor, schedule: next });
+                      }}
+                      className="text-xs text-amber-600 dark:text-amber-400 hover:text-amber-700 hover:underline ml-1 cursor-pointer select-none"
                     >
-                      Quitar
+                      + agregar corte
                     </button>
-                  )}
-                </div>
+                    {day.break_start && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!scheduleEditor) return;
+                          const next = [...scheduleEditor.schedule];
+                          next[i] = { ...next[i], break_start: null, break_end: null };
+                          setScheduleEditor({ ...scheduleEditor, schedule: next });
+                        }}
+                        className="text-xs text-red-500 hover:text-red-600 hover:underline ml-1 cursor-pointer select-none"
+                      >
+                        quitar
+                      </button>
+                    )}
+                  </>
+                )}
               </div>
-              {/* Description */}
-              <div>
-                <Label htmlFor="desc">Descripción</Label>
-                <textarea
-                  id="desc"
-                  value={profileEditor.description}
-                  onChange={(e) => setProfileEditor((prev) => prev ? { ...prev, description: e.target.value } : prev)}
-                  placeholder="Breve descripción del profesional..."
-                  rows={3}
-                  className="mt-1 w-full rounded-xl border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 resize-none"
+            );
+          })}
+        </div>
+        <div className="px-5 pb-5 flex items-center justify-end gap-2">
+          <button type="button" onClick={() => setScheduleEditor(null)} className="ui-btn-ghost rounded-lg px-3 py-1.5 text-sm">Cancelar</button>
+          <button
+            type="button"
+            onClick={async () => {
+              if (!scheduleEditor) return;
+              const res = await updateStaffSchedule(scheduleEditor.id, scheduleEditor.schedule, shopId);
+              if (!res.success) {
+                setError(res.error);
+                return;
+              }
+              setScheduleEditor(null);
+              addToast("Horarios actualizados", "success");
+            }}
+            className="ui-btn-primary rounded-lg px-3 py-1.5 text-sm"
+          >
+            Guardar
+          </button>
+        </div>
+      </BaseModal>
+
+      <BaseModal
+        open={!!profileEditor}
+        onClose={() => setProfileEditor(null)}
+        title={profileEditor ? `Perfil de ${profileEditor.name}` : ""}
+        subtitle="Foto, descripción y redes sociales."
+        maxWidth="sm"
+      >
+        <div className="p-5 space-y-4">
+          {/* Photo */}
+          <div>
+            <Label>Foto</Label>
+            <div className="mt-1 flex items-center gap-4">
+              <div className="relative w-16 h-16 rounded-full overflow-hidden bg-violet-100 dark:bg-violet-900 flex items-center justify-center shrink-0">
+                {profileEditor?.photo_url ? (
+                  <img src={profileEditor.photo_url} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-lg font-bold text-violet-600 dark:text-violet-300">
+                    {profileEditor?.name.charAt(0).toUpperCase()}
+                  </span>
+                )}
+                {profileEditor?.uploading && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-full">
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
+              </div>
+              <label className="cursor-pointer select-none">
+                <span className="text-sm text-sky-600 hover:text-sky-800 font-medium">
+                  {profileEditor?.photo_url ? "Cambiar foto" : "Subir foto"}
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={profileEditor?.uploading}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file || !profileEditor) return;
+                    setProfileEditor((prev) => prev ? { ...prev, uploading: true } : prev);
+                    const url = await uploadStaffPhoto(file);
+                    if (url) {
+                      setProfileEditor((prev) => prev ? { ...prev, photo_url: url, uploading: false } : prev);
+                    } else {
+                      setProfileEditor((prev) => prev ? { ...prev, uploading: false } : prev);
+                    }
+                  }}
                 />
-              </div>
-              {/* Instagram */}
-              <div>
-                <Label htmlFor="instagram">Instagram <span className="text-xs text-gray-400">(opcional)</span></Label>
-                <div className="mt-1 flex items-center gap-2">
-                  <span className="text-sm text-gray-400">@</span>
-                  <Input
-                    id="instagram"
-                    value={profileEditor.instagram}
-                    onChange={(e) => setProfileEditor((prev) => prev ? { ...prev, instagram: e.target.value } : prev)}
-                    placeholder="usuario"
-                    className="flex-1"
-                  />
-                </div>
-              </div>
-              {/* WhatsApp */}
-              <div>
-                <Label htmlFor="whatsapp">WhatsApp <span className="text-xs text-gray-400">(opcional)</span></Label>
-                <Input
-                  id="whatsapp"
-                  value={profileEditor.whatsapp}
-                  onChange={(e) => setProfileEditor((prev) => prev ? { ...prev, whatsapp: e.target.value } : prev)}
-                  placeholder="11 1234-5678"
-                  className="mt-1"
-                />
-              </div>
-            </div>
-            {profileError && (
-              <div className="px-5 pb-2">
-                <p className="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{profileError}</p>
-              </div>
-            )}
-            <div className="px-5 pb-5 flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setProfileEditor(null)}
-                className="px-3 py-1.5 rounded-lg text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer select-none"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  if (!profileEditor) return;
-                  const res = await updateStaffProfile(profileEditor.id, {
-                    description: profileEditor.description || null,
-                    photo_url: profileEditor.photo_url || null,
-                    instagram: profileEditor.instagram || null,
-                    whatsapp: profileEditor.whatsapp || null,
-                  }, shopId);
-                  if (!res.success) {
-                    setProfileError(res.error);
-                    return;
-                  }
-                  setProfileEditor(null);
-                  addToast("Perfil actualizado", "success");
-                }}
-                className="px-3 py-1.5 rounded-lg text-sm bg-sky-600 text-white hover:bg-sky-700 transition-colors cursor-pointer select-none"
-              >
-                Guardar
-              </button>
+              </label>
+              {profileEditor?.photo_url && (
+                <button
+                  type="button"
+                  onClick={() => setProfileEditor((prev) => prev ? { ...prev, photo_url: "" } : prev)}
+                  className="text-xs text-red-500 hover:text-red-700 cursor-pointer select-none"
+                >
+                  Quitar
+                </button>
+              )}
             </div>
           </div>
+          {/* Description */}
+          <div>
+            <Label htmlFor="desc">Descripción</Label>
+            <textarea
+              id="desc"
+              value={profileEditor?.description ?? ""}
+              onChange={(e) => setProfileEditor((prev) => prev ? { ...prev, description: e.target.value } : prev)}
+              placeholder="Breve descripción del profesional..."
+              rows={3}
+              className="mt-1 w-full rounded-xl border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 resize-none"
+            />
+          </div>
+          {/* Instagram */}
+          <div>
+            <Label htmlFor="instagram">Instagram <span className="text-xs text-gray-400">(opcional)</span></Label>
+            <div className="mt-1 flex items-center gap-2">
+              <span className="text-sm text-gray-400">@</span>
+              <Input
+                id="instagram"
+                value={profileEditor?.instagram ?? ""}
+                onChange={(e) => setProfileEditor((prev) => prev ? { ...prev, instagram: e.target.value } : prev)}
+                placeholder="usuario"
+                className="flex-1"
+              />
+            </div>
+          </div>
+          {/* WhatsApp */}
+          <div>
+            <Label htmlFor="whatsapp">WhatsApp <span className="text-xs text-gray-400">(opcional)</span></Label>
+            <Input
+              id="whatsapp"
+              value={profileEditor?.whatsapp ?? ""}
+              onChange={(e) => setProfileEditor((prev) => prev ? { ...prev, whatsapp: e.target.value } : prev)}
+              placeholder="11 1234-5678"
+              className="mt-1"
+            />
+          </div>
         </div>
-      ), document.body)}
+        {profileError && (
+          <div className="px-5 pb-2">
+            <p className="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{profileError}</p>
+          </div>
+        )}
+        <div className="px-5 pb-5 flex items-center justify-end gap-2">
+          <button type="button" onClick={() => setProfileEditor(null)} className="ui-btn-ghost rounded-lg px-3 py-1.5 text-sm">Cancelar</button>
+          <button
+            type="button"
+            onClick={async () => {
+              if (!profileEditor) return;
+              const res = await updateStaffProfile(profileEditor.id, {
+                description: profileEditor.description || null,
+                photo_url: profileEditor.photo_url || null,
+                instagram: profileEditor.instagram || null,
+                whatsapp: profileEditor.whatsapp || null,
+              }, shopId);
+              if (!res.success) {
+                setProfileError(res.error);
+                return;
+              }
+              setProfileEditor(null);
+              addToast("Perfil actualizado", "success");
+            }}
+            className="ui-btn-primary rounded-lg px-3 py-1.5 text-sm"
+          >
+            Guardar
+          </button>
+        </div>
+      </BaseModal>
 
       <ConfirmDialog
         open={Boolean(deleteTargetId)}

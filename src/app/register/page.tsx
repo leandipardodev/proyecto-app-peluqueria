@@ -9,6 +9,7 @@ import { resolveIndustry } from "@/lib/industry/resolve";
 import type { Industry } from "@/lib/industry/types";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { supabase } from "@/lib/supabase";
+import BaseModal from "@/components/ui/modal";
 
 function RegisterPageContent({ industry }: { industry: Industry }) {
   const [checkingSession, setCheckingSession] = useState(true);
@@ -241,37 +242,24 @@ function RegisterPageContent({ industry }: { industry: Industry }) {
         </p>
       </div>
 
-      {termsOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="w-full max-w-2xl max-h-[88dvh] overflow-y-auto rounded-3xl border border-white/20 bg-white p-6 shadow-2xl">
-            <div className="flex items-center justify-between gap-4">
-              <h2 className="text-xl font-semibold text-gray-900">Terminos y Condiciones de Uso - Klip</h2>
-              <button
-                type="button"
-                onClick={() => setTermsOpen(false)}
-                className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
-              >
-                Cerrar
-              </button>
-            </div>
-
-            <div className="mt-4 space-y-4 text-sm text-gray-700 leading-6">
-              <p>
-                Esta version establece las condiciones de uso de Klip para usuarios en Argentina. Al registrarte, acceder o utilizar la plataforma,
-                aceptas integramente estos terminos.
-              </p>
-              <p>
-                <strong>1. Aceptacion de los Terminos:</strong> Al registrarse, acceder o utilizar la plataforma Klip (&quot;El Servicio&quot;), el Usuario
-                declara haber leido, comprendido y aceptado la totalidad de estos Terminos y Condiciones. Si no esta de acuerdo, debe abstenerse de
-                usar el servicio.
-              </p>
-              <p>
-                <strong>2. Naturaleza del Servicio:</strong> Klip es una herramienta de gestion y agenda digital (SaaS). El Proveedor es un
-                facilitador tecnologico y no es parte de la relacion comercial, profesional o de servicios que ocurra entre el Usuario (el Comercio) y
-                sus clientes finales.
-              </p>
-              <p>
-                <strong>3. Responsabilidad y Limitaciones:</strong>
+      <BaseModal open={termsOpen} onClose={() => setTermsOpen(false)} title="Términos y Condiciones de Uso - Klip" maxWidth="lg" noHeaderBorder>
+        <div className="p-5 space-y-4 text-sm text-gray-700 dark:text-gray-300 leading-6">
+          <p>
+            Esta version establece las condiciones de uso de Klip para usuarios en Argentina. Al registrarte, acceder o utilizar la plataforma,
+            aceptas integramente estos terminos.
+          </p>
+          <p>
+            <strong>1. Aceptacion de los Terminos:</strong> Al registrarse, acceder o utilizar la plataforma Klip (&quot;El Servicio&quot;), el Usuario
+            declara haber leido, comprendido y aceptado la totalidad de estos Terminos y Condiciones. Si no esta de acuerdo, debe abstenerse de
+            usar el servicio.
+          </p>
+          <p>
+            <strong>2. Naturaleza del Servicio:</strong> Klip es una herramienta de gestion y agenda digital (SaaS). El Proveedor es un
+            facilitador tecnologico y no es parte de la relacion comercial, profesional o de servicios que ocurra entre el Usuario (el Comercio) y
+            sus clientes finales.
+          </p>
+          <p>
+            <strong>3. Responsabilidad y Limitaciones:</strong>
               </p>
               <p>
                 <strong>Servicio &quot;Tal Cual Es&quot;:</strong> El Servicio se proporciona &quot;tal cual es&quot; y &quot;segun disponibilidad&quot;. El Proveedor no
@@ -320,9 +308,7 @@ function RegisterPageContent({ industry }: { industry: Industry }) {
                 Ordinarios de la Ciudad de La Plata, renunciando las partes a cualquier otro fuero o jurisdiccion.
               </p>
             </div>
-          </div>
-        </div>
-      )}
+      </BaseModal>
     </div>
   );
 }

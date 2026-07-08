@@ -310,7 +310,7 @@ export default async function AdminReferralsPage({
               <option key={partner.id} value={partner.id}>{partner.name} [{partner.referralCode}]</option>
             ))}
           </select>
-          <button type="submit" className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">Asignar referido</button>
+          <button type="submit" className="ui-btn-primary rounded-lg px-4 py-2 text-sm font-semibold">Asignar referido</button>
         </form>
       </section>
 
@@ -362,7 +362,7 @@ export default async function AdminReferralsPage({
                       <div className="flex items-center gap-2">
                         <form action={markPaidAction}>
                           <input type="hidden" name="partnerId" value={partner.partnerId} />
-                          <button type="submit" disabled={partner.pendingCommission <= 0} className="rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">Marcar pagado</button>
+                          <button type="submit" disabled={partner.pendingCommission <= 0} className="ui-btn-primary rounded-lg px-3 py-1.5 text-xs font-semibold">Marcar pagado</button>
                         </form>
                       </div>
                     </td>

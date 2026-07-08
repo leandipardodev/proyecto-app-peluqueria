@@ -23,6 +23,8 @@ type NextAppointment = {
   status: string;
   customers: { nombre: string; telefono: string | null } | null;
   services: { name: string; price: number } | null;
+  custom_service_name: string | null;
+  service_price: number | null;
 };
 
 type DashboardSummary = {
@@ -116,7 +118,7 @@ export async function fetchDashboardSummary(shopIdOverride?: string): Promise<Ac
 
       supabase
         .from("appointments")
-        .select("id, start_time, end_time, status, customers(nombre, telefono), services(name, price)")
+        .select("id, start_time, end_time, status, service_price, custom_service_name, customers(nombre, telefono), services(name, price)")
         .eq("shop_id", shopId)
         .gte("start_time", nowIso)
         .lte("start_time", todayEndIso)
@@ -155,6 +157,8 @@ export async function fetchDashboardSummary(shopIdOverride?: string): Promise<Ac
         start_time: a.start_time as string,
         end_time: a.end_time as string,
         status: a.status as string,
+        service_price: a.service_price as number | null,
+        custom_service_name: a.custom_service_name as string | null,
         customers: Array.isArray(a.customers)
           ? (a.customers as { nombre: string; telefono: string | null }[])[0] ?? null
           : (a.customers as { nombre: string; telefono: string | null } | null),

@@ -507,7 +507,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
         <button
           onClick={handleMobileOpen}
           aria-label="Abrir menú de navegación"
-          className="lg:hidden p-2 rounded-xl text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/5 transition-all cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
+          className="min-[1367px]:hidden p-2 rounded-xl text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/5 transition-all cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
         >
           <Menu className="w-5 h-5" strokeWidth={1.5} />
         </button>
@@ -835,6 +835,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
             <motion.button
               type="button"
               onClick={() => setNotifOpen((v) => !v)}
+              onMouseDown={(e) => e.stopPropagation()}
               className="relative p-2 rounded-xl text-zinc-400 hover:text-zinc-600 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/5 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
               aria-label="Notificaciones"
               whileTap={{ scale: 0.95 }}

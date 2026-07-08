@@ -84,6 +84,8 @@ type Appointment = {
   staff_id: string | null;
   customer_id: string;
   service_id: string;
+  custom_service_name: string | null;
+  custom_service_duration: number | null;
   start_time: string;
   end_time: string;
   status: string;

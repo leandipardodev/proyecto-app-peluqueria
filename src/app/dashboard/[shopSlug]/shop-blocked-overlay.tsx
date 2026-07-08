@@ -7,7 +7,7 @@ export default function ShopBlockedOverlay({ shopSlug }: { shopSlug: string }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-auto">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-      <div className="relative z-10 mx-4 w-full max-w-md rounded-3xl bg-white dark:bg-zinc-900 shadow-2xl border border-red-200/40 dark:border-red-800/40 p-8 text-center">
+      <div className="relative z-10 mx-4 w-full max-w-md rounded-2xl bg-white dark:bg-zinc-900 shadow-2xl border border-red-200/40 dark:border-red-800/40 p-8 text-center">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30 mb-5">
           <AlertTriangle className="h-7 w-7 text-red-600 dark:text-red-400" />
         </div>

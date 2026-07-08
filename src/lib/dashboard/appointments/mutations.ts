@@ -42,57 +42,94 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
     const notes = formData.get("notes") as string;
     const depositAmountRaw = (formData.get("deposit_amount") as string) || "";
     const depositAmount = depositAmountRaw ? Number(depositAmountRaw) : null;
+    const isCustomService = formData.get("is_custom_service") === "true";
+    const customServiceName = formData.get("custom_service_name") as string;
+    const customServicePriceRaw = formData.get("custom_service_price") as string;
+    const customServiceDurationRaw = formData.get("custom_service_duration") as string;
 
-    const serviceIds = serviceIdsRaw.split(",").map((s) => s.trim()).filter(Boolean);
-    if (!customerId || serviceIds.length === 0 || !startDate || !startTime) {
+    const serviceIds = serviceIdsRaw ? serviceIdsRaw.split(",").map((s) => s.trim()).filter(Boolean) : [];
+    if (!customerId || !startDate || !startTime) {
       const missing = [];
       if (!customerId) missing.push("cliente");
-      if (serviceIds.length === 0) missing.push("servicio");
       if (!startDate) missing.push("fecha");
       if (!startTime) missing.push("hora");
       return { success: false, error: `Faltan campos obligatorios: ${missing.join(", ")}` };
+    }
+    if (!isCustomService && serviceIds.length === 0) {
+      return { success: false, error: "Faltan campos obligatorios: servicio" };
+    }
+    if (isCustomService) {
+      if (!customServiceName?.trim()) {
+        return { success: false, error: "Faltan campos obligatorios: nombre del servicio" };
+      }
+      const dur = customServiceDurationRaw ? Number(customServiceDurationRaw) : 30;
+      if (Number.isNaN(dur) || dur < 1 || dur > 300) {
+        return { success: false, error: "Duración inválida. Máximo 300 min (5 hs)." };
+      }
+      const price = customServicePriceRaw ? Number(customServicePriceRaw) : null;
+      if (price !== null && (Number.isNaN(price) || price < 0)) {
+        return { success: false, error: "El precio debe ser un monto válido" };
+      }
     }
     if (depositAmount !== null && (Number.isNaN(depositAmount) || depositAmount < 0)) {
       return { success: false, error: "La seña debe ser un monto válido" };
     }
 
-    const serviceDurationsRaw = (formData.get("service_durations") as string) || "{}";
-    let serviceDurations: Record<string, number> = {};
-    try { serviceDurations = JSON.parse(serviceDurationsRaw); } catch { serviceDurations = {}; }
-    for (const [_id, minutes] of Object.entries(serviceDurations)) {
-      if (minutes < 1 || minutes > 300) {
-        return { success: false, error: "Duración inválida para un servicio. Máximo 300 min (5 hs)." };
-      }
-    }
-
     const supabase = await createServerClient();
 
-    const { data: services, error: servicesError } = await supabase
-      .from("services")
-      .select("id, duration_minutes, price, name")
-      .in("id", serviceIds);
+    let orderedServices: Array<{ id: string; name: string; price: number | null; duration_minutes: number }>;
+    let totalDuration: number;
+    let serviceDurations: Record<string, number> = {};
 
-    if (servicesError) return { success: false, error: servicesError.message };
-    if (!services || services.length !== serviceIds.length) {
-      return { success: false, error: "Uno o más servicios no encontrados" };
-    }
-
-    if (staffId) {
-      const { data: staffServiceRows } = await supabase
-        .from("staff_services")
-        .select("service_id")
-        .eq("staff_id", staffId);
-      if (staffServiceRows && staffServiceRows.length > 0) {
-        const assignedIds = new Set(staffServiceRows.map((r) => r.service_id));
-        const unassigned = serviceIds.filter((id) => !assignedIds.has(id));
-        if (unassigned.length > 0) {
-          return { success: false, error: "El profesional no realiza uno o más servicios seleccionados" };
+    if (isCustomService) {
+      const dur = customServiceDurationRaw ? Number(customServiceDurationRaw) : 30;
+      const price = customServicePriceRaw ? Number(customServicePriceRaw) : null;
+      orderedServices = [{
+        id: "custom",
+        name: customServiceName.trim(),
+        price,
+        duration_minutes: dur,
+      }];
+      totalDuration = dur;
+    } else {
+      const serviceDurationsRaw = (formData.get("service_durations") as string) || "{}";
+      try { serviceDurations = JSON.parse(serviceDurationsRaw); } catch { serviceDurations = {}; }
+      for (const [_id, minutes] of Object.entries(serviceDurations)) {
+        if (minutes < 1 || minutes > 300) {
+          return { success: false, error: "Duración inválida para un servicio. Máximo 300 min (5 hs)." };
         }
       }
-    }
 
-    const orderedServices = serviceIds.map((id) => services.find((s) => s.id === id)!);
-    const totalDuration = orderedServices.reduce((sum, s) => sum + (serviceDurations[s.id] ?? s.duration_minutes), 0);
+      const { data: services, error: servicesError } = await supabase
+        .from("services")
+        .select("id, duration_minutes, price, name")
+        .in("id", serviceIds);
+
+      if (servicesError) return { success: false, error: servicesError.message };
+      if (!services || services.length !== serviceIds.length) {
+        return { success: false, error: "Uno o más servicios no encontrados" };
+      }
+
+      if (staffId) {
+        const { data: staffServiceRows } = await supabase
+          .from("staff_services")
+          .select("service_id")
+          .eq("staff_id", staffId);
+        if (staffServiceRows && staffServiceRows.length > 0) {
+          const assignedIds = new Set(staffServiceRows.map((r) => r.service_id));
+          const unassigned = serviceIds.filter((id) => !assignedIds.has(id));
+          if (unassigned.length > 0) {
+            return { success: false, error: "El profesional no realiza uno o más servicios seleccionados" };
+          }
+        }
+      }
+
+      orderedServices = serviceIds.map((id) => {
+        const svc = services.find((s) => s.id === id)!;
+        return { ...svc, duration_minutes: svc.duration_minutes ?? 0 };
+      });
+      totalDuration = orderedServices.reduce((sum, s) => sum + (serviceDurations[s.id] ?? s.duration_minutes), 0);
+    }
 
     const { start } = await toArgentinaStartEnd(startDate, startTime, totalDuration);
     const recurringStarts = await buildRecurringStarts(start, recurringFrequency, recurringUntil);
@@ -112,7 +149,9 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
           shop_id: shopId,
           customer_id: customerId,
           staff_id: staffId || null,
-          service_id: svc.id,
+          service_id: isCustomService ? null : svc.id,
+          custom_service_name: isCustomService ? svc.name : null,
+          custom_service_duration: isCustomService ? svc.duration_minutes : null,
           service_price: svc.price ?? null,
           start_time: currentStart.toISOString(),
           end_time: currentEnd.toISOString(),
@@ -208,57 +247,94 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
     const notes = formData.get("notes") as string;
     const depositAmountRaw = (formData.get("deposit_amount") as string) || "";
     const depositAmount = depositAmountRaw ? Number(depositAmountRaw) : null;
+    const isCustomService = formData.get("is_custom_service") === "true";
+    const customServiceName = formData.get("custom_service_name") as string;
+    const customServicePriceRaw = formData.get("custom_service_price") as string;
+    const customServiceDurationRaw = formData.get("custom_service_duration") as string;
 
-    const serviceIds = serviceIdsRaw.split(",").map((s) => s.trim()).filter(Boolean);
-    if (!customerName || serviceIds.length === 0 || !startDate || !startTime) {
+    const serviceIds = serviceIdsRaw ? serviceIdsRaw.split(",").map((s) => s.trim()).filter(Boolean) : [];
+    if (!customerName || !startDate || !startTime) {
       const missing = [];
       if (!customerName) missing.push("nombre del cliente");
-      if (serviceIds.length === 0) missing.push("servicio");
       if (!startDate) missing.push("fecha");
       if (!startTime) missing.push("hora");
       return { success: false, error: `Faltan campos obligatorios: ${missing.join(", ")}` };
+    }
+    if (!isCustomService && serviceIds.length === 0) {
+      return { success: false, error: "Faltan campos obligatorios: servicio" };
+    }
+    if (isCustomService) {
+      if (!customServiceName?.trim()) {
+        return { success: false, error: "Faltan campos obligatorios: nombre del servicio" };
+      }
+      const dur = customServiceDurationRaw ? Number(customServiceDurationRaw) : 30;
+      if (Number.isNaN(dur) || dur < 1 || dur > 300) {
+        return { success: false, error: "Duración inválida. Máximo 300 min (5 hs)." };
+      }
+      const price = customServicePriceRaw ? Number(customServicePriceRaw) : null;
+      if (price !== null && (Number.isNaN(price) || price < 0)) {
+        return { success: false, error: "El precio debe ser un monto válido" };
+      }
     }
     if (depositAmount !== null && (Number.isNaN(depositAmount) || depositAmount < 0)) {
       return { success: false, error: "La seña debe ser un monto válido" };
     }
 
-    const serviceDurationsRaw = (formData.get("service_durations") as string) || "{}";
-    let serviceDurations: Record<string, number> = {};
-    try { serviceDurations = JSON.parse(serviceDurationsRaw); } catch { serviceDurations = {}; }
-    for (const [_id, minutes] of Object.entries(serviceDurations)) {
-      if (minutes < 1 || minutes > 300) {
-        return { success: false, error: "Duración inválida para un servicio. Máximo 300 min (5 hs)." };
-      }
-    }
-
     const supabase = await createServerClient();
 
-    const { data: services, error: servicesError } = await supabase
-      .from("services")
-      .select("id, duration_minutes, price, name")
-      .in("id", serviceIds);
+    let orderedServices: Array<{ id: string; name: string; price: number | null; duration_minutes: number }>;
+    let totalDuration: number;
+    let serviceDurations: Record<string, number> = {};
 
-    if (servicesError) return { success: false, error: servicesError.message };
-    if (!services || services.length !== serviceIds.length) {
-      return { success: false, error: "Uno o más servicios no encontrados" };
-    }
-
-    if (staffId) {
-      const { data: staffServiceRows } = await supabase
-        .from("staff_services")
-        .select("service_id")
-        .eq("staff_id", staffId);
-      if (staffServiceRows && staffServiceRows.length > 0) {
-        const assignedIds = new Set(staffServiceRows.map((r) => r.service_id));
-        const unassigned = serviceIds.filter((id) => !assignedIds.has(id));
-        if (unassigned.length > 0) {
-          return { success: false, error: "El profesional no realiza uno o más servicios seleccionados" };
+    if (isCustomService) {
+      const dur = customServiceDurationRaw ? Number(customServiceDurationRaw) : 30;
+      const price = customServicePriceRaw ? Number(customServicePriceRaw) : null;
+      orderedServices = [{
+        id: "custom",
+        name: customServiceName.trim(),
+        price,
+        duration_minutes: dur,
+      }];
+      totalDuration = dur;
+    } else {
+      const serviceDurationsRaw = (formData.get("service_durations") as string) || "{}";
+      try { serviceDurations = JSON.parse(serviceDurationsRaw); } catch { serviceDurations = {}; }
+      for (const [_id, minutes] of Object.entries(serviceDurations)) {
+        if (minutes < 1 || minutes > 300) {
+          return { success: false, error: "Duración inválida para un servicio. Máximo 300 min (5 hs)." };
         }
       }
-    }
 
-    const orderedServices = serviceIds.map((id) => services.find((s) => s.id === id)!);
-    const totalDuration = orderedServices.reduce((sum, s) => sum + (serviceDurations[s.id] ?? s.duration_minutes), 0);
+      const { data: services, error: servicesError } = await supabase
+        .from("services")
+        .select("id, duration_minutes, price, name")
+        .in("id", serviceIds);
+
+      if (servicesError) return { success: false, error: servicesError.message };
+      if (!services || services.length !== serviceIds.length) {
+        return { success: false, error: "Uno o más servicios no encontrados" };
+      }
+
+      if (staffId) {
+        const { data: staffServiceRows } = await supabase
+          .from("staff_services")
+          .select("service_id")
+          .eq("staff_id", staffId);
+        if (staffServiceRows && staffServiceRows.length > 0) {
+          const assignedIds = new Set(staffServiceRows.map((r) => r.service_id));
+          const unassigned = serviceIds.filter((id) => !assignedIds.has(id));
+          if (unassigned.length > 0) {
+            return { success: false, error: "El profesional no realiza uno o más servicios seleccionados" };
+          }
+        }
+      }
+
+      orderedServices = serviceIds.map((id) => {
+        const svc = services.find((s) => s.id === id)!;
+        return { ...svc, duration_minutes: svc.duration_minutes ?? 0 };
+      });
+      totalDuration = orderedServices.reduce((sum, s) => sum + (serviceDurations[s.id] ?? s.duration_minutes), 0);
+    }
 
     const { data: newCustomer, error: customerInsertError } = await supabase
       .from("customers")
@@ -293,7 +369,9 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
           shop_id: shopId,
           customer_id: customerId,
           staff_id: staffId || null,
-          service_id: svc.id,
+          service_id: isCustomService ? null : svc.id,
+          custom_service_name: isCustomService ? svc.name : null,
+          custom_service_duration: isCustomService ? svc.duration_minutes : null,
           service_price: svc.price ?? null,
           start_time: currentStart.toISOString(),
           end_time: currentEnd.toISOString(),
