@@ -70,21 +70,21 @@ const DashboardSidebar = memo(function DashboardSidebar({
   const features = useShopFeatures();
   const isOwner = user?.role === "owner";
   const restrictedForStaff = new Set(["/dashboard/finances", "/dashboard/inventory", "/dashboard/business"]);
-  const [hydratedItems, setHydratedItems] = useState<typeof navItems>([]);
-  useEffect(() => {
-    setHydratedItems(
-      navItems.filter((item) => {
-        if (!isOwner && restrictedForStaff.has(item.href)) return false;
-        if (item.href === "/dashboard/inventory") return features.inventory;
-        if (item.href === "/dashboard/fidelizacion") return features.marketing;
-        return true;
-      })
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  const resolvedNavItems = useMemo(() => {
+    const items = mounted
+      ? navItems.filter((item) => {
+          if (!isOwner && restrictedForStaff.has(item.href)) return false;
+          if (item.href === "/dashboard/inventory") return features.inventory;
+          if (item.href === "/dashboard/fidelizacion") return features.marketing;
+          return true;
+        })
+      : navItems;
+    return items.map((item) =>
+      item.label === "__CUSTOMERS_LABEL__" ? { ...item, label: customerPlural } : item
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOwner, features.inventory, features.marketing]);
-  const filterActive = hydratedItems.length > 0;
-  const resolvedNavItems = (filterActive ? hydratedItems : navItems)
-    .map((item) => (item.label === "__CUSTOMERS_LABEL__" ? { ...item, label: customerPlural } : item));
+  }, [mounted, isOwner, features.inventory, features.marketing]);
   const pathname = usePathname();
   const router = useRouter();
   const dashboardBasePath = getDashboardBasePath(pathname);
