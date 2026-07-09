@@ -11,7 +11,7 @@ const RevenueChart = dynamicImport(() => import("@/components/dashboard/revenue-
   loading: () => <div className="h-72 rounded-3xl bg-white/30 dark:bg-white/5 animate-pulse" />,
 });
 
-const TopServices = dynamicImport(() => import("@/components/dashboard/top-services"), {
+const DemandaCarousel = dynamicImport(() => import("@/components/dashboard/demanda-carousel"), {
   ssr: false,
   loading: () => <div className="h-52 rounded-3xl bg-white/30 dark:bg-white/5 animate-pulse" />,
 });
@@ -32,6 +32,8 @@ interface DashboardChartsWrapperProps {
     month: { income: number; expenses: number };
   };
   topServicesData: Array<{ name: string; count: number }>;
+  topDiasData: Array<{ name: string; count: number }>;
+  topHorariosData: Array<{ name: string; count: number }>;
   serviceLabelPlural?: string;
   clientsData: ClientPoint[];
   monthlyRevenueData: RevenuePoint[];
@@ -47,7 +49,7 @@ export default function DashboardChartsWrapper(props: DashboardChartsWrapperProp
         <RevenueChart data={props.revenueData} dailyBreakdown={props.dailyBreakdown} hourlyBreakdown={props.hourlyBreakdown} weeklyBreakdown={props.weeklyBreakdown} flowByPeriod={props.flowByPeriod} />
       </div>
       <div className="lg:col-span-1 space-y-4 min-w-0">
-        <TopServices data={props.topServicesData} serviceLabelPlural={props.serviceLabelPlural} />
+        <DemandaCarousel topServices={props.topServicesData} topDias={props.topDiasData} topHorarios={props.topHorariosData} />
         <MonthlyGrowthCard
           clientsData={props.clientsData}
           revenueData={props.monthlyRevenueData}

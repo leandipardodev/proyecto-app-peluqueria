@@ -201,6 +201,8 @@ export type DashboardMetrics = {
     month: { income: number; expenses: number };
   };
   topServices: Array<{ name: string; count: number }>;
+  topDias: Array<{ name: string; count: number }>;
+  topHorarios: Array<{ name: string; count: number }>;
   stats: { totalClients: number; growth: number | null; totalAppointments: number };
 };
 
@@ -295,6 +297,8 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
           healthBreakdown: { revenue: 0, clients: 0, appointments: 0 },
           flowByPeriod: { today: { income: 0, expenses: 0 }, week: { income: 0, expenses: 0 }, month: { income: 0, expenses: 0 } },
           topServices: [],
+          topDias: [],
+          topHorarios: [],
           stats: { totalClients: 0, growth: null, totalAppointments: 0 },
         },
       };
@@ -581,6 +585,15 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
       if (!busiestHour || count > busiestHour.count) busiestHour = { hour: `${hour}:00`, count };
     }
 
+    const topDias = [...dayCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([day, count]) => ({ name: day, count }));
+    const topHorarios = [...hourCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([hour, count]) => ({ name: `${hour}:00`, count }));
+
     const { data: topRaw, error: topErr } = await admin
       .from("appointments")
       .select("service_id, is_paid, services!appointments_service_id_fkey(name)")
@@ -702,6 +715,8 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
           month: flowMonth,
         },
         topServices,
+        topDias,
+        topHorarios,
         stats: { totalClients, growth, totalAppointments },
       },
     };

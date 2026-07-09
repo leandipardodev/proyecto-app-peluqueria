@@ -384,6 +384,8 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
           weeklyBreakdown={metrics?.weeklyBreakdown ?? []}
           flowByPeriod={metrics?.flowByPeriod}
           topServicesData={metrics?.topServices ?? []}
+          topDiasData={metrics?.topDias ?? []}
+          topHorariosData={metrics?.topHorarios ?? []}
           serviceLabelPlural={servicePlural}
           clientsData={metrics?.monthlyGrowth ?? []}
           monthlyRevenueData={metrics?.revenueChart ?? []}
