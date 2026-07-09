@@ -216,7 +216,12 @@ body {
 
 .dark .hold-active button[type="submit"],
 .dark .hold-active [data-hold-submit] {
-  color: #000;
+  text-shadow: 0 0 3px #000, 0 0 6px rgba(0,0,0,0.7);
+}
+
+.dark .hold-active button[type="submit"] svg,
+.dark .hold-active [data-hold-submit] svg {
+  filter: drop-shadow(0 0 2px #000) drop-shadow(0 0 4px rgba(0,0,0,0.7));
 }
 
 /* Focus-visible: círculo flotante sobre el elemento apuntado */

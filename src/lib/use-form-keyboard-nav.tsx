@@ -155,7 +155,6 @@ export function useFormKeyboardNav<T extends HTMLElement>(
         if (tag === "BUTTON" || target.getAttribute("role") === "button") {
           if (target.getAttribute("data-form-nav") === "select") {
             e.preventDefault();
-            focusNextField(el);
           }
           return;
         }
@@ -212,7 +211,12 @@ export function useFormKeyboardNav<T extends HTMLElement>(
           const target = e.target as HTMLElement;
           const tag = target.tagName;
           if (tag === "TEXTAREA" || tag === "SELECT") return;
-          if (tag === "BUTTON" || target.getAttribute("role") === "button") return;
+          if (tag === "BUTTON" || target.getAttribute("role") === "button") {
+            if (target.getAttribute("data-form-nav") === "select") {
+              focusNextField(el);
+            }
+            return;
+          }
           if (target.getAttribute("data-form-nav") === "skip") return;
           focusNextField(el);
         }
