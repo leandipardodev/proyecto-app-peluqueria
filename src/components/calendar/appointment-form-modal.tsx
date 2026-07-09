@@ -211,6 +211,12 @@ export default function AppointmentFormModal({
     [selectedServices]
   );
 
+  const hasCustomer = selectedCustomerId !== ""
+    || (showNewCustomer && newCustomerName.trim().length > 0);
+  const hasService = isCustomService
+    ? customServiceName.trim().length > 0
+    : selectedServiceIds.length > 0;
+
   const filteredCustomers = useMemo(() => {
     if (!customerSearchQuery.trim()) return customers;
     const q = customerSearchQuery.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -263,6 +269,11 @@ export default function AppointmentFormModal({
 
     if (isCustomService && !customServiceName.trim()) {
       setError("Ingresá el nombre del servicio");
+      return;
+    }
+
+    if (!hasCustomer) {
+      setError("Seleccioná o creá un cliente");
       return;
     }
 
@@ -1031,7 +1042,7 @@ export default function AppointmentFormModal({
             <button
               type="submit"
               form="appointment-form"
-              disabled={isSubmitting || (!isCustomService && selectedServiceIds.length === 0)}
+              disabled={isSubmitting || !hasCustomer || !hasService}
               className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white py-2.5 px-8 rounded-xl text-sm font-semibold shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none transition-all cursor-pointer select-none"
             >
               <Plus className="w-4 h-4" />

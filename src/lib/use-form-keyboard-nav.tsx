@@ -62,6 +62,20 @@ export function useFormKeyboardNav<T extends HTMLElement>(
       if (idx > 0) all[idx - 1].focus();
     }
 
+    function focusPrevField(container: HTMLElement) {
+      const all = getAllFocusable();
+      const idx = getActiveIndex(all);
+      if (idx < 0) return;
+      let prev = idx - 1;
+      if (isButtonLike(all[idx])) {
+        const parent = all[idx].parentElement;
+        while (prev >= 0 && isButtonLike(all[prev]) && all[prev].parentElement === parent) {
+          prev--;
+        }
+      }
+      if (prev >= 0) all[prev].focus();
+    }
+
     function focusNextField(container: HTMLElement) {
       const all = getAllFocusable();
       const idx = getActiveIndex(all);
@@ -157,15 +171,13 @@ export function useFormKeyboardNav<T extends HTMLElement>(
         const target = e.target as HTMLElement;
         const tag = target.tagName;
         if (tag !== "TEXTAREA" && tag !== "SELECT") e.preventDefault();
-        if (tag === "BUTTON" || target.getAttribute("role") === "button") return;
-        focusNext(el);
+        focusNextField(el);
       }
       if (e.key === "ArrowUp") {
         const target = e.target as HTMLElement;
         const tag = target.tagName;
         if (tag !== "TEXTAREA" && tag !== "SELECT") e.preventDefault();
-        if (tag === "BUTTON" || target.getAttribute("role") === "button") return;
-        focusPrev(el);
+        focusPrevField(el);
       }
       if (e.key === "ArrowRight") {
         e.preventDefault();
