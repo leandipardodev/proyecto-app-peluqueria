@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, memo } from "react";
+import { useEffect, useRef, useState, memo } from "react";
 import { LayoutGroup, animate, motion, useMotionValue, useSpring } from "framer-motion";
 import {
   Home,
@@ -22,7 +22,6 @@ import { triggerDashboardNavTransition } from "@/lib/dashboard/shared/nav-transi
 import { useAuth } from "@/lib/auth-context";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { resolveIndustry } from "@/lib/industry/resolve";
-import { useShopFeatures } from "@/lib/industry/use-features";
 import { getDashboardBasePath } from "@/lib/dashboard/shared/dashboard-base";
 
 const navItems = [
@@ -67,24 +66,8 @@ const DashboardSidebar = memo(function DashboardSidebar({
   const { shop, user } = useAuth();
   const industry = resolveIndustry(shop?.industry);
   const customerPlural = INDUSTRY_CONFIG[industry].labels.customerPlural;
-  const features = useShopFeatures();
-  const isOwner = user?.role === "owner";
-  const restrictedForStaff = new Set(["/dashboard/finances", "/dashboard/inventory", "/dashboard/business"]);
-  const [mounted, setMounted] = useState(false);
-  useLayoutEffect(() => { setMounted(true); }, []);
-  const resolvedNavItems = useMemo(() => {
-    const items = mounted
-      ? navItems.filter((item) => {
-          if (!isOwner && restrictedForStaff.has(item.href)) return false;
-          if (item.href === "/dashboard/inventory") return features.inventory;
-          if (item.href === "/dashboard/fidelizacion") return features.marketing;
-          return true;
-        })
-      : navItems;
-    return items.map((item) =>
-      item.label === "__CUSTOMERS_LABEL__" ? { ...item, label: customerPlural } : item
-    );
-  }, [mounted, isOwner, features.inventory, features.marketing]);
+  const resolvedNavItems = navItems
+    .map((item) => (item.label === "__CUSTOMERS_LABEL__" ? { ...item, label: customerPlural } : item));
   const pathname = usePathname();
   const router = useRouter();
   const dashboardBasePath = getDashboardBasePath(pathname);
