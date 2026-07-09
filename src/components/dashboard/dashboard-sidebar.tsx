@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, memo } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, memo } from "react";
 import { LayoutGroup, animate, motion, useMotionValue, useSpring } from "framer-motion";
 import {
   Home,
@@ -71,7 +71,7 @@ const DashboardSidebar = memo(function DashboardSidebar({
   const isOwner = user?.role === "owner";
   const restrictedForStaff = new Set(["/dashboard/finances", "/dashboard/inventory", "/dashboard/business"]);
   const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  useLayoutEffect(() => { setMounted(true); }, []);
   const resolvedNavItems = useMemo(() => {
     const items = mounted
       ? navItems.filter((item) => {
