@@ -7,7 +7,6 @@ import { X, Plus, Search, Clock, CalendarDays, ChevronDown, Loader2, Check, Aler
 import { createAppointment, createCustomerAndAppointment } from "@/lib/dashboard/appointments/actions";
 import { getArgentinaDateString } from "@/lib/argentina-time";
 import { useToast } from "@/components/ui/toast";
-import { FormWithKeyboardNav } from "@/lib/use-form-keyboard-nav";
 
 type Service = {
   id: string;
@@ -207,8 +206,7 @@ export default function BatchAppointmentModal({
     }
   }
 
-  async function handleSave(e?: React.FormEvent<HTMLFormElement>) {
-    e?.preventDefault();
+  async function handleSave() {
     setSaving(true);
     setResults(null);
     setEntryErrors({});
@@ -310,8 +308,8 @@ export default function BatchAppointmentModal({
               </button>
             </div>
 
-            {results ? (
-              <div ref={scrollRef} className="overflow-y-auto flex-1 p-4 space-y-3">
+            <div ref={scrollRef} className="overflow-y-auto flex-1 p-4 space-y-3">
+              {results ? (
                 <div className="flex flex-col items-center justify-center py-8 gap-3">
                   {results.fail === 0 ? (
                     <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40">
@@ -345,9 +343,7 @@ export default function BatchAppointmentModal({
                     </div>
                   )}
                 </div>
-              </div>
-            ) : saving ? (
-              <div ref={scrollRef} className="overflow-y-auto flex-1 p-4 space-y-3">
+              ) : saving ? (
                 <div className="flex flex-col items-center justify-center py-8 gap-3">
                   <Loader2 className="h-8 w-8 text-[#0071E3] animate-spin" />
                   <p className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -362,57 +358,57 @@ export default function BatchAppointmentModal({
                     />
                   </div>
                 </div>
+              ) : (
+                entries.map((entry, index) => (
+                  <EntryCard
+                    key={entry.id}
+                    entry={entry}
+                    index={index}
+                    services={services}
+                    staff={staff}
+                    customers={customers}
+                    customerFiltered={filteredCustomers(entry.customerSearchQuery)}
+                    serviceFiltered={filteredServices(entry.serviceSearchQuery)}
+                    onUpdate={(patch) => updateEntry(entry.id, patch)}
+                    onRemove={() => removeEntry(entry.id)}
+                    canRemove={entries.length > 1}
+                    onSaveEntry={() => handleSaveEntry(entry)}
+                    entryError={entryErrors[entry.id]}
+                  />
+                ))
+              )}
+            </div>
+
+            {!saving && !results && (() => {
+              const lastEntry = entries[entries.length - 1];
+              const lastEntryValid = lastEntry
+                ? lastEntry.serviceIds.length > 0
+                  && (lastEntry.isNewCustomer
+                    ? lastEntry.newCustomerName.trim().length > 0
+                    : !!lastEntry.customerId)
+                : false;
+              return (
+              <div className="px-4 py-3 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={addEntry}
+                  disabled={!lastEntryValid}
+                  className="ui-btn-ghost inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  Agregar otro turno
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={entries.some((e) => (e.serviceIds.length === 0) || (!e.isNewCustomer && !e.customerId) || (e.isNewCustomer && !e.newCustomerName.trim()))}
+                  className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white py-2 px-6 rounded-xl text-sm font-semibold shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none transition-all cursor-pointer select-none"
+                >
+                  Guardar todos ({entries.length})
+                </button>
               </div>
-            ) : (
-              <FormWithKeyboardNav onSubmit={handleSave} onCancel={onClose} id="batch-form" className="flex flex-col flex-1 min-h-0">
-                <div ref={scrollRef} className="overflow-y-auto flex-1 p-4 space-y-3">
-                  {entries.map((entry, index) => (
-                    <EntryCard
-                      key={entry.id}
-                      entry={entry}
-                      index={index}
-                      services={services}
-                      staff={staff}
-                      customers={customers}
-                      customerFiltered={filteredCustomers(entry.customerSearchQuery)}
-                      serviceFiltered={filteredServices(entry.serviceSearchQuery)}
-                      onUpdate={(patch) => updateEntry(entry.id, patch)}
-                      onRemove={() => removeEntry(entry.id)}
-                      canRemove={entries.length > 1}
-                      onSaveEntry={() => handleSaveEntry(entry)}
-                      entryError={entryErrors[entry.id]}
-                    />
-                  ))}
-                </div>
-                <div className="px-4 py-3 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-3 shrink-0">
-                  <button
-                    type="button"
-                    onClick={addEntry}
-                    disabled={entries.length === 0 ? false : (() => {
-                      const lastEntry = entries[entries.length - 1];
-                      return lastEntry
-                        ? lastEntry.serviceIds.length === 0
-                          || (lastEntry.isNewCustomer
-                            ? lastEntry.newCustomerName.trim().length === 0
-                            : !lastEntry.customerId)
-                        : false;
-                    })()}
-                    className="ui-btn-ghost inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Agregar otro turno
-                  </button>
-                  <button
-                    type="submit"
-                    form="batch-form"
-                    disabled={entries.some((e) => (e.serviceIds.length === 0) || (!e.isNewCustomer && !e.customerId) || (e.isNewCustomer && !e.newCustomerName.trim()))}
-                    className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white py-2 px-6 rounded-xl text-sm font-semibold shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none transition-all cursor-pointer select-none"
-                  >
-                    Guardar todos ({entries.length})
-                  </button>
-                </div>
-              </FormWithKeyboardNav>
-            )}
+              );
+            })()}
           </motion.div>
         </motion.div>
       )}
@@ -543,7 +539,6 @@ function EntryCard({
         {canRemove && (
           <button
             type="button"
-            data-form-nav="skip"
             onClick={onRemove}
             className="p-1 rounded-lg text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors cursor-pointer select-none"
           >
@@ -583,13 +578,6 @@ function EntryCard({
                           setTimeout(recalcStyles, 0);
                         }}
                         onBlur={() => setTimeout(() => onUpdate({ customerSearchOpen: false }), 200)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Escape") {
-                            e.preventDefault();
-                            e.nativeEvent.stopPropagation();
-                            onUpdate({ customerSearchOpen: false });
-                          }
-                        }}
                         className="w-full pl-8 pr-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
                       />
                       {entry.customerSearchOpen && customerDropdownStyle && (customerFiltered.length > 0 || entry.customerSearchQuery.trim()) && typeof document !== "undefined" && createPortal(
@@ -603,7 +591,7 @@ function EntryCard({
                               <button
                                 key={c.id}
                                 type="button"
-                                onClick={() => {
+                                onMouseDown={() => {
                                   onUpdate({ customerId: c.id, customerSearchQuery: c.nombre || "Sin nombre", customerSearchOpen: false });
                                 }}
                                 className={`w-full text-left px-3 py-2 text-sm transition-colors cursor-pointer select-none ${
@@ -619,7 +607,7 @@ function EntryCard({
                           ) : (
                             <button
                               type="button"
-                              onClick={() => {
+                              onMouseDown={() => {
                                 onUpdate({ isNewCustomer: true, newCustomerName: entry.customerSearchQuery, customerSearchQuery: "", customerSearchOpen: false });
                               }}
                               className="w-full text-left px-3 py-2.5 text-sm text-violet-700 dark:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors cursor-pointer select-none font-medium flex items-center gap-2"
@@ -639,7 +627,6 @@ function EntryCard({
                       <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Nuevo cliente</span>
                       <button
                         type="button"
-                        data-form-nav="skip"
                         onClick={() => onUpdate({ isNewCustomer: false, customerSearchQuery: "" })}
                         className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-white cursor-pointer select-none"
                       >
@@ -690,13 +677,6 @@ function EntryCard({
                       setTimeout(recalcStyles, 0);
                     }}
                     onBlur={() => setTimeout(() => onUpdate({ serviceSearchOpen: false }), 200)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Escape") {
-                        e.preventDefault();
-                        e.nativeEvent.stopPropagation();
-                        onUpdate({ serviceSearchOpen: false });
-                      }
-                    }}
                     className="w-full pl-8 pr-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
                   />
                   {entry.serviceSearchOpen && serviceFiltered.length > 0 && serviceDropdownStyle && typeof document !== "undefined" && createPortal(
@@ -711,7 +691,7 @@ function EntryCard({
                           <button
                             key={s.id}
                             type="button"
-                            onClick={() => {
+                            onMouseDown={() => {
                               if (!already) onUpdate({ serviceIds: [...entry.serviceIds, s.id], serviceSearchQuery: "", serviceSearchOpen: false });
                             }}
                             disabled={already}
@@ -772,27 +752,25 @@ function EntryCard({
                               <span className="text-zinc-400 text-[10px]">min</span>
                             </span>
                           ) : (
-                          <button
-                            type="button"
-                            data-form-nav="skip"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              try {
-                                setEditingDurationId(s.id);
-                                setEditingDurationValue(String(effDuration));
-                              } catch (err) {
-                                console.error("[batch] click error", err);
-                              }
-                            }}
-                            className={`inline-flex items-center gap-0.5 text-xs hover:text-violet-600 transition-colors cursor-pointer select-none ${isCustom ? 'text-violet-600 dark:text-violet-300 font-semibold' : 'opacity-70'}`}
-                          >
-                            {effDuration}min
-                            <Pencil className="w-3 h-3 opacity-60" />
-                          </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                try {
+                                  setEditingDurationId(s.id);
+                                  setEditingDurationValue(String(effDuration));
+                                } catch (err) {
+                                  console.error("[batch] click error", err);
+                                }
+                              }}
+                              className={`inline-flex items-center gap-0.5 text-xs hover:text-violet-600 transition-colors cursor-pointer select-none ${isCustom ? 'text-violet-600 dark:text-violet-300 font-semibold' : 'opacity-70'}`}
+                            >
+                              {effDuration}min
+                              <Pencil className="w-3 h-3 opacity-60" />
+                            </button>
                           )}
                           <button
                             type="button"
-                            data-form-nav="skip"
                             onClick={() => onUpdate({ serviceIds: entry.serviceIds.filter((id) => id !== s.id) })}
                             className="hover:bg-violet-200 dark:hover:bg-violet-800 rounded p-0.5 transition-colors cursor-pointer select-none"
                           >
@@ -817,7 +795,6 @@ function EntryCard({
                   <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm">
                     <button
                       type="button"
-                      data-form-nav="select"
                       onClick={() => onUpdate({ staffId: "" })}
                       className={`relative px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors cursor-pointer select-none ${
                         entry.staffId === ""
@@ -836,7 +813,6 @@ function EntryCard({
                         <button
                           key={s.id}
                           type="button"
-                          data-form-nav="select"
                           onClick={() => onUpdate({ staffId: isActive ? "" : s.id })}
                           className={`relative inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors cursor-pointer select-none ${
                             isActive
@@ -933,18 +909,17 @@ function EntryCard({
                           <span className="text-zinc-400 text-[10px]">min</span>
                         </span>
                       ) : (
-                      <button
-                        type="button"
-                        data-form-nav="skip"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          try {
-                            setEditingDurationId(slot.service.id);
-                            setEditingDurationValue(String(effDuration));
-                          } catch (err) {
-                            console.error("[batch] secuencia click error", err);
-                          }
-                        }}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            try {
+                              setEditingDurationId(slot.service.id);
+                              setEditingDurationValue(String(effDuration));
+                            } catch (err) {
+                              console.error("[batch] secuencia click error", err);
+                            }
+                          }}
                           className={`inline-flex items-center gap-0.5 text-xs tabular-nums hover:text-violet-600 transition-colors cursor-pointer select-none shrink-0 ${isCustom ? 'text-violet-600 font-semibold' : 'text-zinc-400'}`}
                         >
                           {effDuration}min
@@ -968,7 +943,6 @@ function EntryCard({
                 <div className="pt-2 border-t border-zinc-100 dark:border-zinc-700/50 flex justify-end">
                   <button
                     type="button"
-                    data-form-nav="skip"
                     onClick={onSaveEntry}
                     className="inline-flex items-center gap-1 text-xs font-medium text-violet-600 hover:text-violet-700 dark:text-violet-400 dark:hover:text-violet-300 transition-colors cursor-pointer select-none"
                   >
