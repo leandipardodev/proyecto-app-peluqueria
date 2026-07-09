@@ -198,11 +198,15 @@ body {
   animation: hold-circle-fill 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+.hold-active button[type="submit"],
+.hold-active [data-hold-submit] {
+  color: #fff;
+}
+
 .hold-active button[type="submit"] > *,
 .hold-active [data-hold-submit] > * {
   position: relative;
   z-index: 2;
-  color: #fff;
 }
 
 .dark .hold-active button[type="submit"]::after,
@@ -210,8 +214,8 @@ body {
   background: rgb(255, 255, 255);
 }
 
-.dark .hold-active button[type="submit"] > *,
-.dark .hold-active [data-hold-submit] > * {
+.dark .hold-active button[type="submit"],
+.dark .hold-active [data-hold-submit] {
   color: #000;
 }
 
