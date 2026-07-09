@@ -19,6 +19,7 @@ export async function sendAppointmentAutomationEmails(params: {
   startTime: string;
   shopAddress?: string;
   replyTo?: string;
+  mapsUrl?: string;
 }) {
   const appointmentDate = new Date(params.startTime);
   const dateLabel = appointmentDate.toLocaleDateString("es-AR", {
@@ -34,9 +35,9 @@ export async function sendAppointmentAutomationEmails(params: {
     timeZone: "America/Argentina/Buenos_Aires",
   });
 
-  const mapsUrl = params.shopAddress
+  const mapsUrl = params.mapsUrl || (params.shopAddress
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(params.shopAddress)}`
-    : null;
+    : null);
   const locationLine = params.shopAddress
     ? `<p style="font-size:14px;line-height:1.6;margin:4px 0 14px;"><strong>Direccion:</strong> ${params.shopAddress}</p>`
     : "";

@@ -189,14 +189,15 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
       const admin = await createAdminClient();
       const [{ data: customer }, { data: shopData }] = await Promise.all([
         supabase.from("customers").select("nombre, email").eq("id", customerId).maybeSingle(),
-        admin.from("shops").select("nombre, email, address, localidad").eq("id", shopId).maybeSingle(),
+        admin.from("shops").select("nombre, email, address, localidad, google_maps_url").eq("id", shopId).maybeSingle(),
       ]);
 
       const emailTo = customer?.email?.trim();
       if (emailTo) {
-        const sd = shopData as { nombre?: string | null; email?: string | null; address?: string | null; localidad?: string | null } | null;
+        const sd = shopData as { nombre?: string | null; email?: string | null; address?: string | null; localidad?: string | null; google_maps_url?: string | null } | null;
         const locationParts = [sd?.address?.trim(), sd?.localidad?.trim()].filter(Boolean);
         const shopAddress = locationParts.length > 0 ? locationParts.join(", ") : undefined;
+        const mapsUrl = sd?.google_maps_url?.trim() || undefined;
         const replyTo = sd?.email && sd.email.includes("@") ? sd.email : undefined;
         const serviceNames = orderedServices.map((s) => s.name).join(", ");
         const firstRow = rowsToInsert[0];
@@ -209,6 +210,7 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
             startTime: firstRow.start_time,
             shopAddress,
             replyTo,
+            mapsUrl,
           }).catch((mailError) => console.error("[createAppointment] email automation error:", mailError));
         }
       }
@@ -408,13 +410,14 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
     try {
       const admin = await createAdminClient();
       const [{ data: shopData }] = await Promise.all([
-        admin.from("shops").select("nombre, email, address, localidad").eq("id", shopId).maybeSingle(),
+        admin.from("shops").select("nombre, email, address, localidad, google_maps_url").eq("id", shopId).maybeSingle(),
       ]);
 
       if (customerEmail?.trim()) {
-        const sd = shopData as { nombre?: string | null; email?: string | null; address?: string | null; localidad?: string | null } | null;
+        const sd = shopData as { nombre?: string | null; email?: string | null; address?: string | null; localidad?: string | null; google_maps_url?: string | null } | null;
         const locationParts = [sd?.address?.trim(), sd?.localidad?.trim()].filter(Boolean);
         const shopAddress = locationParts.length > 0 ? locationParts.join(", ") : undefined;
+        const mapsUrl = sd?.google_maps_url?.trim() || undefined;
         const replyTo = sd?.email && sd.email.includes("@") ? sd.email : undefined;
         const serviceNames = orderedServices.map((s) => s.name).join(", ");
         await Promise.allSettled(
@@ -427,6 +430,7 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
               startTime: row.start_time,
               shopAddress,
               replyTo,
+              mapsUrl,
             })
           )
         );

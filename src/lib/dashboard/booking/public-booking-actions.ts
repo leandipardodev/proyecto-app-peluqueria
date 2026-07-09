@@ -923,15 +923,16 @@ export async function createPublicAppointment(data: {
     if (data.customerEmail) {
       try {
         const [{ data: shop }, { data: service }] = await Promise.all([
-          admin.from("shops").select("nombre, email, address, localidad").eq("id", data.shopId).maybeSingle(),
+          admin.from("shops").select("nombre, email, address, localidad, google_maps_url").eq("id", data.shopId).maybeSingle(),
           admin.from("services").select("name").eq("id", data.serviceId).maybeSingle(),
         ]);
 
-        const shopData = (shop as { nombre?: string | null; email?: string | null; address?: string | null; localidad?: string | null } | null) || null;
+        const shopData = (shop as { nombre?: string | null; email?: string | null; address?: string | null; localidad?: string | null; google_maps_url?: string | null } | null) || null;
         const serviceName = (service as { name?: string | null } | null)?.name || "Servicio";
         const replyTo = shopData?.email && shopData.email.includes("@") ? shopData.email : undefined;
         const locationParts = [shopData?.address?.trim(), shopData?.localidad?.trim()].filter(Boolean);
         const shopAddress = locationParts.length > 0 ? locationParts.join(", ") : undefined;
+        const mapsUrl = shopData?.google_maps_url?.trim() || undefined;
 
         await sendAppointmentConfirmationEmail({
           to: data.customerEmail,
@@ -941,6 +942,7 @@ export async function createPublicAppointment(data: {
           shopAddress,
           startTime: data.startTime,
           replyTo,
+          mapsUrl,
         });
 
         await scheduleAppointmentReminderEmail({
@@ -951,6 +953,7 @@ export async function createPublicAppointment(data: {
           shopAddress,
           startTime: data.startTime,
           replyTo,
+          mapsUrl,
         });
       } catch (mailError) {
         console.error("[createPublicAppointment] confirmation email error:", mailError);
@@ -1418,14 +1421,15 @@ export async function createPublicComboAppointment(data: {
     if (data.customerEmail) {
       try {
         const [{ data: shop }, firstSvc] = await Promise.all([
-          admin.from("shops").select("nombre, email, address, localidad").eq("id", data.shopId).maybeSingle(),
+          admin.from("shops").select("nombre, email, address, localidad, google_maps_url").eq("id", data.shopId).maybeSingle(),
           Promise.resolve(data.services[0]),
         ]);
-        const shopData = (shop as { nombre?: string | null; email?: string | null; address?: string | null; localidad?: string | null } | null) || null;
+        const shopData = (shop as { nombre?: string | null; email?: string | null; address?: string | null; localidad?: string | null; google_maps_url?: string | null } | null) || null;
         const serviceName = data.comboName || firstSvc?.name || "Combo";
         const replyTo = shopData?.email && shopData.email.includes("@") ? shopData.email : undefined;
         const locationParts = [shopData?.address?.trim(), shopData?.localidad?.trim()].filter(Boolean);
         const shopAddress = locationParts.length > 0 ? locationParts.join(", ") : undefined;
+        const mapsUrl = shopData?.google_maps_url?.trim() || undefined;
 
         await sendAppointmentConfirmationEmail({
           to: data.customerEmail,
@@ -1435,6 +1439,7 @@ export async function createPublicComboAppointment(data: {
           shopAddress,
           startTime: data.startTime,
           replyTo,
+          mapsUrl,
         });
 
         await scheduleAppointmentReminderEmail({
@@ -1445,6 +1450,7 @@ export async function createPublicComboAppointment(data: {
           shopAddress,
           startTime: data.startTime,
           replyTo,
+          mapsUrl,
         });
       } catch (mailError) {
         console.error("[createPublicComboAppointment] confirmation email error:", mailError);

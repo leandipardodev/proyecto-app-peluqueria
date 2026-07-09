@@ -8,6 +8,7 @@ export async function sendAppointmentConfirmationEmail(params: {
   shopAddress?: string;
   startTime: string;
   replyTo?: string;
+  mapsUrl?: string;
 }): Promise<void> {
   const appointmentDate = new Date(params.startTime);
   const dateLabel = appointmentDate.toLocaleDateString("es-AR", {
@@ -23,9 +24,9 @@ export async function sendAppointmentConfirmationEmail(params: {
     timeZone: "America/Argentina/Buenos_Aires",
   });
 
-  const mapsUrl = params.shopAddress
+  const mapsUrl = params.mapsUrl || (params.shopAddress
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(params.shopAddress)}`
-    : null;
+    : null);
   const locationLine = params.shopAddress
     ? `<p style="font-size:14px;line-height:1.6;margin:4px 0 14px;"><strong>Direccion:</strong> ${params.shopAddress}</p>`
     : "";
@@ -62,6 +63,7 @@ export async function scheduleAppointmentReminderEmail(params: {
   shopAddress?: string;
   startTime: string;
   replyTo?: string;
+  mapsUrl?: string;
 }): Promise<void> {
   const reminderDate = new Date(new Date(params.startTime).getTime() - 3 * 60 * 60 * 1000);
   if (reminderDate <= new Date()) {
@@ -82,9 +84,9 @@ export async function scheduleAppointmentReminderEmail(params: {
     timeZone: "America/Argentina/Buenos_Aires",
   });
 
-  const mapsUrl = params.shopAddress
+  const mapsUrl = params.mapsUrl || (params.shopAddress
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(params.shopAddress)}`
-    : null;
+    : null);
   const locationLine = params.shopAddress
     ? `<p style="font-size:14px;line-height:1.6;margin:4px 0 14px;"><strong>Direccion:</strong> ${params.shopAddress}</p>`
     : "";
