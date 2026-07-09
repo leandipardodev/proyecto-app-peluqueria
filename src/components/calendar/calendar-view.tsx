@@ -1160,8 +1160,14 @@ export default memo(function CalendarView({
     onSlotClick(date, hour);
   }, [viewMode, focusedDayKey, gridStartHour, gridEndHour, onSlotClick]);
 
-  useHotkey("ArrowLeft", () => handlePrevPeriod(), { enabled: viewMode !== "month" });
-  useHotkey("ArrowRight", () => handleNextPeriod(), { enabled: viewMode !== "month" });
+  useHotkey("ArrowLeft", (e) => {
+    if ((e.target as HTMLElement).closest('[role="dialog"]')) return;
+    handlePrevPeriod();
+  }, { enabled: viewMode !== "month" });
+  useHotkey("ArrowRight", (e) => {
+    if ((e.target as HTMLElement).closest('[role="dialog"]')) return;
+    handleNextPeriod();
+  }, { enabled: viewMode !== "month" });
   useHotkey("T", () => handleTodayClick());
   useHotkey("W", () => setViewMode("week"));
   useHotkey("D", () => setViewMode("day"));
@@ -1193,7 +1199,7 @@ export default memo(function CalendarView({
 
   function handleDayCellClick(dateKey: string, el: HTMLElement) {
     const appts = mergedAppointments.filter((a) => a.date_key_ar === dateKey);
-    if (appts.length === 0) {
+    if (appts.length === 0 || isCoarsePointer || isMobileViewport) {
       setFocusedDayKey(dateKey);
       setViewMode("day");
       const targetIdx = pillModes.indexOf("day");
@@ -1655,9 +1661,21 @@ export default memo(function CalendarView({
           date_key_ar: getArgentinaDateKey(a.start_time),
         })).sort((a, b) => a.start_hhmm.localeCompare(b.start_hhmm));
         const cellRect = selectedDayPopover.el.getBoundingClientRect();
-        const popLeft = Math.max(8, Math.min(cellRect.left, window.innerWidth - 300));
-        const popTop = Math.max(8, cellRect.bottom + 4);
+        const POPUP_WIDTH = 280;
+        const PAD = 8;
         const popHeight = Math.min(dayAppts.length * 56 + 100, 420);
+        let popLeft = cellRect.left + cellRect.width / 2 - POPUP_WIDTH / 2;
+        popLeft = Math.max(PAD, Math.min(popLeft, window.innerWidth - POPUP_WIDTH - PAD));
+        const spaceBelow = window.innerHeight - cellRect.bottom;
+        const spaceAbove = cellRect.top;
+        let popTop: number;
+        if (spaceBelow >= popHeight + PAD) {
+          popTop = cellRect.bottom + 4;
+        } else if (spaceAbove >= popHeight + PAD) {
+          popTop = cellRect.top - popHeight - 4;
+        } else {
+          popTop = Math.max(PAD, cellRect.bottom + 4);
+        }
 
         return (
           <>

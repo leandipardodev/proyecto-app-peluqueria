@@ -172,6 +172,30 @@ export default function AppointmentFormModal({
     };
   }, [customerSearchOpen, serviceSearchOpen]);
 
+  useEffect(() => {
+    if (!customerSearchOpen) return;
+    function onDocMouseDown(e: MouseEvent) {
+      const target = e.target as Node;
+      if (customerDropdownRef.current?.contains(target)) return;
+      if (customerSearchRef.current?.contains(target)) return;
+      setCustomerSearchOpen(false);
+    }
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, [customerSearchOpen]);
+
+  useEffect(() => {
+    if (!serviceSearchOpen) return;
+    function onDocMouseDown(e: MouseEvent) {
+      const target = e.target as Node;
+      if (serviceDropdownRef.current?.contains(target)) return;
+      if (serviceSearchRef.current?.contains(target)) return;
+      setServiceSearchOpen(false);
+    }
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, [serviceSearchOpen]);
+
   const selectedServices = useMemo(
     () => services.filter((s) => selectedServiceIds.includes(s.id)),
     [services, selectedServiceIds]
@@ -221,6 +245,7 @@ export default function AppointmentFormModal({
     setSelectedServiceIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
     setServiceSearchQuery("");
     setServiceSearchOpen(false);
+    serviceSearchRef.current?.focus();
   }, []);
 
   const removeService = useCallback((id: string) => {
@@ -282,7 +307,7 @@ export default function AppointmentFormModal({
   return createPortal(
     <motion.div
       ref={backdropRef}
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-y-contain bg-black/20 p-3 sm:p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-y-contain bg-black/20 sm:backdrop-blur-sm p-3 sm:p-4"
       role="dialog"
       aria-modal="true"
       onClick={(e) => {
@@ -343,21 +368,59 @@ export default function AppointmentFormModal({
                       value={customerSearchQuery}
                       onChange={(e) => {
                         setCustomerSearchQuery(e.target.value);
-                        if (!customerSearchOpen) setCustomerSearchOpen(true);
-                      }}
-                      onFocus={() => {
-                        setCustomerSearchOpen(true);
-                        if (customerSearchRef.current) {
-                          const r = customerSearchRef.current.getBoundingClientRect();
-                          setCustomerDropdownStyle({ top: r.bottom + 4, left: r.left, width: r.width });
+                        if (!customerSearchOpen) {
+                          setCustomerSearchOpen(true);
+                          if (customerSearchRef.current) {
+                            const r = customerSearchRef.current.getBoundingClientRect();
+                            setCustomerDropdownStyle({ top: r.bottom + 4, left: r.left, width: r.width });
+                          }
                         }
                       }}
-                      onBlur={() => setTimeout(() => setCustomerSearchOpen(false), 200)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && customerSearchOpen && filteredCustomers.length > 0) {
+                          e.preventDefault();
+                          const first = customerDropdownRef.current?.querySelector<HTMLButtonElement>("button");
+                          first?.click();
+                        } else if (e.key === "ArrowDown" && customerSearchOpen) {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const first = customerDropdownRef.current?.querySelector<HTMLButtonElement>("button");
+                          first?.focus();
+                        } else if (e.key === "Escape") {
+                          e.preventDefault();
+                          e.nativeEvent.stopPropagation();
+                          setCustomerSearchOpen(false);
+                          customerSearchRef.current?.focus();
+                        }
+                      }}
                       className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
                     />
                     {customerSearchOpen && customerDropdownStyle && (filteredCustomers.length > 0 || customerSearchQuery.trim()) && typeof document !== "undefined" && createPortal(
                       <div
                         ref={customerDropdownRef}
+                        onKeyDown={(e) => {
+                          const buttons = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>("button"));
+                          const activeIdx = buttons.indexOf(document.activeElement as HTMLButtonElement);
+                          if (e.key === "ArrowDown") {
+                            e.preventDefault();
+                            e.nativeEvent.stopPropagation();
+                            const next = activeIdx < buttons.length - 1 ? activeIdx + 1 : 0;
+                            buttons[next]?.focus();
+                          } else if (e.key === "ArrowUp") {
+                            e.preventDefault();
+                            e.nativeEvent.stopPropagation();
+                            if (activeIdx > 0) {
+                              buttons[activeIdx - 1]?.focus();
+                            } else {
+                              customerSearchRef.current?.focus();
+                            }
+                          } else if (e.key === "Escape") {
+                            e.preventDefault();
+                            e.nativeEvent.stopPropagation();
+                            setCustomerSearchOpen(false);
+                            customerSearchRef.current?.focus();
+                          }
+                        }}
                         style={{
                           position: "fixed",
                           top: customerDropdownStyle.top,
@@ -372,10 +435,19 @@ export default function AppointmentFormModal({
                             <button
                               key={c.id}
                               type="button"
-                              onMouseDown={() => {
+                              onClick={() => {
                                 setSelectedCustomerId(c.id);
                                 setCustomerSearchQuery(c.nombre || "Sin nombre");
                                 setCustomerSearchOpen(false);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  setSelectedCustomerId(c.id);
+                                  setCustomerSearchQuery(c.nombre || "Sin nombre");
+                                  setCustomerSearchOpen(false);
+                                  customerSearchRef.current?.focus();
+                                }
                               }}
                               className={`w-full text-left px-3 py-2 text-sm transition-colors cursor-pointer select-none ${
                                 c.id === selectedCustomerId
@@ -397,6 +469,21 @@ export default function AppointmentFormModal({
                               setShowNewCustomer(true);
                               setCustomerSearchQuery("");
                               setCustomerSearchOpen(false);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                setNewCustomerName(customerSearchQuery);
+                                setShowNewCustomer(true);
+                                setCustomerSearchQuery("");
+                                setCustomerSearchOpen(false);
+                              } else if (e.key === "ArrowUp") {
+                                e.preventDefault();
+                                const buttons = customerDropdownRef.current?.querySelectorAll<HTMLButtonElement>("button");
+                                if (buttons && buttons.length > 0) {
+                                  buttons[buttons.length - 1]?.focus();
+                                }
+                              }
                             }}
                             className="w-full text-left px-3 py-2.5 text-sm text-violet-700 dark:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors cursor-pointer select-none font-medium flex items-center gap-2"
                           >
@@ -459,13 +546,14 @@ export default function AppointmentFormModal({
                 Servicios <span className="text-red-500">*</span>
               </label>
 
-              <div className="flex rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden mb-3 bg-white dark:bg-zinc-800">
+              <div className="flex rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden mb-3 bg-zinc-100 dark:bg-zinc-800 p-0.5">
                 <button
                   type="button"
+                  data-form-nav="select"
                   onClick={() => setIsCustomService(false)}
-                  className={`flex-1 py-2 text-sm font-medium transition-colors cursor-pointer select-none ${
+                  className={`flex-1 py-2 text-sm font-medium transition-all cursor-pointer select-none rounded-lg ${
                     !isCustomService
-                      ? "bg-violet-600 text-white shadow-sm"
+                      ? "bg-white dark:bg-zinc-700 text-violet-700 dark:text-violet-300 shadow-sm ring-1 ring-violet-200 dark:ring-violet-500/40 scale-[1.02]"
                       : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
                   }`}
                 >
@@ -473,10 +561,11 @@ export default function AppointmentFormModal({
                 </button>
                 <button
                   type="button"
+                  data-form-nav="select"
                   onClick={() => setIsCustomService(true)}
-                  className={`flex-1 py-2 text-sm font-medium transition-colors cursor-pointer select-none ${
+                  className={`flex-1 py-2 text-sm font-medium transition-all cursor-pointer select-none rounded-lg ${
                     isCustomService
-                      ? "bg-violet-600 text-white shadow-sm"
+                      ? "bg-white dark:bg-zinc-700 text-violet-700 dark:text-violet-300 shadow-sm ring-1 ring-violet-200 dark:ring-violet-500/40 scale-[1.02]"
                       : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
                   }`}
                 >
@@ -495,21 +584,68 @@ export default function AppointmentFormModal({
                       value={serviceSearchQuery}
                       onChange={(e) => {
                         setServiceSearchQuery(e.target.value);
-                        if (!serviceSearchOpen) setServiceSearchOpen(true);
-                      }}
-                      onFocus={() => {
-                        setServiceSearchOpen(true);
-                        if (serviceSearchRef.current) {
-                          const r = serviceSearchRef.current.getBoundingClientRect();
-                          setServiceDropdownStyle({ top: r.bottom + 4, left: r.left, width: r.width });
+                        if (!serviceSearchOpen) {
+                          setServiceSearchOpen(true);
+                          if (serviceSearchRef.current) {
+                            const r = serviceSearchRef.current.getBoundingClientRect();
+                            setServiceDropdownStyle({ top: r.bottom + 4, left: r.left, width: r.width });
+                          }
                         }
                       }}
-                      onBlur={() => setTimeout(() => setServiceSearchOpen(false), 200)}
+                      onFocus={() => {
+                        if (!serviceSearchOpen) {
+                          setServiceSearchOpen(true);
+                          if (serviceSearchRef.current) {
+                            const r = serviceSearchRef.current.getBoundingClientRect();
+                            setServiceDropdownStyle({ top: r.bottom + 4, left: r.left, width: r.width });
+                          }
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && serviceSearchOpen && filteredServices.length > 0) {
+                          e.preventDefault();
+                          const first = serviceDropdownRef.current?.querySelector<HTMLButtonElement>("button");
+                          first?.click();
+                        } else if (e.key === "ArrowDown" && serviceSearchOpen) {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const first = serviceDropdownRef.current?.querySelector<HTMLButtonElement>("button");
+                          first?.focus();
+                        } else if (e.key === "Escape") {
+                          e.preventDefault();
+                          e.nativeEvent.stopPropagation();
+                          setServiceSearchOpen(false);
+                          serviceSearchRef.current?.focus();
+                        }
+                      }}
                       className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
                     />
                     {serviceSearchOpen && filteredServices.length > 0 && serviceDropdownStyle && typeof document !== "undefined" && createPortal(
                       <div
                         ref={serviceDropdownRef}
+                        onKeyDown={(e) => {
+                          const buttons = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>("button"));
+                          const activeIdx = buttons.indexOf(document.activeElement as HTMLButtonElement);
+                          if (e.key === "ArrowDown") {
+                            e.preventDefault();
+                            e.nativeEvent.stopPropagation();
+                            const next = activeIdx < buttons.length - 1 ? activeIdx + 1 : 0;
+                            buttons[next]?.focus();
+                          } else if (e.key === "ArrowUp") {
+                            e.preventDefault();
+                            e.nativeEvent.stopPropagation();
+                            if (activeIdx > 0) {
+                              buttons[activeIdx - 1]?.focus();
+                            } else {
+                              serviceSearchRef.current?.focus();
+                            }
+                          } else if (e.key === "Escape") {
+                            e.preventDefault();
+                            e.nativeEvent.stopPropagation();
+                            setServiceSearchOpen(false);
+                            serviceSearchRef.current?.focus();
+                          }
+                        }}
                         style={{
                           position: "fixed",
                           top: serviceDropdownStyle.top,
@@ -525,7 +661,13 @@ export default function AppointmentFormModal({
                             <button
                               key={s.id}
                               type="button"
-                              onMouseDown={() => { if (!already) addService(s.id); }}
+                              onClick={() => { if (!already) addService(s.id); }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  if (!already) addService(s.id);
+                                }
+                              }}
                               disabled={already}
                               className={`w-full text-left px-3 py-2.5 text-sm transition-colors cursor-pointer select-none flex items-center justify-between ${
                                 already
@@ -559,6 +701,7 @@ export default function AppointmentFormModal({
                             {s.name}
                             <button
                               type="button"
+                              data-form-nav="skip"
                               onClick={() => {
                                 setEditingDurationId(s.id);
                                 setEditingDurationValue(String(effDuration));
@@ -570,6 +713,7 @@ export default function AppointmentFormModal({
                             </button>
                             <button
                               type="button"
+                              data-form-nav="skip"
                               onClick={() => removeService(s.id)}
                               className="hover:bg-violet-200 dark:hover:bg-violet-800 rounded p-0.5 transition-colors cursor-pointer select-none"
                             >
@@ -728,6 +872,7 @@ export default function AppointmentFormModal({
               <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm">
                 <button
                   type="button"
+                  data-form-nav="select"
                   onClick={() => setSelectedStaffId("")}
                   className={`relative px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer select-none ${
                     selectedStaffId === ""
@@ -751,6 +896,7 @@ export default function AppointmentFormModal({
                     <button
                       key={s.id}
                       type="button"
+                      data-form-nav="select"
                       onClick={() => setSelectedStaffId(isActive ? "" : s.id)}
                       className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer select-none ${
                         isActive

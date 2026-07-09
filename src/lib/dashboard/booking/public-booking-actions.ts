@@ -333,7 +333,7 @@ export async function fetchPublicAvailableSlots(
 
     function isInBreak(slotStartMinute: number, slotEndMinute: number, breakStart: number | null, breakEnd: number | null): boolean {
       if (breakStart === null || breakEnd === null) return false;
-      return slotStartMinute < breakEnd && slotEndMinute > breakStart;
+      return (slotStartMinute + 2) < breakEnd && (slotEndMinute - 2) > breakStart;
     }
 
     function hasTimeConflict(sId: string, slotStart: Date, slotEnd: Date): boolean {
@@ -341,7 +341,8 @@ export async function fetchPublicAvailableSlots(
         if (apt.staff_id && apt.staff_id !== sId) return false;
         const aptStart = new Date(apt.start_time);
         const aptEnd = new Date(apt.end_time);
-        return slotStart < aptEnd && slotEnd > aptStart;
+        const TOLERANCE_MS = 2 * 60 * 1000;
+        return (slotStart.getTime() + TOLERANCE_MS) < aptEnd.getTime() && (slotEnd.getTime() - TOLERANCE_MS) > aptStart.getTime();
       });
     }
 
@@ -937,6 +938,7 @@ export async function createPublicAppointment(data: {
           customerName: data.customerName,
           shopName: shopData?.nombre || "Klip",
           serviceName,
+          shopAddress,
           startTime: data.startTime,
           replyTo,
         });
@@ -1430,6 +1432,7 @@ export async function createPublicComboAppointment(data: {
           customerName: data.customerName,
           shopName: shopData?.nombre || "Klip",
           serviceName,
+          shopAddress,
           startTime: data.startTime,
           replyTo,
         });

@@ -33,15 +33,52 @@ export function useFormKeyboardNav<T extends HTMLElement>(
     const form = formRef.current;
     if (!form) return;
 
+    function isButtonLike(el: HTMLElement) {
+      return el.tagName === "BUTTON" || el.getAttribute("role") === "button";
+    }
+
+    function getAllFocusable() {
+      return el.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+    }
+
+    function getActiveIndex(all: NodeListOf<HTMLElement>) {
+      const current = document.activeElement as HTMLElement | null;
+      if (!current) return -1;
+      for (let i = 0; i < all.length; i++) {
+        if (all[i] === current) return i;
+      }
+      return -1;
+    }
+
     function focusNext(container: HTMLElement) {
-      const focusable = container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
-      const current = document.activeElement;
-      for (let i = 0; i < focusable.length; i++) {
-        if (focusable[i] === current && i + 1 < focusable.length) {
-          focusable[i + 1].focus();
-          break;
+      const all = getAllFocusable();
+      const idx = getActiveIndex(all);
+      if (idx >= 0 && idx + 1 < all.length) all[idx + 1].focus();
+    }
+
+    function focusPrev(container: HTMLElement) {
+      const all = getAllFocusable();
+      const idx = getActiveIndex(all);
+      if (idx > 0) all[idx - 1].focus();
+    }
+
+    function focusNextField(container: HTMLElement) {
+      const all = getAllFocusable();
+      const idx = getActiveIndex(all);
+      if (idx < 0) return;
+      // Saltar botones del mismo grupo (mismo padre) para avanzar al siguiente campo
+      let next = idx + 1;
+      if (isButtonLike(all[idx])) {
+        const parent = all[idx].parentElement;
+        while (
+          next < all.length &&
+          isButtonLike(all[next]) &&
+          all[next].parentElement === parent
+        ) {
+          next++;
         }
       }
+      if (next < all.length) all[next].focus();
     }
 
     function navigateButtonGroup(direction: "prev" | "next") {
@@ -59,7 +96,13 @@ export function useFormKeyboardNav<T extends HTMLElement>(
         direction === "next"
           ? (currentIdx + 1) % siblings.length
           : (currentIdx - 1 + siblings.length) % siblings.length;
-      siblings[nextIdx].focus();
+      const next = siblings[nextIdx];
+      if (next.getAttribute("data-form-nav") === "select") {
+        next.click();
+        next.focus();
+      } else {
+        next.focus();
+      }
     }
 
     const el = form;
@@ -94,6 +137,9 @@ export function useFormKeyboardNav<T extends HTMLElement>(
           return;
         }
 
+        // Botones manejan su propio Enter (dropdowns, toggles, etc.)
+        if (tag === "BUTTON" || target.getAttribute("role") === "button") return;
+
         if (!e.repeat) {
           e.preventDefault();
           isLongPress.current = false;
@@ -107,10 +153,26 @@ export function useFormKeyboardNav<T extends HTMLElement>(
         }
       }
 
-      if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      if (e.key === "ArrowDown") {
+        const target = e.target as HTMLElement;
+        const tag = target.tagName;
+        if (tag !== "TEXTAREA" && tag !== "SELECT") e.preventDefault();
+        if (tag === "BUTTON" || target.getAttribute("role") === "button") return;
+        focusNext(el);
+      }
+      if (e.key === "ArrowUp") {
+        const target = e.target as HTMLElement;
+        const tag = target.tagName;
+        if (tag !== "TEXTAREA" && tag !== "SELECT") e.preventDefault();
+        if (tag === "BUTTON" || target.getAttribute("role") === "button") return;
+        focusPrev(el);
+      }
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
         navigateButtonGroup("next");
       }
-      if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
         navigateButtonGroup("prev");
       }
 
@@ -130,8 +192,14 @@ export function useFormKeyboardNav<T extends HTMLElement>(
           const target = e.target as HTMLElement;
           const tag = target.tagName;
           if (tag === "TEXTAREA" || tag === "SELECT") return;
+          if (tag === "BUTTON" || target.getAttribute("role") === "button") {
+            if (target.getAttribute("data-form-nav") === "select") {
+              focusNextField(el);
+            }
+            return;
+          }
           if (target.getAttribute("data-form-nav") === "skip") return;
-          focusNext(el);
+          focusNextField(el);
         }
       }
     }

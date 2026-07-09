@@ -108,6 +108,74 @@ export default function GlassSelect({
     setOpen((prev) => !prev);
   }, [open]);
 
+  const handleTriggerKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
+      e.preventDefault();
+      e.stopPropagation();
+      setOpen((prev) => !prev);
+    } else if (searchable && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      setSearchQuery(e.key);
+      setOpen(true);
+    }
+  }, [searchable]);
+
+  const handleOptionKeyDown = useCallback(
+    (e: React.KeyboardEvent, opt: GlassSelectOption) => {
+      const parent = dropdownRef.current;
+      if (!parent) return;
+      const buttons = Array.from(parent.querySelectorAll<HTMLButtonElement>("button"));
+      const idx = buttons.indexOf(e.currentTarget as HTMLButtonElement);
+
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        e.stopPropagation();
+        onChange(opt.value);
+        setOpen(false);
+        buttonRef.current?.focus();
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        e.stopPropagation();
+        if (idx < buttons.length - 1) buttons[idx + 1].focus();
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        e.stopPropagation();
+        if (idx > 0) {
+          buttons[idx - 1].focus();
+        } else {
+          setOpen(false);
+          buttonRef.current?.focus();
+        }
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        e.nativeEvent.stopPropagation();
+        setOpen(false);
+        buttonRef.current?.focus();
+      }
+    },
+    [onChange]
+  );
+
+  const handleSearchKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      e.stopPropagation();
+      const first = dropdownRef.current?.querySelector<HTMLButtonElement>("button");
+      first?.focus();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      e.nativeEvent.stopPropagation();
+      setOpen(false);
+      buttonRef.current?.focus();
+    } else if (e.key === "Enter" && !searchQuery) {
+      e.preventDefault();
+      e.stopPropagation();
+      const first = dropdownRef.current?.querySelector<HTMLButtonElement>("button");
+      first?.focus();
+    }
+  }, [searchQuery]);
+
   const normalizedQuery = searchQuery
     .toLowerCase()
     .normalize("NFD")
@@ -130,7 +198,9 @@ export default function GlassSelect({
       <button
         ref={buttonRef}
         type="button"
+        data-form-nav="skip"
         onClick={handleToggle}
+        onKeyDown={handleTriggerKeyDown}
         className={`w-full flex items-center justify-between px-3 py-2 rounded-2xl text-sm border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:outline-none focus:ring-1 focus:ring-violet-500/20 transition-all cursor-pointer select-none ${
           selected ? "text-gray-900 dark:text-gray-100" : "text-zinc-400 dark:text-zinc-500"
         }`}
@@ -166,6 +236,7 @@ export default function GlassSelect({
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={handleSearchKeyDown}
                   placeholder={searchPlaceholder}
                   className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-xs text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-violet-500/25"
                 />
@@ -184,6 +255,7 @@ export default function GlassSelect({
                       onChange(opt.value);
                       setOpen(false);
                     }}
+                    onKeyDown={(e) => handleOptionKeyDown(e, opt)}
                     className={`w-full text-left px-3 py-2 text-sm transition-colors cursor-pointer select-none flex items-center gap-2 ${
                       isActive
                         ? "text-violet-700 dark:text-violet-300 bg-violet-500/10"

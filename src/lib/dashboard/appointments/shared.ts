@@ -34,6 +34,16 @@ export async function sendAppointmentAutomationEmails(params: {
     timeZone: "America/Argentina/Buenos_Aires",
   });
 
+  const mapsUrl = params.shopAddress
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(params.shopAddress)}`
+    : null;
+  const locationLine = params.shopAddress
+    ? `<p style="font-size:14px;line-height:1.6;margin:4px 0 14px;"><strong>Direccion:</strong> ${params.shopAddress}</p>`
+    : "";
+  const mapsButton = mapsUrl
+    ? `<a href="${mapsUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#0071E3;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:999px;font-size:13px;font-weight:600;">Ver ubicacion en Google Maps</a>`
+    : "";
+
   await sendEmailWithResend({
     to: params.to,
     subject: `Confirmado! Tu turno el ${dateLabel} a las ${timeLabel}`,
@@ -47,6 +57,9 @@ export async function sendAppointmentAutomationEmails(params: {
           <strong>Servicio:</strong> ${params.serviceName}<br/>
           <strong>Fecha y hora:</strong> ${dateLabel} a las ${timeLabel}
         </p>
+        ${locationLine}
+        ${mapsButton}
+        <p style="font-size:12px;color:#6b7280;margin-top:18px;">Klip - no-reply@send.klip.com.ar</p>
       </div>
     `,
   });
@@ -55,16 +68,6 @@ export async function sendAppointmentAutomationEmails(params: {
   if (reminderDate <= new Date()) {
     return;
   }
-
-  const mapsUrl = params.shopAddress
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(params.shopAddress)}`
-    : null;
-  const locationLine = params.shopAddress
-    ? `<p style="font-size:14px;line-height:1.6;margin:4px 0 14px;"><strong>Direccion:</strong> ${params.shopAddress}</p>`
-    : "";
-  const mapsButton = mapsUrl
-    ? `<a href="${mapsUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#0071E3;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:999px;font-size:13px;font-weight:600;">Ver ubicacion en Google Maps</a>`
-    : "";
 
   await sendEmailWithResend({
     to: params.to,

@@ -281,7 +281,7 @@ export default function BatchAppointmentModal({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-y-contain bg-black/20 p-3 sm:p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-y-contain bg-black/20 sm:backdrop-blur-sm p-3 sm:p-4"
         >
           <motion.div
             initial={{ opacity: 0, y: 24, scale: 0.97 }}

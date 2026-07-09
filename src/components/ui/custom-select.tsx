@@ -63,6 +63,7 @@ export default function CustomSelect({
   const handleTriggerKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
       e.preventDefault();
+      e.stopPropagation();
       setOpen((prev) => !prev);
     }
   }, []);
@@ -76,14 +77,17 @@ export default function CustomSelect({
 
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
+        e.stopPropagation();
         onChange(opt.value);
         setOpen(false);
         containerRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
       } else if (e.key === "ArrowDown") {
         e.preventDefault();
+        e.stopPropagation();
         if (idx < buttons.length - 1) buttons[idx + 1].focus();
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
+        e.stopPropagation();
         if (idx > 0) {
           buttons[idx - 1].focus();
         } else {
@@ -92,6 +96,7 @@ export default function CustomSelect({
         }
       } else if (e.key === "Escape") {
         e.preventDefault();
+        e.nativeEvent.stopPropagation();
         setOpen(false);
         containerRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
       }

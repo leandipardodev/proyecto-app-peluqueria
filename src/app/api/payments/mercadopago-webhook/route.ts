@@ -352,7 +352,7 @@ export async function POST(request: NextRequest) {
 
         const { data: shop } = await admin
           .from("shops")
-          .select("nombre, email")
+          .select("nombre, email, address, localidad")
           .eq("id", booking.shop_id)
           .maybeSingle();
 
@@ -379,15 +379,18 @@ export async function POST(request: NextRequest) {
 
         // Send confirmation email
         if (booking.customer_email) {
-          const shopData = shop as { nombre?: string | null; email?: string | null } | null;
+          const shopData = shop as { nombre?: string | null; email?: string | null; address?: string | null; localidad?: string | null } | null;
           const serviceName = (service as { name?: string | null } | null)?.name || "Servicio";
           const replyTo = shopData?.email && shopData.email.includes("@") ? shopData.email : undefined;
+          const locationParts = [shopData?.address?.trim(), shopData?.localidad?.trim()].filter(Boolean);
+          const shopAddress = locationParts.length > 0 ? locationParts.join(", ") : undefined;
 
           sendAppointmentConfirmationEmail({
             to: booking.customer_email,
             customerName: booking.customer_name,
             shopName: shopData?.nombre || "Klip",
             serviceName,
+            shopAddress,
             startTime: booking.start_time,
             replyTo,
           }).catch((err) => console.error("[webhook] confirmation email error:", err));
