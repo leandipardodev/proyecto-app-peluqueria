@@ -137,8 +137,8 @@ export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, we
     if (n === 0) return null;
 
     const groupW = chartW / n;
-    const barW = Math.min(14, groupW * 0.3);
-    const gap = 3;
+    const barW = Math.min(42, groupW * 0.4);
+    const gap = 6;
 
     const maxVal = Math.max(...chartData.map((d) => Math.max(d.income, d.expenses)), 1);
     const scale = (chartH - 4) / (maxVal * 1.2);

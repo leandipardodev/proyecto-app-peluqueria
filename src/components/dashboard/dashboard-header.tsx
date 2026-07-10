@@ -1101,6 +1101,9 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
           appearance: none;
           display: none;
         }
+        #search-input-klip:focus-visible {
+          box-shadow: none !important;
+        }
       `}</style>
     </>
   );
