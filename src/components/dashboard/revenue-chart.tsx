@@ -281,7 +281,7 @@ export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, we
 
   return (
     <div className="flex flex-col h-full rounded-xl rounded-tr-none border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-      <h3 className="mb-1 text-sm font-semibold text-zinc-800 dark:text-zinc-100">Ingresos vs Gastos</h3>
+      <h3 className="mb-1 text-sm font-semibold text-zinc-800 dark:text-zinc-100">Balance</h3>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-zinc-500">Resultado neto por periodo</p>
         <div className="inline-flex rounded-lg border border-zinc-200 bg-zinc-50 p-0.5 dark:border-zinc-700 dark:bg-zinc-800">
