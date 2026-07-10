@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useState, useMemo, useRef, type R
 import { supabase } from "@/lib/supabase";
 import { resolveIndustry } from "@/lib/industry/resolve";
 import type { Industry } from "@/lib/industry/types";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { DASHBOARD_LEGACY_SEGMENTS_SET } from "@/lib/dashboard/shared/legacy-segments";
 
 export type UserInfo = {
@@ -63,7 +63,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoading: !serverAuthData,
   });
   const pathname = usePathname();
-
+  const router = useRouter();
+ 
   const pathnameShopSlug = useMemo(() => {
     const parts = pathname.split("/").filter(Boolean);
     const slug = parts[1];
@@ -182,6 +183,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             },
             isLoading: false,
           }));
+          if (resolvedShop) {
+            router.replace(`/dashboard/${resolvedShop.slug}`);
+          }
         } else {
           setState({
             user: {

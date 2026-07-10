@@ -1,5 +1,8 @@
 "use client";
 
+import Link from "next/link";
+import { logout } from "@/lib/dashboard/auth/logout-action";
+
 export default function RootError({
   error,
   reset,
@@ -27,6 +30,17 @@ export default function RootError({
         >
           Intentar de nuevo
         </button>
+        <div className="flex gap-3">
+          <Link href="/dashboard" className="inline-flex h-10 items-center justify-center rounded-2xl border border-zinc-300 px-6 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors">
+            Volver al inicio
+          </Link>
+          <button
+            onClick={async () => { await logout(); }}
+            className="inline-flex h-10 items-center justify-center rounded-2xl border border-red-300 px-6 text-sm font-medium text-red-700 hover:bg-red-50 transition-colors"
+          >
+            Cerrar sesión
+          </button>
+        </div>
       </div>
     </div>
   );

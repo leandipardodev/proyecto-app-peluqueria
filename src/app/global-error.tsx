@@ -23,10 +23,19 @@ export default function GlobalError({
               </p>
               <button
                 onClick={reset}
-                className="ui-btn-primary mt-6 rounded-lg px-6 py-2 text-sm font-medium"
+                className="mt-6 inline-flex items-center justify-center rounded-lg bg-violet-600 px-6 py-2 text-sm font-medium text-white shadow-sm hover:bg-violet-700 transition-colors"
               >
                 Intentar de nuevo
               </button>
+              <div className="mt-4 flex items-center justify-center gap-3">
+                {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+                <a href="/dashboard" className="inline-flex items-center justify-center rounded-lg border border-zinc-300 px-6 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors">
+                  Volver al inicio
+                </a>
+                <a href="/login" className="inline-flex items-center justify-center rounded-lg border border-red-300 px-6 py-2 text-sm font-medium text-red-700 hover:bg-red-50 transition-colors">
+                  Ir al login
+                </a>
+              </div>
             </div>
           </div>
         </div>

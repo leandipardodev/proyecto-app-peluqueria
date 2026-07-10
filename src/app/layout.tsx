@@ -126,6 +126,7 @@ export default function RootLayout({
       <link rel="icon" href="/favicon/favicon_dark_mode_64x64.png" media="(prefers-color-scheme: dark)" sizes="64x64" type="image/png" />
       <body className="antialiased bg-gradient-to-br from-slate-50 via-white to-zinc-100 dark:bg-gradient-to-br dark:from-zinc-950 dark:via-zinc-900 dark:to-black text-gray-900 dark:text-zinc-400 transition-colors">
 
+        <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem("klip_dark_mode");if(t==="true")document.documentElement.classList.add("dark")}catch(e){}})();` }} />
         <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-white focus:text-slate-900 focus:rounded-lg focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-sky-500">
           Saltar al contenido principal
         </a>

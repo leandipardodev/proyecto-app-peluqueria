@@ -39,7 +39,7 @@ export default async function BillingRequiredPage({
         <div className="w-full max-w-md text-center rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm">
           <h1 className="text-xl font-semibold">Acceso restringido</h1>
           <p className="mt-2 text-sm text-gray-600">Solo el owner del local puede renovar la membresía.</p>
-          <Link href="/login" className="mt-4 inline-flex rounded-xl border border-zinc-300 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50">Volver al login</Link>
+          <Link href="/dashboard" className="mt-4 inline-flex rounded-xl border border-zinc-300 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50">Volver al dashboard</Link>
         </div>
       </div>
     );

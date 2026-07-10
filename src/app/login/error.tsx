@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 export default function LoginError({
   error,
   reset,
@@ -25,6 +27,9 @@ export default function LoginError({
         >
           Reintentar
         </button>
+        <Link href="/" className="inline-flex h-10 items-center justify-center rounded-2xl border border-zinc-300 px-6 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors">
+          Volver al inicio
+        </Link>
       </div>
     </div>
   );

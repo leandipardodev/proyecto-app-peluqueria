@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/toast";
+import { logout } from "@/lib/dashboard/auth/logout-action";
 
 const RESET_COOLDOWN_MS = 60_000;
 const RESET_COOLDOWN_KEY = "klip_reset_cooldown_until";
@@ -24,6 +25,7 @@ function isRateLimitError(message: string | null | undefined): boolean {
 export default function LoginPage() {
   const router = useRouter();
   const [checkingSession, setCheckingSession] = useState(true);
+  const [existingSession, setExistingSession] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [resetMode, setResetMode] = useState(false);
@@ -45,10 +47,13 @@ export default function LoginPage() {
       if (cancelled) return;
       if (session) {
         const params = new URLSearchParams(window.location.search);
-        const target = params.get("redirect")?.startsWith("/")
-          ? params.get("redirect")!
-          : "/dashboard";
-        router.replace(target);
+        const force = params.get("force") === "1";
+        if (force) {
+          setCheckingSession(false);
+          return;
+        }
+        setExistingSession(true);
+        setCheckingSession(false);
         return;
       }
       setCheckingSession(false);
@@ -59,10 +64,9 @@ export default function LoginPage() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session && !cancelled) {
         const params = new URLSearchParams(window.location.search);
-        const target = params.get("redirect")?.startsWith("/")
-          ? params.get("redirect")!
-          : "/dashboard";
-        router.replace(target);
+        const force = params.get("force") === "1";
+        if (force) return;
+        router.replace("/dashboard");
       }
     });
 
@@ -231,6 +235,34 @@ export default function LoginPage() {
   return checkingSession ? (
     <div className="min-h-screen flex items-center justify-center">
       <div className="w-6 h-6 border-2 border-violet-600 border-t-transparent rounded-full animate-spin" />
+    </div>
+  ) : existingSession ? (
+    <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-violet-700 tracking-tight">Klip</h1>
+          <p className="mt-2 text-gray-600">Ya hay una sesión activa</p>
+        </div>
+        <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 p-8 space-y-4 text-center">
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            Ya tenés una sesión iniciada. ¿Querés usar otra cuenta?
+          </p>
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={() => router.replace("/dashboard")}
+              className="w-full bg-violet-600 text-white py-2.5 px-4 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 transition-colors cursor-pointer select-none"
+            >
+              Ir al dashboard
+            </button>
+            <button
+              onClick={async () => { await logout(); }}
+              className="w-full border border-zinc-300 text-zinc-700 py-2.5 px-4 rounded-2xl text-sm font-medium hover:bg-zinc-50 transition-colors cursor-pointer select-none"
+            >
+              Cerrar sesión y usar otra cuenta
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   ) : (
     <div className="min-h-screen flex items-center justify-center px-4">

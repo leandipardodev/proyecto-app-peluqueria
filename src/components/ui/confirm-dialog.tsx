@@ -2,6 +2,7 @@
 
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
+import { useEffect } from "react";
 
 const SPRING = { type: "spring" as const, stiffness: 460, damping: 34, mass: 0.65 };
 
@@ -26,6 +27,15 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [open, onCancel]);
+
   if (typeof document === "undefined") return null;
 
   return createPortal(

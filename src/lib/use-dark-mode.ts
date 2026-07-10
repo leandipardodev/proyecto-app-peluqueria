@@ -40,13 +40,15 @@ function applyDarkWithOverlay(nextDark: boolean) {
     document.documentElement.classList.toggle("dark", nextDark);
     localStorage.setItem(STORAGE_KEY, String(nextDark));
 
-    overlay.style.transition = "opacity 0.25s ease";
-    overlay.style.opacity = "0";
-
     setTimeout(() => {
-      overlay.remove();
-    }, 280);
-  }, 200);
+      overlay.style.transition = "opacity 0.35s ease";
+      overlay.style.opacity = "0";
+
+      setTimeout(() => {
+        overlay.remove();
+      }, 380);
+    }, 100);
+  }, 300);
 }
 
 export function useDarkMode() {

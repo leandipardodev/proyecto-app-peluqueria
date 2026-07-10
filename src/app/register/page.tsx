@@ -9,10 +9,12 @@ import { resolveIndustry } from "@/lib/industry/resolve";
 import type { Industry } from "@/lib/industry/types";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { supabase } from "@/lib/supabase";
+import { logout } from "@/lib/dashboard/auth/logout-action";
 import BaseModal from "@/components/ui/modal";
 
 function RegisterPageContent({ industry }: { industry: Industry }) {
   const [checkingSession, setCheckingSession] = useState(true);
+  const [existingSession, setExistingSession] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState<"form" | "code">("form");
@@ -29,20 +31,30 @@ function RegisterPageContent({ industry }: { industry: Industry }) {
   const { addToast } = useToast();
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    let cancelled = false;
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (cancelled) return;
       if (session) {
-        const { data: { user }, error } = await supabase.auth.getUser();
-        if (!user || error) {
-          await supabase.auth.signOut();
-          setCheckingSession(false);
-          return;
-        }
-        router.replace("/dashboard");
+        setExistingSession(true);
+      }
+      setCheckingSession(false);
+    };
+    checkSession();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (cancelled) return;
+      if (session) {
+        setExistingSession(true);
+        setCheckingSession(false);
       } else {
+        setExistingSession(false);
         setCheckingSession(false);
       }
     });
-    return () => subscription?.unsubscribe();
+    return () => {
+      cancelled = true;
+      subscription?.unsubscribe();
+    };
   }, []);
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -108,7 +120,6 @@ function RegisterPageContent({ industry }: { industry: Industry }) {
     });
   }
 
-  if (step === "code") {
   if (checkingSession) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -117,6 +128,37 @@ function RegisterPageContent({ industry }: { industry: Industry }) {
     );
   }
 
+  if (existingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="w-full max-w-md text-center space-y-4">
+          <h1 className="text-3xl font-bold text-violet-700 tracking-tight">Klip</h1>
+          <p className="text-gray-600">Ya hay una sesión activa</p>
+          <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 p-8 space-y-4">
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              Ya tenés una sesión iniciada. Necesitás cerrarla para crear una cuenta nueva.
+            </p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => router.replace("/dashboard")}
+                className="w-full bg-violet-600 text-white py-2.5 px-4 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 cursor-pointer select-none"
+              >
+                Ir al dashboard
+              </button>
+              <button
+                onClick={async () => { await logout(); }}
+                className="w-full border border-zinc-300 text-zinc-700 py-2.5 px-4 rounded-2xl text-sm font-medium hover:bg-zinc-50 cursor-pointer select-none"
+              >
+                Cerrar sesión y crear nueva cuenta
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "code") {
   return (
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="w-full max-w-md">

@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, Search, Moon, Sun, Gauge, Repeat2, Check, Volume2, VolumeX, SlidersHorizontal, Sparkles, Bell, Bug, CircleHelp } from "lucide-react";
+import { Menu, Search, Moon, Sun, Gauge, Repeat2, Check, Volume2, VolumeX, SlidersHorizontal, Sparkles, Bell, Bug, CircleHelp, LogOut } from "lucide-react";
 import { useState, useRef, useEffect, useTransition, useMemo, useCallback, memo, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -1064,6 +1064,19 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                     </button>
                   </div>
 
+                <div className="border-t border-white/20 dark:border-white/10 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      handleLogoutClick();
+                    }}
+                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Cerrar sesión
+                  </button>
+                </div>
                 </div>
               </motion.div>
               )}
