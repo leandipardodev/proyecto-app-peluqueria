@@ -79,6 +79,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
   const shouldReduceMotion = useReducedMotion();
 
   const [mobileOpen, setMobileOpen] = useState(false);
+  useEffect(() => { setMobileOpen(false); }, [pathname]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [shopMenuOpen, setShopMenuOpen] = useState(false);
   const [logoutPending, startLogoutTransition] = useTransition();

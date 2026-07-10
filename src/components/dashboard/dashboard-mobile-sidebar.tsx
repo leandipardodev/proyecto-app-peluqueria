@@ -33,19 +33,19 @@ export default function DashboardMobileSidebar({ open, onClose, userName, onLogo
       {open && (
         <motion.div
           className="fixed inset-0 z-[60] min-[1367px]:hidden overflow-hidden"
-          onClick={onClose}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
         >
           <div
-            className="absolute inset-0 bg-black/20 pointer-events-none"
+            className="absolute inset-0 bg-black/20"
             style={{
               backdropFilter: showBlur ? "blur(2px)" : "blur(0px)",
               WebkitBackdropFilter: showBlur ? "blur(2px)" : "blur(0px)",
               transition: "backdrop-filter 1s ease-out, -webkit-backdrop-filter 1s ease-out",
             }}
+            onClick={onClose}
           />
           <motion.div
             className="absolute inset-y-0 -left-4 w-[17rem] pl-4 bg-gradient-to-b from-white via-white to-zinc-50/90 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-950 shadow-2xl shadow-black/15 dark:shadow-black/60 flex flex-col max-h-full"
@@ -53,12 +53,10 @@ export default function DashboardMobileSidebar({ open, onClose, userName, onLogo
             animate={{ x: 0, opacity: 1, scale: 1 }}
             exit={{ x: -280, opacity: 0, scale: 0.96, transition: { duration: 0.18, ease: [0.32, 0, 0.67, 0] } }}
             transition={{ type: "spring", damping: 20, stiffness: 250, mass: 0.8 }}
-            onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 pb-3 pt-[max(env(safe-area-inset-top),0.75rem)] border-b border-white/20 dark:border-white/10 bg-white/30 dark:bg-black/30 backdrop-blur-3xl shrink-0">
               <div
-                onClick={(e) => {
-                  e.stopPropagation();
+                onClick={() => {
                   const els = document.querySelectorAll<HTMLSpanElement>("#klip-mobile-logo span");
                   els.forEach((el, i) => {
                     const angle = Math.random() * Math.PI * 2;
@@ -79,18 +77,17 @@ export default function DashboardMobileSidebar({ open, onClose, userName, onLogo
                 <span id="klip-mobile-logo" className="text-xl font-bold tracking-tight text-[#0071E3]">Klip</span>
               </div>
               <button
-                onClick={(e) => { e.stopPropagation(); onClose(); }}
+                onClick={onClose}
                 className="p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-white/60 transition-all cursor-pointer select-none"
               >
                 <X className="w-5 h-5" strokeWidth={1.5} />
               </button>
             </div>
-            <div className="flex-1 min-h-0 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex-1 min-h-0 overflow-y-auto">
               <DashboardSidebar
                 userName={userName}
                 showBrand={false}
                 onLogout={onLogout}
-                onNavigate={onClose}
               />
             </div>
           </motion.div>
