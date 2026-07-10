@@ -1384,8 +1384,8 @@ export async function createPublicComboAppointment(data: {
 
     let runningMinutes = 0;
     const appointmentIds: string[] = [];
-    const totalDuration = data.services.reduce((sum, s) => sum + s.duration_minutes, 0);
-    const combEndTime = new Date(startDate.getTime() + totalDuration * 60000).toISOString();
+    const combTotalDuration = data.services.reduce((sum, s) => sum + s.duration_minutes, 0);
+    const combEndTime = new Date(startDate.getTime() + combTotalDuration * 60000).toISOString();
 
     for (let i = 0; i < data.services.length; i++) {
       const svc = data.services[i];
