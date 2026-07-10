@@ -58,8 +58,8 @@ const dayNames = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes
 
 function formatDayLabel(iso: string): string {
   try {
-    const d = new Date(iso);
-    return `${dayNames[d.getDay()]} ${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const d = new Date(iso + "T12:00:00-03:00");
+    return `${dayNames[d.getUTCDay()]} ${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
   } catch {
     return iso;
   }

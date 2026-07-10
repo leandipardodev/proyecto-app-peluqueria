@@ -154,10 +154,14 @@ export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, we
           const label = entryLabel(entry);
           const cx = padLeft + i * groupW + groupW / 2;
 
+          const onlyIncome = entry.income > 0 && entry.expenses === 0;
+          const onlyExpenses = entry.expenses > 0 && entry.income === 0;
           const incomeH = Math.max(0, entry.income * scale);
           const expensesH = Math.max(0, entry.expenses * scale);
           const incomeY = chartTop + chartH - incomeH;
           const expensesY = chartTop + chartH - expensesH;
+          const incomeX = onlyIncome ? cx - barW / 2 : cx - barW - gap / 2;
+          const expensesX = onlyExpenses ? cx - barW / 2 : cx + gap / 2;
 
           const iKey = `income-${i}`;
           const eKey = `expenses-${i}`;
@@ -193,7 +197,7 @@ export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, we
           return (
             <g key={`${period}-${i}`}>
               <motion.rect
-                x={cx - barW - gap / 2}
+                x={incomeX}
                 width={barW}
                 rx={2}
                 fill={isIncomeHovered ? "#2563eb" : "#3b82f6"}
@@ -206,7 +210,7 @@ export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, we
               />
               {incomeH > 0 && (
                 <motion.text
-                  x={cx - barW / 2 - gap / 2}
+                  x={onlyIncome ? cx : cx - barW / 2 - gap / 2}
                   textAnchor="middle"
                   fontSize={10}
                   fill="#3b82f6"
@@ -220,7 +224,7 @@ export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, we
                 </motion.text>
               )}
               <motion.rect
-                x={cx + gap / 2}
+                x={expensesX}
                 width={barW}
                 rx={2}
                 fill={isExpensesHovered ? "#475569" : "#64748b"}
@@ -233,7 +237,7 @@ export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, we
               />
               {expensesH > 0 && (
                 <motion.text
-                  x={cx + barW / 2 + gap / 2}
+                  x={onlyExpenses ? cx : cx + barW / 2 + gap / 2}
                   textAnchor="middle"
                   fontSize={10}
                   fill="#64748b"
