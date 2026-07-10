@@ -189,16 +189,17 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
       const admin = await createAdminClient();
       const [{ data: customer }, { data: shopData }] = await Promise.all([
         supabase.from("customers").select("nombre, email").eq("id", customerId).maybeSingle(),
-        admin.from("shops").select("nombre, email, address, localidad, google_maps_url").eq("id", shopId).maybeSingle(),
+        admin.from("shops").select("nombre, address, localidad, google_maps_url, phone, instagram_url, whatsapp_template").eq("id", shopId).maybeSingle(),
       ]);
 
       const emailTo = customer?.email?.trim();
       if (emailTo) {
-        const sd = shopData as { nombre?: string | null; email?: string | null; address?: string | null; localidad?: string | null; google_maps_url?: string | null } | null;
+        const sd = shopData as { nombre?: string | null; address?: string | null; localidad?: string | null; google_maps_url?: string | null; phone?: string | null; instagram_url?: string | null; whatsapp_template?: string | null } | null;
         const locationParts = [sd?.address?.trim(), sd?.localidad?.trim()].filter(Boolean);
         const shopAddress = locationParts.length > 0 ? locationParts.join(", ") : undefined;
         const mapsUrl = sd?.google_maps_url?.trim() || undefined;
-        const replyTo = sd?.email && sd.email.includes("@") ? sd.email : undefined;
+        const cleanPhone = sd?.phone?.replace(/^\+/, "").replace(/\D/g, "") || "";
+        const whatsappUrl = cleanPhone.length >= 7 ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(sd?.whatsapp_template || "Hola! Quiero consultar sobre un turno")}` : undefined;
         const serviceNames = orderedServices.map((s) => s.name).join(", ");
         const firstRow = rowsToInsert[0];
         if (firstRow) {
@@ -208,9 +209,11 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
             shopName: sd?.nombre || "Klip",
             serviceName: serviceNames,
             startTime: firstRow.start_time,
+            endTime: firstRow.end_time,
             shopAddress,
-            replyTo,
             mapsUrl,
+            instagramUrl: sd?.instagram_url?.trim() || undefined,
+            whatsappUrl,
           }).catch((mailError) => console.error("[createAppointment] email automation error:", mailError));
         }
       }
@@ -410,15 +413,16 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
     try {
       const admin = await createAdminClient();
       const [{ data: shopData }] = await Promise.all([
-        admin.from("shops").select("nombre, email, address, localidad, google_maps_url").eq("id", shopId).maybeSingle(),
+        admin.from("shops").select("nombre, address, localidad, google_maps_url, phone, instagram_url, whatsapp_template").eq("id", shopId).maybeSingle(),
       ]);
 
       if (customerEmail?.trim()) {
-        const sd = shopData as { nombre?: string | null; email?: string | null; address?: string | null; localidad?: string | null; google_maps_url?: string | null } | null;
+        const sd = shopData as { nombre?: string | null; address?: string | null; localidad?: string | null; google_maps_url?: string | null; phone?: string | null; instagram_url?: string | null; whatsapp_template?: string | null } | null;
         const locationParts = [sd?.address?.trim(), sd?.localidad?.trim()].filter(Boolean);
         const shopAddress = locationParts.length > 0 ? locationParts.join(", ") : undefined;
         const mapsUrl = sd?.google_maps_url?.trim() || undefined;
-        const replyTo = sd?.email && sd.email.includes("@") ? sd.email : undefined;
+        const cleanPhone = sd?.phone?.replace(/^\+/, "").replace(/\D/g, "") || "";
+        const whatsappUrl = cleanPhone.length >= 7 ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(sd?.whatsapp_template || "Hola! Quiero consultar sobre un turno")}` : undefined;
         const serviceNames = orderedServices.map((s) => s.name).join(", ");
         await Promise.allSettled(
           rowsToInsert.map((row) =>
@@ -428,9 +432,11 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
               shopName: sd?.nombre || "Klip",
               serviceName: serviceNames,
               startTime: row.start_time,
+              endTime: row.end_time,
               shopAddress,
-              replyTo,
               mapsUrl,
+              instagramUrl: sd?.instagram_url?.trim() || undefined,
+              whatsappUrl,
             })
           )
         );

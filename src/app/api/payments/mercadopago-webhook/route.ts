@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import { trackProductEvent } from "@/lib/analytics/product-events";
-import { MercadoPagoConfig, Payment } from "mercadopago";
+import { MercadoPagoConfig, Payment, PreApproval } from "mercadopago";
 import { cycleMonths, type BillingCycle } from "@/lib/billing/plans";
 import { getArgentinaDateKey } from "@/lib/argentina-time";
 import { sendAppointmentConfirmationEmail } from "@/lib/email/booking-emails";
@@ -17,6 +17,12 @@ function resolveStatusFromPaymentStatus(paymentStatus: string | undefined): "con
   if (paymentStatus === "approved") return "confirmed";
   if (paymentStatus === "pending" || paymentStatus === "in_process") return "pending_payment";
   return "cancelled";
+}
+
+function parseAutoSubscriptionExternalRef(externalReference: string): string | null {
+  if (!externalReference.startsWith("shop_sub_auto:")) return null;
+  const shopId = externalReference.slice("shop_sub_auto:".length);
+  return shopId || null;
 }
 
 function parseBillingExternalReference(externalReference: string): {
@@ -138,8 +144,123 @@ export async function POST(request: NextRequest) {
     const queryType = request.nextUrl.searchParams.get("type") || request.nextUrl.searchParams.get("topic");
     const queryDataId = request.nextUrl.searchParams.get("data.id") || request.nextUrl.searchParams.get("id");
     const type = payload?.type || queryType;
-    const paymentId = payload?.data?.id || queryDataId;
+    const resourceId = payload?.data?.id || queryDataId;
+    const action = payload?.action || "";
 
+    // --- Subscription preapproval events (authorized / cancelled) ---
+    if (type === "subscription_preapproval" && resourceId) {
+      const client = new MercadoPagoConfig({ accessToken });
+      const preapprovalClient = new PreApproval(client);
+      const preapprovalResult = await preapprovalClient.get({ id: resourceId });
+
+      const externalRef = preapprovalResult.external_reference || "";
+      const shopId = parseAutoSubscriptionExternalRef(externalRef);
+
+      if (!shopId) {
+        return NextResponse.json({ ok: true });
+      }
+
+      if (action === "preapproval.approved" || action === "preapproval.created") {
+        await admin.from("shop_subscriptions").upsert(
+          {
+            shop_id: shopId,
+            preapproval_id: resourceId,
+            payer_id: String(preapprovalResult.payer_id ?? ""),
+            status: "authorized",
+          },
+          { onConflict: "preapproval_id", ignoreDuplicates: false }
+        );
+
+        const { data: shop } = await admin
+          .from("shops")
+          .select("id, plan_expiry")
+          .eq("id", shopId)
+          .maybeSingle();
+
+        if (shop) {
+          const now = new Date();
+          const currentExpiry = shop.plan_expiry ? new Date(shop.plan_expiry) : null;
+          const todayAr = formatDateInArgentina(now);
+          const expiryAr = currentExpiry ? formatDateInArgentina(currentExpiry) : null;
+          const hasPaidDaysRemaining = Boolean(currentExpiry && expiryAr && expiryAr > todayAr);
+          const base = hasPaidDaysRemaining && currentExpiry ? currentExpiry : now;
+          const nextExpiry = new Date(base);
+          nextExpiry.setMonth(nextExpiry.getMonth() + 1);
+
+          await admin
+            .from("shops")
+            .update({
+              active: true,
+              plan_expiry: nextExpiry.toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", shopId);
+        }
+
+        await admin.from("shop_billing_events").insert({
+          shop_id: shopId,
+          actor_user_id: null,
+          event_type: "subscription_auto_activated",
+          payload: { preapproval_id: resourceId },
+        });
+      } else if (action === "preapproval.cancelled") {
+        await admin
+          .from("shop_subscriptions")
+          .update({ status: "cancelled", updated_at: new Date().toISOString() })
+          .eq("preapproval_id", resourceId);
+      }
+
+      return NextResponse.json({ ok: true });
+    }
+
+    // --- Subscription charged events (automatic monthly charge) ---
+    if (type === "subscription_charged" && resourceId) {
+      const { data: sub } = await admin
+        .from("shop_subscriptions")
+        .select("id, shop_id, status")
+        .eq("preapproval_id", resourceId)
+        .maybeSingle();
+
+      if (sub && sub.status === "authorized") {
+        const { data: shop } = await admin
+          .from("shops")
+          .select("id, plan_expiry")
+          .eq("id", sub.shop_id)
+          .maybeSingle();
+
+        if (shop) {
+          const now = new Date();
+          const currentExpiry = shop.plan_expiry ? new Date(shop.plan_expiry) : null;
+          const todayAr = formatDateInArgentina(now);
+          const expiryAr = currentExpiry ? formatDateInArgentina(currentExpiry) : null;
+          const hasPaidDaysRemaining = Boolean(currentExpiry && expiryAr && expiryAr > todayAr);
+          const base = hasPaidDaysRemaining && currentExpiry ? currentExpiry : now;
+          const nextExpiry = new Date(base);
+          nextExpiry.setMonth(nextExpiry.getMonth() + 1);
+
+          await admin
+            .from("shops")
+            .update({
+              active: true,
+              plan_expiry: nextExpiry.toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", sub.shop_id);
+        }
+
+        await admin.from("shop_billing_events").insert({
+          shop_id: sub.shop_id,
+          actor_user_id: null,
+          event_type: "subscription_auto_charge_applied",
+          payload: { preapproval_id: resourceId },
+        });
+      }
+
+      return NextResponse.json({ ok: true });
+    }
+
+    // --- Payment events (existing logic) ---
+    const paymentId = resourceId;
     if (type !== "payment" || !paymentId) {
       return NextResponse.json({ ok: true });
     }
@@ -352,7 +473,7 @@ export async function POST(request: NextRequest) {
 
         const { data: shop } = await admin
           .from("shops")
-          .select("nombre, email, address, localidad")
+          .select("nombre, address, localidad, google_maps_url, phone, instagram_url, whatsapp_template")
           .eq("id", booking.shop_id)
           .maybeSingle();
 
@@ -379,11 +500,13 @@ export async function POST(request: NextRequest) {
 
         // Send confirmation email
         if (booking.customer_email) {
-          const shopData = shop as { nombre?: string | null; email?: string | null; address?: string | null; localidad?: string | null } | null;
+          const shopData = shop as { nombre?: string | null; address?: string | null; localidad?: string | null; google_maps_url?: string | null; phone?: string | null; instagram_url?: string | null; whatsapp_template?: string | null } | null;
           const serviceName = (service as { name?: string | null } | null)?.name || "Servicio";
-          const replyTo = shopData?.email && shopData.email.includes("@") ? shopData.email : undefined;
           const locationParts = [shopData?.address?.trim(), shopData?.localidad?.trim()].filter(Boolean);
           const shopAddress = locationParts.length > 0 ? locationParts.join(", ") : undefined;
+          const mapsUrl = shopData?.google_maps_url?.trim() || undefined;
+          const cleanPhone = shopData?.phone?.replace(/^\+/, "").replace(/\D/g, "") || "";
+          const whatsappUrl = cleanPhone.length >= 7 ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(shopData?.whatsapp_template || "Hola! Quiero consultar sobre un turno")}` : undefined;
 
           sendAppointmentConfirmationEmail({
             to: booking.customer_email,
@@ -392,7 +515,10 @@ export async function POST(request: NextRequest) {
             serviceName,
             shopAddress,
             startTime: booking.start_time,
-            replyTo,
+            endTime: booking.end_time,
+            mapsUrl,
+            instagramUrl: shopData?.instagram_url?.trim() || undefined,
+            whatsappUrl,
           }).catch((err) => console.error("[webhook] confirmation email error:", err));
         }
 

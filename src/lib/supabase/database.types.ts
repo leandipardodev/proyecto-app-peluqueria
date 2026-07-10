@@ -1292,6 +1292,50 @@ export type Database = {
           },
         ]
       }
+      shop_subscriptions: {
+        Row: {
+          id: string
+          shop_id: string
+          preapproval_id: string
+          payer_id: string
+          card_id: string | null
+          status: string
+          next_charge_date: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          shop_id: string
+          preapproval_id: string
+          payer_id: string
+          card_id?: string | null
+          status?: string
+          next_charge_date?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          shop_id?: string
+          preapproval_id?: string
+          payer_id?: string
+          card_id?: string | null
+          status?: string
+          next_charge_date?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_subscriptions_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shops: {
         Row: {
           active: boolean | null

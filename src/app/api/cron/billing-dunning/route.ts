@@ -52,7 +52,22 @@ export async function GET(request: Request) {
       return NextResponse.json({ ok: true, sent: 0 });
     }
 
-    const shopIds = activeShops.map((s) => s.id);
+    const allShopIds = activeShops.map((s) => s.id);
+
+    const { data: activeSubs } = await admin
+      .from("shop_subscriptions")
+      .select("shop_id")
+      .eq("status", "authorized")
+      .in("shop_id", allShopIds);
+
+    const subShopIds = new Set((activeSubs || []).map((s) => s.shop_id));
+    const filteredShops = activeShops.filter((s) => !subShopIds.has(s.id));
+
+    if (filteredShops.length === 0) {
+      return NextResponse.json({ ok: true, sent: 0 });
+    }
+
+    const shopIds = filteredShops.map((s) => s.id);
 
     const { data: memberships } = await admin
       .from("shop_memberships")
@@ -86,7 +101,7 @@ export async function GET(request: Request) {
     }
 
     const shops: ShopWithOwner[] = [];
-    for (const shop of activeShops) {
+    for (const shop of filteredShops) {
       const email = emailByShopId.get(shop.id);
       if (email && shop.plan_expiry) {
         shops.push({

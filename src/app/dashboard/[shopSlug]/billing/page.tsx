@@ -32,7 +32,7 @@ export default async function BillingPage({ params }: { params: Promise<{ shopSl
 
   const shopId = membership.shop_id;
 
-  const [shopResult, eventsResult] = await Promise.all([
+  const [shopResult, eventsResult, subResult] = await Promise.all([
     admin.from("shops").select("nombre, plan_expiry, active").eq("id", shopId).maybeSingle(),
     admin
       .from("shop_billing_events")
@@ -41,6 +41,11 @@ export default async function BillingPage({ params }: { params: Promise<{ shopSl
       .in("event_type", ["subscription_payment_applied", "subscription_checkout_created"])
       .order("created_at", { ascending: false })
       .limit(50),
+    admin
+      .from("shop_subscriptions")
+      .select("id, status, next_charge_date, created_at")
+      .eq("shop_id", shopId)
+      .maybeSingle(),
   ]);
 
   const shop = shopResult.data;
@@ -52,6 +57,7 @@ export default async function BillingPage({ params }: { params: Promise<{ shopSl
       shopName={shop.nombre || ""}
       planExpiry={shop.plan_expiry}
       active={shop.active ?? false}
+      subscription={subResult.data ? { status: subResult.data.status, nextChargeDate: subResult.data.next_charge_date } : null}
       events={(eventsResult.data || []).map((e) => ({
         id: e.id,
         type: e.event_type,

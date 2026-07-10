@@ -21,10 +21,12 @@ export default function AINotificationCard({
   const [activeIndex, setActiveIndex] = useState(0);
   const [thinking, setThinking] = useState(true);
   const [pwaTip, setPwaTip] = useState<Message | null>(null);
-  const [poweredOn, setPoweredOn] = useState(() => {
-    if (typeof window === "undefined") return true;
-    return localStorage.getItem("klip-ai-powered") !== "false";
-  });
+  const [poweredOn, setPoweredOn] = useState(true);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("klip-ai-powered");
+    if (stored === "false") setPoweredOn(false);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem("klip-ai-powered", String(poweredOn));

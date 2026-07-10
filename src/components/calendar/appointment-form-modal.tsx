@@ -1019,7 +1019,7 @@ export default function AppointmentFormModal({
                         type="date"
                         name="recurring_until"
                         value={recurringUntil}
-                        onChange={(e) => { setRecurringUntil(e.target.value); setShowRecurringPicker(false); }}
+                        onChange={(e) => { setRecurringUntil(e.target.value); }}
                         className="w-full px-3 py-2 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
                       />
                     </div>
