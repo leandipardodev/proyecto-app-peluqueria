@@ -1,5 +1,5 @@
 import { fetchDashboardSummary, fetchDashboardMetrics } from "@/lib/dashboard/finances/dashboard-summary";
-import { CalendarDays, AlertTriangle, TrendingUp, Clock, ChevronRight } from "lucide-react";
+import { Clock, ChevronRight } from "lucide-react";
 import ShareLinkCard from "@/components/dashboard/share-link-card";
 import PwaInstallButton from "@/components/dashboard/pwa-install-button";
 import HoverScale from "@/components/ui/hover-scale";
@@ -111,8 +111,6 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
   const dashboardBasePath = summary.shopSlug ? `/dashboard/${summary.shopSlug}` : "/dashboard";
 
   const healthScore = metrics?.healthScore ?? null;
-  const healthColor = healthScore === null ? "text-zinc-500 dark:text-zinc-400" : healthScore >= 75 ? "text-green-600" : healthScore >= 50 ? "text-amber-600" : "text-red-600";
-  const healthBg = healthScore === null ? "bg-zinc-500/10" : healthScore >= 75 ? "bg-green-500/10" : healthScore >= 50 ? "bg-amber-500/10" : "bg-red-500/10";
   const nextAppointment = summary.nextAppointments[0];
   const minutesToNextAppointment = nextAppointment
     ? Math.round((new Date(nextAppointment.start_time).getTime() - Date.now()) / 60000)
@@ -230,25 +228,28 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
     {
       label: "Turnos hoy",
       value: summary.appointmentsCount,
-      icon: CalendarDays,
-      color: "text-blue-600",
-      bg: "bg-blue-500/10",
+      accent: "bg-blue-500",
+      gradient: "from-blue-50 to-transparent dark:from-blue-950/20 dark:to-transparent",
     },
     ...(features.inventory
       ? [{
           label: "Alertas de stock",
           value: summary.lowStockCount,
-          icon: AlertTriangle,
-          color: "text-amber-600",
-          bg: "bg-amber-500/10",
+          accent: "bg-amber-500",
+          gradient: "from-amber-50 to-transparent dark:from-amber-950/20 dark:to-transparent",
         }]
       : []),
     {
       label: "Rendimiento",
       value: formatHealth(healthScore),
-      icon: TrendingUp,
-      color: healthColor,
-      bg: healthBg,
+      accent: healthScore === null ? "bg-gray-400" : healthScore >= 75 ? "bg-blue-500" : healthScore >= 50 ? "bg-amber-500" : "bg-red-500",
+      gradient: healthScore === null
+        ? "from-gray-50 to-transparent dark:from-gray-950/20 dark:to-transparent"
+        : healthScore >= 75
+          ? "from-blue-50 to-transparent dark:from-blue-950/20 dark:to-transparent"
+          : healthScore >= 50
+            ? "from-amber-50 to-transparent dark:from-amber-950/20 dark:to-transparent"
+            : "from-red-50 to-transparent dark:from-red-950/20 dark:to-transparent",
     },
   ];
 
@@ -331,10 +332,9 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {cards.map(({ label, value, icon: Icon, color, bg }, idx) => {
+        {cards.map(({ label, value, accent, gradient }, idx) => {
           const isHealthCard = label === "Rendimiento";
           const healthFill = healthScore === null ? 18 : Math.min(Math.max(healthScore, 8), 100);
-          const hasProgress = isHealthCard;
           const sheenStyle: CSSProperties & Record<"--sheen-delay" | "--sheen-duration", string> = {
             "--sheen-delay": `${-0.5 - idx * 2.1}s`,
             "--sheen-duration": `${13.6 + (idx % 3) * 0.8}s`,
@@ -343,20 +343,19 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
           <HoverScale key={label}>
             <Link href={cardHrefByLabel[label] || dashboardBasePath} className="block h-full">
               <div
-                className={`glass-sheen-card h-full min-h-[124px] lg:min-h-[132px] bg-white dark:bg-zinc-900 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm p-6 flex items-center gap-4 transition-colors cursor-pointer ${
+                className={`glass-sheen-card h-full min-h-[124px] lg:min-h-[132px] bg-white dark:bg-zinc-900 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm p-6 flex flex-col justify-between transition-colors cursor-pointer overflow-hidden relative ${
                   label === "Rendimiento" ? "rounded-bl-none" : "rounded-br-none"
                 } ${idx === 1 ? "card-enter-left" : "card-enter-right"}`}
                 style={sheenStyle}
               >
-                <div className={`p-3 rounded-xl ${bg}`}>
-                  <Icon className={`w-5 h-5 ${color}`} />
-                </div>
-                <div className="relative z-10 flex-1 min-w-0 flex flex-col">
-                  <p className="text-sm text-gray-500 dark:text-zinc-400">{label}</p>
-                  <p className="text-xl font-bold tracking-tighter text-gray-900 dark:text-white">{value}</p>
+                <div className={`absolute top-0 left-0 right-0 h-1 rounded-t-[2.5rem] ${accent}`} />
+                <div className={`absolute inset-0 bg-gradient-to-b ${gradient} rounded-[2.5rem] pointer-events-none`} />
+                <div className="relative z-10 flex flex-col h-full pt-3">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-zinc-500">{label}</p>
+                  <p className="mt-1 text-4xl font-black tracking-tight text-gray-900 dark:text-white">{value}</p>
                   {isHealthCard && (
-                    <div className="mt-2.5">
-                      <div className="h-2 w-full rounded-full overflow-hidden bg-zinc-200 dark:bg-zinc-700">
+                    <div className="mt-auto pt-3">
+                      <div className="h-1.5 w-full rounded-full overflow-hidden bg-zinc-200 dark:bg-zinc-700">
                         <div
                           className="h-full rounded-full bg-blue-500 dark:bg-blue-400 transition-all duration-500 ease-out"
                           style={{ width: `${healthFill}%` }}
@@ -364,7 +363,6 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
                       </div>
                     </div>
                   )}
-                  {!hasProgress && <div className="mt-2.5 h-2" aria-hidden="true" />}
                 </div>
               </div>
             </Link>

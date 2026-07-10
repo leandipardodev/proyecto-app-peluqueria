@@ -833,9 +833,13 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
 
         <div className="flex items-center gap-2 ml-auto">
           <div className="relative">
-            <motion.button
+              <motion.button
               type="button"
-              onClick={() => setNotifOpen((v) => !v)}
+              data-notif-toggle="true"
+              onClick={() => {
+                setMenuOpen(false);
+                setNotifOpen((v) => !v);
+              }}
               onMouseDown={(e) => e.stopPropagation()}
               className="relative p-2 rounded-xl text-zinc-400 hover:text-zinc-600 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/5 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
               aria-label="Notificaciones"

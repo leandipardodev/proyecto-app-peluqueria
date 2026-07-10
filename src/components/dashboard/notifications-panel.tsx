@@ -99,6 +99,7 @@ export default function NotificationsPanel({ onClose, shopId }: { onClose: () =>
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
+      if ((e.target as HTMLElement)?.closest?.("[data-notif-toggle]")) return;
       if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
         onClose();
       }
