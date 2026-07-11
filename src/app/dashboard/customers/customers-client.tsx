@@ -1,12 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Gift, MessageCircle, Search, Download, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Gift, MessageCircle, Search, Trash2 } from "lucide-react";
 import Sheet from "@/components/ui/sheet";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { supabase } from "@/lib/supabase";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { resolveDashboardShopIdBySlug } from "@/lib/dashboard/auth/actions";
+import { useRouter, useSearchParams } from "next/navigation";
 import { fetchCustomersPage } from "@/lib/dashboard/clients/customers-actions";
 import { useAuth } from "@/lib/auth-context";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
@@ -66,14 +65,13 @@ function isBirthdayThisWeek(date: string | null): boolean {
   return candidate >= weekStart && candidate <= weekEnd;
 }
 
-export default function CustomersPage() {
+export default function CustomersPage({ shopId, shopSlug: _shopSlug }: { shopId: string; shopSlug: string }) {
   const { shop } = useAuth();
   const industry = resolveIndustry(shop?.industry);
   const customerWord = INDUSTRY_CONFIG[industry].labels.customerSingular;
   const customerPlural = INDUSTRY_CONFIG[industry].labels.customerPlural;
   const { playSuccess, playClick } = useKlipSounds();
   const router = useRouter();
-  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -103,52 +101,22 @@ export default function CustomersPage() {
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const pathnameRef = useRef(pathname);
-  useEffect(() => { pathnameRef.current = pathname; }, [pathname]);
-
-  function extractShopSlugFromPath(path: string): string | null {
-    const parts = path.split("/").filter(Boolean);
-    if (parts[0] !== "dashboard" || !parts[1]) return null;
-    return parts[1].toLowerCase();
-  }
-
-  const resolveActiveShopIdForUser = useCallback(async (): Promise<string | null> => {
-    const slug = extractShopSlugFromPath(pathnameRef.current);
-    if (!slug) return null;
-    const resolved = await resolveDashboardShopIdBySlug(slug);
-    if (!resolved.success || !resolved.data?.shopId) return null;
-    return resolved.data.shopId;
-  }, []);
-
-  const shopIdRef = useRef<string | null>(null);
-
   const loadCustomers = useCallback(async (p: number, search: string) => {
     setLoading(true);
     setError(null);
 
-    let activeShopId = shopIdRef.current;
-    if (!activeShopId) {
-      activeShopId = await resolveActiveShopIdForUser();
-      if (!activeShopId) {
-        setError("No se pudo resolver el local");
-        setLoading(false);
-        return;
-      }
-      shopIdRef.current = activeShopId;
+    const { data: shopData } = await supabase
+      .from("shops")
+      .select("loyalty_enabled, loyalty_cuts_required")
+      .eq("id", shopId)
+      .maybeSingle();
 
-      const { data: shopData } = await supabase
-        .from("shops")
-        .select("loyalty_enabled, loyalty_cuts_required")
-        .eq("id", activeShopId)
-        .maybeSingle();
-
-      if (shopData) {
-        setLoyaltyEnabled(shopData.loyalty_enabled !== false);
-        setLoyaltyCutsRequired(Math.max(1, Number(shopData.loyalty_cuts_required || 10)));
-      }
+    if (shopData) {
+      setLoyaltyEnabled(shopData.loyalty_enabled !== false);
+      setLoyaltyCutsRequired(Math.max(1, Number(shopData.loyalty_cuts_required || 10)));
     }
 
-    const result = await fetchCustomersPage(activeShopId, { search, page: p, pageSize: 50 });
+    const result = await fetchCustomersPage(shopId, { search, page: p, pageSize: 50 });
 
     if (!result.success || !result.data) {
       setError(`Error al cargar ${customerPlural.toLowerCase()}`);
@@ -161,7 +129,7 @@ export default function CustomersPage() {
     setTotalPages(result.data.totalPages);
     setTotal(result.data.total);
     setLoading(false);
-  }, [resolveActiveShopIdForUser, customerPlural]);
+  }, [shopId, customerPlural]);
 
   const initialLoadDone = useRef(false);
 
@@ -246,13 +214,6 @@ export default function CustomersPage() {
       return;
     }
 
-    const activeShopId = await resolveActiveShopIdForUser();
-    if (!activeShopId) {
-      setSaveMessage("No se pudo resolver el local");
-      setSaving(false);
-      return;
-    }
-
     const payload = {
       nombre: draftNombre || "",
       email: draftEmail || null,
@@ -265,7 +226,7 @@ export default function CustomersPage() {
       recurring_frequency: draftRecurringFrequency || null,
       recurring_notes: draftRecurringNotes || null,
       user_id: user.id,
-      shop_id: activeShopId,
+      shop_id: shopId,
     };
 
     if (isCreating) {
