@@ -26,7 +26,7 @@ function applyDarkWithOverlay(nextDark: boolean) {
     "position:fixed",
     "inset:0",
     "z-index:99999",
-    `background-color:${nextDark ? "#f5f5f7" : "#09090b"}`,
+    `background-color:${nextDark ? "#09090b" : "#f5f5f7"}`,
     "opacity:0",
     "pointer-events:none",
   ].join(";");
