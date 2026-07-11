@@ -124,6 +124,7 @@ export default function NotificationsPanel({ onClose, shopId }: { onClose: () =>
       const res = await bulkCompleteAppointments(shopId, ids);
       if (res.success) {
         setPendingComplete((prev) => prev.filter((p) => !ids.includes(p.id)));
+        window.dispatchEvent(new CustomEvent("appointments-updated"));
       }
     } catch { }
     setCompletingDay(null);

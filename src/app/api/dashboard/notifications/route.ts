@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient, getShopId } from "@/lib/dashboard/auth/server";
-import { getArgentinaNow, getArgentinaDateString, getArgentinaDayBounds } from "@/lib/argentina-time";
+import { getArgentinaNow, getArgentinaDateString, getArgentinaDayBounds, getArgentinaMinutesSinceMidnight, minutesFromHHmm } from "@/lib/argentina-time";
 import { APPOINTMENT_STATUS_NEEDS_CONFIRMATION } from "@/lib/dashboard/appointments/status";
 
 export const dynamic = "force-dynamic";
@@ -84,7 +84,7 @@ export async function GET() {
     const todayEndIso = todayEnd.toISOString();
     const oneHourFromNow = new Date(nowAr.getTime() + 60 * 60 * 1000).toISOString();
     const weekAgoIso = new Date(nowAr.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const [urgentRes, stockCountRes, todayApptsRes, cancelledRes, loyaltyRes, customersRes, vouchersRes, staffRes, shopRes, pendingCompleteRes] = await Promise.all([
+    const [urgentRes, stockCountRes, todayApptsRes, cancelledRes, loyaltyRes, customersRes, vouchersRes, staffRes, shopRes, pendingCompleteRes, businessHoursRes] = await Promise.all([
       admin.from("appointments").select("id", { count: "exact", head: true }).eq("shop_id", shopId).in("status", APPOINTMENT_STATUS_NEEDS_CONFIRMATION as unknown as string[]).gte("start_time", nowAr.toISOString()).lte("start_time", oneHourFromNow),
       admin.from("stock").select("id", { count: "exact", head: true }).eq("shop_id", shopId).lt("quantity", 5),
       admin.from("appointments").select("id, start_time, customers(nombre)").eq("shop_id", shopId).in("status", ["scheduled", "confirmed", "pending_payment"]).gte("start_time", todayStartIso).lte("start_time", todayEndIso).order("start_time", { ascending: true }).limit(10),
@@ -94,7 +94,8 @@ export async function GET() {
       admin.from("vouchers").select("id, gifted_to_name, service_name, created_at").eq("shop_id", shopId).eq("status", "sent").gte("created_at", todayStartIso).lte("created_at", todayEndIso).order("created_at", { ascending: false }).limit(10),
       admin.from("user_profiles").select("user_id, name, role, created_at").eq("shop_id", shopId).in("role", ["owner", "staff"]).gte("created_at", weekAgoIso).order("created_at", { ascending: false }).limit(10),
       admin.from("shops").select("plan_expiry").eq("id", shopId).single(),
-      admin.from("appointments").select("id, start_time, customers(nombre)").eq("shop_id", shopId).in("status", ["confirmed", "in_progress"]).lt("start_time", todayStartIso).order("start_time", { ascending: true }).limit(100),
+      admin.from("appointments").select("id, start_time, customers(nombre)").eq("shop_id", shopId).in("status", ["confirmed", "in_progress"]).gte("start_time", todayStartIso).lte("start_time", todayEndIso).order("start_time", { ascending: true }).limit(100),
+      admin.from("shops").select("business_hours").eq("id", shopId).single(),
     ]);
 
     const items: DashboardNotification[] = [];
@@ -159,10 +160,27 @@ export async function GET() {
       }
     }
 
-    const pendingComplete = (pendingCompleteRes.data ?? []).map((apt) => {
-      const c = Array.isArray(apt.customers) ? apt.customers[0] : apt.customers;
-      return { id: apt.id, customer_name: c?.nombre || "Cliente", start_time: apt.start_time };
-    });
+    let shouldShowPending = false;
+    if (businessHoursRes.data?.business_hours) {
+      const hours = businessHoursRes.data.business_hours as Record<string, { open: boolean; end: string }>;
+      const dayName = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/Argentina/Buenos_Aires",
+        weekday: "long",
+      }).format(new Date()).toLowerCase();
+      const todayHours = hours[dayName];
+      if (todayHours?.open && todayHours.end) {
+        const closingMinutes = minutesFromHHmm(todayHours.end);
+        const currentMinutes = getArgentinaMinutesSinceMidnight(new Date());
+        shouldShowPending = currentMinutes >= closingMinutes;
+      }
+    }
+
+    const pendingComplete = shouldShowPending
+      ? (pendingCompleteRes.data ?? []).map((apt) => {
+          const c = Array.isArray(apt.customers) ? apt.customers[0] : apt.customers;
+          return { id: apt.id, customer_name: c?.nombre || "Cliente", start_time: apt.start_time };
+        })
+      : [];
 
     return NextResponse.json({
       items,

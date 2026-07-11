@@ -488,6 +488,14 @@ export default function CalendarPageClient({
     await refreshAppointments(newEndStr);
   }, [refreshAppointments]);
 
+  useEffect(() => {
+    function onAppointmentsUpdated() {
+      refreshAppointments();
+    }
+    window.addEventListener("appointments-updated", onAppointmentsUpdated);
+    return () => window.removeEventListener("appointments-updated", onAppointmentsUpdated);
+  }, [refreshAppointments]);
+
   if (!hydrated) {
     return <CalendarSkeleton />;
   }
