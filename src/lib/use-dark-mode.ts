@@ -60,19 +60,25 @@ function applyDarkWithOverlay(nextDark: boolean) {
 
   void container.offsetHeight;
 
+  // 1 — Cerrarse (animación): triángulos cubren la pantalla
   s1.style.transform = "scale(1)";
   s2.style.transform = "scale(1)";
 
+  // 2 + 3 + 4 — Cambiar modo, esperar estilos, abrirse
   setTimeout(() => {
     document.documentElement.classList.toggle("dark", nextDark);
     localStorage.setItem(STORAGE_KEY, String(nextDark));
 
-    s1.style.transform = "scale(0)";
-    s2.style.transform = "scale(0)";
-
+    // Esperar a que CSS transitions (0.2s en :root / .dark) se asienten
     setTimeout(() => {
-      container.remove();
-    }, 400);
+      // 4 — Abrirse (animación): triángulos se retraen
+      s1.style.transform = "scale(0)";
+      s2.style.transform = "scale(0)";
+
+      setTimeout(() => {
+        container.remove();
+      }, 400);
+    }, 250);
   }, 400);
 }
 
