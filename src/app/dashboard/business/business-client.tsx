@@ -38,6 +38,7 @@ import {
 import { updateVoucherWhatsappTemplate } from "@/lib/dashboard/vouchers/voucher-actions";
 import { DEFAULT_BIRTHDAY_WHATSAPP_TEMPLATE, DEFAULT_VOUCHER_WHATSAPP_TEMPLATE } from "@/lib/dashboard/vouchers/voucher-constants";
 import { deleteCurrentShop } from "@/lib/dashboard/shop/shop-actions";
+import { fetchDashboardSummary, fetchDashboardMetrics } from "@/lib/dashboard/finances/dashboard-summary";
 import {
   upsertBookingTheme,
   uploadBookingLogo,
@@ -222,6 +223,41 @@ export default function BusinessClient({
   const [isSaving, setIsSaving] = useState(false);
   const [creatingShop, startCreateShopTransition] = useTransition();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [localSummaryStats, setLocalSummaryStats] = useState(summaryStats);
+  const [localMetricStats, setLocalMetricStats] = useState(metricStats);
+  const statsFetchedRef = useRef(false);
+
+  useEffect(() => {
+    if (statsFetchedRef.current) return;
+    statsFetchedRef.current = true;
+
+    async function loadStats() {
+      const [summary, metrics] = await Promise.all([
+        fetchDashboardSummary(shopId),
+        fetchDashboardMetrics(shopId),
+      ]);
+      if (summary.success && summary.data) {
+        setLocalSummaryStats({
+          appointmentsCount: summary.data.appointmentsCount,
+          revenue: summary.data.revenue,
+          lowStockCount: summary.data.lowStockCount,
+        });
+      }
+      if (metrics.success && metrics.data) {
+        setLocalMetricStats({
+          totalClients: metrics.data.stats.totalClients,
+          totalAppointments: metrics.data.stats.totalAppointments,
+          growth: metrics.data.stats.growth,
+          topServicesCount: initialServices.length,
+          income: metrics.data.revenueChart.reduce((sum, point) => sum + point.income, 0),
+          expenses: metrics.data.revenueChart.reduce((sum, point) => sum + point.expenses, 0),
+          busiestDay: metrics.data.busiestDay,
+          busiestHour: metrics.data.busiestHour,
+        });
+      }
+    }
+    loadStats();
+  }, [shopId, initialServices.length]);
 
   const [name, setName] = useState(data?.nombre || "");
   const [address, setAddress] = useState(data?.address || "");
@@ -507,7 +543,7 @@ export default function BusinessClient({
     { key: "sunday", label: "Domingo" },
   ];
 
-  const incomeValue = metricStats?.income ?? summaryStats?.revenue ?? 0;
+  const incomeValue = localMetricStats?.income ?? localSummaryStats?.revenue ?? 0;
   const expenseValue = metricStats?.expenses ?? 0;
   const flowTotal = Math.max(incomeValue + expenseValue, 1);
   const incomePct = Math.max(8, Math.round((incomeValue / flowTotal) * 100));
@@ -1149,8 +1185,8 @@ export default function BusinessClient({
         incomePct={incomePct}
         expensePct={expensePct}
         netValue={netValue}
-        metricStats={metricStats}
-        summaryStats={summaryStats}
+        metricStats={localMetricStats}
+        summaryStats={localSummaryStats}
         customerPlural={customerPlural}
         servicePlural={servicePlural}
       />

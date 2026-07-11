@@ -65,7 +65,27 @@ function isBirthdayThisWeek(date: string | null): boolean {
   return candidate >= weekStart && candidate <= weekEnd;
 }
 
-export default function CustomersPage({ shopId, shopSlug: _shopSlug }: { shopId: string; shopSlug: string }) {
+export default function CustomersPage({
+  shopId,
+  shopSlug: _shopSlug,
+  initialCustomers = [],
+  initialPage = 1,
+  initialTotalPages = 1,
+  initialTotal = 0,
+  initialError = null,
+  initialLoyaltyEnabled = true,
+  initialLoyaltyCutsRequired = 10,
+}: {
+  shopId: string;
+  shopSlug: string;
+  initialCustomers?: Customer[];
+  initialPage?: number;
+  initialTotalPages?: number;
+  initialTotal?: number;
+  initialError?: string | null;
+  initialLoyaltyEnabled?: boolean;
+  initialLoyaltyCutsRequired?: number;
+}) {
   const { shop } = useAuth();
   const industry = resolveIndustry(shop?.industry);
   const customerWord = INDUSTRY_CONFIG[industry].labels.customerSingular;
@@ -73,17 +93,17 @@ export default function CustomersPage({ shopId, shopSlug: _shopSlug }: { shopId:
   const { playSuccess, playClick } = useKlipSounds();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
+  const [error, setError] = useState<string | null>(initialError);
   const [searchQuery, setSearchQuery] = useState("");
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(initialPage);
+  const [totalPages, setTotalPages] = useState(initialTotalPages);
+  const [total, setTotal] = useState(initialTotal);
   const [loading, setLoading] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [loyaltyEnabled, setLoyaltyEnabled] = useState(true);
-  const [loyaltyCutsRequired, setLoyaltyCutsRequired] = useState(10);
+  const [loyaltyEnabled, setLoyaltyEnabled] = useState(initialLoyaltyEnabled);
+  const [loyaltyCutsRequired, setLoyaltyCutsRequired] = useState(initialLoyaltyCutsRequired);
 
   const [draftNombre, setDraftNombre] = useState("");
   const [draftEmail, setDraftEmail] = useState("");
@@ -131,24 +151,19 @@ export default function CustomersPage({ shopId, shopSlug: _shopSlug }: { shopId:
     setLoading(false);
   }, [shopId, customerPlural]);
 
-  const initialLoadDone = useRef(false);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const isFirstRender = useRef(true);
 
   useEffect(() => {
-    loadCustomers(1, "");
-  }, [loadCustomers]);
-
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-
-  useEffect(() => {
-    if (!initialLoadDone.current) {
-      initialLoadDone.current = true;
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
       return;
     }
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
       loadCustomers(1, searchQuery);
     }, 300);
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+    return () => { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); };
   }, [loadCustomers, searchQuery]);
 
   useEffect(() => {

@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { fetchBusinessData, fetchBusinessHours } from "@/lib/dashboard/shop/business-actions";
-import { fetchDashboardSummary, fetchDashboardMetrics } from "@/lib/dashboard/finances/dashboard-summary";
 import { fetchServices } from "@/lib/dashboard/services/service-actions";
 import { fetchBookingTheme } from "@/lib/dashboard/shop/booking-theme-actions";
 import { fetchVoucherWhatsappTemplate } from "@/lib/dashboard/vouchers/voucher-actions";
@@ -64,10 +63,8 @@ async function BusinessContent({ shopId, shopSlug }: { shopId: string; shopSlug:
     .eq("is_active", true)
     .in("role", ["owner", "staff", "admin"]);
 
-  const [result, summaryResult, metricsResult, servicesResult, businessHoursResult, bookingThemeResult, voucherTemplateResult, staffResult] = await Promise.all([
+  const [result, servicesResult, businessHoursResult, bookingThemeResult, voucherTemplateResult, staffResult] = await Promise.all([
     fetchBusinessData(shopId),
-    fetchDashboardSummary(shopId),
-    fetchDashboardMetrics(shopId),
     fetchServices(shopId),
     fetchBusinessHours(shopId),
     fetchBookingTheme(shopId),
@@ -87,36 +84,13 @@ async function BusinessContent({ shopId, shopSlug }: { shopId: string; shopSlug:
     }
   }
 
-  const summaryStats =
-    summaryResult.success && summaryResult.data
-      ? {
-          appointmentsCount: summaryResult.data.appointmentsCount,
-          revenue: summaryResult.data.revenue,
-          lowStockCount: summaryResult.data.lowStockCount,
-        }
-      : null;
-
-  const metricStats =
-    metricsResult.success && metricsResult.data
-      ? {
-          totalClients: metricsResult.data.stats.totalClients,
-          totalAppointments: metricsResult.data.stats.totalAppointments,
-          growth: metricsResult.data.stats.growth,
-          topServicesCount: servicesResult.success && servicesResult.data ? servicesResult.data.length : 0,
-          income: metricsResult.data.revenueChart.reduce((sum, point) => sum + point.income, 0),
-          expenses: metricsResult.data.revenueChart.reduce((sum, point) => sum + point.expenses, 0),
-          busiestDay: metricsResult.data.busiestDay,
-          busiestHour: metricsResult.data.busiestHour,
-        }
-      : null;
-
   return (
     <BusinessClient
       role={role}
       initialData={result.success ? result.data ?? null : null}
       initialError={result.success ? null : result.error}
-      summaryStats={summaryStats}
-      metricStats={metricStats}
+      summaryStats={null}
+      metricStats={null}
       canManageBilling={canManageBilling}
       shopId={shopId}
       shopSlug={shopSlug}
