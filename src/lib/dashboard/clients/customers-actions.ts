@@ -96,7 +96,9 @@ export async function fetchCustomersOverview(): Promise<ActionResult<CustomerRow
       const birthdayValue =
         typeof customer.cumpleaños === "string"
           ? customer.cumpleaños.toString()
-          : null;
+          : typeof customer.birth_date === "string"
+            ? customer.birth_date
+            : null;
 
       const observationsValue =
         typeof customer.observations === "string"

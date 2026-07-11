@@ -76,7 +76,7 @@ export default function DashboardHeaderLoader({
     return () => {
       mounted = false;
     };
-  }, [userEmail, pathname]);
+  }, [userEmail, pathname, state.loading]);
 
   if (state.loading) return <DashboardHeaderLite />;
 

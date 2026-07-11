@@ -86,6 +86,7 @@ describe("createService", () => {
         order: vi.fn().mockResolvedValue({ data: [], error: null }),
         insert: vi.fn().mockReturnThis(),
         single: vi.fn().mockResolvedValue({ data: null, error: null }),
+        limit: vi.fn().mockReturnThis(),
       })),
     } as never);
 
@@ -107,6 +108,7 @@ describe("createService", () => {
           return { select: vi.fn().mockReturnThis(), single: vi.fn().mockResolvedValue({ data: null, error: null }) };
         }),
         single: vi.fn().mockResolvedValue({ data: null, error: null }),
+        limit: vi.fn().mockReturnThis(),
       })),
     } as never);
 
@@ -137,6 +139,7 @@ describe("updateService", () => {
         order: vi.fn().mockResolvedValue({ data: [], error: null }),
         update: vi.fn().mockReturnThis(),
         single: vi.fn().mockResolvedValue({ data: null, error: null }),
+        limit: vi.fn().mockReturnThis(),
       })),
     } as never);
 

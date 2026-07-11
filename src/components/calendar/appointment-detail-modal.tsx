@@ -250,16 +250,7 @@ export default function AppointmentDetailModal({
       setAppointmentGroup([]);
       setGroupStartTime(toDateTimeLocalValue(appointment.start_time));
     }
-  }, [appointment]);
-
-  useEffect(() => {
-    if (!appointment || !allAppointments || !appointment.customers?.id) return;
-    const { group, serviceIds, groupStartTime } = computeAppointmentGroup(
-      appointment.id, appointment.customers.id, appointment.staff_id || null, appointment.start_time, allAppointments
-    );
-    setAppointmentGroup(group);
-    setGroupStartTime(groupStartTime);
-  }, [allAppointments]);
+  }, [appointment, allAppointments]);
 
   useEffect(() => {
     if (!serviceSearchOpen) return;

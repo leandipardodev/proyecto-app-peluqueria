@@ -76,8 +76,8 @@ describe("fetchStaffMembers", () => {
     revChain.then = (onfulfilled: any) =>
       Promise.resolve({
         data: [
-          { staff_id: "u2", services: [{ price: 5000 }] },
-          { staff_id: "u2", services: [{ price: 3000 }] },
+          { staff_id: "u2", services: { price: 5000 } },
+          { staff_id: "u2", services: { price: 3000 } },
         ],
         error: null,
       }).then(onfulfilled);

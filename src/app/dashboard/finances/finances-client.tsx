@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import {
   Users2,
   CheckCircle2,
@@ -313,7 +313,7 @@ export default function FinancesClient({
     }
   }
 
-  async function triggerLoads(nextFrom: string, nextTo: string) {
+  const triggerLoads = useCallback(async (nextFrom: string, nextTo: string) => {
     const sid = shopRef.current || undefined;
 
     startTransition(async () => {
@@ -355,7 +355,7 @@ export default function FinancesClient({
     const cashPromise = refreshCashData(nextFrom, nextTo);
 
     await Promise.allSettled([staffPromise, cashPromise]);
-  }
+  }, []);
 
   useEffect(() => {
     if (isFirstRender.current) {
@@ -363,7 +363,7 @@ export default function FinancesClient({
       return;
     }
     triggerLoads(from, to);
-  }, [from, to]);
+  }, [from, to, triggerLoads]);
 
   useEffect(() => {
     const channel = supabase
