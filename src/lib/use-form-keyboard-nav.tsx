@@ -50,19 +50,7 @@ export function useFormKeyboardNav<T extends HTMLElement>(
       return -1;
     }
 
-    function focusNext(container: HTMLElement) {
-      const all = getAllFocusable();
-      const idx = getActiveIndex(all);
-      if (idx >= 0 && idx + 1 < all.length) all[idx + 1].focus();
-    }
-
-    function focusPrev(container: HTMLElement) {
-      const all = getAllFocusable();
-      const idx = getActiveIndex(all);
-      if (idx > 0) all[idx - 1].focus();
-    }
-
-    function focusPrevField(container: HTMLElement) {
+    function focusPrevField() {
       const all = getAllFocusable();
       const idx = getActiveIndex(all);
       if (idx < 0) return;
@@ -76,7 +64,7 @@ export function useFormKeyboardNav<T extends HTMLElement>(
       if (prev >= 0) all[prev].focus();
     }
 
-    function focusNextField(container: HTMLElement) {
+    function focusNextField() {
       const all = getAllFocusable();
       const idx = getActiveIndex(all);
       if (idx < 0) return;
@@ -174,17 +162,17 @@ export function useFormKeyboardNav<T extends HTMLElement>(
         }
       }
 
-      if (e.key === "ArrowDown") {
+      if (e.key === "ArrowDown" && !e.shiftKey) {
         const target = e.target as HTMLElement;
         const tag = target.tagName;
         if (tag !== "TEXTAREA" && tag !== "SELECT") e.preventDefault();
-        focusNextField(el);
+        focusNextField();
       }
       if (e.key === "ArrowUp") {
         const target = e.target as HTMLElement;
         const tag = target.tagName;
         if (tag !== "TEXTAREA" && tag !== "SELECT") e.preventDefault();
-        focusPrevField(el);
+        focusPrevField();
       }
       if (e.key === "ArrowRight") {
         e.preventDefault();
@@ -212,13 +200,13 @@ export function useFormKeyboardNav<T extends HTMLElement>(
           const tag = target.tagName;
           if (tag === "TEXTAREA" || tag === "SELECT") return;
           if (tag === "BUTTON" || target.getAttribute("role") === "button") {
-            if (target.getAttribute("data-form-nav") === "select") {
-              focusNextField(el);
-            }
+              if (target.getAttribute("data-form-nav") === "select") {
+                  focusNextField();
+                }
             return;
           }
           if (target.getAttribute("data-form-nav") === "skip") return;
-          focusNextField(el);
+          focusNextField();
         }
       }
     }
@@ -240,6 +228,7 @@ interface FormWithKeyboardNavProps {
   className?: string;
   id?: string;
   children: ReactNode;
+  autoFocusOnMount?: boolean;
 }
 
 export function FormWithKeyboardNav({
@@ -248,6 +237,7 @@ export function FormWithKeyboardNav({
   className,
   id,
   children,
+  autoFocusOnMount = true,
 }: FormWithKeyboardNavProps) {
   const formRef = useRef<HTMLFormElement>(null);
   useFormKeyboardNav(formRef, {
@@ -256,6 +246,7 @@ export function FormWithKeyboardNav({
   });
 
   useEffect(() => {
+    if (!autoFocusOnMount) return;
     const form = formRef.current;
     if (!form) return;
     const raf = requestAnimationFrame(() => {
@@ -263,7 +254,7 @@ export function FormWithKeyboardNav({
       first?.focus();
     });
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [autoFocusOnMount]);
 
   return (
     <form ref={formRef} onSubmit={onSubmit} id={id} className={className}>

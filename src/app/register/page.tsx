@@ -11,6 +11,10 @@ import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { supabase } from "@/lib/supabase";
 import { logout } from "@/lib/dashboard/auth/logout-action";
 import BaseModal from "@/components/ui/modal";
+import { InputForm } from "@/components/ui/input-form";
+import { CheckboxForm } from "@/components/ui/checkbox-form";
+import { SubmitBtn } from "@/components/ui/submit-btn";
+import { FormWithKeyboardNav } from "@/lib/use-form-keyboard-nav";
 
 function RegisterPageContent({ industry }: { industry: Industry }) {
   const [checkingSession, setCheckingSession] = useState(true);
@@ -178,7 +182,9 @@ function RegisterPageContent({ industry }: { industry: Industry }) {
 
             <form onSubmit={handleVerifyCode} className="space-y-5">
               <div>
-                <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-1">Código de verificación</label>
+                <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-1">
+                  Código de verificación
+                </label>
                 <input
                   type="text"
                   id="code"
@@ -192,13 +198,12 @@ function RegisterPageContent({ industry }: { industry: Industry }) {
                 />
               </div>
 
-              <button
-                type="submit"
-                disabled={pending || code.length !== 6}
-                className="w-full bg-violet-600 text-white py-2.5 px-4 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
-              >
-                {pending ? "Verificando..." : "Verificar y crear cuenta"}
-              </button>
+              <SubmitBtn
+                isPending={pending}
+                disabled={code.length !== 6}
+                pendingText="Verificando..."
+                defaultText="Verificar y crear cuenta"
+              />
             </form>
 
             <div className="text-center">
@@ -234,49 +239,66 @@ function RegisterPageContent({ industry }: { industry: Industry }) {
             <div className="bg-red-50 text-red-700 text-sm px-4 py-3 rounded-lg">{error}</div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <FormWithKeyboardNav onSubmit={handleSubmit} className="space-y-5">
             <input type="hidden" name="industry" value={industry} />
-            <div>
-              <label htmlFor="shop_name" className="block text-sm font-medium text-gray-700 mb-1">Nombre del Local</label>
-              <input type="text" id="shop_name" name="shop_name" required value={shopName} onChange={(e) => setShopName(e.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent" placeholder="Ej: Klip Barber" />
-            </div>
 
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <input type="email" id="email" name="email" required className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent" placeholder="tu@email.com" />
-            </div>
+            <InputForm
+              label="Nombre del Local"
+              name="shop_name"
+              type="text"
+              required
+              autoFocus
+              value={shopName}
+              onChange={(e) => setShopName(e.target.value)}
+              placeholder="Ej: Klip Barber"
+            />
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
-              <input type="password" id="reg-password" name="password" required minLength={6} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent" placeholder="Minimo 6 caracteres" />
-            </div>
+            <InputForm
+              label="Email"
+              name="email"
+              type="email"
+              required
+              placeholder="tu@email.com"
+            />
 
-            <div className="rounded-xl border border-gray-200 bg-white/60 px-3 py-2.5">
-              <label className="flex items-start gap-2.5 text-sm text-gray-700">
-                <input
-                  type="checkbox"
-                  name="terms_accepted"
-                  checked={termsAccepted}
-                  onChange={(e) => setTermsAccepted(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
-                />
+            <InputForm
+              label="Contraseña"
+              name="password"
+              type="password"
+              required
+              minLength={6}
+              placeholder="Mínimo 6 caracteres"
+              helperText="Mínimo 6 caracteres"
+            />
+
+            <CheckboxForm
+              name="terms_accepted"
+              checked={termsAccepted}
+              onChange={(e) => setTermsAccepted(e.target.checked)}
+              label={
                 <span>
-                  Acepto los Terminos y Condiciones y las Politicas de Privacidad de Klip. {" "}
+                  Acepto los Términos y Condiciones y las Políticas de Privacidad de Klip.{" "}
                   <button
                     type="button"
-                    onClick={() => setTermsOpen(true)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setTermsOpen(true);
+                    }}
                     className="font-medium text-violet-700 hover:text-violet-800 underline"
                   >
-                    Leer Terminos y Condiciones
+                    Leer Términos y Condiciones
                   </button>
                 </span>
-              </label>
-            </div>
+              }
+            />
 
-            <button type="submit" disabled={pending || !termsAccepted} className="w-full bg-violet-600 text-white py-2.5 px-4 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer select-none">
-              {pending ? "Creando cuenta..." : "Crear cuenta"}
-            </button>
-          </form>
+            <SubmitBtn
+              isPending={pending}
+              disabled={!termsAccepted}
+              pendingText="Creando cuenta..."
+              defaultText="Crear cuenta"
+            />
+          </FormWithKeyboardNav>
         </div>
 
         <p className="mt-6 text-center text-sm text-gray-600">

@@ -2,6 +2,10 @@
 
 import { createCombo, updateCombo } from "@/lib/dashboard/services/combo-actions";
 import { useEffect, useMemo, useRef, useState, useTransition, memo } from "react";
+import { FormWithKeyboardNav } from "@/lib/use-form-keyboard-nav";
+import { InputForm } from "@/components/ui/input-form";
+import { TextareaForm } from "@/components/ui/textarea-form";
+import { SubmitBtn } from "@/components/ui/submit-btn";
 
 type ServiceOption = {
   id: string;
@@ -87,45 +91,38 @@ const ComboForm = memo(function ComboForm({ shopId, services, combo, onSuccess }
   }, []);
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <FormWithKeyboardNav onSubmit={handleSubmit} className="space-y-5">
       {error && (
         <div className="bg-red-50 text-red-700 text-sm px-4 py-2 rounded-lg">{error}</div>
       )}
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1 cursor-pointer">Nombre del combo</label>
-        <input
-          ref={nameRef}
-          type="text"
-          name="name"
-          required
-          defaultValue={combo?.name || ""}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-          placeholder="Ej: Corte + Tintura"
-        />
-      </div>
+      <InputForm
+        label="Nombre del combo"
+        name="name"
+        type="text"
+        required
+        autoFocus
+        defaultValue={combo?.name || ""}
+        placeholder="Ej: Corte + Tintura"
+      />
+
+      <TextareaForm
+        label="Descripción (opcional)"
+        name="description"
+        rows={2}
+        defaultValue={combo?.description || ""}
+        placeholder="Describí qué incluye este combo"
+      />
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1 cursor-pointer">Descripción (opcional)</label>
-        <textarea
-          name="description"
-          rows={2}
-          defaultValue={combo?.description || ""}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"
-          placeholder="Describí qué incluye este combo"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1 cursor-pointer">Precio del combo ($)</label>
-        <input
-          type="number"
+        <InputForm
+          label="Precio del combo ($)"
           name="price"
+          type="number"
           step="0.01"
           min="0"
           required
           defaultValue={combo?.price ?? ""}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
           placeholder="0.00"
         />
         {totalOriginalPrice > 0 && (
@@ -190,15 +187,13 @@ const ComboForm = memo(function ComboForm({ shopId, services, combo, onSuccess }
       )}
 
       <div className="flex gap-3 pt-2">
-        <button
-          type="submit"
-          disabled={pending}
-          className="flex-1 bg-violet-600 text-white py-2.5 px-4 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
-        >
-          {pending ? "Guardando..." : combo ? "Actualizar Combo" : "Crear Combo"}
-        </button>
+        <SubmitBtn
+          isPending={pending}
+          defaultText={combo ? "Actualizar Combo" : "Crear Combo"}
+          pendingText="Guardando..."
+        />
       </div>
-    </form>
+    </FormWithKeyboardNav>
   );
 });
 

@@ -1675,6 +1675,7 @@ draggable={false}
                                   onBlur={() => setNameError(validateName(customerName))}
                                   className={`${templateStyles.input} ${nameError ? "ring-2 ring-red-500" : ""}`}
                                   placeholder="Nombre y apellido"
+                                  autoFocus
                                 />
                                 {nameError && <p className="text-xs text-red-500 mt-1">{nameError}</p>}
                               </motion.div>
@@ -1723,6 +1724,7 @@ draggable={false}
                                   onBlur={() => setNameError(validateName(customerName))}
                                   className={`${templateStyles.input} ${nameError ? "ring-2 ring-red-500" : ""}`}
                                   placeholder="Nombre y apellido"
+                                  autoFocus
                                 />
                                 {nameError && <p className="text-xs text-red-500 mt-1">{nameError}</p>}
                               </motion.div>

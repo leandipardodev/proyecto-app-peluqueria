@@ -1,8 +1,13 @@
 "use client";
 
-import { createService, updateService, fetchServices } from "@/lib/dashboard/services/service-actions";
+import { createService, updateService } from "@/lib/dashboard/services/service-actions";
 import { useEffect, useRef, useState, useTransition, memo } from "react";
 import { FormWithKeyboardNav } from "@/lib/use-form-keyboard-nav";
+import { InputForm } from "@/components/ui/input-form";
+import { SelectForm } from "@/components/ui/select-form";
+import { TextareaForm } from "@/components/ui/textarea-form";
+import { CheckboxForm } from "@/components/ui/checkbox-form";
+import { SubmitBtn } from "@/components/ui/submit-btn";
 
 interface ServiceFormProps {
   shopId: string;
@@ -78,88 +83,52 @@ const ServiceForm = memo(function ServiceForm({ shopId, service, onSuccess, staf
         </div>
       )}
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1 cursor-pointer">
-          Nombre
-        </label>
-        <input
-          ref={nameRef}
-          type="text"
-          id="name"
-          name="name"
-          required
-          defaultValue={service?.name || ""}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-          placeholder="Ej: Corte de pelo"
-        />
-      </div>
+      <InputForm
+        ref={nameRef}
+        label="Nombre"
+        name="name"
+        type="text"
+        required
+        autoFocus
+        defaultValue={service?.name || ""}
+        placeholder="Ej: Corte de pelo"
+      />
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1 cursor-pointer">
-          Descripción
-        </label>
-        <textarea
-          id="description"
-          name="description"
-          rows={3}
-          defaultValue={service?.description || ""}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"
-          placeholder="Breve descripción del servicio..."
-        />
-      </div>
+      <TextareaForm
+        label="Descripción"
+        name="description"
+        defaultValue={service?.description || ""}
+        placeholder="Breve descripción del servicio..."
+      />
 
       <input type="hidden" name="category" value={service?.category ?? "General"} />
 
-      <div>
-        <label
-            htmlFor="price"
-            className="block text-sm font-medium text-gray-700 mb-1 cursor-pointer"
-          >
-            Precio ($)
-          </label>
-        <input
-          type="number"
-          id="price"
-          name="price"
-          step="0.01"
-          min="0"
-          defaultValue={service?.price ?? ""}
-          required
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-          placeholder="0.00"
-        />
-      </div>
+      <InputForm
+        label="Precio ($)"
+        name="price"
+        type="number"
+        step="0.01"
+        min="0"
+        required
+        defaultValue={service?.price ?? ""}
+        placeholder="0.00"
+      />
 
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input
-          type="checkbox"
-          name="pay_at_shop"
-          defaultChecked={service?.pay_at_shop ?? false}
-          className="w-4 h-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
-        />
-        <span className="text-sm text-gray-700">Pago en el local</span>
-      </label>
+      <CheckboxForm
+        name="pay_at_shop"
+        defaultChecked={service?.pay_at_shop ?? false}
+        label="Pago en el local"
+      />
 
-      <div>
-        <label
-            htmlFor="duration_minutes"
-            className="block text-sm font-medium text-gray-700 mb-1 cursor-pointer"
-          >
-            Duración
-          </label>
-          <select
-            id="duration_minutes"
-            name="duration_minutes"
-            defaultValue={service?.duration_minutes ?? 30}
-            className="ui-select w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-        >
-          {durationOptions.map((mins) => (
-            <option key={mins} value={mins}>
-              {mins} minutos
-            </option>
-          ))}
-        </select>
-      </div>
+      <SelectForm
+        label="Duración"
+        name="duration_minutes"
+        defaultValue={service?.duration_minutes ?? 30}
+        options={durationOptions.map((mins) => ({
+          value: String(mins),
+          label: `${mins} minutos`,
+        }))}
+      />
 
       {staffMembers.length > 0 && (
         <div>
@@ -194,17 +163,11 @@ const ServiceForm = memo(function ServiceForm({ shopId, service, onSuccess, staf
       )}
 
       <div className="flex gap-3 pt-2">
-        <button
-          type="submit"
-          disabled={pending}
-          className="flex-1 bg-violet-600 text-white py-2.5 px-4 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
-        >
-          {pending
-            ? "Guardando..."
-            : service
-              ? "Actualizar"
-              : "Crear Servicio"}
-        </button>
+        <SubmitBtn
+          isPending={pending}
+          defaultText={service ? "Actualizar" : "Crear Servicio"}
+          pendingText="Guardando..."
+        />
       </div>
     </FormWithKeyboardNav>
   );

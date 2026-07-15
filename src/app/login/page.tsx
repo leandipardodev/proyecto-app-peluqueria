@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/toast";
 import { logout } from "@/lib/dashboard/auth/logout-action";
+import { InputForm } from "@/components/ui/input-form";
+import { SubmitBtn } from "@/components/ui/submit-btn";
+import { FormWithKeyboardNav } from "@/lib/use-form-keyboard-nav";
 
 const RESET_COOLDOWN_MS = 60_000;
 const RESET_COOLDOWN_KEY = "klip_reset_cooldown_until";
@@ -298,28 +301,22 @@ export default function LoginPage() {
               </button>
             </div>
           ) : resetMode ? (
-            <form onSubmit={handleResetPassword} className="space-y-5">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  required
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                  placeholder="tu@email.com"
-                />
-              </div>
+            <FormWithKeyboardNav onSubmit={handleResetPassword} className="space-y-5">
+              <InputForm
+                label="Email"
+                name="email"
+                type="email"
+                required
+                autoFocus
+                placeholder="tu@email.com"
+              />
 
-              <button
-                type="submit"
-                disabled={loading || resetCooldownSeconds > 0}
-                className="w-full bg-violet-600 text-white py-2.5 px-4 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 transition-colors disabled:opacity-50 cursor-pointer select-none"
-              >
-                {loading ? "Enviando..." : resetCooldownSeconds > 0 ? `Reintentá en ${resetCooldownSeconds}s` : "Enviar instrucciones"}
-              </button>
+              <SubmitBtn
+                isPending={loading}
+                disabled={resetCooldownSeconds > 0}
+                pendingText="Enviando..."
+                defaultText={resetCooldownSeconds > 0 ? `Reintentá en ${resetCooldownSeconds}s` : "Enviar instrucciones"}
+              />
 
               <button
                 type="button"
@@ -328,44 +325,27 @@ export default function LoginPage() {
               >
                 Volver al inicio de sesión
               </button>
-            </form>
+            </FormWithKeyboardNav>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  required
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                  placeholder="tu@email.com"
-                />
-              </div>
+            <FormWithKeyboardNav onSubmit={handleSubmit} className="space-y-5">
+              <InputForm
+                label="Email"
+                name="email"
+                type="email"
+                required
+                autoFocus
+                placeholder="tu@email.com"
+              />
 
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                  Contraseña
-                </label>
-                <input
-                  type="password"
-                  id="password"
-                  name="password"
-                  required
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                  placeholder="••••••••"
-                />
-              </div>
+              <InputForm
+                label="Contraseña"
+                name="password"
+                type="password"
+                required
+                placeholder="••••••••"
+              />
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-violet-600 text-white py-2.5 px-4 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 transition-colors disabled:opacity-50 cursor-pointer select-none"
-              >
-                {loading ? "Iniciando..." : "Iniciar Sesión"}
-              </button>
+              <SubmitBtn isPending={loading} pendingText="Iniciando..." defaultText="Iniciar Sesión" />
 
               <button
                 type="button"
@@ -375,7 +355,7 @@ export default function LoginPage() {
               >
                 Continuar con Google (solo dueños)
               </button>
-            </form>
+            </FormWithKeyboardNav>
           )}
         </div>
 

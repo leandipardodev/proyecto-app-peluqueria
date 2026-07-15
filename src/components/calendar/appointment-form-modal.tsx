@@ -346,7 +346,7 @@ export default function AppointmentFormModal({
           </button>
         </div>
 
-        <FormWithKeyboardNav onSubmit={handleSubmit} onCancel={onClose} id="appointment-form" className="flex flex-col flex-1 min-h-0">
+        <FormWithKeyboardNav onSubmit={handleSubmit} onCancel={onClose} id="appointment-form" className="flex flex-col flex-1 min-h-0" autoFocusOnMount={false}>
           <div className="p-5 overflow-y-auto overscroll-y-contain flex-1 space-y-5">
             {error === "slot_taken" ? (
               <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-sm px-4 py-3 rounded-xl flex items-start gap-3">
