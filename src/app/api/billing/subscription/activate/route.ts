@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { MercadoPagoConfig, PreApproval } from "mercadopago";
 import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import { createServerClient } from "@/lib/supabase/server";
-import { BILLING_PRICES } from "@/lib/billing/plans";
+import { getBillingPrice } from "@/lib/admin/site-settings";
 
 export async function POST(request: NextRequest) {
   try {
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
         auto_recurring: {
           frequency: 1,
           frequency_type: "months",
-          transaction_amount: BILLING_PRICES.monthly,
+          transaction_amount: await getBillingPrice(),
           currency_id: "ARS",
         },
         back_url: successUrl,

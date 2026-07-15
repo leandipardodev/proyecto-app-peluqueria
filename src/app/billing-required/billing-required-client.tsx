@@ -1,17 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BILLING_LABELS, BillingCycle, BILLING_PRICES } from "@/lib/billing/plans";
+import { BILLING_LABELS, BillingCycle } from "@/lib/billing/plans";
 
 type Props = {
   shopId: string;
   shopName: string;
+  monthlyPrice: number;
 };
 
 const CYCLES: BillingCycle[] = ["monthly"];
 const HOVER_EMOJIS = ["🤑", "🫰", "💸", "💳", "💰", "🤑", "👛"];
 
-export default function BillingRequiredClient({ shopId, shopName }: Props) {
+export default function BillingRequiredClient({ shopId, shopName, monthlyPrice }: Props) {
   const [loading, setLoading] = useState<BillingCycle | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hovering, setHovering] = useState(false);
@@ -70,7 +71,7 @@ export default function BillingRequiredClient({ shopId, shopName }: Props) {
             className="inline-flex items-center justify-between rounded-2xl bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 text-white px-4 py-3.5 text-sm font-black tracking-wide shadow-[0_12px_24px_rgba(234,88,12,0.35)] hover:-translate-y-0.5 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 transition-all disabled:opacity-60"
           >
             <span>Renovar ahora · {BILLING_LABELS[cycle]}</span>
-            <span>${BILLING_PRICES[cycle].toLocaleString("es-AR")}</span>
+            <span>${monthlyPrice.toLocaleString("es-AR")}</span>
           </button>
         ))}
       </div>

@@ -1,6 +1,6 @@
 "use server";
 
-import { BILLING_PRICES } from "@/lib/billing/plans";
+import { getBillingPrice } from "@/lib/admin/site-settings";
 import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import { requireSuperAdmin } from "@/lib/admin/auth";
 import type { Json } from "@/lib/supabase/database.types";
@@ -193,7 +193,7 @@ async function syncReferralLedger(admin: Awaited<ReturnType<typeof createService
     eventsByShop.set(event.shop_id, list);
   }
 
-  const monthlyBase = BILLING_PRICES.monthly;
+  const monthlyBase = await getBillingPrice();
   const inserts: Array<Record<string, unknown>> = [];
 
   for (const [shopId, shopEvents] of eventsByShop) {
@@ -295,6 +295,7 @@ export async function fetchReferralsAdminOverview(): Promise<ReferralsAdminOverv
     };
   });
 
+  const billingPrice = await getBillingPrice();
   const partnersSummary: PartnerSummary[] = partners.map((partner) => {
     const partnerAttributions = attributions.filter((a) => a.partner_id === partner.id);
     const partnerLedger = ledger.filter((l) => l.partner_id === partner.id);
@@ -313,7 +314,7 @@ export async function fetchReferralsAdminOverview(): Promise<ReferralsAdminOverv
       rulePercent,
       ruleMonths,
       referredShops: partnerAttributions.length,
-      totalRevenueTracked: partnerLedger.length * BILLING_PRICES.monthly,
+      totalRevenueTracked: partnerLedger.length * billingPrice,
       totalCommissionGenerated: Number(totalCommissionGenerated.toFixed(2)),
       pendingCommission: Number(pendingCommission.toFixed(2)),
       paidCommission: Number(paidCommission.toFixed(2)),

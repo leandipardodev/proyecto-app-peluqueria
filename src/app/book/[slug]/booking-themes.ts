@@ -208,7 +208,7 @@ export const BOOKING_THEMES: Record<BookingThemeKey, BookingTheme> = {
     checkoutTitle: "text-white",
     checkoutAmount: "text-white",
     checkoutBadge: "border-emerald-300/40 bg-emerald-400/15 text-emerald-100",
-    checkoutWallet: "border-white/15 bg-white p-2",
+    checkoutWallet: "border-white/15 bg-white/10 p-2",
     checkoutLink: "border-white/25 bg-white/12 text-white hover:bg-white/20",
     calendar: "bg-[#7AB8FF] text-black hover:bg-[#95c6ff]",
     checkoutOrbA: "bg-[#62a6ff]/30",

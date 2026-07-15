@@ -23,6 +23,7 @@ export type ShopInfo = {
   industry: Industry;
   planExpiry: string | null;
   active: boolean;
+  bankTransferEnabled: boolean;
 };
 
 type AuthState = {
@@ -158,11 +159,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (profile.shop_id) {
         const { data: shop } = await supabase
           .from("shops")
-          .select("id, nombre, slug, industry, active, plan_expiry")
+          .select("id, nombre, slug, industry, active, plan_expiry, bank_transfer_enabled")
           .eq("id", profile.shop_id)
           .maybeSingle();
         if (shop) {
-          resolvedShop = { id: shop.id, name: shop.nombre, slug: shop.slug, industry: resolveIndustry(shop.industry), planExpiry: shop.plan_expiry, active: shop.active ?? false };
+          resolvedShop = { id: shop.id, name: shop.nombre, slug: shop.slug, industry: resolveIndustry(shop.industry), planExpiry: shop.plan_expiry, active: shop.active ?? false, bankTransferEnabled: shop.bank_transfer_enabled ?? false };
         }
       }
 
@@ -234,14 +235,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const fetchShopBySlug = async () => {
       const { data: shop } = await supabase
         .from("shops")
-        .select("id, nombre, slug, industry, active, plan_expiry")
+        .select("id, nombre, slug, industry, active, plan_expiry, bank_transfer_enabled")
         .eq("slug", pathnameShopSlug)
         .maybeSingle();
 
       if (shop && isMounted) {
         setState(prev => ({
           ...prev,
-          shop: { id: shop.id, name: shop.nombre, slug: shop.slug, industry: resolveIndustry(shop.industry), planExpiry: shop.plan_expiry, active: shop.active ?? false },
+          shop: { id: shop.id, name: shop.nombre, slug: shop.slug, industry: resolveIndustry(shop.industry), planExpiry: shop.plan_expiry, active: shop.active ?? false, bankTransferEnabled: shop.bank_transfer_enabled ?? false },
         }));
       }
     };
@@ -256,6 +257,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     state.shop?.id ?? null,
     state.shop?.slug ?? null,
     state.shop?.active ?? null,
+    state.shop?.bankTransferEnabled ?? null,
     state.isLoading,
   ]);
 

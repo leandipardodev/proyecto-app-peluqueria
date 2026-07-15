@@ -13,6 +13,7 @@ import {
   Wallet,
   Store,
   Gift,
+  ArrowLeftRight,
 } from "lucide-react";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { haptic } from "@/lib/haptic";
@@ -30,6 +31,7 @@ const navItems = [
   { label: "Caja", href: "/dashboard/finances", icon: Wallet },
   { label: "Stock", href: "/dashboard/inventory", icon: Package },
   { label: "Marketing", href: "/dashboard/fidelizacion", icon: Gift },
+  { label: "Transferencias", href: "/dashboard/bank-transfers", icon: ArrowLeftRight },
   { label: "__CUSTOMERS_LABEL__", href: "/dashboard/customers", icon: UserRound },
   { label: "Mi Negocio", href: "/dashboard/business", icon: Store },
 ];
@@ -67,6 +69,7 @@ const DashboardSidebar = memo(function DashboardSidebar({
   const industry = resolveIndustry(shop?.industry);
   const customerPlural = INDUSTRY_CONFIG[industry].labels.customerPlural;
   const resolvedNavItems = navItems
+    .filter((item) => item.href !== "/dashboard/bank-transfers" || shop?.bankTransferEnabled)
     .map((item) => (item.label === "__CUSTOMERS_LABEL__" ? { ...item, label: customerPlural } : item));
   const pathname = usePathname();
   const router = useRouter();
@@ -77,6 +80,7 @@ const DashboardSidebar = memo(function DashboardSidebar({
   const [liveNotifications, setLiveNotifications] = useState({
     urgentAppointments: Boolean(notifications?.urgentAppointments),
     lowStock: Boolean(notifications?.lowStock),
+    pendingTransfers: 0,
   });
 
   useEffect(() => {
@@ -90,11 +94,12 @@ const DashboardSidebar = memo(function DashboardSidebar({
           cache: "no-store",
         });
         if (!res.ok) return;
-        const data = (await res.json()) as { urgentAppointments?: boolean; lowStock?: boolean };
+        const data = (await res.json()) as { urgentAppointments?: boolean; lowStock?: boolean; pendingTransfers?: number };
         if (!isMounted) return;
         setLiveNotifications({
           urgentAppointments: Boolean(data.urgentAppointments),
           lowStock: Boolean(data.lowStock),
+          pendingTransfers: data.pendingTransfers ?? 0,
         });
       } catch {
       }
@@ -185,6 +190,7 @@ const DashboardSidebar = memo(function DashboardSidebar({
             const showAlert =
               (href === "/dashboard/calendar" && liveNotifications.urgentAppointments) ||
               (href === "/dashboard/inventory" && liveNotifications.lowStock);
+            const showTransferBadge = href === "/dashboard/bank-transfers" && liveNotifications.pendingTransfers > 0;
 
             return (
               <motion.div
@@ -226,6 +232,11 @@ const DashboardSidebar = memo(function DashboardSidebar({
                   <span className={`flex-1 relative z-10 ${isBusiness && needsSetup ? "text-amber-600 dark:text-amber-400 font-semibold" : ""}`}>{label}</span>
                   {showAlert && (
                     <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 relative z-10" title={href === "/dashboard/calendar" ? "Turnos pr├│ximos urgentes" : "Stock bajo"} />
+                  )}
+                  {showTransferBadge && (
+                    <span className="px-1.5 py-0.5 rounded-full bg-red-500 text-white text-[10px] font-bold shrink-0 relative z-10">
+                      {liveNotifications.pendingTransfers}
+                    </span>
                   )}
                   {isBusiness && needsSetup && (
                     <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0 relative z-10 animate-pulse" title="Configuraci├│n pendiente" />

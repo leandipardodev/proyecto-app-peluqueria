@@ -32,6 +32,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           <Link href="/admin/referrals" className="text-zinc-500 hover:text-zinc-900 transition-colors">
             Referidos
           </Link>
+          <Link href="/admin/settings" className="text-zinc-500 hover:text-zinc-900 transition-colors">
+            Configuración
+          </Link>
         </nav>
       </header>
       <main className="mx-auto w-full max-w-7xl px-6 py-6">{children}</main>

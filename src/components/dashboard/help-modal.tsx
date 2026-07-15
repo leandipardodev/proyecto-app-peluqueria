@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CircleHelp, CalendarDays, Users, Scissors, UserRound, Wallet, Package, Gift, Store, CreditCard, LayoutDashboard, ChevronDown } from "lucide-react";
+import { CircleHelp, CalendarDays, Users, Scissors, UserRound, Wallet, Package, Gift, Store, CreditCard, LayoutDashboard, ChevronDown, ArrowLeftRight } from "lucide-react";
 import BaseModal from "@/components/ui/modal";
 
 const HELP_SECTIONS = [
@@ -35,6 +35,11 @@ const HELP_SECTIONS = [
     icon: Wallet,
     title: "Caja",
     description: "Registrá todos los movimientos del día. Botón \"Abrir caja\" al iniciar el turno. Para registrar un ingreso o gasto usá \"+ Movimiento\". Los métodos de pago disponibles: efectivo, débito, crédito, transferencia y Mercado Pago. Al final del día usá \"Cerrar caja\" para ver el resumen con totales y diferencias.",
+  },
+  {
+    icon: ArrowLeftRight,
+    title: "Transferencias",
+    description: "Cuando un cliente elige pagar por transferencia bancaria, se genera una reserva pendiente con los datos de tu alias, CVU/CBU y banco (configurados en Mi Negocio). El cliente recibe un mensaje de WhatsApp con esa info para informar el pago. Desde acá confirmás o rechazás cada transferencia. Las transferencias pendientes vencen a las 12 horas si no se confirman.",
   },
   {
     icon: Package,

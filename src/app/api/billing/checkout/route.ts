@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { MercadoPagoConfig, Preference } from "mercadopago";
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
-import { BILLING_LABELS, BILLING_PRICES, BillingCycle } from "@/lib/billing/plans";
+import { BILLING_LABELS, BillingCycle } from "@/lib/billing/plans";
+import { getBillingPrice } from "@/lib/admin/site-settings";
 
 function isBillingCycle(value: string): value is BillingCycle {
   return value === "monthly";
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
     const { data: shop } = await admin.from("shops").select("id, nombre, slug").eq("id", shopId).maybeSingle();
     if (!shop) return NextResponse.json({ error: "Local no encontrado" }, { status: 404 });
 
-    const amount = BILLING_PRICES[cycleRaw];
+    const amount = await getBillingPrice();
     const label = BILLING_LABELS[cycleRaw];
 
     const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;

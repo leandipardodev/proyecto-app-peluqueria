@@ -18,12 +18,12 @@
 
 .dark {
   color-scheme: dark;
-  background-color: #09090b;
+  background-color: #0a0a0c;
   transition: background-color 0.2s ease, color 0.2s ease;
-  --ui-bg: #080b11;
-  --ui-surface: #111827;
-  --ui-surface-muted: #0f172a;
-  --ui-border: #2a3443;
+  --ui-bg: #0a0a0c;
+  --ui-surface: #131316;
+  --ui-surface-muted: #101013;
+  --ui-border: #252528;
   --ui-text: #e5e7eb;
   --ui-text-muted: #94a3b8;
   --ui-primary: #4ea2ff;

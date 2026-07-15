@@ -90,16 +90,52 @@ export async function fetchExportFinances(
     const accessResult = await requireOwnerAccess(shopId);
     if (!accessResult.success) return accessResult;
     const supabase = await createServerClient();
-    const { data: movements, error } = await supabase
-      .from("cash_movements")
-      .select("amount, movement_type")
-      .eq("shop_id", shopId)
-      .gte("happened_at", from)
-      .lte("happened_at", to);
-    if (error) return { success: false, error: error.message };
 
-    const totalIncome = (movements || []).filter((m) => m.movement_type === "income").reduce((s, m) => s + Number(m.amount), 0);
-    const totalExpenses = (movements || []).filter((m) => m.movement_type === "expense" || m.movement_type === "withdrawal").reduce((s, m) => s + Number(m.amount), 0);
+    const [apptsResult, expensesResult, movementsResult] = await Promise.all([
+      supabase
+        .from("appointments")
+        .select("service_price, services(price)")
+        .eq("shop_id", shopId)
+        .eq("status", "completed")
+        .eq("is_paid", true)
+        .gte("start_time", from)
+        .lte("start_time", to),
+      supabase
+        .from("finances")
+        .select("amount, type")
+        .eq("shop_id", shopId)
+        .eq("type", "expense")
+        .gte("happened_at", from)
+        .lte("happened_at", to),
+      supabase
+        .from("cash_movements")
+        .select("amount, movement_type")
+        .eq("shop_id", shopId)
+        .gte("happened_at", from)
+        .lte("happened_at", to),
+    ]);
+
+    if (apptsResult.error) return { success: false, error: apptsResult.error.message };
+    if (expensesResult.error) return { success: false, error: expensesResult.error.message };
+    if (movementsResult.error) return { success: false, error: movementsResult.error.message };
+
+    const appointmentIncome = (apptsResult.data || []).reduce((s, a) => {
+      if (a.service_price != null) return s + Number(a.service_price);
+      const svc = a.services as { price?: number } | null;
+      return s + (svc?.price || 0);
+    }, 0);
+
+    const expenseFromFinances = (expensesResult.data || []).reduce((s, e) => s + Number(e.amount || 0), 0);
+
+    const movementIncome = (movementsResult.data || [])
+      .filter((m) => m.movement_type === "income")
+      .reduce((s, m) => s + Number(m.amount), 0);
+    const movementExpenses = (movementsResult.data || [])
+      .filter((m) => m.movement_type === "expense" || m.movement_type === "withdrawal")
+      .reduce((s, m) => s + Number(m.amount), 0);
+
+    const totalIncome = appointmentIncome + movementIncome;
+    const totalExpenses = expenseFromFinances + movementExpenses;
     return { success: true, data: { totalIncome, totalExpenses, netBalance: totalIncome - totalExpenses } };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error" };
@@ -137,7 +173,7 @@ export async function fetchExportStaffProduction(
 
     const { data: appointments, error: apptError } = await supabase
       .from("appointments")
-      .select("staff_id, services(price), is_paid")
+      .select("staff_id, service_price, services(price), is_paid")
       .eq("shop_id", shopId)
       .gte("start_time", from)
       .lte("start_time", to);
@@ -149,6 +185,7 @@ export async function fetchExportStaffProduction(
       const paidRevenue = staffAppts
         .filter((a) => a.is_paid)
         .reduce((s, a) => {
+          if (a.service_price != null) return s + Number(a.service_price);
           const svc = a.services as { price?: number } | null;
           return s + (svc?.price || 0);
         }, 0);

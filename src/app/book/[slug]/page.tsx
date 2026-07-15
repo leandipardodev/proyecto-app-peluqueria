@@ -21,7 +21,7 @@ export default async function BookPage({ params }: BookPageProps) {
 
   const { data: shop, error: shopError } = await admin
     .from("shops")
-    .select("id, nombre, description, address, localidad, phone, instagram_url, business_hours, slug, mp_public_key, industry, pay_at_shop")
+    .select("id, nombre, description, address, localidad, phone, instagram_url, business_hours, slug, mp_public_key, industry, pay_at_shop, bank_transfer_enabled, booking_deposit_enabled, booking_deposit_amount, bank_cvu_cbu, bank_alias, bank_name")
     .eq("slug", slug)
     .maybeSingle();
 
@@ -146,6 +146,12 @@ export default async function BookPage({ params }: BookPageProps) {
           industry: resolveIndustry((shop as { industry?: string | null }).industry || null),
           mpPublicKey: shop.mp_public_key || "",
           payAtShop: shop.pay_at_shop ?? false,
+          bankTransferEnabled: shop.bank_transfer_enabled === true,
+          bookingDepositEnabled: shop.booking_deposit_enabled !== false,
+          bookingDepositAmount: Math.max(0, Number(shop.booking_deposit_amount ?? 0)),
+          bankCvuCb: shop.bank_cvu_cbu || "",
+          bankAlias: shop.bank_alias || "",
+          bankName: shop.bank_name || "",
           logoUrl: (bookingTheme?.logo_url as string | null) || "",
           heroTitle: (bookingTheme?.hero_title as string | null) || "",
           heroSubtitle: (bookingTheme?.hero_subtitle as string | null) || "",

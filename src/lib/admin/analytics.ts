@@ -1,5 +1,5 @@
 import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
-import { BILLING_PRICES } from "@/lib/billing/plans";
+import { getBillingPrice } from "@/lib/admin/site-settings";
 import { INDUSTRIES, type Industry } from "@/lib/industry/types";
 import { resolveIndustry } from "@/lib/industry/resolve";
 
@@ -171,7 +171,7 @@ export async function fetchAdminAnalytics(): Promise<AdminAnalytics> {
   const shopsExpiredOrInactive = shops.filter((s) => !Boolean(s.active) || !isActiveByExpiry(s.plan_expiry)).length;
 
   const payments30d = appliedEvents.filter((e) => e.created_at >= iso30d).length;
-  const monthlyPrice = BILLING_PRICES.monthly;
+  const monthlyPrice = await getBillingPrice();
   const revenue30d = payments30d * monthlyPrice;
   const revenueAllTime = appliedEvents.length * monthlyPrice;
   const mrrEstimated = activeShops * monthlyPrice;

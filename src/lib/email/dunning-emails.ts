@@ -1,5 +1,6 @@
 import { sendEmailWithResend } from "@/lib/email/resend";
-import { BILLING_PRICES, BILLING_LABELS } from "@/lib/billing/plans";
+import { BILLING_LABELS } from "@/lib/billing/plans";
+import { getBillingPrice } from "@/lib/admin/site-settings";
 
 type DunningParams = {
   to: string;
@@ -28,7 +29,7 @@ function button(href: string, label: string): string {
 }
 
 export async function sendDunning7Days(params: DunningParams): Promise<void> {
-  const price = BILLING_PRICES.monthly;
+  const price = await getBillingPrice();
   const label = BILLING_LABELS.monthly;
   await sendEmailWithResend({
     to: params.to,
@@ -44,7 +45,7 @@ export async function sendDunning7Days(params: DunningParams): Promise<void> {
 }
 
 export async function sendDunning3Days(params: DunningParams): Promise<void> {
-  const price = BILLING_PRICES.monthly;
+  const price = await getBillingPrice();
   await sendEmailWithResend({
     to: params.to,
     subject: `La suscripcion de ${params.shopName} vence en 3 dias`,
@@ -72,7 +73,7 @@ export async function sendDunning1Day(params: DunningParams): Promise<void> {
 }
 
 export async function sendDunningExpired(params: DunningParams): Promise<void> {
-  const price = BILLING_PRICES.monthly;
+  const price = await getBillingPrice();
   await sendEmailWithResend({
     to: params.to,
     subject: `${params.shopName} vencio — periodo de gracia activo`,

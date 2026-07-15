@@ -1036,7 +1036,7 @@ export async function fetchCashSessionsHistory(fromDate?: string, toDate?: strin
     const admin = await createAdminClient();
     const { data, error } = await admin
       .from("cash_sessions")
-      .select("id, status, opened_at, opening_amount, expected_amount, counted_amount, difference_amount")
+      .select("id, status, opened_at, closed_at, opening_amount, expected_amount, counted_amount, difference_amount")
       .eq("shop_id", shopId)
       .gte("opened_at", fromBounds.start.toISOString())
       .lte("opened_at", toBounds.end.toISOString())
@@ -1044,19 +1044,65 @@ export async function fetchCashSessionsHistory(fromDate?: string, toDate?: strin
       .limit(30);
 
     if (error) return { success: false, error: error.message };
+
+    const sessionIds = (data || []).map((s) => s.id);
+
+    const [movesBySession, apptsBySession] = await Promise.all([
+      sessionIds.length > 0
+        ? admin
+            .from("cash_movements")
+            .select("cash_session_id, movement_type, amount")
+            .eq("shop_id", shopId)
+            .in("cash_session_id", sessionIds)
+        : Promise.resolve({ data: [] }),
+      Promise.all(
+        (data || []).map((s) =>
+          admin
+            .from("appointments")
+            .select("service_price, services:service_id(price)")
+            .eq("shop_id", shopId)
+            .eq("status", "completed")
+            .eq("is_paid", true)
+            .gte("start_time", s.opened_at)
+            .lte("start_time", s.closed_at || new Date().toISOString())
+        )
+      ),
+    ]);
+
+    const movesMap = new Map<string, { type: string; amount: number }[]>();
+    for (const m of movesBySession.data || []) {
+      if (!m.cash_session_id) continue;
+      const list = movesMap.get(m.cash_session_id) || [];
+      list.push({ type: m.movement_type, amount: Number(m.amount || 0) });
+      movesMap.set(m.cash_session_id, list);
+    }
+
     return {
       success: true,
-      data: (data || []).map((s) => ({
-        id: s.id,
-        status: s.status as "open" | "cancelled" | "closed",
-        openedAt: s.opened_at,
-        openingAmount: Number(s.opening_amount || 0),
-        expectedAmount: Number(s.expected_amount || 0),
-        countedAmount: s.counted_amount == null ? null : Number(s.counted_amount),
-        differenceAmount: s.difference_amount == null ? null : Number(s.difference_amount),
-        movementNet: 0,
-        appointmentIncome: 0,
-      })),
+      data: (data || []).map((s, idx) => {
+        const moves = movesMap.get(s.id) || [];
+        const movementNet = moves.reduce((sum, m) => {
+          return sum + (m.type === "expense" || m.type === "withdrawal" ? -m.amount : m.amount);
+        }, 0);
+
+        const appts = apptsBySession[idx]?.data || [];
+        const appointmentIncome = appts.reduce((sum, a) => {
+          const svc = Array.isArray(a.services) ? a.services[0] : a.services;
+          return sum + (a.service_price != null ? Number(a.service_price) : (svc?.price ?? 0));
+        }, 0);
+
+        return {
+          id: s.id,
+          status: s.status as "open" | "cancelled" | "closed",
+          openedAt: s.opened_at,
+          openingAmount: Number(s.opening_amount || 0),
+          expectedAmount: Number(s.expected_amount || 0),
+          countedAmount: s.counted_amount == null ? null : Number(s.counted_amount),
+          differenceAmount: s.difference_amount == null ? null : Number(s.difference_amount),
+          movementNet,
+          appointmentIncome,
+        };
+      }),
     };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al cargar historial de caja" };
@@ -1076,6 +1122,8 @@ export async function createExpense(formData: FormData, shopIdOverride?: string)
     const amount = parseFloat(formData.get("amount") as string);
     const category = formData.get("category") as string;
     const description = formData.get("description") as string || null;
+    const happenedAtRaw = formData.get("happened_at") as string | null;
+    const happenedAt = happenedAtRaw?.trim() ? new Date(happenedAtRaw.trim()).toISOString() : new Date().toISOString();
 
     if (isNaN(amount) || amount <= 0) {
       return { success: false, error: "El monto debe ser un número positivo" };
@@ -1093,6 +1141,7 @@ export async function createExpense(formData: FormData, shopIdOverride?: string)
       type: "expense",
       category,
       description,
+      happened_at: happenedAt,
     });
 
     if (error) {

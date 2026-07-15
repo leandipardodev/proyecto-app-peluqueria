@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import BillingRequiredClient from "./billing-required-client";
+import { getBillingPrice } from "@/lib/admin/site-settings";
 
 const nunito = Nunito({ subsets: ["latin"], weight: ["700", "800"] });
 
@@ -108,7 +109,7 @@ export default async function BillingRequiredPage({
             </div>
           )}
 
-          <BillingRequiredClient shopId={shop?.id || selectedShopId} shopName={shop?.nombre || "Mi local"} />
+          <BillingRequiredClient shopId={shop?.id || selectedShopId} shopName={shop?.nombre || "Mi local"} monthlyPrice={await getBillingPrice()} />
 
           <p className={`${nunito.className} text-center text-2xl md:text-3xl font-extrabold tracking-tight text-orange-700`}>
             Seguimos haciéndote la dos en cada turno.

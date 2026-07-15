@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 type DashboardNotification = {
   id: string;
-  type: "nuevo_turno" | "turno_cancelado" | "recompensa_disponible" | "cliente_cumpleaños" | "stock_bajo" | "nuevo_miembro" | "oportunidad_estacional" | "voucher_enviado" | "plan_por_vencer";
+  type: "nuevo_turno" | "turno_cancelado" | "recompensa_disponible" | "cliente_cumpleaños" | "stock_bajo" | "nuevo_miembro" | "oportunidad_estacional" | "voucher_enviado" | "plan_por_vencer" | "transferencia_pendiente";
   category: "urgent" | "action" | "info";
   title: string;
   description: string;
@@ -84,7 +84,7 @@ export async function GET() {
     const todayEndIso = todayEnd.toISOString();
     const oneHourFromNow = new Date(nowAr.getTime() + 60 * 60 * 1000).toISOString();
     const weekAgoIso = new Date(nowAr.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const [urgentRes, stockCountRes, todayApptsRes, cancelledRes, loyaltyRes, customersRes, vouchersRes, staffRes, shopRes, pendingCompleteRes, businessHoursRes] = await Promise.all([
+    const [urgentRes, stockCountRes, todayApptsRes, cancelledRes, loyaltyRes, customersRes, vouchersRes, staffRes, shopRes, pendingCompleteRes, businessHoursRes, bankTransfersRes] = await Promise.all([
       admin.from("appointments").select("id", { count: "exact", head: true }).eq("shop_id", shopId).in("status", APPOINTMENT_STATUS_NEEDS_CONFIRMATION as unknown as string[]).gte("start_time", nowAr.toISOString()).lte("start_time", oneHourFromNow),
       admin.from("stock").select("id", { count: "exact", head: true }).eq("shop_id", shopId).lt("quantity", 5),
       admin.from("appointments").select("id, start_time, customers(nombre)").eq("shop_id", shopId).in("status", ["scheduled", "confirmed", "pending_payment"]).gte("start_time", todayStartIso).lte("start_time", todayEndIso).order("start_time", { ascending: true }).limit(10),
@@ -96,6 +96,7 @@ export async function GET() {
       admin.from("shops").select("plan_expiry").eq("id", shopId).single(),
       admin.from("appointments").select("id, start_time, customers(nombre)").eq("shop_id", shopId).in("status", ["confirmed", "in_progress"]).gte("start_time", todayStartIso).lte("start_time", todayEndIso).order("start_time", { ascending: true }).limit(100),
       admin.from("shops").select("business_hours").eq("id", shopId).single(),
+      admin.from("pending_bookings").select("id, customer_name, start_time, payment_amount", { count: "exact", head: true }).eq("shop_id", shopId).eq("status", "pending").eq("payment_method", "bank_transfer").gt("expires_at", nowAr.toISOString()),
     ]);
 
     const items: DashboardNotification[] = [];
@@ -160,6 +161,10 @@ export async function GET() {
       }
     }
 
+    if (bankTransfersRes.count && bankTransfersRes.count > 0) {
+      items.push({ id: "bank-transfers-pending", type: "transferencia_pendiente", category: "urgent", title: "Transferencia pendiente", description: `${bankTransfersRes.count} transferencia(s) esperando confirmación`, href: "/dashboard/bank-transfers", timestamp: nowAr.toISOString() });
+    }
+
     let shouldShowPending = false;
     if (businessHoursRes.data?.business_hours) {
       const hours = businessHoursRes.data.business_hours as Record<string, { open: boolean; end: string }>;
@@ -187,9 +192,10 @@ export async function GET() {
       pendingComplete,
       urgentAppointments: (urgentRes.count || 0) > 0,
       lowStock: (stockCountRes.count || 0) > 0,
+      pendingTransfers: bankTransfersRes.count || 0,
     }, { status: 200 });
   } catch (e) {
     console.error("Error en notificaciones:", e);
-    return NextResponse.json({ items: [], pendingComplete: [], urgentAppointments: false, lowStock: false }, { status: 200 });
+    return NextResponse.json({ items: [], pendingComplete: [], urgentAppointments: false, lowStock: false, pendingTransfers: 0 }, { status: 200 });
   }
 }

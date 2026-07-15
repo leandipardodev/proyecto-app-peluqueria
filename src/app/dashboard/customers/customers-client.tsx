@@ -421,10 +421,10 @@ export default function CustomersPage({
               </div>
               {loyaltyEnabled && (
                 <div className="mt-2 flex items-center gap-2 text-[11px]">
-                  <span className="inline-flex px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">
+                  <span className="inline-flex px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 font-medium">
                     Cortes: {customer.loyalty_cuts_count}/{loyaltyCutsRequired}
                   </span>
-                  <span className="inline-flex px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 font-medium">
+                  <span className="inline-flex px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 font-medium">
                     Canjes: {customer.loyalty_rewards_available}
                   </span>
                 </div>
@@ -501,10 +501,10 @@ export default function CustomersPage({
                     <td className="px-6 py-4 text-slate-700 dark:text-zinc-200">
                       {loyaltyEnabled ? (
                         <div className="flex items-center gap-2">
-                          <span className="inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-100 text-blue-700">
+                          <span className="inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
                             {customer.loyalty_cuts_count}/{loyaltyCutsRequired}
                           </span>
-                          <span className="inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium bg-violet-100 text-violet-700">
+                          <span className="inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
                             {customer.loyalty_rewards_available} canje(s)
                           </span>
                         </div>
@@ -533,7 +533,7 @@ export default function CustomersPage({
                 <input
                   value={draftNombre}
                   onChange={(e) => setDraftNombre(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                  className="w-full rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                 />
               </div>
               <div>
@@ -541,7 +541,7 @@ export default function CustomersPage({
                 <input
                   value={draftEmail}
                   onChange={(e) => setDraftEmail(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                  className="w-full rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                 />
               </div>
             </div>
@@ -552,7 +552,7 @@ export default function CustomersPage({
                 <select
                   value={draftRecurringWeekday}
                   onChange={(e) => setDraftRecurringWeekday(e.target.value)}
-                  className="ui-select w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                  className="ui-select w-full rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                 >
                   <option value="">No recurrente</option>
                   <option value="1">Lunes</option>
@@ -570,7 +570,7 @@ export default function CustomersPage({
                   value={draftRecurringFrequency}
                   onChange={(e) => setDraftRecurringFrequency(e.target.value)}
                   placeholder="Ej: semanal"
-                  className="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                  className="w-full rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                 />
               </div>
             </div>
@@ -581,7 +581,7 @@ export default function CustomersPage({
                 value={draftRecurringNotes}
                 onChange={(e) => setDraftRecurringNotes(e.target.value)}
                 placeholder="Ej: siempre viernes por la tarde"
-                className="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                className="w-full rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                 rows={2}
               />
             </div>
@@ -592,7 +592,7 @@ export default function CustomersPage({
                 <input
                   value={draftTelefono}
                   onChange={(e) => setDraftTelefono(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                  className="w-full rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                 />
               </div>
               <div>
@@ -601,7 +601,7 @@ export default function CustomersPage({
                   type="date"
                   value={draftCumple}
                   onChange={(e) => setDraftCumple(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                  className="w-full rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                 />
               </div>
             </div>
@@ -612,7 +612,7 @@ export default function CustomersPage({
                 value={draftObs}
                 onChange={(e) => setDraftObs(e.target.value)}
                 rows={8}
-                className="w-full rounded-2xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 py-3 text-sm text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                className="w-full rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 py-3 text-sm text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                 placeholder="Notas de colorimetría, sensibilidades, tipo de cabello..."
               />
             </div>

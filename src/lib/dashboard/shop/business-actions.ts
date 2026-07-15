@@ -30,6 +30,10 @@ export type BusinessData = {
   booking_deposit_amount: number;
   pay_at_shop: boolean;
   mp_oauth_connected: boolean;
+  bank_transfer_enabled: boolean;
+  bank_cvu_cbu: string | null;
+  bank_alias: string | null;
+  bank_name: string | null;
 };
 
 export async function fetchBusinessData(shopIdOverride?: string): Promise<ActionResult<BusinessData>> {
@@ -46,7 +50,7 @@ export async function fetchBusinessData(shopIdOverride?: string): Promise<Action
       const admin = await createAdminClient();
       return admin
         .from("shops")
-        .select("id, nombre, description, address, localidad, phone, instagram_url, facebook_url, tiktok_url, mp_public_key, mp_access_token, whatsapp_template, loyalty_enabled, loyalty_cuts_required, loyalty_discount_percent, booking_deposit_enabled, booking_deposit_amount, pay_at_shop")
+        .select("id, nombre, description, address, localidad, phone, instagram_url, facebook_url, tiktok_url, mp_public_key, mp_access_token, whatsapp_template, loyalty_enabled, loyalty_cuts_required, loyalty_discount_percent, booking_deposit_enabled, booking_deposit_amount, pay_at_shop, bank_transfer_enabled, bank_cvu_cbu, bank_alias, bank_name")
         .eq("id", shopId)
         .maybeSingle();
     });
@@ -74,6 +78,10 @@ export async function fetchBusinessData(shopIdOverride?: string): Promise<Action
         booking_deposit_amount: Number(data.booking_deposit_amount || 0),
         pay_at_shop: data.pay_at_shop === true,
         mp_oauth_connected: Boolean(data.mp_access_token),
+        bank_transfer_enabled: data.bank_transfer_enabled === true,
+        bank_cvu_cbu: data.bank_cvu_cbu || null,
+        bank_alias: data.bank_alias || null,
+        bank_name: data.bank_name || null,
       },
     };
   } catch (e) {
@@ -629,5 +637,36 @@ export async function updateBookingDepositPolicyAction(enabled: boolean, deposit
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al guardar politica de cobro" };
+  }
+}
+
+export async function updateBankTransferSettings(
+  enabled: boolean,
+  cvuCb: string,
+  alias: string,
+  bankName: string
+): Promise<ActionResult> {
+  try {
+    const shopIdResult = await requireOwnerShopId();
+    if (!shopIdResult.success) return { success: false, error: shopIdResult.error };
+    const shopId = shopIdResult.data;
+    const admin = await createAdminClient();
+
+    const { error } = await admin
+      .from("shops")
+      .update({
+        bank_transfer_enabled: enabled,
+        bank_cvu_cbu: cvuCb || null,
+        bank_alias: alias || null,
+        bank_name: bankName || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", shopId!);
+
+    if (error) return { success: false, error: error.message };
+    await revalidateDashboardSegments(shopId, ["/business", "/book"]);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al guardar datos bancarios" };
   }
 }

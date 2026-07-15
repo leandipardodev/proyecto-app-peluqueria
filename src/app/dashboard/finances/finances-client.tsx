@@ -93,12 +93,20 @@ function getWeekBounds(dateStr: string) {
   return { from, to };
 }
 
-function Card({ title, icon, right, children }: { title: string; icon: React.ReactNode; right?: React.ReactNode; children: React.ReactNode }) {
+const CARD_ICON_COLORS = {
+  blue: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
+  emerald: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+  violet: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
+  amber: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+  slate: "bg-slate-500/15 text-slate-600 dark:text-slate-400",
+} as const;
+
+function Card({ title, icon, color = "slate", right, children }: { title: string; icon: React.ReactNode; color?: keyof typeof CARD_ICON_COLORS; right?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="ui-card rounded-3xl border border-slate-200/80 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className="text-slate-500 dark:text-zinc-300">{icon}</span>
+          <span className={`p-2 rounded-full ${CARD_ICON_COLORS[color]}`}>{icon}</span>
           <h2 className="text-base font-semibold text-slate-900 dark:text-white">{title}</h2>
         </div>
         {right}
@@ -496,8 +504,8 @@ export default function FinancesClient({
         <button onClick={() => applyRangeAndRefresh(today, today)} className="ui-btn-ghost rounded-lg px-2.5 py-1.5 text-xs">DIA</button>
         <button onClick={() => applyRangeAndRefresh(weekBounds.from, weekBounds.to)} className="ui-btn-ghost rounded-lg px-2.5 py-1.5 text-xs">SEMANA</button>
         <button onClick={() => applyRangeAndRefresh(monthBounds.from, monthBounds.to)} className="ui-btn-ghost rounded-lg px-2.5 py-1.5 text-xs">MES</button>
-        <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded-lg border px-2 py-1.5 text-xs" />
-        <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="rounded-lg border px-2 py-1.5 text-xs" />
+        <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
+        <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
         <button onClick={() => applyRangeAndRefresh(from <= to ? from : to, from <= to ? to : from)} className="ui-btn-primary rounded-lg px-2.5 py-1.5 text-xs">Filtrar</button>
       </div>
 
@@ -520,13 +528,13 @@ export default function FinancesClient({
         </>
       )}
 
-      <Card title={isOwnerOrAdmin ? "Equipo" : "Mi Produccion"} icon={<Users2 className="h-4 w-4" />} right={undefined}>
+      <Card title={isOwnerOrAdmin ? "Equipo" : "Mi Produccion"} icon={<Users2 className="h-4 w-4" />} color="blue" right={undefined}>
         {isOwnerOrAdmin ? (
         <>
         {staffProduction.length === 0 ? (
           <div className="flex min-h-[120px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
             <Users2 className="h-7 w-7 text-slate-400" />
-            <button onClick={() => { setBusyKey("load-team"); triggerLoads(from, to).finally(() => setBusyKey(null)); }} className="ui-btn-primary rounded-xl px-4 py-2 text-sm">{busyKey === "load-team" ? "Cargando..." : "+ Cargar equipo"}</button>
+            <button onClick={() => { setBusyKey("load-team"); triggerLoads(from, to).finally(() => setBusyKey(null)); }} className="ui-btn-primary rounded-lg px-4 py-2 text-sm">{busyKey === "load-team" ? "Cargando..." : "+ Cargar equipo"}</button>
           </div>
         ) : (
           <div>
@@ -541,7 +549,7 @@ export default function FinancesClient({
                   options={staffProduction.map((s) => ({ value: s.staffId, label: s.staffName }))}
                 />
               </div>
-              <button disabled={busyKey === "liq-create" || !selectedStaffForLiquidation} className="ui-btn-primary rounded-xl px-4 py-2.5 text-sm h-[42px]">{busyKey === "liq-create" ? "Calculando..." : "Calcular"}</button>
+              <button disabled={busyKey === "liq-create" || !selectedStaffForLiquidation} className="ui-btn-primary rounded-lg px-4 py-2.5 text-sm h-[42px]">{busyKey === "liq-create" ? "Calculando..." : "Calcular"}</button>
             </form>
             {liquidationResult && (
               <div className="mb-4 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-900/40 dark:bg-emerald-950/20">
@@ -593,7 +601,7 @@ export default function FinancesClient({
       </Card>
 
       {isOwnerOrAdmin && (
-      <Card title="Caja" icon={<Vault className="h-4 w-4" />}>
+      <Card title="Caja" icon={<Vault className="h-4 w-4" />} color="emerald">
         <div className="flex items-center gap-2 mb-4">
           <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
             cashSession?.status === "open"
@@ -628,13 +636,13 @@ export default function FinancesClient({
 
             {cashSession?.status === "open" ? (
               <form onSubmit={handleCloseCashSession} className="flex gap-2">
-                <input name="counted_amount" type="number" step="0.01" min="0" required placeholder="Efectivo contado al cierre" className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none ring-[#0071E3] focus:ring-2 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
-                <button disabled={busyKey === "cash-close"} className="ui-btn-primary rounded-xl px-5 py-2.5 text-sm min-h-[42px]">{busyKey === "cash-close" ? "Cerrando..." : "Cerrar caja"}</button>
+                <input name="counted_amount" type="number" step="0.01" min="0" required placeholder="Efectivo contado al cierre" className="flex-1 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
+                <button disabled={busyKey === "cash-close"} className="ui-btn-primary rounded-lg px-5 py-2.5 text-sm min-h-[42px]">{busyKey === "cash-close" ? "Cerrando..." : "Cerrar caja"}</button>
               </form>
             ) : (
               <form onSubmit={handleOpenCashSession} className="flex gap-2">
-                <input name="opening_amount" type="number" step="0.01" min="0" required placeholder="Efectivo inicial" className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none ring-[#0071E3] focus:ring-2 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
-                <button disabled={busyKey === "cash-open"} className="ui-btn-primary rounded-xl px-5 py-2.5 text-sm min-h-[42px]">{busyKey === "cash-open" ? "Abriendo..." : "Abrir caja"}</button>
+                <input name="opening_amount" type="number" step="0.01" min="0" required placeholder="Efectivo inicial" className="flex-1 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
+                <button disabled={busyKey === "cash-open"} className="ui-btn-primary rounded-lg px-5 py-2.5 text-sm min-h-[42px]">{busyKey === "cash-open" ? "Abriendo..." : "Abrir caja"}</button>
               </form>
             )}
 
@@ -647,9 +655,9 @@ export default function FinancesClient({
                 options={[{ value: "income", label: "Ingreso" }, { value: "expense", label: "Gasto" }, { value: "withdrawal", label: "Retiro" }]}
                 className="min-w-[100px]"
               />
-              <input name="category" required placeholder="Categoria" className="min-w-[100px] flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-[#0071E3] focus:ring-2 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
-              <input name="amount" type="number" step="0.01" min="0.01" required placeholder="Monto" className="min-w-[80px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-[#0071E3] focus:ring-2 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
-              <button disabled={busyKey === "cash-move-create"} className="ui-btn-primary rounded-xl px-3 py-2 text-sm min-h-[38px]">{busyKey === "cash-move-create" ? "..." : "Agregar"}</button>
+              <input name="category" required placeholder="Categoria" className="min-w-[100px] flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
+              <input name="amount" type="number" step="0.01" min="0.01" required placeholder="Monto" className="min-w-[80px] rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
+              <button disabled={busyKey === "cash-move-create"} className="ui-btn-primary rounded-lg px-3 py-2 text-sm min-h-[38px]">{busyKey === "cash-move-create" ? "..." : "Agregar"}</button>
             </form>
 
             {kpiCounted > 0 && (

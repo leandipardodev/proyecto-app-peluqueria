@@ -3,18 +3,15 @@
 import { useState, useTransition, useEffect, useMemo, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
-import { Store, CreditCard, MessageSquareText, Smartphone, Link2, MapPin, Phone, Clock, Share2, AlertTriangle, Trash2, Users, Scissors, ChevronRight, ChevronDown, Calendar, Plus } from "lucide-react";
+import { Store, CreditCard, MessageSquareText, Link2, MapPin, Phone, Share2, AlertTriangle, Trash2, Users, Scissors, Calendar, Plus, CheckCircle2, XCircle, Landmark } from "lucide-react";
 import { TagChips, useTagInsert } from "@/components/ui/tag-chips";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { withDashboardBase } from "@/lib/dashboard/shared/dashboard-base";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import SkinSelector from "@/components/dashboard/skin-selector";
 import BookingThemeLivePreview from "@/components/dashboard/booking-theme-live-preview";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
-import BusinessStatsSection from "@/components/dashboard/business-stats-section";
-import ExportDataCard from "@/components/dashboard/export-data-card";
 import CreateShopModal from "@/components/dashboard/create-shop-modal";
 import CloseShopModal from "@/components/dashboard/close-shop-modal";
 import BaseModal from "@/components/ui/modal";
@@ -28,6 +25,7 @@ import {
   updateBookingDepositPolicyAction,
   updateWhatsappTemplateAction,
   updateBusinessHours,
+  updateBankTransferSettings,
   fetchShopDateOverrides,
   upsertShopDateOverride,
   deleteShopDateOverride,
@@ -38,7 +36,6 @@ import {
 import { updateVoucherWhatsappTemplate } from "@/lib/dashboard/vouchers/voucher-actions";
 import { DEFAULT_BIRTHDAY_WHATSAPP_TEMPLATE, DEFAULT_VOUCHER_WHATSAPP_TEMPLATE } from "@/lib/dashboard/vouchers/voucher-constants";
 import { deleteCurrentShop } from "@/lib/dashboard/shop/shop-actions";
-import { fetchDashboardSummary, fetchDashboardMetrics } from "@/lib/dashboard/finances/dashboard-summary";
 import {
   upsertBookingTheme,
   uploadBookingLogo,
@@ -166,8 +163,6 @@ function TaggedTextarea({
 export default function BusinessClient({
   initialData,
   initialError,
-  summaryStats,
-  metricStats,
   canManageBilling,
   role = "owner",
   shopSlug,
@@ -180,21 +175,6 @@ export default function BusinessClient({
 }: {
   initialData: BusinessData | null;
   initialError: string | null;
-  summaryStats: {
-    appointmentsCount: number;
-    revenue: number;
-    lowStockCount: number;
-  } | null;
-  metricStats: {
-    totalClients: number;
-    totalAppointments: number;
-    growth: number | null;
-    topServicesCount: number;
-    income: number;
-    expenses: number;
-    busiestDay: { day: string; count: number } | null;
-    busiestHour: { hour: string; count: number } | null;
-  } | null;
   canManageBilling: boolean;
   role?: string;
   shopSlug: string | null;
@@ -212,8 +192,6 @@ export default function BusinessClient({
   const staffPlural = industryLabels.staffPlural;
   const serviceWord = industryLabels.serviceSingular;
   const servicePlural = industryLabels.servicePlural;
-  const customerWord = industryLabels.customerSingular;
-  const customerPlural = industryLabels.customerPlural;
   const isOwnerOrAdmin = role !== "staff";
   const tourSteps = useMemo(() => getTourSteps(staffPlural, servicePlural), [staffPlural, servicePlural]);
   const { playSuccess, playError, playClick } = useKlipSounds();
@@ -223,41 +201,6 @@ export default function BusinessClient({
   const [isSaving, setIsSaving] = useState(false);
   const [creatingShop, startCreateShopTransition] = useTransition();
   const [isDeleting, setIsDeleting] = useState(false);
-  const [localSummaryStats, setLocalSummaryStats] = useState(summaryStats);
-  const [localMetricStats, setLocalMetricStats] = useState(metricStats);
-  const statsFetchedRef = useRef(false);
-
-  useEffect(() => {
-    if (statsFetchedRef.current) return;
-    statsFetchedRef.current = true;
-
-    async function loadStats() {
-      const [summary, metrics] = await Promise.all([
-        fetchDashboardSummary(shopId),
-        fetchDashboardMetrics(shopId),
-      ]);
-      if (summary.success && summary.data) {
-        setLocalSummaryStats({
-          appointmentsCount: summary.data.appointmentsCount,
-          revenue: summary.data.revenue,
-          lowStockCount: summary.data.lowStockCount,
-        });
-      }
-      if (metrics.success && metrics.data) {
-        setLocalMetricStats({
-          totalClients: metrics.data.stats.totalClients,
-          totalAppointments: metrics.data.stats.totalAppointments,
-          growth: metrics.data.stats.growth,
-          topServicesCount: initialServices.length,
-          income: metrics.data.revenueChart.reduce((sum, point) => sum + point.income, 0),
-          expenses: metrics.data.revenueChart.reduce((sum, point) => sum + point.expenses, 0),
-          busiestDay: metrics.data.busiestDay,
-          busiestHour: metrics.data.busiestHour,
-        });
-      }
-    }
-    loadStats();
-  }, [shopId, initialServices.length]);
 
   const [name, setName] = useState(data?.nombre || "");
   const [address, setAddress] = useState(data?.address || "");
@@ -293,7 +236,6 @@ export default function BusinessClient({
   const [birthdayWhatsappTemplate, setBirthdayWhatsappTemplate] = useState(DEFAULT_BIRTHDAY_WHATSAPP_TEMPLATE);
   const birthdayRef = useRef<HTMLTextAreaElement>(null);
   const insertBirthdayTag = useTagInsert(birthdayRef, birthdayWhatsappTemplate, setBirthdayWhatsappTemplate);
-  const [showStats, setShowStats] = useState(false);
   const [showThemeCard, setShowThemeCard] = useState(false);
   const [showPublicInfo, setShowPublicInfo] = useState(false);
   const [showPaymentsCard, setShowPaymentsCard] = useState(false);
@@ -303,6 +245,10 @@ export default function BusinessClient({
   const [bookingDepositEnabled, setBookingDepositEnabled] = useState(data?.booking_deposit_enabled ?? true);
   const [bookingDepositAmount, setBookingDepositAmount] = useState(String(data?.booking_deposit_amount ?? 3000));
   const [payAtShop, setPayAtShop] = useState(data?.pay_at_shop ?? false);
+  const [bankTransferEnabled, setBankTransferEnabled] = useState(data?.bank_transfer_enabled ?? false);
+  const [bankCvuCb, setBankCvuCb] = useState(data?.bank_cvu_cbu ?? "");
+  const [bankAlias, setBankAlias] = useState(data?.bank_alias ?? "");
+  const [bankName, setBankName] = useState(data?.bank_name ?? "");
   const [message, setMessage] = useState<MessageType>(null);
   const [businessHours, setBusinessHours] = useState<BusinessHoursData | null>(initialBusinessHours);
   const [tourAdvancing, setTourAdvancing] = useState(false);
@@ -500,6 +446,10 @@ export default function BusinessClient({
     payAtShop: data?.pay_at_shop ?? false,
     voucher: initialVoucherWhatsappTemplate ?? DEFAULT_VOUCHER_WHATSAPP_TEMPLATE,
     businessHours: initialBusinessHours,
+    bankTransferEnabled: data?.bank_transfer_enabled ?? false,
+    bankCvuCb: data?.bank_cvu_cbu ?? "",
+    bankAlias: data?.bank_alias ?? "",
+    bankName: data?.bank_name ?? "",
   });
   const isGeneralDirty = useMemo(() =>
     whatsappTemplate !== cleanSnapshotRef.current.whatsapp ||
@@ -507,8 +457,12 @@ export default function BusinessClient({
     bookingDepositAmount !== cleanSnapshotRef.current.depositAmount ||
     payAtShop !== cleanSnapshotRef.current.payAtShop ||
     voucherWhatsappTemplate !== cleanSnapshotRef.current.voucher ||
-    JSON.stringify(businessHours) !== JSON.stringify(cleanSnapshotRef.current.businessHours),
-  [whatsappTemplate, bookingDepositEnabled, bookingDepositAmount, payAtShop, voucherWhatsappTemplate, businessHours]);
+    JSON.stringify(businessHours) !== JSON.stringify(cleanSnapshotRef.current.businessHours) ||
+    bankTransferEnabled !== cleanSnapshotRef.current.bankTransferEnabled ||
+    bankCvuCb !== cleanSnapshotRef.current.bankCvuCb ||
+    bankAlias !== cleanSnapshotRef.current.bankAlias ||
+    bankName !== cleanSnapshotRef.current.bankName,
+  [whatsappTemplate, bookingDepositEnabled, bookingDepositAmount, payAtShop, voucherWhatsappTemplate, businessHours, bankTransferEnabled, bankCvuCb, bankAlias, bankName]);
   const isGlobalDirty = isPublicInfoDirty || isThemeDirty || isGeneralDirty;
 
   const orderedServices = useMemo(() => {
@@ -543,17 +497,10 @@ export default function BusinessClient({
     { key: "sunday", label: "Domingo" },
   ];
 
-  const incomeValue = localMetricStats?.income ?? localSummaryStats?.revenue ?? 0;
-  const expenseValue = metricStats?.expenses ?? 0;
-  const flowTotal = Math.max(incomeValue + expenseValue, 1);
-  const incomePct = Math.max(8, Math.round((incomeValue / flowTotal) * 100));
-  const expensePct = Math.max(8, Math.round((expenseValue / flowTotal) * 100));
   const dashboardBasePath = shopSlug ? `/dashboard/${shopSlug}` : "/dashboard";
-  const netValue = incomeValue - expenseValue;
   const mpDraftKey = `klip-business-draft-v1:${shopSlug || "default"}`;
   const mpReturnScrollKey = getMpReturnScrollKey(shopSlug);
 
-  const maskValue = (value: string) => (showStats ? value : "••••");
 
   useEffect(() => {
     try {
@@ -811,6 +758,9 @@ export default function BusinessClient({
     const policy = await updateBookingDepositPolicyAction(bookingDepositEnabled, amount, payAtShop);
     if (!policy.success) return showError(policy.error), false;
 
+    const bankResult = await updateBankTransferSettings(bankTransferEnabled, bankCvuCb, bankAlias, bankName);
+    if (!bankResult.success) return showError(bankResult.error), false;
+
     const wa = await updateWhatsappTemplateAction(whatsappTemplate);
     if (!wa.success) return showError(wa.error), false;
 
@@ -856,6 +806,10 @@ export default function BusinessClient({
       setBookingDepositAmount(String(fresh.data.booking_deposit_amount ?? 3000));
       setPayAtShop(fresh.data.pay_at_shop);
       setWhatsappTemplate(fresh.data.whatsapp_template);
+      setBankTransferEnabled(fresh.data.bank_transfer_enabled);
+      setBankCvuCb(fresh.data.bank_cvu_cbu ?? "");
+      setBankAlias(fresh.data.bank_alias ?? "");
+      setBankName(fresh.data.bank_name ?? "");
     }
 
     initialSectionCatalogRef.current = sectionCatalog;
@@ -867,6 +821,10 @@ export default function BusinessClient({
       payAtShop: payAtShop,
       voucher: voucherWhatsappTemplate,
       businessHours: businessHours ?? null,
+      bankTransferEnabled,
+      bankCvuCb,
+      bankAlias,
+      bankName,
     };
 
     try { window.localStorage.removeItem(mpDraftKey); } catch {}
@@ -1111,45 +1069,39 @@ export default function BusinessClient({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
-      className="space-y-6 pb-20"
+      className="space-y-8 pb-20"
     >
       {/* Header */}
       <div>
-        <h1 className="text-3xl sm:text-5xl font-bold text-gray-900 dark:text-white tracking-tight leading-none">Negocio</h1>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Información pública y configuración técnica de tu local</p>
-        <div className="mt-5 flex flex-col sm:flex-row sm:items-start gap-4">
-          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4 min-w-0">
+        <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white leading-none">Negocio</h1>
+        <p className="mt-1.5 text-[13px] text-zinc-400 dark:text-zinc-500">Información pública y configuración técnica de tu local</p>
+        <div className="mt-8 flex flex-col sm:flex-row sm:items-start gap-3">
+          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2 min-w-0">
             <Link
               id="setup-staff"
               href={withDashboardBase("/dashboard/staff", dashboardBasePath)}
-              className="group relative flex items-center gap-4 rounded-2xl rounded-t-none border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-zinc-900 px-5 py-5 shadow-md hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200"
+              className="group flex items-center gap-3 py-3 px-2 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
             >
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/80 to-transparent dark:from-emerald-950/30 to-transparent pointer-events-none" />
-              <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-emerald-400 to-emerald-300 dark:from-emerald-500 dark:to-emerald-700" />
-              <div className="relative flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-500 dark:from-emerald-500 dark:to-emerald-600 text-white shadow-lg shadow-emerald-200/50 dark:shadow-emerald-900/50 shrink-0">
-                <Users className="w-7 h-7" />
+              <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 shrink-0">
+                <Users className="w-[18px] h-[18px] text-zinc-500 dark:text-zinc-400" />
               </div>
-              <div className="relative flex flex-col flex-1 min-w-0">
-                <span className="text-base font-semibold text-gray-900 dark:text-white">Gestionar {staffPlural.toLowerCase()}</span>
-                <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Agregar, horarios y perfiles</span>
+              <div className="flex flex-col flex-1 min-w-0">
+                <span className="text-sm font-medium text-gray-900 dark:text-white">Gestionar {staffPlural.toLowerCase()}</span>
+                <span className="text-xs text-zinc-400 mt-0.5">Agregar, horarios y perfiles</span>
               </div>
-              <ChevronRight className="relative w-5 h-5 text-gray-300 dark:text-gray-600 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all shrink-0" />
             </Link>
             <Link
               id="setup-services"
               href={withDashboardBase("/dashboard/services", dashboardBasePath)}
-              className="group relative flex items-center gap-4 rounded-2xl rounded-t-none border border-sky-200 dark:border-sky-800 bg-white dark:bg-zinc-900 px-5 py-5 shadow-md hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200"
+              className="group flex items-center gap-3 py-3 px-2 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
             >
-              <div className="absolute inset-0 bg-gradient-to-br from-sky-50/80 to-transparent dark:from-sky-950/30 to-transparent pointer-events-none" />
-              <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-sky-400 to-sky-300 dark:from-sky-500 dark:to-sky-700" />
-              <div className="relative flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-400 to-sky-500 dark:from-sky-500 dark:to-sky-600 text-white shadow-lg shadow-sky-200/50 dark:shadow-sky-900/50 shrink-0">
-                <Scissors className="w-7 h-7" />
+              <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 shrink-0">
+                <Scissors className="w-[18px] h-[18px] text-zinc-500 dark:text-zinc-400" />
               </div>
-              <div className="relative flex flex-col flex-1 min-w-0">
-                <span className="text-base font-semibold text-gray-900 dark:text-white">Gestionar {servicePlural.toLowerCase()}</span>
-                <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Precios, duración y personal</span>
+              <div className="flex flex-col flex-1 min-w-0">
+                <span className="text-sm font-medium text-gray-900 dark:text-white">Gestionar {servicePlural.toLowerCase()}</span>
+                <span className="text-xs text-zinc-400 mt-0.5">Precios, duración y personal</span>
               </div>
-              <ChevronRight className="relative w-5 h-5 text-gray-300 dark:text-gray-600 group-hover:text-sky-500 dark:group-hover:text-sky-400 group-hover:translate-x-0.5 transition-all shrink-0" />
             </Link>
           </div>
           <div className="shrink-0">
@@ -1157,39 +1109,21 @@ export default function BusinessClient({
               type="button"
               onClick={() => setShowCreateShopModal(true)}
               disabled={!isOwnerOrAdmin || creatingShop}
-              className="group relative flex items-center gap-4 rounded-2xl rounded-t-none border border-violet-200 dark:border-violet-800 bg-white dark:bg-zinc-900 px-5 py-5 shadow-md hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 w-full text-left disabled:opacity-60"
+              className="group flex items-center gap-3 py-3 px-2 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors w-full text-left disabled:opacity-40"
             >
-              <div className="absolute inset-0 bg-gradient-to-br from-violet-50/80 to-transparent dark:from-violet-950/30 to-transparent pointer-events-none" />
-              <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-violet-400 to-violet-300 dark:from-violet-500 dark:to-violet-700" />
-              <div className="relative flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-400 to-violet-500 dark:from-violet-500 dark:to-violet-600 text-white shadow-lg shadow-violet-200/50 dark:shadow-violet-900/50 shrink-0">
-                <Plus className="w-7 h-7" />
+              <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 shrink-0">
+                <Plus className="w-[18px] h-[18px] text-zinc-500 dark:text-zinc-400" />
               </div>
-              <div className="relative flex flex-col flex-1 min-w-0">
-                <span className="text-base font-semibold text-gray-900 dark:text-white">
+              <div className="flex flex-col flex-1 min-w-0">
+                <span className="text-sm font-medium text-gray-900 dark:text-white">
                   {creatingShop ? "Creando..." : "Crear nuevo local"}
                 </span>
-                <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Agregar sucursal</span>
+                <span className="text-xs text-zinc-400 mt-0.5">Agregar sucursal</span>
               </div>
-              <Plus className="relative w-5 h-5 text-violet-300 dark:text-violet-600 group-hover:text-violet-500 dark:group-hover:text-violet-400 group-hover:rotate-90 transition-all shrink-0" />
             </button>
           </div>
         </div>
       </div>
-
-      <BusinessStatsSection
-        showStats={showStats}
-        setShowStats={setShowStats}
-        maskValue={maskValue}
-        incomeValue={incomeValue}
-        expenseValue={expenseValue}
-        incomePct={incomePct}
-        expensePct={expensePct}
-        netValue={netValue}
-        metricStats={localMetricStats}
-        summaryStats={localSummaryStats}
-        customerPlural={customerPlural}
-        servicePlural={servicePlural}
-      />
 
       {error && (
         <div className="bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 text-sm px-5 py-3 rounded-full border border-red-200/30 dark:border-red-500/20">
@@ -1214,23 +1148,19 @@ export default function BusinessClient({
         )}
       </AnimatePresence>
 
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-8">
       {/* Card: Información Pública */}
       <form id="setup-public-info" onSubmit={handleSavePublicInfo} className="order-1">
-        <div className="rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm transition-colors bg-white dark:bg-zinc-900">
+        <div className="rounded-[2rem] border border-zinc-100 dark:border-zinc-800/50 transition-colors bg-white dark:bg-zinc-900">
           <button
             type="button"
             onClick={() => setShowPublicInfo((v) => !v)}
-            className="w-full px-6 py-5 border-b border-white/10 flex items-center gap-3 text-left"
+            className="w-full px-6 py-6 flex items-center gap-3 text-left"
           >
-            <div className="p-2 rounded-full bg-violet-500/15">
-              <Store className="w-5 h-5 text-violet-600" />
-            </div>
             <div className="flex-1 min-w-0">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Información Pública</h2>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Información Pública</h2>
               <p className="text-xs text-zinc-400 dark:text-zinc-500">Estos datos se muestran en tu página de reservas</p>
             </div>
-            <ChevronDown className={`w-5 h-5 text-zinc-400 transition-transform duration-300 ${showPublicInfo ? "rotate-180" : ""}`} />
           </button>
           <AnimatePresence initial={false}>
             {showPublicInfo && (
@@ -1242,7 +1172,7 @@ export default function BusinessClient({
                 transition={{ duration: 0.3, ease: "easeInOut" }}
                 className="overflow-hidden"
               >
-                <div className="p-6 space-y-5">
+                <div className="p-8 space-y-5">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 cursor-pointer">Nombre del Local</label>
               <input
@@ -1355,20 +1285,19 @@ export default function BusinessClient({
         </div>
       </form>
 
-      <section className="order-4 max-sm:w-full max-sm:rounded-none max-sm:border-x-0 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm transition-colors bg-white dark:bg-zinc-900 overflow-hidden">
+      <section className="order-4 max-sm:w-full max-sm:rounded-none max-sm:border-x-0 rounded-[2rem] border border-zinc-100 dark:border-zinc-800/50 transition-colors bg-white dark:bg-zinc-900 overflow-hidden">
         <button
           type="button"
           onClick={() => setShowThemeCard((v) => !v)}
-          className="w-full px-6 py-5 border-b border-white/10 flex items-center gap-3 text-left"
+          className="w-full px-6 py-6 flex items-center gap-3 text-left"
         >
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Personalizar mi tienda</h2>
-                <InfoTooltip text="Elegí un diseño visual y personalizá los textos que se muestran en tu tienda online. Hacé clic sobre cualquier texto para editarlo directamente. Los cambios se guardan automáticamente." />
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Personalizar mi tienda</h2>
+                {showThemeCard && <InfoTooltip text="Elegí un diseño visual y personalizá los textos que se muestran en tu tienda online. Hacé clic sobre cualquier texto para editarlo directamente. Los cambios se guardan automáticamente." />}
               </div>
               <p className="text-xs text-zinc-400 dark:text-zinc-500">Selecciona template y textos principales</p>
             </div>
-            <ChevronDown className={`w-5 h-5 text-zinc-400 transition-transform duration-300 ${showThemeCard ? "rotate-180" : ""}`} />
         </button>
 
         <AnimatePresence initial={false}>
@@ -1439,20 +1368,16 @@ export default function BusinessClient({
       </section>
 
       {/* Card: Configuración Técnica */}
-      <div id="setup-payments" className="order-3 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm transition-colors bg-white dark:bg-zinc-900">
+      <div id="setup-payments" className="order-3 rounded-[2rem] border border-zinc-100 dark:border-zinc-800/50 transition-colors bg-white dark:bg-zinc-900">
         <button
           type="button"
           onClick={() => setShowPaymentsCard((v) => !v)}
-          className="w-full px-6 py-5 border-b border-white/10 flex items-center gap-3 text-left"
+          className="w-full px-6 py-6 flex items-center gap-3 text-left"
         >
-          <div className="p-2 rounded-full bg-amber-500/15">
-            <Smartphone className="w-5 h-5 text-amber-600" />
-          </div>
           <div className="flex-1 min-w-0">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Forma de cobro</h2>
             <p className="text-xs text-zinc-400 dark:text-zinc-500">Mercado Pago, seña online y mensaje automático</p>
           </div>
-          <ChevronDown className={`w-5 h-5 text-zinc-400 transition-transform duration-300 ${showPaymentsCard ? "rotate-180" : ""}`} />
         </button>
         <AnimatePresence initial={false}>
           {showPaymentsCard && (
@@ -1464,114 +1389,232 @@ export default function BusinessClient({
               transition={{ duration: 0.3, ease: "easeInOut" }}
               className="overflow-hidden"
             >
-              <div className="p-6 space-y-8">
+              <div className="p-6 space-y-6">
 
-          {/* Mercado Pago OAuth */}
           {canManageBilling ? (
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <CreditCard className="w-4 h-4 text-zinc-400" />
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white tracking-tight">Mercado Pago</h3>
-            </div>
-            <div className="space-y-4">
-              <div className="rounded-2xl border border-white/20 dark:border-white/10 bg-white dark:bg-zinc-900 px-4 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    {data?.mp_oauth_connected ? "Cuenta conectada" : "Cuenta no conectada"}
-                  </p>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    {data?.mp_oauth_connected
-                      ? "Ya podes cobrar señas online con tu cuenta de Mercado Pago."
-                      : "Conecta tu cuenta para activar cobros online sin cargar tokens manualmente."}
-                  </p>
+          <div className="space-y-6">
+
+            {/* Two-column payment methods */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+              {/* Mercado Pago card */}
+              <div
+                className={`relative flex flex-col rounded-2xl border border-white/20 dark:border-white/10 bg-white dark:bg-zinc-900 p-5 transition-opacity ${
+                  !payAtShop && data?.mp_oauth_connected ? "opacity-100" : "opacity-40"
+                }`}
+              >
+                {data?.mp_oauth_connected && !payAtShop && (
+                  <CheckCircle2 className="absolute top-4 right-4 w-5 h-5 text-zinc-900 dark:text-white" />
+                )}
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 rounded-xl bg-zinc-100 dark:bg-zinc-800">
+                    <CreditCard className="w-5 h-5 text-zinc-500 dark:text-zinc-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Mercado Pago</h3>
+                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Cobro online automatico</p>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  {!data?.mp_oauth_connected ? (
-                    <button
-                      type="button"
-                      onMouseDown={playClick}
-                      onClick={handleConnectMercadoPago}
-                      disabled={!isOwnerOrAdmin || isConnectingMp || isDisconnectingMp}
-                      className="ui-btn-primary inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2 text-sm font-medium"
-                    >
-                      <Link2 className="w-4 h-4" />
-                      {isConnectingMp ? "Conectando..." : "Conectar Mercado Pago"}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onMouseDown={playClick}
-                      onClick={handleDisconnectMercadoPago}
-                      disabled={!isOwnerOrAdmin || isDisconnectingMp || isConnectingMp}
-                      className="ui-btn-ghost inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2 text-sm font-medium"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      {isDisconnectingMp ? "Desconectando..." : "Desconectar"}
-                    </button>
+
+                <div className="flex-1 overflow-hidden">
+                  {!payAtShop && (
+                  <div className="space-y-3" onClick={bankTransferEnabled ? (e) => e.stopPropagation() : undefined}>
+                      {data?.mp_oauth_connected ? (
+                        <div className="rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 p-3">
+                          <p className="text-xs text-zinc-600 dark:text-zinc-300 mb-2">Cuenta vinculada y lista para cobrar</p>
+                          <button
+                            type="button"
+                            onMouseDown={playClick}
+                            onClick={(e) => { e.stopPropagation(); handleDisconnectMercadoPago(); }}
+                            disabled={!isOwnerOrAdmin || isDisconnectingMp}
+                            className="text-xs text-zinc-500 hover:text-red-500 dark:text-zinc-400 dark:hover:text-red-400 transition-colors"
+                          >
+                            {isDisconnectingMp ? "Desconectando..." : "Desconectar cuenta"}
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onMouseDown={playClick}
+                          onClick={(e) => { e.stopPropagation(); handleConnectMercadoPago(); }}
+                          disabled={!isOwnerOrAdmin || isConnectingMp}
+                          className="w-full rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 px-4 py-2.5 text-sm font-medium transition-colors inline-flex items-center justify-center gap-2 hover:opacity-90"
+                        >
+                          <Link2 className="w-4 h-4" />
+                          {isConnectingMp ? "Conectando..." : "Conectar cuenta"}
+                        </button>
+                      )}
+                    </div>
                   )}
+                </div>
+
+                {/* Pros / Cons */}
+                <div className="mt-auto space-y-1.5 pt-2">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                    <span className="text-[11px] text-zinc-600 dark:text-zinc-400">Cobro automatico</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <XCircle className="w-3.5 h-3.5 text-rose-400 flex-shrink-0" />
+                    <span className="text-[11px] text-zinc-600 dark:text-zinc-400">Comision del ~7% por operacion</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-rose-200/70 dark:border-rose-700/40 bg-rose-50/80 dark:bg-rose-900/20 p-4 space-y-3">
-                <div>
-                  <p className="text-sm font-semibold text-rose-800 dark:text-rose-200">Recomendacion fuerte de cobro</p>
-                  <p className="text-xs text-rose-700/90 dark:text-rose-200/90 mt-0.5">MP descuenta ~7%. Mejor cobra solo una seña online.</p>
+              {/* Transferencia card */}
+              <div
+                role="button"
+                tabIndex={isOwnerOrAdmin ? 0 : -1}
+                aria-disabled={!isOwnerOrAdmin}
+                onClick={() => { if (isOwnerOrAdmin) { setBankTransferEnabled(!bankTransferEnabled); if (!bankTransferEnabled) { setPayAtShop(false); setBookingDepositEnabled(true); } } }}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.currentTarget.click(); } }}
+                className={`relative flex flex-col rounded-2xl border border-white/20 dark:border-white/10 bg-white dark:bg-zinc-900 p-5 text-left transition-all duration-200 cursor-pointer hover:border-zinc-300 dark:hover:border-zinc-600 ${
+                  !payAtShop && bankTransferEnabled ? "opacity-100" : "opacity-40"
+                }`}
+              >
+                {bankTransferEnabled && (
+                  <CheckCircle2 className="absolute top-4 right-4 w-5 h-5 text-zinc-900 dark:text-white" />
+                )}
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 rounded-xl bg-zinc-100 dark:bg-zinc-800">
+                    <Landmark className="w-5 h-5 text-zinc-500 dark:text-zinc-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Transferencia</h3>
+                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Pago por CVU, CBU o alias</p>
+                  </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => { setPayAtShop(false); setBookingDepositEnabled(true); }}
-                    disabled={!isOwnerOrAdmin}
-                    className={`rounded-full px-4 py-2 text-sm font-medium border transition-colors ${
-                      !payAtShop && bookingDepositEnabled
-                        ? "ui-btn-primary"
-                        : "ui-btn-ghost"
-                    }`}
-                  >
-                    Cobrar seña online
-                  </button>
+
+                <div className="flex-1">
+                  <div className="space-y-3" onClick={bankTransferEnabled ? (e) => e.stopPropagation() : undefined} onKeyDown={(e) => { if (bankTransferEnabled) e.stopPropagation(); }}>
+                    <div>
+                      <label className="block text-[11px] font-medium text-zinc-600 dark:text-zinc-400 mb-1">Alias / CVU / CBU</label>
+                      <input
+                        type="text"
+                        value={bankCvuCb}
+                        onChange={(e) => setBankCvuCb(e.target.value)}
+                        disabled={!isOwnerOrAdmin || !bankTransferEnabled}
+                        placeholder="Ej: mi.negocio.mp"
+                        className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-gray-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-500/30 transition-all disabled:opacity-50 cursor-text"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[11px] font-medium text-zinc-600 dark:text-zinc-400 mb-1">Nombre del titular de cuenta</label>
+                        <input
+                          type="text"
+                          value={bankAlias}
+                          onChange={(e) => setBankAlias(e.target.value)}
+                          disabled={!isOwnerOrAdmin || !bankTransferEnabled}
+                          placeholder="Ej: María López"
+                          className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-gray-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-500/30 transition-all disabled:opacity-50 cursor-text"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-medium text-zinc-600 dark:text-zinc-400 mb-1">Banco</label>
+                        <input
+                          type="text"
+                          value={bankName}
+                          onChange={(e) => setBankName(e.target.value)}
+                          disabled={!isOwnerOrAdmin || !bankTransferEnabled}
+                          placeholder="Ej: Mercado Pago"
+                          className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-gray-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-500/30 transition-all disabled:opacity-50 cursor-text"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Pros / Cons */}
+                <div className="mt-auto space-y-1.5 pt-2">
+                  <div className="flex items-center gap-2">
+                    <XCircle className="w-3.5 h-3.5 text-rose-400 flex-shrink-0" />
+                    <span className="text-[11px] text-zinc-600 dark:text-zinc-400">Requiere confirmacion manual</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                    <span className="text-[11px] text-zinc-600 dark:text-zinc-400">Sin comisiones</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Payment timing selector */}
+            <div className="rounded-2xl border border-white/20 dark:border-white/10 bg-white dark:bg-zinc-900 p-5 space-y-3">
+              <p className="text-sm font-semibold text-gray-900 dark:text-white">Cuando se cobra</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 -mt-1">Defini si el cliente paga al reservar, al finalizar, o en el local.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* Seña online */}
+                <button
+                  type="button"
+                  onClick={() => { if (isOwnerOrAdmin) { setPayAtShop(false); setBookingDepositEnabled(true); } }}
+                  disabled={!isOwnerOrAdmin}
+                  className={`group relative overflow-hidden rounded-xl border p-4 text-left transition-all duration-200 active:scale-[0.97] ${
+                    !payAtShop && bookingDepositEnabled
+                      ? "border-zinc-900 dark:border-white bg-zinc-50 dark:bg-zinc-800 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06),0_4px_12px_rgba(0,0,0,0.08)] dark:shadow-[inset_0_2px_4px_rgba(255,255,255,0.05),0_4px_12px_rgba(0,0,0,0.3)]"
+                      : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-zinc-300 dark:hover:border-zinc-600 hover:shadow-md"
+                  } ${!isOwnerOrAdmin ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+                >
                   {!payAtShop && bookingDepositEnabled && (
-                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                      <span className="text-xs text-rose-600 dark:text-rose-300">$</span>
+                    <CheckCircle2 className="absolute top-3 right-3 w-4 h-4 text-zinc-900 dark:text-white" />
+                  )}
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">Cobrar sena online</p>
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">El cliente paga una sena al reservar</p>
+                  {!payAtShop && bookingDepositEnabled && (
+                    <div className="mt-2 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                      <span className="text-xs text-zinc-500 dark:text-zinc-400">$</span>
                       <input
                         type="number"
                         min={0}
                         value={bookingDepositAmount}
                         onChange={(e) => setBookingDepositAmount(e.target.value)}
                         disabled={!isOwnerOrAdmin}
-                        className="w-20 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 px-2 py-1.5 text-sm text-center text-gray-900 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="w-24 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 px-2 py-1 text-sm text-center text-gray-900 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none focus:ring-2 focus:ring-zinc-500/30"
                         placeholder="3000"
                       />
                     </div>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => { setPayAtShop(false); setBookingDepositEnabled(false); }}
-                    disabled={!isOwnerOrAdmin}
-                    className={`rounded-full px-4 py-2 text-sm font-medium border transition-colors ${
-                      !payAtShop && !bookingDepositEnabled
-                        ? "ui-btn-primary"
-                        : "ui-btn-ghost"
-                    }`}
-                  >
-                    Cobrar total online
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setPayAtShop(true); setBookingDepositEnabled(false); }}
-                    disabled={!isOwnerOrAdmin}
-                    className={`rounded-full px-4 py-2 text-sm font-medium border transition-colors ${
-                      payAtShop
-                        ? "ui-btn-primary"
-                        : "ui-btn-ghost"
-                    }`}
-                  >
-                    Cobrar en local
-                  </button>
-                </div>
-                <div />
+                </button>
+
+                {/* Total online */}
+                <button
+                  type="button"
+                  onClick={() => { if (isOwnerOrAdmin) { setPayAtShop(false); setBookingDepositEnabled(false); } }}
+                  disabled={!isOwnerOrAdmin}
+                  className={`group relative overflow-hidden rounded-xl border p-4 text-left transition-all duration-200 active:scale-[0.97] ${
+                    !payAtShop && !bookingDepositEnabled
+                      ? "border-zinc-900 dark:border-white bg-zinc-50 dark:bg-zinc-800 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06),0_4px_12px_rgba(0,0,0,0.08)] dark:shadow-[inset_0_2px_4px_rgba(255,255,255,0.05),0_4px_12px_rgba(0,0,0,0.3)]"
+                      : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-zinc-300 dark:hover:border-zinc-600 hover:shadow-md"
+                  } ${!isOwnerOrAdmin ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+                >
+                  {!payAtShop && !bookingDepositEnabled && (
+                    <CheckCircle2 className="absolute top-3 right-3 w-4 h-4 text-zinc-900 dark:text-white" />
+                  )}
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">Cobrar total online</p>
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">El cliente paga el total al reservar</p>
+                </button>
+
+                {/* En local */}
+                <button
+                  type="button"
+                  onClick={() => { if (isOwnerOrAdmin) { setPayAtShop(true); setBookingDepositEnabled(false); setBankTransferEnabled(false); } }}
+                  disabled={!isOwnerOrAdmin}
+                  className={`group relative overflow-hidden rounded-xl border p-4 text-left transition-all duration-200 active:scale-[0.97] ${
+                    payAtShop
+                      ? "border-zinc-900 dark:border-white bg-zinc-50 dark:bg-zinc-800 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06),0_4px_12px_rgba(0,0,0,0.08)] dark:shadow-[inset_0_2px_4px_rgba(255,255,255,0.05),0_4px_12px_rgba(0,0,0,0.3)]"
+                      : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-zinc-300 dark:hover:border-zinc-600 hover:shadow-md"
+                  } ${!isOwnerOrAdmin ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+                >
+                  {payAtShop && (
+                    <CheckCircle2 className="absolute top-3 right-3 w-4 h-4 text-zinc-900 dark:text-white" />
+                  )}
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">Cobrar en local</p>
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">El cliente paga presencialmente</p>
+                </button>
               </div>
             </div>
+
           </div>
           ) : (
             <div className="rounded-2xl border border-amber-200/60 bg-amber-50/70 dark:bg-amber-900/20 px-4 py-3 text-xs text-amber-800 dark:text-amber-200">
@@ -1587,20 +1630,16 @@ export default function BusinessClient({
 
       <div className="order-2 lg:grid lg:grid-cols-2 gap-6">
         {/* Card: Horarios de Atención */}
-        <div id="setup-hours" className="rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm transition-colors bg-white dark:bg-zinc-900">
+        <div id="setup-hours" className="rounded-[2rem] border border-zinc-100 dark:border-zinc-800/50 transition-colors bg-white dark:bg-zinc-900">
           <button
             type="button"
             onClick={() => setShowHoursCard((v) => !v)}
-            className="w-full px-6 py-5 border-b border-white/10 flex items-center gap-3 text-left"
+            className="w-full px-6 py-6 flex items-center gap-3 text-left"
           >
-            <div className="p-2 rounded-full bg-blue-500/15">
-              <Clock className="w-5 h-5 text-blue-600" />
-            </div>
             <div className="flex-1 min-w-0">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Horarios de Atención</h2>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Horarios de Atención</h2>
               <p className="text-xs text-zinc-400 dark:text-zinc-500">Días y horarios de apertura del local</p>
             </div>
-            <ChevronDown className={`w-5 h-5 text-zinc-400 transition-transform duration-300 ${showHoursCard ? "rotate-180" : ""}`} />
           </button>
           <AnimatePresence initial={false}>
             {showHoursCard && (
@@ -1715,8 +1754,8 @@ export default function BusinessClient({
         </div>
 
         {/* Card: Feriados y Excepciones */}
-        <div className="rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm transition-colors bg-white dark:bg-zinc-900">
-          <div className="flex items-center px-6 py-5 border-b border-white/10 gap-3">
+        <div className="rounded-[2rem] border border-zinc-100 dark:border-zinc-800/50 transition-colors bg-white dark:bg-zinc-900">
+          <div className="flex items-center px-6 py-5 gap-3">
             <button
               type="button"
               onClick={() => setShowHolidaysCard((v) => !v)}
@@ -1726,16 +1765,15 @@ export default function BusinessClient({
                 <Calendar className="w-5 h-5 text-amber-600" />
               </div>
               <div className="flex-1 min-w-0">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Feriados y Excepciones</h2>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Feriados y Excepciones</h2>
                 <p className="text-xs text-zinc-400 dark:text-zinc-500">Cierres totales o horarios reducidos para dias puntuales</p>
               </div>
-              <ChevronDown className={`w-5 h-5 text-zinc-400 transition-transform duration-300 shrink-0 ${showHolidaysCard ? "rotate-180" : ""}`} />
             </button>
             {isOwnerOrAdmin && (
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); openNewOverride(); }}
-                className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 text-sm font-medium px-4 py-2 transition-colors cursor-pointer"
+                className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 text-sm font-medium px-4 py-2 transition-colors cursor-pointer"
               >
                 <Plus className="w-4 h-4" /> Agregar
               </button>
@@ -2016,23 +2054,19 @@ export default function BusinessClient({
       </div>
 
       {/* Comunicaciones con los clientes */}
-      <div className="rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm transition-colors bg-white dark:bg-zinc-900">
+      <div className="rounded-[2rem] border border-zinc-100 dark:border-zinc-800/50 transition-colors bg-white dark:bg-zinc-900">
         <button
           type="button"
           onClick={() => setShowCommsCard((v) => !v)}
-          className="w-full px-6 py-5 border-b border-white/10 flex items-center gap-3 text-left"
+          className="w-full px-6 py-6 flex items-center gap-3 text-left"
         >
-          <div className="p-2 rounded-full bg-violet-500/15">
-            <MessageSquareText className="w-5 h-5 text-violet-600" />
-          </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Comunicaciones con los clientes</h2>
-              <InfoTooltip text="Al editar las plantillas, los nuevos mensajes de WhatsApp que se envíen automáticamente usarán el texto personalizado. Las etiquetas (@Nombre, @Servicio, etc.) se reemplazarán con los datos reales de cada turno o voucher." />
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Comunicaciones con los clientes</h2>
+              {showCommsCard && <InfoTooltip text="Al editar las plantillas, los nuevos mensajes de WhatsApp que se envíen automáticamente usarán el texto personalizado. Las etiquetas (@Nombre, @Servicio, etc.) se reemplazarán con los datos reales de cada turno o voucher." />}
             </div>
             <p className="text-xs text-zinc-400 dark:text-zinc-500">Personalizá los mensajes que reciben tus clientes</p>
           </div>
-          <ChevronDown className={`w-5 h-5 text-zinc-400 transition-transform duration-300 ${showCommsCard ? "rotate-180" : ""}`} />
         </button>
         <AnimatePresence initial={false}>
           {showCommsCard && (
@@ -2131,11 +2165,6 @@ export default function BusinessClient({
           </AnimatePresence>
       </div>
 
-      {/* Exportar datos */}
-      {shop?.id && (
-        <ExportDataCard shopId={shop.id} />
-      )}
-
       {/* Guardar todo flotante */}
       {portalReady && typeof document !== "undefined" && createPortal(
         isGlobalDirty ? (
@@ -2153,7 +2182,7 @@ export default function BusinessClient({
               }
             }}
             disabled={isSaving}
-            className="fixed bottom-4 right-4 z-50 inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold shadow-lg bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white cursor-pointer select-none animate-pulse-glow transition-all duration-300"
+            className="fixed bottom-4 right-4 z-50 inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium shadow-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 cursor-pointer select-none transition-opacity duration-200"
           >
             {isSaving ? (
               <>

@@ -59,8 +59,6 @@ export default async function DashboardShopBusinessPage({ params }: { params: Pr
       role={role}
       initialData={result.success ? result.data ?? null : null}
       initialError={result.success ? null : result.error}
-      summaryStats={null}
-      metricStats={null}
       canManageBilling={canManageBilling}
       shopId={shopId}
       shopSlug={shopSlug}

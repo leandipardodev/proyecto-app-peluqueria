@@ -28,8 +28,8 @@ const SLIDES: Slide[] = [
   {
     id: "ai",
     kicker: "Inteligencia artificial",
-    title: "IA integrada trabaja codo a codo con vos dándote recomendaciones e información en tiempo real de tu local.",
-    text: "Analizamos el comportamiento de tu negocio para sugerirte los mejores horarios, servicios más rentables y alertas inteligentes. Todo sin que tengas que hacer nada extra.",
+    title: "IA integrada trabaja codo a codo con vos",
+    text: "Dandote recomendaciones e información en tiempo real de tu local. Analizamos el comportamiento de tu negocio para sugerirte los mejores horarios, servicios más rentables y alertas inteligentes. Todo sin que tengas que hacer nada extra.",
     image: "/landing/carousel/aa2.webp",
     alt: "Klip con inteligencia artificial integrada",
   },
@@ -88,7 +88,7 @@ export default function HomeFeaturesCarousel() {
 
   return (
     <section
-      className="glass-sheen-card relative overflow-hidden rounded-[2.5rem] border border-slate-200/85 bg-[linear-gradient(140deg,#ffffff_0%,#f5f9ff_44%,#eef6ff_100%)] transition-colors dark:border-slate-700/70 dark:bg-[linear-gradient(140deg,#080d18_0%,#0b1222_48%,#0d172d_100%)]"
+      className="glass-sheen-card relative overflow-hidden rounded-[2.5rem] border border-slate-700/70 bg-[linear-gradient(140deg,#080d18_0%,#0b1222_48%,#0d172d_100%)] transition-colors"
       style={{ boxShadow: "0 14px 34px rgba(15,23,42,0.08)" }}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
@@ -100,7 +100,7 @@ export default function HomeFeaturesCarousel() {
       <div className="pointer-events-none absolute inset-0 opacity-55" style={{ background: "linear-gradient(118deg, rgba(14,165,233,0.08) 0%, rgba(255,255,255,0) 42%, rgba(37,99,235,0.08) 100%)" }} />
 
       <div className="relative z-10 grid grid-cols-1 gap-5 p-4 md:grid-cols-12 md:gap-7 md:p-6">
-        <div className="order-2 md:order-1 md:col-span-5 relative rounded-[1.9rem] border border-slate-200/75 bg-white/75 p-5 pb-20 dark:border-slate-700/65 dark:bg-slate-900/45 md:p-6 md:pb-20">
+        <div className="order-2 md:order-1 md:col-span-4 relative rounded-[1.9rem] border border-slate-700/65 bg-slate-900/45 p-5 pb-20 z-10 md:p-6 md:pb-20">
           <AnimatePresence mode="wait">
             <motion.div
               key={slide.id}
@@ -109,28 +109,28 @@ export default function HomeFeaturesCarousel() {
               exit={{ opacity: 0, y: -12 }}
               transition={{ duration: 0.44, ease: EASE }}
             >
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-700 dark:text-sky-300">{slide.kicker}</p>
-              <h3 className="mt-3 text-[2.02rem] font-black leading-[1.02] tracking-[-0.045em] text-slate-950 dark:text-white md:text-[2.3rem]">{slide.title}</h3>
-              <p className="mt-4 text-sm leading-relaxed text-slate-600 dark:text-slate-300 md:text-[15px]">{slide.text}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-300">{slide.kicker}</p>
+              <h3 className="mt-3 text-[2.02rem] font-black leading-[1.02] tracking-[-0.045em] text-white md:text-[2.3rem]">{slide.title}</h3>
+              <p className="mt-4 text-sm leading-relaxed text-slate-300 md:text-[15px]">{slide.text}</p>
             </motion.div>
           </AnimatePresence>
 
           <div className="absolute bottom-5 left-1/2 flex -translate-x-1/2 items-center justify-center gap-2 px-1 py-1">
-            <button type="button" onClick={goPrev} className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200/80 bg-white/90 text-slate-600 transition-all duration-200 hover:bg-white hover:text-slate-900 active:scale-95 dark:border-slate-600/80 dark:bg-slate-800/90 dark:text-slate-200 dark:hover:bg-slate-700" aria-label="Slide anterior">
+            <button type="button" onClick={goPrev} className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-600/80 bg-slate-800/90 text-slate-200 transition-all duration-200 hover:bg-slate-700 active:scale-95" aria-label="Slide anterior">
               <ChevronLeft className="h-4 w-4" />
             </button>
             <div className="mx-3 flex items-center gap-1.5">
               {SLIDES.map((s, idx) => (
-                <button key={s.id} type="button" onClick={() => setActive(idx)} className={`h-1.5 rounded-full transition-all duration-300 ${idx === active ? "w-8 bg-sky-500 dark:bg-sky-300" : "w-2.5 bg-zinc-400/35 hover:bg-zinc-500/55 dark:bg-zinc-500/50 dark:hover:bg-zinc-400/80"}`} aria-label={`Ir al slide ${idx + 1}`} />
+                  <button key={s.id} type="button" onClick={() => setActive(idx)} className={`h-1.5 rounded-full transition-all duration-300 ${idx === active ? "w-8 bg-sky-300" : "w-2.5 bg-zinc-500/50 hover:bg-zinc-400/80"}`} aria-label={`Ir al slide ${idx + 1}`} />
               ))}
             </div>
-            <button type="button" onClick={goNext} className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200/80 bg-white/90 text-slate-600 transition-all duration-200 hover:bg-white hover:text-slate-900 active:scale-95 dark:border-slate-600/80 dark:bg-slate-800/90 dark:text-slate-200 dark:hover:bg-slate-700" aria-label="Slide siguiente">
+            <button type="button" onClick={goNext} className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-600/80 bg-slate-800/90 text-slate-200 transition-all duration-200 hover:bg-slate-700 active:scale-95" aria-label="Slide siguiente">
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
         </div>
 
-        <div className="order-1 md:order-2 md:col-span-7 relative z-10">
+        <div className="order-1 md:order-2 md:col-span-8 relative z-0">
           <div className="relative h-[380px] overflow-visible md:h-[560px]">
             <div className={`pointer-events-none absolute -inset-x-16 inset-y-4 bg-gradient-to-br ${imageStyles.glow} blur-3xl`} />
             <AnimatePresence mode="wait">

@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import { getAuthSession } from "@/lib/dashboard/auth/server";
-import { BILLING_PRICES } from "@/lib/billing/plans";
+import { BILLING_LABELS } from "@/lib/billing/plans";
+import { getBillingPrice } from "@/lib/admin/site-settings";
 import BillingClient from "./billing-client";
 
 export default async function BillingPage({ params }: { params: Promise<{ shopSlug: string }> }) {
@@ -51,6 +52,8 @@ export default async function BillingPage({ params }: { params: Promise<{ shopSl
   const shop = shopResult.data;
   if (!shop) redirect(`/dashboard/${shopSlug}`);
 
+  const monthlyPrice = await getBillingPrice();
+
   return (
     <BillingClient
       shopId={shopId}
@@ -61,7 +64,7 @@ export default async function BillingPage({ params }: { params: Promise<{ shopSl
       events={(eventsResult.data || []).map((e) => ({
         id: e.id,
         type: e.event_type,
-        amount: (e.payload as { amount?: number })?.amount ?? BILLING_PRICES.monthly,
+        amount: (e.payload as { amount?: number })?.amount ?? monthlyPrice,
         paymentId: (e.payload as { payment_id?: string | null })?.payment_id ?? null,
         createdAt: e.created_at,
       }))}

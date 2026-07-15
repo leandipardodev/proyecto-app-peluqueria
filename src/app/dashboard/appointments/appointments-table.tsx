@@ -46,7 +46,7 @@ const statusBadge: Record<string, string> = {
 function getStatusBadgeClass(status: string, isPaid: boolean): string {
   if (status === "scheduled" && isPaid) return "bg-sky-50 text-sky-700";
   if (status === "scheduled" && !isPaid) return "bg-amber-50 text-amber-700";
-  return statusBadge[status] || "bg-gray-100 text-gray-800";
+  return statusBadge[status] || "bg-zinc-100 text-zinc-800";
 }
 
 function getTurnoStatusLabel(status: string, isPaid: boolean): string {
@@ -205,7 +205,7 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
 
       <div className="md:hidden space-y-3">
         {appointments.length === 0 ? (
-          <div className="bg-white dark:bg-zinc-900 rounded-[1.75rem] border border-zinc-200 dark:border-zinc-800 shadow-sm p-4 text-sm text-center text-gray-500 dark:text-gray-400">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-4 text-sm text-center text-gray-500 dark:text-zinc-400">
             No hay turnos registrados
           </div>
         ) : (
@@ -217,28 +217,28 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
             const serviceNames = serviceName ? [serviceName] : undefined;
             const whatsappUrl = buildWhatsAppUrl(phone, apt.customers?.nombre || customerWord, apt.start_time, serviceNames);
             return (
-              <div key={apt.id} className="bg-white dark:bg-zinc-900 rounded-[1.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm p-4">
+              <div key={apt.id} className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-4">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{apt.customers?.nombre || "N/A"}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{new Date(apt.start_time).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })}</p>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-zinc-100">{apt.customers?.nombre || "N/A"}</p>
+                    <p className="text-xs text-gray-500 dark:text-zinc-400">{new Date(apt.start_time).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })}</p>
                   </div>
                   <span className={`px-2 inline-flex items-center justify-center whitespace-nowrap text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(apt.status, apt.is_paid)}`}>
                     {getTurnoStatusLabel(apt.status, apt.is_paid)}
                   </span>
                 </div>
-                <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
+                <p className="mt-2 text-sm text-gray-700 dark:text-zinc-300">
                   {new Date(apt.start_time).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
                   {" - "}
                   {new Date(apt.end_time).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
                 </p>
-                <p className="text-sm text-gray-700 dark:text-gray-300">{svc ? `${svc.emoji} ${svc.label}` : serviceName || "N/A"}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{staffWord}: {apt.staff?.name || "N/A"}</p>
+                <p className="text-sm text-gray-700 dark:text-zinc-300">{svc ? `${svc.emoji} ${svc.label}` : serviceName || "N/A"}</p>
+                <p className="text-xs text-gray-500 dark:text-zinc-400">{staffWord}: {apt.staff?.name || "N/A"}</p>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <button
                     type="button"
                     disabled={!phone}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-semibold transition-colors ${
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
                       phone
                         ? "bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm cursor-pointer"
                         : "bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 cursor-not-allowed"
@@ -265,26 +265,26 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
         )}
       </div>
 
-      <div className="hidden md:block bg-white dark:bg-zinc-900 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors">
+      <div className="hidden md:block bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors">
         <div className="w-full overflow-x-auto">
         <table className="min-w-[1100px] w-full divide-y divide-white/20 dark:divide-white/10">
           <thead className="bg-white dark:bg-zinc-900">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Fecha</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Horario</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{customerWord}</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{serviceWord}</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{staffWord}</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Estado</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Pago</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Seña</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Acciones</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Fecha</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Horario</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">{customerWord}</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">{serviceWord}</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">{staffWord}</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Estado</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Pago</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Seña</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Acciones</th>
             </tr>
           </thead>
           <tbody className="bg-transparent dark:bg-transparent divide-y divide-white/20 dark:divide-white/10">
             {appointments.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No hay turnos registrados</td>
+                <td colSpan={9} className="px-6 py-4 text-center text-gray-500 dark:text-zinc-400">No hay turnos registrados</td>
               </tr>
             ) : (
               pagedAppointments.map((apt) => {
@@ -292,21 +292,21 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
                 const serviceNameT = apt.services?.name || apt.custom_service_name || "";
                 return (
                   <tr key={apt.id} className="hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer">
-                    <td suppressHydrationWarning className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    <td suppressHydrationWarning className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100">
                       {new Date(apt.start_time).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })}
                     </td>
-                    <td suppressHydrationWarning className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    <td suppressHydrationWarning className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100">
                       {new Date(apt.start_time).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
                       {" - "}
                       {new Date(apt.end_time).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100 max-w-[180px]">
+                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-zinc-100 max-w-[180px]">
                       {apt.customers?.nombre || "N/A"}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100 max-w-[220px]">
+                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-zinc-100 max-w-[220px]">
                       {svcT ? `${svcT.emoji} ${svcT.label}` : serviceNameT || "N/A"}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100 max-w-[160px]">
+                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-zinc-100 max-w-[160px]">
                       {apt.staff?.name || "N/A"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -317,7 +317,7 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       {apt.is_paid ? <span className="text-emerald-600">Pagado</span> : <span className="text-rose-500">Pendiente</span>}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-zinc-300">
                       {apt.deposit_amount ? `$${apt.deposit_amount.toFixed(2)}` : "—"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -333,7 +333,7 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
                                 type="button"
                                 disabled={!phone}
                                 title={phone ? "Enviar WhatsApp" : "Sin teléfono — editá el cliente para agregarlo"}
-                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-semibold transition-colors ${
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
                                   phone
                                     ? "bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm cursor-pointer"
                                     : "bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 cursor-not-allowed"

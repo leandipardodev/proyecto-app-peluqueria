@@ -110,9 +110,9 @@ export type Database = {
       appointments: {
         Row: {
           created_at: string | null
-          customer_id: string | null
           custom_service_duration: number | null
           custom_service_name: string | null
+          customer_id: string | null
           date_key_ar: string | null
           deposit_amount: number | null
           end_time: string
@@ -122,6 +122,7 @@ export type Database = {
           loyalty_reward_applied: boolean
           mp_preference_id: string | null
           notes: string | null
+          payment_method: string
           recurring_group_id: string | null
           service_id: string | null
           service_price: number | null
@@ -133,9 +134,9 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
-          customer_id?: string | null
           custom_service_duration?: number | null
           custom_service_name?: string | null
+          customer_id?: string | null
           date_key_ar?: string | null
           deposit_amount?: number | null
           end_time: string
@@ -145,6 +146,7 @@ export type Database = {
           loyalty_reward_applied?: boolean
           mp_preference_id?: string | null
           notes?: string | null
+          payment_method?: string
           recurring_group_id?: string | null
           service_id?: string | null
           service_price?: number | null
@@ -156,9 +158,9 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
-          customer_id?: string | null
           custom_service_duration?: number | null
           custom_service_name?: string | null
+          customer_id?: string | null
           date_key_ar?: string | null
           deposit_amount?: number | null
           end_time?: string
@@ -168,6 +170,7 @@ export type Database = {
           loyalty_reward_applied?: boolean
           mp_preference_id?: string | null
           notes?: string | null
+          payment_method?: string
           recurring_group_id?: string | null
           service_id?: string | null
           service_price?: number | null
@@ -685,6 +688,8 @@ export type Database = {
           expires_at: string
           id: string
           mp_preference_id: string | null
+          payment_amount: number | null
+          payment_method: string
           service_id: string
           shop_id: string
           staff_id: string | null
@@ -702,6 +707,8 @@ export type Database = {
           expires_at?: string
           id?: string
           mp_preference_id?: string | null
+          payment_amount?: number | null
+          payment_method?: string
           service_id: string
           shop_id: string
           staff_id?: string | null
@@ -719,6 +726,8 @@ export type Database = {
           expires_at?: string
           id?: string
           mp_preference_id?: string | null
+          payment_amount?: number | null
+          payment_method?: string
           service_id?: string
           shop_id?: string
           staff_id?: string | null
@@ -1294,36 +1303,36 @@ export type Database = {
       }
       shop_subscriptions: {
         Row: {
-          id: string
-          shop_id: string
-          preapproval_id: string
-          payer_id: string
           card_id: string | null
-          status: string
-          next_charge_date: string | null
           created_at: string
+          id: string
+          next_charge_date: string | null
+          payer_id: string
+          preapproval_id: string
+          shop_id: string
+          status: string
           updated_at: string
         }
         Insert: {
-          id?: string
-          shop_id: string
-          preapproval_id: string
-          payer_id: string
           card_id?: string | null
-          status?: string
-          next_charge_date?: string | null
           created_at?: string
+          id?: string
+          next_charge_date?: string | null
+          payer_id: string
+          preapproval_id: string
+          shop_id: string
+          status?: string
           updated_at?: string
         }
         Update: {
-          id?: string
-          shop_id?: string
-          preapproval_id?: string
-          payer_id?: string
           card_id?: string | null
-          status?: string
-          next_charge_date?: string | null
           created_at?: string
+          id?: string
+          next_charge_date?: string | null
+          payer_id?: string
+          preapproval_id?: string
+          shop_id?: string
+          status?: string
           updated_at?: string
         }
         Relationships: [
@@ -1340,6 +1349,10 @@ export type Database = {
         Row: {
           active: boolean | null
           address: string | null
+          bank_alias: string | null
+          bank_cvu_cbu: string | null
+          bank_name: string | null
+          bank_transfer_enabled: boolean
           booking_deposit_amount: number
           booking_deposit_enabled: boolean
           business_hours: Json | null
@@ -1370,6 +1383,10 @@ export type Database = {
         Insert: {
           active?: boolean | null
           address?: string | null
+          bank_alias?: string | null
+          bank_cvu_cbu?: string | null
+          bank_name?: string | null
+          bank_transfer_enabled?: boolean
           booking_deposit_amount?: number
           booking_deposit_enabled?: boolean
           business_hours?: Json | null
@@ -1400,6 +1417,10 @@ export type Database = {
         Update: {
           active?: boolean | null
           address?: string | null
+          bank_alias?: string | null
+          bank_cvu_cbu?: string | null
+          bank_name?: string | null
+          bank_transfer_enabled?: boolean
           booking_deposit_amount?: number
           booking_deposit_enabled?: boolean
           business_hours?: Json | null
@@ -1426,6 +1447,27 @@ export type Database = {
           updated_at?: string | null
           voucher_whatsapp_template?: string | null
           whatsapp_template?: string | null
+        }
+        Relationships: []
+      }
+      site_settings: {
+        Row: {
+          key: string
+          updated_at: string | null
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string | null
+          updated_by?: string | null
+          value: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          value?: Json
         }
         Relationships: []
       }

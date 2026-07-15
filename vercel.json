@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/billing-dunning",
       "schedule": "30 6 * * *"
+    },
+    {
+      "path": "/api/cron/bank-transfer-cleanup",
+      "schedule": "0 */2 * * *"
     }
   ]
 }
