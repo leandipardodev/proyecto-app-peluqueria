@@ -37,6 +37,10 @@ export function useFormKeyboardNav<T extends HTMLElement>(
       return el.tagName === "BUTTON" || el.getAttribute("role") === "button";
     }
 
+    function isSelfManaged(el: HTMLElement) {
+      return el.getAttribute("data-form-nav") === "self";
+    }
+
     function getAllFocusable() {
       return el.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
     }
@@ -117,8 +121,11 @@ export function useFormKeyboardNav<T extends HTMLElement>(
     }
 
     function handleKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement;
+
+      if (isSelfManaged(target)) return;
+
       if (e.key === "Enter") {
-        const target = e.target as HTMLElement;
         const tag = target.tagName;
 
         if (tag === "TEXTAREA") {
@@ -163,13 +170,11 @@ export function useFormKeyboardNav<T extends HTMLElement>(
       }
 
       if (e.key === "ArrowDown" && !e.shiftKey) {
-        const target = e.target as HTMLElement;
         const tag = target.tagName;
         if (tag !== "TEXTAREA" && tag !== "SELECT") e.preventDefault();
         focusNextField();
       }
       if (e.key === "ArrowUp") {
-        const target = e.target as HTMLElement;
         const tag = target.tagName;
         if (tag !== "TEXTAREA" && tag !== "SELECT") e.preventDefault();
         focusPrevField();
@@ -197,6 +202,7 @@ export function useFormKeyboardNav<T extends HTMLElement>(
 
         if (!isLongPress.current) {
           const target = e.target as HTMLElement;
+          if (isSelfManaged(target)) return;
           const tag = target.tagName;
           if (tag === "TEXTAREA" || tag === "SELECT") return;
           if (tag === "BUTTON" || target.getAttribute("role") === "button") {

@@ -10,6 +10,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import GlassSelect from "@/components/ui/glass-select";
 import { createPortal } from "react-dom";
 import { FormWithKeyboardNav } from "@/lib/use-form-keyboard-nav";
+import { getUserFriendlyError } from "@/lib/dashboard/appointments/errors";
 
 const STAFF_COLORS = ["#c084fc", "#34d399", "#fbbf24", "#fb7185", "#22d3ee", "#fb923c", "#818cf8", "#f472b6"];
 const STAFF_SPRING = { type: "spring" as const, stiffness: 500, damping: 30 };
@@ -360,7 +361,7 @@ export default function AppointmentFormModal({
               </div>
             ) : error && (
               <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm px-4 py-2 rounded-xl">
-                {error}
+                {getUserFriendlyError(error)}
               </div>
             )}
 

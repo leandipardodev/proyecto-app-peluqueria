@@ -10,6 +10,7 @@ import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import GlassSelect from "@/components/ui/glass-select";
 import { createPortal } from "react-dom";
+import { getUserFriendlyError } from "@/lib/dashboard/appointments/errors";
 import { CUSTOMER_TAGS } from "@/lib/dashboard/clients/customer-tags";
 
 const IOS_MODAL_SPRING = { stiffness: 460, damping: 34, mass: 0.65 };
@@ -102,18 +103,6 @@ function statusColor(status: string, isPaid: boolean): string {
 
 function toDateTimeLocalValue(iso: string): string {
   return toArgentinaLocalIsoString(iso).slice(0, 16);
-}
-
-function getUserFriendlyError(error: string): string {
-  const map: Record<string, string> = {
-    "slot_taken": "Este horario ya está ocupado. Verificá la agenda primero.",
-    "SESION_EXPIRADA": "Sesión expirada. Iniciá sesión de nuevo.",
-    "SIN_ACCESO_LOCAL": "No tenés acceso a este local.",
-    "LOCAL_INVALIDO": "Local inválido.",
-    "Servicio invalido": "Servicio inválido.",
-    "Fecha/hora invalida": "Fecha/hora inválida.",
-  };
-  return map[error] || error;
 }
 
 function formatTime(d: Date): string {

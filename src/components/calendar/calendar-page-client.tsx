@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { RefreshCcw } from "lucide-react";
 import { moveAppointmentGroup } from "@/lib/dashboard/appointments/actions";
 import { useToast } from "@/components/ui/toast";
+import { getUserFriendlyError } from "@/lib/dashboard/appointments/errors";
 
 let realtimeChannelCounter = 0;
 
@@ -458,7 +459,7 @@ export default function CalendarPageClient({
     } else {
       // Only restore affected appointments, preserve realtime updates for others
       setAppointments((prev) => prev.map((a) => movedSnapshot.has(a.id) ? movedSnapshot.get(a.id)! : a));
-      const msg = result.error === "slot_taken" ? "El horario está ocupado por otro turno" : result.error || "Error al mover turno";
+      const msg = getUserFriendlyError(result.error);
       addToast(msg, "error");
     }
     pendingMove.current = false;
