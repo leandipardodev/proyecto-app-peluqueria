@@ -569,11 +569,10 @@ function EntryForm({
                 placeholder="Buscar cliente..."
                 value={entry.customerSearchQuery}
                 onChange={(e) => {
-                  onUpdate({ customerSearchQuery: e.target.value, customerSearchOpen: true });
+                  onUpdate({ customerSearchQuery: e.target.value, customerSearchOpen: e.target.value.length > 0 });
                   requestAnimationFrame(recalcStyles);
                 }}
                 onFocus={() => {
-                  onUpdate({ customerSearchOpen: true });
                   requestAnimationFrame(recalcStyles);
                 }}
                 onKeyDown={handleCustomerKeyDown}
@@ -712,11 +711,10 @@ function EntryForm({
             placeholder="Buscar y agregar servicio..."
             value={entry.serviceSearchQuery}
             onChange={(e) => {
-              onUpdate({ serviceSearchQuery: e.target.value, serviceSearchOpen: true });
+              onUpdate({ serviceSearchQuery: e.target.value, serviceSearchOpen: e.target.value.length > 0 });
               requestAnimationFrame(recalcStyles);
             }}
             onFocus={() => {
-              onUpdate({ serviceSearchOpen: true });
               requestAnimationFrame(recalcStyles);
             }}
             onKeyDown={handleServiceKeyDown}
