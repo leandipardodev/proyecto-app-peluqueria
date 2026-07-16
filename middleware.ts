@@ -46,11 +46,22 @@ async function middlewareHandler(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  const { data: userProfile, error: profileError } = await supabase
-    .from("user_profiles")
-    .select("role, platform_role")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const [
+    { data: userProfile, error: profileError },
+    { data: memberships },
+  ] = await Promise.all([
+    supabase
+      .from("user_profiles")
+      .select("role, platform_role")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("shop_memberships")
+      .select("shop_id, role, is_active")
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .in("role", ["owner", "admin", "staff"]),
+  ]);
 
   if (profileError || !userProfile) {
     const billingUrl = request.nextUrl.clone();
@@ -86,12 +97,6 @@ async function middlewareHandler(request: NextRequest) {
   const slugCandidate = parts[1] ?? null;
   const activeShopIdCookie = request.cookies.get(ACTIVE_SHOP_ID_COOKIE)?.value || null;
   const activeShopSlugCookie = request.cookies.get(ACTIVE_SHOP_SLUG_COOKIE)?.value || null;
-  const { data: memberships } = await supabase
-    .from("shop_memberships")
-    .select("shop_id, role, is_active")
-    .eq("user_id", user.id)
-    .eq("is_active", true)
-    .in("role", ["owner", "admin", "staff"]);
 
   const activeMemberships = memberships ?? [];
   if (activeMemberships.length === 0) {

@@ -25,6 +25,7 @@ import { useAuth } from "@/lib/auth-context";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { resolveIndustry } from "@/lib/industry/resolve";
 import { getDashboardBasePath } from "@/lib/dashboard/shared/dashboard-base";
+import { useNotifications } from "@/lib/dashboard/use-notifications";
 
 const navItems = [
   { label: "Inicio", href: "/dashboard", icon: Home },
@@ -83,41 +84,7 @@ const DashboardSidebar = memo(function DashboardSidebar({
   const { playClick } = useKlipSounds();
   const { performanceMode } = usePerformanceMode();
   const [needsSetup, setNeedsSetup] = useState(false);
-  const [liveNotifications, setLiveNotifications] = useState({
-    urgentAppointments: Boolean(notifications?.urgentAppointments),
-    lowStock: Boolean(notifications?.lowStock),
-    pendingTransfers: 0,
-  });
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadNotifications = async () => {
-      try {
-        const res = await fetch("/api/dashboard/notifications", {
-          method: "GET",
-          credentials: "include",
-          cache: "no-store",
-        });
-        if (!res.ok) return;
-        const data = (await res.json()) as { urgentAppointments?: boolean; lowStock?: boolean; pendingTransfers?: number };
-        if (!isMounted) return;
-        setLiveNotifications({
-          urgentAppointments: Boolean(data.urgentAppointments),
-          lowStock: Boolean(data.lowStock),
-          pendingTransfers: data.pendingTransfers ?? 0,
-        });
-      } catch {
-      }
-    };
-
-    loadNotifications();
-    const id = window.setInterval(loadNotifications, 45_000);
-    return () => {
-      isMounted = false;
-      window.clearInterval(id);
-    };
-  }, []);
+  const liveNotifications = useNotifications();
 
   useEffect(() => {
     const slug = shop?.slug;

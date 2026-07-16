@@ -19,7 +19,7 @@ async function fetchUser() {
       } = await supabase.auth.getUser();
       return user;
     },
-    { retries: 4, delayMs: 500 }
+    { retries: 2, delayMs: 300 }
   );
 }
 

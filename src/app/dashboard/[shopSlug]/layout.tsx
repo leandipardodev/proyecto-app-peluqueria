@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { getCachedUser, getCachedShopIdBySlug, checkShopExpired } from "@/lib/dashboard/auth/server";
 import ActiveShopCookieSetter from "./active-shop-cookie-setter";
 import ShopBlockedOverlay from "./shop-blocked-overlay";
@@ -26,7 +27,9 @@ export default async function ShopSlugLayout({
 
   return (
     <>
-      <AuthInit />
+      <Suspense fallback={null}>
+        <AuthInit />
+      </Suspense>
       <ActiveShopCookieSetter shopId={shopId} />
       <NewAppointmentToast shopId={shopId} />
       {children}

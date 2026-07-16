@@ -39,14 +39,30 @@ export function useFeatures(): IndustryFeatures {
   return features;
 }
 
+const FEATURE_CACHE_TTL = 5 * 60 * 1000;
+const featuresCache = new Map<string, { data: IndustryFeatures; ts: number }>();
+
 export function useShopFeatures(): IndustryFeatures {
   const { shop } = useAuth();
   const shopId = shop?.id;
   const industry = resolveIndustry(shop?.industry);
-  const [features, setFeatures] = useState<IndustryFeatures>(() => INDUSTRY_CONFIG[industry].features);
+  const [features, setFeatures] = useState<IndustryFeatures>(() => {
+    if (shopId) {
+      const cached = featuresCache.get(shopId);
+      if (cached && Date.now() - cached.ts < FEATURE_CACHE_TTL) return cached.data;
+    }
+    return INDUSTRY_CONFIG[industry].features;
+  });
 
   useEffect(() => {
     if (!shopId) return;
+
+    const cached = featuresCache.get(shopId);
+    if (cached && Date.now() - cached.ts < FEATURE_CACHE_TTL) {
+      setFeatures(cached.data);
+      return;
+    }
+
     let cancelled = false;
     const controller = new AbortController();
 
@@ -58,7 +74,10 @@ export function useShopFeatures(): IndustryFeatures {
         });
         if (!res.ok) return;
         const data = (await res.json()) as { features: IndustryFeatures };
-        if (!cancelled) setFeatures(data.features);
+        if (!cancelled) {
+          featuresCache.set(shopId, { data: data.features, ts: Date.now() });
+          setFeatures(data.features);
+        }
       } catch {
         // fallback to initial value
       }

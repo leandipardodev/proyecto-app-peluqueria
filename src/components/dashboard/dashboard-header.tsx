@@ -23,6 +23,7 @@ import { getDashboardBasePath, withDashboardBase } from "@/lib/dashboard/shared/
 import { StatePanel } from "@/components/ui/state-panel";
 import { DASHBOARD_LEGACY_SEGMENTS_SET } from "@/lib/dashboard/shared/legacy-segments";
 import NotificationsPanel from "./notifications-panel";
+import { useNotifications } from "@/lib/dashboard/use-notifications";
 import { NAV_COMMANDS, ACTION_COMMANDS, type CommandItem, type CommandNav, type CommandAction, type CommandData } from "@/lib/dashboard/search/search-commands";
 import { getIndustrySearchKeywords, getInitials, normalizeSearchText, scoreQueryAgainstTerms, formatDataLabel, formatDataHint } from "@/lib/dashboard/search/search-utils";
 
@@ -85,7 +86,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
   const [logoutPending, startLogoutTransition] = useTransition();
   const [soundMuted, setSoundMuted] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [notifCount, setNotifCount] = useState(0);
+  const { unreadCount: notifCount } = useNotifications();
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
@@ -240,26 +241,6 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
-
-  useEffect(() => {
-    if (notifOpen) return;
-    let mounted = true;
-    const fetchCount = async () => {
-      try {
-        const res = await fetch("/api/dashboard/notifications", { cache: "no-store" });
-        if (!res.ok || !mounted) return;
-        const data = await res.json();
-        const read: string[] = [];
-        try { const raw = localStorage.getItem("klip-notifications-read"); if (raw) read.push(...JSON.parse(raw)); } catch {}
-        const unreadItems = (data.items || []).filter((i: { id: string }) => !read.includes(i.id)).length;
-        const pendingCount = data.pendingComplete?.length ?? 0;
-        setNotifCount(unreadItems + pendingCount);
-      } catch { }
-    };
-    fetchCount();
-    const id = window.setInterval(fetchCount, 45_000);
-    return () => { mounted = false; window.clearInterval(id); };
-  }, [notifOpen]);
 
   useEffect(() => {
     const q = query.trim();
