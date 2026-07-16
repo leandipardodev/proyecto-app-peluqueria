@@ -14,6 +14,7 @@ import {
   Store,
   Gift,
   ArrowLeftRight,
+  Clock,
 } from "lucide-react";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { haptic } from "@/lib/haptic";
@@ -34,6 +35,10 @@ const navItems = [
   { label: "Transferencias", href: "/dashboard/bank-transfers", icon: ArrowLeftRight },
   { label: "__CUSTOMERS_LABEL__", href: "/dashboard/customers", icon: UserRound },
   { label: "Mi Negocio", href: "/dashboard/business", icon: Store },
+];
+
+const staffOnlyItems = [
+  { label: "Mi Horario", href: "/dashboard/my-schedule", icon: Clock },
 ];
 
 const containerVariants = {
@@ -68,9 +73,10 @@ const DashboardSidebar = memo(function DashboardSidebar({
   const { shop, user } = useAuth();
   const industry = resolveIndustry(shop?.industry);
   const customerPlural = INDUSTRY_CONFIG[industry].labels.customerPlural;
-  const resolvedNavItems = navItems
-    .filter((item) => item.href !== "/dashboard/bank-transfers" || shop?.bankTransferEnabled)
-    .map((item) => (item.label === "__CUSTOMERS_LABEL__" ? { ...item, label: customerPlural } : item));
+  const resolvedNavItems = [
+    ...navItems.filter((item) => item.href !== "/dashboard/bank-transfers" || shop?.bankTransferEnabled),
+    ...(user?.role === "staff" ? staffOnlyItems : []),
+  ].map((item) => (item.label === "__CUSTOMERS_LABEL__" ? { ...item, label: customerPlural } : item));
   const pathname = usePathname();
   const router = useRouter();
   const dashboardBasePath = getDashboardBasePath(pathname);

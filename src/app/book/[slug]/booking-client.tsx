@@ -2453,6 +2453,20 @@ draggable={false}
         )}
       </AnimatePresence>
 
+      {/* === BOTON PROVISIONAL DE CONTACTO — QUITAR ANTES DE PRODUCCION FINAL === */}
+      {!done && shop.phone && (
+        <a
+          href={`https://wa.me/${shop.phone.replace(/\D/g, "")}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="fixed bottom-28 right-4 z-50 flex items-center justify-center w-14 h-14 rounded-full bg-[#25D366] text-white shadow-lg shadow-[#25D366]/30 hover:scale-110 active:scale-95 transition-transform"
+          title="Contactar por WhatsApp"
+        >
+          <WhatsappIcon className="w-7 h-7" />
+        </a>
+      )}
+      {/* === FIN BOTON PROVISIONAL === */}
+
       <style jsx global>{`
         @keyframes shimmer {
           100% { transform: translateX(220%); }

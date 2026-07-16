@@ -969,3 +969,240 @@ export async function updateStaffProfile(
     return { success: false, error: e instanceof Error ? e.message : "Error al actualizar perfil" };
   }
 }
+
+// --- Staff self-service: own schedule & date overrides ---
+
+async function requireStaffUserId(): Promise<{ ok: true; userId: string; shopId: string } | { ok: false; error: string }> {
+  const session = await (await import("@/lib/dashboard/auth/server")).getAuthSession();
+  if (!session) return { ok: false, error: "SESION_EXPIRADA" };
+  const shopIdResult = await requireShopId();
+  if (!shopIdResult.success) return { ok: false, error: shopIdResult.error };
+  const shopId = shopIdResult.data;
+  if (!shopId) return { ok: false, error: "LOCAL_INVALIDO" };
+  return { ok: true, userId: session.user.id, shopId };
+}
+
+export async function getMySchedule(): Promise<ActionResult<{
+  day_of_week: number;
+  is_active: boolean;
+  start_time: string;
+  end_time: string;
+  break_start: string | null;
+  break_end: string | null;
+}[]>> {
+  try {
+    const ctx = await requireStaffUserId();
+    if (!ctx.ok) return { success: false as const, error: ctx.error };
+    const { userId } = ctx;
+
+    const admin = await createAdminClient();
+    const { data } = await admin
+      .from("staff_schedules")
+      .select("day_of_week, is_active, start_time, end_time, break_start, break_end")
+      .eq("staff_id", userId)
+      .order("day_of_week", { ascending: true });
+
+    return {
+      success: true,
+      data: (data || []).map((r) => ({
+        ...r,
+        start_time: r.start_time?.slice(0, 5) ?? "09:00",
+        end_time: r.end_time?.slice(0, 5) ?? "20:00",
+        break_start: r.break_start?.slice(0, 5) ?? null,
+        break_end: r.break_end?.slice(0, 5) ?? null,
+      })),
+    };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al obtener horarios" };
+  }
+}
+
+export async function updateMySchedule(
+  schedule: { day_of_week: number; is_active: boolean; start_time: string; end_time: string; break_start?: string | null; break_end?: string | null }[],
+): Promise<ActionResult> {
+  try {
+    const ctx = await requireStaffUserId();
+    if (!ctx.ok) return { success: false as const, error: ctx.error };
+    const { userId, shopId } = ctx;
+
+    const admin = await createAdminClient();
+
+    const { data: membership } = await admin
+      .from("shop_memberships")
+      .select("user_id")
+      .eq("user_id", userId)
+      .eq("shop_id", shopId)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (!membership) return { success: false, error: "No perteneces a este local" };
+
+    const rows = schedule.map((s) => ({
+      staff_id: userId,
+      day_of_week: s.day_of_week,
+      is_active: s.is_active,
+      start_time: s.start_time,
+      end_time: s.end_time,
+      break_start: s.break_start || null,
+      break_end: s.break_end || null,
+      updated_at: new Date().toISOString(),
+    }));
+
+    for (const row of rows) {
+      const { error } = await admin.from("staff_schedules").upsert(row, {
+        onConflict: "staff_id,day_of_week",
+        ignoreDuplicates: false,
+      });
+      if (error) return { success: false, error: error.message };
+    }
+
+    await revalidateDashboardSegments(shopId, ["/my-schedule", "/calendar"]);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al actualizar horarios" };
+  }
+}
+
+export type MyDateOverride = {
+  id: string;
+  date: string;
+  is_closed: boolean;
+  start_time: string | null;
+  end_time: string | null;
+  break_start: string | null;
+  break_end: string | null;
+  reason: string | null;
+};
+
+export async function fetchMyDateOverrides(): Promise<ActionResult<MyDateOverride[]>> {
+  try {
+    const ctx = await requireStaffUserId();
+    if (!ctx.ok) return { success: false as const, error: ctx.error };
+    const { userId, shopId } = ctx;
+
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setMonth(end.getMonth() + 3);
+    const fmt = (d: Date) => d.toISOString().split("T")[0];
+
+    const admin = await createAdminClient();
+    const { data, error } = await admin
+      .from("shop_date_overrides")
+      .select("id, date, is_closed, start_time, end_time, break_start, break_end, reason")
+      .eq("shop_id", shopId)
+      .eq("staff_id", userId)
+      .gte("date", fmt(start))
+      .lte("date", fmt(end))
+      .order("date", { ascending: true });
+
+    if (error) return { success: false, error: error.message };
+
+    return {
+      success: true,
+      data: (data || []).map((o) => ({
+        id: o.id,
+        date: o.date,
+        is_closed: o.is_closed,
+        start_time: o.start_time?.slice(0, 5) ?? null,
+        end_time: o.end_time?.slice(0, 5) ?? null,
+        break_start: o.break_start?.slice(0, 5) ?? null,
+        break_end: o.break_end?.slice(0, 5) ?? null,
+        reason: o.reason,
+      })),
+    };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al cargar excepciones" };
+  }
+}
+
+export async function upsertMyDateOverride(
+  date: string,
+  isClosed: boolean,
+  startTime?: string | null,
+  endTime?: string | null,
+  reason?: string | null,
+  breakStart?: string | null,
+  breakEnd?: string | null,
+): Promise<ActionResult> {
+  try {
+    const ctx = await requireStaffUserId();
+    if (!ctx.ok) return { success: false as const, error: ctx.error };
+    const { userId, shopId } = ctx;
+
+    if (!isClosed && startTime && endTime) {
+      const toMins = (v: string) => { const [h, m] = v.split(":").map(Number); return h * 60 + m; };
+      const s = toMins(startTime);
+      const e = toMins(endTime);
+      if (s >= e) return { success: false, error: "La hora de inicio debe ser anterior a la de fin" };
+      if (breakStart && breakEnd) {
+        const bs = toMins(breakStart);
+        const be = toMins(breakEnd);
+        if (bs >= be) return { success: false, error: "El inicio del corte debe ser anterior al fin" };
+        if (bs <= s || be >= e) return { success: false, error: "El corte debe estar dentro del horario de atencion" };
+      }
+    }
+
+    const admin = await createAdminClient();
+
+    // Delete existing override for this (shop, staff, date)
+    await admin
+      .from("shop_date_overrides")
+      .delete()
+      .eq("shop_id", shopId)
+      .eq("staff_id", userId)
+      .eq("date", date);
+
+    const { error } = await admin.from("shop_date_overrides").insert({
+      shop_id: shopId,
+      staff_id: userId,
+      date,
+      is_closed: isClosed,
+      start_time: startTime || null,
+      end_time: endTime || null,
+      break_start: breakStart || null,
+      break_end: breakEnd || null,
+      reason: reason || null,
+    });
+
+    if (error) return { success: false, error: error.message };
+    await revalidateDashboardSegments(shopId, ["/my-schedule", "/book"]);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al guardar excepcion" };
+  }
+}
+
+export async function deleteMyDateOverride(overrideId: string): Promise<ActionResult> {
+  try {
+    const ctx = await requireStaffUserId();
+    if (!ctx.ok) return { success: false as const, error: ctx.error };
+    const { userId, shopId } = ctx;
+
+    const admin = await createAdminClient();
+
+    // Verify the override belongs to this staff member
+    const { data: existing } = await admin
+      .from("shop_date_overrides")
+      .select("id, staff_id")
+      .eq("id", overrideId)
+      .eq("shop_id", shopId)
+      .maybeSingle();
+
+    if (!existing || existing.staff_id !== userId) {
+      return { success: false, error: "No tenes permiso para eliminar esta excepcion" };
+    }
+
+    const { error } = await admin
+      .from("shop_date_overrides")
+      .delete()
+      .eq("id", overrideId)
+      .eq("shop_id", shopId);
+
+    if (error) return { success: false, error: error.message };
+    await revalidateDashboardSegments(shopId, ["/my-schedule", "/book"]);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al eliminar excepcion" };
+  }
+}
