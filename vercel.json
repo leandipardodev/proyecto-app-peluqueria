@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/cron/bank-transfer-cleanup",
-      "schedule": "0 */2 * * *"
+      "schedule": "0 12 * * *"
     }
   ]
 }
