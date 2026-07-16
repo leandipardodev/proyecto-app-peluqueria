@@ -123,6 +123,7 @@ export default function BatchAppointmentModal({
   const [entry, setEntry] = useState<BatchEntry>(() => createEmptyEntry());
   const [entryError, setEntryError] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [saving, setSaving] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const customerInputRef = useRef<HTMLInputElement>(null);
   const pendingCountRef = useRef(0);
@@ -241,6 +242,8 @@ export default function BatchAppointmentModal({
 
     setEntry(createEmptyEntry(snapshot.date, nextTime, prevStaff));
     pendingCountRef.current++;
+    setSaving(true);
+    setTimeout(() => setSaving(false), 800);
 
     requestAnimationFrame(() => {
       customerInputRef.current?.focus();
@@ -386,9 +389,17 @@ export default function BatchAppointmentModal({
               <div className="px-4 py-3 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-end shrink-0">
                 <button
                   type="submit"
-                  className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white py-2 px-6 rounded-xl text-sm font-semibold shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none transition-all cursor-pointer select-none"
+                  disabled={saving}
+                  className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white py-2 px-6 rounded-xl text-sm font-semibold shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 disabled:opacity-70 disabled:cursor-wait disabled:shadow-none transition-all duration-300 cursor-pointer select-none"
                 >
-                  Guardar
+                  {saving ? (
+                    <>
+                      <Loader className="w-4 h-4 animate-spin" />
+                      Guardando...
+                    </>
+                  ) : (
+                    "Guardar"
+                  )}
                 </button>
               </div>
             </FormWithKeyboardNav>
