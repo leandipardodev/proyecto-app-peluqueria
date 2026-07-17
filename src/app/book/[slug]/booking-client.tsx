@@ -2265,10 +2265,12 @@ draggable={false}
                 )}
                 {shop.phone && (
                   <a
-                    href={`tel:${shop.phone.replace(/[^\d+]/g, "")}`}
+                    href={`https://wa.me/${shop.phone.replace(/\D/g, "")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className={`inline-flex items-center gap-1 transition-colors ${templateStyles.meta} ${templateStyles.metaHover}`}
                   >
-                    <Phone className="w-3 h-3" /> {shop.phone}
+                    <WhatsappIcon className="w-3 h-3" /> {shop.phone}
                   </a>
                 )}
                 {shop.instagramUrl && (
@@ -2453,19 +2455,7 @@ draggable={false}
         )}
       </AnimatePresence>
 
-      {/* === BOTON PROVISIONAL DE CONTACTO — QUITAR ANTES DE PRODUCCION FINAL === */}
-      {!done && shop.phone && (
-        <a
-          href={`https://wa.me/${shop.phone.replace(/\D/g, "")}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="fixed bottom-28 right-4 z-50 flex items-center justify-center w-14 h-14 rounded-full bg-[#25D366] text-white shadow-lg shadow-[#25D366]/30 hover:scale-110 active:scale-95 transition-transform"
-          title="Contactar por WhatsApp"
-        >
-          <WhatsappIcon className="w-7 h-7" />
-        </a>
-      )}
-      {/* === FIN BOTON PROVISIONAL === */}
+
 
       <style jsx global>{`
         @keyframes shimmer {

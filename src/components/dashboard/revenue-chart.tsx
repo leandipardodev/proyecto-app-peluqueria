@@ -15,6 +15,7 @@ type RevenueChartProps = {
     week: { income: number; expenses: number };
     month: { income: number; expenses: number };
   };
+  isStaff?: boolean;
 };
 
 function formatMoney(value: number): string {
@@ -47,7 +48,7 @@ function formatWeekLabel(value: string): string {
   return `${d.getUTCDate()}/${d.getUTCMonth() + 1}`;
 }
 
-export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, weeklyBreakdown, flowByPeriod }: RevenueChartProps) {
+export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, weeklyBreakdown, flowByPeriod, isStaff }: RevenueChartProps) {
   const [hoveredBar, setHoveredBar] = useState<string | null>(null);
   const [period, setPeriod] = useState<"today" | "week" | "month">("today");
   const chartHostRef = useRef<HTMLDivElement | null>(null);
@@ -198,17 +199,19 @@ export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, we
             <g key={`${period}-${i}`}>
               <motion.rect
                 x={incomeX}
+                y={incomeY}
                 width={barW}
+                height={incomeH}
                 rx={2}
                 fill={isIncomeHovered ? "#2563eb" : "#3b82f6"}
                 fillOpacity={hasHover ? (isIncomeHovered ? 1 : 0.25) : 0.85}
                 style={{ cursor: "pointer" }}
-                initial={{ height: 0, y: chartTop + chartH }}
-                animate={{ height: incomeH, y: incomeY }}
+                initial={{ clipPath: "inset(100% 0 0 0)" }}
+                animate={{ clipPath: "inset(0% 0 0 0)" }}
                 transition={{ duration: 0.5, ease: "easeOut", delay: i * 0.03 }}
                 {...ev(iKey)}
               />
-              {incomeH > 0 && (
+              {incomeH > 0 && !isStaff && (
                 <motion.text
                   x={onlyIncome ? cx : cx - barW / 2 - gap / 2}
                   textAnchor="middle"
@@ -225,17 +228,19 @@ export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, we
               )}
               <motion.rect
                 x={expensesX}
+                y={expensesY}
                 width={barW}
+                height={expensesH}
                 rx={2}
                 fill={isExpensesHovered ? "#475569" : "#64748b"}
                 fillOpacity={hasHover ? (isExpensesHovered ? 1 : 0.25) : 0.85}
                 style={{ cursor: "pointer" }}
-                initial={{ height: 0, y: chartTop + chartH }}
-                animate={{ height: expensesH, y: expensesY }}
+                initial={{ clipPath: "inset(100% 0 0 0)" }}
+                animate={{ clipPath: "inset(0% 0 0 0)" }}
                 transition={{ duration: 0.5, ease: "easeOut", delay: i * 0.03 }}
                 {...ev(eKey)}
               />
-              {expensesH > 0 && (
+              {expensesH > 0 && !isStaff && (
                 <motion.text
                   x={onlyExpenses ? cx : cx + barW / 2 + gap / 2}
                   textAnchor="middle"
@@ -273,7 +278,7 @@ export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, we
 
   if (!hasData && period === "month" && data.length === 0) {
     return (
-      <div className="flex flex-col h-full rounded-xl rounded-tr-none border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="flex flex-col h-full rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
         <StatePanel title="Sin datos de ingresos" description="Todavía no hay datos de ingresos para mostrar." />
       </div>
     );
@@ -306,6 +311,7 @@ export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, we
         </div>
       </div>
 
+      {!isStaff && (
       <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-3 shrink-0">
         <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-800">
           <p className="text-[10px] font-semibold tracking-widest text-zinc-500 dark:text-zinc-400">INGRESOS</p>
@@ -327,6 +333,7 @@ export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, we
           <p className="text-[11px] text-zinc-500">{netResult >= 0 ? "Superavit" : "Deficit"}</p>
         </div>
       </div>
+      )}
 
       <div
         ref={chartHostRef}
@@ -385,7 +392,7 @@ export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, we
         }
       `}</style>
 
-      {tooltip && typeof window !== "undefined" && createPortal(
+      {!isStaff && tooltip && typeof window !== "undefined" && createPortal(
         <div
           ref={tooltipRef}
           style={{ position: "fixed", left: tooltip.x + 12, top: tooltip.y - 10, zIndex: 9999, pointerEvents: "none" }}
