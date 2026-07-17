@@ -46,27 +46,32 @@ async function middlewareHandler(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  const [
-    { data: userProfile, error: profileError },
-    { data: memberships },
-  ] = await Promise.all([
-    supabase
-      .from("user_profiles")
-      .select("role, platform_role")
-      .eq("user_id", user.id)
-      .maybeSingle(),
-    supabase
-      .from("shop_memberships")
-      .select("shop_id, role, is_active")
-      .eq("user_id", user.id)
-      .eq("is_active", true)
-      .in("role", ["owner", "admin", "staff"]),
-  ]);
+  // is_banned is a new column from migration 078 — cast needed until types are regenerated
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const profileQuery = await (supabase as any)
+    .from("user_profiles")
+    .select("role, platform_role, is_banned")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const { data: userProfile, error: profileError } = profileQuery;
+  const { data: memberships } = await supabase
+    .from("shop_memberships")
+    .select("shop_id, role, is_active")
+    .eq("user_id", user.id)
+    .eq("is_active", true)
+    .in("role", ["owner", "admin", "staff"]);
 
   if (profileError || !userProfile) {
     const billingUrl = request.nextUrl.clone();
     billingUrl.pathname = BILLING_REQUIRED_PATH;
     return NextResponse.redirect(billingUrl);
+  }
+
+  if ((userProfile as { is_banned?: boolean }).is_banned) {
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = LOGIN_PATH;
+    loginUrl.searchParams.set("error", "banned");
+    return NextResponse.redirect(loginUrl);
   }
 
   if (pathname.startsWith("/admin")) {
