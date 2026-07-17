@@ -1894,9 +1894,12 @@ export type Database = {
       }
       user_profiles: {
         Row: {
+          banned_at: string | null
+          banned_reason: string | null
           created_at: string | null
           email: string | null
           is_active: boolean | null
+          is_banned: boolean
           name: string | null
           nombre: string | null
           platform_role: string
@@ -1906,9 +1909,12 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          banned_at?: string | null
+          banned_reason?: string | null
           created_at?: string | null
           email?: string | null
           is_active?: boolean | null
+          is_banned?: boolean
           name?: string | null
           nombre?: string | null
           platform_role?: string
@@ -1918,9 +1924,12 @@ export type Database = {
           user_id: string
         }
         Update: {
+          banned_at?: string | null
+          banned_reason?: string | null
           created_at?: string | null
           email?: string | null
           is_active?: boolean | null
+          is_banned?: boolean
           name?: string | null
           nombre?: string | null
           platform_role?: string
@@ -2010,6 +2019,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_cleanup_user_data: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
+      admin_delete_shop: { Args: { p_shop_id: string }; Returns: undefined }
       admin_mark_partner_commissions_paid: {
         Args: { p_actor_user_id: string; p_partner_id: string }
         Returns: {

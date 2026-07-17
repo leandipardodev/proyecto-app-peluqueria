@@ -46,20 +46,22 @@ async function middlewareHandler(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // is_banned is a new column from migration 078 — cast needed until types are regenerated
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const profileQuery = await (supabase as any)
-    .from("user_profiles")
-    .select("role, platform_role, is_banned")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  const { data: userProfile, error: profileError } = profileQuery;
-  const { data: memberships } = await supabase
-    .from("shop_memberships")
-    .select("shop_id, role, is_active")
-    .eq("user_id", user.id)
-    .eq("is_active", true)
-    .in("role", ["owner", "admin", "staff"]);
+  const [
+    { data: userProfile, error: profileError },
+    { data: memberships },
+  ] = await Promise.all([
+    supabase
+      .from("user_profiles")
+      .select("role, platform_role, is_banned")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("shop_memberships")
+      .select("shop_id, role, is_active")
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .in("role", ["owner", "admin", "staff"]),
+  ]);
 
   if (profileError || !userProfile) {
     const billingUrl = request.nextUrl.clone();
@@ -67,7 +69,7 @@ async function middlewareHandler(request: NextRequest) {
     return NextResponse.redirect(billingUrl);
   }
 
-  if ((userProfile as { is_banned?: boolean }).is_banned) {
+  if (userProfile.is_banned) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = LOGIN_PATH;
     loginUrl.searchParams.set("error", "banned");
@@ -75,8 +77,8 @@ async function middlewareHandler(request: NextRequest) {
   }
 
   if (pathname.startsWith("/admin")) {
-    const platformRole = (userProfile as { platform_role?: string | null }).platform_role;
-    const legacyRole = (userProfile as { role?: string | null }).role;
+    const platformRole = userProfile.platform_role;
+    const legacyRole = userProfile.role;
     const isSuperAdmin = platformRole === "super_admin" || legacyRole === "superadmin";
     if (!isSuperAdmin) {
       const dashboardUrl = request.nextUrl.clone();

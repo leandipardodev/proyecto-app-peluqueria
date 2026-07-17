@@ -73,10 +73,7 @@ export async function fetchUsersAdmin(input: {
   const q = (input.q || "").trim().toLowerCase();
   const filter = input.filter || "all";
 
-  // Using as any because is_banned/banned_at/banned_reason columns are new (migration 078)
-  // and database.types.ts hasn't been regenerated yet. Run `npm run supabase:gen-types` after migration.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let query = (admin as any)
+  let query = admin
     .from("user_profiles")
     .select("user_id, email, name, nombre, role, platform_role, is_active, is_banned, banned_at, shop_id, created_at", { count: "exact" });
 
@@ -112,7 +109,7 @@ export async function fetchUsersAdmin(input: {
   let shopMap = new Map<string, { nombre: string; slug: string }>();
   if (shopIds.length > 0) {
     const { data: shops } = await admin.from("shops").select("id, nombre, slug").in("id", shopIds);
-    shopMap = new Map((shops || []).map((s: any) => [s.id, { nombre: s.nombre, slug: s.slug }]));
+    shopMap = new Map((shops || []).map((s) => [s.id, { nombre: s.nombre, slug: s.slug }]));
   }
 
   const users: UserAdminItem[] = rows.map((row) => ({
@@ -150,9 +147,7 @@ export async function banUser(
 
     const admin = await createServiceRoleClient();
 
-    // Using as any for is_banned/banned_at/banned_reason (new columns from migration 078)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (admin as any)
+    await admin
       .from("user_profiles")
       .update({
         is_banned: banned,
@@ -193,9 +188,7 @@ export async function deleteUser(
 
     const admin = await createServiceRoleClient();
 
-    // Using as any for admin_cleanup_user_data RPC (new from migration 078)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: rpcError } = await (admin as any).rpc("admin_cleanup_user_data", {
+    const { error: rpcError } = await admin.rpc("admin_cleanup_user_data", {
       p_user_id: userId,
     });
     if (rpcError) return { success: false, error: rpcError.message };
@@ -280,8 +273,8 @@ export async function fetchShopsAdmin(input: {
           .maybeSingle();
         if (profile) {
           ownerMap.set(m.shop_id, {
-            email: (profile as any).email,
-            name: (profile as any).name,
+            email: (profile as { email?: string | null }).email ?? null,
+            name: (profile as { name?: string | null }).name ?? null,
           });
         }
       }
@@ -317,9 +310,7 @@ export async function deleteShop(
     await requireSuperAdmin();
     const admin = await createServiceRoleClient();
 
-    // Using as any for admin_delete_shop RPC (new from migration 078)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: rpcError } = await (admin as any).rpc("admin_delete_shop", {
+    const { error: rpcError } = await admin.rpc("admin_delete_shop", {
       p_shop_id: shopId,
     });
     if (rpcError) return { success: false, error: rpcError.message };
@@ -349,7 +340,7 @@ export async function toggleShopActive(
 
     if (!shop) return { success: false, error: "Tienda no encontrada" };
 
-    const newActive = !(shop as any).active;
+    const newActive = !shop.active;
 
     await admin
       .from("shops")
