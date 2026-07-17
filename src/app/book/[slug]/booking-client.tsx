@@ -134,8 +134,8 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     }
   }, [staffMembers]);
 
-  useEffect(() => {
-    const el = categoryScrollRef.current;
+  const categoryRef = useCallback((el: HTMLDivElement | null) => {
+    categoryScrollRef.current = el;
     if (!el) return;
     const handler = (e: WheelEvent) => {
       if (e.deltaY === 0) return;
@@ -1016,7 +1016,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                         <div className="shrink-0">
                           <motion.div
                             variants={stepItemReveal}
-                            ref={categoryScrollRef}
+                            ref={categoryRef}
                             className="-mx-1 overflow-x-auto pb-1 delicate-scroll"
                           >
                             <div className="flex items-center gap-2 px-1">
