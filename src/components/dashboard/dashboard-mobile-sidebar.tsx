@@ -9,10 +9,9 @@ type Props = {
   open: boolean;
   onClose: () => void;
   userName: string;
-  onLogout: () => void;
 };
 
-export default function DashboardMobileSidebar({ open, onClose, userName, onLogout }: Props) {
+export default function DashboardMobileSidebar({ open, onClose, userName }: Props) {
   useEffect(() => {
     if (open) {
       document.body.style.overflow = "hidden";
@@ -80,7 +79,6 @@ export default function DashboardMobileSidebar({ open, onClose, userName, onLogo
               <DashboardSidebar
                 userName={userName}
                 showBrand={false}
-                onLogout={onLogout}
               />
             </div>
           </motion.div>

@@ -18,17 +18,19 @@
 
 .dark {
   color-scheme: dark;
-  background-color: #0a0a0c;
+  background-color: #111111;
   transition: background-color 0.2s ease, color 0.2s ease;
-  --ui-bg: #0a0a0c;
-  --ui-surface: #131316;
-  --ui-surface-muted: #101013;
-  --ui-border: #252528;
-  --ui-text: #e5e7eb;
+  --ui-bg: #111111;
+  --ui-surface: #161618;
+  --ui-surface-muted: #131315;
+  --ui-border: #28282a;
+  --ui-text: #e5ebf0;
   --ui-text-muted: #94a3b8;
   --ui-primary: #4ea2ff;
   --ui-success: #34d399;
   --ui-danger: #f87171;
+  --ui-bg-accent: color-mix(in srgb, #ffffff 1.5%, transparent);
+  --ui-bg-accent-2: color-mix(in srgb, #ffffff 0.8%, transparent);
 }
 
 @layer base {
@@ -45,8 +47,8 @@
 body {
   overflow-x: hidden;
   min-height: 100dvh;
-  background: radial-gradient(circle at 14% -8%, color-mix(in srgb, var(--ui-primary) 10%, transparent) 0%, transparent 36%),
-    radial-gradient(circle at 94% 110%, color-mix(in srgb, var(--ui-success) 7%, transparent) 0%, transparent 32%),
+  background: radial-gradient(circle at 14% -8%, var(--ui-bg-accent, color-mix(in srgb, var(--ui-primary) 10%, transparent)) 0%, transparent 36%),
+    radial-gradient(circle at 94% 110%, var(--ui-bg-accent-2, color-mix(in srgb, var(--ui-success) 7%, transparent)) 0%, transparent 32%),
     var(--ui-bg);
   color: var(--ui-text);
 }

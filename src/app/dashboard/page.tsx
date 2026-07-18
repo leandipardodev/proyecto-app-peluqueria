@@ -6,7 +6,7 @@ import HoverScale from "@/components/ui/hover-scale";
 import { fetchWhatsappTemplate } from "@/lib/dashboard/whatsapp/whatsapp-actions";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp/whatsapp-constants";
 import { buildWhatsAppContactUrl } from "@/lib/dashboard/whatsapp/whatsapp-utils";
-import { createServiceRoleClient, getAuthSession, getShopId } from "@/lib/dashboard/auth/server";
+import { createServiceRoleClient, getAuthSession, getShopId, getCurrentUserRole } from "@/lib/dashboard/auth/server";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { resolveIndustry } from "@/lib/industry/resolve";
 import { getShopFeatures } from "@/lib/industry/features";
@@ -95,6 +95,9 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
   if (!shopIdOverride) {
     return <div className="bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 text-sm px-5 py-3 rounded-full border border-red-200/30">Shop ID no disponible</div>;
   }
+
+  const roleResult = await getCurrentUserRole(shopIdOverride);
+  const isStaff = roleResult.success && roleResult.data?.role === "staff";
 
   if (!summaryResult.success || !summaryResult.data) {
     return (
@@ -193,7 +196,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
   }
 
   const todayFlow = metrics?.flowByPeriod.today;
-  if (todayFlow) {
+  if (todayFlow && !isStaff) {
     aiMessages.push({
       id: "cashflow",
       title: "Caja en tiempo real",
@@ -390,6 +393,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
           healthScore={metrics?.healthScore ?? null}
           healthBreakdown={metrics?.healthBreakdown ?? null}
           totalClients={metrics?.stats.totalClients ?? 0}
+          isStaff={isStaff}
         />
         <div className="mt-4">
           <ShareLinkCard slug={shopSlugOverride || summary.shopSlug} />

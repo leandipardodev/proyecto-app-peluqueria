@@ -43,12 +43,14 @@ export default function MonthlyGrowthCard({
   healthScore,
   healthBreakdown,
   totalClients,
+  isStaff,
 }: {
   clientsData: ClientPoint[];
   revenueData: RevenuePoint[];
   healthScore: number | null;
   healthBreakdown: HealthBreakdown | null;
   totalClients: number;
+  isStaff?: boolean;
 }) {
   const latestClients = clientsData[clientsData.length - 1]?.clients ?? 0;
   const latestRevenue = revenueData[revenueData.length - 1]?.income ?? 0;
@@ -119,7 +121,7 @@ export default function MonthlyGrowthCard({
             </div>
           )}
 
-          <div className="grid grid-cols-3 gap-3 pt-1">
+          <div className={`grid ${isStaff ? "grid-cols-2" : "grid-cols-3"} gap-3 pt-1`}>
             <div className="rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-800">
               <p className="text-[10px] font-semibold tracking-wider text-zinc-500 dark:text-zinc-400 uppercase">Base clientes</p>
               <p className="text-sm font-bold text-zinc-800 dark:text-zinc-100">{totalClients}</p>
@@ -129,6 +131,7 @@ export default function MonthlyGrowthCard({
                 </p>
               )}
             </div>
+            {!isStaff && (
             <div className="rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-800">
               <p className="text-[10px] font-semibold tracking-wider text-zinc-500 dark:text-zinc-400 uppercase">Ingresos</p>
               <p className="text-sm font-bold text-zinc-800 dark:text-zinc-100">{formatMoney(latestRevenue).replace("ARS", "").trim()}</p>
@@ -138,6 +141,7 @@ export default function MonthlyGrowthCard({
                 </p>
               )}
             </div>
+            )}
             <div className="rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-800">
               <p className="text-[10px] font-semibold tracking-wider text-zinc-500 dark:text-zinc-400 uppercase">Score</p>
               <p className={`text-sm font-bold ${healthColor(healthScore)}`}>{healthScore}/100</p>

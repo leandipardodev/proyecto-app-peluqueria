@@ -82,6 +82,11 @@ export async function GET() {
     const { start: todayStart, end: todayEnd } = getArgentinaDayBounds(todayDateStr);
     const todayStartIso = todayStart.toISOString();
     const todayEndIso = todayEnd.toISOString();
+    const yesterdayAr = new Date(nowAr.getTime() - 24 * 60 * 60 * 1000);
+    const { start: yesterdayStart } = getArgentinaDayBounds(
+      `${yesterdayAr.getFullYear()}-${String(yesterdayAr.getMonth() + 1).padStart(2, "0")}-${String(yesterdayAr.getDate()).padStart(2, "0")}`
+    );
+    const yesterdayStartIso = yesterdayStart.toISOString();
     const oneHourFromNow = new Date(nowAr.getTime() + 60 * 60 * 1000).toISOString();
     const weekAgoIso = new Date(nowAr.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const [urgentRes, stockCountRes, todayApptsRes, cancelledRes, loyaltyRes, customersRes, vouchersRes, staffRes, shopRes, pendingCompleteRes, businessHoursRes, bankTransfersRes] = await Promise.all([
@@ -90,11 +95,11 @@ export async function GET() {
       admin.from("appointments").select("id, start_time, customers(nombre)").eq("shop_id", shopId).in("status", ["scheduled", "confirmed", "pending_payment"]).gte("start_time", todayStartIso).lte("start_time", todayEndIso).order("start_time", { ascending: true }).limit(10),
       admin.from("appointments").select("id, start_time, customers(nombre)").eq("shop_id", shopId).eq("status", "cancelled").gte("start_time", todayStartIso).lte("start_time", todayEndIso).order("start_time", { ascending: true }).limit(10),
       admin.from("customers").select("id, nombre, loyalty_rewards_available").eq("shop_id", shopId).gt("loyalty_rewards_available", 0).order("loyalty_rewards_available", { ascending: false }).limit(10),
-      admin.from("customers").select("id, nombre, cumpleaños" as any).eq("shop_id", shopId).not("cumpleaños", "is", null).limit(100),
+      admin.from("customers").select("id, nombre, cumpleaños" as string).eq("shop_id", shopId).not("cumpleaños", "is", null).limit(100),
       admin.from("vouchers").select("id, gifted_to_name, service_name, created_at").eq("shop_id", shopId).eq("status", "sent").gte("created_at", todayStartIso).lte("created_at", todayEndIso).order("created_at", { ascending: false }).limit(10),
       admin.from("user_profiles").select("user_id, name, role, created_at").eq("shop_id", shopId).in("role", ["owner", "staff"]).gte("created_at", weekAgoIso).order("created_at", { ascending: false }).limit(10),
       admin.from("shops").select("plan_expiry").eq("id", shopId).single(),
-      admin.from("appointments").select("id, start_time, customers(nombre)").eq("shop_id", shopId).in("status", ["confirmed", "in_progress"]).gte("start_time", todayStartIso).lte("start_time", todayEndIso).order("start_time", { ascending: true }).limit(100),
+      admin.from("appointments").select("id, start_time, customers(nombre)").eq("shop_id", shopId).in("status", ["confirmed", "in_progress"]).gte("start_time", yesterdayStartIso).lte("start_time", todayEndIso).order("start_time", { ascending: true }).limit(100),
       admin.from("shops").select("business_hours").eq("id", shopId).single(),
       admin.from("pending_bookings").select("id, customer_name, start_time, payment_amount", { count: "exact", head: true }).eq("shop_id", shopId).eq("status", "pending").eq("payment_method", "bank_transfer").gt("expires_at", nowAr.toISOString()),
     ]);
@@ -123,7 +128,7 @@ export async function GET() {
     }
 
     if (customersRes.data && customersRes.data.length > 0) {
-      const customersData = customersRes.data as any[];
+      const customersData = customersRes.data as { id: string; nombre: string; cumpleaños: string | null }[];
       for (const c of customersData) {
         const cumple = c.cumpleaños;
         if (!cumple || !isBirthdayThisWeek(cumple, nowAr)) continue;
@@ -165,7 +170,7 @@ export async function GET() {
       items.push({ id: "bank-transfers-pending", type: "transferencia_pendiente", category: "urgent", title: "Transferencia pendiente", description: `${bankTransfersRes.count} transferencia(s) esperando confirmación`, href: "/dashboard/bank-transfers", timestamp: nowAr.toISOString() });
     }
 
-    let shouldShowPending = false;
+    let todayAfterClosing = false;
     if (businessHoursRes.data?.business_hours) {
       const hours = businessHoursRes.data.business_hours as Record<string, { open: boolean; end: string }>;
       const dayName = new Intl.DateTimeFormat("en-US", {
@@ -176,16 +181,20 @@ export async function GET() {
       if (todayHours?.open && todayHours.end) {
         const closingMinutes = minutesFromHHmm(todayHours.end);
         const currentMinutes = getArgentinaMinutesSinceMidnight(new Date());
-        shouldShowPending = currentMinutes >= closingMinutes;
+        todayAfterClosing = currentMinutes >= closingMinutes;
       }
     }
 
-    const pendingComplete = shouldShowPending
-      ? (pendingCompleteRes.data ?? []).map((apt) => {
-          const c = Array.isArray(apt.customers) ? apt.customers[0] : apt.customers;
-          return { id: apt.id, customer_name: c?.nombre || "Cliente", start_time: apt.start_time };
-        })
-      : [];
+    const pendingComplete = (pendingCompleteRes.data ?? [])
+      .filter((apt) => {
+        const aptDate = apt.start_time.slice(0, 10);
+        if (aptDate < todayDateStr) return true;
+        return todayAfterClosing;
+      })
+      .map((apt) => {
+        const c = Array.isArray(apt.customers) ? apt.customers[0] : apt.customers;
+        return { id: apt.id, customer_name: c?.nombre || "Cliente", start_time: apt.start_time };
+      });
 
     return NextResponse.json({
       items,

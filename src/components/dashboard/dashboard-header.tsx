@@ -373,11 +373,6 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
     }, 140);
   }
 
-  const handleMobileLogout = useCallback(async () => {
-    setMobileOpen(false);
-    try { await onLogout(); } catch { /* ignore */ }
-  }, [onLogout]);
-
   async function execute(item: CommandItem) {
     if (item.kind === "data") {
       const result = item.value;
@@ -1074,7 +1069,6 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
         open={mobileOpen}
         onClose={() => setMobileOpen(false)}
         userName={userName}
-        onLogout={handleMobileLogout}
       />
 
       <style jsx global>{`

@@ -40,13 +40,14 @@ interface DashboardChartsWrapperProps {
   healthScore: number | null;
   healthBreakdown: HealthBreakdown | null;
   totalClients: number;
+  isStaff?: boolean;
 }
 
 export default function DashboardChartsWrapper(props: DashboardChartsWrapperProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <div className="lg:col-span-2 min-w-0 h-full">
-        <RevenueChart data={props.revenueData} dailyBreakdown={props.dailyBreakdown} hourlyBreakdown={props.hourlyBreakdown} weeklyBreakdown={props.weeklyBreakdown} flowByPeriod={props.flowByPeriod} />
+        <RevenueChart data={props.revenueData} dailyBreakdown={props.dailyBreakdown} hourlyBreakdown={props.hourlyBreakdown} weeklyBreakdown={props.weeklyBreakdown} flowByPeriod={props.flowByPeriod} isStaff={props.isStaff} />
       </div>
       <div className="lg:col-span-1 space-y-4 min-w-0">
         <DemandaCarousel topServices={props.topServicesData} topDias={props.topDiasData} topHorarios={props.topHorariosData} />
@@ -56,6 +57,7 @@ export default function DashboardChartsWrapper(props: DashboardChartsWrapperProp
           healthScore={props.healthScore}
           healthBreakdown={props.healthBreakdown}
           totalClients={props.totalClients}
+          isStaff={props.isStaff}
         />
       </div>
     </div>

@@ -9,7 +9,6 @@ import {
   CalendarDays,
   Package,
   UserRound,
-  LogOut,
   Wallet,
   Store,
   Gift,
@@ -56,7 +55,6 @@ const itemVariants = {
 
 interface DashboardSidebarProps {
   userName: string;
-  onLogout: () => void;
   className?: string;
   notifications?: { urgentAppointments?: boolean; lowStock?: boolean };
   showBrand?: boolean;
@@ -65,7 +63,6 @@ interface DashboardSidebarProps {
 
 const DashboardSidebar = memo(function DashboardSidebar({
   userName,
-  onLogout,
   className = "",
   notifications,
   showBrand = true,
@@ -222,24 +219,9 @@ const DashboardSidebar = memo(function DashboardSidebar({
       </LayoutGroup>
 
       <div className="px-4 py-5">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400 truncate">
-            {userName}
-          </span>
-          <motion.div
-            whileHover={performanceMode ? undefined : { scale: 1.05 }}
-            transition={performanceMode ? { duration: 0.1 } : { type: "spring", stiffness: 400, damping: 15 }}
-          >
-            <button
-              onMouseDown={playClick}
-              onClick={onLogout}
-              className="p-1.5 rounded-xl text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-white/60 dark:hover:bg-white/5 transition-all cursor-pointer"
-              title="Cerrar Sesi├│n"
-            >
-              <LogOut className="w-5 h-5" strokeWidth={1.5} />
-            </button>
-          </motion.div>
-        </div>
+        <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400 truncate block">
+          {userName}
+        </span>
       </div>
     </motion.aside>
   );

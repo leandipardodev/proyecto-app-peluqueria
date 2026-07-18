@@ -36,7 +36,7 @@ export default async function DashboardLayout({
       <div className="fixed top-[40%] right-[-5%] w-[300px] h-[300px] rounded-full bg-sky-950/20 blur-3xl pointer-events-none" />
 
       <div className="hidden min-[1367px]:flex min-[1367px]:w-64 min-[1367px]:flex-shrink-0 overflow-hidden relative z-10">
-        <DashboardSidebar key="dashboard-sidebar" userName={userName} onLogout={logout} />
+        <DashboardSidebar key="dashboard-sidebar" userName={userName} />
       </div>
 
       <div className="flex flex-col flex-1 min-w-0 min-h-0 relative z-10">
