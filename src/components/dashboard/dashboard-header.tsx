@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, Search, Moon, Sun, Gauge, Repeat2, Check, Volume2, VolumeX, SlidersHorizontal, Sparkles, Bell, Bug, CircleHelp, LogOut } from "lucide-react";
+import { Menu, Search, Moon, Sun, Gauge, Repeat2, Check, Volume2, VolumeX, Sparkles, Bell, Bug, CircleHelp, LogOut } from "lucide-react";
 import { useState, useRef, useEffect, useTransition, useMemo, useCallback, memo, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -1005,19 +1005,6 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                       <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${soundMuted ? "translate-x-0" : "translate-x-5"}`} />
                     </button>
                   </div>
-
-                  <button
-                    type="button"
-                    aria-label="Funcionalidades del local"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      navigateWithTransition(`${dashboardBasePath}/features`);
-                    }}
-                    className="flex w-full items-center gap-2 rounded-xl border border-white/20 dark:border-white/10 px-3 py-2 text-sm text-gray-800 dark:text-gray-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
-                  >
-                    <SlidersHorizontal className="w-4 h-4 text-zinc-400" />
-                    Funcionalidades del local
-                  </button>
 
                   <div className="flex items-center gap-2 pt-1">
                     <button

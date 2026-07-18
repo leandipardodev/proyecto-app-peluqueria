@@ -28,6 +28,7 @@ export default function DemandaCarousel({ topServices, topDias, topHorarios }: P
 
   const [current, setCurrent] = useState(0);
   const [direction, setDirection] = useState(1);
+  const [paused, setPaused] = useState(false);
 
   const goNext = useCallback(() => {
     setDirection(1);
@@ -35,9 +36,10 @@ export default function DemandaCarousel({ topServices, topDias, topHorarios }: P
   }, [slides.length]);
 
   useEffect(() => {
+    if (paused) return;
     const timer = setInterval(goNext, 5000);
     return () => clearInterval(timer);
-  }, [goNext]);
+  }, [goNext, paused]);
 
   const slide = slides[current];
 
@@ -113,7 +115,7 @@ export default function DemandaCarousel({ topServices, topDias, topHorarios }: P
           <button
             key={s.key}
             type="button"
-            onClick={() => { setDirection(idx > current ? 1 : -1); setCurrent(idx); }}
+            onClick={() => { setDirection(idx > current ? 1 : -1); setCurrent(idx); setPaused(true); }}
             className={`h-1.5 rounded-full transition-all duration-300 ${
               idx === current
                 ? "w-5 bg-violet-500 dark:bg-violet-400"
