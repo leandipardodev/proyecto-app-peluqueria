@@ -128,7 +128,7 @@ export async function GET() {
     }
 
     if (customersRes.data && customersRes.data.length > 0) {
-      const customersData = customersRes.data as { id: string; nombre: string; cumpleaños: string | null }[];
+      const customersData = customersRes.data as unknown as { id: string; nombre: string; cumpleaños: string | null }[];
       for (const c of customersData) {
         const cumple = c.cumpleaños;
         if (!cumple || !isBirthdayThisWeek(cumple, nowAr)) continue;
