@@ -31,9 +31,9 @@ export default async function DashboardLayout({
   return (
     <div className="flex h-[100dvh] bg-transparent transition-colors relative overflow-hidden">
       {/* Persistent background orbs — never re-render on page navigation */}
-      <div className="fixed top-[-15%] left-[-8%] w-[600px] h-[600px] rounded-full bg-violet-500/10 blur-3xl pointer-events-none" />
+      <div className="fixed top-[-15%] left-[-8%] w-[600px] h-[600px] rounded-full bg-blue-900/20 blur-3xl pointer-events-none" />
       <div className="fixed bottom-[-15%] right-[-8%] w-[500px] h-[500px] rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
-      <div className="fixed top-[40%] right-[-5%] w-[300px] h-[300px] rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+      <div className="fixed top-[40%] right-[-5%] w-[300px] h-[300px] rounded-full bg-sky-950/20 blur-3xl pointer-events-none" />
 
       <div className="hidden min-[1367px]:flex min-[1367px]:w-64 min-[1367px]:flex-shrink-0 overflow-hidden relative z-10">
         <DashboardSidebar key="dashboard-sidebar" userName={userName} onLogout={logout} />

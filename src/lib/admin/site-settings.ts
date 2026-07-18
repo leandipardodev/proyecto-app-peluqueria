@@ -38,6 +38,15 @@ export async function getBillingPrice(): Promise<number> {
   return settings.monthly_price;
 }
 
+export function trialLabel(days: number): string {
+  if (days % 7 === 0 && days / 7 <= 4) {
+    const weeks = days / 7;
+    return weeks === 1 ? "1 semana" : `${weeks} semanas`;
+  }
+  if (days === 30 || days === 31) return "1 mes";
+  return days === 1 ? "1 día" : `${days} días`;
+}
+
 export async function updateBillingSettings(
   price: number,
   trialDays: number,

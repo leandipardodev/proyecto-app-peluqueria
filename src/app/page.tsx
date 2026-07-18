@@ -1,9 +1,9 @@
-import { getBillingPrice } from "@/lib/admin/site-settings";
+import { getBillingSettings } from "@/lib/admin/site-settings";
 import Home from "@/components/home";
 
 export const revalidate = 86400;
 
 export default async function Page() {
-  const monthlyPrice = await getBillingPrice();
-  return <Home monthlyPrice={monthlyPrice} />;
+  const { monthly_price: monthlyPrice, trial_days: trialDays } = await getBillingSettings();
+  return <Home monthlyPrice={monthlyPrice} trialDays={trialDays} />;
 }

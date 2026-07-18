@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { AnimatePresence, animate, motion } from "framer-motion";
 import { X } from "lucide-react";
 import DashboardSidebar from "./dashboard-sidebar";
@@ -13,21 +13,14 @@ type Props = {
 };
 
 export default function DashboardMobileSidebar({ open, onClose, userName, onLogout }: Props) {
-  const [showBlur, setShowBlur] = useState(false);
   useEffect(() => {
     if (open) {
       document.body.style.overflow = "hidden";
-      const t = setTimeout(() => setShowBlur(true), 2000);
-      return () => {
-        document.body.style.overflow = "";
-        clearTimeout(t);
-        setShowBlur(false);
-      };
-    } else {
-      document.body.style.overflow = "";
-      setShowBlur(false);
+      return () => { document.body.style.overflow = ""; };
     }
+    document.body.style.overflow = "";
   }, [open]);
+
   return (
     <AnimatePresence>
       {open && (
@@ -41,9 +34,9 @@ export default function DashboardMobileSidebar({ open, onClose, userName, onLogo
           <div
             className="absolute inset-0 bg-black/20"
             style={{
-              backdropFilter: showBlur ? "blur(2px)" : "blur(0px)",
-              WebkitBackdropFilter: showBlur ? "blur(2px)" : "blur(0px)",
-              transition: "backdrop-filter 1s ease-out, -webkit-backdrop-filter 1s ease-out",
+              backdropFilter: open ? "blur(2px)" : "none",
+              WebkitBackdropFilter: open ? "blur(2px)" : "none",
+              transition: "backdrop-filter 0.6s ease-out, -webkit-backdrop-filter 0.6s ease-out",
             }}
             onClick={onClose}
           />

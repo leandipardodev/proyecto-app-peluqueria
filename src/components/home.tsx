@@ -13,6 +13,15 @@ import HomeFeaturesCarousel from "@/components/dashboard/home-features-carousel"
 import { supabase } from "@/lib/supabase";
 
 const playfair = Playfair_Display({ subsets: ["latin"], weight: ["600", "700", "800", "900"] });
+
+function trialLabel(days: number): string {
+  if (days % 7 === 0 && days / 7 <= 4) {
+    const weeks = days / 7;
+    return weeks === 1 ? "1 semana" : `${weeks} semanas`;
+  }
+  if (days === 30 || days === 31) return "1 mes";
+  return days === 1 ? "1 día" : `${days} días`;
+}
 const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"] });
 
 const reveal = {
@@ -227,7 +236,7 @@ function OAuthHandler() {
   return null;
 }
 
-export default function Home({ monthlyPrice }: { monthlyPrice: number }) {
+export default function Home({ monthlyPrice, trialDays }: { monthlyPrice: number; trialDays: number }) {
   const hero3DRef = useRef<HTMLDivElement | null>(null);
   const mouseX = useMotionValue(-1000);
   const mouseY = useMotionValue(-1000);
@@ -437,7 +446,7 @@ export default function Home({ monthlyPrice }: { monthlyPrice: number }) {
               </p>
 
               <p className="mt-3 max-w-2xl text-[13px] leading-relaxed text-[#4b5563] sm:text-base">
-                Plan mensual: ${monthlyPrice.toLocaleString("es-AR")}. Primer quincena gratis para que lo pruebes con tu equipo.
+                Plan mensual: ${monthlyPrice.toLocaleString("es-AR")}. Tenés {trialLabel(trialDays)} de prueba gratis para que lo pruebes con tu equipo.
               </p>
 
               <div className="mt-7 sm:mt-10">
@@ -647,7 +656,7 @@ export default function Home({ monthlyPrice }: { monthlyPrice: number }) {
             <div className="relative z-[210] pointer-events-auto">
               <p className="text-xs uppercase tracking-[0.18em] text-sky-300">Ultimo paso</p>
               <h3 className={`${playfair.className} mt-3 max-w-3xl text-4xl font-bold tracking-[-0.035em] text-white sm:text-6xl`}>Converti cada horario libre en una nueva reserva.</h3>
-              <p className="mt-4 max-w-2xl leading-relaxed text-slate-300">Activa tu cuenta, publica tu link y deja funcionando reservas + recordatorios en menos de 10 minutos. Sale ${monthlyPrice.toLocaleString("es-AR")} por mes y el primer mes es gratis.</p>
+              <p className="mt-4 max-w-2xl leading-relaxed text-slate-300">Activa tu cuenta, publica tu link y deja funcionando reservas + recordatorios en menos de 10 minutos. Sale ${monthlyPrice.toLocaleString("es-AR")} por mes y los primeros {trialLabel(trialDays)} son gratis.</p>
               <div className="mt-7 flex flex-wrap gap-3">
                 <Link
                   href={user ? "/dashboard" : "/register"}
