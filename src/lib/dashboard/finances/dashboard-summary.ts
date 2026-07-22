@@ -1,7 +1,7 @@
 "use server";
 
 import { createServerClient } from "@/lib/supabase/server";
-import { createServiceRoleClient, getCurrentUserRole, requireShopId } from "@/lib/dashboard/auth/server";
+import { requireShopId } from "@/lib/dashboard/auth/server";
 import {
   getArgentinaDateString,
   getArgentinaDayBounds,
@@ -46,25 +46,6 @@ export async function fetchDashboardSummary(shopIdOverride?: string): Promise<Ac
       if (!shopIdResult.success) return shopIdResult;
       shopId = shopIdResult.data;
       if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
-
-    // Staff cannot access financial summary at all
-    const roleResult = await getCurrentUserRole(shopId);
-    const isStaff = roleResult.success && roleResult.data?.role === "staff";
-    if (isStaff) {
-      return {
-        success: true,
-        data: {
-          appointmentsCount: 0,
-          revenue: 0,
-          lowStockCount: 0,
-          nextAppointments: [],
-          loyaltyRewardsReadyCount: 0,
-          loyaltyRewardCustomerNames: [],
-          shopName: "",
-          shopSlug: "",
-        },
-      };
     }
 
     const supabase = await createServerClient();
@@ -278,30 +259,6 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
       if (!shopIdResult.success) return shopIdResult;
       shopId = shopIdResult.data;
       if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
-
-    // Check if user is staff — if so, return empty metrics
-    const roleResult = await getCurrentUserRole(shopId);
-    if (roleResult.success && roleResult.data?.role === "staff") {
-      return {
-        success: true,
-        data: {
-          revenueChart: [],
-          dailyBreakdown: [],
-          hourlyBreakdown: [],
-          weeklyBreakdown: [],
-          busiestDay: null,
-          busiestHour: null,
-          monthlyGrowth: [],
-          healthScore: 0,
-          healthBreakdown: { revenue: 0, clients: 0, appointments: 0 },
-          flowByPeriod: { today: { income: 0, expenses: 0 }, week: { income: 0, expenses: 0 }, month: { income: 0, expenses: 0 } },
-          topServices: [],
-          topDias: [],
-          topHorarios: [],
-          stats: { totalClients: 0, growth: null, totalAppointments: 0 },
-        },
-      };
     }
 
     const admin = await createAdminClient();
