@@ -1347,7 +1347,7 @@ draggable={false}
                               style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}
                             >
                               <div className="flex flex-col items-center text-center gap-3">
-                                <div className={`w-20 h-20 rounded-full overflow-hidden ring-2 ring-white/30 shadow-xl flex items-center justify-center shrink-0 ${templateStyles.plate}`}>
+                                <div className={`relative w-20 h-20 rounded-full overflow-hidden ring-2 ring-white/30 shadow-xl flex items-center justify-center shrink-0 ${templateStyles.plate}`}>
                                   {s.photo_url ? (
                                     <Image src={s.photo_url} alt="" fill sizes="80px" priority className="object-cover" />
                                   ) : (
