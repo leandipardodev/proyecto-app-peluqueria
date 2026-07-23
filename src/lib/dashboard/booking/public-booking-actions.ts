@@ -170,7 +170,8 @@ export async function fetchPublicAvailableSlots(
   shopId: string,
   serviceDuration: number,
   date: string,
-  staffId?: string
+  staffId?: string,
+  serviceId?: string
 ): Promise<ActionResult<Slot[]>> {
   try {
     const headersList = await headers();
@@ -213,7 +214,18 @@ export async function fetchPublicAvailableSlots(
     const allStaffIds = (allStaff || []).map((s) => s.user_id);
     if (allStaffIds.length === 0) return { success: true, data: [] };
 
-    const staffIdsToQuery = staffId ? [staffId] : allStaffIds;
+    // Find all staff who can perform the selected service
+    let serviceCapableStaffIds: string[] = allStaffIds;
+    if (serviceId) {
+      const { data: serviceStaffRows } = await admin
+        .from("staff_services")
+        .select("staff_id")
+        .eq("service_id", serviceId);
+      const ids = (serviceStaffRows || []).map((r) => r.staff_id).filter(Boolean);
+      if (ids.length > 0) serviceCapableStaffIds = ids;
+    }
+
+    const staffIdsToQuery = staffId ? [...new Set([staffId, ...serviceCapableStaffIds])] : allStaffIds;
     const { data: staffSchedules } = await admin
       .from("staff_schedules")
       .select("staff_id, is_active, start_time, end_time, break_start, break_end")
@@ -336,14 +348,65 @@ export async function fetchPublicAvailableSlots(
       return (slotStartMinute + 2) < breakEnd && (slotEndMinute - 2) > breakStart;
     }
 
-    function hasTimeConflict(sId: string, slotStart: Date, slotEnd: Date): boolean {
+    function hasTimeConflict(sId: string, slotStart: Date, slotEnd: Date, skipNullStaff = false): boolean {
       return allBlocks.some((apt) => {
         if (apt.staff_id && apt.staff_id !== sId) return false;
+        if (!apt.staff_id && skipNullStaff) return false;
         const aptStart = new Date(apt.start_time);
         const aptEnd = new Date(apt.end_time);
         const TOLERANCE_MS = 2 * 60 * 1000;
         return (slotStart.getTime() + TOLERANCE_MS) < aptEnd.getTime() && (slotEnd.getTime() - TOLERANCE_MS) > aptStart.getTime();
       });
+    }
+
+    function isStaffAvailableForSlot(sId: string, slotStartMinute: number, slotEndMinute: number, slotStart: Date, slotEnd: Date): boolean {
+      const entry = scheduleMap.get(sId);
+      if (!entry || !entry.is_active) return false;
+      const [sh, sm] = entry.start_time.slice(0, 5).split(":").map(Number);
+      const [eh, em] = entry.end_time.slice(0, 5).split(":").map(Number);
+      const openMin = sh * 60 + sm;
+      const closeMin = eh * 60 + em;
+      if (slotStartMinute < openMin || slotEndMinute > closeMin) return false;
+      if (entry.break_start && entry.break_end) {
+        const [bsh, bsm] = entry.break_start.slice(0, 5).split(":").map(Number);
+        const [beh, bem] = entry.break_end.slice(0, 5).split(":").map(Number);
+        if (isInBreak(slotStartMinute, slotEndMinute, bsh * 60 + bsm, beh * 60 + bem)) return false;
+      }
+      const sOverride = staffOverrideMap.get(sId);
+      if (sOverride) {
+        if (sOverride.is_closed) return false;
+        if (sOverride.start_time && sOverride.end_time) {
+          const ovStart = hhmmToMinutes(sOverride.start_time);
+          const ovEnd = hhmmToMinutes(sOverride.end_time);
+          if (slotStartMinute < ovStart || slotEndMinute > ovEnd) return false;
+        }
+        if (sOverride.break_start && sOverride.break_end) {
+          const bs = hhmmToMinutes(sOverride.break_start);
+          const be = hhmmToMinutes(sOverride.break_end);
+          if (isInBreak(slotStartMinute, slotEndMinute, bs, be)) return false;
+        }
+      }
+      if (slotStartMinute < shopOpenMinutes || slotEndMinute > shopCloseMinutes) return false;
+      const hasConflict = allBlocks.some((apt) => {
+        if (apt.staff_id !== sId) return false;
+        const aptStart = new Date(apt.start_time);
+        const aptEnd = new Date(apt.end_time);
+        const TOLERANCE_MS = 2 * 60 * 1000;
+        return (slotStart.getTime() + TOLERANCE_MS) < aptEnd.getTime() && (slotEnd.getTime() - TOLERANCE_MS) > aptStart.getTime();
+      });
+      return !hasConflict;
+    }
+
+    function countAvailableServiceStaff(slotStartMinute: number, slotEndMinute: number, slotStart: Date, slotEnd: Date): number {
+      if (serviceCapableStaffIds.length <= 1) return serviceCapableStaffIds.length;
+      let count = 0;
+      for (const sId of serviceCapableStaffIds) {
+        if (isStaffAvailableForSlot(sId, slotStartMinute, slotEndMinute, slotStart, slotEnd)) {
+          count++;
+          if (count > 1) return count;
+        }
+      }
+      return count;
     }
 
     if (staffId) {
@@ -395,7 +458,9 @@ export async function fetchPublicAvailableSlots(
           const minute = currentMinute % 60;
           const slotStart = createArgentinaDate(y, monthNum, d, hour, minute);
           const slotEnd = new Date(slotStart.getTime() + safeDuration * 60000);
-          if (!hasTimeConflict(staffId, slotStart, slotEnd)) {
+          const slotEndMinute = currentMinute + safeDuration;
+          const availableCount = countAvailableServiceStaff(currentMinute, slotEndMinute, slotStart, slotEnd);
+          if (!hasTimeConflict(staffId, slotStart, slotEnd, availableCount > 1)) {
             slots.push({ start: slotStart.toISOString(), end: slotEnd.toISOString(), time: formatArgentinaTime(slotStart) });
           }
           currentMinute += SLOT_STEP;
@@ -432,6 +497,9 @@ export async function fetchPublicAvailableSlots(
           const slotStartMinute = currentMinute;
           const slotEndMinute = currentMinute + safeDuration;
 
+          const availableCount = countAvailableServiceStaff(slotStartMinute, slotEndMinute, slotStart, slotEnd);
+          const skipNullForSlot = availableCount > 1;
+
           const anyAvailable = allStaffIds.some((sId) => {
             const config = getStaffDayConfig(sId);
             if (!config) return false;
@@ -446,7 +514,7 @@ export async function fetchPublicAvailableSlots(
             }
             if (slotStartMinute < config.startMinutes || slotEndMinute > config.closeMinutes) return false;
             if (isInBreak(slotStartMinute, slotEndMinute, config.breakStart, config.breakEnd)) return false;
-            if (hasTimeConflict(sId, slotStart, slotEnd)) return false;
+            if (hasTimeConflict(sId, slotStart, slotEnd, skipNullForSlot)) return false;
             return true;
           });
 

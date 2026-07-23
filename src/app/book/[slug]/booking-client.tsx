@@ -356,7 +356,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
 
     (async () => {
       try {
-        const result = await fetchPublicAvailableSlots(shop.id, slotDuration, dateStr, selectedStaff?.id);
+        const result = await fetchPublicAvailableSlots(shop.id, slotDuration, dateStr, selectedStaff?.id, selectedService?.id);
         if (pendingDateRef.current !== dateStr) return;
         if (!result.success) {
           setSlotsError(result.error);
