@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
@@ -140,7 +141,12 @@ export default function ShopManagementTable({
                 return (
                   <tr key={shop.shopId} className="border-b border-zinc-100 last:border-0">
                     <td className="px-3 py-2">
-                      <p className="font-medium">{shop.nombre}</p>
+                      <Link
+                        href={`/admin/shops/${shop.shopId}`}
+                        className="font-medium text-violet-600 hover:underline"
+                      >
+                        {shop.nombre}
+                      </Link>
                       <p className="text-xs text-zinc-500">/{shop.slug}</p>
                     </td>
                     <td className="px-3 py-2">{shop.industryLabel}</td>

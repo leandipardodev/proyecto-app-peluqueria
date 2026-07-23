@@ -462,14 +462,9 @@ export default function Home({ monthlyPrice, trialDays }: { monthlyPrice: number
               <motion.div
                 ref={hero3DRef}
                 className="relative mx-auto w-full max-w-[430px] lg:max-w-none"
-                initial={{ opacity: 0, y: 16, scale: 0.98 }}
-                whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                viewport={{ once: true, amount: 0.25 }}
-                transition={{ duration: 0.6, ease: "easeOut" }}
                 style={{
                   rotateX: isDesktop ? panelRotateX : 0,
                   rotateY: isDesktop ? panelRotateY : 0,
-                  y: 0,
                   transformStyle: "preserve-3d",
                 }}
               >
@@ -575,7 +570,7 @@ export default function Home({ monthlyPrice, trialDays }: { monthlyPrice: number
         <ParallaxLayer intensity={1.05}>
           <SweepSection sweepClassName="bg-[linear-gradient(90deg,transparent_0%,rgba(56,189,248,0.42)_48%,transparent_100%)]">
             <Section className="py-10 sm:py-12">
-              <Card className="relative overflow-hidden p-0 bg-transparent border-slate-700/60 shadow-[0_22px_68px_rgba(14,165,233,0.16),0_34px_88px_rgba(15,23,42,0.34)]">
+              <Card className="relative p-0 bg-transparent border-slate-700/60 shadow-[0_22px_68px_rgba(14,165,233,0.16),0_34px_88px_rgba(15,23,42,0.34)]">
                 <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f172a] via-[#111c34] to-[#0b1324] p-5 sm:p-8 md:p-10">
                   <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_80%_at_10%_0%,rgba(56,189,248,0.24),transparent_65%)]" />
                   <div className="relative z-10">
