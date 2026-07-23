@@ -1,6 +1,6 @@
 "use server";
 
-import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
+
 import {
   createArgentinaDate,
   formatArgentinaTime,
@@ -1224,7 +1224,7 @@ export async function createPublicComboAppointment(data: {
     }
 
     // Staff-service validation + auto-assign when Sin preferencia
-    const comboServiceIds = new Set(data.services.map((s) => s.id));
+
     let resolvedStaffId = data.staffId || null;
 
     if (resolvedStaffId) {

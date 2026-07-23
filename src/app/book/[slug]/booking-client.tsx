@@ -110,7 +110,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
 
   const [step, setStep] = useState(0);
   const [showInfo, setShowInfo] = useState(false);
-  const infoRef = useRef<HTMLDivElement>(null);
+
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -159,7 +159,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const pendingDateRef = useRef<string | null>(null);
   const [monthOverrides, setMonthOverrides] = useState<Record<string, { is_closed: boolean; start_time: string | null; end_time: string | null }>>({});
 
-  const [atBottom, setAtBottom] = useState(false);
+
 
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
@@ -179,22 +179,12 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const [creatingPreference, setCreatingPreference] = useState(false);
 
   const scrollRAF = useRef(0);
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+  const handleScroll = useCallback(() => {
     cancelAnimationFrame(scrollRAF.current);
-    scrollRAF.current = requestAnimationFrame(() => {
-      const el = e.currentTarget;
-      if (!el) return;
-      setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight <= 1);
-    });
+    scrollRAF.current = requestAnimationFrame(() => {});
   }, []);
 
-  useEffect(() => {
-    const raf = requestAnimationFrame(() => {
-      const el = document.querySelector('.delicate-scroll');
-      if (el) setAtBottom(el.scrollHeight - el.clientHeight <= 1);
-    });
-    return () => cancelAnimationFrame(raf);
-  }, [step, services, staffMembers]);
+
   const [paymentPreferenceId, setPaymentPreferenceId] = useState<string | null>(null);
   const [paymentInitPoint, setPaymentInitPoint] = useState<string | null>(null);
   const [chargedAmount, setChargedAmount] = useState<number | null>(null);
@@ -210,7 +200,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const slotsRef = useRef<HTMLDivElement>(null);
   const stepsScrollRef = useRef<HTMLDivElement>(null);
   const categoryScrollRef = useRef<HTMLDivElement>(null);
-  const [mpReady, setMpReady] = useState(false);
+
 
 
 
@@ -331,16 +321,8 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
 
   useEffect(() => {
     const publicKey = shop.mpPublicKey || process.env.NEXT_PUBLIC_MP_PUBLIC_KEY || process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY;
-    if (!publicKey) { setMpReady(false); return; }
-    setMpReady(false);
-    (async () => {
-      try {
-        await initMercadoPago(publicKey, { locale: "es-AR" });
-        setMpReady(true);
-      } catch {
-        setMpReady(false);
-      }
-    })();
+    if (!publicKey) return;
+    initMercadoPago(publicKey, { locale: "es-AR" });
   }, [shop.mpPublicKey]);
 
   useEffect(() => {
@@ -1367,7 +1349,7 @@ draggable={false}
                               <div className="flex flex-col items-center text-center gap-3">
                                 <div className={`w-20 h-20 rounded-full overflow-hidden ring-2 ring-white/30 shadow-xl flex items-center justify-center shrink-0 ${templateStyles.plate}`}>
                                   {s.photo_url ? (
-                                    <img src={s.photo_url} alt="" fetchPriority="high" className="w-full h-full object-cover" />
+                                    <Image src={s.photo_url} alt="" fill sizes="80px" priority className="object-cover" />
                                   ) : (
                                     <span className={`text-2xl font-bold ${templateStyles.accent}`}>{initials}</span>
                                   )}
