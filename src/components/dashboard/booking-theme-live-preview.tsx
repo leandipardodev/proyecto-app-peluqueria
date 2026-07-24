@@ -53,6 +53,7 @@ type Props = {
   services: PreviewService[];
   sectionCatalog: string[];
   onServiceMove: (serviceId: string, toSection: string, beforeServiceId?: string) => void;
+  onServiceReorder?: (serviceId: string, beforeServiceId?: string) => void;
   onSectionAdd: (sectionName: string) => void;
   onSectionRemove: (sectionName: string) => void;
   onSectionRename?: (oldName: string, newName: string) => void;
@@ -277,6 +278,7 @@ export default function BookingThemeLivePreview({
   services,
   sectionCatalog,
   onServiceMove,
+  onServiceReorder,
   onSectionAdd,
   onSectionRemove,
   onSectionRename,
@@ -344,10 +346,6 @@ export default function BookingThemeLivePreview({
     return map;
   }, [sourceServices]);
 
-  const visibleSections = activeCategory === "Todos"
-    ? sectionCatalog.filter((sec) => (servicesByCategory.get(sec)?.length ?? 0) > 0)
-    : [activeCategory];
-
   const serviceMap = useMemo(() => {
     const map = new Map<string, PreviewService>();
     for (const service of sourceServices) {
@@ -400,6 +398,19 @@ export default function BookingThemeLivePreview({
 
     const isOverService = serviceMap.has(overId);
 
+    if (activeCategory === "Todos" && isOverService && onServiceReorder) {
+      const activeIndex = currentServiceIds.indexOf(activeId);
+      const overIndex = currentServiceIds.indexOf(overId);
+      if (activeIndex >= 0 && overIndex >= 0 && activeIndex < overIndex) {
+        const nextIndex = overIndex + 1;
+        const beforeId = nextIndex < currentServiceIds.length ? currentServiceIds[nextIndex] : undefined;
+        onServiceReorder(activeId, beforeId);
+      } else {
+        onServiceReorder(activeId, overId);
+      }
+      return;
+    }
+
     if (isOverService) {
       const overService = serviceMap.get(overId)!;
       const toSection = (overService.category || "General").trim() || "General";
@@ -415,7 +426,7 @@ export default function BookingThemeLivePreview({
     } else if (sectionCatalog.includes(overId)) {
       onServiceMove(activeId, overId);
     }
-  }, [disabled, serviceMap, sectionCatalog, onServiceMove, currentServiceIds]);
+  }, [disabled, serviceMap, sectionCatalog, onServiceMove, onServiceReorder, currentServiceIds, activeCategory]);
 
   function handleSectionDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -705,73 +716,14 @@ export default function BookingThemeLivePreview({
                       <SortableContext items={currentServiceIds} strategy={verticalListSortingStrategy}>
                         {activeCategory === "Todos" ? (
                           <div className="space-y-1.5">
-                            {visibleSections.map((section) => {
-                              const sectionServices = (servicesByCategory.get(section) || []);
-                              const isGeneral = section === "General";
-                              return (
-                                <div key={section}>
-                                  {renamingSection === section ? (
-                                    <div className="flex items-center gap-1 px-1 py-2">
-                                      <input
-                                        ref={renameInputRef}
-                                        value={renameValue}
-                                        onChange={(e) => setRenameValue(e.target.value)}
-                                        onKeyDown={(e) => {
-                                          if (e.key === "Enter") handleConfirmRename();
-                                          if (e.key === "Escape") { setRenamingSection(null); setRenameValue(""); }
-                                        }}
-                                        onBlur={handleConfirmRename}
-                                        className="min-h-7 rounded-full border-0 bg-transparent px-3 py-0.5 text-xs text-inherit outline-none ring-2 ring-[#0071E3]/25 focus:ring-[#0071E3]/50 shadow-sm w-40"
-                                      />
-                                    </div>
-                                  ) : (
-                                    <div className="group flex items-center gap-2 px-1 py-2">
-                                      <p className={`text-xs font-semibold ${s.tiny}`}>
-                                        {section} <span className="opacity-50">({sectionServices.length})</span>
-                                      </p>
-                                      {!disabled && (
-                                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-40 transition-opacity">
-                                          {!isGeneral && (
-                                            <button
-                                              type="button"
-                                              onClick={() => { setRenamingSection(section); setRenameValue(section); }}
-                                              className="p-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-                                              title={`Renombrar ${section}`}
-                                            >
-                                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                              </svg>
-                                            </button>
-                                          )}
-                                          {!isGeneral && (
-                                            <button
-                                              type="button"
-                                              onClick={() => setConfirmRemove(section)}
-                                              className="p-0.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-zinc-400 hover:text-red-500"
-                                              title={`Eliminar ${section}`}
-                                            >
-                                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                              </svg>
-                                            </button>
-                                          )}
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-                                  <div className="space-y-1.5">
-                                      {sectionServices.map((service) => (
-                                        <SortableServiceCard
-                                          key={service.id}
-                                          service={service}
-                                          disabled={disabled}
-                                          s={s}
-                                        />
-                                      ))}
-                                  </div>
-                                </div>
-                              );
-                            })}
+                            {sourceServices.map((service) => (
+                                <SortableServiceCard
+                                  key={service.id}
+                                  service={service}
+                                  disabled={disabled}
+                                  s={s}
+                                />
+                              ))}
                           </div>
                         ) : (
                           <div className="space-y-1.5">

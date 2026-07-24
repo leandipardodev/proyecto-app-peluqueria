@@ -55,11 +55,11 @@ function getMpReturnScrollKey(shopSlug: string | null): string {
 
 function getTourSteps(staffPlural: string, servicePlural: string) {
   return [
-    { id: "setup-public-info", title: "1. Informacion publica", text: "Completa nombre, descripcion, direccion y telefono de tu local." },
-    { id: "setup-hours", title: "2. Horarios de atencion", text: "Defini los dias y horarios para que las reservas muestren disponibilidad real." },
-    { id: "setup-payments", title: "3. Formas de cobro", text: "Configura Mercado Pago y la politica de seña para cobrar sin friccion." },
-    { id: "setup-staff", title: `4. ${staffPlural}`, text: `Agrega y administra tus ${staffPlural.toLowerCase()} para asignar turnos correctamente.` },
-    { id: "setup-services", title: `5. ${servicePlural}`, text: `Carga tu catalogo de ${servicePlural.toLowerCase()} con precio y duracion.` },
+    { id: "setup-hours", title: "1. Horarios de atencion", text: "Defini los dias y horarios para que las reservas muestren disponibilidad real." },
+    { id: "setup-services", title: `2. ${servicePlural}`, text: `Carga tu catalogo de ${servicePlural.toLowerCase()} con precio y duracion.` },
+    { id: "setup-staff", title: `3. ${staffPlural}`, text: `Agrega y administra tus ${staffPlural.toLowerCase()} para asignar turnos correctamente.` },
+    { id: "setup-public-info", title: "4. Informacion publica", text: "Completa nombre, descripcion, direccion y telefono de tu local." },
+    { id: "setup-payments", title: "5. Formas de cobro", text: "Configura Mercado Pago, transferencias y la politica de sena para cobrar sin friccion." },
   ] as const;
 }
 
@@ -172,6 +172,7 @@ export default function BusinessClient({
   initialBookingTheme,
   initialVoucherWhatsappTemplate,
   initialStaff,
+  userEmail,
 }: {
   initialData: BusinessData | null;
   initialError: string | null;
@@ -184,6 +185,7 @@ export default function BusinessClient({
   initialBookingTheme: BookingThemeData | null;
   initialVoucherWhatsappTemplate?: string | null;
   initialStaff: { id: string; name: string }[];
+  userEmail?: string;
 }) {
   const { shop } = useAuth();
   const industry = resolveIndustry(shop?.industry);
@@ -402,6 +404,7 @@ export default function BusinessClient({
     }
     return initialServices.map((service) => service.id);
   });
+  const initialServiceOrderRef = useRef(serviceOrderIds);
 
   useEffect(() => {
     setServiceCategoryDraft((prev) => {
@@ -437,8 +440,9 @@ export default function BusinessClient({
     aboutText !== (initialBookingTheme?.about_text ?? "") ||
     selectedTemplateId !== (initialBookingTheme?.template_id ?? DEFAULT_BOOKING_TEMPLATE) ||
     JSON.stringify(sectionCatalog) !== JSON.stringify(initialSectionCatalogRef.current) ||
-    JSON.stringify(serviceCategoryDraft) !== JSON.stringify(initialCategoryDraftRef.current),
-  [heroTitle, heroSubtitle, aboutTitle, aboutText, selectedTemplateId, initialBookingTheme, sectionCatalog, serviceCategoryDraft]);
+    JSON.stringify(serviceCategoryDraft) !== JSON.stringify(initialCategoryDraftRef.current) ||
+    JSON.stringify(serviceOrderIds) !== JSON.stringify(initialServiceOrderRef.current),
+  [heroTitle, heroSubtitle, aboutTitle, aboutText, selectedTemplateId, initialBookingTheme, sectionCatalog, serviceCategoryDraft, serviceOrderIds]);
   const cleanSnapshotRef = useRef({
     whatsapp: data?.whatsapp_template ?? "",
     depositEnabled: data?.booking_deposit_enabled ?? true,
@@ -588,17 +592,20 @@ export default function BusinessClient({
 
   useEffect(() => {
     const key = `klip-business-onboarding-v1:${shopSlug || "default"}`;
+    const isTestUser = userEmail === "tutorial@gmail.com";
 
-    const hasData = Boolean(
-      initialData?.nombre?.trim() &&
-      initialData?.address?.trim() &&
-      initialData?.phone?.trim() &&
-      initialServices.length > 0
-    );
+    if (!isTestUser) {
+      const hasData = Boolean(
+        initialData?.nombre?.trim() &&
+        initialData?.address?.trim() &&
+        initialData?.phone?.trim() &&
+        initialServices.length > 0
+      );
 
-    if (hasData) {
-      window.localStorage.setItem(key, JSON.stringify({ active: false, step: 5, doneAt: Date.now() }));
-      return;
+      if (hasData) {
+        window.localStorage.setItem(key, JSON.stringify({ active: false, step: 5, doneAt: Date.now() }));
+        return;
+      }
     }
 
     let done = false;
@@ -617,12 +624,16 @@ export default function BusinessClient({
         }
       }
     } catch {}
-    if (!done) {
+    if (!done || isTestUser) {
+      if (isTestUser) {
+        window.localStorage.removeItem(key);
+        setTourStep(0);
+      }
       if (shopSlug) {
         setTourOpen(true);
       }
     }
-  }, [shopSlug, tourSteps, initialData, initialServices]);
+  }, [shopSlug, tourSteps, initialData, initialServices, userEmail]);
 
   useEffect(() => {
     if (!tourOpen) return;
@@ -969,6 +980,19 @@ export default function BusinessClient({
     showSuccess(`Servicio movido a ${section}.`);
   }
 
+  function handleServiceReorder(serviceId: string, beforeServiceId?: string) {
+    setServiceOrderIds((prevOrder) => {
+      const without = prevOrder.filter((id) => id !== serviceId);
+      if (beforeServiceId && without.includes(beforeServiceId)) {
+        const idx = without.indexOf(beforeServiceId);
+        const next = [...without];
+        next.splice(idx, 0, serviceId);
+        return next;
+      }
+      return [...without, serviceId];
+    });
+  }
+
   async function handleLogoUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -1150,7 +1174,7 @@ export default function BusinessClient({
 
       <div className="flex flex-col gap-8">
       {/* Card: Información Pública */}
-      <form id="setup-public-info" onSubmit={handleSavePublicInfo} className="order-1">
+      <form id="setup-public-info" onSubmit={handleSavePublicInfo} className="order-2">
         <div className="rounded-[2rem] border border-zinc-100 dark:border-zinc-800/50 transition-colors bg-white dark:bg-zinc-900">
           <button
             type="button"
@@ -1285,7 +1309,7 @@ export default function BusinessClient({
         </div>
       </form>
 
-      <section className="order-4 max-sm:w-full max-sm:rounded-none max-sm:border-x-0 rounded-[2rem] border border-zinc-100 dark:border-zinc-800/50 transition-colors bg-white dark:bg-zinc-900 overflow-hidden">
+      <section className="order-5 max-sm:w-full max-sm:rounded-none max-sm:border-x-0 rounded-[2rem] border border-zinc-100 dark:border-zinc-800/50 transition-colors bg-white dark:bg-zinc-900 overflow-hidden">
         <button
           type="button"
           onClick={() => setShowThemeCard((v) => !v)}
@@ -1294,7 +1318,7 @@ export default function BusinessClient({
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Personalizar mi tienda</h2>
-                {showThemeCard && <InfoTooltip text="Elegí un diseño visual y personalizá los textos que se muestran en tu tienda online. Hacé clic sobre cualquier texto para editarlo directamente. Los cambios se guardan automáticamente." />}
+                {showThemeCard && <InfoTooltip text="Elegí un diseño visual y personalizá los textos que se muestran en tu tienda online. Hacé clic sobre cualquier texto para editarlo directamente." />}
               </div>
               <p className="text-xs text-zinc-400 dark:text-zinc-500">Selecciona template y textos principales</p>
             </div>
@@ -1350,6 +1374,7 @@ export default function BusinessClient({
                   services={previewServices}
                   sectionCatalog={sectionCatalog}
                   onServiceMove={moveServiceToSection}
+                  onServiceReorder={handleServiceReorder}
                   onSectionAdd={(name) => {
                     setSectionCatalog((prev) => prev.includes(name) ? prev : [...prev, name]);
                   }}
@@ -1368,7 +1393,7 @@ export default function BusinessClient({
       </section>
 
       {/* Card: Configuración Técnica */}
-      <div id="setup-payments" className="order-3 rounded-[2rem] border border-zinc-100 dark:border-zinc-800/50 transition-colors bg-white dark:bg-zinc-900">
+      <div id="setup-payments" className="order-4 rounded-[2rem] border border-zinc-100 dark:border-zinc-800/50 transition-colors bg-white dark:bg-zinc-900">
         <button
           type="button"
           onClick={() => setShowPaymentsCard((v) => !v)}
@@ -1628,7 +1653,7 @@ export default function BusinessClient({
           </AnimatePresence>
       </div>
 
-      <div className="order-2 lg:grid lg:grid-cols-2 gap-6">
+      <div className="order-1 lg:grid lg:grid-cols-2 gap-6">
         {/* Card: Horarios de Atención */}
         <div id="setup-hours" className="rounded-[2rem] border border-zinc-100 dark:border-zinc-800/50 transition-colors bg-white dark:bg-zinc-900">
           <button
@@ -2015,7 +2040,7 @@ export default function BusinessClient({
                           completeTour();
                           return;
                         }
-                        if (tourStep === 2) {
+                        if (tourStep === 1) {
                           setTourAdvancing(true);
                           setMpConnectUnlockAt(Date.now() + 1400);
                           (async () => {
@@ -2026,7 +2051,7 @@ export default function BusinessClient({
                                 return;
                               }
                               const key = `klip-business-onboarding-v1:${shopSlug || "default"}`;
-                              window.localStorage.setItem(key, JSON.stringify({ active: true, step: 3 }));
+                              window.localStorage.setItem(key, JSON.stringify({ active: true, step: 2 }));
                               router.push(shopSlug ? `/dashboard/${shopSlug}/staff` : "/dashboard/staff");
                             } catch (e) {
                               setTourAdvancing(false);
@@ -2186,7 +2211,7 @@ export default function BusinessClient({
           >
             {isSaving ? (
               <>
-                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                <svg className="force-spin animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>

@@ -481,3 +481,10 @@ html.perf-mode .carousel-image-zoom {
     transition-duration: 0.01ms !important;
   }
 }
+
+.force-spin,
+.force-spin * {
+  animation: spin 1s linear infinite !important;
+  animation-duration: 1s !important;
+  animation-iteration-count: infinite !important;
+}
