@@ -538,7 +538,7 @@ export default function BookingThemeLivePreview({
 
             <div className="relative z-10 flex items-start justify-center p-2 sm:p-4">
               <div className="w-full">
-                <div className={`rounded-[32px] p-3 sm:p-5 flex flex-col ${s.shell}`}>
+                <div className={`rounded-[32px] p-3 sm:p-5 flex flex-col h-[540px] ${s.shell}`}>
                   {/* Header */}
                   <div className="pb-3">
                     <div className="flex items-center gap-3">
@@ -700,13 +700,13 @@ export default function BookingThemeLivePreview({
                   </div>
 
                   {/* Service list with DnD */}
-                  <div className="pt-3 pb-1 min-h-0">
+                  <div className="flex-1 min-h-0 pt-3 pb-1">
                     {!hasRealServices && (
                       <p className={`text-[11px] italic mb-2 ${s.tiny}`}>
                         {labels.servicePlural} de ejemplo hasta que cargues los tuyos.
                       </p>
                     )}
-                    <div className="max-h-[50vh] overflow-y-auto" style={{ scrollbarWidth: 'thin', overscrollBehavior: 'contain' }}>
+                    <div className="flex-1 min-h-0 overflow-y-auto" style={{ scrollbarWidth: 'thin', overscrollBehavior: 'contain' }}>
                     <DndContext
                       sensors={sensors}
                       collisionDetection={pointerWithin}

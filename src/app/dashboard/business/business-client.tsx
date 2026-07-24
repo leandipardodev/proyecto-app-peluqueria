@@ -825,6 +825,7 @@ export default function BusinessClient({
 
     initialSectionCatalogRef.current = sectionCatalog;
     initialCategoryDraftRef.current = serviceCategoryDraft;
+    initialServiceOrderRef.current = serviceOrderIds;
     cleanSnapshotRef.current = {
       whatsapp: whatsappTemplate,
       depositEnabled: bookingDepositEnabled,
