@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 const EASE: [number, number, number, number] = [0.43, 0.13, 0.23, 0.96];
 
@@ -57,10 +57,6 @@ export default function HomeFeaturesCarousel() {
   const [dragX, setDragX] = useState(0);
   const slide = SLIDES[active];
 
-  const imageStyles = useMemo(() => {
-    return { frame: "", glow: "from-sky-300/45 via-cyan-200/26 to-blue-300/40" };
-  }, []);
-
   function goPrev() {
     setActive((prev) => (prev - 1 + SLIDES.length) % SLIDES.length);
   }
@@ -89,7 +85,7 @@ export default function HomeFeaturesCarousel() {
   return (
     <section
       className="glass-sheen-card relative overflow-hidden rounded-[2.5rem] border border-slate-700/70 bg-[linear-gradient(140deg,#080d18_0%,#0b1222_48%,#0d172d_100%)] transition-colors"
-      style={{ boxShadow: "0 14px 34px rgba(15,23,42,0.08)" }}
+      style={{ boxShadow: "0 22px 68px rgba(14,165,233,0.12), 0 34px 88px rgba(15,23,42,0.30)" }}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocusCapture={() => setPaused(true)}
@@ -132,7 +128,6 @@ export default function HomeFeaturesCarousel() {
 
         <div className="order-1 md:order-2 md:col-span-8 relative z-0">
           <div className="relative h-[380px] overflow-visible md:h-[560px]">
-            <div className={`pointer-events-none absolute -inset-x-16 inset-y-4 bg-gradient-to-br ${imageStyles.glow} blur-3xl`} />
             <AnimatePresence mode="wait">
               <motion.div
                 key={slide.id}
@@ -140,7 +135,7 @@ export default function HomeFeaturesCarousel() {
                 animate={{ opacity: 1, scale: 1, x: dragX }}
                 exit={{ opacity: 0, scale: 1.04 }}
                 transition={{ duration: 0.6, ease: EASE }}
-                className={`absolute -inset-x-4 inset-y-0 md:-inset-x-6 ${imageStyles.frame}`}
+                className="absolute -inset-x-4 inset-y-0 md:-inset-x-6"
                 drag="x"
                 dragConstraints={{ left: 0, right: 0 }}
                 dragElastic={0.12}

@@ -380,7 +380,7 @@ export default function Home({ monthlyPrice, trialDays }: { monthlyPrice: number
                   href="/register"
                   className="rounded-full bg-[#0071E3] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#0064cc]"
                 >
-                  Comenzar
+                  Registrarse
                 </Link>
               </>
             )}

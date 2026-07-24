@@ -29,7 +29,7 @@ export default async function DashboardLayout({
   const userName = user.email || "Usuario";
 
   return (
-    <div className="flex h-[100dvh] bg-transparent transition-colors relative overflow-hidden">
+    <div className="flex h-[100dvh] bg-transparent relative overflow-hidden">
       {/* Persistent background orbs — never re-render on page navigation */}
       <div className="fixed top-[-15%] left-[-8%] w-[600px] h-[600px] rounded-full bg-blue-900/20 blur-3xl pointer-events-none" />
       <div className="fixed bottom-[-15%] right-[-8%] w-[500px] h-[500px] rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />

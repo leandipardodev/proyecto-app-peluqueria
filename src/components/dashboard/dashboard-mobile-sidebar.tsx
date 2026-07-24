@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { AnimatePresence, animate, motion } from "framer-motion";
 import { X } from "lucide-react";
 import DashboardSidebar from "./dashboard-sidebar";
@@ -12,6 +12,47 @@ type Props = {
 };
 
 export default function DashboardMobileSidebar({ open, onClose, userName }: Props) {
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef(0);
+  const blurRef = useRef(0);
+
+  useEffect(() => {
+    cancelAnimationFrame(rafRef.current);
+    const el = backdropRef.current;
+    if (!el) return;
+
+    const target = open ? 12 : 0;
+    const start = blurRef.current;
+    const diff = target - start;
+    const duration = open ? 1400 : 700;
+    const startTime = performance.now();
+
+    const current = el;
+
+    function step(now: number) {
+      const elapsed = now - startTime;
+      const t = Math.min(elapsed / duration, 1);
+      const ease = t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
+      const value = start + diff * ease;
+      current.style.backdropFilter = `blur(${value}px)`;
+      current.style.setProperty("-webkit-backdrop-filter", `blur(${value}px)`);
+      blurRef.current = value;
+      if (t < 1) {
+        rafRef.current = requestAnimationFrame(step);
+      }
+    }
+
+    rafRef.current = requestAnimationFrame(step);
+
+    el.animate(
+      [
+        { backgroundColor: open ? "rgba(0,0,0,0)" : "rgba(0,0,0,0.2)" },
+        { backgroundColor: open ? "rgba(0,0,0,0.2)" : "rgba(0,0,0,0)" },
+      ],
+      { duration: 300, easing: "ease", fill: "forwards" },
+    );
+  }, [open]);
+
   useEffect(() => {
     if (open) {
       document.body.style.overflow = "hidden";
@@ -21,31 +62,34 @@ export default function DashboardMobileSidebar({ open, onClose, userName }: Prop
   }, [open]);
 
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          className="fixed inset-0 z-[60] min-[1367px]:hidden overflow-hidden"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <div
-            className="absolute inset-0 bg-black/20"
-            style={{
-              backdropFilter: open ? "blur(2px)" : "none",
-              WebkitBackdropFilter: open ? "blur(2px)" : "none",
-              transition: "backdrop-filter 0.6s ease-out, -webkit-backdrop-filter 0.6s ease-out",
-            }}
-            onClick={onClose}
-          />
+    <>
+      <div
+        ref={backdropRef}
+        className="fixed inset-0 z-[65] min-[1367px]:hidden"
+        style={{
+          backdropFilter: "blur(0px)",
+          WebkitBackdropFilter: "blur(0px)",
+          backgroundColor: "rgba(0,0,0,0)",
+          pointerEvents: open ? "auto" : "none",
+        }}
+        onClick={onClose}
+      />
+      <AnimatePresence>
+        {open && (
           <motion.div
-            className="absolute inset-y-0 -left-4 w-[17rem] pl-4 bg-gradient-to-b from-white via-white to-zinc-50/90 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-950 shadow-2xl shadow-black/15 dark:shadow-black/60 flex flex-col max-h-full"
-            initial={{ x: -280, opacity: 0, scale: 0.96 }}
-            animate={{ x: 0, opacity: 1, scale: 1 }}
-            exit={{ x: -280, opacity: 0, scale: 0.96, transition: { duration: 0.18, ease: [0.32, 0, 0.67, 0] } }}
-            transition={{ type: "spring", damping: 20, stiffness: 250, mass: 0.8 }}
+            className="fixed inset-0 z-[70] min-[1367px]:hidden overflow-hidden pointer-events-none"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
           >
+            <motion.div
+              className="absolute inset-y-0 -left-4 w-[17rem] pl-4 bg-gradient-to-b from-white via-white to-zinc-50/90 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-950 shadow-2xl shadow-black/15 dark:shadow-black/60 flex flex-col max-h-full pointer-events-auto"
+              initial={{ x: -280, opacity: 0, scale: 0.96 }}
+              animate={{ x: 0, opacity: 1, scale: 1 }}
+              exit={{ x: -280, opacity: 0, scale: 0.96, transition: { duration: 0.18, ease: [0.32, 0, 0.67, 0] } }}
+              transition={{ type: "spring", damping: 20, stiffness: 250, mass: 0.8 }}
+            >
             <div className="flex items-center justify-between px-4 pb-3 pt-[max(env(safe-area-inset-top),0.75rem)] border-b border-white/20 dark:border-white/10 bg-white/30 dark:bg-black/30 backdrop-blur-3xl shrink-0">
               <div
                 onClick={() => {
@@ -83,7 +127,8 @@ export default function DashboardMobileSidebar({ open, onClose, userName }: Prop
             </div>
           </motion.div>
         </motion.div>
-      )}
-    </AnimatePresence>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
