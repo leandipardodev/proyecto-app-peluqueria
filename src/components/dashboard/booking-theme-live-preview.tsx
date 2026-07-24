@@ -524,8 +524,8 @@ export default function BookingThemeLivePreview({
             </div>
           )}
           <div className="flex justify-center">
-            <div className="w-full max-w-sm">
-              <div className={`relative rounded-[2.5rem] overflow-hidden ${s.page}`}>
+              <div className="w-full max-w-sm">
+              <div className={`relative rounded-[2.5rem] overflow-hidden flex flex-col max-h-[min(700px,85vh)] ${s.page}`}>
             <div className={`pointer-events-none absolute inset-0 z-0 bg-gradient-to-br ${s.pageAura}`} />
             <div className={`pointer-events-none absolute inset-0 z-[1] ${s.pageLightFx}`} />
             <div aria-hidden className={`pointer-events-none absolute top-[-12%] right-[-10%] z-[2] h-[170px] w-[170px] rounded-full blur-[90px] ${s.glowA} ${s.glowBlend}`} />
@@ -536,9 +536,9 @@ export default function BookingThemeLivePreview({
               background: "radial-gradient(circle at 50% 40%, rgba(255,255,255,0.10), transparent 52%), radial-gradient(circle at 28% 68%, rgba(255,255,255,0.08), transparent 48%)",
             }} />
 
-            <div className="relative z-10 flex items-start justify-center p-2 sm:p-4">
-              <div className="w-full">
-                <div className={`rounded-[32px] p-3 sm:p-5 flex flex-col h-[540px] ${s.shell}`}>
+            <div className="relative z-10 flex-1 min-h-0 flex flex-col items-center justify-start p-2 sm:p-4">
+              <div className="w-full flex flex-col flex-1 min-h-0">
+                <div className={`rounded-[32px] p-3 sm:p-5 flex flex-col flex-1 min-h-0 ${s.shell}`}>
                   {/* Header */}
                   <div className="pb-3">
                     <div className="flex items-center gap-3">
@@ -700,7 +700,7 @@ export default function BookingThemeLivePreview({
                   </div>
 
                   {/* Service list with DnD */}
-                  <div className="flex-1 min-h-0 pt-3 pb-1">
+                  <div className="flex-1 min-h-0 pt-3 pb-1 flex flex-col">
                     {!hasRealServices && (
                       <p className={`text-[11px] italic mb-2 ${s.tiny}`}>
                         {labels.servicePlural} de ejemplo hasta que cargues los tuyos.
