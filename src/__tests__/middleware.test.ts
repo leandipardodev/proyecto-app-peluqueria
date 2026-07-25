@@ -133,11 +133,11 @@ describe("middleware", () => {
   // -----------------------------------------------------------------------
   // Profile check
   // -----------------------------------------------------------------------
-  it("redirects to billing-required when no profile", async () => {
+  it("redirects to login on profile DB error", async () => {
     vi.mocked(mockCreateMiddlewareClient).mockImplementation((_req, _res) => {
       const chain = chainableQuery();
       chain.then = (onfulfilled: any) =>
-        Promise.resolve({ data: null, error: { message: "not found" } }).then(onfulfilled);
+        Promise.resolve({ data: null, error: { message: "connection refused" } }).then(onfulfilled);
       return makeMiddlewareClient({
         auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: "u1" } }, error: null }) },
         from: vi.fn(() => chain),
@@ -146,7 +146,25 @@ describe("middleware", () => {
 
     const res = await runMiddleware("/dashboard/staff");
     expect(res.status).toBe(307);
-    expect(res.headers.get("Location")).toContain("/billing-required");
+    const location = res.headers.get("Location");
+    expect(location).toContain("/login");
+    expect(location).toContain("error=");
+  });
+
+  it("redirects to onboarding when no profile row exists", async () => {
+    vi.mocked(mockCreateMiddlewareClient).mockImplementation((_req, _res) => {
+      const chain = chainableQuery();
+      chain.then = (onfulfilled: any) =>
+        Promise.resolve({ data: null, error: null }).then(onfulfilled);
+      return makeMiddlewareClient({
+        auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: "u1" } }, error: null }) },
+        from: vi.fn(() => chain),
+      });
+    });
+
+    const res = await runMiddleware("/dashboard/staff");
+    expect(res.status).toBe(307);
+    expect(res.headers.get("Location")).toContain("/onboarding/create-shop");
   });
 
   // -----------------------------------------------------------------------

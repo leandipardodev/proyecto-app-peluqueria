@@ -63,10 +63,17 @@ async function middlewareHandler(request: NextRequest) {
       .in("role", ["owner", "admin", "staff"]),
   ]);
 
-  if (profileError || !userProfile) {
-    const billingUrl = request.nextUrl.clone();
-    billingUrl.pathname = BILLING_REQUIRED_PATH;
-    return NextResponse.redirect(billingUrl);
+  if (profileError) {
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = LOGIN_PATH;
+    loginUrl.searchParams.set("error", "Error al cargar tu perfil. Intentá de nuevo.");
+    return NextResponse.redirect(loginUrl);
+  }
+
+  if (!userProfile) {
+    const onboardingUrl = request.nextUrl.clone();
+    onboardingUrl.pathname = "/onboarding/create-shop";
+    return NextResponse.redirect(onboardingUrl);
   }
 
   if (userProfile.is_banned) {
