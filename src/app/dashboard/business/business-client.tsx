@@ -55,11 +55,11 @@ function getMpReturnScrollKey(shopSlug: string | null): string {
 
 function getTourSteps(staffPlural: string, servicePlural: string) {
   return [
-    { id: "setup-hours", title: "1. Horarios de atencion", text: "Defini los dias y horarios para que las reservas muestren disponibilidad real." },
-    { id: "setup-services", title: `2. ${servicePlural}`, text: `Carga tu catalogo de ${servicePlural.toLowerCase()} con precio y duracion.` },
-    { id: "setup-staff", title: `3. ${staffPlural}`, text: `Agrega y administra tus ${staffPlural.toLowerCase()} para asignar turnos correctamente.` },
-    { id: "setup-public-info", title: "4. Informacion publica", text: "Completa nombre, descripcion, direccion y telefono de tu local." },
-    { id: "setup-payments", title: "5. Formas de cobro", text: "Configura Mercado Pago, transferencias y la politica de sena para cobrar sin friccion." },
+    { id: "setup-public-info", title: "1. Informacion publica", text: "Completa nombre, descripcion, direccion y telefono de tu local." },
+    { id: "setup-hours", title: "2. Horarios de atencion", text: "Defini los dias y horarios para que las reservas muestren disponibilidad real." },
+    { id: "setup-payments", title: "3. Formas de cobro", text: "Configura Mercado Pago y la politica de seña para cobrar sin friccion." },
+    { id: "setup-staff", title: `4. ${staffPlural}`, text: `Agrega y administra tus ${staffPlural.toLowerCase()} para asignar turnos correctamente.` },
+    { id: "setup-services", title: `5. ${servicePlural}`, text: `Carga tu catalogo de ${servicePlural.toLowerCase()} con precio y duracion.` },
   ] as const;
 }
 
@@ -2041,7 +2041,7 @@ export default function BusinessClient({
                           completeTour();
                           return;
                         }
-                        if (tourStep === 1) {
+                        if (tourStep === 2) {
                           setTourAdvancing(true);
                           setMpConnectUnlockAt(Date.now() + 1400);
                           (async () => {
@@ -2052,7 +2052,7 @@ export default function BusinessClient({
                                 return;
                               }
                               const key = `klip-business-onboarding-v1:${shopSlug || "default"}`;
-                              window.localStorage.setItem(key, JSON.stringify({ active: true, step: 2 }));
+                              window.localStorage.setItem(key, JSON.stringify({ active: true, step: 3 }));
                               router.push(shopSlug ? `/dashboard/${shopSlug}/staff` : "/dashboard/staff");
                             } catch (e) {
                               setTourAdvancing(false);
