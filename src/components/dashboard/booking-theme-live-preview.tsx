@@ -525,7 +525,7 @@ export default function BookingThemeLivePreview({
           )}
           <div className="flex justify-center">
               <div className="w-full max-w-sm">
-              <div className={`relative rounded-[2.5rem] overflow-hidden flex flex-col h-[850px] ${s.page}`}>
+              <div className={`relative rounded-[2.5rem] overflow-hidden flex flex-col h-[700px] ${s.page}`}>
             <div className={`pointer-events-none absolute inset-0 z-0 bg-gradient-to-br ${s.pageAura}`} />
             <div className={`pointer-events-none absolute inset-0 z-[1] ${s.pageLightFx}`} />
             <div aria-hidden className={`pointer-events-none absolute top-[-12%] right-[-10%] z-[2] h-[170px] w-[170px] rounded-full blur-[90px] ${s.glowA} ${s.glowBlend}`} />
