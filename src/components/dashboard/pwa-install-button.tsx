@@ -21,7 +21,9 @@ export default function PwaInstallButton() {
   const [isIosFallbackVisible, setIsIosFallbackVisible] = useState(false);
 
   useEffect(() => {
-    setIsInstalled(isRunningStandalone());
+    const standalone = isRunningStandalone();
+    setIsInstalled(standalone);
+    if (standalone) localStorage.setItem("klip-pwa-installed", "true");
 
     const ua = typeof window !== "undefined" ? window.navigator.userAgent : "";
     const isIOS = /iPad|iPhone|iPod/.test(ua) || (window.navigator.platform === "MacIntel" && window.navigator.maxTouchPoints > 1);
@@ -38,6 +40,7 @@ export default function PwaInstallButton() {
       setIsInstalled(true);
       setInstallPromptEvent(null);
       setIsIosFallbackVisible(false);
+      localStorage.setItem("klip-pwa-installed", "true");
     }
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
@@ -56,6 +59,7 @@ export default function PwaInstallButton() {
     if (choice.outcome === "accepted") {
       setIsInstalled(true);
       setInstallPromptEvent(null);
+      localStorage.setItem("klip-pwa-installed", "true");
     }
   }
 

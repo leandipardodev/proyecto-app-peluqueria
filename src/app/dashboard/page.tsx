@@ -122,7 +122,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
   const loyaltyRewardsCount = summary.loyaltyRewardsReadyCount || 0;
   const firstLoyaltyCustomer = summary.loyaltyRewardCustomerNames?.[0] || null;
   const extraLoyaltyCustomers = Math.max(0, loyaltyRewardsCount - 1);
-  const aiMessages: Array<{ id: string; title: string; body: string; tone: "urgent" | "action" | "insight"; href: string }> = [];
+  const aiMessages: Array<{ id: string; title: string; body: string; tone: "urgent" | "action" | "insight" | "joke"; href: string }> = [];
 
   const seasonalLabel = seasonalMomentLabel(new Date(), customerPlural);
   if (seasonalLabel) {
@@ -215,6 +215,103 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
       tone: "insight",
       href: withDashboardBase("/dashboard/business", dashboardBasePath),
     });
+  }
+
+  const CLIENT_MILESTONES = [10, 25, 50, 100, 250, 500, 1000];
+  const APPT_MILESTONES = [10, 25, 50, 100, 250, 500, 1000, 2500, 5000];
+  const totalClients = metrics?.stats.totalClients ?? 0;
+  const totalAppointments = metrics?.stats.totalAppointments ?? 0;
+
+  const clientMilestone = CLIENT_MILESTONES.filter((m) => totalClients >= m).pop();
+  if (clientMilestone) {
+    aiMessages.push({
+      id: `milestone-clients-${clientMilestone}`,
+      title: "Hito alcanzado",
+      body: `Llegaste a ${totalClients.toLocaleString("es-AR")} ${customerPlural} atendidos. ¡Sigue creciendo!`,
+      tone: "insight",
+      href: withDashboardBase("/dashboard/clients", dashboardBasePath),
+    });
+  }
+
+  const apptMilestone = APPT_MILESTONES.filter((m) => totalAppointments >= m).pop();
+  if (apptMilestone) {
+    aiMessages.push({
+      id: `milestone-appointments-${apptMilestone}`,
+      title: "Hitos de agenda",
+      body: `Acumulás ${totalAppointments.toLocaleString("es-AR")} turnos atendidos. ¡Tu agenda no para!`,
+      tone: "insight",
+      href: withDashboardBase("/dashboard/calendar", dashboardBasePath),
+    });
+  }
+
+  if (healthScore !== null && healthScore >= 90) {
+    aiMessages.push({
+      id: "health-excellent",
+      title: "Salud excelente",
+      body: `Tu negocio tiene un score de ${healthScore}/100. Está en su mejor momento.`,
+      tone: "insight",
+      href: withDashboardBase("/dashboard/business", dashboardBasePath),
+    });
+  } else if (healthScore !== null && healthScore >= 70) {
+    aiMessages.push({
+      id: "health-good",
+      title: "Salud estable",
+      body: `Score de ${healthScore}/100. Facturación, clientes y agenda van bien.`,
+      tone: "insight",
+      href: withDashboardBase("/dashboard/business", dashboardBasePath),
+    });
+  }
+
+  const APP_TIPS: Array<{ id: string; title: string; body: string; feature?: keyof typeof features }> = [
+    { id: "tip-whatsapp", title: "Tip: WhatsApp", body: "Activá los recordatorios automáticos por WhatsApp para reducir inasistencias hasta un 30%.", feature: "marketing" },
+    { id: "tip-booking", title: "Tip: Reservas online", body: "Compartí tu link de reservas por Instagram Stories para que tus clientes reserven sin llamar." },
+    { id: "tip-loyalty", title: "Tip: Fidelización", body: "Configurá recompensas por visitas: cada 5 servicios regalá uno. Tus clientes van a volver más seguido.", feature: "marketing" },
+    { id: "tip-stock", title: "Tip: Stock", body: "Activá las alertas de stock mínimo para nunca quedarte sin productos clave.", feature: "inventory" },
+    { id: "tip-voucher", title: "Tip: Vouchers", body: "Mandá vouchers de cumpleaños por WhatsApp. Es el mejor momento para que el cliente reserve.", feature: "vouchers" },
+    { id: "tip-schedule", title: "Tip: Horarios", body: "Cargá los horarios de cada empleado en \"Mi Horario\" para que la agenda sea más precisa.", feature: "staff" },
+    { id: "tip-finances", title: "Tip: Finanzas", body: "Revisá el gráfico de facturación semanal para detectar los días más rentables y ajustar horarios." },
+    { id: "tip-services", title: "Tip: Servicios", body: "Agregá la duración exacta de cada servicio. Así el calendario bloquea el tiempo correcto y no se pisan turnos." },
+    { id: "tip-clients", title: "Tip: Clientes", body: "Completá el teléfono de cada cliente con código de área. Klip lo usa para enviar recordatorios." },
+    { id: "tip-pwa", title: "Tip: Instalá Klip", body: "Si instalás Klip como app, tenés acceso rápido desde tu pantalla de inicio sin abrir el navegador." },
+    { id: "tip-calendar", title: "Tip: Calendario", body: "Usá los filtros del calendario para ver solo los turnos de un empleado. Ahorrás tiempo al organizar." },
+    { id: "tip-caja", title: "Tip: Caja", body: "Abrí y cerrá caja todos los días. Así controlás que los números siempre cuadren." },
+  ];
+
+  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
+  const filteredTips = APP_TIPS.filter((t) => !t.feature || features[t.feature]);
+  if (filteredTips.length > 0) {
+    const tipIndex = dayOfYear % filteredTips.length;
+    const tip = filteredTips[tipIndex];
+    aiMessages.push({
+      id: tip.id,
+      title: tip.title,
+      body: tip.body,
+      tone: "insight",
+      href: withDashboardBase("/dashboard/calendar", dashboardBasePath),
+    });
+  }
+
+  const shopNameLower = summary.shopName.toLowerCase();
+  if (shopNameLower.includes("jazba") || shopNameLower.includes("klip")) {
+    const jokePool = [
+      { title: "Hablando de...", body: "¿Qué te pasa Cristian Costanzo? 🥵" },
+      { title: "Dato random", body: "¿De dónde sacaste que había cagggne?" },
+      { title: "Dato curioso", body: "¿Sabías que? Una vez que te pegan no te pegan más." },
+      { title: "Review", body: "No compren esa bebida 😔" },
+      { title: "Sonido del día", body: "Punna punna punna punna punna punna tshhh 🎵" },
+      { title: "Alo", body: "Ey negro sibolá" },
+      { title: "Geolocalización", body: "Ubicación 📍 La palera" },
+      { title: "Robot", body: "Okey makey 🤖" },
+    ];
+    for (const joke of jokePool) {
+      aiMessages.push({
+        id: `joke-${joke.title}`,
+        title: joke.title,
+        body: joke.body,
+        tone: "joke",
+        href: withDashboardBase("/dashboard/calendar", dashboardBasePath),
+      });
+    }
   }
 
   if (aiMessages.length === 0) {

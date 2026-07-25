@@ -2,10 +2,18 @@
 
 import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CircleHelp, CalendarDays, Users, Scissors, UserRound, Wallet, Package, Gift, Store, CreditCard, LayoutDashboard, ChevronDown, ArrowLeftRight } from "lucide-react";
+import { CircleHelp, CalendarDays, Users, Scissors, UserRound, Wallet, Package, Gift, Store, CreditCard, LayoutDashboard, ChevronDown, ArrowLeftRight, Download } from "lucide-react";
 import BaseModal from "@/components/ui/modal";
+import { openGuideModal } from "@/components/dashboard/guide-modal";
 
-const HELP_SECTIONS = [
+type HelpSection = {
+  icon: typeof CircleHelp;
+  title: string;
+  description: string;
+  action?: { label: string; onClick: () => void };
+};
+
+const HELP_SECTIONS: HelpSection[] = [
   {
     icon: LayoutDashboard,
     title: "Panel Principal",
@@ -171,6 +179,15 @@ const HELP_SECTIONS = [
       "• Si pasan más de 30 días, los datos se eliminan permanentemente.\n\n" +
       "Si sos dueño de varios locales, cada local tiene su propia suscripción independiente. Podés gestionar todas desde el selector de locales arriba a la izquierda.",
   },
+  {
+    icon: Download,
+    title: "Instalar Klip",
+    description:
+      "Klip es una aplicación web progresiva (PWA), lo que significa que podés instalarla directamente en tu dispositivo sin pasar por ninguna tienda de apps.\n\n" +
+      "Una vez instalada, Klip se abre como una app nativa: tiene su propio ícono en la pantalla de inicio, ocupa toda la pantalla y funciona sin la barra de direcciones del navegador.\n\n" +
+      "Los pasos varían según tu dispositivo. Tocá el botón de abajo para ver la guía visual completa para tu plataforma.",
+    action: { label: "Ver guía de instalación", onClick: openGuideModal },
+  },
 ];
 
 export default function HelpModal() {
@@ -234,6 +251,18 @@ export default function HelpModal() {
                       <div className="px-4 pb-3 pt-0.5 text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed whitespace-pre-line">
                         {section.description}
                       </div>
+                      {section.action && (
+                        <div className="px-4 pb-3">
+                          <button
+                            type="button"
+                            onClick={section.action.onClick}
+                            className="inline-flex items-center gap-2 rounded-xl bg-[#0071E3] px-4 py-2 text-sm font-medium text-white hover:bg-[#0071E3]/90 transition-colors cursor-pointer"
+                          >
+                            <Download className="h-4 w-4" />
+                            {section.action.label}
+                          </button>
+                        </div>
+                      )}
                     </motion.div>
                   )}
                 </AnimatePresence>

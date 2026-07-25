@@ -11,6 +11,7 @@ const PullToRefresh = dynamicImport(() => import("@/components/dashboard/pull-to
 const ReleaseNotesModal = dynamicImport(() => import("@/components/dashboard/release-notes-modal"));
 const BugReportModal = dynamicImport(() => import("@/components/dashboard/bug-report-modal"));
 const HelpModal = dynamicImport(() => import("@/components/dashboard/help-modal"));
+const GuideModal = dynamicImport(() => import("@/components/dashboard/guide-modal"));
 
 export const metadata: Metadata = {
   robots: {
@@ -43,6 +44,7 @@ export default async function DashboardLayout({
         <ReleaseNotesModal />
         <BugReportModal />
         <HelpModal />
+        <GuideModal />
         <DashboardHeaderLoader userEmail={user.email ?? ""} onLogout={logout} />
 
         <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-contain p-3 sm:p-6 lg:p-8">

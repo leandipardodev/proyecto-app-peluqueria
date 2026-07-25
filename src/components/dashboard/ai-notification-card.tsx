@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bot, Sparkles } from "lucide-react";
+import { Bot, Sparkles, BookOpen } from "lucide-react";
+import { openGuideModal } from "@/components/dashboard/guide-modal";
 
 type Message = {
   id: string;
   title: string;
   body: string;
-  tone: "urgent" | "action" | "insight";
+  tone: "urgent" | "action" | "insight" | "joke";
   href?: string;
 };
 
@@ -34,8 +35,25 @@ export default function AINotificationCard({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const isStandalone = window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone;
-    if (isStandalone) return;
+
+    function isAppInstalled() {
+      return (
+        window.matchMedia("(display-mode: standalone)").matches ||
+        (window.navigator as any).standalone === true ||
+        localStorage.getItem("klip-pwa-installed") === "true"
+      );
+    }
+
+    if (isAppInstalled()) return;
+
+    const mql = window.matchMedia("(display-mode: standalone)");
+    function handleDisplayChange() {
+      if (mql.matches) {
+        localStorage.setItem("klip-pwa-installed", "true");
+        setPwaTip(null);
+      }
+    }
+    mql.addEventListener("change", handleDisplayChange);
 
     const ua = navigator.userAgent;
     const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -63,6 +81,8 @@ export default function AINotificationCard({
         tone: "insight",
       });
     }
+
+    return () => mql.removeEventListener("change", handleDisplayChange);
   }, []);
 
   const titleRef = useRef<HTMLParagraphElement>(null);
@@ -132,8 +152,10 @@ export default function AINotificationCard({
       ? "border-rose-300/50 bg-rose-300/10 text-rose-900 dark:text-rose-100"
       : active.tone === "action"
         ? "border-amber-300/50 bg-amber-300/10 text-amber-900 dark:text-amber-100"
-        : "border-cyan-300/50 bg-cyan-300/10 text-cyan-900 dark:text-cyan-100";
-  const toneLabel = active.tone === "urgent" ? "Urgente" : active.tone === "action" ? "Accion" : "Insight";
+        : active.tone === "joke"
+          ? "border-fuchsia-300/50 bg-fuchsia-300/10 text-fuchsia-900 dark:text-fuchsia-100"
+          : "border-cyan-300/50 bg-cyan-300/10 text-cyan-900 dark:text-cyan-100";
+  const toneLabel = active.tone === "urgent" ? "Urgente" : active.tone === "action" ? "Accion" : active.tone === "joke" ? "🗣️" : "Insight";
 
   useEffect(() => {
     const tw = titleWrapRef.current;
@@ -247,6 +269,18 @@ export default function AINotificationCard({
                         >
                           {active.body}
                         </p>
+                        {active.id?.startsWith("pwa-") && (
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => { e.stopPropagation(); openGuideModal(); }}
+                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); openGuideModal(); } }}
+                            className="mt-1 inline-flex items-center gap-1 text-[10px] font-semibold underline underline-offset-2 opacity-80 hover:opacity-100 transition-opacity cursor-pointer"
+                          >
+                            <BookOpen className="h-3 w-3" />
+                            Ver guía
+                          </span>
+                        )}
                       </div>
                     </>
                   ) : (
