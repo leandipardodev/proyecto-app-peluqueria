@@ -838,10 +838,6 @@ export default function BookingThemeLivePreview({
                   <span className="text-blue-400 mt-0.5 shrink-0">⊕</span>
                   <span>Agregá nuevas secciones con el botón +.</span>
                 </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-blue-400 mt-0.5 shrink-0">⟳</span>
-                  <span>Los cambios se guardan automáticamente.</span>
-                </li>
               </ul>
             </div>
           </div>
