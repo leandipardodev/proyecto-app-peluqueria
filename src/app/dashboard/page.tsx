@@ -292,6 +292,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
   }
 
   const shopNameLower = summary.shopName.toLowerCase();
+  const jokeMessages: typeof aiMessages = [];
   if (shopNameLower.includes("jazba") || shopNameLower.includes("klip")) {
     const jokePool = [
       { title: "Hablando de...", body: "¿Qué te pasa Cristian Costanzo? 🥵" },
@@ -304,7 +305,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
       { title: "Robot", body: "Okey makey 🤖" },
     ];
     for (const joke of jokePool) {
-      aiMessages.push({
+      jokeMessages.push({
         id: `joke-${joke.title}`,
         title: joke.title,
         body: joke.body,
@@ -322,6 +323,22 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
       tone: "insight",
       href: withDashboardBase("/dashboard/calendar", dashboardBasePath),
     });
+  }
+
+  if (jokeMessages.length > 0) {
+    const interval = 10;
+    let jokeIdx = 0;
+    for (let i = 0; i < aiMessages.length && jokeIdx < jokeMessages.length; i++) {
+      if ((i + 1) % interval === 0) {
+        aiMessages.splice(i, 0, jokeMessages[jokeIdx]);
+        jokeIdx++;
+        i++;
+      }
+    }
+    while (jokeIdx < jokeMessages.length) {
+      aiMessages.push(jokeMessages[jokeIdx]);
+      jokeIdx++;
+    }
   }
 
   const cards = [
