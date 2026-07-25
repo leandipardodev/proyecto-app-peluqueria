@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Nunito } from "next/font/google";
 import { redirect } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import BillingRequiredClient from "./billing-required-client";
@@ -72,40 +73,81 @@ export default async function BillingRequiredPage({
   const graceUntil = expiry ? new Date(expiry.getTime() + 2 * 24 * 60 * 60 * 1000) : null;
   const now = new Date();
   const isActuallyExpired = expiry && expiry < now;
+  const daysRemaining = expiry && !isActuallyExpired
+    ? Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+    : 0;
+  const newExpiryAfterRenew = expiry && !isActuallyExpired
+    ? new Date(expiry.getTime() + 30 * 24 * 60 * 60 * 1000)
+    : null;
 
   return (
     <div className="min-h-screen bg-white pt-8 md:pt-12">
       <div className="mx-auto w-full max-w-5xl px-4 md:px-6">
         <div className="space-y-7">
-          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-orange-700">Seguimos metiéndole juntos</p>
-          <h1 className="text-4xl md:text-6xl font-black tracking-[-0.045em] leading-[0.9] text-zinc-900">
-            ¡Qué lindo tenerte
-            <span className="mx-2 inline-block -rotate-2 bg-orange-500 px-2 text-white">ACÁ</span>
-            <span className="block">una vez más! 😂</span>
-          </h1>
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-orange-700 hover:text-orange-900 border border-orange-300 hover:border-orange-400 rounded-xl px-3 py-1.5 hover:bg-orange-50 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Volver al dashboard
+          </Link>
 
-          <p className="inline-block -rotate-1 border-2 border-orange-700 bg-white px-4 py-2 text-sm md:text-base font-black text-orange-800 shadow-[6px_6px_0px_0px_rgba(194,65,12,0.75)]">
-            Tu día a día merece que todo funcione de diez
-          </p>
+          {isActuallyExpired ? (
+            <>
+              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-orange-700">Seguimos metiéndole juntos</p>
+              <h1 className="text-4xl md:text-6xl font-black tracking-[-0.045em] leading-[0.9] text-zinc-900">
+                ¡Qué lindo tenerte
+                <span className="mx-2 inline-block -rotate-2 bg-orange-500 px-2 text-white">ACÁ</span>
+                <span className="block">una vez más! 😂</span>
+              </h1>
 
-          <p className={`${nunito.className} max-w-3xl text-lg md:text-xl text-zinc-800 leading-relaxed font-extrabold`}>
-            Nos encanta trabajar con vos, turno a turno.
-          </p>
+              <p className="inline-block -rotate-1 border-2 border-orange-700 bg-white px-4 py-2 text-sm md:text-base font-black text-orange-800 shadow-[6px_6px_0px_0px_rgba(194,65,12,0.75)]">
+                Tu día a día merece que todo funcione de diez
+              </p>
 
-          <p className={`${nunito.className} text-base text-zinc-700 font-extrabold`}>
-            Hacé la renovación para que siga todo prendido y funcionando de diez.
-          </p>
+              <p className={`${nunito.className} max-w-3xl text-lg md:text-xl text-zinc-800 leading-relaxed font-extrabold`}>
+                Nos encanta trabajar con vos, turno a turno.
+              </p>
+
+              <p className={`${nunito.className} text-base text-zinc-700 font-extrabold`}>
+                Ponete al día para que siga todo prendido y funcionando de diez.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-orange-700">Tu plan sigue activo</p>
+              <h1 className="text-4xl md:text-6xl font-black tracking-[-0.045em] leading-[0.9] text-zinc-900">
+                Quedan unos días
+                <span className="mx-2 inline-block -rotate-2 bg-orange-500 px-2 text-white">PARA</span>
+                <span className="block">renovar, tranquilo</span>
+              </h1>
+
+              <p className="inline-block -rotate-1 border-2 border-orange-700 bg-white px-4 py-2 text-sm md:text-base font-black text-orange-800 shadow-[6px_6px_0px_0px_rgba(194,65,12,0.75)]">
+                pero podés ponerte al día antes del vencimiento y seguir tranqui
+              </p>
+
+              <p className={`${nunito.className} text-base text-zinc-700 font-extrabold`}>
+                Ponete al día ahora para no perder acceso a todo lo que te funciona.
+              </p>
+            </>
+          )}
 
           {expiry && (
             <div className="relative overflow-hidden rounded-3xl border-2 border-orange-600 bg-gradient-to-r from-orange-100 via-amber-100 to-orange-200 px-5 py-4 text-sm text-orange-950 shadow-[0_10px_26px_rgba(234,88,12,0.32)]">
               <div className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-white/45" />
-              <p className="font-black tracking-wide text-base">Renová tu plan</p>
+              <p className="font-black tracking-wide text-base">Mantenelo funcionando</p>
               <p className="mt-1 text-xs text-orange-900">
                 {isActuallyExpired
                   ? `Se venció el ${expiry.toLocaleDateString("es-AR")} y te segundeamos con unos días hasta el ${graceUntil?.toLocaleDateString("es-AR")}.`
-                  : `Vence el ${expiry.toLocaleDateString("es-AR")}. Todavía estás a tiempo de renovar.`
+                  : `Vence el ${expiry.toLocaleDateString("es-AR")}. Te quedan ${daysRemaining} días.`
                 }
               </p>
+            </div>
+          )}
+
+          {!isActuallyExpired && newExpiryAfterRenew && (
+            <div className="inline-block -rotate-1 border-2 border-orange-700 bg-white px-4 py-2 text-sm md:text-base font-black text-orange-800 shadow-[6px_6px_0px_0px_rgba(194,65,12,0.75)]">
+              Si pagás ahora te sumamos 30 días a los que ya tenés. Tu nuevo vencimiento sería el {newExpiryAfterRenew.toLocaleDateString("es-AR")}.
             </div>
           )}
 
