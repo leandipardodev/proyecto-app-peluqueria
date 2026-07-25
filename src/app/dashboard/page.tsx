@@ -327,17 +327,19 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
 
   if (jokeMessages.length > 0) {
     const interval = 10;
-    let jokeIdx = 0;
-    for (let i = 0; i < aiMessages.length && jokeIdx < jokeMessages.length; i++) {
-      if ((i + 1) % interval === 0) {
-        aiMessages.splice(i, 0, jokeMessages[jokeIdx]);
-        jokeIdx++;
-        i++;
-      }
+    const maxSlots = Math.floor(aiMessages.length / interval) + 1;
+    const availableSlots = Math.min(maxSlots, jokeMessages.length);
+    const shuffledSlots = Array.from({ length: maxSlots }, (_, i) => i);
+    for (let i = shuffledSlots.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledSlots[i], shuffledSlots[j]] = [shuffledSlots[j], shuffledSlots[i]];
     }
-    while (jokeIdx < jokeMessages.length) {
-      aiMessages.push(jokeMessages[jokeIdx]);
-      jokeIdx++;
+    const slots = shuffledSlots.slice(0, availableSlots).sort((a, b) => a - b);
+    let inserted = 0;
+    for (const slot of slots) {
+      const pos = Math.min(slot * interval + inserted, aiMessages.length);
+      aiMessages.splice(pos, 0, jokeMessages[inserted]);
+      inserted++;
     }
   }
 
