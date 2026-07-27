@@ -10,6 +10,35 @@ import type { ActionResult } from "@/lib/types";
 import "server-only";
 import { createAdminClient } from "../appointments/shared";
 
+function hhmmToMinutes(t: string): number {
+  const [h, m] = t.slice(0, 5).split(":").map(Number);
+  return h * 60 + m;
+}
+
+function minutesToHHMM(mins: number): string {
+  return `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}:00`;
+}
+
+function clampBreakToWorkingHours(
+  start_time: string,
+  end_time: string,
+  break_start: string | null | undefined,
+  break_end: string | null | undefined,
+): { break_start: string | null; break_end: string | null } {
+  if (!break_start || !break_end) return { break_start: null, break_end: null };
+  const workStart = hhmmToMinutes(start_time);
+  const workEnd = hhmmToMinutes(end_time);
+  let bs = hhmmToMinutes(break_start);
+  let be = hhmmToMinutes(break_end);
+  if (bs >= be) return { break_start: null, break_end: null };
+  if (bs < workStart || be > workEnd) {
+    bs = Math.max(bs, workStart);
+    be = Math.min(be, workEnd);
+    if (bs >= be) return { break_start: null, break_end: null };
+  }
+  return { break_start: minutesToHHMM(bs), break_end: minutesToHHMM(be) };
+}
+
 async function requireOwnerAccessForShop(shopId: string): Promise<ActionResult<{ userId: string }>> {
   const supabase = await createServerClient();
   const {
@@ -866,16 +895,19 @@ export async function updateStaffSchedule(
 
     if (!memberships) return { success: false, error: "El empleado no pertenece a este local" };
 
-    const rows = schedule.map((s) => ({
-      staff_id: staffId,
-      day_of_week: s.day_of_week,
-      is_active: s.is_active,
-      start_time: s.start_time,
-      end_time: s.end_time,
-      break_start: s.break_start || null,
-      break_end: s.break_end || null,
-      updated_at: new Date().toISOString(),
-    }));
+    const rows = schedule.map((s) => {
+      const clamped = clampBreakToWorkingHours(s.start_time, s.end_time, s.break_start, s.break_end);
+      return {
+        staff_id: staffId,
+        day_of_week: s.day_of_week,
+        is_active: s.is_active,
+        start_time: s.start_time,
+        end_time: s.end_time,
+        break_start: clamped.break_start,
+        break_end: clamped.break_end,
+        updated_at: new Date().toISOString(),
+      };
+    });
 
     for (const row of rows) {
       const { error } = await admin.from("staff_schedules").upsert(row, {
@@ -1037,16 +1069,19 @@ export async function updateMySchedule(
 
     if (!membership) return { success: false, error: "No perteneces a este local" };
 
-    const rows = schedule.map((s) => ({
-      staff_id: userId,
-      day_of_week: s.day_of_week,
-      is_active: s.is_active,
-      start_time: s.start_time,
-      end_time: s.end_time,
-      break_start: s.break_start || null,
-      break_end: s.break_end || null,
-      updated_at: new Date().toISOString(),
-    }));
+    const rows = schedule.map((s) => {
+      const clamped = clampBreakToWorkingHours(s.start_time, s.end_time, s.break_start, s.break_end);
+      return {
+        staff_id: userId,
+        day_of_week: s.day_of_week,
+        is_active: s.is_active,
+        start_time: s.start_time,
+        end_time: s.end_time,
+        break_start: clamped.break_start,
+        break_end: clamped.break_end,
+        updated_at: new Date().toISOString(),
+      };
+    });
 
     for (const row of rows) {
       const { error } = await admin.from("staff_schedules").upsert(row, {

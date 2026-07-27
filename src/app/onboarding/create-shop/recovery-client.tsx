@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { createAdditionalShop } from "@/lib/dashboard/auth/actions";
-import { logout } from "@/lib/dashboard/auth/logout-action";
+import { clientLogout } from "@/lib/dashboard/auth/client-logout";
 
 export default function CreateShopRecoveryClient({ userEmail }: { userEmail: string }) {
   const [name, setName] = useState("");
@@ -59,7 +59,7 @@ export default function CreateShopRecoveryClient({ userEmail }: { userEmail: str
         <div className="mt-6 text-center">
           <button
             type="button"
-            onClick={() => startTransition(() => logout())}
+            onClick={() => startTransition(() => clientLogout())}
             className="text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 underline underline-offset-2"
           >
             Cerrar sesión

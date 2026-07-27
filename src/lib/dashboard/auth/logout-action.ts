@@ -10,6 +10,9 @@ export async function logout() {
   await supabase.auth.signOut();
 
   const cookieStore = await cookies();
+  for (const c of cookieStore.getAll()) {
+    if (c.name.startsWith("sb-")) cookieStore.delete(c.name);
+  }
   cookieStore.delete("klip_active_shop_id");
   cookieStore.delete("klip_active_shop_slug");
 

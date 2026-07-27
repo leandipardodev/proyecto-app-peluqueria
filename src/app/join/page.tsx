@@ -1,22 +1,21 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import { verifyStaffInviteToken } from "@/lib/dashboard/staff/staff-invite";
 import { StaffSetupForm } from "./staff-setup-form";
-import { logout } from "@/lib/dashboard/auth/logout-action";
+import JoinMessageClient from "./join-message-client";
 
 export default async function JoinPage({ searchParams }: { searchParams?: Promise<{ token?: string }> }) {
   const params = await searchParams;
   const token = (params?.token || "").trim();
 
   if (!token) {
-    return <JoinMessage title="Invitacion invalida" text="Falta el token de invitacion." />;
+    return <JoinMessageClient title="Invitacion invalida" text="Falta el token de invitacion." />;
   }
 
   const invite = verifyStaffInviteToken(token);
   if (!invite) {
-    return <JoinMessage title="Invitacion vencida" text="Este enlace no es valido o ya vencio." />;
+    return <JoinMessageClient title="Invitacion vencida" text="Este enlace no es valido o ya vencio." />;
   }
 
   const supabase = await createServerClient();
@@ -30,7 +29,7 @@ export default async function JoinPage({ searchParams }: { searchParams?: Promis
 
   const userEmail = (user.email || "").trim().toLowerCase();
   if (!userEmail || userEmail !== invite.email) {
-    return <JoinMessage title="Email incorrecto" text="Inicia sesion con el email que recibio la invitacion." />;
+    return <JoinMessageClient title="Email incorrecto" text="Inicia sesion con el email que recibio la invitacion." />;
   }
 
   const admin = await createServiceRoleClient();
@@ -42,7 +41,7 @@ export default async function JoinPage({ searchParams }: { searchParams?: Promis
     .maybeSingle();
 
   if (!shop?.id || !shop.slug) {
-    return <JoinMessage title="Local no encontrado" text="El local asociado a esta invitacion ya no existe." />;
+    return <JoinMessageClient title="Local no encontrado" text="El local asociado a esta invitacion ya no existe." />;
   }
 
   await admin.from("shop_memberships").upsert(
@@ -82,25 +81,4 @@ export default async function JoinPage({ searchParams }: { searchParams?: Promis
   );
 
   redirect(`/dashboard/${shop.slug}`);
-}
-
-function JoinMessage({ title, text }: { title: string; text: string }) {
-  return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="w-full max-w-md bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2rem] border border-white/10 dark:border-white/5 p-8 text-center">
-        <h1 className="text-xl font-semibold text-gray-900 dark:text-white">{title}</h1>
-        <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{text}</p>
-        <div className="mt-5 flex flex-col gap-3">
-          <Link href="/login" className="inline-flex items-center justify-center rounded-xl bg-violet-600 text-white px-4 py-2 text-sm">
-            Ir a login
-          </Link>
-          <form action={logout}>
-            <button type="submit" className="w-full inline-flex items-center justify-center rounded-xl border border-zinc-300 text-zinc-700 px-4 py-2 text-sm hover:bg-zinc-50 cursor-pointer">
-              Cerrar sesión
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
 }

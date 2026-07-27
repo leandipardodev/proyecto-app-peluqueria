@@ -81,6 +81,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchVersionRef = useRef(0);
   const fetchInitiatedRef = useRef(false);
+  const routerRef = useRef(router);
+  useEffect(() => { routerRef.current = router; });
 
   const fetchSession = useCallback(async (userOverride?: { id: string; email?: string | null; user_metadata?: Record<string, unknown> }) => {
     const seq = ++fetchVersionRef.current;
@@ -168,7 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           isLoading: false,
         }));
         if (resolvedShop) {
-          router.replace(`/dashboard/${resolvedShop.slug}`);
+          routerRef.current.replace(`/dashboard/${resolvedShop.slug}`);
         }
       } else {
         setState({
@@ -185,7 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       }
     }
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     if (!state.isLoading) return;

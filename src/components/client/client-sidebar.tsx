@@ -8,7 +8,7 @@ import {
   User,
   LogOut,
 } from "lucide-react";
-import { logout } from "@/lib/dashboard/auth/logout-action";
+import { clientLogout } from "@/lib/dashboard/auth/client-logout";
 
 const navItems = [
   {
@@ -68,15 +68,14 @@ export default function ClientSidebar({
 
       <div className="p-4 border-t border-white/20 dark:border-white/10 space-y-3">
         <p className="text-sm text-gray-500 dark:text-zinc-400">{userName}</p>
-        <form action={logout}>
-          <button
-            type="submit"
-            className="flex items-center gap-2 text-sm text-gray-400 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 transition-colors cursor-pointer select-none"
-          >
-            <LogOut className="w-4 h-4" strokeWidth={1.5} />
-            Cerrar Sesión
-          </button>
-        </form>
+        <button
+          type="button"
+          onClick={() => { void clientLogout(); }}
+          className="flex items-center gap-2 text-sm text-gray-400 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 transition-colors cursor-pointer select-none"
+        >
+          <LogOut className="w-4 h-4" strokeWidth={1.5} />
+          Cerrar Sesión
+        </button>
       </div>
     </div>
   );

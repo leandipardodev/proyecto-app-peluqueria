@@ -413,7 +413,8 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
     }
 
     startLogoutTransition(async () => {
-      try { await onLogout(); } catch { /* ignore */ }
+      try { await supabase.auth.signOut(); } catch { /* best effort */ }
+      try { await onLogout(); } catch { /* server action redirect */ }
       router.refresh();
       closeSearch(true);
     });
@@ -459,7 +460,8 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
   function handleLogoutClick() {
     if (typeof window !== "undefined" && !window.confirm("¿Cerrar sesión?")) return;
     startLogoutTransition(async () => {
-      try { await onLogout(); } catch { /* ignore */ }
+      try { await supabase.auth.signOut(); } catch { /* best effort */ }
+      try { await onLogout(); } catch { /* server action redirect */ }
       router.refresh();
     });
   }
@@ -1034,11 +1036,12 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                 <div className="border-t border-white/20 dark:border-white/10 pt-3">
                   <button
                     type="button"
+                    disabled={logoutPending}
                     onClick={() => {
                       setMenuOpen(false);
                       handleLogoutClick();
                     }}
-                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
+                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 disabled:opacity-50"
                   >
                     <LogOut className="w-4 h-4" />
                     Cerrar sesión

@@ -118,7 +118,7 @@ export default function StaffList({
       const raw = window.localStorage.getItem(key);
       if (!raw) return;
       const parsed = JSON.parse(raw) as { active?: boolean; step?: number };
-      setTutorialActive(Boolean(parsed?.active && parsed?.step === 3));
+      setTutorialActive(Boolean(parsed?.active && parsed?.step === 2));
     } catch {
       setTutorialActive(false);
     }
@@ -352,15 +352,15 @@ export default function StaffList({
     <div>
       {tutorialActive && (
         <div className="mb-4 rounded-2xl border border-violet-300/50 bg-violet-50/80 dark:bg-violet-900/20 px-4 py-3">
-          <p className="text-sm font-semibold text-violet-800 dark:text-violet-200">Paso 4: {staffPlural}</p>
-          <p className="mt-1 text-xs text-violet-700/90 dark:text-violet-200/90">Cuando termines, continuá al paso de Servicios.</p>
+          <p className="text-sm font-semibold text-violet-800 dark:text-violet-200">Paso 3: {staffPlural}</p>
+          <p className="mt-1 text-xs text-violet-700/90 dark:text-violet-200/90">Agrega y administra tus {staffPlural.toLowerCase()} para asignar turnos correctamente.</p>
           <div className="mt-3 flex justify-end">
             <button
               type="button"
               onClick={() => {
                 const key = `klip-business-onboarding-v1:${shopSlug || "default"}`;
-                window.localStorage.setItem(key, JSON.stringify({ active: true, step: 4 }));
-                router.push(shopSlug ? `/dashboard/${shopSlug}/services` : "/dashboard/services");
+                window.localStorage.setItem(key, JSON.stringify({ active: true, step: 3 }));
+                router.push(shopSlug ? `/dashboard/${shopSlug}/business` : "/dashboard/business");
               }}
               className="ui-btn-primary rounded-full px-4 py-1.5 text-xs"
             >

@@ -229,19 +229,19 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
     <>
       {tutorialActive && (
         <div className="mb-4 rounded-2xl border border-violet-300/50 bg-violet-50/80 dark:bg-violet-900/20 px-4 py-3">
-          <p className="text-sm font-semibold text-violet-800 dark:text-violet-200">Paso 5: {serviceWord}s</p>
-          <p className="mt-1 text-xs text-violet-700/90 dark:text-violet-200/90">Carga o valida tus {serviceWordLower}s y finaliza el recorrido.</p>
+          <p className="text-sm font-semibold text-violet-800 dark:text-violet-200">Paso 2: {serviceWord}s</p>
+          <p className="mt-1 text-xs text-violet-700/90 dark:text-violet-200/90">Carga o valida tus {serviceWordLower}s con precio y duracion.</p>
           <div className="mt-3 flex justify-end">
             <button
               type="button"
               onClick={() => {
                 const key = `klip-business-onboarding-v1:${shopSlug || "default"}`;
-                window.localStorage.setItem(key, JSON.stringify({ active: false, step: 5, doneAt: Date.now() }));
-                router.push(shopSlug ? `/dashboard/${shopSlug}` : "/dashboard");
+                window.localStorage.setItem(key, JSON.stringify({ active: true, step: 3 }));
+                router.push(shopSlug ? `/dashboard/${shopSlug}/business` : "/dashboard/business");
               }}
               className="ui-btn-primary rounded-full px-4 py-1.5 text-xs"
             >
-              Finalizar
+              Siguiente
             </button>
           </div>
         </div>

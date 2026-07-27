@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/toast";
-import { logout } from "@/lib/dashboard/auth/logout-action";
+import { clientLogout } from "@/lib/dashboard/auth/client-logout";
 import { InputForm } from "@/components/ui/input-form";
 import { SubmitBtn } from "@/components/ui/submit-btn";
 import { FormWithKeyboardNav } from "@/lib/use-form-keyboard-nav";
@@ -258,7 +258,7 @@ export default function LoginPage() {
               Ir al dashboard
             </button>
             <button
-              onClick={async () => { await logout(); }}
+              onClick={async () => { await clientLogout(); }}
               className="w-full border border-zinc-300 text-zinc-700 py-2.5 px-4 rounded-2xl text-sm font-medium hover:bg-zinc-50 transition-colors cursor-pointer select-none"
             >
               Cerrar sesión y usar otra cuenta

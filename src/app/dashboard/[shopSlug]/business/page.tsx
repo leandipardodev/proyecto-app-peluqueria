@@ -67,6 +67,7 @@ export default async function DashboardShopBusinessPage({ params }: { params: Pr
       initialBookingTheme={bookingThemeResult.success ? bookingThemeResult.data ?? null : null}
       initialVoucherWhatsappTemplate={voucherTemplateResult.success ? voucherTemplateResult.data ?? null : null}
       initialStaff={staffNames}
+      userEmail={user.email}
     />
   );
 }

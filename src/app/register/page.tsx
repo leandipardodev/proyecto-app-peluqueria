@@ -9,7 +9,7 @@ import { resolveIndustry } from "@/lib/industry/resolve";
 import type { Industry } from "@/lib/industry/types";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { supabase } from "@/lib/supabase";
-import { logout } from "@/lib/dashboard/auth/logout-action";
+import { clientLogout } from "@/lib/dashboard/auth/client-logout";
 import BaseModal from "@/components/ui/modal";
 import { InputForm } from "@/components/ui/input-form";
 import { CheckboxForm } from "@/components/ui/checkbox-form";
@@ -150,7 +150,7 @@ function RegisterPageContent({ industry }: { industry: Industry }) {
                 Ir al dashboard
               </button>
               <button
-                onClick={async () => { await logout(); }}
+                onClick={async () => { await clientLogout(); }}
                 className="w-full border border-zinc-300 text-zinc-700 py-2.5 px-4 rounded-2xl text-sm font-medium hover:bg-zinc-50 cursor-pointer select-none"
               >
                 Cerrar sesión y crear nueva cuenta

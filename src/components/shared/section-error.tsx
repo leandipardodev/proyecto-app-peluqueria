@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { logout } from "@/lib/dashboard/auth/logout-action";
+import { clientLogout } from "@/lib/dashboard/auth/client-logout";
 
 export default function SectionError({
   error,
@@ -32,7 +32,7 @@ export default function SectionError({
           Volver al inicio
         </Link>
         <button
-          onClick={async () => { await logout(); }}
+            onClick={async () => { await clientLogout(); }}
           className="inline-flex h-10 items-center justify-center rounded-2xl border border-red-300 px-6 text-sm font-medium text-red-700 hover:bg-red-50 transition-colors"
         >
           Cerrar sesión
