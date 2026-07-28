@@ -329,7 +329,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
     const interval = 10;
     const maxSlots = Math.floor(aiMessages.length / interval) + 1;
     const availableSlots = Math.min(maxSlots, jokeMessages.length);
-    const shuffledSlots = Array.from({ length: maxSlots }, (_, i) => i);
+    const shuffledSlots = Array.from({ length: maxSlots }, (_, i) => i + 1);
     for (let i = shuffledSlots.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [shuffledSlots[i], shuffledSlots[j]] = [shuffledSlots[j], shuffledSlots[i]];

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bot, Sparkles, BookOpen } from "lucide-react";
 import { openGuideModal } from "@/components/dashboard/guide-modal";
@@ -85,13 +85,6 @@ export default function AINotificationCard({
     return () => mql.removeEventListener("change", handleDisplayChange);
   }, []);
 
-  const titleRef = useRef<HTMLParagraphElement>(null);
-  const titleWrapRef = useRef<HTMLDivElement>(null);
-  const bodyRef = useRef<HTMLParagraphElement>(null);
-  const bodyWrapRef = useRef<HTMLDivElement>(null);
-  const [titleOverflow, setTitleOverflow] = useState(0);
-  const [bodyOverflow, setBodyOverflow] = useState(0);
-
   const feed = useMemo(
     () => {
       const base = messages.length > 0 ? messages.slice(0, 20) : [{ id: "fallback", title: "Todo en orden", body: "Sin novedades urgentes.", tone: "insight" as const, href: undefined }];
@@ -156,19 +149,6 @@ export default function AINotificationCard({
           ? "border-fuchsia-300/50 bg-fuchsia-300/10 text-fuchsia-900 dark:text-fuchsia-100"
           : "border-cyan-300/50 bg-cyan-300/10 text-cyan-900 dark:text-cyan-100";
   const toneLabel = active.tone === "urgent" ? "Urgente" : active.tone === "action" ? "Accion" : active.tone === "joke" ? "🗣️" : "Insight";
-
-  useEffect(() => {
-    const tw = titleWrapRef.current;
-    const te = titleRef.current;
-    if (tw && te) {
-      setTitleOverflow(Math.max(0, te.scrollWidth - tw.clientWidth));
-    }
-    const bw = bodyWrapRef.current;
-    const be = bodyRef.current;
-    if (bw && be) {
-      setBodyOverflow(Math.max(0, be.scrollHeight - bw.clientHeight));
-    }
-  }, [active.title, active.body]);
 
   return (
     <button type="button" onClick={handleClick} className="group block h-full w-full text-left">
@@ -250,23 +230,15 @@ export default function AINotificationCard({
                   {poweredOn ? (
                     <>
                       <div className="flex items-center justify-between gap-2">
-                        <div ref={titleWrapRef} className="min-w-0 flex-1 overflow-hidden">
-                          <p
-                            ref={titleRef}
-                            className={`text-xs font-semibold ${titleOverflow > 0 ? "inline-block whitespace-nowrap" : "truncate"}`}
-                            style={titleOverflow > 0 ? ({ "--dx": `${-titleOverflow}px`, animation: `marquee-x ${6 + titleOverflow * 0.008}s ease-in-out infinite` } as React.CSSProperties) : undefined}
-                          >
+                        <div className="min-w-0 flex-1 overflow-hidden">
+                          <p className="text-xs font-semibold truncate">
                             {active.title}
                           </p>
                         </div>
                         <span className="text-[10px] uppercase tracking-[0.12em] opacity-90 shrink-0">{toneLabel}</span>
                       </div>
-                      <div ref={bodyWrapRef} className="mt-1 overflow-hidden" style={bodyOverflow > 0 ? { height: "calc(100% - 22px)" } : {}}>
-                        <p
-                          ref={bodyRef}
-                          className="text-[11px] opacity-95"
-                          style={bodyOverflow > 0 ? ({ "--dy": `${-bodyOverflow}px`, animation: `marquee-y ${8 + bodyOverflow * 0.004}s ease-in-out infinite` } as React.CSSProperties) : undefined}
-                        >
+                      <div className="mt-1">
+                        <p className="text-[11px] opacity-95 line-clamp-2">
                           {active.body}
                         </p>
                         {active.id?.startsWith("pwa-") && (
@@ -465,16 +437,6 @@ export default function AINotificationCard({
           @keyframes matrixDrift {
             0% { transform: translateY(0px); }
             100% { transform: translateY(18px); }
-          }
-          @keyframes marquee-x {
-            0%, 5% { transform: translateX(0); }
-            45%, 50% { transform: translateX(var(--dx)); }
-            95%, 100% { transform: translateX(0); }
-          }
-          @keyframes marquee-y {
-            0%, 5% { transform: translateY(0); }
-            45%, 50% { transform: translateY(var(--dy)); }
-            95%, 100% { transform: translateY(0); }
           }
         `}</style>
       </div>
