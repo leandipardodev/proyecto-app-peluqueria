@@ -1719,9 +1719,9 @@ draggable={false}
                               <p className={`text-center text-xs font-medium uppercase tracking-wider ${templateStyles.tiny}`}>
                                 Iniciá sesión para continuar
                               </p>
-                              <div className="relative">
-                                <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 opacity-40 blur-sm" />
-                                <GoogleSignInButton shopSlug={shop.slug} className="relative !py-3.5 !text-base !font-semibold !shadow-lg" />
+                              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-blue-500 to-blue-700 shadow-lg shadow-blue-500/30">
+                                <div className="absolute inset-0 shimmer-slide" />
+                                <GoogleSignInButton shopSlug={shop.slug} className="relative !py-3.5 !text-base !font-semibold !text-white !border-0 !bg-transparent !shadow-none !backdrop-blur-none" />
                               </div>
                             </div>
 
@@ -1757,8 +1757,8 @@ draggable={false}
                                           src={qrCodeUrl}
                                           alt="Código QR para WhatsApp del local"
                                           className="rounded"
-                                          width={88}
-                                          height={88}
+                                          width={120}
+                                          height={120}
                                           unoptimized
                                         />
                                       </motion.div>

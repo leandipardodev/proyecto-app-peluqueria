@@ -426,6 +426,16 @@ html.perf-mode .analytics-card-bg::after {
   animation: carousel-zoom 20s ease-in-out infinite alternate;
 }
 
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+.shimmer-slide {
+  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.25) 50%, transparent 70%);
+  animation: shimmer 2.5s ease-in-out infinite;
+}
+
 html.perf-mode .carousel-image-zoom {
   animation: none !important;
 }
