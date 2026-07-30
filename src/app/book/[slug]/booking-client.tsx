@@ -146,6 +146,28 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     if (user) setLoginRequired(false);
   }, [user]);
 
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("klip_booking_draft");
+      if (!raw) return;
+      const draft = JSON.parse(raw);
+      if (draft.shopSlug !== shop.slug) return;
+      if (draft.selectedService) setSelectedService(draft.selectedService);
+      if (draft.selectedStaff) setSelectedStaff(draft.selectedStaff);
+      if (draft.selectedDate) setSelectedDate(new Date(draft.selectedDate));
+      if (draft.selectedSlot) setSelectedSlot(draft.selectedSlot);
+      if (draft.selectedCombo) setSelectedCombo(draft.selectedCombo);
+      if (draft.customerName) setCustomerName(draft.customerName);
+      if (draft.customerEmail) setCustomerEmail(draft.customerEmail);
+      if (draft.customerPhone) setCustomerPhone(draft.customerPhone);
+      if (draft.selectedCategory) setSelectedCategory(draft.selectedCategory);
+      if (draft.step) setStep(draft.step);
+      sessionStorage.removeItem("klip_booking_draft");
+    } catch {
+      /* ignore corrupt data */
+    }
+  }, [shop.slug]);
+
   const categoryRef = useCallback((el: HTMLDivElement | null) => {
     categoryScrollRef.current = el;
     if (!el) return;
@@ -221,6 +243,27 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("Todos");
   const [ripplePositions, setRipplePositions] = useState<Record<string, { x: number; y: number; size: number }>>({});
+
+  function saveBookingDraft() {
+    const draft = {
+      shopSlug: shop.slug,
+      selectedService,
+      selectedStaff,
+      selectedDate: selectedDate?.toISOString(),
+      selectedSlot,
+      selectedCombo,
+      customerName,
+      customerEmail,
+      customerPhone,
+      selectedCategory,
+      step: 3,
+    };
+    try {
+      sessionStorage.setItem("klip_booking_draft", JSON.stringify(draft));
+    } catch {
+      /* sessionStorage might be full or unavailable */
+    }
+  }
   const industryConfig = INDUSTRY_CONFIG[shop.industry] || INDUSTRY_CONFIG.peluqueria;
   const serviceWord = industryConfig.labels.serviceSingular;
   const staffWord = industryConfig.labels.staffSingular;
@@ -1721,7 +1764,7 @@ draggable={false}
                               </p>
                               <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-blue-500 to-blue-700 shadow-lg shadow-blue-500/30">
                                 <div className="absolute inset-0 shimmer-slide" />
-                                <GoogleSignInButton shopSlug={shop.slug} className="relative !py-3.5 !text-base !font-semibold !text-white !border-0 !bg-transparent !shadow-none !backdrop-blur-none" />
+                                <GoogleSignInButton shopSlug={shop.slug} className="relative !py-3.5 !text-base !font-semibold !text-white !border-0 !bg-transparent !shadow-none !backdrop-blur-none" onSignInStart={saveBookingDraft} />
                               </div>
                             </div>
 

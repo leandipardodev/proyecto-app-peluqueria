@@ -8,9 +8,10 @@ import { useKlipSounds } from "@/lib/use-klip-sounds";
 type GoogleSignInButtonProps = {
   shopSlug: string;
   className?: string;
+  onSignInStart?: () => void;
 };
 
-export default function GoogleSignInButton({ shopSlug, className }: GoogleSignInButtonProps) {
+export default function GoogleSignInButton({ shopSlug, className, onSignInStart }: GoogleSignInButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { playClick } = useKlipSounds();
 
@@ -18,6 +19,7 @@ export default function GoogleSignInButton({ shopSlug, className }: GoogleSignIn
     try {
       playClick();
       setIsLoading(true);
+      onSignInStart?.();
       const nextPath = `/book/${shopSlug}`;
       document.cookie = `klip_oauth_flow=client; Path=/; Max-Age=600; SameSite=Lax`;
       document.cookie = `klip_oauth_next=${encodeURIComponent(nextPath)}; Path=/; Max-Age=600; SameSite=Lax`;
