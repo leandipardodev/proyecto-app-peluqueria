@@ -1734,14 +1734,32 @@ draggable={false}
                                 </p>
                                 {qrCodeUrl && (
                                   <div className="flex justify-center mt-2">
-                                    <Image
-                                      src={qrCodeUrl}
-                                      alt="Código QR para WhatsApp del local"
-                                      className="rounded-lg"
-                                      width={120}
-                                      height={120}
-                                      unoptimized
-                                    />
+                                    <div className="relative inline-flex">
+                                      <Image
+                                        src={qrCodeUrl}
+                                        alt="Código QR para WhatsApp del local"
+                                        className="rounded-lg"
+                                        width={120}
+                                        height={120}
+                                        unoptimized
+                                      />
+                                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                        <div className="h-7 w-7 rounded-full bg-white flex items-center justify-center shadow-sm">
+                                          {shop.logoUrl ? (
+                                            <Image
+                                              src={shop.logoUrl}
+                                              alt=""
+                                              width={24}
+                                              height={24}
+                                              className="rounded-full object-cover"
+                                              aria-hidden
+                                            />
+                                          ) : (
+                                            <span className="text-[10px] font-bold text-black">{shop.name.charAt(0).toUpperCase()}</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
                                   </div>
                                 )}
                               </div>
