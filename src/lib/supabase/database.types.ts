@@ -683,11 +683,11 @@ export type Database = {
           customer_email: string | null
           customer_name: string
           customer_phone: string
-          ip_address: string | null
           deposit_amount: number | null
           end_time: string
           expires_at: string
           id: string
+          ip_address: string | null
           mp_preference_id: string | null
           payment_amount: number | null
           payment_method: string
@@ -703,11 +703,11 @@ export type Database = {
           customer_email?: string | null
           customer_name: string
           customer_phone: string
-          ip_address?: string | null
           deposit_amount?: number | null
           end_time: string
           expires_at?: string
           id?: string
+          ip_address?: string | null
           mp_preference_id?: string | null
           payment_amount?: number | null
           payment_method?: string
@@ -723,11 +723,11 @@ export type Database = {
           customer_email?: string | null
           customer_name?: string
           customer_phone?: string
-          ip_address?: string | null
           deposit_amount?: number | null
           end_time?: string
           expires_at?: string
           id?: string
+          ip_address?: string | null
           mp_preference_id?: string | null
           payment_amount?: number | null
           payment_method?: string
