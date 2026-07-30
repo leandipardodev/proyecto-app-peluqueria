@@ -1856,7 +1856,7 @@ draggable={false}
 
                     {step === 4 && (
                       <div className="flex flex-col h-full min-h-0">
-                        <div className="flex-1 overflow-y-auto delicate-scroll pb-4">
+                      <div className="flex-1 overflow-y-auto delicate-scroll pb-4 px-0.5">
                           <div className="space-y-4">
 
                             {/* Back - animated like steps 1-3 */}
