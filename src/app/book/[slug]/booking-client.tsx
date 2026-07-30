@@ -142,6 +142,10 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
       .catch(() => setQrCodeUrl(null));
   }, [shop.phone]);
 
+  useEffect(() => {
+    if (user) setLoginRequired(false);
+  }, [user]);
+
   const categoryRef = useCallback((el: HTMLDivElement | null) => {
     categoryScrollRef.current = el;
     if (!el) return;
@@ -213,6 +217,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
 
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loginRequired, setLoginRequired] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("Todos");
   const [ripplePositions, setRipplePositions] = useState<Record<string, { x: number; y: number; size: number }>>({});
@@ -608,6 +613,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
 
         if (!result.success && result.error === "login_required") {
           setStep(3);
+          setLoginRequired(true);
           setError("Para reservar otro turno, iniciá sesión con Google");
           return;
         }
@@ -640,6 +646,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
 
       if (!result.success && result.error === "login_required") {
         setStep(3);
+        setLoginRequired(true);
         setError("Para reservar otro turno, iniciá sesión con Google");
         return;
       }
@@ -678,6 +685,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
         setCreatingPreference(false);
         if (comboResult.error === "login_required") {
           setStep(3);
+          setLoginRequired(true);
           setError("Para reservar otro turno, iniciá sesión con Google");
           return;
         }
@@ -748,6 +756,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     if (!bookingResult.success) {
       if (bookingResult.error === "login_required") {
         setStep(3);
+        setLoginRequired(true);
         setError("Para reservar otro turno, iniciá sesión con Google");
         return;
       }
@@ -1708,32 +1717,34 @@ draggable={false}
                           <>
                             <GoogleSignInButton shopSlug={shop.slug} />
 
-                            {shop.phone && (
-                              <>
-                                <p className={`text-xs text-center mt-2 ${templateStyles.tiny}`}>
-                                  ¿Problemas para iniciar sesión?{" "}
+                            {loginRequired && shop.phone && (
+                              <div className={`mt-4 p-3 rounded-lg border ${templateStyles.divider.replace("border-", "border ")}`}>
+                                <p className={`text-xs text-center font-medium ${templateStyles.tiny}`}>
+                                  Contacto directo con el local
+                                </p>
+                                <p className={`text-xs text-center mt-1 ${templateStyles.tiny}`}>
                                   <a
                                     href={`https://wa.me/${shop.phone.replace(/\D/g, "")}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="underline hover:opacity-70 transition-opacity"
                                   >
-                                    Contactanos por WhatsApp
+                                    {shop.phone}
                                   </a>
                                 </p>
                                 {qrCodeUrl && (
-                                  <div className="flex justify-center mt-3">
+                                  <div className="flex justify-center mt-2">
                                     <Image
                                       src={qrCodeUrl}
-                                      alt="Código QR para WhatsApp"
+                                      alt="Código QR para WhatsApp del local"
                                       className="rounded-lg"
-                                      width={140}
-                                      height={140}
+                                      width={120}
+                                      height={120}
                                       unoptimized
                                     />
                                   </div>
                                 )}
-                              </>
+                              </div>
                             )}
 
                             <div className="flex items-center gap-3">
