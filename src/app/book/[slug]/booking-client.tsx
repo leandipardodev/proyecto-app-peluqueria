@@ -24,6 +24,7 @@ import { initMercadoPago } from "@mercadopago/sdk-react";
 import { fetchPublicAvailableSlots, createPublicAppointment, createPublicComboAppointment, deletePublicAppointment } from "@/lib/dashboard/booking/public-booking-actions";
 import { fetchShopDateOverrides } from "@/lib/dashboard/shop/business-actions";
 import { createPendingBooking, deletePendingBooking } from "@/lib/dashboard/appointments/pending-booking-actions";
+import QRCode from "qrcode";
 import GoogleSignInButton from "@/components/auth/google-sign-in-button";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
@@ -133,6 +134,14 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     }
   }, [staffMembers]);
 
+  useEffect(() => {
+    if (!shop.phone) { setQrCodeUrl(null); return; }
+    const waUrl = `https://wa.me/${shop.phone.replace(/\D/g, "")}`;
+    QRCode.toDataURL(waUrl, { width: 200, margin: 2, color: { dark: "#000000", light: "#ffffff" } })
+      .then(setQrCodeUrl)
+      .catch(() => setQrCodeUrl(null));
+  }, [shop.phone]);
+
   const categoryRef = useCallback((el: HTMLDivElement | null) => {
     categoryScrollRef.current = el;
     if (!el) return;
@@ -204,6 +213,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
 
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("Todos");
   const [ripplePositions, setRipplePositions] = useState<Record<string, { x: number; y: number; size: number }>>({});
   const industryConfig = INDUSTRY_CONFIG[shop.industry] || INDUSTRY_CONFIG.peluqueria;
@@ -1699,17 +1709,31 @@ draggable={false}
                             <GoogleSignInButton shopSlug={shop.slug} />
 
                             {shop.phone && (
-                              <p className={`text-xs text-center mt-2 ${templateStyles.tiny}`}>
-                                ¿Problemas para iniciar sesión?{" "}
-                                <a
-                                  href={`https://wa.me/${shop.phone.replace(/\D/g, "")}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="underline hover:opacity-70 transition-opacity"
-                                >
-                                  Contactanos por WhatsApp
-                                </a>
-                              </p>
+                              <>
+                                <p className={`text-xs text-center mt-2 ${templateStyles.tiny}`}>
+                                  ¿Problemas para iniciar sesión?{" "}
+                                  <a
+                                    href={`https://wa.me/${shop.phone.replace(/\D/g, "")}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="underline hover:opacity-70 transition-opacity"
+                                  >
+                                    Contactanos por WhatsApp
+                                  </a>
+                                </p>
+                                {qrCodeUrl && (
+                                  <div className="flex justify-center mt-3">
+                                    <Image
+                                      src={qrCodeUrl}
+                                      alt="Código QR para WhatsApp"
+                                      className="rounded-lg"
+                                      width={140}
+                                      height={140}
+                                      unoptimized
+                                    />
+                                  </div>
+                                )}
+                              </>
                             )}
 
                             <div className="flex items-center gap-3">
