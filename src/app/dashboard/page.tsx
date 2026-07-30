@@ -561,12 +561,14 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
                         {start.toLocaleTimeString("es-AR", {
                           hour: "2-digit",
                           minute: "2-digit",
+                          timeZone: "America/Argentina/Buenos_Aires",
                         })}
                       </p>
                       <p className="text-[11px] text-zinc-400 dark:text-zinc-500 tabular-nums">
                         {end.toLocaleTimeString("es-AR", {
                           hour: "2-digit",
                           minute: "2-digit",
+                          timeZone: "America/Argentina/Buenos_Aires",
                         })}
                       </p>
                     </div>
