@@ -1743,7 +1743,12 @@ draggable={false}
                                         height={120}
                                         unoptimized
                                       />
-                                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                      <motion.div
+                                        initial={{ scale: 0, opacity: 0 }}
+                                        animate={{ scale: 1, opacity: 1 }}
+                                        transition={{ type: "spring", stiffness: 300, damping: 15, delay: 0.15 }}
+                                        className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                                      >
                                         <div className="h-7 w-7 rounded-full bg-white flex items-center justify-center shadow-sm">
                                           {shop.logoUrl ? (
                                             <Image
@@ -1758,7 +1763,7 @@ draggable={false}
                                             <span className="text-[10px] font-bold text-black">{shop.name.charAt(0).toUpperCase()}</span>
                                           )}
                                         </div>
-                                      </div>
+                                      </motion.div>
                                     </div>
                                   </div>
                                 )}
