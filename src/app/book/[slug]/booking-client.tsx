@@ -587,6 +587,9 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
 
     if (!needsPayment && !selectedPaymentMethodRef.current) {
       if (selectedCombo) {
+        const { getRecaptchaToken } = await import("@/lib/recaptcha");
+        const recaptchaToken = await getRecaptchaToken(RECAPTCHA_SITE_KEY);
+
         const result = await createPublicComboAppointment({
           shopId: shop.id,
           comboId: selectedCombo.id,
@@ -601,6 +604,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
           authenticatedUserId: user?.id,
           startTime: selectedSlot.start,
           status: "scheduled",
+          recaptchaToken: recaptchaToken || undefined,
         });
 
         setSubmitting(false);
@@ -616,6 +620,9 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
 
       if (!selectedService) return;
 
+      const { getRecaptchaToken } = await import("@/lib/recaptcha");
+      const recaptchaToken = await getRecaptchaToken(RECAPTCHA_SITE_KEY);
+
       const result = await createPublicAppointment({
         shopId: shop.id,
         serviceId: selectedService.id,
@@ -627,6 +634,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
         startTime: selectedSlot.start,
         endTime: selectedSlot.end,
         status: "scheduled",
+        recaptchaToken: recaptchaToken || undefined,
       });
 
       setSubmitting(false);

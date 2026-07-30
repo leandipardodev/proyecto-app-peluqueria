@@ -18,8 +18,14 @@ import { headers } from "next/headers";
 import { fetchShopDateOverrides } from "@/lib/dashboard/shop/business-actions";
 import "server-only";
 import { createAdminClient } from "../appointments/shared";
+import { LRUCache } from "lru-cache";
 
 const slotsLimiter = createRateLimiter({ intervalMs: 60_000, maxRequests: 30 });
+
+const completedBookingCache = new LRUCache<string, true>({
+  max: 10000,
+  ttl: 24 * 60 * 60 * 1000,
+});
 
 type ComboService = { id: string; name: string; duration_minutes: number; price: number; pay_at_shop: boolean };
 type ComboRow = { id: string; name: string; description: string | null; price: number; total_duration: number; duration_minutes: number | null; services: ComboService[] };
@@ -569,8 +575,24 @@ export async function createPublicAppointment(data: {
   status?: "scheduled" | "pending_payment";
   startTime: string;
   endTime: string;
+  recaptchaToken?: string;
 }): Promise<ActionResult<{ customerId: string; appointmentId: string }>> {
   try {
+    const headersList = await headers();
+    const ip = headersList.get("x-forwarded-for")?.split(",")[0]?.trim() || headersList.get("x-real-ip") || "unknown";
+    const ipKey = `completed-booking:${ip}:${data.shopId}`;
+    const isRepeatBooking = completedBookingCache.has(ipKey);
+
+    if (isRepeatBooking) {
+      if (!data.recaptchaToken) {
+        return { success: false, error: "Verificación de seguridad necesaria. Intentá de nuevo." };
+      }
+      const recaptchaResult = await verifyRecaptcha(data.recaptchaToken);
+      if (!recaptchaResult.success) {
+        return { success: false, error: "Verificación de seguridad fallida. Intentá de nuevo." };
+      }
+    }
+
     const admin = await createAdminClient();
 
     const startDate = new Date(data.startTime);
@@ -585,6 +607,11 @@ export async function createPublicAppointment(data: {
     const cleanPhone = data.customerPhone.replace(/\D/g, "");
     if (cleanPhone.length < 7 || cleanPhone.length > 15) {
       return { success: false, error: "Teléfono inválido" };
+    }
+
+    const customerName = data.customerName.trim();
+    if (customerName.length < 2 || customerName.length > 100) {
+      return { success: false, error: "Nombre inválido" };
     }
 
     const bookingDate = getArgentinaDateKey(data.startTime);
@@ -902,7 +929,7 @@ export async function createPublicAppointment(data: {
           id: customerId,
           user_id: customerId,
           shop_id: data.shopId,
-          nombre: data.customerName,
+          nombre: customerName,
           email: data.customerEmail ?? null,
           telefono: data.customerPhone,
           updated_at: new Date().toISOString(),
@@ -924,7 +951,7 @@ export async function createPublicAppointment(data: {
         await admin
           .from("customers")
           .update({
-            nombre: data.customerName,
+            nombre: customerName,
             email: data.customerEmail ?? null,
             updated_at: new Date().toISOString(),
           })
@@ -935,7 +962,7 @@ export async function createPublicAppointment(data: {
         .insert({
           user_id: data.authenticatedUserId ?? null,
           shop_id: data.shopId,
-          nombre: data.customerName,
+          nombre: customerName,
           telefono: data.customerPhone,
           email: data.customerEmail ?? null,
         })
@@ -1020,7 +1047,7 @@ export async function createPublicAppointment(data: {
 
         await sendAppointmentConfirmationEmail({
           to: data.customerEmail,
-          customerName: data.customerName,
+          customerName: customerName,
           shopName: shopData?.nombre || "Klip",
           serviceName,
           shopAddress,
@@ -1033,7 +1060,7 @@ export async function createPublicAppointment(data: {
 
         await scheduleAppointmentReminderEmail({
           to: data.customerEmail,
-          customerName: data.customerName,
+          customerName: customerName,
           shopName: shopData?.nombre || "Klip",
           serviceName,
           shopAddress,
@@ -1047,6 +1074,8 @@ export async function createPublicAppointment(data: {
         console.error("[createPublicAppointment] confirmation email error:", mailError);
       }
     }
+
+    completedBookingCache.set(ipKey, true);
 
     return { success: true, data: { customerId, appointmentId: createdAppointment.id } };
   } catch (e) {
@@ -1071,7 +1100,20 @@ export async function createPublicComboAppointment(data: {
   recaptchaToken?: string;
 }): Promise<ActionResult<{ customerId: string; appointmentIds: string[] }>> {
   try {
-    if (data.recaptchaToken) {
+    const headersList = await headers();
+    const ip = headersList.get("x-forwarded-for")?.split(",")[0]?.trim() || headersList.get("x-real-ip") || "unknown";
+    const ipKey = `completed-booking:${ip}:${data.shopId}`;
+    const isRepeatBooking = completedBookingCache.has(ipKey);
+
+    if (isRepeatBooking) {
+      if (!data.recaptchaToken) {
+        return { success: false, error: "Verificación de seguridad necesaria. Intentá de nuevo." };
+      }
+      const recaptchaResult = await verifyRecaptcha(data.recaptchaToken);
+      if (!recaptchaResult.success) {
+        return { success: false, error: "Verificación de seguridad fallida. Intentá de nuevo." };
+      }
+    } else if (data.recaptchaToken) {
       const recaptchaResult = await verifyRecaptcha(data.recaptchaToken);
       if (!recaptchaResult.success) {
         return { success: false, error: "Verificacion de seguridad fallida. Intenta de nuevo." };
@@ -1091,6 +1133,11 @@ export async function createPublicComboAppointment(data: {
     const cleanPhone = data.customerPhone.replace(/\D/g, "");
     if (cleanPhone.length < 7 || cleanPhone.length > 15) {
       return { success: false, error: "Teléfono inválido" };
+    }
+
+    const customerName = data.customerName.trim();
+    if (customerName.length < 2 || customerName.length > 100) {
+      return { success: false, error: "Nombre inválido" };
     }
 
     const totalDuration = data.comboDurationMinutes ?? data.services.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
@@ -1374,7 +1421,7 @@ export async function createPublicComboAppointment(data: {
           id: customerId,
           user_id: customerId,
           shop_id: data.shopId,
-          nombre: data.customerName,
+          nombre: customerName,
           email: data.customerEmail ?? null,
           telefono: data.customerPhone,
           updated_at: new Date().toISOString(),
@@ -1394,7 +1441,7 @@ export async function createPublicComboAppointment(data: {
         customerId = existingCustomer.id;
         await admin
           .from("customers")
-          .update({ nombre: data.customerName, email: data.customerEmail ?? null, updated_at: new Date().toISOString() })
+          .update({ nombre: customerName, email: data.customerEmail ?? null, updated_at: new Date().toISOString() })
           .eq("id", customerId);
       } else {
         const { data: newCustomer, error: custError } = await admin
@@ -1402,7 +1449,7 @@ export async function createPublicComboAppointment(data: {
           .insert({
             user_id: data.authenticatedUserId ?? null,
             shop_id: data.shopId,
-            nombre: data.customerName,
+            nombre: customerName,
             telefono: data.customerPhone,
             email: data.customerEmail ?? null,
           })
@@ -1524,7 +1571,7 @@ export async function createPublicComboAppointment(data: {
 
         await sendAppointmentConfirmationEmail({
           to: data.customerEmail,
-          customerName: data.customerName,
+          customerName: customerName,
           shopName: shopData?.nombre || "Klip",
           serviceName,
           shopAddress,
@@ -1537,7 +1584,7 @@ export async function createPublicComboAppointment(data: {
 
         await scheduleAppointmentReminderEmail({
           to: data.customerEmail,
-          customerName: data.customerName,
+          customerName: customerName,
           shopName: shopData?.nombre || "Klip",
           serviceName,
           shopAddress,
@@ -1551,6 +1598,8 @@ export async function createPublicComboAppointment(data: {
         console.error("[createPublicComboAppointment] confirmation email error:", mailError);
       }
     }
+
+    completedBookingCache.set(ipKey, true);
 
     return { success: true, data: { customerId, appointmentIds } };
   } catch (e) {
