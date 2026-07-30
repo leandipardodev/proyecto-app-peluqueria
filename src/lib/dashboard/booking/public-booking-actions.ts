@@ -13,7 +13,6 @@ import { MercadoPagoConfig, Preference } from "mercadopago";
 import type { ActionResult } from "@/lib/types";
 import { sendAppointmentConfirmationEmail, scheduleAppointmentReminderEmail } from "@/lib/email/booking-emails";
 import { createRateLimiter } from "@/lib/rate-limiter";
-import { verifyRecaptcha } from "@/lib/recaptcha";
 import { headers } from "next/headers";
 import { fetchShopDateOverrides } from "@/lib/dashboard/shop/business-actions";
 import "server-only";
@@ -22,12 +21,10 @@ import { LRUCache } from "lru-cache";
 
 const slotsLimiter = createRateLimiter({ intervalMs: 60_000, maxRequests: 30 });
 
-const completedBookingCache = new LRUCache<string, true>({
+export const completedBookingCache = new LRUCache<string, true>({
   max: 10000,
   ttl: 24 * 60 * 60 * 1000,
 });
-
-const recaptchaConfigured = !!(process.env.RECAPTCHA_SECRET_KEY && process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY);
 
 type ComboService = { id: string; name: string; duration_minutes: number; price: number; pay_at_shop: boolean };
 type ComboRow = { id: string; name: string; description: string | null; price: number; total_duration: number; duration_minutes: number | null; services: ComboService[] };
@@ -577,7 +574,6 @@ export async function createPublicAppointment(data: {
   status?: "scheduled" | "pending_payment";
   startTime: string;
   endTime: string;
-  recaptchaToken?: string;
 }): Promise<ActionResult<{ customerId: string; appointmentId: string }>> {
   try {
     const headersList = await headers();
@@ -585,16 +581,8 @@ export async function createPublicAppointment(data: {
     const ipKey = `completed-booking:${ip}:${data.shopId}`;
     const isRepeatBooking = completedBookingCache.has(ipKey);
 
-    if (isRepeatBooking) {
-      if (data.recaptchaToken) {
-        const recaptchaResult = await verifyRecaptcha(data.recaptchaToken);
-        if (!recaptchaResult.success) {
-          return { success: false, error: "Verificación de seguridad fallida. Intentá de nuevo." };
-        }
-      }
-      if (!data.recaptchaToken && recaptchaConfigured) {
-        return { success: false, error: "captcha_required" };
-      }
+    if (isRepeatBooking && !data.authenticatedUserId) {
+      return { success: false, error: "login_required" };
     }
 
     const admin = await createAdminClient();
@@ -1101,7 +1089,6 @@ export async function createPublicComboAppointment(data: {
   authenticatedUserId?: string;
   status?: "scheduled" | "pending_payment";
   startTime: string;
-  recaptchaToken?: string;
 }): Promise<ActionResult<{ customerId: string; appointmentIds: string[] }>> {
   try {
     const headersList = await headers();
@@ -1109,21 +1096,8 @@ export async function createPublicComboAppointment(data: {
     const ipKey = `completed-booking:${ip}:${data.shopId}`;
     const isRepeatBooking = completedBookingCache.has(ipKey);
 
-    if (isRepeatBooking) {
-      if (data.recaptchaToken) {
-        const recaptchaResult = await verifyRecaptcha(data.recaptchaToken);
-        if (!recaptchaResult.success) {
-          return { success: false, error: "Verificación de seguridad fallida. Intentá de nuevo." };
-        }
-      }
-      if (!data.recaptchaToken && recaptchaConfigured) {
-        return { success: false, error: "captcha_required" };
-      }
-    } else if (data.recaptchaToken) {
-      const recaptchaResult = await verifyRecaptcha(data.recaptchaToken);
-      if (!recaptchaResult.success) {
-        return { success: false, error: "Verificacion de seguridad fallida. Intenta de nuevo." };
-      }
+    if (isRepeatBooking && !data.authenticatedUserId) {
+      return { success: false, error: "login_required" };
     }
 
     const admin = await createAdminClient();

@@ -33,7 +33,6 @@ import { InstagramIcon, WhatsappIcon } from "./booking-icons";
 import type { Industry } from "@/lib/industry/types";
 import type { BookingTemplateId } from "@/lib/booking/theme-presets";
 
-const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || "";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import {
   type Service,
@@ -195,7 +194,6 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const [bankTransferDetails, setBankTransferDetails] = useState<{ cvuCb: string; alias: string; bankName: string } | null>(null);
   const [bankTransferWhatsAppMessage, setBankTransferWhatsAppMessage] = useState<string | null>(null);
 
-  const recaptchaLoadedRef = useRef(false);
   const pendingAppointmentIdsRef = useRef<string[]>([]);
   const slotsRef = useRef<HTMLDivElement>(null);
   const stepsScrollRef = useRef<HTMLDivElement>(null);
@@ -417,13 +415,6 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   }, [isLoggedIn, user]);
 
   useEffect(() => {
-    const siteKey = RECAPTCHA_SITE_KEY;
-    if (!siteKey || recaptchaLoadedRef.current) return;
-    recaptchaLoadedRef.current = true;
-    import("@/lib/recaptcha").then(({ loadRecaptchaScript }) => loadRecaptchaScript(siteKey));
-  }, []);
-
-  useEffect(() => {
     const timeouts = new Map<HTMLElement, ReturnType<typeof setTimeout>>();
     const onScroll = (e: Event) => {
       const el = e.currentTarget as HTMLElement;
@@ -587,41 +578,29 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
 
     if (!needsPayment && !selectedPaymentMethodRef.current) {
       if (selectedCombo) {
-        const attemptBooking = async (token?: string) => {
-          const { getRecaptchaToken: getToken } = await import("@/lib/recaptcha");
-          if (!token) token = await getToken(RECAPTCHA_SITE_KEY) || undefined;
-
-          const res = await createPublicComboAppointment({
-            shopId: shop.id,
-            comboId: selectedCombo.id,
-            comboName: selectedCombo.name,
-            comboPrice: selectedCombo.price,
-            comboDurationMinutes: selectedCombo.duration_minutes,
-            services: selectedCombo.services,
-            staffId: selectedStaff?.id,
-            customerName: customerName.trim(),
-            customerEmail: customerEmail.trim() || undefined,
-            customerPhone: formattedPhone,
-            authenticatedUserId: user?.id,
-            startTime: selectedSlot.start,
-            status: "scheduled",
-            recaptchaToken: token,
-          });
-
-          return res;
-        };
-
-        let result = await attemptBooking();
-
-        if (!result.success && result.error === "captcha_required") {
-          const { getRecaptchaToken: getToken } = await import("@/lib/recaptcha");
-          const retryToken = await getToken(RECAPTCHA_SITE_KEY);
-          if (retryToken) {
-            result = await attemptBooking(retryToken);
-          }
-        }
+        const result = await createPublicComboAppointment({
+          shopId: shop.id,
+          comboId: selectedCombo.id,
+          comboName: selectedCombo.name,
+          comboPrice: selectedCombo.price,
+          comboDurationMinutes: selectedCombo.duration_minutes,
+          services: selectedCombo.services,
+          staffId: selectedStaff?.id,
+          customerName: customerName.trim(),
+          customerEmail: customerEmail.trim() || undefined,
+          customerPhone: formattedPhone,
+          authenticatedUserId: user?.id,
+          startTime: selectedSlot.start,
+          status: "scheduled",
+        });
 
         setSubmitting(false);
+
+        if (!result.success && result.error === "login_required") {
+          setStep(3);
+          setError("Para reservar otro turno, iniciá sesión con Google");
+          return;
+        }
 
         if (!result.success) {
           setError(result.error || "No se pudo reservar el turno");
@@ -634,38 +613,26 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
 
       if (!selectedService) return;
 
-      const attemptBooking = async (token?: string) => {
-        const { getRecaptchaToken: getToken } = await import("@/lib/recaptcha");
-        if (!token) token = await getToken(RECAPTCHA_SITE_KEY) || undefined;
-
-        const res = await createPublicAppointment({
-          shopId: shop.id,
-          serviceId: selectedService.id,
-          staffId: selectedStaff?.id,
-          customerName: customerName.trim(),
-          customerEmail: customerEmail.trim() || undefined,
-          customerPhone: formattedPhone,
-          authenticatedUserId: user?.id,
-          startTime: selectedSlot.start,
-          endTime: selectedSlot.end,
-          status: "scheduled",
-          recaptchaToken: token,
-        });
-
-        return res;
-      };
-
-      let result = await attemptBooking();
-
-      if (!result.success && result.error === "captcha_required") {
-        const { getRecaptchaToken: getToken } = await import("@/lib/recaptcha");
-        const retryToken = await getToken(RECAPTCHA_SITE_KEY);
-        if (retryToken) {
-          result = await attemptBooking(retryToken);
-        }
-      }
+      const result = await createPublicAppointment({
+        shopId: shop.id,
+        serviceId: selectedService.id,
+        staffId: selectedStaff?.id,
+        customerName: customerName.trim(),
+        customerEmail: customerEmail.trim() || undefined,
+        customerPhone: formattedPhone,
+        authenticatedUserId: user?.id,
+        startTime: selectedSlot.start,
+        endTime: selectedSlot.end,
+        status: "scheduled",
+      });
 
       setSubmitting(false);
+
+      if (!result.success && result.error === "login_required") {
+        setStep(3);
+        setError("Para reservar otro turno, iniciá sesión con Google");
+        return;
+      }
 
       if (!result.success) {
         setError(result.error || "No se pudo reservar el turno");
@@ -679,9 +646,6 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     // Payment flow — for combos, create all appointments via createPublicComboAppointment first, then create preference
     if (selectedCombo) {
       setCreatingPreference(true);
-
-      const { getRecaptchaToken } = await import("@/lib/recaptcha");
-      const recaptchaToken = await getRecaptchaToken(RECAPTCHA_SITE_KEY);
 
       const comboResult = await createPublicComboAppointment({
         shopId: shop.id,
@@ -697,12 +661,16 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
         authenticatedUserId: user?.id,
         startTime: selectedSlot.start,
         status: "pending_payment",
-        recaptchaToken: recaptchaToken || undefined,
       });
 
       if (!comboResult.success) {
         setSubmitting(false);
         setCreatingPreference(false);
+        if (comboResult.error === "login_required") {
+          setStep(3);
+          setError("Para reservar otro turno, iniciá sesión con Google");
+          return;
+        }
         setError(comboResult.error || "No se pudo crear el turno");
         return;
       }
@@ -748,11 +716,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
 
     setCreatingPreference(true);
 
-    const { getRecaptchaToken } = await import("@/lib/recaptcha");
-    const recaptchaToken = await getRecaptchaToken(process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || "");
-
     const bookingResult = await createPendingBooking({
-      recaptchaToken: recaptchaToken || undefined,
       shopId: shop.id,
       shopSlug: shop.slug,
       serviceId: selectedService.id,
@@ -771,8 +735,18 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     setSubmitting(false);
     setCreatingPreference(false);
 
-    if (!bookingResult.success || !bookingResult.data) {
-      setError(bookingResult.success ? "No se pudo iniciar el pago" : bookingResult.error || "No se pudo iniciar el pago");
+    if (!bookingResult.success) {
+      if (bookingResult.error === "login_required") {
+        setStep(3);
+        setError("Para reservar otro turno, iniciá sesión con Google");
+        return;
+      }
+      setError(bookingResult.error || "No se pudo iniciar el pago");
+      return;
+    }
+
+    if (!bookingResult.data) {
+      setError("No se pudo iniciar el pago");
       return;
     }
 
@@ -1723,6 +1697,20 @@ draggable={false}
                         ) : (
                           <>
                             <GoogleSignInButton shopSlug={shop.slug} />
+
+                            {shop.phone && (
+                              <p className={`text-xs text-center mt-2 ${templateStyles.tiny}`}>
+                                ¿Problemas para iniciar sesión?{" "}
+                                <a
+                                  href={`https://wa.me/${shop.phone.replace(/\D/g, "")}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="underline hover:opacity-70 transition-opacity"
+                                >
+                                  Contactanos por WhatsApp
+                                </a>
+                              </p>
+                            )}
 
                             <div className="flex items-center gap-3">
                               <div className={`h-px flex-1 ${templateStyles.divider}`} />

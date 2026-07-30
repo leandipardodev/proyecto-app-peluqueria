@@ -9,17 +9,15 @@ import {
 } from "@/lib/argentina-time";
 import type { ActionResult } from "@/lib/types";
 import { createRateLimiter } from "@/lib/rate-limiter";
-import { verifyRecaptcha } from "@/lib/recaptcha";
 import { headers } from "next/headers";
 import { fetchShopDateOverrides } from "@/lib/dashboard/shop/business-actions";
 import { sendAppointmentConfirmationEmail } from "@/lib/email/booking-emails";
-import { requireOwnerShopId } from "@/lib/dashboard/auth/server";
+import { completedBookingCache } from "@/lib/dashboard/booking/public-booking-actions";
 import "server-only";
 
 const createBookingLimiter = createRateLimiter({ intervalMs: 60_000, maxRequests: 10 });
 
 type PendingBookingInput = {
-  recaptchaToken?: string;
   shopId: string;
   shopSlug: string;
   serviceId: string;
@@ -61,11 +59,9 @@ export async function createPendingBooking(
       return { success: false, error: "Demasiadas solicitudes. Intenta de nuevo en unos segundos." };
     }
 
-    if (input.recaptchaToken) {
-      const recaptchaResult = await verifyRecaptcha(input.recaptchaToken);
-      if (!recaptchaResult.success) {
-        return { success: false, error: "Verificacion de seguridad fallida. Intenta de nuevo." };
-      }
+    const ipKey = `completed-booking:${ip}:${input.shopId}`;
+    if (completedBookingCache.has(ipKey) && !input.authenticatedUserId) {
+      return { success: false, error: "login_required" };
     }
 
     const admin = await createServiceRoleClient();
