@@ -12,7 +12,7 @@ import { createRateLimiter } from "@/lib/rate-limiter";
 import { headers } from "next/headers";
 import { fetchShopDateOverrides } from "@/lib/dashboard/shop/business-actions";
 import { sendAppointmentConfirmationEmail } from "@/lib/email/booking-emails";
-import { completedBookingCache } from "@/lib/dashboard/booking/public-booking-actions";
+import { completedBookingCache } from "@/lib/booking-cache";
 import "server-only";
 
 const createBookingLimiter = createRateLimiter({ intervalMs: 60_000, maxRequests: 10 });

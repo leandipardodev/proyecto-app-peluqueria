@@ -10,7 +10,7 @@ import { createLogContext, logInfo, logWarn, logError } from "@/lib/api-logger";
 import { withRetry } from "@/lib/retry";
 import crypto from "crypto";
 import { createAdminClient } from "@/lib/dashboard/appointments/shared";
-import { completedBookingCache } from "@/lib/dashboard/booking/public-booking-actions";
+import { completedBookingCache } from "@/lib/booking-cache";
 
 const webhookLimiter = createRateLimiter({ intervalMs: 60_000, maxRequests: 30 });
 

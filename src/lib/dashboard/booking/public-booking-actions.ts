@@ -17,14 +17,9 @@ import { headers } from "next/headers";
 import { fetchShopDateOverrides } from "@/lib/dashboard/shop/business-actions";
 import "server-only";
 import { createAdminClient } from "../appointments/shared";
-import { LRUCache } from "lru-cache";
+import { completedBookingCache } from "@/lib/booking-cache";
 
 const slotsLimiter = createRateLimiter({ intervalMs: 60_000, maxRequests: 30 });
-
-export const completedBookingCache = new LRUCache<string, true>({
-  max: 10000,
-  ttl: 24 * 60 * 60 * 1000,
-});
 
 type ComboService = { id: string; name: string; duration_minutes: number; price: number; pay_at_shop: boolean };
 type ComboRow = { id: string; name: string; description: string | null; price: number; total_duration: number; duration_minutes: number | null; services: ComboService[] };
