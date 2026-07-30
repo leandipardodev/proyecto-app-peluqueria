@@ -27,6 +27,8 @@ const completedBookingCache = new LRUCache<string, true>({
   ttl: 24 * 60 * 60 * 1000,
 });
 
+const recaptchaConfigured = !!(process.env.RECAPTCHA_SECRET_KEY && process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY);
+
 type ComboService = { id: string; name: string; duration_minutes: number; price: number; pay_at_shop: boolean };
 type ComboRow = { id: string; name: string; description: string | null; price: number; total_duration: number; duration_minutes: number | null; services: ComboService[] };
 
@@ -584,12 +586,14 @@ export async function createPublicAppointment(data: {
     const isRepeatBooking = completedBookingCache.has(ipKey);
 
     if (isRepeatBooking) {
-      if (!data.recaptchaToken) {
-        return { success: false, error: "Verificación de seguridad necesaria. Intentá de nuevo." };
+      if (data.recaptchaToken) {
+        const recaptchaResult = await verifyRecaptcha(data.recaptchaToken);
+        if (!recaptchaResult.success) {
+          return { success: false, error: "Verificación de seguridad fallida. Intentá de nuevo." };
+        }
       }
-      const recaptchaResult = await verifyRecaptcha(data.recaptchaToken);
-      if (!recaptchaResult.success) {
-        return { success: false, error: "Verificación de seguridad fallida. Intentá de nuevo." };
+      if (!data.recaptchaToken && recaptchaConfigured) {
+        return { success: false, error: "captcha_required" };
       }
     }
 
@@ -1106,12 +1110,14 @@ export async function createPublicComboAppointment(data: {
     const isRepeatBooking = completedBookingCache.has(ipKey);
 
     if (isRepeatBooking) {
-      if (!data.recaptchaToken) {
-        return { success: false, error: "Verificación de seguridad necesaria. Intentá de nuevo." };
+      if (data.recaptchaToken) {
+        const recaptchaResult = await verifyRecaptcha(data.recaptchaToken);
+        if (!recaptchaResult.success) {
+          return { success: false, error: "Verificación de seguridad fallida. Intentá de nuevo." };
+        }
       }
-      const recaptchaResult = await verifyRecaptcha(data.recaptchaToken);
-      if (!recaptchaResult.success) {
-        return { success: false, error: "Verificación de seguridad fallida. Intentá de nuevo." };
+      if (!data.recaptchaToken && recaptchaConfigured) {
+        return { success: false, error: "captcha_required" };
       }
     } else if (data.recaptchaToken) {
       const recaptchaResult = await verifyRecaptcha(data.recaptchaToken);

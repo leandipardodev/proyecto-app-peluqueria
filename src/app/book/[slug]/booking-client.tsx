@@ -587,25 +587,39 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
 
     if (!needsPayment && !selectedPaymentMethodRef.current) {
       if (selectedCombo) {
-        const { getRecaptchaToken } = await import("@/lib/recaptcha");
-        const recaptchaToken = await getRecaptchaToken(RECAPTCHA_SITE_KEY);
+        const attemptBooking = async (token?: string) => {
+          const { getRecaptchaToken: getToken } = await import("@/lib/recaptcha");
+          if (!token) token = await getToken(RECAPTCHA_SITE_KEY) || undefined;
 
-        const result = await createPublicComboAppointment({
-          shopId: shop.id,
-          comboId: selectedCombo.id,
-          comboName: selectedCombo.name,
-          comboPrice: selectedCombo.price,
-          comboDurationMinutes: selectedCombo.duration_minutes,
-          services: selectedCombo.services,
-          staffId: selectedStaff?.id,
-          customerName: customerName.trim(),
-          customerEmail: customerEmail.trim() || undefined,
-          customerPhone: formattedPhone,
-          authenticatedUserId: user?.id,
-          startTime: selectedSlot.start,
-          status: "scheduled",
-          recaptchaToken: recaptchaToken || undefined,
-        });
+          const res = await createPublicComboAppointment({
+            shopId: shop.id,
+            comboId: selectedCombo.id,
+            comboName: selectedCombo.name,
+            comboPrice: selectedCombo.price,
+            comboDurationMinutes: selectedCombo.duration_minutes,
+            services: selectedCombo.services,
+            staffId: selectedStaff?.id,
+            customerName: customerName.trim(),
+            customerEmail: customerEmail.trim() || undefined,
+            customerPhone: formattedPhone,
+            authenticatedUserId: user?.id,
+            startTime: selectedSlot.start,
+            status: "scheduled",
+            recaptchaToken: token,
+          });
+
+          return res;
+        };
+
+        let result = await attemptBooking();
+
+        if (!result.success && result.error === "captcha_required") {
+          const { getRecaptchaToken: getToken } = await import("@/lib/recaptcha");
+          const retryToken = await getToken(RECAPTCHA_SITE_KEY);
+          if (retryToken) {
+            result = await attemptBooking(retryToken);
+          }
+        }
 
         setSubmitting(false);
 
@@ -620,22 +634,36 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
 
       if (!selectedService) return;
 
-      const { getRecaptchaToken } = await import("@/lib/recaptcha");
-      const recaptchaToken = await getRecaptchaToken(RECAPTCHA_SITE_KEY);
+      const attemptBooking = async (token?: string) => {
+        const { getRecaptchaToken: getToken } = await import("@/lib/recaptcha");
+        if (!token) token = await getToken(RECAPTCHA_SITE_KEY) || undefined;
 
-      const result = await createPublicAppointment({
-        shopId: shop.id,
-        serviceId: selectedService.id,
-        staffId: selectedStaff?.id,
-        customerName: customerName.trim(),
-        customerEmail: customerEmail.trim() || undefined,
-        customerPhone: formattedPhone,
-        authenticatedUserId: user?.id,
-        startTime: selectedSlot.start,
-        endTime: selectedSlot.end,
-        status: "scheduled",
-        recaptchaToken: recaptchaToken || undefined,
-      });
+        const res = await createPublicAppointment({
+          shopId: shop.id,
+          serviceId: selectedService.id,
+          staffId: selectedStaff?.id,
+          customerName: customerName.trim(),
+          customerEmail: customerEmail.trim() || undefined,
+          customerPhone: formattedPhone,
+          authenticatedUserId: user?.id,
+          startTime: selectedSlot.start,
+          endTime: selectedSlot.end,
+          status: "scheduled",
+          recaptchaToken: token,
+        });
+
+        return res;
+      };
+
+      let result = await attemptBooking();
+
+      if (!result.success && result.error === "captcha_required") {
+        const { getRecaptchaToken: getToken } = await import("@/lib/recaptcha");
+        const retryToken = await getToken(RECAPTCHA_SITE_KEY);
+        if (retryToken) {
+          result = await attemptBooking(retryToken);
+        }
+      }
 
       setSubmitting(false);
 
