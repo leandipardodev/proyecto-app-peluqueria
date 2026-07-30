@@ -1579,7 +1579,9 @@ export async function createPublicComboAppointment(data: {
       }
     }
 
-    completedBookingCache.set(ipKey, true);
+    if (data.status !== "pending_payment") {
+      completedBookingCache.set(ipKey, true);
+    }
 
     return { success: true, data: { customerId, appointmentIds } };
   } catch (e) {

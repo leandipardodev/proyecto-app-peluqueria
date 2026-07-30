@@ -270,6 +270,7 @@ export async function createPendingBooking(
         customer_email: input.customerEmail || null,
         customer_phone: input.customerPhone,
         authenticated_user_id: input.authenticatedUserId || null,
+        ip_address: ip,
         start_time: input.startTime,
         end_time: input.endTime,
         status: "pending",
@@ -513,8 +514,8 @@ export async function confirmBankTransferBooking(
     // Fetch the pending booking
     const { data: booking } = await admin
       .from("pending_bookings")
-      .select("id, shop_id, status, customer_phone, customer_email, customer_name, service_id, start_time, end_time, staff_id, deposit_amount, payment_amount, expires_at")
-      .eq("id", bookingId)
+        .select("id, shop_id, status, customer_phone, customer_email, customer_name, service_id, start_time, end_time, staff_id, deposit_amount, payment_amount, expires_at, ip_address")
+        .eq("id", bookingId)
       .eq("shop_id", shopId)
       .maybeSingle();
 
@@ -635,6 +636,12 @@ export async function confirmBankTransferBooking(
       });
 
     if (aptError) throw aptError;
+
+    // Cache the IP so repeat bookings from this IP trigger login_required
+    if (booking.ip_address) {
+      const ipKey = `completed-booking:${booking.ip_address}:${booking.shop_id}`;
+      completedBookingCache.set(ipKey, true);
+    }
 
     // Send confirmation email
     if (booking.customer_email) {

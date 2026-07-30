@@ -10,6 +10,7 @@ import { createLogContext, logInfo, logWarn, logError } from "@/lib/api-logger";
 import { withRetry } from "@/lib/retry";
 import crypto from "crypto";
 import { createAdminClient } from "@/lib/dashboard/appointments/shared";
+import { completedBookingCache } from "@/lib/dashboard/booking/public-booking-actions";
 
 const webhookLimiter = createRateLimiter({ intervalMs: 60_000, maxRequests: 30 });
 
@@ -360,7 +361,7 @@ export async function POST(request: NextRequest) {
 
       const { data: booking } = await admin
         .from("pending_bookings")
-        .select("id, shop_id, status, customer_phone, customer_email, customer_name, service_id, start_time, end_time, created_at, expires_at, staff_id, deposit_amount, mp_preference_id")
+        .select("id, shop_id, status, customer_phone, customer_email, customer_name, service_id, start_time, end_time, created_at, expires_at, staff_id, deposit_amount, mp_preference_id, ip_address")
         .eq("id", bookingId)
         .maybeSingle();
 
@@ -497,6 +498,12 @@ export async function POST(request: NextRequest) {
           .single();
 
         if (aptError) throw aptError;
+
+        // Cache the IP so repeat bookings from this IP trigger login_required
+        if (booking.ip_address) {
+          const ipKey = `completed-booking:${booking.ip_address}:${booking.shop_id}`;
+          completedBookingCache.set(ipKey, true);
+        }
 
         // Send confirmation email
         if (booking.customer_email) {
