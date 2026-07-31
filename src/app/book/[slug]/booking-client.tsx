@@ -15,6 +15,7 @@ import {
   LogOut,
   Mail,
   MapPin,
+  Package,
   Phone,
   RefreshCw,
   Sparkles,
@@ -23,12 +24,12 @@ import {
 import { initMercadoPago } from "@mercadopago/sdk-react";
 import { fetchPublicAvailableSlots, createPublicAppointment, createPublicComboAppointment, deletePublicAppointment } from "@/lib/dashboard/booking/public-booking-actions";
 import { fetchShopDateOverrides } from "@/lib/dashboard/shop/business-actions";
-import { createPendingBooking, deletePendingBooking } from "@/lib/dashboard/appointments/pending-booking-actions";
+import { deletePendingBooking } from "@/lib/dashboard/appointments/pending-booking-actions";
 import QRCode from "qrcode";
 import GoogleSignInButton from "@/components/auth/google-sign-in-button";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
-import { resolveTemplate } from "./booking-themes";
+import { resolveTemplate, type BookingTheme } from "./booking-themes";
 import { toArgentinaLocalIsoString } from "@/lib/argentina-time";
 import { InstagramIcon, WhatsappIcon } from "./booking-icons";
 import type { Industry } from "@/lib/industry/types";
@@ -51,6 +52,8 @@ import {
   parseHHmmToMinutes,
   to24HourTimeLabel,
   formatTimeFromIso,
+  warmAudio,
+  playSuccessSound,
 } from "./booking-utils";
 import { getArgentinaDateString, getArgentinaMinutesSinceMidnight } from "@/lib/argentina-time";
 
@@ -105,11 +108,408 @@ function releaseCard3D(e: React.PointerEvent<HTMLDivElement | HTMLButtonElement>
   card.style.transition = 'transform 0.5s cubic-bezier(0.16,1,0.3,1)';
 }
 
+function getRippleRect(el: HTMLElement): { left: number; top: number; width: number; height: number } {
+  const container = el.closest(".overflow-hidden") ?? el.parentElement;
+  return container?.getBoundingClientRect() ?? { left: 0, top: 0, width: 0, height: 0 };
+}
+
+type RipplePosition = { x: number; y: number; size: number };
+
+const RippleWaves = memo(function RippleWaves({ position, colors }: {
+  position?: RipplePosition;
+  colors: string[];
+}) {
+  if (!position) {
+    return <span className="absolute inset-0 pointer-events-none z-0" style={{ background: colors[colors.length - 1] }} />;
+  }
+  return (
+    <>
+      {colors.map((color, i) => (
+        <motion.span
+          key={`w${i}`}
+          initial={{ scale: 0, opacity: 1 }}
+          animate={{ scale: 1, opacity: i < colors.length - 1 ? 0 : 1 }}
+          transition={{ duration: 1.5, ease: [0.25, 1, 0.08, 1], delay: i * 0.08, opacity: { duration: 0.5, delay: i * 0.08 + 0.25, ease: "easeInOut" } }}
+          className="absolute rounded-full pointer-events-none z-0"
+          style={{
+            left: position.x - position.size / 2,
+            top: position.y - position.size / 2,
+            width: position.size,
+            height: position.size,
+            background: color,
+          }}
+        />
+      ))}
+    </>
+  );
+});
+
+const ServiceCard = memo(function ServiceCard({
+  svc, isInCart, cartIdx, ripplePosition, waves,
+  cardDepth, selected, plain, plate, hoverBorder, heading, tiny, priceText, priceFx, selectedText,
+  tactileClass, onToggle,
+}: {
+  svc: Service;
+  isInCart: boolean;
+  cartIdx: number;
+  ripplePosition?: RipplePosition;
+  waves: string[];
+  cardDepth: string;
+  selected: string;
+  plain: string;
+  plate: string;
+  hoverBorder: string;
+  heading: string;
+  tiny: string;
+  priceText: string;
+  priceFx: string;
+  selectedText: string;
+  tactileClass: string;
+  onToggle: (svc: Service, e: React.MouseEvent<HTMLButtonElement>) => void;
+}) {
+  return (
+    <motion.div
+      role="option"
+      aria-selected={isInCart}
+      onPointerDown={pushCard3D}
+      onPointerUp={releaseCard3D}
+      onPointerLeave={releaseCard3D}
+      className={`w-full rounded-3xl border-2 transition-[transform,box-shadow] duration-200 ${cardDepth} ${isInCart ? `${selected} border-transparent` : `${plain} ${plate} ${hoverBorder}`}`}
+      style={{ scrollSnapAlign: "start" }}
+    >
+      <div className="overflow-hidden rounded-3xl relative">
+        {isInCart && <RippleWaves position={ripplePosition} colors={waves} />}
+        {isInCart && (
+          <div
+            className="absolute inset-0 rounded-3xl pointer-events-none z-[2]"
+            style={{ boxShadow: `inset 0 0 10px 1px ${selectedText}20, 0 0 10px 1px ${selectedText}12` } as React.CSSProperties}
+          />
+        )}
+        <button
+          type="button"
+          onClick={(e) => onToggle(svc, e)}
+          draggable={false}
+          className={`w-full px-5 py-4 text-left relative z-10 outline-none focus:outline-none focus-visible:outline-none ${tactileClass}`}
+          style={isInCart ? { color: selectedText } as React.CSSProperties : undefined}
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <p className={`text-lg font-medium break-words whitespace-normal text-left ${heading}`} style={isInCart ? { color: selectedText } as React.CSSProperties : undefined}>{svc.name}</p>
+              {svc.description && (
+                <p className={`mt-0.5 text-xs leading-relaxed overflow-hidden ${tiny}`} style={{
+                  maxHeight: isInCart ? "300px" : "2.5em",
+                  transition: "max-height 0.5s cubic-bezier(0.16,1,0.3,1)",
+                  ...(isInCart ? { color: selectedText } as React.CSSProperties : {}),
+                } as React.CSSProperties}>{svc.description}</p>
+              )}
+              <p className={`mt-0.5 text-sm ${tiny}`} style={isInCart ? { color: selectedText } as React.CSSProperties : undefined}>{svc.duration_minutes} min</p>
+            </div>
+            <div className="shrink-0 text-right">
+              <p className={`shrink-0 ${priceText} ${priceFx} tabular-nums`} style={isInCart ? { color: selectedText } as React.CSSProperties : undefined}>
+                <span className="mr-1.5 align-top text-[0.72em] font-semibold opacity-85">$</span>
+                <span className="tracking-[-0.045em]">{svc.price.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+              </p>
+              {cartIdx >= 0 && (
+                <span className={`inline-block mt-1 text-[10px] font-medium ${tiny}`} style={isInCart ? { color: selectedText } as React.CSSProperties : undefined}>
+                  #{cartIdx + 1}
+                </span>
+              )}
+            </div>
+          </div>
+        </button>
+      </div>
+    </motion.div>
+  );
+});
+
+const StaffCard = memo(function StaffCard({
+  staff, isSelected, ripplePosition, waves,
+  cardDepth, selected, plain, hoverBorder, heading, tiny, accent, plate, selectedText,
+  tactileClass, onToggle,
+}: {
+  staff: StaffMember;
+  isSelected: boolean;
+  ripplePosition?: RipplePosition;
+  waves: string[];
+  cardDepth: string;
+  selected: string;
+  plain: string;
+  hoverBorder: string;
+  heading: string;
+  tiny: string;
+  accent: string;
+  plate: string;
+  selectedText: string;
+  tactileClass: string;
+  onToggle: (staff: StaffMember, e: React.MouseEvent<HTMLButtonElement>) => void;
+}) {
+  const initials = staff.name.charAt(0).toUpperCase();
+  return (
+    <motion.div
+      onPointerDown={pushCard3D}
+      onPointerUp={releaseCard3D}
+      onPointerLeave={releaseCard3D}
+      className={`rounded-[14px] border-2 transition-[transform,box-shadow] duration-200 ${cardDepth} ${isSelected ? `${selected} border-transparent` : `${plain} ${hoverBorder}`}`}
+    >
+      <div className="overflow-hidden rounded-[14px] relative">
+        {isSelected && <RippleWaves position={ripplePosition} colors={waves} />}
+        {isSelected && (
+          <div className="absolute inset-0 rounded-[14px] pointer-events-none z-[2]" style={{ boxShadow: `inset 0 0 10px 1px ${selectedText}20, 0 0 10px 1px ${selectedText}12` } as React.CSSProperties} />
+        )}
+        <button
+          type="button"
+          onClick={(e) => onToggle(staff, e)}
+          draggable={false}
+          className={`w-full px-5 py-6 text-left relative z-10 outline-none focus:outline-none focus-visible:outline-none ${tactileClass}`}
+          style={isSelected ? { color: selectedText } as React.CSSProperties : undefined}
+        >
+          <div className="flex flex-col items-center text-center gap-3">
+            <div className={`relative w-20 h-20 rounded-full overflow-hidden ring-2 ring-white/30 shadow-xl flex items-center justify-center shrink-0 ${plate}`}>
+              {staff.photo_url ? (
+                <Image src={staff.photo_url} alt="" fill sizes="80px" className="object-cover" />
+              ) : (
+                <span className={`text-2xl font-bold ${accent}`}>{initials}</span>
+              )}
+            </div>
+            <div className="min-w-0">
+              <p className={`text-lg font-semibold tracking-tight ${heading}`} style={isSelected ? { color: selectedText } as React.CSSProperties : undefined}>{staff.name}</p>
+              {staff.description && (
+                <p className={`text-xs leading-snug mt-1 line-clamp-2 ${tiny}`} style={isSelected ? { color: selectedText } as React.CSSProperties : undefined}>{staff.description}</p>
+              )}
+              {(staff.instagram || staff.whatsapp) && (
+                <div className="flex items-center justify-center gap-3 mt-2">
+                  {staff.instagram && (
+                    <span className="text-xs flex items-center gap-1" style={isSelected ? { color: selectedText } as React.CSSProperties : undefined}>
+                      <InstagramIcon />
+                      {staff.instagram.startsWith("@") ? staff.instagram : `@${staff.instagram}`}
+                    </span>
+                  )}
+                  {staff.whatsapp && (
+                    <span className="text-xs flex items-center gap-1" style={isSelected ? { color: selectedText } as React.CSSProperties : undefined}>
+                      <WhatsappIcon />
+                      {staff.whatsapp}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </button>
+      </div>
+    </motion.div>
+  );
+});
+
+function SelectionPill({ cartCount, staff, templateStyles, onTap }: {
+  cartCount: number;
+  staff: StaffMember[];
+  templateStyles: BookingTheme;
+  onTap: () => void;
+}) {
+  const prevCount = useRef(cartCount);
+  const [justChanged, setJustChanged] = useState(false);
+
+  useEffect(() => {
+    if (cartCount !== prevCount.current) {
+      setJustChanged(true);
+      prevCount.current = cartCount;
+      const t = setTimeout(() => setJustChanged(false), 500);
+      return () => clearTimeout(t);
+    }
+  }, [cartCount]);
+
+  const displayStaff = staff.slice(0, 4);
+  const overflow = staff.length > 4 ? staff.length - 4 : 0;
+
+  if (cartCount === 0 && staff.length === 0) return null;
+
+  return (
+    <motion.div
+      layout
+      onClick={onTap}
+      initial={{ opacity: 0, scale: 0.8, y: -4 }}
+      animate={{
+        opacity: 1,
+        scale: 1,
+        y: 0,
+        borderRadius: ["1.25rem 0.5rem 1.25rem 0.5rem", "1rem 1rem 0.6rem 1.25rem", "1.25rem 0.5rem 1.25rem 0.5rem"],
+      }}
+      exit={{ opacity: 0, scale: 0.8, y: -4, transition: { duration: 0.15 } }}
+      transition={{
+        borderRadius: { duration: 6, repeat: Infinity, ease: "easeInOut" },
+        default: { type: "spring", stiffness: 400, damping: 25, mass: 0.7 },
+      }}
+      className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 cursor-pointer select-none ${templateStyles.plate} border ${templateStyles.hoverBorder} shadow-lg`}
+    >
+      {cartCount > 0 && (
+        <motion.div
+          layout
+          className={`flex items-center gap-1 text-[10px] font-semibold leading-none ${templateStyles.heading}`}
+          animate={justChanged ? {
+            x: [0, -2.5, 2.5, -1.5, 1.5, 0],
+            transition: { duration: 0.35, ease: "easeInOut" },
+          } : {}}
+        >
+          <Package className="w-3 h-3" />
+          <AnimatePresence mode="popLayout">
+            <motion.span
+              key={cartCount}
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{
+                scale: 1,
+                opacity: 1,
+                transition: { type: "spring", stiffness: 600, damping: 14, mass: 0.35 },
+              }}
+              exit={{ scale: 0, opacity: 0, transition: { duration: 0.12 } }}
+              className="tabular-nums"
+            >
+              {cartCount}
+            </motion.span>
+          </AnimatePresence>
+        </motion.div>
+      )}
+
+      {cartCount > 0 && staff.length > 0 && (
+        <div className={`w-px h-3 rounded-full ${templateStyles.line}`} />
+      )}
+
+      {staff.length > 0 && (
+        <motion.div layout className="flex items-center -space-x-1.5">
+          <AnimatePresence mode="popLayout">
+            {displayStaff.map((s, i) => (
+              <motion.div
+                key={s.id}
+                layout
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{
+                  scale: 1,
+                  opacity: 1,
+                  transition: { type: "spring", stiffness: 550, damping: 16, mass: 0.35, delay: i * 0.06 },
+                }}
+                exit={{ scale: 0, opacity: 0, transition: { duration: 0.18, ease: "easeInOut" } }}
+                className="w-5 h-5 rounded-full overflow-hidden ring-[1.5px] ring-white/30 flex items-center justify-center"
+                style={{ zIndex: staff.length - i }}
+              >
+                {s.photo_url ? (
+                  <Image src={s.photo_url} alt="" width={20} height={20} className="object-cover w-full h-full" />
+                ) : (
+                  <span className="text-[7px] font-bold leading-none">{s.name.charAt(0)}</span>
+                )}
+              </motion.div>
+            ))}
+          </AnimatePresence>
+          {overflow > 0 && (
+            <motion.span
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="text-[9px] font-semibold ml-0.5"
+            >
+              +{overflow}
+            </motion.span>
+          )}
+        </motion.div>
+      )}
+    </motion.div>
+  );
+}
+
+function SelectionSummary({ cart, selectedCombo, staff, totalDuration, totalPrice, templateStyles, onClose }: {
+  cart: Service[];
+  selectedCombo: Combo | null;
+  staff: StaffMember[];
+  totalDuration: number;
+  totalPrice: number;
+  templateStyles: BookingTheme;
+  onClose: () => void;
+}) {
+  const items = selectedCombo
+    ? [{ id: selectedCombo.id, name: selectedCombo.name, duration: selectedCombo.duration_minutes ?? selectedCombo.total_duration, price: selectedCombo.price }]
+    : cart.map(s => ({ id: s.id, name: s.name, duration: s.duration_minutes, price: s.price }));
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.88, opacity: 0, y: 24 }}
+        animate={{
+          scale: 1, opacity: 1, y: 0,
+          borderRadius: ["1.5rem 0.75rem 1.5rem 0.75rem", "1.25rem 1.25rem 0.85rem 1.5rem", "1.5rem 0.75rem 1.5rem 0.75rem"],
+        }}
+        exit={{ scale: 0.88, opacity: 0, y: 24, transition: { duration: 0.18 } }}
+        transition={{
+          borderRadius: { duration: 5, repeat: Infinity, ease: "easeInOut" },
+          default: { type: "spring", stiffness: 400, damping: 28, mass: 0.8 },
+        }}
+        onClick={(e) => e.stopPropagation()}
+        className={`w-full max-w-sm overflow-hidden ${templateStyles.shell}`}
+      >
+        <div className="p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <span className={`text-sm font-semibold ${templateStyles.heading}`}>Resumen</span>
+            <button type="button" onClick={onClose} className={`text-[10px] font-medium ${templateStyles.tiny} hover:opacity-70 transition-opacity`}>
+              Cerrar
+            </button>
+          </div>
+
+          <div className="space-y-2 max-h-48 overflow-y-auto delicate-scroll -mx-1 px-1">
+            {items.map((item) => (
+              <div key={item.id} className={`flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 ${templateStyles.plate}`}>
+                <div className="min-w-0 flex-1">
+                  <p className={`text-sm font-medium truncate ${templateStyles.heading}`}>{item.name}</p>
+                  <p className={`text-[11px] mt-0.5 ${templateStyles.tiny}`}>{item.duration} min</p>
+                </div>
+                <span className={`text-sm font-semibold tabular-nums shrink-0 ${templateStyles.priceText}`}>
+                  ${item.price.toLocaleString("es-AR")}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className={`flex items-center justify-between pt-2 border-t ${templateStyles.line}`}>
+            <span className={`text-xs ${templateStyles.tiny}`}>
+              {items.length} servicio{items.length > 1 ? "s" : ""} · {totalDuration} min
+            </span>
+            <span className={`text-sm font-bold tabular-nums ${templateStyles.priceText} ${templateStyles.priceFx}`}>
+              $ {totalPrice.toLocaleString("es-AR")}
+            </span>
+          </div>
+
+          {staff.length > 0 && (
+            <div className="space-y-2">
+              <span className={`text-[10px] uppercase tracking-wider font-semibold ${templateStyles.tiny}`}>Profesional{staff.length > 1 ? "es" : ""}</span>
+              <div className="flex flex-wrap gap-2">
+                {staff.map(s => (
+                  <div key={s.id} className={`flex items-center gap-2 rounded-full px-3 py-1.5 ${templateStyles.plate}`}>
+                    <div className="w-5 h-5 rounded-full overflow-hidden flex items-center justify-center shrink-0">
+                      {s.photo_url ? (
+                        <Image src={s.photo_url} alt="" width={20} height={20} className="object-cover w-full h-full" />
+                      ) : (
+                        <span className={`text-[9px] font-bold ${templateStyles.accent}`}>{s.name.charAt(0)}</span>
+                      )}
+                    </div>
+                    <span className={`text-xs font-medium ${templateStyles.heading}`}>{s.name.split(" ")[0]}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 const BookingClient = memo(function BookingClient({ shop, services, servicesError, combos, combosError, staffMembers, staffServicesMap }: BookingClientProps) {
   const { user, isLoading: isAuthLoading } = useAuth();
 
   const [step, setStep] = useState(0);
   const [showInfo, setShowInfo] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
 
 
   useEffect(() => {
@@ -147,16 +547,22 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   }, [user]);
 
   useEffect(() => {
+    setRipplePositions({});
+  }, [step]);
+
+  useEffect(() => {
     try {
       const raw = sessionStorage.getItem("klip_booking_draft");
       if (!raw) return;
       const draft = JSON.parse(raw);
       if (draft.shopSlug !== shop.slug) return;
-      if (draft.selectedService) setSelectedService(draft.selectedService);
+      if (draft.cart) setCart(draft.cart);
+      else if (draft.selectedService) setCart([draft.selectedService]);
       if (draft.selectedStaff) setSelectedStaff(draft.selectedStaff);
       if (draft.selectedDate) setSelectedDate(new Date(draft.selectedDate));
       if (draft.selectedSlot) setSelectedSlot(draft.selectedSlot);
       if (draft.selectedCombo) setSelectedCombo(draft.selectedCombo);
+      if (draft.staffForAppointment) setStaffForAppointment(draft.staffForAppointment);
       if (draft.customerName) setCustomerName(draft.customerName);
       if (draft.customerEmail) setCustomerEmail(draft.customerEmail);
       if (draft.customerPhone) setCustomerPhone(draft.customerPhone);
@@ -180,11 +586,55 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     return () => el.removeEventListener("wheel", handler);
   }, []);
 
-  const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [cart, setCart] = useState<Service[]>([]);
   const [selectedCombo, setSelectedCombo] = useState<Combo | null>(null);
-  const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
+  const [selectedStaff, setSelectedStaff] = useState<StaffMember[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
+  const [staffForAppointment, setStaffForAppointment] = useState<StaffMember | null>(null);
+  const [slotStaffPicker, setSlotStaffPicker] = useState<{ slot: Slot; availableStaff: StaffMember[] } | null>(null);
+  const staffLookup = useMemo(() => new Map(staffMembers.map(s => [s.id, s])), [staffMembers]);
+
+  const [ripplePositions, setRipplePositions] = useState<Record<string, RipplePosition>>({});
+
+  const cartRef = useRef<Service[]>([]);
+  useEffect(() => { cartRef.current = cart; }, [cart]);
+  const staffRef = useRef<StaffMember[]>([]);
+  useEffect(() => { staffRef.current = selectedStaff; }, [selectedStaff]);
+
+  const handleToggleService = useCallback((svc: Service, e: React.MouseEvent<HTMLButtonElement>) => {
+    triggerHaptic(15, e.currentTarget);
+    const rect = getRippleRect(e.currentTarget);
+    const size = Math.ceil(Math.sqrt(rect.width * rect.width + rect.height * rect.height) * 2.5);
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const isRemoving = cartRef.current.some((s) => s.id === svc.id);
+    if (isRemoving) {
+      setRipplePositions((prev) => { const rest = { ...prev }; delete rest[svc.id]; return rest; });
+      setCart((prev) => prev.filter((s) => s.id !== svc.id));
+    } else {
+      setRipplePositions((prev) => ({ ...prev, [svc.id]: { x, y, size } }));
+      setCart((prev) => [...prev, svc]);
+    }
+    setSelectedCombo(null);
+  }, [setRipplePositions, setCart, setSelectedCombo]);
+
+  const handleToggleStaff = useCallback((staff: StaffMember, e: React.MouseEvent<HTMLButtonElement>) => {
+    triggerHaptic(15, e.currentTarget);
+    const rect = getRippleRect(e.currentTarget);
+    const size = Math.ceil(Math.sqrt(rect.width * rect.width + rect.height * rect.height) * 2.5);
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const isRemoving = staffRef.current.some((ss) => ss.id === staff.id);
+    setStaffForAppointment(null);
+    if (isRemoving) {
+      setRipplePositions((prev) => { const rest = { ...prev }; delete rest[staff.id]; return rest; });
+      setSelectedStaff((prev) => prev.filter((ss) => ss.id !== staff.id));
+    } else {
+      setRipplePositions((prev) => ({ ...prev, [staff.id]: { x, y, size } }));
+      setSelectedStaff((prev) => [...prev, staff]);
+    }
+  }, [setRipplePositions, setSelectedStaff, setStaffForAppointment]);
 
   const [availableSlots, setAvailableSlots] = useState<Slot[]>([]);
   const [slotsError, setSlotsError] = useState<string | null>(null);
@@ -204,20 +654,18 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const needsPayment = useMemo(() => {
     if (!shop.payAtShop) {
       if (selectedCombo) return selectedCombo.services.some((s) => !s.pay_at_shop);
-      return !(selectedService?.pay_at_shop ?? false);
+      return cart.some((s) => !s.pay_at_shop);
     }
     return false;
-  }, [shop.payAtShop, selectedService?.pay_at_shop, selectedCombo]);
+  }, [shop.payAtShop, cart, selectedCombo]);
 
   const [submitting, setSubmitting] = useState(false);
   const [creatingPreference, setCreatingPreference] = useState(false);
+  const [barCompleteFired, setBarCompleteFired] = useState(false);
 
-  const scrollRAF = useRef(0);
-  const handleScroll = useCallback(() => {
-    cancelAnimationFrame(scrollRAF.current);
-    scrollRAF.current = requestAnimationFrame(() => {});
-  }, []);
-
+  useEffect(() => {
+    if ((submitting || creatingPreference) && !barCompleteFired) setBarCompleteFired(true);
+  }, [submitting, creatingPreference, barCompleteFired]);
 
   const [paymentPreferenceId, setPaymentPreferenceId] = useState<string | null>(null);
   const [paymentInitPoint, setPaymentInitPoint] = useState<string | null>(null);
@@ -242,16 +690,16 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const [loginRequired, setLoginRequired] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("Todos");
-  const [ripplePositions, setRipplePositions] = useState<Record<string, { x: number; y: number; size: number }>>({});
 
   function saveBookingDraft() {
     const draft = {
       shopSlug: shop.slug,
-      selectedService,
+      cart,
       selectedStaff,
       selectedDate: selectedDate?.toISOString(),
       selectedSlot,
       selectedCombo,
+      staffForAppointment,
       customerName,
       customerEmail,
       customerPhone,
@@ -277,6 +725,8 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     "Tus datos",
     "Pago",
   ], [serviceWordLower, staffWordLower]);
+
+  const progressPct = submitting || creatingPreference ? 1 : step === 0 ? 0.2 : step === 1 ? 0.4 : step === 2 ? 0.6 : step === 3 ? 0.8 : 1;
 
   const todayDate = useMemo(() => {
     const todayStr = getArgentinaDateString();
@@ -335,26 +785,35 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     });
   }, [services, selectedCategory, shop.sectionServiceOrder]);
 
+  const selectedComboId = selectedCombo?.id ?? null;
+  const cartIdsKey = useMemo(() => cart.map((svc) => svc.id).join("|"), [cart]);
+
   const availableStaff = useMemo(() => {
-    if (selectedCombo) {
-      const comboServiceIds = selectedCombo.services.map((svc) => svc.id);
-      return staffMembers.filter((s) => {
-        const myIds = staffServicesMap[s.id];
-        return myIds && comboServiceIds.every((cid) => myIds.includes(cid));
-      });
+    if (selectedComboId) {
+      const combo = combos?.find((c) => c.id === selectedComboId) ?? null;
+      if (combo) {
+        const comboServiceIds = combo.services.map((svc) => svc.id);
+        return staffMembers.filter((s) => {
+          const myIds = staffServicesMap[s.id];
+          return myIds && comboServiceIds.every((cid) => myIds.includes(cid));
+        });
+      }
     }
-    if (selectedService) {
+    if (cartIdsKey) {
+      const cartServiceIds = cartIdsKey.split("|");
       return staffMembers.filter((s) => {
         const myIds = staffServicesMap[s.id];
-        return myIds && myIds.includes(selectedService.id);
+        if (!myIds || myIds.length === 0) return true;
+        return cartServiceIds.every((cid) => myIds.includes(cid));
       });
     }
     return staffMembers;
-  }, [staffMembers, staffServicesMap, selectedService, selectedCombo]);
+  }, [staffMembers, staffServicesMap, cartIdsKey, selectedComboId, combos]);
 
   useEffect(() => {
-    if (selectedStaff && !availableStaff.find((s) => s.id === selectedStaff.id)) {
-      setSelectedStaff(null);
+    const valid = selectedStaff.filter((s) => availableStaff.find((a) => a.id === s.id));
+    if (valid.length !== selectedStaff.length) {
+      setSelectedStaff(valid);
     }
   }, [availableStaff, selectedStaff]);
 
@@ -363,14 +822,14 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     if (autoSkippedRef.current) return;
     if (step === 0 && services.length <= 1 && combos.length === 0) {
       autoSkippedRef.current = true;
-      if (services.length === 1) setSelectedService(services[0]);
+      if (services.length === 1) setCart([services[0]]);
       setStep(1);
     }
   }, [step, services, combos]);
   useEffect(() => {
     if (!autoSkippedRef.current || step !== 1) return;
     if (availableStaff.length <= 1) {
-      if (availableStaff.length === 1) setSelectedStaff(availableStaff[0]);
+      if (availableStaff.length === 1) setSelectedStaff([availableStaff[0]]);
       setStep(2);
     }
   }, [step, availableStaff]);
@@ -382,19 +841,22 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   }, [shop.mpPublicKey]);
 
   useEffect(() => {
-    if (!selectedService && !selectedCombo) return;
+    if (cart.length === 0 && !selectedCombo) return;
     if (!selectedDate || fetchedDatesRef.current.has(formatDate(selectedDate))) return;
 
     setLoadingSlots(true);
     setSelectedSlot(null);
+    setStaffForAppointment(null);
+    setSlotStaffPicker(null);
     const dateStr = formatDate(selectedDate);
     const slotDuration = selectedCombo
       ? (selectedCombo.duration_minutes ?? selectedCombo.total_duration)
-      : (selectedService?.duration_minutes ?? 60);
+      : cart.reduce((sum, s) => sum + s.duration_minutes, 60);
 
     (async () => {
       try {
-        const result = await fetchPublicAvailableSlots(shop.id, slotDuration, dateStr, selectedStaff?.id, selectedService?.id);
+        const staffFilter = selectedStaff.length > 0 ? selectedStaff.map((s) => s.id) : undefined;
+        const result = await fetchPublicAvailableSlots(shop.id, slotDuration, dateStr, staffFilter);
         if (pendingDateRef.current !== dateStr) return;
         if (!result.success) {
           setSlotsError(result.error);
@@ -420,7 +882,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
         }
       }
     })();
-  }, [selectedService, selectedCombo, selectedDate, selectedStaff, shop.id]);
+  }, [cart, selectedCombo, selectedDate, selectedStaff, shop.id]);
 
   const prevLoadingSlots = useRef<boolean | null>(null);
 
@@ -440,11 +902,11 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   useEffect(() => {
     pendingDateRef.current = null;
     fetchedDatesRef.current = new Set();
-    setAvailableSlots([]);
+    setAvailableSlots((prev) => prev.length > 0 ? [] : prev);
     setSlotsError(null);
     setSelectedSlot(null);
     setSelectedDate(null);
-  }, [selectedService, selectedCombo, selectedStaff]);
+  }, [cart, selectedCombo, selectedStaff]);
 
   useEffect(() => {
     const startDate = formatDate(new Date(viewYear, viewMonth, 1));
@@ -475,55 +937,24 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   useEffect(() => {
     const timeouts = new Map<HTMLElement, ReturnType<typeof setTimeout>>();
     const onScroll = (e: Event) => {
-      const el = e.currentTarget as HTMLElement;
+      const target = e.target as HTMLElement | null;
+      const el = target?.closest?.(".delicate-scroll") as HTMLElement | null;
+      if (!el) return;
       el.classList.add("scrolling");
       const existing = timeouts.get(el);
       if (existing) clearTimeout(existing);
       timeouts.set(el, setTimeout(() => el.classList.remove("scrolling"), 800));
     };
-    function attach(el: HTMLElement) {
-      if (el.classList.contains("delicate-scroll") && !el.dataset.delicateAttached) {
-        el.addEventListener("scroll", onScroll, { passive: true });
-        el.dataset.delicateAttached = "true";
-      }
-    }
-    function detach(el: HTMLElement) {
-      el.removeEventListener("scroll", onScroll);
-      delete el.dataset.delicateAttached;
-      const t = timeouts.get(el);
-      if (t) { clearTimeout(t); timeouts.delete(el); }
-    }
-    document.querySelectorAll<HTMLElement>(".delicate-scroll").forEach((el) => attach(el));
-    const observer = new MutationObserver((mutations) => {
-      for (const mutation of mutations) {
-        for (const node of mutation.addedNodes) {
-          if (node instanceof HTMLElement) {
-            if (node.classList?.contains("delicate-scroll")) attach(node);
-            node.querySelectorAll<HTMLElement>(".delicate-scroll").forEach((el) => attach(el));
-          }
-        }
-        for (const node of mutation.removedNodes) {
-          if (node instanceof HTMLElement) {
-            if (node.dataset?.delicateAttached) detach(node);
-            node.querySelectorAll<HTMLElement>("[data-delicate-attached]").forEach((el) => detach(el));
-          }
-        }
-      }
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
+    document.addEventListener("scroll", onScroll, { capture: true, passive: true });
     return () => {
-      observer.disconnect();
-      document.querySelectorAll<HTMLElement>("[data-delicate-attached]").forEach((el) => detach(el));
+      document.removeEventListener("scroll", onScroll, { capture: true } as EventListenerOptions);
+      timeouts.forEach((t) => clearTimeout(t));
+      timeouts.clear();
     };
   }, []);
 
-  function getRippleRect(el: HTMLElement): { left: number; top: number; width: number; height: number } {
-    const container = el.closest(".overflow-hidden") ?? el.parentElement;
-    return container?.getBoundingClientRect() ?? { left: 0, top: 0, width: 0, height: 0 };
-  }
-
   const googleCalendarUrl = useMemo(() => {
-    if (!selectedSlot || (!selectedService && !selectedCombo)) return null;
+    if (!selectedSlot || (cart.length === 0 && !selectedCombo)) return null;
     const toGoogleDate = (iso: string) => {
       const local = toArgentinaLocalIsoString(iso);
       const yyyy = local.slice(0, 4);
@@ -534,13 +965,13 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
       const ss = "00";
       return `${yyyy}${mm}${dd}T${hh}${min}${ss}`;
     };
-    const name = selectedCombo?.name ?? selectedService?.name ?? "Turno";
+    const name = selectedCombo?.name ?? (cart.length > 0 ? cart.map(s => s.name).join(" + ") : "Turno");
     const title = `${shop.name} - ${name}`;
     const details = `Turno reservado en ${shop.name}`;
     const location = shop.address || "";
     const dates = `${toGoogleDate(selectedSlot.start)}/${toGoogleDate(selectedSlot.end)}`;
     return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&details=${encodeURIComponent(details)}&location=${encodeURIComponent(location)}&dates=${encodeURIComponent(dates)}`;
-  }, [selectedSlot, selectedService, selectedCombo, shop.name, shop.address]);
+  }, [selectedSlot, cart, selectedCombo, shop.name, shop.address]);
 
   const filteredSlots = useMemo(() => {
     if (!selectedDate) return availableSlots;
@@ -559,11 +990,11 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const canGoNext = (() => {
     switch (step) {
       case 0:
-        return selectedService !== null || selectedCombo !== null;
+        return cart.length > 0 || selectedCombo !== null;
       case 1:
-        return true;
+        return selectedStaff.length > 0;
       case 2:
-        return selectedSlot !== null;
+        return selectedSlot !== null && staffForAppointment !== null;
       case 3:
         if (isAuthLoading) return false;
         const nameHasTwoWords = customerName.trim().includes(" ");
@@ -609,31 +1040,74 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     setPhoneError("");
   }, []);
 
+  function rollbackAppointments(ids: string[]) {
+    return Promise.allSettled(ids.map((id) => deletePublicAppointment({ appointmentId: id, shopId: shop.id }).catch(() => {})));
+  }
+
+  function handleLoginRequired() {
+    setStep(3);
+    setLoginRequired(true);
+    setError("Para reservar otro turno, iniciá sesión con Google");
+    setSubmitting(false);
+    setCreatingPreference(false);
+  }
+
+  async function completeFlow() {
+    await new Promise((r) => setTimeout(r, 700));
+    playSuccessSound();
+    setSubmitting(false);
+    setDone(true);
+  }
+
+  async function createCartAppointments(status: "scheduled" | "pending_payment", phone: string): Promise<{ ids: string[] } | null> {
+    const createdIds: string[] = [];
+    let prevEnd = selectedSlot!.start;
+    for (const svc of cart) {
+      const svcStart = prevEnd;
+      const svcEnd = new Date(new Date(svcStart).getTime() + svc.duration_minutes * 60000).toISOString();
+      const result = await createPublicAppointment({
+        shopId: shop.id,
+        serviceId: svc.id,
+        staffId: staffForAppointment!.id,
+        customerName: customerName.trim(),
+        customerEmail: customerEmail.trim() || undefined,
+        customerPhone: phone,
+        authenticatedUserId: user?.id,
+        startTime: svcStart,
+        endTime: svcEnd,
+        status,
+      });
+      if (!result.success) {
+        await rollbackAppointments(createdIds);
+        if (result.error === "login_required") return null;
+        throw new Error(result.error || "No se pudo reservar el turno");
+      }
+      createdIds.push(result.data!.appointmentId);
+      prevEnd = svcEnd;
+    }
+    return { ids: createdIds };
+  }
+
   async function handleConfirm() {
     try {
-    if ((!selectedService && !selectedCombo) || !selectedSlot || !customerName || !customerPhone) return;
+    if ((cart.length === 0 && !selectedCombo) || !selectedSlot || !customerName || !customerPhone) return;
     if (!isLoggedIn && !customerEmail.trim()) return;
 
     const nameErr = validateName(customerName);
-    if (nameErr) {
-      setNameError(nameErr);
-      return;
-    }
+    if (nameErr) { setNameError(nameErr); return; }
 
     const phoneErr = validatePhone(customerPhone);
-    if (phoneErr) {
-      setPhoneError(phoneErr);
-      return;
-    }
+    if (phoneErr) { setPhoneError(phoneErr); return; }
+
+    warmAudio();
 
     setSubmitting(true);
     setError(null);
 
-    const [{ formatArgentinePhone }] = await Promise.all([
-      import("@/lib/validation"),
-    ]);
+    const [{ formatArgentinePhone }] = await Promise.all([import("@/lib/validation")]);
     const formattedPhone = formatArgentinePhone(customerPhone);
 
+    // Non-paid flow
     if (!needsPayment && !selectedPaymentMethodRef.current) {
       if (selectedCombo) {
         const result = await createPublicComboAppointment({
@@ -643,7 +1117,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
           comboPrice: selectedCombo.price,
           comboDurationMinutes: selectedCombo.duration_minutes,
           services: selectedCombo.services,
-          staffId: selectedStaff?.id,
+          staffId: staffForAppointment?.id,
           customerName: customerName.trim(),
           customerEmail: customerEmail.trim() || undefined,
           customerPhone: formattedPhone,
@@ -651,62 +1125,21 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
           startTime: selectedSlot.start,
           status: "scheduled",
         });
-
-        setSubmitting(false);
-
-        if (!result.success && result.error === "login_required") {
-          setStep(3);
-          setLoginRequired(true);
-          setError("Para reservar otro turno, iniciá sesión con Google");
-          return;
-        }
-
-        if (!result.success) {
-          setError(result.error || "No se pudo reservar el turno");
-          return;
-        }
-
-        setDone(true);
+        if (!result.success && result.error === "login_required") { handleLoginRequired(); return; }
+        if (!result.success) { setSubmitting(false); setError(result.error || "No se pudo reservar el turno"); return; }
+        await completeFlow();
         return;
       }
 
-      if (!selectedService) return;
-
-      const result = await createPublicAppointment({
-        shopId: shop.id,
-        serviceId: selectedService.id,
-        staffId: selectedStaff?.id,
-        customerName: customerName.trim(),
-        customerEmail: customerEmail.trim() || undefined,
-        customerPhone: formattedPhone,
-        authenticatedUserId: user?.id,
-        startTime: selectedSlot.start,
-        endTime: selectedSlot.end,
-        status: "scheduled",
-      });
-
-      setSubmitting(false);
-
-      if (!result.success && result.error === "login_required") {
-        setStep(3);
-        setLoginRequired(true);
-        setError("Para reservar otro turno, iniciá sesión con Google");
-        return;
-      }
-
-      if (!result.success) {
-        setError(result.error || "No se pudo reservar el turno");
-        return;
-      }
-
-      setDone(true);
+      const cartResult = await createCartAppointments("scheduled", formattedPhone);
+      if (cartResult === null) { handleLoginRequired(); return; }
+      await completeFlow();
       return;
     }
 
-    // Payment flow — for combos, create all appointments via createPublicComboAppointment first, then create preference
+    // Paid flow
     if (selectedCombo) {
       setCreatingPreference(true);
-
       const comboResult = await createPublicComboAppointment({
         shopId: shop.id,
         comboId: selectedCombo.id,
@@ -714,7 +1147,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
         comboPrice: selectedCombo.price,
         comboDurationMinutes: selectedCombo.duration_minutes,
         services: selectedCombo.services,
-        staffId: selectedStaff?.id,
+        staffId: staffForAppointment?.id,
         customerName: customerName.trim(),
         customerEmail: customerEmail.trim() || undefined,
         customerPhone: formattedPhone,
@@ -722,27 +1155,13 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
         startTime: selectedSlot.start,
         status: "pending_payment",
       });
-
       if (!comboResult.success) {
-        setSubmitting(false);
-        setCreatingPreference(false);
-        if (comboResult.error === "login_required") {
-          setStep(3);
-          setLoginRequired(true);
-          setError("Para reservar otro turno, iniciá sesión con Google");
-          return;
-        }
-        setError(comboResult.error || "No se pudo crear el turno");
-        return;
+        setSubmitting(false); setCreatingPreference(false);
+        if (comboResult.error === "login_required") { handleLoginRequired(); return; }
+        setError(comboResult.error || "No se pudo crear el turno"); return;
       }
-      if (!comboResult.data) {
-        setSubmitting(false);
-        setCreatingPreference(false);
-        setError("No se pudo crear el turno");
-        return;
-      }
+      if (!comboResult.data) { setSubmitting(false); setCreatingPreference(false); setError("No se pudo crear el turno"); return; }
 
-      // Create a payment preference with the total combo price and all appointment IDs
       const { createPaymentPreference } = await import("@/lib/dashboard/booking/public-booking-actions");
       const prefResult = await createPaymentPreference({
         appointmentId: comboResult.data.appointmentIds[0],
@@ -751,19 +1170,9 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
         overridePrice: selectedCombo.price,
         comboAppointmentIds: comboResult.data.appointmentIds,
       });
-
-      setSubmitting(false);
-      setCreatingPreference(false);
-
-      if (!prefResult.success) {
-        setError(prefResult.error || "No se pudo iniciar el pago");
-        return;
-      }
-      if (!prefResult.data) {
-        setError("No se pudo iniciar el pago");
-        return;
-      }
-
+      setSubmitting(false); setCreatingPreference(false);
+      if (!prefResult.success) { setError(prefResult.error || "No se pudo iniciar el pago"); return; }
+      if (!prefResult.data) { setError("No se pudo iniciar el pago"); return; }
       pendingAppointmentIdsRef.current = comboResult.data.appointmentIds;
       setPaymentPreferenceId(prefResult.data.preferenceId);
       setPaymentInitPoint(prefResult.data.initPoint);
@@ -773,71 +1182,28 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
       return;
     }
 
-    if (!selectedService) return;
-
+    // Cart paid flow — create appointments with pending_payment then payment preference
     setCreatingPreference(true);
+    const cartResult = await createCartAppointments("pending_payment", formattedPhone);
+    if (cartResult === null) { setCreatingPreference(false); handleLoginRequired(); return; }
 
-    const bookingResult = await createPendingBooking({
+    const totalPrice = cart.reduce((sum, s) => sum + s.price, 0);
+    const { createPaymentPreference } = await import("@/lib/dashboard/booking/public-booking-actions");
+    const prefResult = await createPaymentPreference({
+      appointmentId: cartResult.ids[0],
       shopId: shop.id,
       shopSlug: shop.slug,
-      serviceId: selectedService.id,
-      serviceName: selectedService.name,
-      servicePrice: selectedService.price,
-      staffId: selectedStaff?.id,
-      customerName: customerName.trim(),
-      customerEmail: customerEmail.trim() || undefined,
-      customerPhone: formattedPhone,
-      authenticatedUserId: user?.id,
-      startTime: selectedSlot.start,
-      endTime: selectedSlot.end,
-      paymentMethod: selectedPaymentMethodRef.current || undefined,
+      overridePrice: totalPrice,
+      comboAppointmentIds: cartResult.ids,
     });
-
-    setSubmitting(false);
-    setCreatingPreference(false);
-
-    if (!bookingResult.success) {
-      if (bookingResult.error === "login_required") {
-        setStep(3);
-        setLoginRequired(true);
-        setError("Para reservar otro turno, iniciá sesión con Google");
-        return;
-      }
-      setError(bookingResult.error || "No se pudo iniciar el pago");
-      return;
-    }
-
-    if (!bookingResult.data) {
-      setError("No se pudo iniciar el pago");
-      return;
-    }
-
-    // Bank transfer: show bank details
-    if (bookingResult.data.paymentMethod === "bank_transfer") {
-      pendingAppointmentIdsRef.current = [bookingResult.data.bookingId];
-      setChargedAmount(bookingResult.data.chargedAmount ?? null);
-      setIsDepositPayment(Boolean(bookingResult.data.isDeposit));
-      setBankTransferDetails(bookingResult.data.bankDetails || null);
-      setBankTransferWhatsAppMessage(bookingResult.data.whatsappMessage || null);
-      setSelectedPaymentMethod("bank_transfer");
-      setStep(4);
-      return;
-    }
-
-    // MP: show checkout
-    const safePreferenceId = String(bookingResult.data.preferenceId || "").trim();
-    if (!safePreferenceId) {
-      await deletePendingBooking(bookingResult.data.bookingId, shop.id);
-      setError("No se pudo iniciar el checkout");
-      return;
-    }
-
-    pendingAppointmentIdsRef.current = [bookingResult.data.bookingId];
-    setPaymentPreferenceId(safePreferenceId);
-    setPaymentInitPoint(bookingResult.data.initPoint);
-    setChargedAmount(bookingResult.data.chargedAmount ?? null);
-    setIsDepositPayment(Boolean(bookingResult.data.isDeposit));
-    setSelectedPaymentMethod("mp");
+    setSubmitting(false); setCreatingPreference(false);
+    if (!prefResult.success) { setError(prefResult.error || "No se pudo iniciar el pago"); return; }
+    if (!prefResult.data) { setError("No se pudo iniciar el pago"); return; }
+    pendingAppointmentIdsRef.current = cartResult.ids;
+    setPaymentPreferenceId(prefResult.data.preferenceId);
+    setPaymentInitPoint(prefResult.data.initPoint);
+    setChargedAmount(prefResult.data.chargedAmount ?? null);
+    setIsDepositPayment(Boolean(prefResult.data.isDeposit));
     setStep(4);
   } catch (e) {
     setSubmitting(false);
@@ -849,17 +1215,20 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const handleReset = useCallback(() => {
     autoSkippedRef.current = false;
     setStep(0);
-    setSelectedService(null);
+    setCart([]);
     setSelectedCombo(null);
-    setSelectedStaff(null);
+    setSelectedStaff([]);
     setSelectedDate(null);
     setSelectedSlot(null);
+    setStaffForAppointment(null);
+    setSlotStaffPicker(null);
     setAvailableSlots([]);
     setCustomerName("");
     setCustomerEmail("");
     setCustomerPhone("");
     setSubmitting(false);
     setCreatingPreference(false);
+    setBarCompleteFired(false);
     setPaymentPreferenceId(null);
     setPaymentInitPoint(null);
     setChargedAmount(null);
@@ -873,11 +1242,15 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     fetchedDatesRef.current = new Set();
   }, []);
 
-  const summaryService = selectedCombo?.name || selectedService?.name || "Sin servicio";
+  const summaryService = selectedCombo?.name || (cart.length > 0 ? `${cart.length} servicios` : "Sin servicio");
   const summaryDate = selectedDate ? formatDisplayDate(selectedDate).replace(/^\w/, (c) => c.toUpperCase()) : "Sin fecha";
   const summaryTime = selectedSlot ? formatTimeFromIso(selectedSlot.start) || to24HourTimeLabel(selectedSlot.time) : "Sin hora";
 
-  const servicePrice = selectedCombo?.price ?? selectedService?.price ?? 0;
+  const servicePrice = selectedCombo?.price ?? cart.reduce((sum, s) => sum + s.price, 0);
+  const totalPrice = selectedCombo?.price ?? cart.reduce((sum, s) => sum + s.price, 0);
+  const totalDuration = selectedCombo
+    ? (selectedCombo.duration_minutes ?? selectedCombo.total_duration)
+    : cart.reduce((sum, s) => sum + s.duration_minutes, 0);
   const depositEnabled = shop.bookingDepositEnabled !== false;
   const configuredDeposit = shop.bookingDepositAmount;
   const previewIsDeposit = depositEnabled;
@@ -1004,46 +1377,74 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                         {shop.heroTitle || shop.name}
                       </div>
                     </div>
-                    <motion.p
-                      className={`text-xs sm:text-sm uppercase tracking-[0.18em] bg-gradient-to-r ${templateStyles.subtitleGradient} bg-[length:200%_100%] bg-clip-text text-transparent`}
-                      style={{ willChange: "background-position" }}
-                      animate={{ backgroundPositionX: ["0%", "100%", "0%"] }}
-                      transition={{ duration: 10.5, repeat: Infinity, ease: "easeInOut" }}
-                    >
-                      {shop.heroSubtitle || "Reserva online"}
-                    </motion.p>
                   </div>
+                  {step < 3 && (cart.length > 0 || selectedStaff.length > 0 || selectedCombo) && (
+                    <SelectionPill
+                      cartCount={cart.length + (selectedCombo ? 1 : 0)}
+                      staff={staffForAppointment ? [staffForAppointment] : selectedStaff}
+                      templateStyles={templateStyles}
+                      onTap={() => setShowSummary(true)}
+                    />
+                  )}
                 </div>
                 <div className="relative flex items-center justify-center pt-3 pb-1">
                   <div className={`absolute inset-x-4 h-[2px] rounded-full ${templateStyles.progressTrack}`} />
-                  <motion.div
-                    className={`absolute h-[2px] rounded-full origin-center ${templateStyles.progressFill}`}
-                    animate={{
-                      width: step === 0 ? "20%" : step === 1 ? "40%" : step === 2 ? "60%" : step === 3 ? "80%" : "100%",
-                      opacity: step >= 3 ? 1 : 0.8,
-                    }}
-                    transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                    style={
-                      step >= 3
-                        ? { boxShadow: "0 0 18px 2px rgba(168,85,247,0.5), 0 0 40px 6px rgba(168,85,247,0.2)" }
-                        : {}
-                    }
-                  >
+                  <div className="absolute inset-x-4 h-[2px]">
                     <motion.div
-                      className="pointer-events-none absolute inset-0 rounded-full"
-                      style={{
-                        backgroundImage: step >= 3
-                          ? "linear-gradient(100deg, transparent 0%, #f472b6 18%, #fbbf24 36%, #34d399 54%, #60a5fa 72%, transparent 90%)"
-                          : "linear-gradient(100deg, transparent 0%, rgba(255,255,255,0.85) 50%, transparent 100%)",
-                        backgroundSize: step >= 3 ? "120px 100%" : "54px 100%",
-                        backgroundRepeat: "no-repeat",
-                        filter: step >= 3 ? "drop-shadow(0 0 10px rgba(244,114,182,0.6)) drop-shadow(0 0 20px rgba(96,165,250,0.3))" : "drop-shadow(0 0 6px rgba(255,255,255,0.5))",
-                        willChange: "background-position",
-                      }}
-                      animate={{ backgroundPositionX: ["-50px", "calc(100% + 50px)"] }}
-                      transition={{ duration: step >= 3 ? 0.6 : 1.15, repeat: Infinity, ease: "linear" }}
+                      className="absolute inset-0 rounded-full origin-left"
+                      style={{ boxShadow: "0 0 18px 2px rgba(168,85,247,0.55), 0 0 40px 6px rgba(168,85,247,0.25)" }}
+                      animate={{ scaleX: progressPct, opacity: step >= 3 ? 1 : 0 }}
+                      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
                     />
-                  </motion.div>
+                    <motion.div
+                      className="absolute inset-0 origin-left"
+                      animate={{ scaleX: progressPct }}
+                      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                    >
+                      <motion.div
+                        key={`step-pulse-${step}`}
+                        className="absolute inset-0 rounded-full pointer-events-none"
+                        initial={{ scaleY: 1, opacity: 0 }}
+                        animate={{ scaleY: [1, 2.4, 1], opacity: [0, 0.7, 0] }}
+                        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                        style={{ boxShadow: `0 0 12px 2px ${extractHex(templateStyles.accent)}` }}
+                      />
+                      {barCompleteFired && (
+                        <motion.div
+                          key="bar-complete-plop"
+                          className="absolute inset-0 rounded-full pointer-events-none"
+                          initial={{ scaleY: 1, opacity: 0 }}
+                          animate={{ scaleY: [1, 3.4, 1], opacity: [0, 1, 0] }}
+                          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.35 }}
+                          style={{ boxShadow: `0 0 20px 4px ${extractHex(templateStyles.accent)}, 0 0 44px 12px rgba(168,85,247,0.4)` }}
+                        />
+                      )}
+                    </motion.div>
+                    <motion.div
+                      className={`absolute inset-0 rounded-full origin-left overflow-hidden ${templateStyles.progressFill}`}
+                      animate={{ scaleX: progressPct, opacity: step >= 3 ? 1 : 0.8 }}
+                      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                    >
+                      <motion.div
+                        className="pointer-events-none absolute inset-0 rounded-full"
+                        style={{
+                          backgroundImage: "linear-gradient(90deg, #f472b6 0%, #fbbf24 35%, #34d399 65%, #60a5fa 100%)",
+                        }}
+                        animate={{ opacity: step >= 3 ? 1 : 0 }}
+                        transition={{ duration: 0.4 }}
+                      />
+                      <motion.div
+                        className="pointer-events-none absolute inset-0"
+                        style={{
+                          backgroundImage: "linear-gradient(100deg, transparent 0%, rgba(255,255,255,0.9) 50%, transparent 100%)",
+                          backgroundSize: "120px 100%",
+                          backgroundRepeat: "no-repeat",
+                        }}
+                        animate={{ x: ["-60%", "130%"] }}
+                        transition={{ duration: 1.2, repeat: Infinity, ease: "linear", repeatDelay: 0.25 }}
+                      />
+                    </motion.div>
+                  </div>
                   <span
                     className={`relative z-10 px-3 py-1 text-[11px] font-semibold whitespace-nowrap rounded-full leading-tight ${templateStyles.checkout}`}
                   >
@@ -1053,7 +1454,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
               </div>
 
               <div className="pt-0 sm:pt-1 min-h-0 flex-1 relative">
-                <AnimatePresence mode="popLayout">
+                <AnimatePresence mode="wait">
                   <motion.div
                     key={step}
                     ref={stepsScrollRef}
@@ -1114,7 +1515,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                             </div>
                           </motion.div>
                         </div>
-                        <div className="flex-1 overflow-y-auto overflow-x-hidden delicate-scroll px-1 pt-2 pb-3 [scroll-snap-type:y_proximity]" onScroll={handleScroll}>
+                          <div className="flex-1 overflow-y-auto overflow-x-hidden delicate-scroll px-1 pt-2 pb-3 [scroll-snap-type:y_proximity]">
                           <motion.div variants={stepItemReveal} className="space-y-3">
                           {servicesError && (
                             <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-4 py-3 text-xs text-amber-700 dark:text-amber-300">
@@ -1145,26 +1546,10 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                                 >
                                   <div className="overflow-hidden rounded-3xl relative">
                                     {isSelected && (
-                                      ripplePositions[combo.id] ? (
-                                      rippleWaves.map((color, i) => (
-                                      <motion.span
-                                        key={`r-${combo.id}-w${i}`}
-                                        initial={{ width: 0, height: 0, left: ripplePositions[combo.id].x, top: ripplePositions[combo.id].y, opacity: 1 }}
-                                        animate={{ width: ripplePositions[combo.id].size, height: ripplePositions[combo.id].size, left: ripplePositions[combo.id].x - ripplePositions[combo.id].size / 2, top: ripplePositions[combo.id].y - ripplePositions[combo.id].size / 2, opacity: i < rippleWaves.length - 1 ? 0 : 1 }}
-                                        transition={{ duration: 1.5, ease: [0.25, 1, 0.08, 1], delay: i * 0.08, opacity: { duration: 0.5, delay: i * 0.08 + 0.25, ease: "easeInOut" } }}
-                                        className="absolute rounded-full pointer-events-none z-0"
-                                        style={{ background: color, willChange: "transform" }}
-                                      />
-                                      ))
-                                      ) : (
-                                      <span key={`s-${combo.id}`} className="absolute inset-0 pointer-events-none z-0" style={{ background: rippleWaves[rippleWaves.length - 1], willChange: "transform" }} />
-                                      )
+                                      <RippleWaves position={ripplePositions[combo.id]} colors={rippleWaves} />
                                     )}
                                     {isSelected && (
-                                      <motion.div
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: [0, 0.25, 0] }}
-                                        transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut", delay: 1.6 }}
+                                      <div
                                         className="absolute inset-0 rounded-3xl pointer-events-none z-[2]"
                                         style={{ boxShadow: `inset 0 0 10px 1px ${rippleConfig.text}20, 0 0 10px 1px ${rippleConfig.text}12` } as React.CSSProperties}
                                       />
@@ -1176,8 +1561,8 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                                       const rect = getRippleRect(e.currentTarget);
                                       const size = Math.ceil(Math.sqrt(rect.width * rect.width + rect.height * rect.height) * 2.5);
                                        setRipplePositions(prev => ({ ...prev, [combo.id]: { x: e.clientX - rect.left, y: e.clientY - rect.top, size } }));
-                                      setSelectedCombo(combo);
-                                      setSelectedService(null);
+                                       setSelectedCombo(combo);
+                                      setCart([]);
                                     }}
                                     draggable={false}
                                     className={`w-full px-6 py-5 text-left relative z-10 outline-none focus:outline-none focus-visible:outline-none ${tactileClass}`}
@@ -1233,82 +1618,58 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                             })
                           ) : (
                             filteredServices.map((svc) => {
-                              const isSelected = selectedService?.id === svc.id;
+                              const isInCart = cart.some((s) => s.id === svc.id);
+                              const cartIdx = cart.findIndex((s) => s.id === svc.id);
                               return (
-                                <motion.div
+                                <ServiceCard
                                   key={svc.id}
-                                  role="option"
-                                  aria-selected={isSelected}
-                                  onPointerDown={pushCard3D}
-                                  onPointerUp={releaseCard3D}
-                                  onPointerLeave={releaseCard3D}
-                                  className={`w-full rounded-3xl border-2 transition-[transform,box-shadow] duration-200 ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected} border-transparent` : `${templateStyles.plain} ${templateStyles.plate} ${templateStyles.hoverBorder}`}`}
-                                  style={{ scrollSnapAlign: "start" }}
-                                >
-                                  <div className="overflow-hidden rounded-3xl relative">
-                                    {isSelected && (
-                                      ripplePositions[svc.id] ? (
-                                      rippleWaves.map((color, i) => (
-                                      <motion.span
-                                        key={`r-${svc.id}-w${i}`}
-                                        initial={{ width: 0, height: 0, left: ripplePositions[svc.id].x, top: ripplePositions[svc.id].y, opacity: 1 }}
-                                        animate={{ width: ripplePositions[svc.id].size, height: ripplePositions[svc.id].size, left: ripplePositions[svc.id].x - ripplePositions[svc.id].size / 2, top: ripplePositions[svc.id].y - ripplePositions[svc.id].size / 2, opacity: i < rippleWaves.length - 1 ? 0 : 1 }}
-                                        transition={{ duration: 1.5, ease: [0.25, 1, 0.08, 1], delay: i * 0.08, opacity: { duration: 0.5, delay: i * 0.08 + 0.25, ease: "easeInOut" } }}
-                                        className="absolute rounded-full pointer-events-none z-0"
-                                        style={{ background: color, willChange: "transform" }}
-                                      />
-                                      ))
-                                      ) : (
-                                      <span key={`s-${svc.id}`} className="absolute inset-0 pointer-events-none z-0" style={{ background: rippleWaves[rippleWaves.length - 1], willChange: "transform" }} />
-                                      )
-                                    )}
-                                    {isSelected && (
-                                      <motion.div
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: [0, 0.25, 0] }}
-                                        transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut", delay: 1.6 }}
-                                        className="absolute inset-0 rounded-3xl pointer-events-none z-[2]"
-                                        style={{ boxShadow: `inset 0 0 10px 1px ${rippleConfig.text}20, 0 0 10px 1px ${rippleConfig.text}12` } as React.CSSProperties}
-                                      />
-                                    )}
-                                  <button
-                                    type="button"
-                                  onClick={(e) => {
-                                    triggerHaptic(15, e.currentTarget);
-                                    const rect = getRippleRect(e.currentTarget);
-                                    const size = Math.ceil(Math.sqrt(rect.width * rect.width + rect.height * rect.height) * 2.5);
-                                     setRipplePositions(prev => ({ ...prev, [svc.id]: { x: e.clientX - rect.left, y: e.clientY - rect.top, size } }));
-                                    setSelectedService(svc);
-                                    setSelectedCombo(null);
-                                  }}
-                                  draggable={false}
-                                  className={`w-full px-5 py-4 text-left relative z-10 outline-none focus:outline-none focus-visible:outline-none ${tactileClass}`}
-                                  style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}
-                                >
-                                  <div className="flex items-start justify-between gap-4">
-                                <div className="min-w-0 flex-1">
-                                        <p className={`text-lg font-medium break-words whitespace-normal text-left ${templateStyles.heading}`} style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}>{svc.name}</p>
-                                        {svc.description && (
-                                        <p className={`mt-0.5 text-xs leading-relaxed overflow-hidden ${templateStyles.tiny}`} style={{
-                                          maxHeight: isSelected ? "300px" : "2.5em",
-                                          transition: "max-height 0.5s cubic-bezier(0.16,1,0.3,1)",
-                                          willChange: "max-height",
-                                          ...(isSelected ? { color: rippleConfig.text } as React.CSSProperties : {}),
-                                        } as React.CSSProperties}>{svc.description}</p>
-                                        )}
-                                      <p className={`mt-0.5 text-sm ${templateStyles.tiny}`} style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}>{svc.duration_minutes} min</p>
-                                    </div>
-                                    <p className={`shrink-0 ${templateStyles.priceText} ${templateStyles.priceFx} tabular-nums`} style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}>
-                                      <span className="mr-1.5 align-top text-[0.72em] font-semibold opacity-85">$</span>
-                                      <span className="tracking-[-0.045em]">{svc.price.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
-                                    </p>
-                                  </div>
-                                 </button>
-                                  </div>
-                                </motion.div>
-                            );
-                          }))}
+                                  svc={svc}
+                                  isInCart={isInCart}
+                                  cartIdx={cartIdx}
+                                  ripplePosition={ripplePositions[svc.id]}
+                                  waves={rippleWaves}
+                                  cardDepth={templateStyles.cardDepth}
+                                  selected={templateStyles.selected}
+                                  plain={templateStyles.plain}
+                                  plate={templateStyles.plate}
+                                  hoverBorder={templateStyles.hoverBorder}
+                                  heading={templateStyles.heading}
+                                  tiny={templateStyles.tiny}
+                                  priceText={templateStyles.priceText}
+                                  priceFx={templateStyles.priceFx}
+                                  selectedText={rippleConfig.text}
+                                  tactileClass={tactileClass}
+                                  onToggle={handleToggleService}
+                                />
+                              );
+                            }))}
                         </motion.div>
+                        {cart.length > 0 && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="mt-3 p-3 rounded-2xl bg-zinc-100 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700"
+                          >
+                            <div className="flex items-center justify-between text-sm">
+                              <span className={`font-medium ${templateStyles.heading}`}>
+                                {cart.length} servicio{cart.length > 1 ? "s" : ""}
+                              </span>
+                              <span className={`font-semibold tabular-nums ${templateStyles.priceText}`}>
+                                $ {cart.reduce((s, svc) => s + svc.price, 0).toLocaleString("es-AR")}
+                              </span>
+                            </div>
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {cart.map((svc) => (
+                                <span key={svc.id} className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-medium ${templateStyles.pricePill}`}>
+                                  {svc.name} · {svc.duration_minutes}min
+                                </span>
+                              ))}
+                            </div>
+                            <p className={`mt-1 text-xs ${templateStyles.tiny}`}>
+                              Total: {cart.reduce((s, svc) => s + svc.duration_minutes, 0)} min
+                            </p>
+                          </motion.div>
+                        )}
                         </div>
                         </div>
                       </div>
@@ -1317,141 +1678,29 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                     {step === 1 && (
                       <div className="flex flex-col h-full min-h-0">
                         <div className="flex flex-col min-h-0 max-h-full w-full">
-                        <div className="flex-1 overflow-y-auto overflow-x-hidden delicate-scroll px-1 pt-2 pb-3 [scroll-snap-type:y_proximity]" onScroll={handleScroll}>
+                        <div className="flex-1 overflow-y-auto overflow-x-hidden delicate-scroll px-1 pt-2 pb-3 [scroll-snap-type:y_proximity]">
                            <div className="space-y-3">
-                           <motion.div
-                             onPointerDown={pushCard3D}
-                             onPointerUp={releaseCard3D}
-                             onPointerLeave={releaseCard3D}
-                             className={`w-full rounded-[14px] border-2 transition-[transform,box-shadow] duration-200 ${templateStyles.cardDepth} ${!selectedStaff ? `${templateStyles.selected} border-transparent` : `${templateStyles.plain} ${templateStyles.hoverBorder}`}`}
-                          >
-                          <div className="overflow-hidden rounded-[14px] relative">
-                            {!selectedStaff && (
-                              ripplePositions["no-preference"] ? (
-                              rippleWaves.map((color, i) => (
-                              <motion.span
-                                key={`r-np-w${i}`}
-                                initial={{ width: 0, height: 0, left: ripplePositions["no-preference"].x, top: ripplePositions["no-preference"].y, opacity: 1 }}
-                                animate={{ width: ripplePositions["no-preference"].size, height: ripplePositions["no-preference"].size, left: ripplePositions["no-preference"].x - ripplePositions["no-preference"].size / 2, top: ripplePositions["no-preference"].y - ripplePositions["no-preference"].size / 2, opacity: i < rippleWaves.length - 1 ? 0 : 1 }}
-                                transition={{ duration: 1.5, ease: [0.25, 1, 0.08, 1], delay: i * 0.08, opacity: { duration: 0.5, delay: i * 0.08 + 0.25, ease: "easeInOut" } }}
-                                className="absolute rounded-full pointer-events-none z-0"
-                                style={{ background: color, willChange: "transform" }}
-                              />
-                              ))
-                              ) : (
-                              <span key="s-np" className="absolute inset-0 pointer-events-none z-0" style={{ background: rippleWaves[rippleWaves.length - 1], willChange: "transform" }} />
-                              )
-                            )}
-                            {!selectedStaff && (
-                              <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: [0, 0.25, 0] }}
-                                transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut", delay: 1.6 }}
-                                className="absolute inset-0 rounded-[14px] pointer-events-none z-[2]"
-                                style={{ boxShadow: `inset 0 0 10px 1px ${rippleConfig.text}20, 0 0 10px 1px ${rippleConfig.text}12` } as React.CSSProperties}
-                              />
-                            )}
-                          <button
-                            onClick={(e) => {
-                              triggerHaptic(15, e.currentTarget);
-                              const rect = getRippleRect(e.currentTarget);
-                              const size = Math.ceil(Math.sqrt(rect.width * rect.width + rect.height * rect.height) * 2.5);
-                               setRipplePositions(prev => ({ ...prev, "no-preference": { x: e.clientX - rect.left, y: e.clientY - rect.top, size } }));
-                              setSelectedStaff(null);
-                            }}
-draggable={false}
-                             className={`w-full px-6 py-6 text-center relative z-10 outline-none focus:outline-none focus-visible:outline-none ${tactileClass}`}
-                          >
-                          <div className="flex flex-col items-center">
-                            <p className={`text-lg sm:text-xl font-semibold tracking-tight ${templateStyles.heading}`} style={!selectedStaff ? { color: rippleConfig.text } as React.CSSProperties : undefined}>Sin preferencia</p>
-                            <p className={`text-[11px] uppercase tracking-[0.16em] mt-1 ${templateStyles.tiny}`} style={!selectedStaff ? { color: rippleConfig.text } as React.CSSProperties : undefined}>{`Cualquier ${staffWordLower} disponible`}</p>
-                          </div>
-                        </button>
-                        </div>
-                        </motion.div>
                         {availableStaff.map((s) => {
-                          const isSelected = selectedStaff?.id === s.id;
-                          const initials = s.name.charAt(0).toUpperCase();
+                          const isSelected = selectedStaff.some((ss) => ss.id === s.id);
                           return (
-                            <motion.div
+                            <StaffCard
                               key={s.id}
-                              onPointerDown={pushCard3D}
-                              onPointerUp={releaseCard3D}
-                              onPointerLeave={releaseCard3D}
-                              className={`rounded-[14px] border-2 transition-[transform,box-shadow] duration-200 ${templateStyles.cardDepth} ${isSelected ? `${templateStyles.selected} border-transparent` : `${templateStyles.plain} ${templateStyles.hoverBorder}`}`}
-                            >
-                            <div className="overflow-hidden rounded-[14px] relative">
-                              {isSelected && (
-                                ripplePositions[s.id] ? (
-                                rippleWaves.map((color, i) => (
-                                <motion.span
-                                  key={`r-${s.id}-w${i}`}
-                                  initial={{ width: 0, height: 0, left: ripplePositions[s.id].x, top: ripplePositions[s.id].y, opacity: 1 }}
-                                  animate={{ width: ripplePositions[s.id].size, height: ripplePositions[s.id].size, left: ripplePositions[s.id].x - ripplePositions[s.id].size / 2, top: ripplePositions[s.id].y - ripplePositions[s.id].size / 2, opacity: i < rippleWaves.length - 1 ? 0 : 1 }}
-                                  transition={{ duration: 1.5, ease: [0.25, 1, 0.08, 1], delay: i * 0.08, opacity: { duration: 0.5, delay: i * 0.08 + 0.25, ease: "easeInOut" } }}
-                                  className="absolute rounded-full pointer-events-none z-0"
-                                  style={{ background: color, willChange: "transform" }}
-                                />
-                                ))
-                                ) : (
-                                <span key={`s-${s.id}`} className="absolute inset-0 pointer-events-none z-0" style={{ background: rippleWaves[rippleWaves.length - 1], willChange: "transform" }} />
-                                )
-                              )}
-                              {isSelected && (
-                                <motion.div
-                                  initial={{ opacity: 0 }}
-                                  animate={{ opacity: [0, 0.25, 0] }}
-                                  transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut", delay: 1.6 }}
-                                  className="absolute inset-0 rounded-[14px] pointer-events-none z-[2]"
-                                  style={{ boxShadow: `inset 0 0 10px 1px ${rippleConfig.text}20, 0 0 10px 1px ${rippleConfig.text}12` } as React.CSSProperties}
-                                />
-                              )}
-                            <button
-                              onClick={(e) => {
-                                triggerHaptic(15, e.currentTarget);
-                                const rect = getRippleRect(e.currentTarget);
-                                const size = Math.ceil(Math.sqrt(rect.width * rect.width + rect.height * rect.height) * 2.5);
-                                setRipplePositions(prev => ({ ...prev, [s.id]: { x: e.clientX - rect.left, y: e.clientY - rect.top, size } }));
-                                setSelectedStaff(s);
-                              }}
-                              draggable={false}
-                              className={`w-full px-5 py-6 text-left relative z-10 outline-none focus:outline-none focus-visible:outline-none ${tactileClass}`}
-                              style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}
-                            >
-                              <div className="flex flex-col items-center text-center gap-3">
-                                <div className={`relative w-20 h-20 rounded-full overflow-hidden ring-2 ring-white/30 shadow-xl flex items-center justify-center shrink-0 ${templateStyles.plate}`}>
-                                  {s.photo_url ? (
-                                    <Image src={s.photo_url} alt="" fill sizes="80px" priority className="object-cover" />
-                                  ) : (
-                                    <span className={`text-2xl font-bold ${templateStyles.accent}`}>{initials}</span>
-                                  )}
-                                </div>
-                                <div className="min-w-0">
-                                  <p className={`text-lg font-semibold tracking-tight ${templateStyles.heading}`} style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}>{s.name}</p>
-                                  {s.description && (
-                                    <p className={`text-xs leading-snug mt-1 line-clamp-2 ${templateStyles.tiny}`} style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}>{s.description}</p>
-                                  )}
-                                  {(s.instagram || s.whatsapp) && (
-                                    <div className="flex items-center justify-center gap-3 mt-2">
-                                      {s.instagram && (
-                                        <span className="text-xs flex items-center gap-1" style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}>
-                                          <InstagramIcon />
-                                          {s.instagram.startsWith("@") ? s.instagram : `@${s.instagram}`}
-                                        </span>
-                                      )}
-                                      {s.whatsapp && (
-                                        <span className="text-xs flex items-center gap-1" style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}>
-                                          <WhatsappIcon />
-                                          {s.whatsapp}
-                                        </span>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </button>
-                            </div>
-                            </motion.div>
+                              staff={s}
+                              isSelected={isSelected}
+                              ripplePosition={ripplePositions[s.id]}
+                              waves={rippleWaves}
+                              cardDepth={templateStyles.cardDepth}
+                              selected={templateStyles.selected}
+                              plain={templateStyles.plain}
+                              hoverBorder={templateStyles.hoverBorder}
+                              heading={templateStyles.heading}
+                              tiny={templateStyles.tiny}
+                              accent={templateStyles.accent}
+                              plate={templateStyles.plate}
+                              selectedText={rippleConfig.text}
+                              tactileClass={tactileClass}
+                              onToggle={handleToggleStaff}
+                            />
                           );
                         })}
                           </div>
@@ -1461,7 +1710,7 @@ draggable={false}
                     )}
 
                     {step === 2 && (
-                      <div className="flex flex-col h-full min-h-0">
+                      <div className="flex flex-col h-full min-h-0 relative">
                         <div className="flex flex-col min-h-0 max-h-full w-full">
                         <div className="shrink-0">
                         <motion.div variants={stepItemReveal} className="flex items-center justify-between">
@@ -1492,7 +1741,7 @@ draggable={false}
                            </button>
                         </motion.div>
                         </div>
-                        <div className="overflow-y-auto delicate-scroll pb-4 flex-1 min-h-0" onScroll={handleScroll}>
+                        <div className="overflow-y-auto delicate-scroll pb-4 flex-1 min-h-0">
                         <div ref={slotsRef} className="space-y-6">
 
                         <AnimatePresence mode="wait">
@@ -1534,20 +1783,7 @@ draggable={false}
                                 className={`relative flex flex-col items-center justify-center py-3 min-h-[48px] transition-all duration-200 overflow-hidden ${templateStyles.hoverBorder} ${isSelected ? templateStyles.selected : ''} ${isClosed ? 'opacity-40 cursor-not-allowed' : ''}`}
                               >
                                 {isSelected && !isClosed && (
-                                  ripplePositions[`date-${dateStr}`] ? (
-                                  rippleWaves.map((color, i) => (
-                                  <motion.span
-                                    key={`rd-${dateStr}-w${i}`}
-                                    initial={{ width: 0, height: 0, left: ripplePositions[`date-${dateStr}`].x, top: ripplePositions[`date-${dateStr}`].y, opacity: 1 }}
-                                    animate={{ width: ripplePositions[`date-${dateStr}`].size, height: ripplePositions[`date-${dateStr}`].size, left: ripplePositions[`date-${dateStr}`].x - ripplePositions[`date-${dateStr}`].size / 2, top: ripplePositions[`date-${dateStr}`].y - ripplePositions[`date-${dateStr}`].size / 2, opacity: i < rippleWaves.length - 1 ? 0 : 1 }}
-                                    transition={{ duration: 1.5, ease: [0.25, 1, 0.08, 1], delay: i * 0.08, opacity: { duration: 0.5, delay: i * 0.08 + 0.25, ease: "easeInOut" } }}
-                                    className="absolute rounded-full pointer-events-none z-0"
-                                    style={{ background: color, willChange: "transform" }}
-                                  />
-                                  ))
-                                  ) : (
-                                  <span key={`sd-${dateStr}`} className="absolute inset-0 pointer-events-none z-0" style={{ background: rippleWaves[rippleWaves.length - 1], willChange: "transform" }} />
-                                  )
+                                  <RippleWaves position={ripplePositions[`date-${dateStr}`]} colors={rippleWaves} />
                                 )}
                               <span className={`relative text-xs font-semibold ${isSelected ? templateStyles.accent : templateStyles.heading}`} style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}>{d.getDate()}</span>
                                 {isToday && !isSelected && !isClosed && (
@@ -1591,15 +1827,35 @@ draggable={false}
                               >
                                 {filteredSlots.map((slot) => {
                                   const isSelected = selectedSlot?.start === slot.start;
+                                  const slotStaff = slot.staffIds.map((id) => staffLookup.get(id)).filter(Boolean) as StaffMember[];
+                                  const allSelected = slotStaff.length === selectedStaff.length;
+                                  const staffLabel = slotStaff.length === 1
+                                    ? slotStaff[0].name.split(" ")[0]
+                                    : slotStaff.length <= 2 && allSelected
+                                      ? "Ambos"
+                                      : allSelected
+                                        ? "Todos"
+                                        : slotStaff.map((s) => s.name.split(" ")[0]).join(" · ");
                                   return (
+                                    <motion.div
+                                      key={slot.start}
+                                      className="flex flex-col items-center gap-0.5"
+                                    >
                                     <motion.button
                                       key={slot.start}
                                       onClick={(e) => {
-                                        triggerHaptic(10, e.currentTarget);
-                                        setSelectedSlot(slot);
-                                        const rect = e.currentTarget.getBoundingClientRect();
-                                        const size = Math.ceil(Math.sqrt(rect.width * rect.width + rect.height * rect.height) * 2);
-                                        setRipplePositions(prev => ({ ...prev, [`slot-${slot.start}`]: { x: e.clientX - rect.left, y: e.clientY - rect.top, size } }));
+                                        if (slot.staffIds.length === 1) {
+                                          const staff = staffLookup.get(slot.staffIds[0]);
+                                          if (staff) setStaffForAppointment(staff);
+                                          triggerHaptic(10, e.currentTarget);
+                                          setSelectedSlot(slot);
+                                          const rect = e.currentTarget.getBoundingClientRect();
+                                          const size = Math.ceil(Math.sqrt(rect.width * rect.width + rect.height * rect.height) * 2);
+                                          setRipplePositions(prev => ({ ...prev, [`slot-${slot.start}`]: { x: e.clientX - rect.left, y: e.clientY - rect.top, size } }));
+                                        } else {
+                                          const availableStaff = slot.staffIds.map((id) => staffLookup.get(id)).filter(Boolean) as StaffMember[];
+                                          setSlotStaffPicker({ slot, availableStaff });
+                                        }
                                       }}
                                       draggable={false}
                                       className={`relative overflow-hidden h-9 text-sm font-medium transition-all duration-200 border-b-2 px-1 ${
@@ -1609,25 +1865,16 @@ draggable={false}
                                       }`}
                                     >
                                       {isSelected && (
-                                        ripplePositions[`slot-${slot.start}`] ? (
-                                        rippleWaves.map((color, i) => (
-                                        <motion.span
-                                          key={`rs-${slot.start}-w${i}`}
-                                          initial={{ width: 0, height: 0, left: ripplePositions[`slot-${slot.start}`].x, top: ripplePositions[`slot-${slot.start}`].y, opacity: 1 }}
-                                          animate={{ width: ripplePositions[`slot-${slot.start}`].size, height: ripplePositions[`slot-${slot.start}`].size, left: ripplePositions[`slot-${slot.start}`].x - ripplePositions[`slot-${slot.start}`].size / 2, top: ripplePositions[`slot-${slot.start}`].y - ripplePositions[`slot-${slot.start}`].size / 2, opacity: i < rippleWaves.length - 1 ? 0 : 1 }}
-                                          transition={{ duration: 1.5, ease: [0.25, 1, 0.08, 1], delay: i * 0.08, opacity: { duration: 0.5, delay: i * 0.08 + 0.25, ease: "easeInOut" } }}
-                                          className="absolute rounded-full pointer-events-none z-0"
-                                          style={{ background: color, willChange: "transform" }}
-                                        />
-                                        ))
-                                        ) : (
-                                        <span key={`ss-${slot.start}`} className="absolute inset-0 pointer-events-none z-0" style={{ background: rippleWaves[rippleWaves.length - 1], willChange: "transform" }} />
-                                        )
+                                        <RippleWaves position={ripplePositions[`slot-${slot.start}`]} colors={rippleWaves} />
                                       )}
-                                      <span className="relative z-10" style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}>
+                                      <span className="relative z-10 text-xs" style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}>
                                         {formatTimeFromIso(slot.start) || to24HourTimeLabel(slot.time)}
                                       </span>
                                     </motion.button>
+                                    <span className={`text-[9px] leading-tight ${isSelected ? templateStyles.accent : templateStyles.tiny}`}>
+                                      {staffLabel}
+                                    </span>
+                                    </motion.div>
                                   );
                                 })}
                               </motion.div>
@@ -1659,7 +1906,67 @@ draggable={false}
                         </div>
                         </div>
                         </div>
-                        </div>
+
+                      <AnimatePresence>
+                      {slotStaffPicker && (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+                          onClick={() => setSlotStaffPicker(null)}
+                        >
+                          <motion.div
+                            initial={{ scale: 0.88, opacity: 0, y: 24 }}
+                            animate={{
+                              scale: 1, opacity: 1, y: 0,
+                              borderRadius: ["1.5rem 0.75rem 1.5rem 0.75rem", "1.25rem 1.25rem 0.85rem 1.5rem", "1.5rem 0.75rem 1.5rem 0.75rem"],
+                            }}
+                            exit={{ scale: 0.88, opacity: 0, y: 24, transition: { duration: 0.18 } }}
+                            transition={{
+                              borderRadius: { duration: 5, repeat: Infinity, ease: "easeInOut" },
+                              default: { type: "spring", stiffness: 400, damping: 28, mass: 0.8 },
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            className={`w-full max-w-sm overflow-hidden ${templateStyles.shell}`}
+                          >
+                            <div className="p-5 space-y-4">
+                              <div className="flex items-center justify-between">
+                                <span className={`text-sm font-semibold ${templateStyles.heading}`}>¿Con quién querés atenderte?</span>
+                                <button type="button" onClick={() => setSlotStaffPicker(null)} className={`text-[10px] font-medium ${templateStyles.tiny} hover:opacity-70 transition-opacity`}>
+                                  Cerrar
+                                </button>
+                              </div>
+                              <div className="space-y-2">
+                                {slotStaffPicker.availableStaff.map((staff) => (
+                                  <button
+                                    key={staff.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setStaffForAppointment(staff);
+                                      setSelectedSlot(slotStaffPicker.slot);
+                                      setSlotStaffPicker(null);
+                                    }}
+                                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${templateStyles.plate} hover:opacity-85`}
+                                  >
+                                    <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center shrink-0">
+                                      {staff.photo_url ? (
+                                        <Image src={staff.photo_url} alt="" width={40} height={40} className="object-cover w-full h-full" />
+                                      ) : (
+                                        <span className={`text-sm font-bold ${templateStyles.accent}`}>{staff.name.charAt(0)}</span>
+                                      )}
+                                    </div>
+                                    <span className={`text-sm font-medium truncate ${templateStyles.heading}`}>{staff.name}</span>
+                                    <ChevronRight className={`w-4 h-4 ml-auto shrink-0 ${templateStyles.tiny}`} />
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </motion.div>
+                        </motion.div>
+                      )}
+                      </AnimatePresence>
+                      </div>
                     )}
 
                     {step === 3 && (
@@ -1938,14 +2245,9 @@ draggable={false}
                                 style={{ background: "radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%)" }}
                               />
                               <motion.span
-                                className="absolute inset-0 rounded-full pointer-events-none opacity-30"
-                                animate={{
-                                  background: [
-                                    "radial-gradient(circle at 30% 50%, rgba(255,255,255,0.15), transparent 70%)",
-                                    "radial-gradient(circle at 70% 50%, rgba(255,255,255,0.15), transparent 70%)",
-                                    "radial-gradient(circle at 30% 50%, rgba(255,255,255,0.15), transparent 70%)",
-                                  ],
-                                }}
+                                className="absolute inset-0 rounded-full pointer-events-none"
+                                style={{ background: "radial-gradient(circle at 30% 50%, rgba(255,255,255,0.15), transparent 70%)" }}
+                                animate={{ opacity: [0.25, 0.45, 0.25] }}
                                 transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
                               />
                               <motion.span
@@ -1989,10 +2291,10 @@ draggable={false}
                                   <span className={`text-xs ${templateStyles.checkoutKicker}`}>Hora</span>
                                   <span className={`text-sm font-semibold ${templateStyles.checkoutTitle}`}>{summaryTime}</span>
                                 </div>
-                                {selectedStaff && (
+                                {staffForAppointment && (
                                   <div className="flex items-center justify-between gap-2">
                                     <span className={`text-xs ${templateStyles.checkoutKicker}`}>Profesional</span>
-                                    <span className={`text-sm font-semibold ${templateStyles.checkoutTitle}`}>{selectedStaff.name}</span>
+                                    <span className={`text-sm font-semibold ${templateStyles.checkoutTitle}`}>{staffForAppointment.name}</span>
                                   </div>
                                 )}
                               </div>
@@ -2262,14 +2564,9 @@ draggable={false}
                         style={{ background: "radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%)" }}
                       />
                       <motion.span
-                        className="absolute inset-0 rounded-full pointer-events-none opacity-30"
-                        animate={{
-                          background: [
-                            "radial-gradient(circle at 30% 50%, rgba(255,255,255,0.15), transparent 70%)",
-                            "radial-gradient(circle at 70% 50%, rgba(255,255,255,0.15), transparent 70%)",
-                            "radial-gradient(circle at 30% 50%, rgba(255,255,255,0.15), transparent 70%)",
-                          ],
-                        }}
+                        className="absolute inset-0 rounded-full pointer-events-none"
+                        style={{ background: "radial-gradient(circle at 30% 50%, rgba(255,255,255,0.15), transparent 70%)" }}
+                        animate={{ opacity: [0.25, 0.45, 0.25] }}
                         transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
                       />
                       <motion.span
@@ -2313,13 +2610,6 @@ draggable={false}
                         : `${templateStyles.nextDisabled} cursor-not-allowed`
                     } ${step === 0 ? 'flex-1 sm:flex-none' : ''}`}
                   >
-                    {/* Ambient background shimmer */}
-                    <motion.span
-                      className="absolute inset-0 rounded-full pointer-events-none"
-                      style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 50%, rgba(255,255,255,0.08) 100%)" }}
-                      animate={{ opacity: canGoNext ? [0.3, 0.8, 0.3] : 0.08 }}
-                      transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
-                    />
                     {/* Sweeping shimmer line */}
                     <motion.span
                       className="absolute inset-0 rounded-full pointer-events-none"
@@ -2330,22 +2620,9 @@ draggable={false}
                       animate={{ x: ["-150%", "250%"] }}
                       transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut", repeatDelay: 0.6 }}
                     />
-                    {/* Pulsing outer ring */}
-                    {canGoNext && (
-                      <motion.span
-                        className="absolute -inset-0.5 rounded-full pointer-events-none"
-                        animate={{ boxShadow: btnEffects.nextRing }}
-                        transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-                      />
-                    )}
                     {/* Content */}
                     <span className="relative z-10 flex items-center gap-1.5">
-                      <motion.span
-                        animate={canGoNext ? { scale: [1, 1.04, 1] } : {}}
-                        transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-                      >
-                        Continuar
-                      </motion.span>
+                      <span>Continuar</span>
                       {canGoNext && (
                         <motion.span
                           animate={{ x: [0, 5, 0] }}
@@ -2420,6 +2697,20 @@ draggable={false}
                   <span className="font-bold tracking-wide ml-0.5">KLIP</span>
                 </a>
               </div>
+
+              <AnimatePresence>
+                {showSummary && (
+                  <SelectionSummary
+                    cart={cart}
+                    selectedCombo={selectedCombo}
+                    staff={staffForAppointment ? [staffForAppointment] : selectedStaff}
+                    totalDuration={totalDuration}
+                    totalPrice={totalPrice}
+                    templateStyles={templateStyles}
+                    onClose={() => setShowSummary(false)}
+                  />
+                )}
+              </AnimatePresence>
             </>
           ) : (
             <motion.div
@@ -2429,15 +2720,49 @@ draggable={false}
               className="flex flex-col h-full py-6 text-center"
             >
               <div className="flex-1 flex flex-col items-center justify-center">
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 15, delay: 0.1 }}
-                  className="w-20 h-20 rounded-full flex items-center justify-center shadow-lg mb-6"
-                  style={{ background: extractHex(templateStyles.accent) }}
-                >
-                  <Check className="w-10 h-10 text-white" />
-                </motion.div>
+                <div className="relative mb-6">
+                  <motion.span
+                    className="absolute inset-0 rounded-full"
+                    initial={{ scale: 0.8, opacity: 0.5 }}
+                    animate={{ scale: 1.7, opacity: 0 }}
+                    transition={{ duration: 0.7, ease: "easeOut", delay: 0.18 }}
+                    style={{ boxShadow: `0 0 0 2px ${extractHex(templateStyles.accent)}` }}
+                  />
+                  {[0, 1, 2, 3, 4, 5].map((i) => {
+                    const angle = (i / 6) * Math.PI * 2 - Math.PI / 2;
+                    const dist = 60 + (i % 3) * 16;
+                    return (
+                      <motion.span
+                        key={i}
+                        className="absolute left-1/2 top-1/2 w-1.5 h-1.5 rounded-full"
+                        style={{ background: extractHex(templateStyles.accent) }}
+                        initial={{ x: 0, y: 0, opacity: 0, scale: 0 }}
+                        animate={{
+                          x: Math.cos(angle) * dist,
+                          y: Math.sin(angle) * dist,
+                          opacity: [0, 1, 0],
+                          scale: [0, 1, 0.4],
+                        }}
+                        transition={{ duration: 0.8, delay: 0.15 + (i % 3) * 0.06, ease: "easeOut" }}
+                      />
+                    );
+                  })}
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 15, delay: 0.1 }}
+                    className="relative w-20 h-20 rounded-full flex items-center justify-center shadow-lg"
+                    style={{ background: extractHex(templateStyles.accent) }}
+                  >
+                    <motion.div
+                      initial={{ scale: 0.5 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 18, delay: 0.22 }}
+                    >
+                      <Check className="w-10 h-10 text-white" strokeWidth={3} />
+                    </motion.div>
+                  </motion.div>
+                </div>
                 <motion.h2
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}

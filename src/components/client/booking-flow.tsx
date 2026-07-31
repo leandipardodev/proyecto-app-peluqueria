@@ -120,7 +120,7 @@ export default function BookingFlow({ shopId, services, staffMembers, staffServi
 
     if (date && selectedServices.length > 0) {
       setLoading(true);
-      const staffFilter = selectedStaff?.user_id || undefined;
+      const staffFilter = selectedStaff?.user_id ? [selectedStaff.user_id] : undefined;
       fetchPublicAvailableSlots(shopId, totalDuration, date, staffFilter)
         .then((result) => {
           if (result.success) {

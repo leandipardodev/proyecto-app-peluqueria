@@ -1,6 +1,6 @@
 export type Service = { id: string; name: string; description?: string; price: number; duration_minutes: number; category: string | null; pay_at_shop: boolean };
 export type StaffMember = { id: string; name: string; photo_url?: string | null; description?: string | null; instagram?: string | null; whatsapp?: string | null };
-export type Slot = { start: string; end: string; time: string };
+export type Slot = { start: string; end: string; time: string; staffIds: string[] };
 export type Combo = {
   id: string;
   name: string;
@@ -128,3 +128,73 @@ export function formatTimeFromIso(iso: string): string {
     timeZone: "America/Argentina/Buenos_Aires",
   });
 }
+
+let audioCtx: AudioContext | null = null;
+
+function getAudioCtx(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctor) return null;
+    if (!audioCtx) audioCtx = new Ctor();
+    if (audioCtx.state === "suspended") void audioCtx.resume();
+    return audioCtx;
+  } catch {
+    return null;
+  }
+}
+
+export const warmAudio = () => {
+  getAudioCtx();
+};
+
+export const playSuccessSound = () => {
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  try {
+    const t0 = ctx.currentTime;
+
+    const pop = ctx.createOscillator();
+    pop.type = "sine";
+    pop.frequency.setValueAtTime(392, t0);
+    pop.frequency.exponentialRampToValueAtTime(311, t0 + 0.09);
+    const popGain = ctx.createGain();
+    popGain.gain.setValueAtTime(0.0001, t0);
+    popGain.gain.exponentialRampToValueAtTime(0.2, t0 + 0.012);
+    popGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.26);
+    pop.connect(popGain).connect(ctx.destination);
+    pop.start(t0);
+    pop.stop(t0 + 0.3);
+
+    const noiseBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.05), ctx.sampleRate);
+    const data = noiseBuf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuf;
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = 3400;
+    bp.Q.value = 1.4;
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.0001, t0);
+    noiseGain.gain.exponentialRampToValueAtTime(0.055, t0 + 0.004);
+    noiseGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.045);
+    noise.connect(bp).connect(noiseGain).connect(ctx.destination);
+    noise.start(t0);
+    noise.stop(t0 + 0.06);
+
+    const glint = ctx.createOscillator();
+    glint.type = "sine";
+    glint.frequency.setValueAtTime(587.33, t0 + 0.06);
+    const gt = t0 + 0.06;
+    const glintGain = ctx.createGain();
+    glintGain.gain.setValueAtTime(0.0001, gt);
+    glintGain.gain.exponentialRampToValueAtTime(0.065, gt + 0.014);
+    glintGain.gain.exponentialRampToValueAtTime(0.0001, gt + 0.3);
+    glint.connect(glintGain).connect(ctx.destination);
+    glint.start(gt);
+    glint.stop(gt + 0.34);
+  } catch {
+    // ignore
+  }
+};

@@ -153,7 +153,7 @@ function resolveDayHours(
   return null;
 }
 
-type Slot = { start: string; end: string; time: string };
+type Slot = { start: string; end: string; time: string; staffIds: string[] };
 
 const PENDING_PAYMENT_HOLD_MINUTES = 10;
 
@@ -170,7 +170,7 @@ export async function fetchPublicAvailableSlots(
   shopId: string,
   serviceDuration: number,
   date: string,
-  staffId?: string,
+  staffIds?: string[],
   serviceId?: string
 ): Promise<ActionResult<Slot[]>> {
   try {
@@ -225,7 +225,14 @@ export async function fetchPublicAvailableSlots(
       if (ids.length > 0) serviceCapableStaffIds = ids;
     }
 
-    const staffIdsToQuery = staffId ? [...new Set([staffId, ...serviceCapableStaffIds])] : allStaffIds;
+    // Narrow to selected staff if provided
+    let poolIds = serviceCapableStaffIds;
+    if (staffIds && staffIds.length > 0) {
+      poolIds = staffIds.filter(id => serviceCapableStaffIds.includes(id));
+    }
+    if (poolIds.length === 0) return { success: true, data: [] };
+
+    const staffIdsToQuery = poolIds;
     const { data: staffSchedules } = await admin
       .from("staff_schedules")
       .select("staff_id, is_active, start_time, end_time, break_start, break_end")
@@ -435,36 +442,26 @@ export async function fetchPublicAvailableSlots(
       return count;
     }
 
-    if (staffId) {
-      const config = getStaffDayConfig(staffId);
+    if (poolIds.length === 1) {
+      const sId = poolIds[0];
+      const config = getStaffDayConfig(sId);
       if (!config) return { success: true, data: [] };
-
-      // Staff-specific override check
-      const staffOverride = staffOverrideMap.get(staffId);
+      const staffOverride = staffOverrideMap.get(sId);
       if (staffOverride) {
-        if (staffOverride.is_closed) {
-          return { success: true, data: [] };
-        }
+        if (staffOverride.is_closed) { return { success: true, data: [] }; }
         if (staffOverride.start_time && staffOverride.end_time) {
           const ovStart = hhmmToMinutes(staffOverride.start_time);
           const ovEnd = hhmmToMinutes(staffOverride.end_time);
           config.startMinutes = Math.max(config.startMinutes, ovStart);
           config.closeMinutes = Math.min(config.closeMinutes, ovEnd);
-          if (config.startMinutes >= config.closeMinutes) {
-      return { success: false, error: "No hay horarios disponibles para este profesional en este día" };
-          }
+          if (config.startMinutes >= config.closeMinutes) { return { success: true, data: [] }; }
         }
-        // Override break from staff override if provided
         if (staffOverride.break_start && staffOverride.break_end) {
           const bs = hhmmToMinutes(staffOverride.break_start);
           const be = hhmmToMinutes(staffOverride.break_end);
-          if (config.startMinutes < bs && bs < be && be < config.closeMinutes) {
-            config.breakStart = bs;
-            config.breakEnd = be;
-          }
+          if (config.startMinutes < bs && bs < be && be < config.closeMinutes) { config.breakStart = bs; config.breakEnd = be; }
         }
       }
-
       const staffBlocks: Array<{ openMinutes: number; closeMinutes: number }> = [];
       if (config.breakStart !== null && config.breakEnd !== null && config.startMinutes < config.breakStart && config.breakStart < config.breakEnd && config.breakEnd < config.closeMinutes) {
         staffBlocks.push({ openMinutes: config.startMinutes, closeMinutes: config.breakStart });
@@ -472,7 +469,6 @@ export async function fetchPublicAvailableSlots(
       } else {
         staffBlocks.push({ openMinutes: config.startMinutes, closeMinutes: config.closeMinutes });
       }
-
       for (const block of staffBlocks) {
         let currentMinute = isTodayInArgentina ? Math.max(block.openMinutes, nowMinuteInArgentina) : block.openMinutes;
         if (isTodayInArgentina && currentMinute > block.openMinutes) {
@@ -487,8 +483,8 @@ export async function fetchPublicAvailableSlots(
           const slotEndMinute = currentMinute + safeDuration;
           const availableCount = countAvailableServiceStaff(currentMinute, slotEndMinute, slotStart, slotEnd);
           const nullBlocks = countNullBlocksForSlot(slotStart, slotEnd);
-          if (!hasTimeConflict(staffId, slotStart, slotEnd, availableCount > nullBlocks)) {
-            slots.push({ start: slotStart.toISOString(), end: slotEnd.toISOString(), time: formatArgentinaTime(slotStart) });
+          if (!hasTimeConflict(sId, slotStart, slotEnd, availableCount > nullBlocks)) {
+            slots.push({ start: slotStart.toISOString(), end: slotEnd.toISOString(), time: formatArgentinaTime(slotStart), staffIds: [sId] });
           }
           currentMinute += SLOT_STEP;
         }
@@ -509,7 +505,6 @@ export async function fetchPublicAvailableSlots(
       } else {
         shopBlocks.push({ openMinutes: shopOpenMinutes, closeMinutes: shopCloseMinutes });
       }
-
       for (const block of shopBlocks) {
         let currentMinute = isTodayInArgentina ? Math.max(block.openMinutes, nowMinuteInArgentina) : block.openMinutes;
         if (isTodayInArgentina && currentMinute > block.openMinutes) {
@@ -524,17 +519,17 @@ export async function fetchPublicAvailableSlots(
           const slotStartMinute = currentMinute;
           const slotEndMinute = currentMinute + safeDuration;
 
-          let availableStaffCount = 0;
-          for (const sId of serviceCapableStaffIds) {
+          const availableStaffIds: string[] = [];
+          for (const sId of poolIds) {
             if (isStaffAvailableForSlot(sId, slotStartMinute, slotEndMinute, slotStart, slotEnd)) {
-              availableStaffCount++;
+              availableStaffIds.push(sId);
             }
           }
 
           const nullBlocks = countNullBlocksForSlot(slotStart, slotEnd);
 
-          if (availableStaffCount - nullBlocks > 0) {
-            slots.push({ start: slotStart.toISOString(), end: slotEnd.toISOString(), time: formatArgentinaTime(slotStart) });
+          if (availableStaffIds.length - nullBlocks > 0) {
+            slots.push({ start: slotStart.toISOString(), end: slotEnd.toISOString(), time: formatArgentinaTime(slotStart), staffIds: availableStaffIds });
           }
           currentMinute += SLOT_STEP;
         }
