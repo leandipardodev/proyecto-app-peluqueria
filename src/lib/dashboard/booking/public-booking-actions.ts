@@ -526,9 +526,10 @@ export async function fetchPublicAvailableSlots(
             }
           }
 
+          const freeCapableCount = countAvailableServiceStaff(slotStartMinute, slotEndMinute, slotStart, slotEnd);
           const nullBlocks = countNullBlocksForSlot(slotStart, slotEnd);
 
-          if (availableStaffIds.length - nullBlocks > 0) {
+          if (availableStaffIds.length > 0 && freeCapableCount > nullBlocks) {
             slots.push({ start: slotStart.toISOString(), end: slotEnd.toISOString(), time: formatArgentinaTime(slotStart), staffIds: availableStaffIds });
           }
           currentMinute += SLOT_STEP;
