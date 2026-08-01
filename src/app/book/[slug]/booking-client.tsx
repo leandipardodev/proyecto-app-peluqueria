@@ -521,6 +521,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
 
   const [step, setStep] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
+  const [expandedContact, setExpandedContact] = useState<"address" | "whatsapp" | "instagram" | null>(null);
 
   useEffect(() => {
     for (const s of staffMembers) {
@@ -2697,46 +2698,98 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                 )}
               </motion.div>
 
-              <div className={`mt-5 ${step === 4 ? "hidden" : ""} flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs`}>
-                {shop.address && (
-                  <a
-                    href={`https://www.google.com/maps/search/${encodeURIComponent(shop.city ? `${shop.address}, ${shop.city}` : shop.address)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`inline-flex items-center gap-1 transition-colors ${templateStyles.meta} ${templateStyles.metaHover}`}
-                  >
-                    <MapPin className="w-3 h-3" /> <span className="truncate max-w-[180px] sm:max-w-none">{shop.address}</span>
-                  </a>
-                )}
-                {shop.phone && (
-                  <a
-                    href={`https://wa.me/${shop.phone.replace(/\D/g, "")}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`inline-flex items-center gap-1 transition-colors ${templateStyles.meta} ${templateStyles.metaHover}`}
-                  >
-                    <WhatsappIcon className="w-3 h-3" /> {shop.phone}
-                  </a>
-                )}
-                {shop.instagramUrl && (
-                  <a
-                    href={shop.instagramUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`inline-flex items-center gap-1 transition-colors ${templateStyles.meta} ${templateStyles.metaHover}`}
-                  >
-                    <ExternalLink className="w-3 h-3" /> Instagram
-                  </a>
-                )}
+              <div className={`mt-5 ${step === 4 ? "hidden" : ""} flex items-center justify-between gap-4`}>
+                <div className="flex min-w-0 flex-1 items-center justify-center gap-2.5">
+                  {shop.address && (
+                    <a
+                      href={`https://www.google.com/maps/search/${encodeURIComponent(shop.city ? `${shop.address}, ${shop.city}` : shop.address)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onMouseEnter={() => setExpandedContact("address")}
+                      onMouseLeave={() => setExpandedContact(null)}
+                      onClick={() => triggerHaptic(8)}
+                      className={`group inline-flex h-9 items-center rounded-full border px-2.5 transition-colors ${templateStyles.plate} ${templateStyles.hoverBorder}`}
+                      aria-label={shop.address}
+                    >
+                      <MapPin className={`w-4 h-4 shrink-0 transition-colors ${templateStyles.meta} ${templateStyles.metaHover}`} />
+                      <AnimatePresence>
+                        {expandedContact === "address" && (
+                          <motion.span
+                            initial={{ opacity: 0, width: 0 }}
+                            animate={{ opacity: 1, width: "auto" }}
+                            exit={{ opacity: 0, width: 0 }}
+                            transition={{ duration: 0.3, ease: "easeOut" }}
+                            className={`overflow-hidden whitespace-nowrap text-xs font-medium ${templateStyles.heading}`}
+                          >
+                            <span className="inline-block max-w-[140px] truncate pl-2">{shop.address}</span>
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
+                    </a>
+                  )}
+                  {shop.phone && (
+                    <a
+                      href={`https://wa.me/${shop.phone.replace(/\D/g, "")}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onMouseEnter={() => setExpandedContact("whatsapp")}
+                      onMouseLeave={() => setExpandedContact(null)}
+                      onClick={() => triggerHaptic(8)}
+                      className={`group inline-flex h-9 items-center rounded-full border px-2.5 transition-colors ${templateStyles.plate} ${templateStyles.hoverBorder}`}
+                      aria-label={shop.phone}
+                    >
+                      <WhatsappIcon className={`w-4 h-4 shrink-0 transition-colors ${templateStyles.meta} ${templateStyles.metaHover}`} />
+                      <AnimatePresence>
+                        {expandedContact === "whatsapp" && (
+                          <motion.span
+                            initial={{ opacity: 0, width: 0 }}
+                            animate={{ opacity: 1, width: "auto" }}
+                            exit={{ opacity: 0, width: 0 }}
+                            transition={{ duration: 0.3, ease: "easeOut" }}
+                            className={`overflow-hidden whitespace-nowrap text-xs font-medium ${templateStyles.heading}`}
+                          >
+                            <span className="inline-block max-w-[140px] truncate pl-2">{shop.phone}</span>
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
+                    </a>
+                  )}
+                  {shop.instagramUrl && (
+                    <a
+                      href={shop.instagramUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onMouseEnter={() => setExpandedContact("instagram")}
+                      onMouseLeave={() => setExpandedContact(null)}
+                      onClick={() => triggerHaptic(8)}
+                      className={`group inline-flex h-9 items-center rounded-full border px-2.5 transition-colors ${templateStyles.plate} ${templateStyles.hoverBorder}`}
+                      aria-label="Instagram"
+                    >
+                      <InstagramIcon className={`w-4 h-4 shrink-0 transition-colors ${templateStyles.meta} ${templateStyles.metaHover}`} />
+                      <AnimatePresence>
+                        {expandedContact === "instagram" && (
+                          <motion.span
+                            initial={{ opacity: 0, width: 0 }}
+                            animate={{ opacity: 1, width: "auto" }}
+                            exit={{ opacity: 0, width: 0 }}
+                            transition={{ duration: 0.3, ease: "easeOut" }}
+                            className={`overflow-hidden whitespace-nowrap text-xs font-medium ${templateStyles.heading}`}
+                          >
+                            <span className="inline-block max-w-[140px] truncate pl-2">Instagram</span>
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
+                    </a>
+                  )}
+                </div>
                 <a
                   href="https://klip.com.ar"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`inline-flex items-center gap-1 transition-colors ${templateStyles.meta} ${templateStyles.metaHover}`}
+                  className={`shrink-0 inline-flex items-center gap-1 transition-colors ${templateStyles.meta} ${templateStyles.metaHover}`}
                 >
-                  <span className="opacity-50 hidden sm:inline">—</span>
                   <span>powered by</span>
-                  <span className="font-bold tracking-wide ml-0.5">KLIP</span>
+                  <span className="font-bold tracking-wide">KLIP</span>
                 </a>
               </div>
 
