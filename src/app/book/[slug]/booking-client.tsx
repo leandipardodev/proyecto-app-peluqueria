@@ -522,6 +522,22 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const [step, setStep] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
   const [expandedContact, setExpandedContact] = useState<"address" | "whatsapp" | "instagram" | null>(null);
+  const contactRowRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!expandedContact) return;
+    const handler = (event: MouseEvent | TouchEvent) => {
+      if (contactRowRef.current && !contactRowRef.current.contains(event.target as Node)) {
+        setExpandedContact(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
+  }, [expandedContact]);
 
   useEffect(() => {
     for (const s of staffMembers) {
@@ -2706,15 +2722,18 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                 )}
               </motion.div>
 
-              <div className={`mt-5 ${step === 4 ? "hidden" : ""} relative flex items-center justify-center gap-2 sm:gap-2.5`}>
+              <div ref={contactRowRef} className={`mt-5 ${step === 4 ? "hidden" : ""} relative flex items-center justify-center gap-2 sm:gap-2.5`}>
                 {shop.address && (
                     <a
                       href={`https://www.google.com/maps/search/${encodeURIComponent(shop.city ? `${shop.address}, ${shop.city}` : shop.address)}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onMouseEnter={() => setExpandedContact("address")}
-                      onMouseLeave={() => setExpandedContact(null)}
-                      onClick={() => triggerHaptic(8)}
+                      onClick={(e) => {
+                        if (expandedContact === "address") return;
+                        e.preventDefault();
+                        triggerHaptic(8);
+                        setExpandedContact("address");
+                      }}
                       className={`group inline-flex h-8 items-center rounded-full border px-2 transition-colors ${templateStyles.plate} ${templateStyles.hoverBorder}`}
                       aria-label={shop.address}
                     >
@@ -2725,10 +2744,18 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                             initial={{ opacity: 0, width: 0 }}
                             animate={{ opacity: 1, width: "auto" }}
                             exit={{ opacity: 0, width: 0 }}
-                            transition={{ duration: 0.3, ease: "easeOut" }}
-                            className={`overflow-hidden whitespace-nowrap text-xs font-medium ${templateStyles.heading}`}
+                            transition={{ type: "spring", stiffness: 380, damping: 26, mass: 0.8 }}
+                            className="overflow-hidden whitespace-nowrap"
                           >
-                            <span className="inline-block max-w-[140px] truncate pl-2">{shop.address}</span>
+                            <motion.span
+                              initial={{ scale: 0.5, y: 4, opacity: 0 }}
+                              animate={{ scale: 1, y: 0, opacity: 1 }}
+                              exit={{ scale: 0.5, y: 4, opacity: 0 }}
+                              transition={{ type: "spring", stiffness: 550, damping: 20, mass: 0.6, delay: 0.03 }}
+                              className={`inline-block max-w-[140px] truncate pl-2 text-xs font-medium ${templateStyles.heading}`}
+                            >
+                              {shop.address}
+                            </motion.span>
                           </motion.span>
                         )}
                       </AnimatePresence>
@@ -2739,9 +2766,12 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                       href={`https://wa.me/${shop.phone.replace(/\D/g, "")}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onMouseEnter={() => setExpandedContact("whatsapp")}
-                      onMouseLeave={() => setExpandedContact(null)}
-                      onClick={() => triggerHaptic(8)}
+                      onClick={(e) => {
+                        if (expandedContact === "whatsapp") return;
+                        e.preventDefault();
+                        triggerHaptic(8);
+                        setExpandedContact("whatsapp");
+                      }}
                       className={`group inline-flex h-8 items-center rounded-full border px-2 transition-colors ${templateStyles.plate} ${templateStyles.hoverBorder}`}
                       aria-label={shop.phone}
                     >
@@ -2752,10 +2782,18 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                             initial={{ opacity: 0, width: 0 }}
                             animate={{ opacity: 1, width: "auto" }}
                             exit={{ opacity: 0, width: 0 }}
-                            transition={{ duration: 0.3, ease: "easeOut" }}
-                            className={`overflow-hidden whitespace-nowrap text-xs font-medium ${templateStyles.heading}`}
+                            transition={{ type: "spring", stiffness: 380, damping: 26, mass: 0.8 }}
+                            className="overflow-hidden whitespace-nowrap"
                           >
-                            <span className="inline-block max-w-[140px] truncate pl-2">{shop.phone}</span>
+                            <motion.span
+                              initial={{ scale: 0.5, y: 4, opacity: 0 }}
+                              animate={{ scale: 1, y: 0, opacity: 1 }}
+                              exit={{ scale: 0.5, y: 4, opacity: 0 }}
+                              transition={{ type: "spring", stiffness: 550, damping: 20, mass: 0.6, delay: 0.03 }}
+                              className={`inline-block max-w-[140px] truncate pl-2 text-xs font-medium ${templateStyles.heading}`}
+                            >
+                              {shop.phone}
+                            </motion.span>
                           </motion.span>
                         )}
                       </AnimatePresence>
@@ -2766,9 +2804,12 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                       href={shop.instagramUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onMouseEnter={() => setExpandedContact("instagram")}
-                      onMouseLeave={() => setExpandedContact(null)}
-                      onClick={() => triggerHaptic(8)}
+                      onClick={(e) => {
+                        if (expandedContact === "instagram") return;
+                        e.preventDefault();
+                        triggerHaptic(8);
+                        setExpandedContact("instagram");
+                      }}
                       className={`group inline-flex h-8 items-center rounded-full border px-2 transition-colors ${templateStyles.plate} ${templateStyles.hoverBorder}`}
                       aria-label="Instagram"
                     >
@@ -2779,10 +2820,18 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                             initial={{ opacity: 0, width: 0 }}
                             animate={{ opacity: 1, width: "auto" }}
                             exit={{ opacity: 0, width: 0 }}
-                            transition={{ duration: 0.3, ease: "easeOut" }}
-                            className={`overflow-hidden whitespace-nowrap text-xs font-medium ${templateStyles.heading}`}
+                            transition={{ type: "spring", stiffness: 380, damping: 26, mass: 0.8 }}
+                            className="overflow-hidden whitespace-nowrap"
                           >
-                            <span className="inline-block max-w-[140px] truncate pl-2">Instagram</span>
+                            <motion.span
+                              initial={{ scale: 0.5, y: 4, opacity: 0 }}
+                              animate={{ scale: 1, y: 0, opacity: 1 }}
+                              exit={{ scale: 0.5, y: 4, opacity: 0 }}
+                              transition={{ type: "spring", stiffness: 550, damping: 20, mass: 0.6, delay: 0.03 }}
+                              className={`inline-block max-w-[140px] truncate pl-2 text-xs font-medium ${templateStyles.heading}`}
+                            >
+                              Instagram
+                            </motion.span>
                           </motion.span>
                         )}
                       </AnimatePresence>
