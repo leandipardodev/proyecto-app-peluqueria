@@ -2706,8 +2706,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                 )}
               </motion.div>
 
-              <div className={`mt-5 ${step === 4 ? "hidden" : ""} relative flex flex-col items-center gap-2.5 sm:flex-row sm:items-center sm:justify-center`}>
-                <div className="flex flex-wrap items-center justify-center gap-2.5">
+              <div className={`mt-5 ${step === 4 ? "hidden" : ""} relative flex items-center justify-center gap-2 sm:gap-2.5`}>
                 {shop.address && (
                     <a
                       href={`https://www.google.com/maps/search/${encodeURIComponent(shop.city ? `${shop.address}, ${shop.city}` : shop.address)}`}
@@ -2716,10 +2715,10 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                       onMouseEnter={() => setExpandedContact("address")}
                       onMouseLeave={() => setExpandedContact(null)}
                       onClick={() => triggerHaptic(8)}
-                      className={`group inline-flex h-9 items-center rounded-full border px-2.5 transition-colors ${templateStyles.plate} ${templateStyles.hoverBorder}`}
+                      className={`group inline-flex h-8 items-center rounded-full border px-2 transition-colors ${templateStyles.plate} ${templateStyles.hoverBorder}`}
                       aria-label={shop.address}
                     >
-                      <MapPin className={`w-4 h-4 shrink-0 transition-colors ${templateStyles.meta} ${templateStyles.metaHover}`} />
+                      <MapPin className={`w-3.5 h-3.5 shrink-0 transition-colors ${templateStyles.meta} ${templateStyles.metaHover}`} />
                       <AnimatePresence>
                         {expandedContact === "address" && (
                           <motion.span
@@ -2743,10 +2742,10 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                       onMouseEnter={() => setExpandedContact("whatsapp")}
                       onMouseLeave={() => setExpandedContact(null)}
                       onClick={() => triggerHaptic(8)}
-                      className={`group inline-flex h-9 items-center rounded-full border px-2.5 transition-colors ${templateStyles.plate} ${templateStyles.hoverBorder}`}
+                      className={`group inline-flex h-8 items-center rounded-full border px-2 transition-colors ${templateStyles.plate} ${templateStyles.hoverBorder}`}
                       aria-label={shop.phone}
                     >
-                      <WhatsappIcon className={`w-4 h-4 shrink-0 transition-colors ${templateStyles.meta} ${templateStyles.metaHover}`} />
+                      <WhatsappIcon className={`w-3.5 h-3.5 shrink-0 transition-colors ${templateStyles.meta} ${templateStyles.metaHover}`} />
                       <AnimatePresence>
                         {expandedContact === "whatsapp" && (
                           <motion.span
@@ -2770,10 +2769,10 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                       onMouseEnter={() => setExpandedContact("instagram")}
                       onMouseLeave={() => setExpandedContact(null)}
                       onClick={() => triggerHaptic(8)}
-                      className={`group inline-flex h-9 items-center rounded-full border px-2.5 transition-colors ${templateStyles.plate} ${templateStyles.hoverBorder}`}
+                      className={`group inline-flex h-8 items-center rounded-full border px-2 transition-colors ${templateStyles.plate} ${templateStyles.hoverBorder}`}
                       aria-label="Instagram"
                     >
-                      <InstagramIcon className={`w-4 h-4 shrink-0 transition-colors ${templateStyles.meta} ${templateStyles.metaHover}`} />
+                      <InstagramIcon className={`w-3.5 h-3.5 shrink-0 transition-colors ${templateStyles.meta} ${templateStyles.metaHover}`} />
                       <AnimatePresence>
                         {expandedContact === "instagram" && (
                           <motion.span
@@ -2789,12 +2788,11 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                       </AnimatePresence>
                     </a>
                   )}
-                </div>
                 <a
                   href="https://klip.com.ar"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`shrink-0 inline-flex items-center gap-1 transition-colors ${templateStyles.meta} ${templateStyles.metaHover} sm:absolute sm:right-0`}
+                  className={`shrink-0 inline-flex items-center gap-1 text-[10px] transition-colors ${templateStyles.meta} ${templateStyles.metaHover} sm:absolute sm:right-0`}
                 >
                   <span>powered by</span>
                   <span className="font-bold tracking-wide">KLIP</span>
