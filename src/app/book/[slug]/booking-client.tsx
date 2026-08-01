@@ -522,6 +522,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const [step, setStep] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
   const [expandedContact, setExpandedContact] = useState<"address" | "whatsapp" | "instagram" | null>(null);
+  const [progressBoost, setProgressBoost] = useState(false);
 
   useEffect(() => {
     for (const s of staffMembers) {
@@ -550,6 +551,12 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     setStepDirection(step > prevStepRef.current ? 1 : -1);
     prevStepRef.current = step;
   }, [step]);
+
+  useEffect(() => {
+    if (!progressBoost) return;
+    const t = setTimeout(() => setProgressBoost(false), 1000);
+    return () => clearTimeout(t);
+  }, [progressBoost]);
 
   useEffect(() => {
     setRipplePositions({});
@@ -758,7 +765,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   ], [serviceWordLower, staffWordLower]);
 
   const baseProgress = submitting || creatingPreference ? 1 : step === 0 ? 0.2 : step === 1 ? 0.4 : step === 2 ? 0.6 : step === 3 ? 0.8 : 1;
-  const progressPct = loadingSlots ? Math.min(baseProgress * 2, 1) : baseProgress;
+  const progressPct = progressBoost ? Math.min(baseProgress * 2, 1) : baseProgress;
 
   const todayDate = useMemo(() => {
     const todayStr = getArgentinaDateString();
@@ -2670,6 +2677,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                     onClick={(e) => {
                       if (!canGoNext) return;
                       triggerHaptic(12, e.currentTarget);
+                      if (step === 1) setProgressBoost(true);
                       setStep((s) => s + 1);
                     }}
                     disabled={!canGoNext}
