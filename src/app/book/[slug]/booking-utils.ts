@@ -12,13 +12,14 @@ export type Combo = {
 };
 
 export const stepReveal = {
-  initial: { opacity: 0 },
+  initial: (dir: number) => ({ opacity: 0, x: 80 * dir }),
   animate: {
     opacity: 1,
+    x: 0,
     transition: {
       type: "spring" as const,
       stiffness: 300,
-      damping: 20,
+      damping: 30,
       mass: 0.7,
       staggerChildren: 0.055,
       delayChildren: 0.03,
