@@ -38,9 +38,6 @@ describe("fetchBookingTheme", () => {
       logo_url: "https://example.com/logo.png",
       logo_storage_path: "shops/shop-123/branding/logo.png",
       hero_title: "Bienvenido",
-      hero_subtitle: null,
-      about_title: "",
-      about_text: "Texto",
     };
 
     const chain = chainableQuery();
@@ -58,8 +55,6 @@ describe("fetchBookingTheme", () => {
     expect(result.data?.section_order).toEqual(["General", "Premium"]);
     expect(result.data?.section_service_order).toEqual(["Cortes"]);
     expect(result.data?.hero_title).toBe("Bienvenido");
-    expect(result.data?.hero_subtitle).toBeNull();
-    expect(result.data?.about_title).toBeNull();
   });
 
   it("returns default template for invalid template_id", async () => {
@@ -71,9 +66,6 @@ describe("fetchBookingTheme", () => {
       logo_url: null,
       logo_storage_path: null,
       hero_title: null,
-      hero_subtitle: null,
-      about_title: null,
-      about_text: null,
     };
 
     const chain = chainableQuery();
@@ -137,7 +129,6 @@ describe("upsertBookingTheme", () => {
       templateId: "editorial-luxury",
       sectionOrder: ["General", "Servicios"],
       heroTitle: "Hola",
-      aboutText: "Sobre nosotros",
     });
 
     expect(result).toEqual({ success: true });

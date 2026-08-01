@@ -352,9 +352,6 @@ export default function BusinessClient({
   const messageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [logoUrl, setLogoUrl] = useState<string>(initialBookingTheme?.logo_url || "");
   const [heroTitle, setHeroTitle] = useState(initialBookingTheme?.hero_title || "");
-  const [heroSubtitle, setHeroSubtitle] = useState(initialBookingTheme?.hero_subtitle || "");
-  const [aboutTitle, setAboutTitle] = useState(initialBookingTheme?.about_title || "");
-  const [aboutText, setAboutText] = useState(initialBookingTheme?.about_text || "");
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [serviceCategoryDraft, setServiceCategoryDraft] = useState<Record<string, string>>(() => {
     if (initialBookingTheme?.section_service_order?.length) {
@@ -435,14 +432,11 @@ export default function BusinessClient({
 
   const isThemeDirty = useMemo(() =>
     heroTitle !== (initialBookingTheme?.hero_title ?? "") ||
-    heroSubtitle !== (initialBookingTheme?.hero_subtitle ?? "") ||
-    aboutTitle !== (initialBookingTheme?.about_title ?? "") ||
-    aboutText !== (initialBookingTheme?.about_text ?? "") ||
     selectedTemplateId !== (initialBookingTheme?.template_id ?? DEFAULT_BOOKING_TEMPLATE) ||
     JSON.stringify(sectionCatalog) !== JSON.stringify(initialSectionCatalogRef.current) ||
     JSON.stringify(serviceCategoryDraft) !== JSON.stringify(initialCategoryDraftRef.current) ||
     JSON.stringify(serviceOrderIds) !== JSON.stringify(initialServiceOrderRef.current),
-  [heroTitle, heroSubtitle, aboutTitle, aboutText, selectedTemplateId, initialBookingTheme, sectionCatalog, serviceCategoryDraft, serviceOrderIds]);
+  [heroTitle, selectedTemplateId, initialBookingTheme, sectionCatalog, serviceCategoryDraft, serviceOrderIds]);
   const cleanSnapshotRef = useRef({
     whatsapp: data?.whatsapp_template ?? "",
     depositEnabled: data?.booking_deposit_enabled ?? true,
@@ -795,9 +789,6 @@ export default function BusinessClient({
       sectionOrder: sectionCatalog,
       sectionServiceOrder: buildSectionServiceOrder(),
       heroTitle,
-      heroSubtitle,
-      aboutTitle,
-      aboutText,
     });
     if (!theme.success) return showError(theme.error), false;
 
@@ -805,9 +796,6 @@ export default function BusinessClient({
       ...prev,
       template_id: selectedTemplateId,
       hero_title: heroTitle,
-      hero_subtitle: heroSubtitle,
-      about_title: aboutTitle,
-      about_text: aboutText,
     } : prev);
 
     const fresh = await fetchBusinessData();
@@ -1366,12 +1354,6 @@ export default function BusinessClient({
                   shopName={name || data?.nombre || "Tu negocio"}
                   heroTitle={heroTitle}
                   onHeroTitleChange={setHeroTitle}
-                  heroSubtitle={heroSubtitle}
-                  onHeroSubtitleChange={setHeroSubtitle}
-                  aboutTitle={aboutTitle}
-                  onAboutTitleChange={setAboutTitle}
-                  aboutText={aboutText}
-                  onAboutTextChange={setAboutText}
                   services={previewServices}
                   sectionCatalog={sectionCatalog}
                   onServiceMove={moveServiceToSection}

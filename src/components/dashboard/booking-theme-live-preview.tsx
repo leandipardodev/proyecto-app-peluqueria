@@ -44,12 +44,6 @@ type Props = {
   shopName: string;
   heroTitle: string;
   onHeroTitleChange: (v: string) => void;
-  heroSubtitle: string;
-  onHeroSubtitleChange: (v: string) => void;
-  aboutTitle: string;
-  onAboutTitleChange: (v: string) => void;
-  aboutText: string;
-  onAboutTextChange: (v: string) => void;
   services: PreviewService[];
   sectionCatalog: string[];
   onServiceMove: (serviceId: string, toSection: string, beforeServiceId?: string) => void;
@@ -269,12 +263,6 @@ export default function BookingThemeLivePreview({
   shopName,
   heroTitle,
   onHeroTitleChange,
-  heroSubtitle,
-  onHeroSubtitleChange,
-  aboutTitle,
-  onAboutTitleChange,
-  aboutText,
-  onAboutTextChange,
   services,
   sectionCatalog,
   onServiceMove,
@@ -569,17 +557,6 @@ export default function BookingThemeLivePreview({
                           />
                           {!disabled && <EditDot />}
                         </span>
-                        <span className="[&>span]:!w-auto flex items-center gap-1.5">
-                          <InlineEdit
-                            value={heroSubtitle || ""}
-                            onChange={onHeroSubtitleChange}
-                            placeholder="Reserva online"
-                            disabled={disabled}
-                            className={`text-[11px] uppercase tracking-[0.18em] cursor-pointer bg-gradient-to-r ${s.subtitleGradient} bg-clip-text text-transparent`}
-                            inputClassName="!w-auto text-[11px] uppercase tracking-[0.18em] text-[#6B7280] bg-transparent"
-                          />
-                          {!disabled && <EditDot />}
-                        </span>
                       </div>
                     </div>
                     <div className="flex justify-center pt-3">
@@ -744,33 +721,6 @@ export default function BookingThemeLivePreview({
                     </DndContext>
                     </div>
                   </div>
-                  {/* About section */}
-                  <div className="pt-3 border-t border-white/15">
-                    <span className="[&>span]:!w-auto flex items-center gap-1.5">
-                      <InlineEdit
-                        value={aboutTitle || ""}
-                        onChange={onAboutTitleChange}
-                        placeholder="Sobre nosotros"
-                        disabled={disabled}
-                        className={`text-sm font-semibold bg-gradient-to-r ${s.titleGradient} bg-clip-text text-transparent`}
-                        inputClassName="!w-auto text-sm font-semibold text-[#1C1C1E] bg-transparent"
-                      />
-                      {!disabled && <EditDot />}
-                    </span>
-                    <span className="[&>span]:!w-auto flex items-center gap-1.5">
-                      <InlineEdit
-                        value={aboutText || ""}
-                        onChange={onAboutTextChange}
-                        placeholder="Tu mensaje de marca aparece aca para reforzar la experiencia del local."
-                        multiline
-                        disabled={disabled}
-                        className={`mt-1 text-xs leading-relaxed ${s.tiny}`}
-                        inputClassName="mt-1 text-xs leading-relaxed text-[#6B7280] bg-transparent resize-none"
-                      />
-                      {!disabled && <EditDot />}
-                    </span>
-                  </div>
-
                   {/* Footer */}
                   <div className={`mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs ${s.meta}`}>
                     {address && (

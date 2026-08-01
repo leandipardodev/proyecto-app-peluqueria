@@ -16,9 +16,6 @@ export type BookingThemeData = {
   logo_url: string | null;
   logo_storage_path: string | null;
   hero_title: string | null;
-  hero_subtitle: string | null;
-  about_title: string | null;
-  about_text: string | null;
 };
 
 async function resolveShopIdFromOptionalSlug(shopSlug?: string): Promise<ActionResult<string>> {
@@ -53,7 +50,7 @@ export async function fetchBookingTheme(shopIdOverride?: string, shopSlugOverrid
     const admin = await createAdminClient();
     const { data, error } = await admin
       .from("shop_booking_theme")
-      .select("shop_id, template_id, section_order, section_service_order, logo_url, logo_storage_path, hero_title, hero_subtitle, about_title, about_text")
+      .select("shop_id, template_id, section_order, section_service_order, logo_url, logo_storage_path, hero_title")
       .eq("shop_id", shopId)
       .maybeSingle();
 
@@ -78,9 +75,6 @@ export async function fetchBookingTheme(shopIdOverride?: string, shopSlugOverrid
         logo_url: data.logo_url || null,
         logo_storage_path: data.logo_storage_path || null,
         hero_title: data.hero_title || null,
-        hero_subtitle: data.hero_subtitle || null,
-        about_title: data.about_title || null,
-        about_text: data.about_text || null,
       },
     };
   } catch (e) {
@@ -94,9 +88,6 @@ export async function upsertBookingTheme(input: {
   sectionOrder?: string[];
   sectionServiceOrder?: string[];
   heroTitle?: string;
-  heroSubtitle?: string;
-  aboutTitle?: string;
-  aboutText?: string;
 }): Promise<ActionResult> {
   try {
     const shopIdResult = await resolveShopIdFromOptionalSlug(input.shopSlug);
@@ -125,9 +116,6 @@ export async function upsertBookingTheme(input: {
           .map((item) => String(item || "").trim())
           .filter(Boolean),
         hero_title: input.heroTitle?.trim() || null,
-        hero_subtitle: input.heroSubtitle?.trim() || null,
-        about_title: input.aboutTitle?.trim() || null,
-        about_text: input.aboutText?.trim() || null,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "shop_id" },

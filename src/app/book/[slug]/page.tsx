@@ -122,7 +122,7 @@ export default async function BookPage({ params }: BookPageProps) {
 
   const { data: bookingTheme } = await admin
     .from("shop_booking_theme")
-    .select("template_id, section_order, section_service_order, logo_url, hero_title, hero_subtitle, about_title, about_text")
+    .select("template_id, section_order, section_service_order, logo_url, hero_title")
     .eq("shop_id", shop.id)
     .maybeSingle();
 
@@ -154,9 +154,6 @@ export default async function BookPage({ params }: BookPageProps) {
           bankName: shop.bank_name || "",
           logoUrl: (bookingTheme?.logo_url as string | null) || "",
           heroTitle: (bookingTheme?.hero_title as string | null) || "",
-          heroSubtitle: (bookingTheme?.hero_subtitle as string | null) || "",
-          aboutTitle: (bookingTheme?.about_title as string | null) || "",
-          aboutText: (bookingTheme?.about_text as string | null) || "",
           sectionOrder: Array.isArray((bookingTheme as { section_order?: string[] } | null)?.section_order)
             ? (((bookingTheme as { section_order?: string[] }).section_order || [])
                 .map((item) => String(item || "").trim())

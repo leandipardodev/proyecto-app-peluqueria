@@ -78,9 +78,6 @@ interface BookingClientProps {
     bankName: string;
     logoUrl: string;
     heroTitle: string;
-    heroSubtitle: string;
-    aboutTitle: string;
-    aboutText: string;
     sectionOrder: string[];
     sectionServiceOrder: string[];
     templateId: BookingTemplateId;
@@ -300,9 +297,10 @@ const StaffCard = memo(function StaffCard({
   );
 });
 
-function SelectionPill({ cartCount, staff, templateStyles, onTap }: {
+function SelectionPill({ cartCount, staff, noPreference, templateStyles, onTap }: {
   cartCount: number;
   staff: StaffMember[];
+  noPreference?: boolean;
   templateStyles: BookingTheme;
   onTap: () => void;
 }) {
@@ -321,7 +319,7 @@ function SelectionPill({ cartCount, staff, templateStyles, onTap }: {
   const displayStaff = staff.slice(0, 4);
   const overflow = staff.length > 4 ? staff.length - 4 : 0;
 
-  if (cartCount === 0 && staff.length === 0) return null;
+  if (cartCount === 0 && staff.length === 0 && !noPreference) return null;
 
   return (
     <motion.div
@@ -373,7 +371,11 @@ function SelectionPill({ cartCount, staff, templateStyles, onTap }: {
         <div className={`w-px h-3 rounded-full ${templateStyles.line}`} />
       )}
 
-      {staff.length > 0 && (
+      {noPreference ? (
+        <motion.span layout className={`text-[10px] font-semibold leading-none ${templateStyles.heading}`}>
+          Sin preferencia
+        </motion.span>
+      ) : staff.length > 0 && (
         <motion.div layout className="flex items-center -space-x-1.5">
           <AnimatePresence mode="popLayout">
             {displayStaff.map((s, i) => (
@@ -413,10 +415,11 @@ function SelectionPill({ cartCount, staff, templateStyles, onTap }: {
   );
 }
 
-function SelectionSummary({ cart, selectedCombo, staff, totalDuration, totalPrice, templateStyles, onClose }: {
+function SelectionSummary({ cart, selectedCombo, staff, noPreference, totalDuration, totalPrice, templateStyles, onClose }: {
   cart: Service[];
   selectedCombo: Combo | null;
   staff: StaffMember[];
+  noPreference?: boolean;
   totalDuration: number;
   totalPrice: number;
   templateStyles: BookingTheme;
@@ -479,7 +482,16 @@ function SelectionSummary({ cart, selectedCombo, staff, totalDuration, totalPric
             </span>
           </div>
 
-          {staff.length > 0 && (
+          {noPreference ? (
+            <div className="space-y-2">
+              <span className={`text-[10px] uppercase tracking-wider font-semibold ${templateStyles.tiny}`}>Profesional</span>
+              <div className="flex flex-wrap gap-2">
+                <div className={`flex items-center gap-2 rounded-full px-3 py-1.5 ${templateStyles.plate}`}>
+                  <span className={`text-xs font-medium ${templateStyles.heading}`}>Sin preferencia</span>
+                </div>
+              </div>
+            </div>
+          ) : staff.length > 0 && (
             <div className="space-y-2">
               <span className={`text-[10px] uppercase tracking-wider font-semibold ${templateStyles.tiny}`}>Profesional{staff.length > 1 ? "es" : ""}</span>
               <div className="flex flex-wrap gap-2">
@@ -508,22 +520,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const { user, isLoading: isAuthLoading } = useAuth();
 
   const [step, setStep] = useState(0);
-  const [showInfo, setShowInfo] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
-
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      const target = e.target as Node;
-      const isTrigger = !!(target as Element)?.closest('[data-info-trigger]');
-      const isContent = !!(target as Element)?.closest('[data-info-content]');
-      if (!isTrigger && !isContent) {
-        setShowInfo(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
 
   useEffect(() => {
     for (const s of staffMembers) {
@@ -559,6 +556,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
       if (draft.cart) setCart(draft.cart);
       else if (draft.selectedService) setCart([draft.selectedService]);
       if (draft.selectedStaff) setSelectedStaff(draft.selectedStaff);
+      if (draft.noPreference) setNoPreference(true);
       if (draft.selectedDate) setSelectedDate(new Date(draft.selectedDate));
       if (draft.selectedSlot) setSelectedSlot(draft.selectedSlot);
       if (draft.selectedCombo) setSelectedCombo(draft.selectedCombo);
@@ -593,6 +591,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [staffForAppointment, setStaffForAppointment] = useState<StaffMember | null>(null);
   const [slotStaffPicker, setSlotStaffPicker] = useState<{ slot: Slot; availableStaff: StaffMember[] } | null>(null);
+  const [noPreference, setNoPreference] = useState(false);
   const staffLookup = useMemo(() => new Map(staffMembers.map(s => [s.id, s])), [staffMembers]);
 
   const [ripplePositions, setRipplePositions] = useState<Record<string, RipplePosition>>({});
@@ -627,6 +626,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     const y = e.clientY - rect.top;
     const isRemoving = staffRef.current.some((ss) => ss.id === staff.id);
     setStaffForAppointment(null);
+    setNoPreference(false);
     if (isRemoving) {
       setRipplePositions((prev) => { const rest = { ...prev }; delete rest[staff.id]; return rest; });
       setSelectedStaff((prev) => prev.filter((ss) => ss.id !== staff.id));
@@ -634,7 +634,24 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
       setRipplePositions((prev) => ({ ...prev, [staff.id]: { x, y, size } }));
       setSelectedStaff((prev) => [...prev, staff]);
     }
-  }, [setRipplePositions, setSelectedStaff, setStaffForAppointment]);
+  }, [setRipplePositions, setSelectedStaff, setStaffForAppointment, setNoPreference]);
+
+  const handleNoPreference = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    triggerHaptic(15, e.currentTarget);
+    const rect = getRippleRect(e.currentTarget);
+    const size = Math.ceil(Math.sqrt(rect.width * rect.width + rect.height * rect.height) * 2.5);
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setRipplePositions((prev) => {
+      const rest = { ...prev };
+      for (const s of staffRef.current) delete rest[s.id];
+      return { ...rest, "no-preference": { x, y, size } };
+    });
+    setSelectedStaff([]);
+    setStaffForAppointment(null);
+    setSlotStaffPicker(null);
+    setNoPreference(true);
+  }, [setRipplePositions, setSelectedStaff, setStaffForAppointment, setSlotStaffPicker, setNoPreference]);
 
   const [availableSlots, setAvailableSlots] = useState<Slot[]>([]);
   const [slotsError, setSlotsError] = useState<string | null>(null);
@@ -696,6 +713,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
       shopSlug: shop.slug,
       cart,
       selectedStaff,
+      noPreference,
       selectedDate: selectedDate?.toISOString(),
       selectedSlot,
       selectedCombo,
@@ -855,7 +873,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
 
     (async () => {
       try {
-        const staffFilter = selectedStaff.length > 0 ? selectedStaff.map((s) => s.id) : undefined;
+        const staffFilter = !noPreference && selectedStaff.length > 0 ? selectedStaff.map((s) => s.id) : undefined;
         const result = await fetchPublicAvailableSlots(shop.id, slotDuration, dateStr, staffFilter);
         if (pendingDateRef.current !== dateStr) return;
         if (!result.success) {
@@ -882,7 +900,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
         }
       }
     })();
-  }, [cart, selectedCombo, selectedDate, selectedStaff, shop.id]);
+  }, [cart, selectedCombo, selectedDate, selectedStaff, noPreference, shop.id]);
 
   const prevLoadingSlots = useRef<boolean | null>(null);
 
@@ -906,7 +924,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     setSlotsError(null);
     setSelectedSlot(null);
     setSelectedDate(null);
-  }, [cart, selectedCombo, selectedStaff]);
+  }, [cart, selectedCombo, selectedStaff, noPreference]);
 
   useEffect(() => {
     const startDate = formatDate(new Date(viewYear, viewMonth, 1));
@@ -992,9 +1010,9 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
       case 0:
         return cart.length > 0 || selectedCombo !== null;
       case 1:
-        return selectedStaff.length > 0;
+        return selectedStaff.length > 0 || noPreference;
       case 2:
-        return selectedSlot !== null && staffForAppointment !== null;
+        return selectedSlot !== null && (staffForAppointment !== null || noPreference);
       case 3:
         if (isAuthLoading) return false;
         const nameHasTwoWords = customerName.trim().includes(" ");
@@ -1068,7 +1086,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
       const result = await createPublicAppointment({
         shopId: shop.id,
         serviceId: svc.id,
-        staffId: staffForAppointment!.id,
+        staffId: staffForAppointment?.id,
         customerName: customerName.trim(),
         customerEmail: customerEmail.trim() || undefined,
         customerPhone: phone,
@@ -1218,6 +1236,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     setCart([]);
     setSelectedCombo(null);
     setSelectedStaff([]);
+    setNoPreference(false);
     setSelectedDate(null);
     setSelectedSlot(null);
     setStaffForAppointment(null);
@@ -1346,11 +1365,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
             <>
               <div className="pb-0 sm:pb-2">
                 <div className="flex items-center gap-2 sm:gap-3">
-                  <div
-                    data-info-trigger
-                    className="h-14 w-14 sm:h-16 sm:w-16 flex items-center justify-center shrink-0 overflow-hidden rounded-2xl cursor-pointer"
-                    onClick={() => setShowInfo(v => !v)}
-                  >
+                  <div className="h-14 w-14 sm:h-16 sm:w-16 flex items-center justify-center shrink-0 overflow-hidden rounded-2xl">
                     {shop.logoUrl ? (
                       <Image
                         src={shop.logoUrl}
@@ -1366,11 +1381,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div
-                      data-info-trigger
-                      className="truncate cursor-pointer"
-                      onClick={() => setShowInfo(v => !v)}
-                    >
+                    <div className="truncate">
                       <div
                         className={`text-[1.4rem] sm:text-[1.85rem] md:text-[2.25rem] font-black leading-[1.1] tracking-[-0.035em] truncate ${templateStyles.headingFx} bg-gradient-to-r ${templateStyles.titleGradient} bg-clip-text text-transparent`}
                       >
@@ -1378,10 +1389,11 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                       </div>
                     </div>
                   </div>
-                  {step < 3 && (cart.length > 0 || selectedStaff.length > 0 || selectedCombo) && (
+                  {step < 3 && (cart.length > 0 || selectedStaff.length > 0 || selectedCombo || noPreference) && (
                     <SelectionPill
                       cartCount={cart.length + (selectedCombo ? 1 : 0)}
                       staff={staffForAppointment ? [staffForAppointment] : selectedStaff}
+                      noPreference={noPreference}
                       templateStyles={templateStyles}
                       onTap={() => setShowSummary(true)}
                     />
@@ -1680,6 +1692,31 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                         <div className="flex flex-col min-h-0 max-h-full w-full">
                         <div className="flex-1 overflow-y-auto overflow-x-hidden delicate-scroll px-1 pt-2 pb-3 [scroll-snap-type:y_proximity]">
                            <div className="space-y-3">
+                        <motion.div
+                          onPointerDown={pushCard3D}
+                          onPointerUp={releaseCard3D}
+                          onPointerLeave={releaseCard3D}
+                          className={`rounded-[14px] border-2 transition-[transform,box-shadow] duration-200 ${templateStyles.cardDepth} ${noPreference ? `${templateStyles.selected} border-transparent` : `${templateStyles.plain} ${templateStyles.hoverBorder}`}`}
+                        >
+                          <div className="overflow-hidden rounded-[14px] relative">
+                            {noPreference && <RippleWaves position={ripplePositions["no-preference"]} colors={rippleWaves} />}
+                            {noPreference && (
+                              <div className="absolute inset-0 rounded-[14px] pointer-events-none z-[2]" style={{ boxShadow: `inset 0 0 10px 1px ${rippleConfig.text}20, 0 0 10px 1px ${rippleConfig.text}12` } as React.CSSProperties} />
+                            )}
+                            <button
+                              type="button"
+                              onClick={handleNoPreference}
+                              draggable={false}
+                              className={`w-full px-5 py-6 text-center relative z-10 outline-none focus:outline-none focus-visible:outline-none ${tactileClass}`}
+                              style={noPreference ? { color: rippleConfig.text } as React.CSSProperties : undefined}
+                            >
+                              <div className="flex flex-col items-center">
+                                <p className={`text-lg sm:text-xl font-semibold tracking-tight ${templateStyles.heading}`} style={noPreference ? { color: rippleConfig.text } as React.CSSProperties : undefined}>Sin preferencia</p>
+                                <p className={`text-[11px] uppercase tracking-[0.16em] mt-1 ${templateStyles.tiny}`} style={noPreference ? { color: rippleConfig.text } as React.CSSProperties : undefined}>{`Cualquier ${staffWordLower} disponible`}</p>
+                              </div>
+                            </button>
+                          </div>
+                        </motion.div>
                         {availableStaff.map((s) => {
                           const isSelected = selectedStaff.some((ss) => ss.id === s.id);
                           return (
@@ -1844,6 +1881,14 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                                     <motion.button
                                       key={slot.start}
                                       onClick={(e) => {
+                                        if (noPreference) {
+                                          triggerHaptic(10, e.currentTarget);
+                                          setSelectedSlot(slot);
+                                          const rect = e.currentTarget.getBoundingClientRect();
+                                          const size = Math.ceil(Math.sqrt(rect.width * rect.width + rect.height * rect.height) * 2);
+                                          setRipplePositions(prev => ({ ...prev, [`slot-${slot.start}`]: { x: e.clientX - rect.left, y: e.clientY - rect.top, size } }));
+                                          return;
+                                        }
                                         if (slot.staffIds.length === 1) {
                                           const staff = staffLookup.get(slot.staffIds[0]);
                                           if (staff) setStaffForAppointment(staff);
@@ -1871,9 +1916,11 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                                         {formatTimeFromIso(slot.start) || to24HourTimeLabel(slot.time)}
                                       </span>
                                     </motion.button>
-                                    <span className={`text-[9px] leading-tight ${isSelected ? templateStyles.accent : templateStyles.tiny}`}>
-                                      {staffLabel}
-                                    </span>
+                                    {!noPreference && (
+                                      <span className={`text-[9px] leading-tight ${isSelected ? templateStyles.accent : templateStyles.tiny}`}>
+                                        {staffLabel}
+                                      </span>
+                                    )}
                                     </motion.div>
                                   );
                                 })}
@@ -2291,12 +2338,17 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                                   <span className={`text-xs ${templateStyles.checkoutKicker}`}>Hora</span>
                                   <span className={`text-sm font-semibold ${templateStyles.checkoutTitle}`}>{summaryTime}</span>
                                 </div>
-                                {staffForAppointment && (
+                                {staffForAppointment ? (
                                   <div className="flex items-center justify-between gap-2">
                                     <span className={`text-xs ${templateStyles.checkoutKicker}`}>Profesional</span>
                                     <span className={`text-sm font-semibold ${templateStyles.checkoutTitle}`}>{staffForAppointment.name}</span>
                                   </div>
-                                )}
+                                ) : noPreference ? (
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className={`text-xs ${templateStyles.checkoutKicker}`}>Profesional</span>
+                                    <span className={`text-sm font-semibold ${templateStyles.checkoutTitle}`}>Sin preferencia</span>
+                                  </div>
+                                ) : null}
                               </div>
                               <div className={`border-t pt-2.5 flex items-center justify-between gap-2 ${templateStyles.checkoutKicker.replace(/text-\S+/, 'border-current')}`}>
                                 {effectiveIsDeposit && effectiveChargedAmount < servicePrice ? (
@@ -2636,26 +2688,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                 )}
               </motion.div>
 
-              {step !== 4 && (shop.aboutTitle || shop.aboutText) && (
-                <AnimatePresence>
-                  {showInfo && (
-                    <motion.div
-                      data-info-content
-                      initial={{ opacity: 0, y: -8, scaleY: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scaleY: 1 }}
-                      exit={{ opacity: 0, y: -6, scaleY: 0.95 }}
-                      transition={{ duration: 0.2, ease: "easeOut" }}
-                      className="mt-5 origin-top"
-                    >
-                      <p className={`text-sm font-semibold ${templateStyles.heading}`}>{shop.aboutTitle || "Sobre nosotros"}</p>
-                      <p className={`mt-1 text-xs leading-relaxed ${templateStyles.tiny}`}>
-                        {shop.aboutText || "Tu mensaje de marca aparece aca para reforzar la experiencia del local."}
-                      </p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              )}
-                            <div className={`mt-5 ${step === 4 ? "hidden" : ""} flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs`}>
+              <div className={`mt-5 ${step === 4 ? "hidden" : ""} flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs`}>
                 {shop.address && (
                   <a
                     href={`https://www.google.com/maps/search/${encodeURIComponent(shop.city ? `${shop.address}, ${shop.city}` : shop.address)}`}
@@ -2704,6 +2737,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                     cart={cart}
                     selectedCombo={selectedCombo}
                     staff={staffForAppointment ? [staffForAppointment] : selectedStaff}
+                    noPreference={noPreference}
                     totalDuration={totalDuration}
                     totalPrice={totalPrice}
                     templateStyles={templateStyles}
