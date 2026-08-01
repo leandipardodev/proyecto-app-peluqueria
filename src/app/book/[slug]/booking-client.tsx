@@ -757,7 +757,8 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     "Pago",
   ], [serviceWordLower, staffWordLower]);
 
-  const progressPct = submitting || creatingPreference ? 1 : step === 0 ? 0.2 : step === 1 ? 0.4 : step === 2 ? 0.6 : step === 3 ? 0.8 : 1;
+  const baseProgress = submitting || creatingPreference ? 1 : step === 0 ? 0.2 : step === 1 ? 0.4 : step === 2 ? 0.6 : step === 3 ? 0.8 : 1;
+  const progressPct = loadingSlots ? Math.min(baseProgress * 2, 1) : baseProgress;
 
   const todayDate = useMemo(() => {
     const todayStr = getArgentinaDateString();
@@ -1475,7 +1476,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                     </motion.div>
                   </div>
                   <span
-                    className={`relative z-10 px-3 py-1 text-[11px] font-semibold whitespace-nowrap rounded-full leading-tight ${templateStyles.checkout}`}
+                    className={`relative z-10 px-3 py-1 text-[11px] font-semibold whitespace-nowrap rounded-full leading-tight ${templateStyles.stepPill}`}
                   >
                     {step >= 0 && step <= 4 ? stepTitles[step] : ""}
                   </span>

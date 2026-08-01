@@ -58,6 +58,7 @@ export interface BookingTheme {
   warningBox: string;
   errorBox: string;
   checkout: string;
+  stepPill: string;
   checkoutKicker: string;
   checkoutTitle: string;
   checkoutAmount: string;
@@ -132,6 +133,7 @@ export const BOOKING_THEMES: Record<BookingThemeKey, BookingTheme> = {
     warningBox: "bg-amber-100/60 border-amber-300/40 text-amber-900",
     errorBox: "bg-rose-100/70 border-rose-300/40 text-rose-900",
     checkout: "bg-white border-black/10",
+    stepPill: "bg-white border-black/10",
     checkoutKicker: "text-[#44566F]",
     checkoutTitle: "text-[#111114]",
     checkoutAmount: "text-[#111114]",
@@ -204,6 +206,7 @@ export const BOOKING_THEMES: Record<BookingThemeKey, BookingTheme> = {
     warningBox: "bg-amber-500/10 border-amber-300/20 text-amber-200",
     errorBox: "bg-red-500/10 border-red-300/20 text-red-200",
     checkout: "bg-neutral-900/35 border-white/15",
+    stepPill: "bg-zinc-900 border-white/15",
     checkoutKicker: "text-sky-100/70",
     checkoutTitle: "text-white",
     checkoutAmount: "text-white",
@@ -276,6 +279,7 @@ export const BOOKING_THEMES: Record<BookingThemeKey, BookingTheme> = {
     warningBox: "bg-amber-100/70 border-amber-300/40 text-amber-900",
     errorBox: "bg-rose-100/70 border-rose-300/40 text-rose-900",
     checkout: "bg-white border-stone-200/50",
+    stepPill: "bg-amber-50 border-stone-200/50",
     checkoutKicker: "text-[#8C6D4C]",
     checkoutTitle: "text-[#2E221A]",
     checkoutAmount: "text-[#2E221A]",
@@ -348,6 +352,7 @@ export const BOOKING_THEMES: Record<BookingThemeKey, BookingTheme> = {
     warningBox: "bg-amber-100/70 border-amber-300/40 text-amber-900",
     errorBox: "bg-rose-100/75 border-rose-300/45 text-rose-900",
     checkout: "bg-white border-neutral-200/60",
+    stepPill: "bg-white border-neutral-200/60",
     checkoutKicker: "text-[#6C7A97]",
     checkoutTitle: "text-[#2D3142]",
     checkoutAmount: "text-[#2D3142]",
