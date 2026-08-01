@@ -547,6 +547,8 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     setRipplePositions({});
   }, [step]);
 
+  const restoredSelectionRef = useRef<{ slot: Slot; staff: StaffMember | null } | null>(null);
+
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem("klip_booking_draft");
@@ -558,7 +560,10 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
       if (draft.selectedStaff) setSelectedStaff(draft.selectedStaff);
       if (draft.noPreference) setNoPreference(true);
       if (draft.selectedDate) setSelectedDate(new Date(draft.selectedDate));
-      if (draft.selectedSlot) setSelectedSlot(draft.selectedSlot);
+      if (draft.selectedSlot) {
+        setSelectedSlot(draft.selectedSlot);
+        restoredSelectionRef.current = { slot: draft.selectedSlot, staff: draft.staffForAppointment ?? null };
+      }
       if (draft.selectedCombo) setSelectedCombo(draft.selectedCombo);
       if (draft.staffForAppointment) setStaffForAppointment(draft.staffForAppointment);
       if (draft.customerName) setCustomerName(draft.customerName);
@@ -863,8 +868,9 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     if (!selectedDate || fetchedDatesRef.current.has(formatDate(selectedDate))) return;
 
     setLoadingSlots(true);
-    setSelectedSlot(null);
-    setStaffForAppointment(null);
+    setSelectedSlot((prev) => (restoredSelectionRef.current && prev ? prev : null));
+    setStaffForAppointment((prev) => (restoredSelectionRef.current && prev ? prev : null));
+    if (restoredSelectionRef.current) restoredSelectionRef.current = null;
     setSlotStaffPicker(null);
     const dateStr = formatDate(selectedDate);
     const slotDuration = selectedCombo
@@ -873,7 +879,9 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
 
     (async () => {
       try {
-        const staffFilter = !noPreference && selectedStaff.length > 0 ? selectedStaff.map((s) => s.id) : undefined;
+        const staffFilter = !noPreference && selectedStaff.length > 0
+          ? selectedStaff.map((s) => s.id)
+          : availableStaff.map((s) => s.id);
         const result = await fetchPublicAvailableSlots(shop.id, slotDuration, dateStr, staffFilter);
         if (pendingDateRef.current !== dateStr) return;
         if (!result.success) {
@@ -900,7 +908,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
         }
       }
     })();
-  }, [cart, selectedCombo, selectedDate, selectedStaff, noPreference, shop.id]);
+  }, [availableStaff, cart, selectedCombo, selectedDate, selectedStaff, noPreference, shop.id]);
 
   const prevLoadingSlots = useRef<boolean | null>(null);
 
@@ -918,6 +926,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   }, [loadingSlots, selectedDate]);
 
   useEffect(() => {
+    if (pendingDateRef.current === null && fetchedDatesRef.current.size === 0) return;
     pendingDateRef.current = null;
     fetchedDatesRef.current = new Set();
     setAvailableSlots((prev) => prev.length > 0 ? [] : prev);
