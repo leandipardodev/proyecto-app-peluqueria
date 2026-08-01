@@ -1382,7 +1382,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
             <>
               <div className="pb-0 sm:pb-2">
                 <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="h-14 w-14 sm:h-16 sm:w-16 flex items-center justify-center shrink-0 overflow-hidden rounded-full">
+                  <div className="h-14 w-14 sm:h-16 sm:w-16 flex items-center justify-center shrink-0 overflow-hidden rounded-2xl">
                     {shop.logoUrl ? (
                       <Image
                         src={shop.logoUrl}
@@ -1391,7 +1391,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                         height={120}
                         sizes="64px"
                         priority
-                        className="h-full w-full object-cover rounded-full"
+                        className="h-full w-full object-cover rounded-2xl"
                       />
                     ) : (
                       <span className={`text-sm font-semibold tracking-tight ${templateStyles.accent}`}>K</span>
@@ -2706,7 +2706,8 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                 )}
               </motion.div>
 
-              <div className={`mt-5 ${step === 4 ? "hidden" : ""} relative flex items-center justify-center gap-2.5`}>
+              <div className={`mt-5 ${step === 4 ? "hidden" : ""} relative flex flex-col items-center gap-2.5 sm:flex-row sm:items-center sm:justify-center`}>
+                <div className="flex flex-wrap items-center justify-center gap-2.5">
                 {shop.address && (
                     <a
                       href={`https://www.google.com/maps/search/${encodeURIComponent(shop.city ? `${shop.address}, ${shop.city}` : shop.address)}`}
@@ -2788,11 +2789,12 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                       </AnimatePresence>
                     </a>
                   )}
+                </div>
                 <a
                   href="https://klip.com.ar"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`absolute right-0 shrink-0 inline-flex items-center gap-1 transition-colors ${templateStyles.meta} ${templateStyles.metaHover}`}
+                  className={`shrink-0 inline-flex items-center gap-1 transition-colors ${templateStyles.meta} ${templateStyles.metaHover} sm:absolute sm:right-0`}
                 >
                   <span>powered by</span>
                   <span className="font-bold tracking-wide">KLIP</span>
