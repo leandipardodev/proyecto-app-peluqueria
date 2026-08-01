@@ -520,7 +520,6 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const { user, isLoading: isAuthLoading } = useAuth();
 
   const [step, setStep] = useState(0);
-  const [barLevel, setBarLevel] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
   const [expandedContact, setExpandedContact] = useState<"address" | "whatsapp" | "instagram" | null>(null);
 
@@ -758,7 +757,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     "Pago",
   ], [serviceWordLower, staffWordLower]);
 
-  const barProgress = barLevel / 100;
+  const barProgress = step === 0 ? 0 : step === 1 ? 0.2 : step === 2 ? 0.6 : step === 3 ? 0.8 : 1;
 
   const todayDate = useMemo(() => {
     const todayStr = getArgentinaDateString();
@@ -1251,7 +1250,6 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const handleReset = useCallback(() => {
     autoSkippedRef.current = false;
     setStep(0);
-    setBarLevel(0);
     setCart([]);
     setSelectedCombo(null);
     setSelectedStaff([]);
@@ -2671,7 +2669,6 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                     onClick={(e) => {
                       if (!canGoNext) return;
                       triggerHaptic(12, e.currentTarget);
-                      setBarLevel(step === 0 ? 20 : step === 1 ? 60 : 80);
                       setStep((s) => s + 1);
                     }}
                     disabled={!canGoNext}
@@ -2975,7 +2972,6 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                   <motion.button
                     onClick={(e) => {
                       triggerHaptic(20, e.currentTarget);
-                      setBarLevel(100);
                       if (shop.bankTransferEnabled) {
                         setStep(4);
                         return;
