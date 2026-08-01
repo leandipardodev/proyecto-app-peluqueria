@@ -522,7 +522,6 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const [step, setStep] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
   const [expandedContact, setExpandedContact] = useState<"address" | "whatsapp" | "instagram" | null>(null);
-  const [progressBoost, setProgressBoost] = useState(false);
 
   useEffect(() => {
     for (const s of staffMembers) {
@@ -551,12 +550,6 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     setStepDirection(step > prevStepRef.current ? 1 : -1);
     prevStepRef.current = step;
   }, [step]);
-
-  useEffect(() => {
-    if (!progressBoost) return;
-    const t = setTimeout(() => setProgressBoost(false), 1000);
-    return () => clearTimeout(t);
-  }, [progressBoost]);
 
   useEffect(() => {
     setRipplePositions({});
@@ -764,8 +757,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     "Pago",
   ], [serviceWordLower, staffWordLower]);
 
-  const baseProgress = submitting || creatingPreference ? 1 : step === 0 ? 0.2 : step === 1 ? 0.4 : step === 2 ? 0.6 : step === 3 ? 0.8 : 1;
-  const progressPct = progressBoost ? Math.min(baseProgress * 2, 1) : baseProgress;
+  const segmentsFilled = step === 0 ? 0 : step === 1 ? 1 : step === 2 ? 3 : step === 3 ? 4 : 5;
 
   const todayDate = useMemo(() => {
     const todayStr = getArgentinaDateString();
@@ -1424,69 +1416,47 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                     />
                   )}
                 </div>
-                <div className="relative flex items-center justify-center pt-3 pb-1">
-                  <div className={`absolute inset-x-4 h-[2px] rounded-full ${templateStyles.progressTrack}`} />
-                  <div className="absolute inset-x-4 h-[2px]">
-                    <motion.div
-                      className="absolute inset-0 rounded-full origin-left"
-                      style={{ boxShadow: "0 0 18px 2px rgba(168,85,247,0.55), 0 0 40px 6px rgba(168,85,247,0.25)" }}
-                      animate={{ scaleX: progressPct, opacity: step >= 3 ? 1 : 0 }}
-                      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                    />
-                    <motion.div
-                      className="absolute inset-0 origin-left"
-                      animate={{ scaleX: progressPct }}
-                      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                    >
-                      <motion.div
-                        key={`step-pulse-${step}`}
-                        className="absolute inset-0 rounded-full pointer-events-none"
-                        initial={{ scaleY: 1, opacity: 0 }}
-                        animate={{ scaleY: [1, 2.4, 1], opacity: [0, 0.7, 0] }}
-                        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-                        style={{ boxShadow: `0 0 12px 2px ${extractHex(templateStyles.accent)}` }}
-                      />
-                      {barCompleteFired && (
-                        <motion.div
-                          key="bar-complete-plop"
-                          className="absolute inset-0 rounded-full pointer-events-none"
-                          initial={{ scaleY: 1, opacity: 0 }}
-                          animate={{ scaleY: [1, 3.4, 1], opacity: [0, 1, 0] }}
-                          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.35 }}
-                          style={{ boxShadow: `0 0 20px 4px ${extractHex(templateStyles.accent)}, 0 0 44px 12px rgba(168,85,247,0.4)` }}
-                        />
-                      )}
-                    </motion.div>
-                    <motion.div
-                      className={`absolute inset-0 rounded-full origin-left overflow-hidden ${templateStyles.progressFill}`}
-                      animate={{ scaleX: progressPct, opacity: step >= 3 ? 1 : 0.8 }}
-                      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                    >
-                      <motion.div
-                        className="pointer-events-none absolute inset-0 rounded-full"
-                        style={{
-                          backgroundImage: "linear-gradient(90deg, #f472b6 0%, #fbbf24 35%, #34d399 65%, #60a5fa 100%)",
-                        }}
-                        animate={{ opacity: step >= 3 ? 1 : 0 }}
-                        transition={{ duration: 0.4 }}
-                      />
-                      <motion.div
-                        className="pointer-events-none absolute inset-0"
-                        style={{
-                          backgroundImage: "linear-gradient(100deg, transparent 0%, rgba(255,255,255,0.9) 50%, transparent 100%)",
-                          backgroundSize: "120px 100%",
-                          backgroundRepeat: "no-repeat",
-                        }}
-                        animate={{ x: ["-60%", "130%"] }}
-                        transition={{ duration: 1.2, repeat: Infinity, ease: "linear", repeatDelay: 0.25 }}
-                      />
-                    </motion.div>
-                  </div>
+                <div className="flex flex-col items-center pt-3 pb-1">
                   <span
-                    className={`relative z-10 px-3 py-1 text-[11px] font-semibold whitespace-nowrap rounded-full leading-tight ${templateStyles.stepPill}`}
+                    className={`px-3 py-1 text-[11px] font-semibold whitespace-nowrap rounded-full leading-tight ${templateStyles.stepPill}`}
                   >
                     {step >= 0 && step <= 4 ? stepTitles[step] : ""}
                   </span>
+                  <div className="mt-2 flex items-center gap-1.5 px-1 w-full">
+                    {[0, 1, 2, 3, 4].map((i) => {
+                      const filled = i < segmentsFilled;
+                      return (
+                        <div key={i} className={`relative flex-1 h-1.5 rounded-full overflow-hidden ${templateStyles.progressTrack}`}>
+                          {filled && (
+                            <motion.div
+                              className={`absolute inset-0 rounded-full origin-left ${templateStyles.progressFill}`}
+                              initial={{ scaleX: 0 }}
+                              animate={{ scaleX: 1 }}
+                              transition={{ type: "spring", stiffness: 400, damping: 30, mass: 0.6 }}
+                            />
+                          )}
+                          {i === segmentsFilled - 1 && (
+                            <motion.div
+                              className="absolute inset-0 rounded-full pointer-events-none"
+                              initial={{ scaleY: 1, opacity: 0 }}
+                              animate={{ scaleY: [1, 2.6, 1], opacity: [0, 0.8, 0] }}
+                              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                              style={{ boxShadow: `0 0 12px 2px ${extractHex(templateStyles.accent)}` }}
+                            />
+                          )}
+                          {i === 4 && barCompleteFired && (
+                            <motion.div
+                              className="absolute inset-0 rounded-full pointer-events-none"
+                              initial={{ scaleY: 1, opacity: 0 }}
+                              animate={{ scaleY: [1, 3.4, 1], opacity: [0, 1, 0] }}
+                              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.35 }}
+                              style={{ boxShadow: `0 0 20px 4px ${extractHex(templateStyles.accent)}, 0 0 44px 12px rgba(168,85,247,0.4)` }}
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
@@ -2677,7 +2647,6 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                     onClick={(e) => {
                       if (!canGoNext) return;
                       triggerHaptic(12, e.currentTarget);
-                      if (step === 1) setProgressBoost(true);
                       setStep((s) => s + 1);
                     }}
                     disabled={!canGoNext}
