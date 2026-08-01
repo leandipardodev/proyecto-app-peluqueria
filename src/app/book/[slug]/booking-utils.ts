@@ -12,7 +12,7 @@ export type Combo = {
 };
 
 export const stepReveal = {
-  initial: (dir: number) => ({ opacity: 0, x: 80 * dir }),
+  initial: (ctx: { dir: number; step: number }) => ({ opacity: 0, x: ctx.step >= 3 ? 0 : 80 * ctx.dir }),
   animate: {
     opacity: 1,
     x: 0,

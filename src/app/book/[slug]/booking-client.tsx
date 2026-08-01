@@ -1503,7 +1503,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                   <motion.div
                     key={step}
                     ref={stepsScrollRef}
-                    custom={stepDirection}
+                    custom={{ dir: stepDirection, step }}
                     variants={stepReveal}
                     initial="initial"
                     animate="animate"
