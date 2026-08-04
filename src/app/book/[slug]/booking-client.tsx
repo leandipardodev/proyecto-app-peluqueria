@@ -426,7 +426,7 @@ function SelectionSummary({ cart, selectedCombo, staff, noPreference, totalDurat
   onClose: () => void;
 }) {
   const items = selectedCombo
-    ? [{ id: selectedCombo.id, name: selectedCombo.name, duration: selectedCombo.duration_minutes ?? selectedCombo.total_duration, price: selectedCombo.price }]
+    ? [{ id: selectedCombo.id, name: selectedCombo.name, duration: selectedCombo.total_duration, price: selectedCombo.price }]
     : cart.map(s => ({ id: s.id, name: s.name, duration: s.duration_minutes, price: s.price }));
 
   return (
@@ -898,8 +898,8 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     setSlotStaffPicker(null);
     const dateStr = formatDate(selectedDate);
     const slotDuration = selectedCombo
-      ? (selectedCombo.duration_minutes ?? selectedCombo.total_duration)
-      : cart.reduce((sum, s) => sum + s.duration_minutes, 60);
+      ? selectedCombo.total_duration
+      : cart.reduce((sum, s) => sum + s.duration_minutes, 0);
 
     (async () => {
       try {
@@ -1065,10 +1065,10 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     return "";
   }
 
-  const handlePhoneChange = useCallback((value: string) => {
+  const handlePhoneChange = (value: string) => {
     setCustomerPhone(value);
     if (phoneError) setPhoneError("");
-  }, [phoneError]);
+  };
 
   function validateName(name: string): string {
     const trimmed = name.trim();
@@ -1077,19 +1077,19 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     return "";
   }
 
-  const handleNameChange = useCallback((value: string) => {
+  const handleNameChange = (value: string) => {
     setCustomerName(value);
     if (nameError) setNameError("");
-  }, [nameError]);
+  };
 
-  const handleLogout = useCallback(async () => {
+  const handleLogout = async () => {
     await supabase.auth.signOut();
     setCustomerName("");
     setCustomerEmail("");
     setCustomerPhone("");
     setNameError("");
     setPhoneError("");
-  }, []);
+  };
 
   function rollbackAppointments(ids: string[]) {
     return Promise.allSettled(ids.map((id) => deletePublicAppointment({ appointmentId: id, shopId: shop.id }).catch(() => {})));
@@ -1166,7 +1166,6 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
           comboId: selectedCombo.id,
           comboName: selectedCombo.name,
           comboPrice: selectedCombo.price,
-          comboDurationMinutes: selectedCombo.duration_minutes,
           services: selectedCombo.services,
           staffId: staffForAppointment?.id,
           customerName: customerName.trim(),
@@ -1196,7 +1195,6 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
         comboId: selectedCombo.id,
         comboName: selectedCombo.name,
         comboPrice: selectedCombo.price,
-        comboDurationMinutes: selectedCombo.duration_minutes,
         services: selectedCombo.services,
         staffId: staffForAppointment?.id,
         customerName: customerName.trim(),
@@ -1263,7 +1261,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   }
   }
 
-  const handleReset = useCallback(() => {
+  const handleReset = () => {
     autoSkippedRef.current = false;
     setStep(0);
     setCart([]);
@@ -1292,7 +1290,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     setError(null);
     pendingDateRef.current = null;
     fetchedDatesRef.current = new Set();
-  }, []);
+  };
 
   const summaryService = selectedCombo?.name || (cart.length > 0 ? `${cart.length} servicios` : "Sin servicio");
   const summaryDate = selectedDate ? formatDisplayDate(selectedDate).replace(/^\w/, (c) => c.toUpperCase()) : "Sin fecha";
@@ -1301,7 +1299,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const servicePrice = selectedCombo?.price ?? cart.reduce((sum, s) => sum + s.price, 0);
   const totalPrice = selectedCombo?.price ?? cart.reduce((sum, s) => sum + s.price, 0);
   const totalDuration = selectedCombo
-    ? (selectedCombo.duration_minutes ?? selectedCombo.total_duration)
+    ? selectedCombo.total_duration
     : cart.reduce((sum, s) => sum + s.duration_minutes, 0);
   const depositEnabled = shop.bookingDepositEnabled !== false;
   const configuredDeposit = shop.bookingDepositAmount;
@@ -1632,10 +1630,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                                           ))}
                                         </div>
                                         <p className={`mt-2 text-sm ${templateStyles.tiny}`} style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}>
-                                          {combo.duration_minutes ?? combo.total_duration} min
-                                          {combo.duration_minutes && combo.duration_minutes !== combo.total_duration && (
-                                            <span className="ml-1 opacity-60">({combo.total_duration} min reales)</span>
-                                          )}
+                                          {combo.total_duration} min
                                         </p>
                                       </div>
                                       <div className="shrink-0 text-right">

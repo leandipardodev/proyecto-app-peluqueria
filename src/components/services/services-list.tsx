@@ -69,7 +69,7 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
   const [, startTransition] = useTransition();
   const { addToast } = useToast();
   const [tutorialActive, setTutorialActive] = useState(false);
-  const [staffMembers, setStaffMembers] = useState(initialStaffMembers);
+  const [staffMembers] = useState(initialStaffMembers);
   const [serviceStaffMap, setServiceStaffMap] = useState(initialServiceStaffMap);
   const serviceWord = INDUSTRY_CONFIG[industry].labels.serviceSingular;
   const serviceWordLower = serviceWord.toLowerCase();
@@ -440,10 +440,7 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
                           </div>
                           <div className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400">
                             <Clock className="w-4 h-4" />
-                            <span>{combo.duration_minutes ?? combo.total_duration} min</span>
-                            {combo.duration_minutes && combo.duration_minutes !== combo.total_duration && (
-                              <span className="text-xs text-gray-400">({combo.total_duration} min reales)</span>
-                            )}
+                            <span>{combo.total_duration} min</span>
                           </div>
                         </div>
                         {combo.services.length > 0 && (
