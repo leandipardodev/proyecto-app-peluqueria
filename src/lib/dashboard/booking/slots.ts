@@ -205,6 +205,32 @@ export function computeSlotsForDay(params: ComputeSlotsParams): Slot[] {
     return [block];
   }
 
+  function collectBoundaryStarts(blocks: BlockEntry[], allowedStaff: Set<string>): number[] {
+    const starts: number[] = [];
+    for (const b of blocks) {
+      if (b.staff_id && !allowedStaff.has(b.staff_id)) continue;
+      starts.push(getArgentinaMinutesSinceMidnight(b.end_time));
+    }
+    return starts;
+  }
+
+  function buildCandidates(block: { openMinutes: number; closeMinutes: number }, duration: number, boundaryStarts: number[]): number[] {
+    const set = new Set<number>();
+    for (let m = block.openMinutes; m + duration <= block.closeMinutes; m += SLOT_STEP) {
+      set.add(m);
+    }
+    for (const b of boundaryStarts) {
+      if (b >= block.openMinutes && b + duration <= block.closeMinutes) {
+        set.add(b);
+      }
+    }
+    const candidates = [...set].sort((a, b) => a - b);
+    if (isTodayInArgentina) {
+      return candidates.filter((m) => m >= nowMinuteInArgentina);
+    }
+    return candidates;
+  }
+
   const slots: Slot[] = [];
 
   if (poolIds.length === 1) {
@@ -234,13 +260,9 @@ export function computeSlotsForDay(params: ComputeSlotsParams): Slot[] {
       const shopBe = hhmmToMinutes(shopDayConfig.break_end);
       staffBlocks = staffBlocks.flatMap((b) => splitRangeOnBreak(b, shopBs, shopBe));
     }
+    const boundaryStarts = collectBoundaryStarts(allBlocks, new Set([sId]));
     for (const block of staffBlocks) {
-      let currentMinute = isTodayInArgentina ? Math.max(block.openMinutes, nowMinuteInArgentina) : block.openMinutes;
-      if (isTodayInArgentina && currentMinute > block.openMinutes) {
-        const remainder = currentMinute % SLOT_STEP;
-        if (remainder !== 0) currentMinute += SLOT_STEP - remainder;
-      }
-      while (currentMinute + safeDuration <= block.closeMinutes) {
+      for (const currentMinute of buildCandidates(block, safeDuration, boundaryStarts)) {
         const hour = Math.floor(currentMinute / 60);
         const minute = currentMinute % 60;
         const slotStart = createArgentinaDate(y, monthNum, d, hour, minute);
@@ -251,7 +273,6 @@ export function computeSlotsForDay(params: ComputeSlotsParams): Slot[] {
         if (!hasTimeConflict(sId, slotStart, slotEnd, availableCount > nullBlocks)) {
           slots.push({ start: slotStart.toISOString(), end: slotEnd.toISOString(), time: formatArgentinaTime(slotStart), staffIds: [sId] });
         }
-        currentMinute += SLOT_STEP;
       }
     }
   } else {
@@ -270,13 +291,9 @@ export function computeSlotsForDay(params: ComputeSlotsParams): Slot[] {
     } else {
       shopBlocks.push({ openMinutes: shopOpenMinutes, closeMinutes: shopCloseMinutes });
     }
+    const boundaryStarts = collectBoundaryStarts(allBlocks, new Set(poolIds));
     for (const block of shopBlocks) {
-      let currentMinute = isTodayInArgentina ? Math.max(block.openMinutes, nowMinuteInArgentina) : block.openMinutes;
-      if (isTodayInArgentina && currentMinute > block.openMinutes) {
-        const remainder = currentMinute % SLOT_STEP;
-        if (remainder !== 0) currentMinute += SLOT_STEP - remainder;
-      }
-      while (currentMinute + safeDuration <= block.closeMinutes) {
+      for (const currentMinute of buildCandidates(block, safeDuration, boundaryStarts)) {
         const hour = Math.floor(currentMinute / 60);
         const minute = currentMinute % 60;
         const slotStart = createArgentinaDate(y, monthNum, d, hour, minute);
@@ -297,7 +314,6 @@ export function computeSlotsForDay(params: ComputeSlotsParams): Slot[] {
         if (availableStaffIds.length > 0 && freeCapableCount > nullBlocks) {
           slots.push({ start: slotStart.toISOString(), end: slotEnd.toISOString(), time: formatArgentinaTime(slotStart), staffIds: availableStaffIds });
         }
-        currentMinute += SLOT_STEP;
       }
     }
   }

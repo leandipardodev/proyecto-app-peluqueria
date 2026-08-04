@@ -35,6 +35,10 @@ function appointment(startHour: number, startMin: number, endHour: number, endMi
   return { start_time: isoAt(DAY, startHour, startMin), end_time: isoAt(DAY, endHour, endMin), staff_id: staffId };
 }
 
+function appointmentAr(date: string, start: string, end: string, staffId: string | null): BlockEntry {
+  return { start_time: `${date}T${start}:00-03:00`, end_time: `${date}T${end}:00-03:00`, staff_id: staffId };
+}
+
 function baseParams(overrides: Partial<ComputeSlotsParams> = {}): ComputeSlotsParams {
   return {
     date: DAY,
@@ -51,6 +55,14 @@ function baseParams(overrides: Partial<ComputeSlotsParams> = {}): ComputeSlotsPa
 }
 
 const startTimes = (slots: Slot[]) => slots.map((s) => s.start);
+
+function parseMinutesMock(nowMinutes = 600): void {
+  vi.mocked(getArgentinaMinutesSinceMidnight).mockImplementation((value: Date | string) => {
+    if (value instanceof Date) return nowMinutes;
+    const m = value.match(/T(\d{2}):(\d{2})/);
+    return m ? Number(m[1]) * 60 + Number(m[2]) : 600;
+  });
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -253,5 +265,130 @@ describe("computeSlotsForDay", () => {
     );
     expect(slots).toHaveLength(18);
     expect(slots.some((s) => s.start === isoAt(DAY, 13, 0) || s.start === isoAt(DAY, 13, 30))).toBe(false);
+  });
+});
+
+describe("computeSlotsForDay - huecos fuera de grilla (turnos :15 y duraciones arbitrarias)", () => {
+  it("unipersonal: ofrece slot que empieza donde termina el turno anterior (15:15-16:00)", () => {
+    parseMinutesMock();
+    const slots = computeSlotsForDay(
+      baseParams({
+        serviceDuration: 45,
+        scheduleMap: new Map([["s1", schedule("s1", "14:00", "18:00")]]),
+        allBlocks: [appointmentAr(DAY, "14:30", "15:15", "s1"), appointmentAr(DAY, "16:00", "17:00", "s1")],
+      })
+    );
+    expect(slots).toHaveLength(2);
+    const gap = slots.find((s) => s.start === isoAt(DAY, 15, 15));
+    expect(gap).toBeDefined();
+    expect(gap!.end).toBe(isoAt(DAY, 16, 0));
+  });
+
+  it("unipersonal: soporta duraciones arbitrarias (turno previo 20 min -> slot 14:50-15:35)", () => {
+    parseMinutesMock();
+    const slots = computeSlotsForDay(
+      baseParams({
+        serviceDuration: 45,
+        scheduleMap: new Map([["s1", schedule("s1", "14:00", "18:00")]]),
+        allBlocks: [appointmentAr(DAY, "14:30", "14:50", "s1"), appointmentAr(DAY, "16:00", "17:00", "s1")],
+      })
+    );
+    expect(slots).toHaveLength(3);
+    const gap = slots.find((s) => s.start === isoAt(DAY, 14, 50));
+    expect(gap).toBeDefined();
+    expect(gap!.end).toBe(isoAt(DAY, 15, 35));
+  });
+
+  it("unipersonal: no ofrece el borde si el turno no entra hasta el proximo turno", () => {
+    parseMinutesMock();
+    const slots = computeSlotsForDay(
+      baseParams({
+        serviceDuration: 60,
+        scheduleMap: new Map([["s1", schedule("s1", "14:00", "18:00")]]),
+        allBlocks: [appointmentAr(DAY, "14:30", "15:15", "s1"), appointmentAr(DAY, "16:00", "17:00", "s1")],
+      })
+    );
+    expect(slots.some((s) => s.start === isoAt(DAY, 15, 15))).toBe(false);
+    expect(slots).toHaveLength(1);
+  });
+
+  it("unipersonal: borde que coincide con la grilla no duplica el slot", () => {
+    parseMinutesMock();
+    const slots = computeSlotsForDay(
+      baseParams({
+        serviceDuration: 60,
+        scheduleMap: new Map([["s1", schedule("s1", "14:00", "18:00")]]),
+        allBlocks: [appointmentAr(DAY, "14:00", "15:00", "s1")],
+      })
+    );
+    expect(slots).toHaveLength(5);
+    expect(slots.filter((s) => s.start === isoAt(DAY, 15, 0))).toHaveLength(1);
+  });
+
+  it("multi-staff: un turno de un staff deja el borde disponible para ese staff", () => {
+    parseMinutesMock();
+    const slots = computeSlotsForDay(
+      baseParams({
+        serviceDuration: 45,
+        poolIds: ["s1", "s2"],
+        allBlocks: [appointmentAr(DAY, "14:30", "15:15", "s1")],
+      })
+    );
+    const gap = slots.find((s) => s.start === isoAt(DAY, 15, 15));
+    expect(gap).toBeDefined();
+    expect(gap!.staffIds).toContain("s1");
+    const onGrid = slots.find((s) => s.start === isoAt(DAY, 15, 0));
+    expect(onGrid!.staffIds).toEqual(["s2"]);
+  });
+
+  it("multi-staff: no genera borde por un turno de un staff fuera del pool", () => {
+    parseMinutesMock();
+    const slots = computeSlotsForDay(
+      baseParams({
+        serviceDuration: 45,
+        poolIds: ["s1", "s2"],
+        allBlocks: [appointmentAr(DAY, "14:30", "15:15", "s3")],
+      })
+    );
+    expect(slots.some((s) => s.start === isoAt(DAY, 15, 15))).toBe(false);
+  });
+
+  it("un bloque sin staff genera el borde para el staff unipersonal", () => {
+    parseMinutesMock();
+    const slots = computeSlotsForDay(
+      baseParams({
+        serviceDuration: 45,
+        scheduleMap: new Map([["s1", schedule("s1", "14:00", "18:00")]]),
+        allBlocks: [appointmentAr(DAY, "14:30", "15:15", null)],
+      })
+    );
+    expect(slots.some((s) => s.start === isoAt(DAY, 15, 15))).toBe(true);
+  });
+
+  it("no ofrece borde si no entra antes del cierre del horario", () => {
+    parseMinutesMock();
+    const slots = computeSlotsForDay(
+      baseParams({
+        serviceDuration: 45,
+        scheduleMap: new Map([["s1", schedule("s1", "14:00", "15:00")]]),
+        allBlocks: [appointmentAr(DAY, "14:00", "14:45", "s1")],
+      })
+    );
+    expect(slots).toEqual([]);
+  });
+
+  it("hoy: no redondea el borde y descarta la grilla pasada", () => {
+    parseMinutesMock(877);
+    const slots = computeSlotsForDay(
+      baseParams({
+        date: "2030-06-15",
+        serviceDuration: 45,
+        scheduleMap: new Map([["s1", schedule("s1", "14:00", "18:00")]]),
+        allBlocks: [appointmentAr("2030-06-15", "14:30", "14:50", "s1")],
+      })
+    );
+    expect(slots[0].start).toBe(isoAt("2030-06-15", 14, 50));
+    expect(slots.some((s) => s.start === isoAt("2030-06-15", 14, 30))).toBe(false);
+    expect(slots.some((s) => s.start === isoAt("2030-06-15", 15, 0))).toBe(true);
   });
 });
