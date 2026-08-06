@@ -178,7 +178,7 @@ export async function uploadBookingLogo(formData: FormData): Promise<ActionResul
 
     const storagePath = `shops/${shopId}/branding/logo.${finalExt}`;
 
-    const uploadRes = await admin.storage.from("booking-assets").upload(storagePath, processedBuffer, { upsert: true, contentType: finalContentType });
+    const uploadRes = await admin.storage.from("booking-assets").upload(storagePath, new Blob([Uint8Array.from(processedBuffer)], { type: finalContentType }), { upsert: true, contentType: finalContentType });
     if (uploadRes.error) return { success: false, error: uploadRes.error.message };
 
     const { data: publicData } = admin.storage.from("booking-assets").getPublicUrl(storagePath);

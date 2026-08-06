@@ -20,7 +20,7 @@ export const InputForm = forwardRef<HTMLInputElement, InputFormProps>(
         {!hideLabel && (
           <label
             htmlFor={inputId}
-            className="block text-sm font-medium text-gray-700 mb-1 cursor-pointer"
+            className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1 cursor-pointer"
           >
             {label}
           </label>
@@ -32,8 +32,8 @@ export const InputForm = forwardRef<HTMLInputElement, InputFormProps>(
             className={cn(
               "w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-colors",
               error
-                ? "border-red-400 bg-red-50/30 focus:ring-red-400"
-                : "border-gray-300 bg-white",
+                ? "border-red-400 bg-red-50/30 focus:ring-red-400 dark:border-red-500 dark:bg-red-950/30"
+                : "border-gray-300 bg-white dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder-zinc-500",
               rightElement && "pr-10",
               className
             )}
@@ -53,7 +53,7 @@ export const InputForm = forwardRef<HTMLInputElement, InputFormProps>(
           </p>
         )}
         {helperText && !error && (
-          <p className="text-xs text-gray-400 mt-0.5">{helperText}</p>
+          <p className="text-xs text-gray-400 dark:text-zinc-500 mt-0.5">{helperText}</p>
         )}
       </div>
     );

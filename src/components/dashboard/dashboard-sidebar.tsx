@@ -30,7 +30,7 @@ const navItems = [
   { label: "Inicio", href: "/dashboard", icon: Home },
   { label: "Calendario", href: "/dashboard/calendar", icon: CalendarDays },
   { label: "Caja", href: "/dashboard/finances", icon: Wallet },
-  { label: "Stock", href: "/dashboard/inventory", icon: Package },
+  { label: "Productos", href: "/dashboard/inventory", icon: Package },
   { label: "Marketing", href: "/dashboard/fidelizacion", icon: Gift },
   { label: "Transferencias", href: "/dashboard/bank-transfers", icon: ArrowLeftRight },
   { label: "__CUSTOMERS_LABEL__", href: "/dashboard/customers", icon: UserRound },

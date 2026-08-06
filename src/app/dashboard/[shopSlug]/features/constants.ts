@@ -25,4 +25,9 @@ export const FEATURE_LABELS: Record<
     description: "Gift cards y codigos de descuento",
     icon: Settings,
   },
+  store: {
+    label: "Tienda",
+    description: "Venta de productos en el booking",
+    icon: Settings,
+  },
 };

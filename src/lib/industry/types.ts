@@ -7,11 +7,12 @@ export type IndustryFeatures = {
   marketing: boolean;
   staff: boolean;
   vouchers: boolean;
+  store: boolean;
 };
 
 export const DEFAULT_FEATURES: Record<Industry, IndustryFeatures> = {
-  peluqueria: { inventory: true, marketing: true, staff: true, vouchers: true },
-  psicologo: { inventory: false, marketing: true, staff: true, vouchers: true },
-  masajista: { inventory: false, marketing: true, staff: true, vouchers: true },
-  canchas: { inventory: false, marketing: true, staff: true, vouchers: true },
+  peluqueria: { inventory: true, marketing: true, staff: true, vouchers: true, store: false },
+  psicologo: { inventory: false, marketing: true, staff: true, vouchers: true, store: false },
+  masajista: { inventory: false, marketing: true, staff: true, vouchers: true, store: false },
+  canchas: { inventory: false, marketing: true, staff: true, vouchers: true, store: false },
 };

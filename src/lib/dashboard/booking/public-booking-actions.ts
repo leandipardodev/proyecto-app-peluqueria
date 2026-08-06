@@ -15,6 +15,8 @@ import { sendAppointmentConfirmationEmail, scheduleAppointmentReminderEmail } fr
 import { createRateLimiter } from "@/lib/rate-limiter";
 import { headers } from "next/headers";
 import { fetchShopDateOverrides } from "@/lib/dashboard/shop/business-actions";
+import { createStoreOrderRecord, type StoreCheckoutItem } from "@/lib/dashboard/store/public-store-actions";
+import { restoreOrderStock } from "@/lib/dashboard/store/stock";
 import "server-only";
 import { createAdminClient } from "../appointments/shared";
 import { completedBookingCache } from "@/lib/booking-cache";
@@ -1538,6 +1540,302 @@ export async function createPaymentPreference(
     return {
       success: false,
       error: detailedMessage || (error instanceof Error ? error.message : "Error al crear preferencia de pago"),
+    };
+  }
+}
+
+export type CombinedCheckoutInput = {
+  shopId: string;
+  shopSlug: string;
+  customerName: string;
+  customerEmail?: string;
+  customerPhone: string;
+  authenticatedUserId?: string;
+  paymentMethod: "mp" | "bank_transfer";
+  staffId?: string;
+  startTime: string;
+  combo?: {
+    comboId: string;
+    comboName: string;
+    comboPrice: number;
+    services: { id: string; name: string; duration_minutes: number; price: number }[];
+    totalDuration: number;
+  };
+  cartServices?: { id: string; name: string; duration_minutes: number; price: number }[];
+  storeItems: StoreCheckoutItem[];
+};
+
+export type CombinedCheckoutOutput = {
+  appointmentIds: string[];
+  orderId: string;
+  serviceAmount: number;
+  productsAmount: number;
+  totalAmount: number;
+  chargedAmount: number;
+  isDeposit: boolean;
+  initPoint?: string;
+  preferenceId?: string;
+  bankTransfer?: { cbu: string; alias: string; bankName: string };
+};
+
+/**
+ * Combined checkout: reserves the appointment(s) AND creates the store order in one
+ * action, paying everything together (one Mercado Pago preference or one bank transfer).
+ * On failure it rolls back both the appointments and the order (restoring stock).
+ */
+export async function createCombinedCheckout(
+  input: CombinedCheckoutInput
+): Promise<ActionResult<CombinedCheckoutOutput>> {
+  try {
+    const admin = await createAdminClient();
+    const appointmentIds: string[] = [];
+
+    const rollbackAppointments = async () => {
+      if (appointmentIds.length === 0) return;
+      await admin
+        .from("appointments")
+        .delete()
+        .eq("shop_id", input.shopId)
+        .eq("status", "pending_payment")
+        .in("id", appointmentIds);
+    };
+
+    // 1. Create appointments (pending_payment)
+    if (input.combo) {
+      const combo = input.combo;
+      const result = await createPublicComboAppointment({
+        shopId: input.shopId,
+        comboId: combo.comboId,
+        comboName: combo.comboName,
+        comboPrice: combo.comboPrice,
+        services: combo.services.map((s) => ({ id: s.id, name: s.name, duration_minutes: s.duration_minutes, price: s.price })),
+        staffId: input.staffId,
+        customerName: input.customerName,
+        customerEmail: input.customerEmail?.trim() || undefined,
+        customerPhone: input.customerPhone,
+        authenticatedUserId: input.authenticatedUserId,
+        status: "pending_payment",
+        startTime: input.startTime,
+      });
+      if (!result.success) return result;
+      if (result.data) appointmentIds.push(...result.data.appointmentIds);
+    } else if (input.cartServices && input.cartServices.length > 0) {
+      let prevEnd = input.startTime;
+      for (const svc of input.cartServices) {
+        const svcStart = prevEnd;
+        const svcEnd = new Date(new Date(svcStart).getTime() + svc.duration_minutes * 60000).toISOString();
+        const result = await createPublicAppointment({
+          shopId: input.shopId,
+          serviceId: svc.id,
+          staffId: input.staffId,
+          customerName: input.customerName,
+          customerEmail: input.customerEmail?.trim() || undefined,
+          customerPhone: input.customerPhone,
+          authenticatedUserId: input.authenticatedUserId,
+          status: "pending_payment",
+          startTime: svcStart,
+          endTime: svcEnd,
+        });
+        if (!result.success) {
+          await rollbackAppointments();
+          return result;
+        }
+        if (result.data) appointmentIds.push(result.data.appointmentId);
+        prevEnd = svcEnd;
+      }
+    } else {
+      return { success: false, error: "No seleccionaste servicios ni combo" };
+    }
+
+    if (appointmentIds.length === 0) {
+      return { success: false, error: "No se pudo crear el turno" };
+    }
+
+    const serviceAmount = input.combo
+      ? input.combo.comboPrice
+      : (input.cartServices || []).reduce((sum, svc) => sum + svc.price, 0);
+
+    // 2. Create the store order (stock already decremented)
+    const orderResult = await createStoreOrderRecord({
+      shopId: input.shopId,
+      items: input.storeItems,
+      customerName: input.customerName,
+      customerEmail: input.customerEmail?.trim() || "",
+      customerPhone: input.customerPhone,
+    });
+    if (!orderResult.success) {
+      await rollbackAppointments();
+      return { success: false, error: orderResult.error || "No se pudo crear el pedido" };
+    }
+    if (!orderResult.data) {
+      await rollbackAppointments();
+      return { success: false, error: "No se pudo crear el pedido" };
+    }
+    const { orderId, lineItems, totalAmount: productsAmount } = orderResult.data;
+
+    const rollbackOrder = async () => {
+      await restoreOrderStock(admin, input.shopId, orderId);
+      await admin.from("orders").delete().eq("id", orderId).eq("shop_id", input.shopId);
+    };
+
+    const totalAmount = serviceAmount + productsAmount;
+    const mainAppointmentId = appointmentIds[0];
+
+    // 3. Bank transfer — return the details so the client can show them
+    if (input.paymentMethod === "bank_transfer") {
+      const { data: shop } = await admin
+        .from("shops")
+        .select("bank_cvu_cbu, bank_alias, bank_name")
+        .eq("id", input.shopId)
+        .maybeSingle();
+
+      return {
+        success: true,
+        data: {
+          appointmentIds,
+          orderId,
+          serviceAmount,
+          productsAmount,
+          totalAmount,
+          chargedAmount: totalAmount,
+          isDeposit: false,
+          bankTransfer: {
+            cbu: shop?.bank_cvu_cbu || "",
+            alias: shop?.bank_alias || "",
+            bankName: shop?.bank_name || "",
+          },
+        },
+      };
+    }
+
+    // 4. Mercado Pago — one combined preference
+    const { data: shop } = await admin
+      .from("shops")
+      .select("booking_deposit_enabled, booking_deposit_amount, mp_access_token")
+      .eq("id", input.shopId)
+      .maybeSingle();
+
+    const accessToken = (shop?.mp_access_token as string | undefined) || process.env.MP_ACCESS_TOKEN;
+    if (!accessToken) {
+      await rollbackOrder();
+      await rollbackAppointments();
+      return { success: false, error: "Mercado Pago no esta configurado para este local. Reconecta Mercado Pago en Mi Negocio." };
+    }
+
+    // Deposit applies only to the service portion; products always charge full price
+    const depositEnabled = shop?.booking_deposit_enabled !== false;
+    const configuredDeposit = Math.max(0, Number(shop?.booking_deposit_amount ?? 0));
+    const depositCharge = depositEnabled
+      ? Math.max(1, Math.min(serviceAmount, configuredDeposit > 0 ? configuredDeposit : serviceAmount))
+      : Math.max(1, serviceAmount);
+    const isDeposit = depositEnabled && depositCharge < serviceAmount;
+    const chargedAmount = depositCharge + productsAmount;
+
+    const cartLen = input.cartServices?.length ?? 0;
+    const serviceTitle = input.combo
+      ? input.combo.comboName
+      : cartLen === 1
+        ? (input.cartServices?.[0]?.name ?? "Servicio")
+        : `${cartLen} servicios`;
+
+    const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || "https://klip.com.ar").replace(/\/+$/, "");
+    const successUrl = `${baseUrl}/confirmacion?status=success&slug=${encodeURIComponent(input.shopSlug)}`;
+    const pendingUrl = `${baseUrl}/confirmacion?status=pending&slug=${encodeURIComponent(input.shopSlug)}`;
+    const failureUrl = `${baseUrl}/confirmacion?status=failure&slug=${encodeURIComponent(input.shopSlug)}`;
+    const notificationUrl = `${baseUrl}/api/payments/mercadopago-webhook`;
+    const canUseBackUrls = /^https?:\/\//.test(baseUrl) && !/localhost|127\.0\.0\.1/.test(baseUrl);
+    const shouldSendWebhook = notificationUrl.startsWith("https://");
+
+    const client = new MercadoPagoConfig({ accessToken });
+    const preference = new Preference(client);
+
+    let preferenceResult;
+    try {
+      preferenceResult = await preference.create({
+        body: {
+          items: [
+            {
+              id: mainAppointmentId,
+              title: isDeposit ? `Seña - ${serviceTitle}` : serviceTitle,
+              quantity: 1,
+              unit_price: depositCharge,
+              currency_id: "ARS",
+            },
+            ...lineItems.map((li) => ({
+              id: li.productId,
+              title: li.name,
+              quantity: li.quantity,
+              unit_price: li.unitPrice,
+              currency_id: "ARS",
+            })),
+          ],
+          back_urls: canUseBackUrls
+            ? { success: successUrl, pending: pendingUrl, failure: failureUrl }
+            : undefined,
+          auto_return: canUseBackUrls ? "approved" : undefined,
+          external_reference: mainAppointmentId,
+          notification_url: shouldSendWebhook ? notificationUrl : undefined,
+          metadata: {
+            type: "combined",
+            appointment_id: mainAppointmentId,
+            shop_id: input.shopId,
+            order_id: orderId,
+            ...(input.combo ? { combo_appointment_ids: JSON.stringify(appointmentIds) } : {}),
+          },
+        },
+      });
+    } catch (e) {
+      await rollbackOrder();
+      await rollbackAppointments();
+      throw e;
+    }
+
+    if (!preferenceResult.id || !preferenceResult.init_point) {
+      await rollbackOrder();
+      await rollbackAppointments();
+      throw new Error("No se pudo crear la preferencia de pago");
+    }
+
+    await admin
+      .from("orders")
+      .update({ mp_preference_id: preferenceResult.id, updated_at: new Date().toISOString() })
+      .eq("id", orderId)
+      .eq("shop_id", input.shopId);
+
+    await admin
+      .from("appointments")
+      .update({ deposit_amount: depositCharge, updated_at: new Date().toISOString() })
+      .eq("id", mainAppointmentId)
+      .eq("shop_id", input.shopId);
+
+    return {
+      success: true,
+      data: {
+        appointmentIds,
+        orderId,
+        serviceAmount,
+        productsAmount,
+        totalAmount,
+        chargedAmount,
+        isDeposit,
+        initPoint: preferenceResult.init_point,
+        preferenceId: preferenceResult.id,
+      },
+    };
+  } catch (error) {
+    console.error("[createCombinedCheckout] error:", error);
+    const sdkMessage =
+      error && typeof error === "object" && "message" in error
+        ? String((error as { message?: unknown }).message || "")
+        : "";
+    const sdkCause =
+      error && typeof error === "object" && "cause" in error
+        ? JSON.stringify((error as { cause?: unknown }).cause)
+        : "";
+    const detailedMessage = [sdkMessage, sdkCause].filter(Boolean).join(" | ");
+    return {
+      success: false,
+      error: detailedMessage || (error instanceof Error ? error.message : "Error inesperado al procesar el pago"),
     };
   }
 }

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { createPortal } from "react-dom";
-import { X, Plus, Loader2, Check, AlertCircle } from "lucide-react";
+import { X, Plus, Loader2, Check, AlertCircle, ShoppingBag } from "lucide-react";
 import { addProducts } from "@/lib/dashboard/inventory/inventory-actions";
 import { useToast } from "@/components/ui/toast";
 
@@ -13,22 +13,25 @@ interface BatchEntry {
   nombre_producto: string;
   quantity: number | "";
   unit_cost: number | "";
+  for_sale: boolean;
+  price: number | "";
 }
 
 let entryCounter = 0;
 
 function createEmptyEntry(): BatchEntry {
   entryCounter++;
-  return { id: `entry-${entryCounter}`, nombre_producto: "", quantity: "", unit_cost: "" };
+  return { id: `entry-${entryCounter}`, nombre_producto: "", quantity: "", unit_cost: "", for_sale: false, price: "" };
 }
 
 interface BatchAddProductModalProps {
   shopId: string;
   open: boolean;
   onClose: () => void;
+  storeEnabled?: boolean;
 }
 
-export default function BatchAddProductModal({ shopId, open, onClose }: BatchAddProductModalProps) {
+export default function BatchAddProductModal({ shopId, open, onClose, storeEnabled = true }: BatchAddProductModalProps) {
   const { addToast } = useToast();
   const router = useRouter();
   const [entries, setEntries] = useState<BatchEntry[]>([createEmptyEntry()]);
@@ -69,6 +72,8 @@ export default function BatchAddProductModal({ shopId, open, onClose }: BatchAdd
         nombre_producto: valid[i].nombre_producto,
         quantity: Number(valid[i].quantity || 0),
         unit_cost: Number(valid[i].unit_cost || 0),
+        for_sale: valid[i].for_sale,
+        price: valid[i].for_sale ? Number(valid[i].price || 0) : undefined,
       }], shopId);
       if (result.success) ok++;
       else fail++;
@@ -181,6 +186,7 @@ export default function BatchAddProductModal({ shopId, open, onClose }: BatchAdd
                     key={entry.id}
                     entry={entry}
                     index={index}
+                    storeEnabled={storeEnabled}
                     onUpdate={(patch) => updateEntry(entry.id, patch)}
                     onRemove={() => removeEntry(entry.id)}
                     canRemove={entries.length > 1}
@@ -222,12 +228,14 @@ export default function BatchAddProductModal({ shopId, open, onClose }: BatchAdd
 function EntryCard({
   entry,
   index,
+  storeEnabled,
   onUpdate,
   onRemove,
   canRemove,
 }: {
   entry: BatchEntry;
   index: number;
+  storeEnabled: boolean;
   onUpdate: (patch: Partial<BatchEntry>) => void;
   onRemove: () => void;
   canRemove: boolean;
@@ -292,6 +300,49 @@ function EntryCard({
             />
           </div>
         </div>
+
+        {storeEnabled && (
+          <div className="flex items-center justify-between pt-2 border-t border-zinc-100 dark:border-zinc-800">
+            <div className="flex items-center gap-2">
+              <ShoppingBag className="w-4 h-4 text-zinc-400" />
+              <span className="text-sm text-gray-600 dark:text-gray-300 font-medium">Vender online</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => onUpdate({ for_sale: !entry.for_sale })}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 ${
+                entry.for_sale ? "bg-violet-600" : "bg-zinc-300 dark:bg-zinc-600"
+              }`}
+              role="switch"
+              aria-checked={entry.for_sale}
+            >
+              <span
+                className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition duration-200 ease-in-out ${
+                  entry.for_sale ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+        )}
+
+        {storeEnabled && entry.for_sale && (
+          <div>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Precio de venta ($)
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={entry.price}
+              onChange={(e) => {
+                const val = e.target.value;
+                onUpdate({ price: val === "" ? "" : Math.max(0, parseFloat(val) || 0) });
+              }}
+              className="w-full px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
+            />
+          </div>
+        )}
       </div>
     </div>
   );

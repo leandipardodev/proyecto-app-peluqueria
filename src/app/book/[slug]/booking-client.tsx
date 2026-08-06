@@ -6,25 +6,35 @@ import Image from "next/image";
 import {
   AlertTriangle,
   Check,
+  CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   CreditCard,
   ExternalLink,
+  Info,
   Landmark,
   Loader2,
   LogOut,
   Mail,
   MapPin,
+  Minus,
   Package,
   Phone,
+  Plus,
   RefreshCw,
+  ShoppingBag,
   Sparkles,
+  Trash2,
   UserRound,
+  X,
 } from "lucide-react";
 import { initMercadoPago } from "@mercadopago/sdk-react";
 import { fetchPublicAvailableSlots, createPublicAppointment, createPublicComboAppointment, deletePublicAppointment } from "@/lib/dashboard/booking/public-booking-actions";
 import { fetchShopDateOverrides } from "@/lib/dashboard/shop/business-actions";
 import { deletePendingBooking } from "@/lib/dashboard/appointments/pending-booking-actions";
+import type { PublicStoreProduct } from "@/lib/dashboard/store/public-store-actions";
+import { productColor } from "@/lib/dashboard/store/product-color";
 import QRCode from "qrcode";
 import GoogleSignInButton from "@/components/auth/google-sign-in-button";
 import { useAuth } from "@/lib/auth-context";
@@ -88,6 +98,11 @@ interface BookingClientProps {
   combosError?: string | null;
   staffMembers: StaffMember[];
   staffServicesMap: Record<string, string[]>;
+  storeEnabled?: boolean;
+  storeProducts?: PublicStoreProduct[];
+  storeError?: string | null;
+  status?: string | null;
+  orderId?: string | null;
 }
 
 function pushCard3D(e: React.PointerEvent<HTMLDivElement | HTMLButtonElement>) {
@@ -97,6 +112,10 @@ function pushCard3D(e: React.PointerEvent<HTMLDivElement | HTMLButtonElement>) {
   const y = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
   card.style.transform = `perspective(800px) rotateX(${-y * 14}deg) rotateY(${x * 14}deg) scale(0.97)`;
   card.style.transition = 'transform 0.08s cubic-bezier(0.16,1,0.3,1)';
+}
+
+function formatARSAmount(amount: number): string {
+  return `$${amount.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
 function releaseCard3D(e: React.PointerEvent<HTMLDivElement | HTMLButtonElement>) {
@@ -297,29 +316,31 @@ const StaffCard = memo(function StaffCard({
   );
 });
 
-function SelectionPill({ cartCount, staff, noPreference, templateStyles, onTap }: {
-  cartCount: number;
+function SelectionPill({ serviceCount, productCount, staff, noPreference, templateStyles, onTap }: {
+  serviceCount: number;
+  productCount: number;
   staff: StaffMember[];
   noPreference?: boolean;
   templateStyles: BookingTheme;
   onTap: () => void;
 }) {
-  const prevCount = useRef(cartCount);
+  const totalCount = serviceCount + productCount;
+  const prevCount = useRef(totalCount);
   const [justChanged, setJustChanged] = useState(false);
 
   useEffect(() => {
-    if (cartCount !== prevCount.current) {
+    if (totalCount !== prevCount.current) {
       setJustChanged(true);
-      prevCount.current = cartCount;
+      prevCount.current = totalCount;
       const t = setTimeout(() => setJustChanged(false), 500);
       return () => clearTimeout(t);
     }
-  }, [cartCount]);
+  }, [totalCount]);
 
   const displayStaff = staff.slice(0, 4);
   const overflow = staff.length > 4 ? staff.length - 4 : 0;
 
-  if (cartCount === 0 && staff.length === 0 && !noPreference) return null;
+  if (totalCount === 0 && staff.length === 0 && !noPreference) return null;
 
   return (
     <motion.div
@@ -339,7 +360,7 @@ function SelectionPill({ cartCount, staff, noPreference, templateStyles, onTap }
       }}
       className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 cursor-pointer select-none ${templateStyles.plate} border ${templateStyles.hoverBorder} shadow-lg`}
     >
-      {cartCount > 0 && (
+      {serviceCount > 0 && (
         <motion.div
           layout
           className={`flex items-center gap-1 text-[10px] font-semibold leading-none ${templateStyles.heading}`}
@@ -351,7 +372,7 @@ function SelectionPill({ cartCount, staff, noPreference, templateStyles, onTap }
           <Package className="w-3 h-3" />
           <AnimatePresence mode="popLayout">
             <motion.span
-              key={cartCount}
+              key={serviceCount}
               initial={{ scale: 0, opacity: 0 }}
               animate={{
                 scale: 1,
@@ -361,13 +382,41 @@ function SelectionPill({ cartCount, staff, noPreference, templateStyles, onTap }
               exit={{ scale: 0, opacity: 0, transition: { duration: 0.12 } }}
               className="tabular-nums"
             >
-              {cartCount}
+              {serviceCount}
             </motion.span>
           </AnimatePresence>
         </motion.div>
       )}
 
-      {cartCount > 0 && staff.length > 0 && (
+      {productCount > 0 && (
+        <motion.div
+          layout
+          className={`flex items-center gap-1 text-[10px] font-semibold leading-none ${templateStyles.heading}`}
+          animate={justChanged ? {
+            x: [0, -2.5, 2.5, -1.5, 1.5, 0],
+            transition: { duration: 0.35, ease: "easeInOut" },
+          } : {}}
+        >
+          <ShoppingBag className="w-3 h-3" />
+          <AnimatePresence mode="popLayout">
+            <motion.span
+              key={productCount}
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{
+                scale: 1,
+                opacity: 1,
+                transition: { type: "spring", stiffness: 600, damping: 14, mass: 0.35 },
+              }}
+              exit={{ scale: 0, opacity: 0, transition: { duration: 0.12 } }}
+              className="tabular-nums"
+            >
+              {productCount}
+            </motion.span>
+          </AnimatePresence>
+        </motion.div>
+      )}
+
+      {totalCount > 0 && staff.length > 0 && (
         <div className={`w-px h-3 rounded-full ${templateStyles.line}`} />
       )}
 
@@ -415,19 +464,24 @@ function SelectionPill({ cartCount, staff, noPreference, templateStyles, onTap }
   );
 }
 
-function SelectionSummary({ cart, selectedCombo, staff, noPreference, totalDuration, totalPrice, templateStyles, onClose }: {
+function SelectionSummary({ cart, selectedCombo, staff, noPreference, totalDuration, totalPrice, products, storeCart, onUpdateProductQty, onRemoveProduct, templateStyles, onClose }: {
   cart: Service[];
   selectedCombo: Combo | null;
   staff: StaffMember[];
   noPreference?: boolean;
   totalDuration: number;
   totalPrice: number;
+  products: PublicStoreProduct[];
+  storeCart: Record<string, number>;
+  onUpdateProductQty: (productId: string, qty: number) => void;
+  onRemoveProduct: (productId: string) => void;
   templateStyles: BookingTheme;
   onClose: () => void;
 }) {
   const items = selectedCombo
     ? [{ id: selectedCombo.id, name: selectedCombo.name, duration: selectedCombo.total_duration, price: selectedCombo.price }]
     : cart.map(s => ({ id: s.id, name: s.name, duration: s.duration_minutes, price: s.price }));
+  const storeItems = products.filter((p) => (storeCart[p.id] ?? 0) > 0);
 
   return (
     <motion.div
@@ -459,23 +513,76 @@ function SelectionSummary({ cart, selectedCombo, staff, noPreference, totalDurat
             </button>
           </div>
 
-          <div className="space-y-2 max-h-48 overflow-y-auto delicate-scroll -mx-1 px-1">
-            {items.map((item) => (
-              <div key={item.id} className={`flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 ${templateStyles.plate}`}>
-                <div className="min-w-0 flex-1">
-                  <p className={`text-sm font-medium truncate ${templateStyles.heading}`}>{item.name}</p>
-                  <p className={`text-[11px] mt-0.5 ${templateStyles.tiny}`}>{item.duration} min</p>
+          {items.length > 0 || storeItems.length > 0 ? (
+            <div className="space-y-2 max-h-56 overflow-y-auto delicate-scroll -mx-1 px-1">
+              {items.length > 0 && (
+                <p className={`text-[10px] uppercase tracking-wider font-semibold ${templateStyles.tiny}`}>Servicios</p>
+              )}
+              {items.map((item) => (
+                <div key={item.id} className={`flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 ${templateStyles.plate}`}>
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-sm font-medium truncate ${templateStyles.heading}`}>{item.name}</p>
+                    <p className={`text-[11px] mt-0.5 ${templateStyles.tiny}`}>{item.duration} min</p>
+                  </div>
+                  <span className={`text-sm font-semibold tabular-nums shrink-0 ${templateStyles.priceText}`}>
+                    ${item.price.toLocaleString("es-AR")}
+                  </span>
                 </div>
-                <span className={`text-sm font-semibold tabular-nums shrink-0 ${templateStyles.priceText}`}>
-                  ${item.price.toLocaleString("es-AR")}
-                </span>
-              </div>
-            ))}
-          </div>
+              ))}
+
+              {storeItems.length > 0 && (
+                <>
+                  <p className={`text-[10px] uppercase tracking-wider font-semibold ${templateStyles.tiny} pt-1`}>Productos</p>
+                  {storeItems.map((product) => {
+                    const qty = storeCart[product.id] ?? 0;
+                    return (
+                      <div key={product.id} className={`flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 ${templateStyles.plate}`}>
+                        <div className="min-w-0 flex-1">
+                          <p className={`text-sm font-medium truncate ${templateStyles.heading}`}>{product.name}</p>
+                          <p className={`text-[11px] mt-0.5 ${templateStyles.tiny}`}>${product.price.toLocaleString("es-AR")} c/u</p>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => onUpdateProductQty(product.id, qty - 1)}
+                            className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-zinc-300 dark:border-zinc-600 cursor-pointer select-none active:scale-90 transition-transform"
+                            aria-label="Quitar uno"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="w-5 text-center text-sm font-bold tabular-nums">{qty}</span>
+                          <button
+                            type="button"
+                            onClick={() => qty < product.stock_quantity && onUpdateProductQty(product.id, qty + 1)}
+                            disabled={qty >= product.stock_quantity}
+                            className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-zinc-300 dark:border-zinc-600 cursor-pointer select-none active:scale-90 transition-transform disabled:opacity-40 disabled:cursor-not-allowed"
+                            aria-label="Agregar uno"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onRemoveProduct(product.id)}
+                            className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-zinc-400 hover:text-red-500 cursor-pointer select-none transition-colors"
+                            aria-label="Eliminar"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+            </div>
+          ) : null}
 
           <div className={`flex items-center justify-between pt-2 border-t ${templateStyles.line}`}>
             <span className={`text-xs ${templateStyles.tiny}`}>
-              {items.length} servicio{items.length > 1 ? "s" : ""} · {totalDuration} min
+              {items.length > 0 && `${items.length} ${items.length > 1 ? "servicios" : "servicio"}`}
+              {items.length > 0 && storeItems.length > 0 && " + "}
+              {storeItems.length > 0 && `${storeItems.length} producto${storeItems.length > 1 ? "s" : ""}`}
+              {items.length > 0 && ` · ${totalDuration} min`}
             </span>
             <span className={`text-sm font-bold tabular-nums ${templateStyles.priceText} ${templateStyles.priceFx}`}>
               $ {totalPrice.toLocaleString("es-AR")}
@@ -516,13 +623,263 @@ function SelectionSummary({ cart, selectedCombo, staff, noPreference, totalDurat
   );
 }
 
-const BookingClient = memo(function BookingClient({ shop, services, servicesError, combos, combosError, staffMembers, staffServicesMap }: BookingClientProps) {
+function StoreImageModal({ product, onClose }: { product: PublicStoreProduct; onClose: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0, transition: { duration: 0.15 } }}
+        transition={{ type: "spring", stiffness: 380, damping: 26, mass: 0.8 }}
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-lg"
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute -top-3 -right-3 z-10 inline-flex items-center justify-center w-9 h-9 rounded-full bg-white text-zinc-800 shadow-lg hover:scale-105 active:scale-95 transition-transform cursor-pointer"
+          aria-label="Cerrar"
+        >
+          <X className="w-4 h-4" />
+        </button>
+        <div className="overflow-hidden rounded-2xl bg-black">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={product.image_url ?? undefined} alt={product.name} className="w-full h-auto max-h-[70dvh] object-contain" />
+        </div>
+        <div className="mt-3 text-center">
+          <p className="text-white font-semibold text-sm">{product.name}</p>
+          <p className="text-white/60 text-xs mt-0.5">{formatARSAmount(product.price)}</p>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function StoreTab({ products, storeError, storeCart, status, orderId, updateProductQty, onShowImage, templateStyles }: {
+  products: PublicStoreProduct[];
+  storeError: string | null;
+  storeCart: Record<string, number>;
+  status: string | null;
+  orderId: string | null;
+  updateProductQty: (productId: string, quantity: number) => void;
+  onShowImage: (product: PublicStoreProduct) => void;
+  templateStyles: BookingTheme;
+}) {
+  const [expandedDesc, setExpandedDesc] = useState<string | null>(null);
+  const storeScrollRef = useRef<HTMLDivElement>(null);
+  const [storeAtTop, setStoreAtTop] = useState(true);
+  const [storeCanScroll, setStoreCanScroll] = useState(false);
+
+  useEffect(() => {
+    const el = storeScrollRef.current;
+    if (!el) return;
+    setStoreCanScroll(el.scrollHeight > el.clientHeight + 4);
+    setStoreAtTop(el.scrollTop <= 10);
+  }, [products.length]);
+
+  const banner = status
+    ? status === "success"
+      ? { tone: "bg-emerald-50 dark:bg-emerald-950 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300", icon: <CheckCircle2 className="w-5 h-5 shrink-0" />, title: "¡Pago aprobado!", text: "Tu pedido fue confirmado. Te avisaremos cuando esté listo." }
+      : status === "pending"
+        ? { tone: "bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300", icon: <Info className="w-5 h-5 shrink-0" />, title: "Pago en proceso", text: "Estamos esperando la confirmación del pago." }
+        : { tone: "bg-rose-50 dark:bg-rose-950 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300", icon: <AlertTriangle className="w-5 h-5 shrink-0" />, title: "El pago no se completó", text: "No se realizó ningún cobro. Podés intentar nuevamente." }
+    : null;
+
+  return (
+    <div className="relative flex flex-col h-full min-h-0">
+      {banner && (
+        <div className={`mb-3 flex items-start gap-3 rounded-2xl border p-3.5 ${banner.tone}`}>
+          {banner.icon}
+          <div className="min-w-0">
+            <p className="text-sm font-semibold">{banner.title}</p>
+            <p className="text-xs opacity-90">{banner.text}</p>
+            {orderId && <p className="text-xs opacity-80 mt-0.5">N° de pedido: {orderId}</p>}
+          </div>
+        </div>
+      )}
+
+      <div
+        ref={storeScrollRef}
+        onScroll={() => {
+          const el = storeScrollRef.current;
+          if (!el) return;
+          setStoreAtTop(el.scrollTop <= 10);
+          setStoreCanScroll(el.scrollHeight > el.clientHeight + 4);
+        }}
+        className="flex-1 overflow-y-auto overflow-x-hidden delicate-scroll pb-3 -mx-1 px-1"
+      >
+        {storeError ? (
+          <div className={`text-sm px-4 py-3 rounded-2xl border ${templateStyles.errorBox}`}>{storeError}</div>
+        ) : products.length === 0 ? (
+          <div className="py-12 text-center">
+            <div className="flex items-center justify-center w-14 h-14 rounded-full bg-violet-100 dark:bg-violet-900/40 mx-auto">
+              <ShoppingBag className="w-6 h-6 text-violet-500" />
+            </div>
+            <p className={`mt-3 text-sm font-semibold ${templateStyles.heading}`}>La tienda está vacía</p>
+            <p className={`mt-1 text-xs ${templateStyles.tiny}`}>No hay productos disponibles por ahora. Volvé pronto.</p>
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {products.map((product) => {
+              const qty = storeCart[product.id] ?? 0;
+              const soldOut = product.stock_quantity <= 0;
+              const lowStock = !soldOut && product.stock_quantity < 5;
+              const maxed = qty >= product.stock_quantity;
+              const isExpanded = expandedDesc === product.id;
+              return (
+                <div
+                  key={product.id}
+                  className={`flex flex-col bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden ${soldOut ? "opacity-55" : ""}`}
+                >
+                  <div className="relative h-44 w-full overflow-hidden">
+                    {product.image_url ? (
+                      <button
+                        type="button"
+                        onClick={() => onShowImage(product)}
+                        className="absolute inset-0 w-full h-full cursor-zoom-in"
+                        aria-label={`Ver imagen de ${product.name}`}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                      </button>
+                    ) : (
+                      <div className={`absolute inset-0 flex items-center justify-center bg-gradient-to-br ${productColor(product.id)} text-white`}>
+                        <Package className="w-12 h-12" />
+                      </div>
+                    )}
+
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-full bg-gradient-to-t from-black/85 via-black/40 to-transparent" />
+
+                    <button
+                      type="button"
+                      onClick={() => setExpandedDesc(isExpanded ? null : product.id)}
+                      className={`absolute inset-x-0 bottom-0 z-10 w-full text-left cursor-pointer select-none ${isExpanded ? "h-full" : ""}`}
+                      aria-label={isExpanded ? "Ocultar descripción completa" : "Ver descripción completa"}
+                    >
+                      <div className={`flex flex-col justify-end ${isExpanded ? "h-full overflow-y-auto delicate-scroll p-3.5" : "px-3.5 pb-2.5 pt-12"}`}>
+                        <h3 className={`text-sm font-bold text-white leading-tight drop-shadow ${isExpanded ? "" : "truncate"}`}>{product.name}</h3>
+                        {product.description ? (
+                          <>
+                            <p className={`text-[11px] leading-snug text-white/90 ${isExpanded ? "" : "line-clamp-2"}`}>
+                              {product.description}
+                            </p>
+                            <span className={`inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-white/70 ${isExpanded ? "mt-2.5" : "mt-1"}`}>
+                              {isExpanded ? (
+                                <>
+                                  <ChevronDown className="w-3 h-3 rotate-180" />
+                                  Ver menos
+                                </>
+                              ) : (
+                                <>
+                                  <ChevronDown className="w-3 h-3" />
+                                  Ver más
+                                </>
+                              )}
+                            </span>
+                          </>
+                        ) : (
+                          <p className="text-[11px] text-white/60 italic">Sin descripción</p>
+                        )}
+                      </div>
+                    </button>
+
+                    {soldOut && (
+                      <span className="absolute top-2 left-2 z-10 rounded-full bg-zinc-900/80 text-white text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 backdrop-blur-sm">
+                        Sin stock
+                      </span>
+                    )}
+                    {lowStock && (
+                      <span className="absolute top-2 left-2 z-10 rounded-full bg-amber-400/95 text-amber-950 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 backdrop-blur-sm">
+                        Quedan {product.stock_quantity}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="p-3.5 flex-1 flex flex-col">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-base font-bold text-gray-900 dark:text-white">{formatARSAmount(product.price)}</span>
+                    </div>
+                    <div className="mt-3">
+                      {soldOut ? (
+                        <div className="w-full rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 text-sm font-medium px-4 py-2 text-center">
+                          Sin stock
+                        </div>
+                      ) : qty === 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => updateProductQty(product.id, 1)}
+                          className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r ${templateStyles.progressFill} text-white text-sm font-semibold px-4 py-2 shadow-[0_10px_22px_-12px_rgba(0,0,0,0.45)] hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer select-none"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Agregar
+                        </button>
+                      ) : (
+                        <div className="flex items-center justify-between gap-2">
+                          <button
+                            type="button"
+                            onClick={() => updateProductQty(product.id, qty - 1)}
+                            className="inline-flex items-center justify-center w-9 h-9 rounded-xl border border-zinc-200 dark:border-zinc-700 ${templateStyles.accent} ${templateStyles.hoverBorder} transition-colors cursor-pointer select-none active:scale-95"
+                            aria-label="Quitar uno"
+                          >
+                            <Minus className="w-4 h-4" />
+                          </button>
+                          <span className="text-sm font-bold text-gray-900 dark:text-white tabular-nums">{qty}</span>
+                          <button
+                            type="button"
+                            onClick={() => !maxed && updateProductQty(product.id, qty + 1)}
+                            disabled={maxed}
+                            className="inline-flex items-center justify-center w-9 h-9 rounded-xl border border-zinc-200 dark:border-zinc-700 ${templateStyles.accent} ${templateStyles.hoverBorder} disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer select-none active:scale-95"
+                            aria-label="Agregar uno"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {storeAtTop && storeCanScroll && (
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.25 }}
+          className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center"
+        >
+          <div className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[11px] font-medium border shadow-lg backdrop-blur-md ${templateStyles.plate}`}>
+            <ChevronDown className={`h-3.5 w-3.5 animate-bounce ${templateStyles.accent}`} />
+            <span className={templateStyles.tiny}>Deslizá para ver más</span>
+          </div>
+        </motion.div>
+      )}
+    </div>
+  );
+}
+
+const BookingClient = memo(function BookingClient({ shop, services, servicesError, combos, combosError, staffMembers, staffServicesMap, storeEnabled = false, storeProducts = [], storeError = null, status = null, orderId = null }: BookingClientProps) {
   const { user, isLoading: isAuthLoading } = useAuth();
 
   const [step, setStep] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
   const [expandedContact, setExpandedContact] = useState<"address" | "whatsapp" | "instagram" | null>(null);
   const contactRowRef = useRef<HTMLDivElement>(null);
+  const [storeCart, setStoreCart] = useState<Record<string, number>>({});
+  const [storeLightbox, setStoreLightbox] = useState<PublicStoreProduct | null>(null);
+  const [storeArrivedViaButton, setStoreArrivedViaButton] = useState(false);
+  const storeJumpOriginRef = useRef(0);
 
   useEffect(() => {
     if (!expandedContact) return;
@@ -697,13 +1054,96 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const [phoneError, setPhoneError] = useState("");
   const [nameError, setNameError] = useState("");
 
+  const hasServices = cart.length > 0 || selectedCombo !== null;
+  const storeCartCount = useMemo(() => Object.values(storeCart).reduce((sum, q) => sum + q, 0), [storeCart]);
+  const hasStoreItems = storeCartCount > 0;
+  const productsTotal = useMemo(
+    () => storeProducts.reduce((sum, p) => sum + p.price * (storeCart[p.id] ?? 0), 0),
+    [storeProducts, storeCart]
+  );
+
   const needsPayment = useMemo(() => {
+    if (hasStoreItems) return true;
     if (!shop.payAtShop) {
       if (selectedCombo) return selectedCombo.services.some((s) => !s.pay_at_shop);
       return cart.some((s) => !s.pay_at_shop);
     }
     return false;
-  }, [shop.payAtShop, cart, selectedCombo]);
+  }, [hasStoreItems, shop.payAtShop, cart, selectedCombo]);
+
+  const CART_STORAGE_KEY = `klip-book-cart:${shop.id}`;
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(CART_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { serviceIds?: string[]; comboId?: string | null; storeCart?: Record<string, number> } | null;
+      if (!parsed || typeof parsed !== "object") return;
+      if (Array.isArray(parsed.serviceIds)) {
+        const loaded = parsed.serviceIds
+          .map((id) => services.find((s) => s.id === id))
+          .filter((s): s is Service => Boolean(s));
+        if (loaded.length > 0) setCart(loaded);
+      }
+      if (typeof parsed.comboId === "string") {
+        const combo = combos.find((c) => c.id === parsed.comboId) ?? null;
+        if (combo) setSelectedCombo(combo);
+      }
+      if (parsed.storeCart && typeof parsed.storeCart === "object") {
+        const valid: Record<string, number> = {};
+        for (const [productId, qty] of Object.entries(parsed.storeCart)) {
+          const product = storeProducts.find((p) => p.id === productId);
+          if (!product || product.stock_quantity <= 0) continue;
+          valid[productId] = Math.max(1, Math.min(Number(qty) || 1, product.stock_quantity));
+        }
+        setStoreCart(valid);
+      }
+    } catch {
+      /* ignore corrupt data */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(CART_STORAGE_KEY, JSON.stringify({
+        serviceIds: cart.map((s) => s.id),
+        comboId: selectedCombo?.id ?? null,
+        storeCart,
+      }));
+    } catch {
+      /* storage unavailable */
+    }
+  }, [CART_STORAGE_KEY, cart, selectedCombo, storeCart]);
+
+  useEffect(() => {
+    if (status === "success" || status === "pending") {
+      setCart([]);
+      setSelectedCombo(null);
+      setStoreCart({});
+    }
+  }, [status]);
+
+  const updateProductQty = useCallback((productId: string, quantity: number) => {
+    setStoreCart((prev) => {
+      const next = { ...prev };
+      if (quantity <= 0) {
+        delete next[productId];
+        return next;
+      }
+      const product = storeProducts.find((p) => p.id === productId);
+      next[productId] = Math.min(quantity, product?.stock_quantity ?? quantity);
+      return next;
+    });
+  }, [storeProducts, setStoreCart]);
+
+  const removeProduct = useCallback((productId: string) => {
+    setStoreCart((prev) => {
+      const next = { ...prev };
+      delete next[productId];
+      return next;
+    });
+  }, [setStoreCart]);
 
   const [submitting, setSubmitting] = useState(false);
   const [creatingPreference, setCreatingPreference] = useState(false);
@@ -725,6 +1165,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
 
   const pendingAppointmentIdsRef = useRef<string[]>([]);
   const slotsRef = useRef<HTMLDivElement>(null);
+  const horariosScrollRef = useRef<HTMLDivElement>(null);
   const stepsScrollRef = useRef<HTMLDivElement>(null);
   const categoryScrollRef = useRef<HTMLDivElement>(null);
 
@@ -765,15 +1206,28 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const serviceWordLower = serviceWord.toLowerCase();
   const staffWordLower = staffWord.toLowerCase();
 
-  const stepTitles = useMemo(() => [
-    `Elegí tu ${serviceWordLower}`,
-    `Elegí tu ${staffWordLower}`,
-    "Elegí fecha y horario",
-    "Tus datos",
-    "Pago",
-  ], [serviceWordLower, staffWordLower]);
+  const storeStep = storeEnabled ? 4 : -1;
+  const pagoStep = storeEnabled ? 5 : 4;
+  const totalSteps = storeEnabled ? 6 : 5;
+  const isStoreOnly = storeEnabled && !hasServices;
+  const datosFilled = customerName.trim().includes(" ") && customerEmail.trim().length > 0 && customerPhone.trim().length > 0;
+  const storeItemsCount = Object.keys(storeCart).length;
 
-  const barProgress = step === 0 ? 0 : step === 1 ? 0.2 : step === 2 ? 0.6 : step === 3 ? 0.8 : 1;
+  const stepTitles = useMemo(() => {
+    const titles = [
+      `Elegí tu ${serviceWordLower}`,
+      `Elegí tu ${staffWordLower}`,
+      "Elegí fecha y horario",
+      "Tus datos",
+      "Tienda",
+      "Pago",
+    ];
+    return storeEnabled ? titles : titles.filter((_, i) => i !== 4);
+  }, [serviceWordLower, staffWordLower, storeEnabled]);
+
+  const barProgress = storeEnabled
+    ? step === 0 ? 0 : step === 1 ? 0.2 : step === 2 ? 0.4 : step === 3 ? 0.6 : step === 4 ? 0.8 : 1
+    : step === 0 ? 0 : step === 1 ? 0.2 : step === 2 ? 0.6 : step === 3 ? 0.8 : 1;
 
   const todayDate = useMemo(() => {
     const todayStr = getArgentinaDateString();
@@ -940,14 +1394,14 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     if (!selectedDate) return;
     if (prevLoadingSlots.current === true && !loadingSlots) {
       requestAnimationFrame(() => {
-        if (stepsScrollRef.current && slotsRef.current) {
-          const top = slotsRef.current.offsetTop;
-          stepsScrollRef.current.scrollTo({ top, behavior: "smooth" });
+        const el = horariosScrollRef.current;
+        if (el && availableSlots.length > 0) {
+          el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
         }
       });
     }
     prevLoadingSlots.current = loadingSlots;
-  }, [loadingSlots, selectedDate]);
+  }, [loadingSlots, selectedDate, availableSlots.length]);
 
   useEffect(() => {
     if (pendingDateRef.current === null && fetchedDatesRef.current.size === 0) return;
@@ -1041,7 +1495,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const canGoNext = (() => {
     switch (step) {
       case 0:
-        return cart.length > 0 || selectedCombo !== null;
+        return cart.length > 0 || selectedCombo !== null || hasStoreItems;
       case 1:
         return selectedStaff.length > 0 || noPreference;
       case 2:
@@ -1141,7 +1595,9 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
 
   async function handleConfirm() {
     try {
-    if ((cart.length === 0 && !selectedCombo) || !selectedSlot || !customerName || !customerPhone) return;
+    if (cart.length === 0 && !selectedCombo && !hasStoreItems) return;
+    if (hasServices && !selectedSlot) return;
+    if (!customerName || !customerPhone) return;
     if (!isLoggedIn && !customerEmail.trim()) return;
 
     const nameErr = validateName(customerName);
@@ -1157,6 +1613,102 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
 
     const [{ formatArgentinePhone }] = await Promise.all([import("@/lib/validation")]);
     const formattedPhone = formatArgentinePhone(customerPhone);
+    const paymentMethod = selectedPaymentMethodRef.current ?? "mp";
+    const storeItems = Object.entries(storeCart).map(([productId, quantity]) => ({ productId, quantity }));
+
+    // Products-only checkout (no appointment): store order with its own payment
+    if (hasStoreItems && !hasServices) {
+      setCreatingPreference(true);
+      const { createStoreOrder } = await import("@/lib/dashboard/store/public-store-actions");
+      const result = await createStoreOrder({
+        shopId: shop.id,
+        shopSlug: shop.slug,
+        items: storeItems,
+        customerName: customerName.trim(),
+        customerEmail: customerEmail.trim(),
+        customerPhone: formattedPhone,
+        paymentMethod,
+      });
+      setSubmitting(false); setCreatingPreference(false);
+      if (!result.success) { setError(result.error || "No se pudo iniciar el pago"); return; }
+      if (!result.data) { setError("No se pudo iniciar el pago"); return; }
+      const data = result.data;
+      setChargedAmount(data.totalAmount);
+      setIsDepositPayment(false);
+      if (paymentMethod === "mp" && data.initPoint) {
+        setSelectedPaymentMethod("mp");
+        setPaymentPreferenceId(data.preferenceId ?? null);
+        setPaymentInitPoint(data.initPoint);
+        setStep(pagoStep);
+        return;
+      }
+      if (paymentMethod === "bank_transfer" && data.bankTransfer) {
+        setSelectedPaymentMethod("bank_transfer");
+        setBankTransferDetails({ cvuCb: data.bankTransfer.cbu, alias: data.bankTransfer.alias, bankName: data.bankTransfer.bankName });
+        setBankTransferWhatsAppMessage(
+          `Hola ${shop.name}, hice un pedido por ${formatARSAmount(data.totalAmount)} por transferencia. Mi pedido queda pendiente de confirmar.`
+        );
+        setStep(pagoStep);
+        return;
+      }
+      setError("No se pudo iniciar el pago. Intenta de nuevo.");
+      return;
+    }
+
+    // Combined checkout: appointment(s) + store order paid together
+    if (hasStoreItems && hasServices) {
+      setCreatingPreference(true);
+      const { createCombinedCheckout } = await import("@/lib/dashboard/booking/public-booking-actions");
+      const result = await createCombinedCheckout({
+        shopId: shop.id,
+        shopSlug: shop.slug,
+        customerName: customerName.trim(),
+        customerEmail: customerEmail.trim() || undefined,
+        customerPhone: formattedPhone,
+        authenticatedUserId: user?.id,
+        paymentMethod,
+        staffId: staffForAppointment?.id,
+        startTime: selectedSlot!.start,
+        combo: selectedCombo
+          ? {
+              comboId: selectedCombo.id,
+              comboName: selectedCombo.name,
+              comboPrice: selectedCombo.price,
+              services: selectedCombo.services.map((s) => ({ id: s.id, name: s.name, duration_minutes: s.duration_minutes, price: s.price })),
+              totalDuration: selectedCombo.total_duration,
+            }
+          : undefined,
+        cartServices: !selectedCombo && cart.length > 0
+          ? cart.map((s) => ({ id: s.id, name: s.name, duration_minutes: s.duration_minutes, price: s.price }))
+          : undefined,
+        storeItems,
+      });
+      setSubmitting(false); setCreatingPreference(false);
+      if (!result.success) { setError(result.error || "No se pudo iniciar el pago"); return; }
+      if (!result.data) { setError("No se pudo iniciar el pago"); return; }
+      const data = result.data;
+      pendingAppointmentIdsRef.current = data.appointmentIds;
+      setChargedAmount(data.chargedAmount);
+      setIsDepositPayment(data.isDeposit);
+      if (paymentMethod === "mp" && data.initPoint) {
+        setPaymentPreferenceId(data.preferenceId ?? null);
+        setPaymentInitPoint(data.initPoint);
+        setStep(pagoStep);
+        return;
+      }
+      if (paymentMethod === "bank_transfer" && data.bankTransfer) {
+        setBankTransferDetails({ cvuCb: data.bankTransfer.cbu, alias: data.bankTransfer.alias, bankName: data.bankTransfer.bankName });
+        setBankTransferWhatsAppMessage(
+          `Hola ${shop.name}, reservé turno por ${formatARSAmount(data.totalAmount)} y pagué por transferencia. Quedo a la espera de confirmación.`
+        );
+        setStep(pagoStep);
+        return;
+      }
+      setError("No se pudo iniciar el pago. Intenta de nuevo.");
+      return;
+    }
+
+    if (!selectedSlot) return;
 
     // Non-paid flow
     if (!needsPayment && !selectedPaymentMethodRef.current) {
@@ -1227,7 +1779,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
       setPaymentInitPoint(prefResult.data.initPoint);
       setChargedAmount(prefResult.data.chargedAmount ?? null);
       setIsDepositPayment(Boolean(prefResult.data.isDeposit));
-      setStep(4);
+      setStep(pagoStep);
       return;
     }
 
@@ -1253,13 +1805,31 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     setPaymentInitPoint(prefResult.data.initPoint);
     setChargedAmount(prefResult.data.chargedAmount ?? null);
     setIsDepositPayment(Boolean(prefResult.data.isDeposit));
-    setStep(4);
+    setStep(pagoStep);
   } catch (e) {
     setSubmitting(false);
     setCreatingPreference(false);
     setError(e instanceof Error ? e.message : "Error inesperado al procesar el turno");
   }
   }
+
+  const continueFromTienda = () => {
+    if (hasServices) {
+      if (cart.length === 0 && !selectedCombo) { setStep(0); return; }
+      if (selectedStaff.length === 0 && !noPreference) { setStep(1); return; }
+      if (selectedSlot === null || (staffForAppointment === null && !noPreference)) { setStep(2); return; }
+      if (!datosFilled) { setStep(3); return; }
+      const phoneErr = validatePhone(customerPhone);
+      if (phoneErr) { setPhoneError(phoneErr); setStep(3); return; }
+      handleConfirm();
+      return;
+    }
+    if (!hasStoreItems) { setStep(0); return; }
+    if (!datosFilled) { setStep(3); return; }
+    const phoneErr = validatePhone(customerPhone);
+    if (phoneErr) { setPhoneError(phoneErr); setStep(3); return; }
+    handleConfirm();
+  };
 
   const handleReset = () => {
     autoSkippedRef.current = false;
@@ -1292,21 +1862,25 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     fetchedDatesRef.current = new Set();
   };
 
-  const summaryService = selectedCombo?.name || (cart.length > 0 ? `${cart.length} servicios` : "Sin servicio");
+  const summaryService = selectedCombo?.name
+    || (cart.length > 0 ? `${cart.length} servicios` : "")
+    || (hasStoreItems ? `${storeCartCount} ${storeCartCount > 1 ? "productos" : "producto"}` : "")
+    || "Sin servicio";
   const summaryDate = selectedDate ? formatDisplayDate(selectedDate).replace(/^\w/, (c) => c.toUpperCase()) : "Sin fecha";
   const summaryTime = selectedSlot ? formatTimeFromIso(selectedSlot.start) || to24HourTimeLabel(selectedSlot.time) : "Sin hora";
 
   const servicePrice = selectedCombo?.price ?? cart.reduce((sum, s) => sum + s.price, 0);
-  const totalPrice = selectedCombo?.price ?? cart.reduce((sum, s) => sum + s.price, 0);
+  const totalPrice = servicePrice + productsTotal;
   const totalDuration = selectedCombo
     ? selectedCombo.total_duration
     : cart.reduce((sum, s) => sum + s.duration_minutes, 0);
   const depositEnabled = shop.bookingDepositEnabled !== false;
   const configuredDeposit = shop.bookingDepositAmount;
-  const previewIsDeposit = depositEnabled;
-  const previewChargeAmount = depositEnabled
+  const depositPortion = depositEnabled && hasServices
     ? Math.max(1, Math.min(servicePrice, configuredDeposit > 0 ? configuredDeposit : servicePrice))
     : servicePrice;
+  const previewIsDeposit = depositEnabled && hasServices && depositPortion < servicePrice;
+  const previewChargeAmount = depositPortion + productsTotal;
   const effectiveIsDeposit = isDepositPayment || previewIsDeposit;
   const effectiveChargedAmount = chargedAmount ?? previewChargeAmount;
 
@@ -1391,7 +1965,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
         <div className="w-full max-w-md md:max-w-xl">
         <motion.div
           className={`rounded-[32px] p-4 sm:p-6 lg:p-8 h-[min(860px,calc(100dvh-2rem))] sm:h-[min(900px,calc(100dvh-3rem))] flex flex-col ${templateStyles.shell}`}
-          style={(step === 3 || step === 4) && !done ? { height: 'auto' } as React.CSSProperties : undefined}>
+          style={(step === 3 || step === pagoStep) && !done ? { height: 'auto' } as React.CSSProperties : undefined}>
           {!done ? (
             <>
               <div className="pb-0 sm:pb-2">
@@ -1420,9 +1994,10 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                       </div>
                     </div>
                   </div>
-                  {step < 3 && (cart.length > 0 || selectedStaff.length > 0 || selectedCombo || noPreference) && (
+                  {step < pagoStep && (cart.length > 0 || selectedStaff.length > 0 || selectedCombo || noPreference || hasStoreItems) && (
                     <SelectionPill
-                      cartCount={cart.length + (selectedCombo ? 1 : 0)}
+                      serviceCount={cart.length + (selectedCombo ? 1 : 0)}
+                      productCount={storeCartCount}
                       staff={staffForAppointment ? [staffForAppointment] : selectedStaff}
                       noPreference={noPreference}
                       templateStyles={templateStyles}
@@ -1491,7 +2066,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                   <span
                     className={`relative z-10 px-3 py-1 text-[11px] font-semibold whitespace-nowrap rounded-full leading-tight ${templateStyles.stepPill}`}
                   >
-                    {step >= 0 && step <= 4 ? stepTitles[step] : ""}
+                    {step >= 0 && step < totalSteps ? stepTitles[step] : ""}
                   </span>
                 </div>
               </div>
@@ -1807,7 +2382,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                            </button>
                         </motion.div>
                         </div>
-                        <div className="overflow-y-auto delicate-scroll pb-4 flex-1 min-h-0">
+                        <div ref={horariosScrollRef} className="overflow-y-auto delicate-scroll pb-4 flex-1 min-h-0">
                         <div ref={slotsRef} className="space-y-6">
 
                         <AnimatePresence mode="wait">
@@ -2280,7 +2855,34 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                       </div>
                     )}
 
-                    {step === 4 && (
+                    {step === storeStep && storeEnabled && (
+                      <div className="flex flex-col h-full min-h-0">
+                        {!storeArrivedViaButton && (
+                          <div className="flex flex-col items-center text-center px-4 pt-2 pb-4">
+                            <h2 className={`text-xl sm:text-2xl font-black leading-tight tracking-[-0.03em] ${templateStyles.headingFx} bg-gradient-to-r ${templateStyles.titleGradient} bg-clip-text text-transparent`}>
+                              Podés agregar productos a tu pedido
+                            </h2>
+                            <p className={`mt-2 text-sm ${templateStyles.meta}`}>
+                              Es opcional: podés continuar sin comprar nada.
+                            </p>
+                          </div>
+                        )}
+                        <div className="flex-1 overflow-y-auto delicate-scroll pb-4 px-0.5">
+                          <StoreTab
+                            products={storeProducts}
+                            storeError={storeError}
+                            storeCart={storeCart}
+                            status={status}
+                            orderId={orderId}
+                            updateProductQty={updateProductQty}
+                            templateStyles={templateStyles}
+                            onShowImage={setStoreLightbox}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {step === pagoStep && (
                       <div className="flex flex-col h-full min-h-0">
                       <div className="flex-1 overflow-y-auto delicate-scroll pb-4 px-0.5">
                           <div className="space-y-4">
@@ -2353,41 +2955,53 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
 
                             {/* Resumen detallado del pago */}
                             <div className={`rounded-2xl border px-4 py-4 space-y-3 ${templateStyles.checkout} border-white/20 dark:border-white/10`}>
-                              <p className={`text-[11px] uppercase tracking-[0.12em] font-semibold ${templateStyles.checkoutKicker}`}>Resumen del turno</p>
+                              <p className={`text-[11px] uppercase tracking-[0.12em] font-semibold ${templateStyles.checkoutKicker}`}>
+                                {hasServices ? "Resumen del turno" : "Resumen del pedido"}
+                              </p>
                               <div className="space-y-1.5">
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className={`text-xs ${templateStyles.checkoutKicker}`}>Servicio</span>
-                                  <span className={`text-sm font-semibold truncate ${templateStyles.checkoutTitle}`}>{summaryService}</span>
-                                </div>
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className={`text-xs ${templateStyles.checkoutKicker}`}>Fecha</span>
-                                  <span className={`text-sm font-semibold ${templateStyles.checkoutTitle}`}>{summaryDate}</span>
-                                </div>
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className={`text-xs ${templateStyles.checkoutKicker}`}>Hora</span>
-                                  <span className={`text-sm font-semibold ${templateStyles.checkoutTitle}`}>{summaryTime}</span>
-                                </div>
-                                {staffForAppointment ? (
+                                {hasServices && (
+                                  <>
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span className={`text-xs ${templateStyles.checkoutKicker}`}>Servicio</span>
+                                      <span className={`text-sm font-semibold truncate ${templateStyles.checkoutTitle}`}>{summaryService}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span className={`text-xs ${templateStyles.checkoutKicker}`}>Fecha</span>
+                                      <span className={`text-sm font-semibold ${templateStyles.checkoutTitle}`}>{summaryDate}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span className={`text-xs ${templateStyles.checkoutKicker}`}>Hora</span>
+                                      <span className={`text-sm font-semibold ${templateStyles.checkoutTitle}`}>{summaryTime}</span>
+                                    </div>
+                                    {staffForAppointment ? (
+                                      <div className="flex items-center justify-between gap-2">
+                                        <span className={`text-xs ${templateStyles.checkoutKicker}`}>Profesional</span>
+                                        <span className={`text-sm font-semibold ${templateStyles.checkoutTitle}`}>{staffForAppointment.name}</span>
+                                      </div>
+                                    ) : noPreference ? (
+                                      <div className="flex items-center justify-between gap-2">
+                                        <span className={`text-xs ${templateStyles.checkoutKicker}`}>Profesional</span>
+                                        <span className={`text-sm font-semibold ${templateStyles.checkoutTitle}`}>Sin preferencia</span>
+                                      </div>
+                                    ) : null}
+                                  </>
+                                )}
+                                {hasStoreItems && (
                                   <div className="flex items-center justify-between gap-2">
-                                    <span className={`text-xs ${templateStyles.checkoutKicker}`}>Profesional</span>
-                                    <span className={`text-sm font-semibold ${templateStyles.checkoutTitle}`}>{staffForAppointment.name}</span>
+                                    <span className={`text-xs ${templateStyles.checkoutKicker}`}>Productos ({storeCartCount})</span>
+                                    <span className={`text-sm font-semibold tabular-nums ${templateStyles.checkoutTitle}`}>{formatARSAmount(productsTotal)}</span>
                                   </div>
-                                ) : noPreference ? (
-                                  <div className="flex items-center justify-between gap-2">
-                                    <span className={`text-xs ${templateStyles.checkoutKicker}`}>Profesional</span>
-                                    <span className={`text-sm font-semibold ${templateStyles.checkoutTitle}`}>Sin preferencia</span>
-                                  </div>
-                                ) : null}
+                                )}
                               </div>
                               <div className={`border-t pt-2.5 flex items-center justify-between gap-2 ${templateStyles.checkoutKicker.replace(/text-\S+/, 'border-current')}`}>
-                                {effectiveIsDeposit && effectiveChargedAmount < servicePrice ? (
+                                {effectiveIsDeposit && hasServices && effectiveChargedAmount < totalPrice ? (
                                   <>
-                                    <span className={`text-xs font-semibold ${templateStyles.checkoutKicker}`}>Seña</span>
+                                    <span className={`text-xs font-semibold ${templateStyles.checkoutKicker}`}>Total a pagar</span>
                                     <span className={`text-lg font-bold tabular-nums ${templateStyles.checkoutAmount}`}>
                                       <span className="mr-1 align-top text-[0.65em] font-semibold opacity-85">$</span>
                                       {effectiveChargedAmount.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                                       <span className={`text-xs font-normal ml-1.5 opacity-60 ${templateStyles.checkoutKicker}`}>
-                                        / ${servicePrice.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                        / {formatARSAmount(totalPrice)}
                                       </span>
                                     </span>
                                   </>
@@ -2396,7 +3010,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                                     <span className={`text-xs font-semibold ${templateStyles.checkoutKicker}`}>Total</span>
                                     <span className={`text-lg font-bold tabular-nums ${templateStyles.checkoutAmount}`}>
                                       <span className="mr-1 align-top text-[0.65em] font-semibold opacity-85">$</span>
-                                      {servicePrice.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                      {effectiveChargedAmount.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                                     </span>
                                   </>
                                 )}
@@ -2520,7 +3134,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                                       <Loader2 className={`w-6 h-6 animate-spin mx-auto ${templateStyles.accent}`} />
                                       <p className={`text-xs mt-2 ${templateStyles.tiny}`}>Preparando pago...</p>
                                     </div>
-                                  ) : shop.mpPublicKey && paymentInitPoint ? (
+                                  ) : paymentInitPoint ? (
                                     <motion.a
                                       href={paymentInitPoint}
                                       target="_blank"
@@ -2561,7 +3175,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                                   {(submitting || creatingPreference) ? (
                                     <div className={`rounded-2xl border px-5 py-6 text-center ${templateStyles.checkout} border-white/20 dark:border-white/10`}>
                                       <Loader2 className={`w-6 h-6 animate-spin mx-auto ${templateStyles.accent}`} />
-                                      <p className={`text-xs mt-2 ${templateStyles.tiny}`}>Reservando turno...</p>
+                                      <p className={`text-xs mt-2 ${templateStyles.tiny}`}>{hasServices ? "Reservando turno..." : "Procesando pedido..."}</p>
                                     </div>
                                   ) : (
                                     <div className={`rounded-2xl border px-4 py-4 space-y-3 ${templateStyles.checkout} border-white/20 dark:border-white/10`}>
@@ -2625,14 +3239,14 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                 transition={{ type: "spring", stiffness: 400, damping: 28, mass: 0.8 }}
               >
                 <AnimatePresence mode="popLayout">
-                  {step > 0 && step !== 4 && (
+                  {step > 0 && step !== pagoStep && !(step === storeStep && storeArrivedViaButton) && (
                     <motion.button
                       key="back"
                       initial={{ opacity: 0, x: -70, scale: 0.5 }}
                       animate={{ opacity: 1, x: 0, scale: 1 }}
                       exit={{ opacity: 0, x: -70, scale: 0.5 }}
                       transition={{ type: "spring", stiffness: 550, damping: 20, mass: 0.7 }}
-                      onClick={(e) => { triggerHaptic(10, e.currentTarget); setStep((s) => s - 1); }}
+                      onClick={(e) => { triggerHaptic(10, e.currentTarget); if (isStoreOnly && step === 3) { setStep(0); return; } if (isStoreOnly && step === storeStep) { setStep(0); return; } setStep((s) => s - 1); }}
                       whileHover={{ scale: 1.07, x: -3 }}
                       whileTap={{ scale: 0.88 }}
                       className={`inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors relative overflow-hidden ${templateStyles.back}`}
@@ -2670,7 +3284,20 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                   )}
                 </AnimatePresence>
 
-                <motion.div layout className="flex-1" transition={{ type: "spring", stiffness: 400, damping: 28 }} />
+                <motion.div layout className="flex-1 min-w-0" transition={{ type: "spring", stiffness: 400, damping: 28 }}>
+                  {step === storeStep && storeEnabled && (
+                    <div className="min-w-0 text-right sm:text-left">
+                      {storeItemsCount > 0 ? (
+                        <>
+                          <p className={`text-[10px] uppercase tracking-wider font-semibold ${templateStyles.tiny}`}>{storeItemsCount} {storeItemsCount > 1 ? "productos" : "producto"}</p>
+                          <p className={`text-base font-bold tabular-nums ${templateStyles.checkoutAmount}`}>{formatARSAmount(productsTotal)}</p>
+                        </>
+                      ) : (
+                        <p className={`text-xs ${templateStyles.tiny}`}>Sumá productos o combiná con tu turno.</p>
+                      )}
+                    </div>
+                  )}
+                </motion.div>
 
                 {step < 3 && (
                   <motion.button
@@ -2680,6 +3307,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                     onClick={(e) => {
                       if (!canGoNext) return;
                       triggerHaptic(12, e.currentTarget);
+                      if (!hasServices && hasStoreItems) { setStep(3); return; }
                       setStep((s) => s + 1);
                     }}
                     disabled={!canGoNext}
@@ -2715,9 +3343,65 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                     </span>
                   </motion.button>
                 )}
+
+                {step === storeStep && storeEnabled && (
+                  <motion.button
+                    key="store-continue"
+                    layout
+                    transition={{ type: "spring", stiffness: 500, damping: 26, mass: 0.9 }}
+                    onClick={(e) => {
+                      triggerHaptic(12, e.currentTarget);
+                      if (storeArrivedViaButton) { setStep(storeJumpOriginRef.current); return; }
+                      continueFromTienda();
+                    }}
+                    whileHover={storeArrivedViaButton || storeCartCount > 0 ? { scale: 1.06 } : { scale: 1.02 }}
+                    whileTap={storeArrivedViaButton || storeCartCount > 0 ? { scale: 0.9 } : { scale: 0.98 }}
+                    className={`relative overflow-hidden px-6 py-2.5 rounded-full text-sm font-medium whitespace-nowrap ${templateStyles.next}`}
+                  >
+                    <span className="relative z-10 flex items-center gap-1.5">
+                      {storeArrivedViaButton ? (
+                        <>
+                          <ChevronLeft className="w-4 h-4" />
+                          <span>Ok, volver</span>
+                        </>
+                      ) : storeCartCount > 0 ? (
+                        <>
+                          <Sparkles className="w-4 h-4" />
+                          Confirmar y pagar
+                        </>
+                      ) : (
+                        <>
+                          <span>No me interesa, continuar</span>
+                          <motion.span
+                            animate={{ x: [0, 5, 0] }}
+                            transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut", repeatDelay: 0.3 }}
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </motion.span>
+                        </>
+                      )}
+                    </span>
+                  </motion.button>
+                )}
               </motion.div>
 
-              <div ref={contactRowRef} className={`mt-5 ${step === 4 ? "hidden" : ""} relative flex items-center justify-center gap-2 sm:gap-2.5`}>
+              <div ref={contactRowRef} className={`mt-5 ${step === pagoStep ? "hidden" : ""} relative flex items-center justify-center gap-2 sm:gap-2.5`}>
+                {storeEnabled && step < storeStep && (
+                  <button
+                    type="button"
+                    onClick={(e) => { triggerHaptic(10, e.currentTarget); if (step === storeStep) { setStep(storeJumpOriginRef.current); return; } setStoreArrivedViaButton(true); storeJumpOriginRef.current = step; setStep(storeStep); }}
+                    className={`shrink-0 inline-flex items-center gap-1.5 h-8 rounded-full border px-2.5 transition-colors sm:absolute sm:left-0 ${templateStyles.plate} ${templateStyles.hoverBorder} ${templateStyles.sectionFocus}`}
+                    aria-label="Ir a la tienda"
+                  >
+                    <ShoppingBag className={`w-3.5 h-3.5 shrink-0 ${templateStyles.meta} ${templateStyles.metaHover}`} />
+                    <span className={`text-xs font-medium ${templateStyles.heading}`}>Tienda</span>
+                    {storeCartCount > 0 && (
+                      <span className={`inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold ${templateStyles.stepPill}`}>
+                        {storeCartCount}
+                      </span>
+                    )}
+                  </button>
+                )}
                 {shop.address && (
                     <a
                       href={`https://www.google.com/maps/search/${encodeURIComponent(shop.city ? `${shop.address}, ${shop.city}` : shop.address)}`}
@@ -2852,9 +3536,18 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                     noPreference={noPreference}
                     totalDuration={totalDuration}
                     totalPrice={totalPrice}
+                    products={storeProducts}
+                    storeCart={storeCart}
+                    onUpdateProductQty={updateProductQty}
+                    onRemoveProduct={removeProduct}
                     templateStyles={templateStyles}
                     onClose={() => setShowSummary(false)}
                   />
+                )}
+              </AnimatePresence>
+              <AnimatePresence>
+                {storeLightbox && (
+                  <StoreImageModal product={storeLightbox} onClose={() => setStoreLightbox(null)} />
                 )}
               </AnimatePresence>
             </>
@@ -2983,14 +3676,21 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
           <div className={`mx-2 mb-2 rounded-2xl border px-4 py-3 ${templateStyles.footer}`}>
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                 <div className={`text-xs sm:text-sm min-w-0 flex-1 ${templateStyles.footerText}`}>
-                  <p className="truncate"><span className={templateStyles.tiny}>{`${serviceWord}:`}</span> {summaryService}</p>
-                  <p className="truncate"><span className={templateStyles.tiny}>Fecha:</span> {summaryDate}</p>
-                  <p className="truncate"><span className={templateStyles.tiny}>Hora:</span> {summaryTime}</p>
-                  {effectiveIsDeposit ? (
-                    <p className="truncate"><span className={templateStyles.tiny}>Seña online:</span> ${effectiveChargedAmount.toFixed(2)}</p>
-                  ) : (
-                    <p className="truncate"><span className={templateStyles.tiny}>Pago online:</span> ${servicePrice.toFixed(2)}</p>
+                  {hasServices && (
+                    <>
+                      <p className="truncate"><span className={templateStyles.tiny}>{`${serviceWord}:`}</span> {summaryService}</p>
+                      <p className="truncate"><span className={templateStyles.tiny}>Fecha:</span> {summaryDate}</p>
+                      <p className="truncate"><span className={templateStyles.tiny}>Hora:</span> {summaryTime}</p>
+                    </>
                   )}
+                  {hasStoreItems && (
+                    <p className="truncate"><span className={templateStyles.tiny}>Productos:</span> {storeCartCount} · {formatARSAmount(productsTotal)}</p>
+                  )}
+                  <p className="truncate">
+                    <span className={templateStyles.tiny}>
+                      {effectiveIsDeposit && hasServices && effectiveChargedAmount < totalPrice ? "Seña online:" : "Pago online:"}
+                    </span> {formatARSAmount(effectiveChargedAmount)}
+                  </p>
                 </div>
 
                 <div className="relative w-full sm:w-auto flex-shrink-0">
@@ -3016,8 +3716,17 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                   <motion.button
                     onClick={(e) => {
                       triggerHaptic(20, e.currentTarget);
+                      if (storeEnabled && !isStoreOnly) {
+                        setStoreArrivedViaButton(false);
+                        if (hasStoreItems) {
+                          handleConfirm();
+                        } else {
+                          setStep(storeStep);
+                        }
+                        return;
+                      }
                       if (shop.bankTransferEnabled) {
-                        setStep(4);
+                        setStep(pagoStep);
                         return;
                       }
                       handleConfirm();
@@ -3041,7 +3750,9 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                     ) : (
                       <>
                         <Sparkles className="w-4 h-4 relative z-10" />
-                        <span className="relative z-10">Confirmar turno</span>
+                        <span className="relative z-10">
+                          {storeEnabled && !isStoreOnly ? "Continuar" : hasServices && hasStoreItems ? "Confirmar y pagar" : hasStoreItems ? "Confirmar pedido" : "Confirmar turno"}
+                        </span>
                       </>
                     )}
                   </motion.button>

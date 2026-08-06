@@ -66,7 +66,7 @@ export default async function DashboardShopFeaturesPage({ params }: { params: Pr
       </div>
 
       <div className="space-y-3">
-        {(["inventory", "marketing", "staff", "vouchers"] as const).map((key) => {
+        {(["inventory", "marketing", "staff", "vouchers", "store"] as const).map((key) => {
           const industryEnabled = industryFeatures[key];
           const shopEnabled = shopFeatures[key];
           const isOverridden = overrides[key] === true;

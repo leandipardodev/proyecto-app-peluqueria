@@ -1,4 +1,5 @@
 import { fetchStockItems } from "@/lib/dashboard/inventory/inventory-actions";
+import { fetchStoreOrders } from "@/lib/dashboard/store/store-actions";
 import InventoryPageClient from "@/components/inventory/inventory-page-client";
 import { getCachedUser, getCachedShopIdBySlug } from "@/lib/dashboard/auth/server";
 import { createServerClient } from "@/lib/supabase/server";
@@ -27,9 +28,21 @@ export default async function DashboardShopInventoryPage({ params }: { params: P
     .maybeSingle();
   const role = membership?.role ?? "staff";
 
-  const result = await fetchStockItems(shopId);
+  const [result, ordersResult] = await Promise.all([
+    fetchStockItems(shopId),
+    features.store ? fetchStoreOrders(shopId) : Promise.resolve({ success: false as const, error: "" }),
+  ]);
   const initialError = result.success ? null : (result.error || "Error al cargar el inventario");
+
   return (
-    <InventoryPageClient role={role} shopId={shopId} initialItems={result.success ? result.data ?? [] : []} initialError={initialError} />
+    <InventoryPageClient
+      role={role}
+      shopId={shopId}
+      initialItems={result.success ? result.data ?? [] : []}
+      initialOrders={ordersResult.success ? ordersResult.data ?? [] : []}
+      storeEnabled={features.store}
+      storeUrl={`/book/${shopSlug}`}
+      initialError={initialError}
+    />
   );
 }

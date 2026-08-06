@@ -1,9 +1,11 @@
 import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import { fetchPublicCombos } from "@/lib/dashboard/booking/public-booking-actions";
+import { fetchPublicStoreProducts, type PublicStoreProduct } from "@/lib/dashboard/store/public-store-actions";
 import BookingClient from "./booking-client";
 import { absoluteUrl } from "@/lib/seo";
 import { DEFAULT_BOOKING_TEMPLATE, BOOKING_TEMPLATE_PRESETS, type BookingTemplateId } from "@/lib/booking/theme-presets";
 import { resolveIndustry } from "@/lib/industry/resolve";
+import { getShopFeatures } from "@/lib/industry/features";
 
 async function createAdminClient() {
   return createServiceRoleClient();
@@ -11,12 +13,14 @@ async function createAdminClient() {
 
 interface BookPageProps {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ status?: string; order?: string }>;
 }
 
 export const dynamic = "force-dynamic";
 
-export default async function BookPage({ params }: BookPageProps) {
+export default async function BookPage({ params, searchParams }: BookPageProps) {
   const { slug } = await params;
+  const sp = await searchParams;
   const admin = await createAdminClient();
 
   const { data: shop, error: shopError } = await admin
@@ -126,6 +130,19 @@ export default async function BookPage({ params }: BookPageProps) {
     .eq("shop_id", shop.id)
     .maybeSingle();
 
+  const features = await getShopFeatures(shop.id);
+
+  let products: PublicStoreProduct[] = [];
+  let productsError: string | null = null;
+  if (features.store) {
+    const productsResult = await fetchPublicStoreProducts(shop.id);
+    if (productsResult.success) {
+      products = productsResult.data ?? [];
+    } else {
+      productsError = productsResult.error ?? "Error al cargar la tienda";
+    }
+  }
+
   return (
     <>
       <script
@@ -173,6 +190,11 @@ export default async function BookPage({ params }: BookPageProps) {
         combosError={combosError}
         staffMembers={staffMembers}
         staffServicesMap={staffServicesMap}
+        storeEnabled={features.store}
+        storeProducts={products}
+        storeError={productsError}
+        status={sp.status ?? null}
+        orderId={sp.order ?? null}
       />
     </>
   );

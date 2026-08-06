@@ -9,10 +9,11 @@ function parseFeatures(raw: Record<string, boolean> | undefined, industry: Indus
     marketing: typeof raw?.marketing === "boolean" ? raw.marketing : defaults.marketing,
     staff: typeof raw?.staff === "boolean" ? raw.staff : defaults.staff,
     vouchers: typeof raw?.vouchers === "boolean" ? raw.vouchers : defaults.vouchers,
+    store: typeof raw?.store === "boolean" ? raw.store : defaults.store,
   };
 }
 
-const FEATURE_KEYS: (keyof IndustryFeatures)[] = ["inventory", "marketing", "staff", "vouchers"];
+const FEATURE_KEYS: (keyof IndustryFeatures)[] = ["inventory", "marketing", "staff", "vouchers", "store"];
 
 export async function getFeatures(industry: Industry): Promise<IndustryFeatures> {
   try {
@@ -53,8 +54,8 @@ export async function getShopFeatures(shopId: string): Promise<IndustryFeatures>
 
     const result = { ...industryFeatures };
     for (const key of FEATURE_KEYS) {
-      if (overrides[key] === true) {
-        result[key] = true;
+      if (typeof overrides[key] === "boolean") {
+        result[key] = overrides[key];
       }
     }
 

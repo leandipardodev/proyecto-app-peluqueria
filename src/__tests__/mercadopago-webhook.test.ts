@@ -556,3 +556,153 @@ describe("mercadopago-webhook POST — regular appointment flow", () => {
     expect(res.status).toBe(500);
   });
 });
+
+describe("mercadopago-webhook POST — combined booking + store flow", () => {
+  it("confirms appointment(s) and marks the order paid when approved", async () => {
+    mockPaymentGet.mockResolvedValue({
+      status: "approved",
+      external_reference: "apt-comb-1",
+      metadata: {
+        type: "combined",
+        appointment_id: "apt-comb-1",
+        order_id: "order-comb-1",
+        shop_id: "shop-123",
+        combo_appointment_ids: JSON.stringify(["apt-comb-1", "apt-comb-2"]),
+      },
+      order: null,
+    });
+
+    const appointmentUpdates: Array<Record<string, unknown>> = [];
+    const orderUpdates: Array<Record<string, unknown>> = [];
+
+    vi.mocked(mockCreateServiceRole).mockResolvedValue({
+      from: vi.fn((table: string) => {
+        if (table === "orders") {
+          return chainableQuery({
+            maybeSingle: vi.fn().mockResolvedValue({ data: { id: "order-comb-1", shop_id: "shop-123", status: "pending_payment" }, error: null }),
+            update: vi.fn((updates: Record<string, unknown>) => {
+              orderUpdates.push(updates);
+              const cq = chainableQuery();
+              cq.maybeSingle = vi.fn().mockResolvedValue({ data: { id: "order-comb-1" }, error: null });
+              return cq;
+            }),
+          });
+        }
+        if (table === "appointments") {
+          return chainableQuery({
+            update: vi.fn((updates: Record<string, unknown>) => {
+              appointmentUpdates.push(updates);
+              return chainableQuery();
+            }),
+          });
+        }
+        if (table === "mercadopago_logs") return chainableQuery({ insert: vi.fn(() => ({ data: null, error: null })) });
+        return chainableQuery();
+      }),
+    } as never);
+
+    const req = createNextRequest({ type: "payment", data: { id: "pay-comb-1" } });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect(appointmentUpdates.length).toBe(2);
+    expect(appointmentUpdates.every((u) => u.status === "confirmed" && u.is_paid === true)).toBe(true);
+    expect(orderUpdates[0].status).toBe("paid");
+  });
+
+  it("cancels the appointment and the order when payment is cancelled", async () => {
+    mockPaymentGet.mockResolvedValue({
+      status: "cancelled",
+      external_reference: "apt-comb-2",
+      metadata: {
+        type: "combined",
+        appointment_id: "apt-comb-2",
+        order_id: "order-comb-2",
+        shop_id: "shop-123",
+      },
+      order: null,
+    });
+
+    const appointmentUpdates: Array<Record<string, unknown>> = [];
+    const orderUpdates: Array<Record<string, unknown>> = [];
+
+    vi.mocked(mockCreateServiceRole).mockResolvedValue({
+      from: vi.fn((table: string) => {
+        if (table === "orders") {
+          return chainableQuery({
+            maybeSingle: vi.fn().mockResolvedValue({ data: { id: "order-comb-2", shop_id: "shop-123", status: "pending_payment" }, error: null }),
+            update: vi.fn((updates: Record<string, unknown>) => {
+              orderUpdates.push(updates);
+              const cq = chainableQuery();
+              cq.maybeSingle = vi.fn().mockResolvedValue({ data: { id: "order-comb-2" }, error: null });
+              return cq;
+            }),
+          });
+        }
+        if (table === "appointments") {
+          return chainableQuery({
+            update: vi.fn((updates: Record<string, unknown>) => {
+              appointmentUpdates.push(updates);
+              return chainableQuery();
+            }),
+          });
+        }
+        if (table === "mercadopago_logs") return chainableQuery({ insert: vi.fn(() => ({ data: null, error: null })) });
+        return chainableQuery();
+      }),
+    } as never);
+
+    const req = createNextRequest({ type: "payment", data: { id: "pay-comb-2" } });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect(appointmentUpdates[0].status).toBe("cancelled");
+    expect(appointmentUpdates[0].is_paid).toBe(false);
+    expect(orderUpdates[0].status).toBe("cancelled");
+  });
+
+  it("is idempotent when the order was already claimed", async () => {
+    mockPaymentGet.mockResolvedValue({
+      status: "approved",
+      external_reference: "apt-comb-3",
+      metadata: {
+        type: "combined",
+        appointment_id: "apt-comb-3",
+        order_id: "order-comb-3",
+        shop_id: "shop-123",
+      },
+      order: null,
+    });
+
+    const appointmentUpdates: Array<Record<string, unknown>> = [];
+    let orderClaimAttempts = 0;
+    vi.mocked(mockCreateServiceRole).mockResolvedValue({
+      from: vi.fn((table: string) => {
+        if (table === "orders") {
+          return chainableQuery({
+            maybeSingle: vi.fn().mockResolvedValue({ data: { id: "order-comb-3", shop_id: "shop-123", status: "pending_payment" }, error: null }),
+            update: vi.fn(() => {
+              orderClaimAttempts += 1;
+              const cq = chainableQuery();
+              cq.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+              return cq;
+            }),
+          });
+        }
+        if (table === "appointments") {
+          return chainableQuery({
+            update: vi.fn((updates: Record<string, unknown>) => {
+              appointmentUpdates.push(updates);
+              return chainableQuery();
+            }),
+          });
+        }
+        return chainableQuery();
+      }),
+    } as never);
+
+    const req = createNextRequest({ type: "payment", data: { id: "pay-comb-3" } });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect(appointmentUpdates.length).toBe(1);
+    expect(orderClaimAttempts).toBe(1);
+  });
+});

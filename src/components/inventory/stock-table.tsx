@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef, memo, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   Package,
   AlertTriangle,
@@ -10,24 +11,29 @@ import {
   Minus,
   DollarSign,
   ArrowUpDown,
+  ShoppingBag,
+  Settings2,
 } from "lucide-react";
-import { applyStockBatchAdjustments, deleteProduct } from "@/lib/dashboard/inventory/inventory-actions";
+import {
+  applyStockBatchAdjustments,
+  deleteProduct,
+  toggleForSale,
+  type StockItem,
+} from "@/lib/dashboard/inventory/inventory-actions";
 import { supabase } from "@/lib/supabase";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { StatePanel } from "@/components/ui/state-panel";
-
-type StockItem = {
-  id: string;
-  nombre_producto: string;
-  quantity: number;
-  unit_cost: number | null;
-};
+import SaleConfigModal from "./sale-config-modal";
+import InventoryTabs, { type InventoryTab } from "./inventory-tabs";
 
 interface StockTableProps {
   shopId: string;
   items: StockItem[];
   isOwnerOrAdmin?: boolean;
+  storeEnabled?: boolean;
+  tab?: InventoryTab;
+  onTabChange?: (tab: InventoryTab) => void;
 }
 
 function productColor(id: string): string {
@@ -43,13 +49,15 @@ function productColor(id: string): string {
   return gradients[hash % gradients.length];
 }
 
-const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = false }: StockTableProps) {
+const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = false, storeEnabled = true, tab, onTabChange }: StockTableProps) {
+  const router = useRouter();
   const [stockItems, setStockItems] = useState(items);
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "stock_asc" | "stock_desc" | "price_asc" | "price_desc">("name");
   const [bulkAmountById, setBulkAmountById] = useState<Record<string, string>>({});
   const [queuedById, setQueuedById] = useState<Record<string, number>>({});
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [configTarget, setConfigTarget] = useState<StockItem | null>(null);
   const [pending, startTransition] = useTransition();
   const { addToast } = useToast();
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -73,10 +81,10 @@ const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = fa
           startTransition(async () => {
             const { data } = await supabase
               .from("stock")
-              .select("id, nombre_producto, quantity, unit_cost")
+              .select("id, nombre_producto, quantity, unit_cost, for_sale, price, description, image_url, category, visible, created_at, shop_id, updated_at")
               .eq("shop_id", shopId)
               .order("nombre_producto", { ascending: true });
-            if (Array.isArray(data)) setStockItems(data.map((d) => ({ ...d, quantity: d.quantity ?? 0, unit_cost: d.unit_cost ?? 0 })));
+            if (Array.isArray(data)) setStockItems(data.map((d) => ({ ...d, quantity: d.quantity ?? 0, unit_cost: d.unit_cost ?? 0, price: Number(d.price) || 0, for_sale: d.for_sale, visible: d.visible })));
           });
         }
       )
@@ -161,6 +169,25 @@ const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = fa
     });
   }
 
+  function handleToggleSale(item: StockItem) {
+    if (!isOwnerOrAdmin) return;
+    if (item.for_sale) {
+      startTransition(async () => {
+        const result = await toggleForSale(item.id, false, shopId);
+        if (!result.success) {
+          addToast(result.error, "error");
+          return;
+        }
+        setStockItems((prev) =>
+          prev.map((i) => (i.id === item.id ? { ...i, for_sale: false, visible: false } : i))
+        );
+        router.refresh();
+      });
+      return;
+    }
+    setConfigTarget(item);
+  }
+
   useEffect(() => {
     return () => {
       if (flushTimerRef.current) {
@@ -212,9 +239,9 @@ const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = fa
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2 flex-1 max-w-sm">
-          <div className="relative flex-1">
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
             <input
               type="text"
@@ -225,7 +252,7 @@ const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = fa
               className="w-full pl-9 pr-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
             />
           </div>
-          <div className="relative">
+          <div className="relative shrink-0">
             <ArrowUpDown className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
             <select
               value={sortBy}
@@ -242,7 +269,13 @@ const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = fa
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        {storeEnabled && tab && onTabChange && (
+          <div className="flex justify-center shrink-0">
+            <InventoryTabs tab={tab} onChange={onTabChange} />
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 flex-wrap flex-1 justify-start sm:justify-end">
           {lowStockCount > 0 && (
             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-red-50 dark:bg-red-900/40 text-red-700 dark:text-red-300 border border-red-200/50 dark:border-red-700/50">
               <AlertTriangle className="w-3.5 h-3.5" />
@@ -283,12 +316,26 @@ const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = fa
                         <div className="min-w-0">
                           <h3 className="text-base font-semibold text-gray-900 dark:text-white truncate">{item.nombre_producto}</h3>
                         </div>
-                        {isLow && (
-                          <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-700">
-                            <AlertTriangle className="w-3 h-3" />
-                            Bajo
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1.5 flex-wrap justify-end shrink-0">
+                          {storeEnabled && item.for_sale && (
+                            <span
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                                item.visible
+                                  ? "bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-700/50"
+                                  : "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-700/50"
+                              }`}
+                            >
+                              <ShoppingBag className="w-3 h-3" />
+                              {item.visible ? "En tienda" : "Oculta"}
+                            </span>
+                          )}
+                          {isLow && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-700">
+                              <AlertTriangle className="w-3 h-3" />
+                              Bajo
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       <div className="mt-3 flex items-end gap-4">
@@ -307,8 +354,48 @@ const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = fa
                       <div className="mt-1.5 flex items-center gap-1.5 text-xs text-zinc-400">
                         Total en stock: <span className="font-semibold text-zinc-700 dark:text-zinc-300">${total.toFixed(2)}</span>
                       </div>
+                      {storeEnabled && item.for_sale && (
+                        <div className="mt-1 flex items-center gap-1.5 text-xs">
+                          <span className="text-zinc-400">Venta:</span>
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400">${Number(item.price || 0).toFixed(2)}</span>
+                          {item.category && <span className="text-zinc-400">· {item.category}</span>}
+                        </div>
+                      )}
                     </div>
                   </div>
+
+                  {storeEnabled && isOwnerOrAdmin && (
+                    <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleSale(item)}
+                        disabled={pending}
+                        title={item.for_sale ? "Desactivar modo venta" : "Activar modo venta"}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer select-none ${
+                          item.for_sale
+                            ? "text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60"
+                            : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-200"
+                        } disabled:opacity-40 disabled:cursor-not-allowed`}
+                      >
+                        <ShoppingBag className="w-3.5 h-3.5" />
+                        Modo venta
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfigTarget(item)}
+                        disabled={pending}
+                        title="Configurar venta online"
+                        aria-label="Configurar venta online"
+                        className={`inline-flex items-center justify-center w-9 h-9 rounded-lg transition-colors cursor-pointer select-none ${
+                          item.for_sale
+                            ? "text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/30 hover:bg-violet-100 dark:hover:bg-violet-900/50"
+                            : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-200"
+                        } disabled:opacity-40 disabled:cursor-not-allowed`}
+                      >
+                        <Settings2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
 
                   <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800">
                     <div className="flex items-center gap-2">
@@ -325,21 +412,23 @@ const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = fa
                         type="button"
                         onClick={() => handleBulkAdjust(item.id, 1)}
                         disabled={pending}
-                        className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-700/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 hover:border-emerald-300 dark:hover:border-emerald-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer select-none active:scale-95"
-                        title="Aumentar cantidad"
-                        aria-label={`Aumentar cantidad de ${item.nombre_producto}`}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-700/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 hover:border-emerald-300 dark:hover:border-emerald-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer select-none active:scale-95"
+                        title="Agregar cantidad"
+                        aria-label={`Agregar cantidad de ${item.nombre_producto}`}
                       >
                         <Plus className="w-4 h-4" />
+                        Agregar
                       </button>
                       <button
                         type="button"
                         onClick={() => handleBulkAdjust(item.id, -1)}
                         disabled={pending || item.quantity <= 0}
-                        className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 border border-rose-200/50 dark:border-rose-700/50 hover:bg-rose-100 dark:hover:bg-rose-900/50 hover:border-rose-300 dark:hover:border-rose-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer select-none active:scale-95"
-                        title="Disminuir cantidad"
-                        aria-label={`Disminuir cantidad de ${item.nombre_producto}`}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 border border-rose-200/50 dark:border-rose-700/50 hover:bg-rose-100 dark:hover:bg-rose-900/50 hover:border-rose-300 dark:hover:border-rose-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer select-none active:scale-95"
+                        title="Quitar cantidad"
+                        aria-label={`Quitar cantidad de ${item.nombre_producto}`}
                       >
                         <Minus className="w-4 h-4" />
+                        Quitar
                       </button>
                       <div className="flex-1" />
                       <button
@@ -376,12 +465,22 @@ const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = fa
       <ConfirmDialog
         open={Boolean(deleteTargetId)}
         title="Eliminar producto"
-        message="Esta acción eliminará el producto del inventario."
+        message="Esta acción eliminará el producto del inventario y de la tienda."
         confirmLabel="Eliminar"
         danger
         onCancel={() => setDeleteTargetId(null)}
         onConfirm={confirmDeleteProduct}
       />
+
+      {configTarget && (
+        <SaleConfigModal
+          shopId={shopId}
+          item={configTarget}
+          open={Boolean(configTarget)}
+          onClose={() => setConfigTarget(null)}
+          onSaved={() => router.refresh()}
+        />
+      )}
     </div>
   );
 });

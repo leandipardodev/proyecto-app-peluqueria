@@ -676,6 +676,117 @@ export type Database = {
           },
         ]
       }
+      order_items: {
+        Row: {
+          created_at: string
+          id: string
+          order_id: string
+          product_id: string | null
+          product_name: string
+          quantity: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          order_id: string
+          product_id?: string | null
+          product_name: string
+          quantity?: number
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_id?: string
+          product_id?: string | null
+          product_name?: string
+          quantity?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "stock"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          confirmed_at: string | null
+          created_at: string
+          customer_email: string
+          customer_id: string | null
+          customer_name: string
+          customer_phone: string | null
+          id: string
+          mp_payment_id: string | null
+          mp_preference_id: string | null
+          payment_method: string
+          shop_id: string
+          status: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          confirmed_at?: string | null
+          created_at?: string
+          customer_email: string
+          customer_id?: string | null
+          customer_name: string
+          customer_phone?: string | null
+          id?: string
+          mp_payment_id?: string | null
+          mp_preference_id?: string | null
+          payment_method?: string
+          shop_id: string
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          confirmed_at?: string | null
+          created_at?: string
+          customer_email?: string
+          customer_id?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          id?: string
+          mp_payment_id?: string | null
+          mp_preference_id?: string | null
+          payment_method?: string
+          shop_id?: string
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pending_bookings: {
         Row: {
           authenticated_user_id: string | null
@@ -1859,31 +1970,49 @@ export type Database = {
       }
       stock: {
         Row: {
+          category: string | null
           created_at: string | null
+          description: string | null
+          for_sale: boolean
           id: string
+          image_url: string | null
           nombre_producto: string
+          price: number
           quantity: number | null
           shop_id: string
           unit_cost: number | null
           updated_at: string | null
+          visible: boolean
         }
         Insert: {
+          category?: string | null
           created_at?: string | null
+          description?: string | null
+          for_sale?: boolean
           id?: string
+          image_url?: string | null
           nombre_producto: string
+          price?: number
           quantity?: number | null
           shop_id: string
           unit_cost?: number | null
           updated_at?: string | null
+          visible?: boolean
         }
         Update: {
+          category?: string | null
           created_at?: string | null
+          description?: string | null
+          for_sale?: boolean
           id?: string
+          image_url?: string | null
           nombre_producto?: string
+          price?: number
           quantity?: number | null
           shop_id?: string
           unit_cost?: number | null
           updated_at?: string | null
+          visible?: boolean
         }
         Relationships: [
           {
@@ -2036,6 +2165,14 @@ export type Database = {
         }[]
       }
       current_user_role: { Args: never; Returns: string }
+      decrement_stock: {
+        Args: { p_stock_id: string; p_shop_id: string; p_qty: number }
+        Returns: number
+      }
+      restore_stock: {
+        Args: { p_stock_id: string; p_shop_id: string; p_qty: number }
+        Returns: number
+      }
       current_user_shop_id: { Args: never; Returns: string }
       generate_shop_slug: { Args: { shop_name: string }; Returns: string }
       get_staff_for_my_shop: {

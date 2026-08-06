@@ -10,6 +10,7 @@ import { createLogContext, logInfo, logWarn, logError } from "@/lib/api-logger";
 import { withRetry } from "@/lib/retry";
 import crypto from "crypto";
 import { createAdminClient } from "@/lib/dashboard/appointments/shared";
+import { restoreOrderStock } from "@/lib/dashboard/store/stock";
 import { completedBookingCache } from "@/lib/booking-cache";
 
 const webhookLimiter = createRateLimiter({ intervalMs: 60_000, maxRequests: 30 });
@@ -540,6 +541,180 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ ok: true });
       }
+    }
+
+    // --- Combined booking + store checkout (appointments + order in one payment) ---
+    if (paymentResult.metadata?.type === "combined") {
+      const combinedAppointmentId = paymentResult.metadata?.appointment_id as string | undefined;
+      const combinedOrderId = paymentResult.metadata?.order_id as string | undefined;
+      if (!combinedAppointmentId || !combinedOrderId) return NextResponse.json({ ok: true });
+
+      const combinedOrderQuery = admin.from("orders").select("id, shop_id, status").eq("id", combinedOrderId);
+
+      const { data: combinedOrder } = await combinedOrderQuery.maybeSingle();
+      if (!combinedOrder || combinedOrder.status !== "pending_payment") return NextResponse.json({ ok: true });
+
+      const comboRaw = paymentResult.metadata?.combo_appointment_ids as string[] | string | undefined;
+      const extraIds = comboRaw
+        ? (Array.isArray(comboRaw)
+            ? comboRaw
+            : (() => {
+                try { return JSON.parse(comboRaw as string); } catch { return (comboRaw as string).split(",").map((s: string) => s.trim()).filter(Boolean); }
+              })())
+        : [];
+      const allCombinedIds: string[] = [combinedAppointmentId, ...extraIds.filter((id: string) => id !== combinedAppointmentId)];
+
+      const preferenceId = (paymentResult.order?.id as string | undefined) || (paymentResult.metadata?.preference_id as string | undefined) || undefined;
+      const normalizedPaymentId = String(paymentId);
+
+      if (paymentResult.status === "approved") {
+        for (const aptId of allCombinedIds) {
+          await withRetry(
+            () => admin
+              .from("appointments")
+              .update({
+                status: "confirmed",
+                is_paid: true,
+                mp_preference_id: preferenceId,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", aptId)
+              .eq("shop_id", combinedOrder.shop_id)
+              .then((r) => r as { error: unknown }),
+            { retries: 1, delayMs: 500 }
+          );
+        }
+
+        // Claim the order — only one request succeeds (idempotency)
+        const { data: claimedOrder } = await admin
+          .from("orders")
+          .update({
+            status: "paid",
+            confirmed_at: new Date().toISOString(),
+            mp_payment_id: normalizedPaymentId,
+            mp_preference_id: preferenceId,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", combinedOrder.id)
+          .eq("status", "pending_payment")
+          .select("id")
+          .maybeSingle();
+
+        if (!claimedOrder) return NextResponse.json({ ok: true });
+      } else {
+        for (const aptId of allCombinedIds) {
+          await withRetry(
+            () => admin
+              .from("appointments")
+              .update({
+                status: "cancelled",
+                is_paid: false,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", aptId)
+              .eq("shop_id", combinedOrder.shop_id)
+              .then((r) => r as { error: unknown }),
+            { retries: 1, delayMs: 500 }
+          );
+        }
+
+        const cancelStatus = paymentResult.status === "cancelled" ? "cancelled" : "expired";
+        const { data: claimedOrder } = await admin
+          .from("orders")
+          .update({
+            status: cancelStatus,
+            mp_payment_id: normalizedPaymentId,
+            mp_preference_id: preferenceId,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", combinedOrder.id)
+          .eq("status", "pending_payment")
+          .select("id")
+          .maybeSingle();
+
+        if (!claimedOrder) return NextResponse.json({ ok: true });
+        await restoreOrderStock(admin, combinedOrder.shop_id, combinedOrder.id);
+      }
+
+      await admin.from("mercadopago_logs").insert({
+        shop_id: combinedOrder.shop_id,
+        appointment_id: combinedAppointmentId,
+        mp_preference_id: preferenceId,
+        event_type: "payment_webhook",
+        payload: {
+          payment_id: normalizedPaymentId,
+          status: paymentResult.status,
+          order_id: combinedOrder.id,
+          external_reference: paymentResult.external_reference,
+        },
+      });
+
+      return NextResponse.json({ ok: true });
+    }
+
+    // --- Store order payments (independent product orders) ---
+    const orderIdFromMetadata = paymentResult.metadata?.order_id as string | undefined;
+    if (paymentResult.metadata?.type === "store_order" || orderIdFromMetadata) {
+      const orderId = orderIdFromMetadata || externalReference;
+      if (!orderId) return NextResponse.json({ ok: true });
+
+      let orderQuery = admin.from("orders").select("id, shop_id, status").eq("id", orderId);
+      if (shopId) orderQuery = orderQuery.eq("shop_id", shopId);
+
+      const { data: order } = await orderQuery.maybeSingle();
+      if (!order || order.status !== "pending_payment") return NextResponse.json({ ok: true });
+
+      const preferenceId = (paymentResult.order?.id as string | undefined) || (paymentResult.metadata?.preference_id as string | undefined) || undefined;
+      const normalizedPaymentId = String(paymentId);
+
+      if (paymentResult.status === "approved") {
+        const { data: claimed } = await admin
+          .from("orders")
+          .update({
+            status: "paid",
+            confirmed_at: new Date().toISOString(),
+            mp_payment_id: normalizedPaymentId,
+            mp_preference_id: preferenceId,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", order.id)
+          .eq("status", "pending_payment")
+          .select("id")
+          .maybeSingle();
+
+        if (!claimed) return NextResponse.json({ ok: true });
+      } else {
+        const cancelStatus = paymentResult.status === "cancelled" ? "cancelled" : "expired";
+        const { data: claimed } = await admin
+          .from("orders")
+          .update({
+            status: cancelStatus,
+            mp_payment_id: normalizedPaymentId,
+            mp_preference_id: preferenceId,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", order.id)
+          .eq("status", "pending_payment")
+          .select("id")
+          .maybeSingle();
+
+        if (!claimed) return NextResponse.json({ ok: true });
+        await restoreOrderStock(admin, order.shop_id, order.id);
+      }
+
+      await admin.from("mercadopago_logs").insert({
+        shop_id: order.shop_id,
+        mp_preference_id: preferenceId,
+        event_type: "payment_webhook",
+        payload: {
+          payment_id: normalizedPaymentId,
+          status: paymentResult.status,
+          order_id: order.id,
+          external_reference: paymentResult.external_reference,
+        },
+      });
+
+      return NextResponse.json({ ok: true });
     }
 
     const appointmentId =
