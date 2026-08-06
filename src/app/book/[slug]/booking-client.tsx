@@ -28,6 +28,7 @@ import {
   Trash2,
   UserRound,
   X,
+  ZoomIn,
 } from "lucide-react";
 import { initMercadoPago } from "@mercadopago/sdk-react";
 import { fetchPublicAvailableSlots, createPublicAppointment, createPublicComboAppointment, deletePublicAppointment } from "@/lib/dashboard/booking/public-booking-actions";
@@ -719,8 +720,8 @@ function StoreTab({ products, storeError, storeCart, status, orderId, updateProd
           <div className={`text-sm px-4 py-3 rounded-2xl border ${templateStyles.errorBox}`}>{storeError}</div>
         ) : products.length === 0 ? (
           <div className="py-12 text-center">
-            <div className="flex items-center justify-center w-14 h-14 rounded-full bg-violet-100 dark:bg-violet-900/40 mx-auto">
-              <ShoppingBag className="w-6 h-6 text-violet-500" />
+            <div className={`flex items-center justify-center w-14 h-14 rounded-full ${templateStyles.plate} mx-auto`}>
+              <ShoppingBag className={`w-6 h-6 ${templateStyles.accent}`} />
             </div>
             <p className={`mt-3 text-sm font-semibold ${templateStyles.heading}`}>La tienda está vacía</p>
             <p className={`mt-1 text-xs ${templateStyles.tiny}`}>No hay productos disponibles por ahora. Volvé pronto.</p>
@@ -736,18 +737,22 @@ function StoreTab({ products, storeError, storeCart, status, orderId, updateProd
               return (
                 <div
                   key={product.id}
-                  className={`flex flex-col bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden ${soldOut ? "opacity-55" : ""}`}
+                  className={`flex flex-col ${templateStyles.plain} ${templateStyles.cardDepth} rounded-2xl ${templateStyles.hoverBorder} overflow-hidden ${soldOut ? "opacity-55" : ""}`}
                 >
-                  <div className="relative h-44 w-full overflow-hidden">
+                  <div className="group relative h-44 w-full overflow-hidden">
                     {product.image_url ? (
                       <button
                         type="button"
                         onClick={() => onShowImage(product)}
-                        className="absolute inset-0 w-full h-full cursor-zoom-in"
-                        aria-label={`Ver imagen de ${product.name}`}
+                        className="absolute inset-0 w-full h-full"
+                        aria-label={`Ampliar imagen de ${product.name}`}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                        <img src={product.image_url} alt={product.name} className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.06]" />
+                        <span className="absolute right-2 top-2 z-10 inline-flex items-center gap-1 rounded-full bg-black/50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-white backdrop-blur-sm opacity-0 scale-90 transition-all duration-300 group-hover:opacity-100 group-hover:scale-100">
+                          <ZoomIn className="w-3.5 h-3.5" />
+                          Ampliar
+                        </span>
                       </button>
                     ) : (
                       <div className={`absolute inset-0 flex items-center justify-center bg-gradient-to-br ${productColor(product.id)} text-white`}>
@@ -804,11 +809,11 @@ function StoreTab({ products, storeError, storeCart, status, orderId, updateProd
 
                   <div className="p-3.5 flex-1 flex flex-col">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-base font-bold text-gray-900 dark:text-white">{formatARSAmount(product.price)}</span>
+                      <span className={`text-base font-bold ${templateStyles.priceFx}`}>{formatARSAmount(product.price)}</span>
                     </div>
                     <div className="mt-3">
                       {soldOut ? (
-                        <div className="w-full rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 text-sm font-medium px-4 py-2 text-center">
+                        <div className={`w-full rounded-xl ${templateStyles.plate} ${templateStyles.tiny} text-sm font-medium px-4 py-2 text-center`}>
                           Sin stock
                         </div>
                       ) : qty === 0 ? (
@@ -830,7 +835,7 @@ function StoreTab({ products, storeError, storeCart, status, orderId, updateProd
                           >
                             <Minus className="w-4 h-4" />
                           </button>
-                          <span className="text-sm font-bold text-gray-900 dark:text-white tabular-nums">{qty}</span>
+                          <span className={`text-sm font-bold ${templateStyles.heading} tabular-nums`}>{qty}</span>
                           <button
                             type="button"
                             onClick={() => !maxed && updateProductQty(product.id, qty + 1)}
