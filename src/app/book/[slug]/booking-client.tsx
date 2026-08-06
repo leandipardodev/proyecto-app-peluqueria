@@ -815,7 +815,7 @@ function StoreTab({ products, storeError, storeCart, status, orderId, updateProd
                         <button
                           type="button"
                           onClick={() => updateProductQty(product.id, 1)}
-                          className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r ${templateStyles.progressFill} text-white text-sm font-semibold px-4 py-2 shadow-[0_10px_22px_-12px_rgba(0,0,0,0.45)] hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer select-none"
+                          className={`w-full inline-flex items-center justify-center gap-2 rounded-xl ${templateStyles.progressFill} text-white text-sm font-semibold px-4 py-2 shadow-[0_10px_22px_-12px_rgba(0,0,0,0.45)] hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer select-none`}
                         >
                           <Plus className="w-4 h-4" />
                           Agregar
@@ -825,7 +825,7 @@ function StoreTab({ products, storeError, storeCart, status, orderId, updateProd
                           <button
                             type="button"
                             onClick={() => updateProductQty(product.id, qty - 1)}
-                            className="inline-flex items-center justify-center w-9 h-9 rounded-xl border border-zinc-200 dark:border-zinc-700 ${templateStyles.accent} ${templateStyles.hoverBorder} transition-colors cursor-pointer select-none active:scale-95"
+                            className={`inline-flex items-center justify-center w-9 h-9 rounded-xl border border-zinc-200 dark:border-zinc-700 ${templateStyles.accent} ${templateStyles.hoverBorder} transition-colors cursor-pointer select-none active:scale-95`}
                             aria-label="Quitar uno"
                           >
                             <Minus className="w-4 h-4" />
@@ -835,7 +835,7 @@ function StoreTab({ products, storeError, storeCart, status, orderId, updateProd
                             type="button"
                             onClick={() => !maxed && updateProductQty(product.id, qty + 1)}
                             disabled={maxed}
-                            className="inline-flex items-center justify-center w-9 h-9 rounded-xl border border-zinc-200 dark:border-zinc-700 ${templateStyles.accent} ${templateStyles.hoverBorder} disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer select-none active:scale-95"
+                            className={`inline-flex items-center justify-center w-9 h-9 rounded-xl border border-zinc-200 dark:border-zinc-700 ${templateStyles.accent} ${templateStyles.hoverBorder} disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer select-none active:scale-95`}
                             aria-label="Agregar uno"
                           >
                             <Plus className="w-4 h-4" />
