@@ -134,7 +134,15 @@ export async function addProduct(formData: FormData, shopIdOverride?: string): P
 }
 
 export async function addProducts(
-  products: Array<{ nombre_producto: string; quantity: number; unit_cost: number; for_sale?: boolean; price?: number }>,
+  products: Array<{
+    nombre_producto: string;
+    quantity: number;
+    unit_cost: number;
+    for_sale?: boolean;
+    price?: number;
+    description?: string;
+    image?: File | null;
+  }>,
   shopIdOverride?: string,
 ): Promise<ActionResult> {
   try {
@@ -158,21 +166,59 @@ export async function addProducts(
       if (p.for_sale && (p.price === undefined || p.price === null || isNaN(p.price) || p.price < 0)) {
         return { success: false, error: `"${p.nombre_producto}": ingresá un precio de venta válido` };
       }
+      if (p.for_sale && p.image && p.image.size > 0) {
+        if (!p.image.type.startsWith("image/")) {
+          return { success: false, error: `"${p.nombre_producto}": el archivo debe ser una imagen` };
+        }
+        if (p.image.size > 2 * 1024 * 1024) {
+          return { success: false, error: `"${p.nombre_producto}": la imagen supera 2MB` };
+        }
+      }
     }
 
     const supabase = await createServerClient();
-    const { error } = await supabase.from("stock").insert(
-      validProducts.map((p) => ({
-        shop_id: shopId,
-        nombre_producto: p.nombre_producto.trim(),
-        quantity: p.quantity,
-        unit_cost: p.unit_cost,
-        for_sale: p.for_sale ?? false,
-        price: p.for_sale ? (p.price ?? 0) : 0,
-      }))
-    );
+    const { data: inserted, error } = await supabase
+      .from("stock")
+      .insert(
+        validProducts.map((p) => ({
+          shop_id: shopId,
+          nombre_producto: p.nombre_producto.trim(),
+          quantity: p.quantity,
+          unit_cost: p.unit_cost,
+          for_sale: p.for_sale ?? false,
+          price: p.for_sale ? (p.price ?? 0) : 0,
+          description: p.for_sale ? (p.description?.trim() || null) : null,
+        }))
+      )
+      .select("id, nombre_producto");
 
     if (error) return { success: false, error: error.message };
+
+    const rows = inserted || [];
+    const pendingImages = validProducts
+      .map((p, i) => ({ product: p, row: rows[i] }))
+      .filter(({ product, row }) => row && product.for_sale && product.image && product.image.size > 0);
+
+    if (pendingImages.length > 0) {
+      const admin = await createAdminClient();
+      for (const { product, row } of pendingImages) {
+        const processed = await processProductImage(product.image as File);
+        if (!processed.ok) continue;
+        const storagePath = productImageStoragePath(shopId, row.id);
+        const uploadRes = await admin.storage.from("booking-assets").upload(
+          storagePath,
+          new Blob([Uint8Array.from(processed.data.buffer)], { type: processed.data.contentType }),
+          { upsert: true, contentType: processed.data.contentType }
+        );
+        if (uploadRes.error) continue;
+        const { data: publicData } = admin.storage.from("booking-assets").getPublicUrl(storagePath);
+        await admin
+          .from("stock")
+          .update({ image_url: publicData.publicUrl })
+          .eq("id", row.id)
+          .eq("shop_id", shopId);
+      }
+    }
 
     await revalidateDashboardSegments(shopId, ["/inventory"]);
     return { success: true };

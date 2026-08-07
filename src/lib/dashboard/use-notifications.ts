@@ -22,6 +22,7 @@ type RawApiResponse = {
 const POLL_INTERVAL = 45_000;
 
 let cachedData: NotificationData | null = null;
+let lastRawData: RawApiResponse | null = null;
 let lastFetchTime = 0;
 const subscribers = new Set<(data: NotificationData) => void>();
 let pollTimer: ReturnType<typeof setInterval> | null = null;
@@ -50,6 +51,7 @@ async function fetchNotifications(): Promise<NotificationData | null> {
     });
     if (!res.ok) return null;
     const data = (await res.json()) as RawApiResponse;
+    lastRawData = data;
     return {
       urgentAppointments: Boolean(data.urgentAppointments),
       lowStock: Boolean(data.lowStock),
@@ -66,6 +68,17 @@ function notifySubscribers(data: NotificationData) {
   cachedData = data;
   lastFetchTime = Date.now();
   subscribers.forEach((fn) => fn(data));
+}
+
+export function refreshNotifications() {
+  if (!lastRawData) return;
+  notifySubscribers({
+    urgentAppointments: Boolean(lastRawData.urgentAppointments),
+    lowStock: Boolean(lastRawData.lowStock),
+    pendingTransfers: lastRawData.pendingTransfers ?? 0,
+    unreadCount: computeUnreadCount(lastRawData),
+    pendingOrders: lastRawData.pendingOrders ?? 0,
+  });
 }
 
 function startPolling() {

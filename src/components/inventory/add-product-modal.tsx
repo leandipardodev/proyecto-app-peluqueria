@@ -147,6 +147,7 @@ export default function AddProductModal({ shopId, open, onClose, storeEnabled = 
                 name="image"
                 accept="image/png,image/jpeg,image/webp"
                 className="sr-only"
+                tabIndex={-1}
                 onChange={handleFileChange}
               />
               {preview ? (
@@ -168,23 +169,15 @@ export default function AddProductModal({ shopId, open, onClose, storeEnabled = 
               <p className="text-xs text-red-500">No se pudo leer la imagen</p>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <InputForm
-                label="Precio de venta ($)"
-                name="price"
-                type="number"
-                step="0.01"
-                min="0"
-                required
-                placeholder="0.00"
-              />
-              <InputForm
-                label="Categoría"
-                name="category"
-                type="text"
-                placeholder="Ej: Productos"
-              />
-            </div>
+            <InputForm
+              label="Precio de venta ($)"
+              name="price"
+              type="number"
+              step="0.01"
+              min="0"
+              required
+              placeholder="0.00"
+            />
 
             <InputForm
               label="Descripción"

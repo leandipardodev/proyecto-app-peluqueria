@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { createPortal } from "react-dom";
-import { X, Plus, Loader2, Check, AlertCircle, ShoppingBag } from "lucide-react";
+import { X, Plus, Loader2, Check, AlertCircle, ShoppingBag, ImagePlus } from "lucide-react";
 import { addProducts } from "@/lib/dashboard/inventory/inventory-actions";
 import { useToast } from "@/components/ui/toast";
 
@@ -15,13 +15,26 @@ interface BatchEntry {
   unit_cost: number | "";
   for_sale: boolean;
   price: number | "";
+  description: string;
+  image: File | null;
+  imagePreview: string | null;
 }
 
 let entryCounter = 0;
 
 function createEmptyEntry(): BatchEntry {
   entryCounter++;
-  return { id: `entry-${entryCounter}`, nombre_producto: "", quantity: "", unit_cost: "", for_sale: false, price: "" };
+  return {
+    id: `entry-${entryCounter}`,
+    nombre_producto: "",
+    quantity: "",
+    unit_cost: "",
+    for_sale: false,
+    price: "",
+    description: "",
+    image: null,
+    imagePreview: null,
+  };
 }
 
 interface BatchAddProductModalProps {
@@ -74,6 +87,8 @@ export default function BatchAddProductModal({ shopId, open, onClose, storeEnabl
         unit_cost: Number(valid[i].unit_cost || 0),
         for_sale: valid[i].for_sale,
         price: valid[i].for_sale ? Number(valid[i].price || 0) : undefined,
+        description: valid[i].for_sale ? valid[i].description : undefined,
+        image: valid[i].for_sale ? valid[i].image : undefined,
       }], shopId);
       if (result.success) ok++;
       else fail++;
@@ -240,6 +255,22 @@ function EntryCard({
   onRemove: () => void;
   canRemove: boolean;
 }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/") || file.size > 2 * 1024 * 1024) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      onUpdate({
+        image: file,
+        imagePreview: typeof reader.result === "string" ? reader.result : null,
+      });
+    };
+    reader.readAsDataURL(file);
+  }
+
   return (
     <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 overflow-hidden">
       <div className="p-4 space-y-3">
@@ -326,21 +357,66 @@ function EntryCard({
         )}
 
         {storeEnabled && entry.for_sale && (
-          <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Precio de venta ($)
-            </label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={entry.price}
-              onChange={(e) => {
-                const val = e.target.value;
-                onUpdate({ price: val === "" ? "" : Math.max(0, parseFloat(val) || 0) });
-              }}
-              className="w-full px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
-            />
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="group relative w-full h-24 rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/40 overflow-hidden hover:border-violet-400 dark:hover:border-violet-500 transition-colors cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
+              aria-label="Subir imagen del producto"
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="sr-only"
+                tabIndex={-1}
+                onChange={handleFileChange}
+              />
+              {entry.imagePreview ? (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={entry.imagePreview} alt="Vista previa" className="absolute inset-0 w-full h-full object-cover" />
+                  <span className="absolute top-2 right-2 flex items-center justify-center w-7 h-7 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors">
+                    <X className="w-4 h-4" />
+                  </span>
+                </>
+              ) : (
+                <span className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-zinc-400 dark:text-zinc-500 group-hover:text-violet-500 transition-colors">
+                  <ImagePlus className="w-5 h-5" />
+                  <span className="text-xs font-medium">Subir imagen</span>
+                </span>
+              )}
+            </button>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Precio de venta ($)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={entry.price}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  onUpdate({ price: val === "" ? "" : Math.max(0, parseFloat(val) || 0) });
+                }}
+                className="w-full px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Descripción
+              </label>
+              <input
+                type="text"
+                placeholder="Opcional"
+                value={entry.description}
+                onChange={(e) => onUpdate({ description: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
+              />
+            </div>
           </div>
         )}
       </div>
