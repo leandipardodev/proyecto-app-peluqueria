@@ -15,8 +15,10 @@ import Link from "next/link";
 import dynamicImport from "next/dynamic";
 import { redirect } from "next/navigation";
 import { fetchTodayVoucherAlerts } from "@/lib/dashboard/vouchers/voucher-actions";
+import { countPendingStoreOrders } from "@/lib/dashboard/store/store-actions";
 import type { CSSProperties } from "react";
 import AINotificationCard from "@/components/dashboard/ai-notification-card";
+import AlertsCarousel from "@/components/dashboard/alerts-carousel";
 import DashboardChartsWrapper from "@/components/dashboard/dashboard-charts-wrapper";
 
 const VoucherBirthdayAlert = dynamicImport(() => import("@/components/dashboard/voucher-birthday-alert"));
@@ -81,7 +83,7 @@ function seasonalMomentLabel(now: Date, customerPlural: string): string | null {
 }
 
 export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOverride?: string) {
-  const [summaryResult, metricsResult, whatsappTemplateResult, voucherAlertsResult, socialLinks, industry, features] = await Promise.all([
+  const [summaryResult, metricsResult, whatsappTemplateResult, voucherAlertsResult, socialLinks, industry, features, pendingOrdersResult] = await Promise.all([
     fetchDashboardSummary(shopIdOverride),
     fetchDashboardMetrics(shopIdOverride),
     fetchWhatsappTemplate(shopIdOverride),
@@ -89,6 +91,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
     fetchShopLinks(shopIdOverride),
     fetchShopIndustry(shopIdOverride, shopSlugOverride || null),
     getShopFeatures(shopIdOverride as string),
+    countPendingStoreOrders(shopIdOverride),
   ]);
   const whatsappTemplate = whatsappTemplateResult.success ? (whatsappTemplateResult.data ?? DEFAULT_WHATSAPP_TEMPLATE) : DEFAULT_WHATSAPP_TEMPLATE;
 
@@ -107,6 +110,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
     );
   }
   const summary = summaryResult.data;
+  const activeOrdersCount = pendingOrdersResult.success ? (pendingOrdersResult.data?.count ?? 0) : 0;
   const labels = INDUSTRY_CONFIG[industry].labels;
   const customerPlural = labels.customerPlural;
   const servicePlural = labels.servicePlural;
@@ -170,6 +174,16 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
       body: `${summary.lowStockCount} producto(s) están bajos. Conviene reponer antes de hora pico.`,
       tone: "urgent",
       href: withDashboardBase("/dashboard/inventory", dashboardBasePath),
+    });
+  }
+
+  if (features.store && activeOrdersCount > 0) {
+    aiMessages.push({
+      id: "new-store-orders",
+      title: "Pedidos nuevos de tienda",
+      body: `Tenés ${activeOrdersCount} pedido(s) recibido(s) esperando confirmación. Revisalos: te espera el LED verde en «Pedidos».`,
+      tone: "action",
+      href: withDashboardBase("/dashboard/inventory", dashboardBasePath) + "?tab=orders",
     });
   }
 
@@ -350,14 +364,6 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
       accent: "bg-blue-500",
       gradient: "from-blue-50 to-transparent dark:from-blue-950/20 dark:to-transparent",
     },
-    ...(features.inventory
-      ? [{
-          label: "Alertas de stock",
-          value: summary.lowStockCount,
-          accent: "bg-amber-500",
-          gradient: "from-amber-50 to-transparent dark:from-amber-950/20 dark:to-transparent",
-        }]
-      : []),
     {
       label: "Rendimiento",
       value: formatHealth(healthScore),
@@ -374,7 +380,6 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
 
   const cardHrefByLabel: Record<string, string> = {
     "Turnos hoy": withDashboardBase("/dashboard/calendar", dashboardBasePath) + "?view=day",
-    ...(features.inventory ? { "Alertas de stock": withDashboardBase("/dashboard/inventory", dashboardBasePath) } : {}),
     "Rendimiento": withDashboardBase("/dashboard/business#estadisticas", dashboardBasePath),
   };
 
@@ -488,6 +493,14 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
           </HoverScale>
           );
         })}
+        {features.inventory && (
+          <AlertsCarousel
+            lowStockCount={summary.lowStockCount}
+            ordersCount={features.store ? activeOrdersCount : 0}
+            stockHref={withDashboardBase("/dashboard/inventory", dashboardBasePath)}
+            ordersHref={withDashboardBase("/dashboard/inventory", dashboardBasePath) + "?tab=orders"}
+          />
+        )}
         <AINotificationCard
           messages={aiMessages.map((item) => ({ id: item.id, title: item.title, body: item.body, tone: item.tone, href: item.href }))}
         />

@@ -8,8 +8,15 @@ import { getShopFeatures } from "@/lib/industry/features";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardShopInventoryPage({ params }: { params: Promise<{ shopSlug: string }> }) {
+export default async function DashboardShopInventoryPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ shopSlug: string }>;
+  searchParams?: Promise<{ tab?: string }>;
+}) {
   const [user, { shopSlug }] = await Promise.all([getCachedUser(), params]);
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
   if (!user) redirect("/login");
   const shopId = await getCachedShopIdBySlug(shopSlug, user.id);
   if (!shopId) redirect("/dashboard");
@@ -43,6 +50,7 @@ export default async function DashboardShopInventoryPage({ params }: { params: P
       storeEnabled={features.store}
       storeUrl={`/book/${shopSlug}`}
       initialError={initialError}
+      initialTab={resolvedSearchParams?.tab === "orders" ? "orders" : "products"}
     />
   );
 }

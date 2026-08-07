@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, RefreshCcw, Layers, ExternalLink, Power } from "lucide-react";
 import StockTable from "./stock-table";
@@ -23,6 +23,7 @@ interface InventoryPageClientProps {
   storeUrl?: string;
   initialError?: string | null;
   role?: string;
+  initialTab?: InventoryTab;
 }
 
 export default function InventoryPageClient({
@@ -33,15 +34,27 @@ export default function InventoryPageClient({
   storeUrl = "",
   initialError,
   role = "staff",
+  initialTab = "products",
 }: InventoryPageClientProps) {
   const router = useRouter();
   const { addToast } = useToast();
-  const [tab, setTab] = useState<InventoryTab>("products");
+  const [tab, setTabState] = useState<InventoryTab>(initialTab);
   const [modalOpen, setModalOpen] = useState(false);
   const [batchModalOpen, setBatchModalOpen] = useState(false);
   const [storeConfirmOpen, setStoreConfirmOpen] = useState(false);
   const [storePending, startStoreTransition] = useTransition();
   const isOwnerOrAdmin = role !== "staff";
+
+  const setTab = useCallback(
+    (next: InventoryTab) => {
+      setTabState(next);
+      const url = new URL(window.location.href);
+      if (next === "orders") url.searchParams.set("tab", "orders");
+      else url.searchParams.delete("tab");
+      router.replace(url.pathname + url.search, { scroll: false });
+    },
+    [router]
+  );
 
   function toggleStore(enabled: boolean) {
     startStoreTransition(async () => {

@@ -3,12 +3,13 @@ import { createServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient, getShopId } from "@/lib/dashboard/auth/server";
 import { getArgentinaNow, getArgentinaDateString, getArgentinaDayBounds, getArgentinaMinutesSinceMidnight, minutesFromHHmm } from "@/lib/argentina-time";
 import { APPOINTMENT_STATUS_NEEDS_CONFIRMATION } from "@/lib/dashboard/appointments/status";
+import { getShopFeatures } from "@/lib/industry/features";
 
 export const dynamic = "force-dynamic";
 
 type DashboardNotification = {
   id: string;
-  type: "nuevo_turno" | "turno_cancelado" | "recompensa_disponible" | "cliente_cumpleaños" | "stock_bajo" | "nuevo_miembro" | "oportunidad_estacional" | "voucher_enviado" | "plan_por_vencer" | "transferencia_pendiente";
+  type: "nuevo_turno" | "turno_cancelado" | "recompensa_disponible" | "cliente_cumpleaños" | "stock_bajo" | "nuevo_miembro" | "oportunidad_estacional" | "voucher_enviado" | "plan_por_vencer" | "transferencia_pendiente" | "nuevo_pedido";
   category: "urgent" | "action" | "info";
   title: string;
   description: string;
@@ -68,12 +69,12 @@ export async function GET() {
     const supabase = await createServerClient();
     const authUser = (await supabase.auth.getUser()).data?.user;
     if (!authUser) {
-      return NextResponse.json({ items: [], pendingComplete: [], urgentAppointments: false, lowStock: false }, { status: 200 });
+      return NextResponse.json({ items: [], pendingComplete: [], urgentAppointments: false, lowStock: false, pendingOrders: 0, storeEnabled: false }, { status: 200 });
     }
 
     const shopId = await getShopId({ user: { id: authUser.id } });
     if (!shopId) {
-      return NextResponse.json({ items: [], pendingComplete: [], urgentAppointments: false, lowStock: false }, { status: 200 });
+      return NextResponse.json({ items: [], pendingComplete: [], urgentAppointments: false, lowStock: false, pendingOrders: 0, storeEnabled: false }, { status: 200 });
     }
 
     const admin = await createServiceRoleClient();
@@ -89,7 +90,7 @@ export async function GET() {
     const yesterdayStartIso = yesterdayStart.toISOString();
     const oneHourFromNow = new Date(nowAr.getTime() + 60 * 60 * 1000).toISOString();
     const weekAgoIso = new Date(nowAr.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const [urgentRes, stockCountRes, todayApptsRes, cancelledRes, loyaltyRes, customersRes, vouchersRes, staffRes, shopRes, pendingCompleteRes, businessHoursRes, bankTransfersRes] = await Promise.all([
+    const [urgentRes, stockCountRes, todayApptsRes, cancelledRes, loyaltyRes, customersRes, vouchersRes, staffRes, shopRes, pendingCompleteRes, businessHoursRes, bankTransfersRes, ordersRes, storeFeaturesRes] = await Promise.all([
       admin.from("appointments").select("id", { count: "exact", head: true }).eq("shop_id", shopId).in("status", APPOINTMENT_STATUS_NEEDS_CONFIRMATION as unknown as string[]).gte("start_time", nowAr.toISOString()).lte("start_time", oneHourFromNow),
       admin.from("stock").select("id", { count: "exact", head: true }).eq("shop_id", shopId).lt("quantity", 5),
       admin.from("appointments").select("id, start_time, customers(nombre)").eq("shop_id", shopId).in("status", ["scheduled", "confirmed", "pending_payment"]).gte("start_time", todayStartIso).lte("start_time", todayEndIso).order("start_time", { ascending: true }).limit(10),
@@ -102,6 +103,8 @@ export async function GET() {
       admin.from("appointments").select("id, start_time, customers(nombre)").eq("shop_id", shopId).in("status", ["confirmed", "in_progress"]).gte("start_time", yesterdayStartIso).lte("start_time", todayEndIso).order("start_time", { ascending: true }).limit(100),
       admin.from("shops").select("business_hours").eq("id", shopId).single(),
       admin.from("pending_bookings").select("id, customer_name, start_time, payment_amount", { count: "exact", head: true }).eq("shop_id", shopId).eq("status", "pending").eq("payment_method", "bank_transfer").gt("expires_at", nowAr.toISOString()),
+      admin.from("orders").select("id", { count: "exact", head: true }).eq("shop_id", shopId).eq("status", "pending_payment"),
+      getShopFeatures(shopId),
     ]);
 
     const items: DashboardNotification[] = [];
@@ -139,6 +142,10 @@ export async function GET() {
 
     if (stockCountRes.count && stockCountRes.count > 0) {
       items.push({ id: "stock-bajo", type: "stock_bajo", category: "urgent", title: "Stock bajo", description: `${stockCountRes.count} producto(s) tienen stock bajo (menos de 5 unidades)`, href: "/dashboard/inventory", timestamp: nowAr.toISOString() });
+    }
+
+    if (ordersRes.count && ordersRes.count > 0) {
+      items.push({ id: "nuevo-pedido", type: "nuevo_pedido", category: "action", title: "Nuevo pedido de tienda", description: `${ordersRes.count} pedido(s) recibido(s) esperando confirmación`, href: "/dashboard/inventory?tab=orders", timestamp: nowAr.toISOString() });
     }
 
     if (staffRes.data && staffRes.data.length > 0) {
@@ -202,9 +209,11 @@ export async function GET() {
       urgentAppointments: (urgentRes.count || 0) > 0,
       lowStock: (stockCountRes.count || 0) > 0,
       pendingTransfers: bankTransfersRes.count || 0,
+      pendingOrders: ordersRes.count || 0,
+      storeEnabled: Boolean(storeFeaturesRes.store),
     }, { status: 200 });
   } catch (e) {
     console.error("Error en notificaciones:", e);
-    return NextResponse.json({ items: [], pendingComplete: [], urgentAppointments: false, lowStock: false, pendingTransfers: 0 }, { status: 200 });
+    return NextResponse.json({ items: [], pendingComplete: [], urgentAppointments: false, lowStock: false, pendingTransfers: 0, pendingOrders: 0, storeEnabled: false }, { status: 200 });
   }
 }

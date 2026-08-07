@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, memo } from "react";
 import { LayoutGroup, animate, motion, useMotionValue, useSpring } from "framer-motion";
 import {
@@ -14,6 +14,8 @@ import {
   Gift,
   ArrowLeftRight,
   Clock,
+  ShoppingBag,
+  type LucideIcon,
 } from "lucide-react";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { haptic } from "@/lib/haptic";
@@ -26,18 +28,27 @@ import { resolveIndustry } from "@/lib/industry/resolve";
 import { getDashboardBasePath } from "@/lib/dashboard/shared/dashboard-base";
 import { useNotifications } from "@/lib/dashboard/use-notifications";
 
-const navItems = [
+type NavItem = {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+  tab?: "products" | "orders";
+  query?: string;
+};
+
+const navItems: NavItem[] = [
   { label: "Inicio", href: "/dashboard", icon: Home },
   { label: "Calendario", href: "/dashboard/calendar", icon: CalendarDays },
   { label: "Caja", href: "/dashboard/finances", icon: Wallet },
-  { label: "Productos", href: "/dashboard/inventory", icon: Package },
+  { label: "Productos", href: "/dashboard/inventory", icon: Package, tab: "products" },
+  { label: "Pedidos", href: "/dashboard/inventory", icon: ShoppingBag, tab: "orders", query: "?tab=orders" },
   { label: "Marketing", href: "/dashboard/fidelizacion", icon: Gift },
   { label: "Transferencias", href: "/dashboard/bank-transfers", icon: ArrowLeftRight },
   { label: "__CUSTOMERS_LABEL__", href: "/dashboard/customers", icon: UserRound },
   { label: "Mi Negocio", href: "/dashboard/business", icon: Store },
 ];
 
-const staffOnlyItems = [
+const staffOnlyItems: NavItem[] = [
   { label: "Mi Horario", href: "/dashboard/my-schedule", icon: Clock },
 ];
 
@@ -71,17 +82,22 @@ const DashboardSidebar = memo(function DashboardSidebar({
   const { shop, user } = useAuth();
   const industry = resolveIndustry(shop?.industry);
   const customerPlural = INDUSTRY_CONFIG[industry].labels.customerPlural;
+  const liveNotifications = useNotifications();
   const resolvedNavItems = [
-    ...navItems.filter((item) => item.href !== "/dashboard/bank-transfers" || shop?.bankTransferEnabled),
+    ...navItems.filter(
+      (item) =>
+        (item.href !== "/dashboard/bank-transfers" || shop?.bankTransferEnabled) &&
+        (item.label !== "Pedidos" || liveNotifications.storeEnabled)
+    ),
     ...(user?.role === "staff" ? staffOnlyItems : []),
   ].map((item) => (item.label === "__CUSTOMERS_LABEL__" ? { ...item, label: customerPlural } : item));
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const dashboardBasePath = getDashboardBasePath(pathname);
   const { playClick } = useKlipSounds();
   const { performanceMode } = usePerformanceMode();
   const [needsSetup, setNeedsSetup] = useState(false);
-  const liveNotifications = useNotifications();
 
   useEffect(() => {
     const slug = shop?.slug;
@@ -150,27 +166,30 @@ const DashboardSidebar = memo(function DashboardSidebar({
           initial={false}
           animate="show"
         >
-          {resolvedNavItems.map(({ label, href, icon: Icon }) => {
+          {resolvedNavItems.map(({ label, href, icon: Icon, tab, query }) => {
             const targetHref = href === "/dashboard" ? dashboardBasePath : `${dashboardBasePath}${href.replace("/dashboard", "")}`;
+            const linkHref = query ? `${targetHref}${query}` : targetHref;
+            const isInventoryNav = href === "/dashboard/inventory";
+            const currentTab = searchParams.get("tab") ?? "products";
             const isActive =
-              pathname === targetHref ||
-              (href !== "/dashboard" && pathname.startsWith(targetHref));
+              (href === "/dashboard" ? pathname === targetHref : pathname.startsWith(targetHref)) &&
+              (!isInventoryNav || currentTab === (tab ?? "products"));
 
             const isBusiness = href === "/dashboard/business";
-            const showAlert =
-              (href === "/dashboard/calendar" && liveNotifications.urgentAppointments) ||
-              (href === "/dashboard/inventory" && liveNotifications.lowStock);
+            const showLowStockAlert = isInventoryNav && tab !== "orders" && liveNotifications.lowStock;
+            const showPendingOrdersAlert = isInventoryNav && liveNotifications.pendingOrders > 0;
+            const showUrgentAppointmentsAlert = href === "/dashboard/calendar" && liveNotifications.urgentAppointments;
             const showTransferBadge = href === "/dashboard/bank-transfers" && liveNotifications.pendingTransfers > 0;
 
             return (
               <motion.div
-                key={href}
+                key={tab ? `${href}?tab=${tab}` : href}
                 variants={navItemVariants}
                 whileHover={performanceMode ? undefined : { x: 5 }}
                 whileTap={performanceMode ? undefined : { scale: 0.97 }}
               >
                   <Link
-                    href={targetHref}
+                    href={linkHref}
                     prefetch={true}
                     draggable={false}
                     onMouseDown={() => {
@@ -184,8 +203,8 @@ const DashboardSidebar = memo(function DashboardSidebar({
                       ? "text-violet-700 dark:text-white"
                       : "text-zinc-500 dark:text-zinc-400 hover:bg-white/50 dark:hover:bg-white/5 hover:text-zinc-700 dark:hover:text-white"
                   }`}
-                  aria-current={isActive ? "page" : undefined}
-                >
+                    aria-current={isActive ? "page" : undefined}
+                  >
                   {isActive && (
                     <motion.div
                       layoutId="active-pill"
@@ -200,8 +219,14 @@ const DashboardSidebar = memo(function DashboardSidebar({
                     strokeWidth={1.5}
                   />
                   <span className={`flex-1 relative z-10 ${isBusiness && needsSetup ? "text-amber-600 dark:text-amber-400 font-semibold" : ""}`}>{label}</span>
-                  {showAlert && (
-                    <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 relative z-10" title={href === "/dashboard/calendar" ? "Turnos pr├│ximos urgentes" : "Stock bajo"} />
+                  {showPendingOrdersAlert && (
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 relative z-10 animate-pulse" title="Pedidos nuevos de tienda" />
+                  )}
+                  {showLowStockAlert && (
+                    <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 relative z-10" title="Stock bajo" />
+                  )}
+                  {showUrgentAppointmentsAlert && (
+                    <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 relative z-10" title="Turnos pr├│ximos urgentes" />
                   )}
                   {showTransferBadge && (
                     <span className="px-1.5 py-0.5 rounded-full bg-red-500 text-white text-[10px] font-bold shrink-0 relative z-10">

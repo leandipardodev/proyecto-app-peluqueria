@@ -73,6 +73,32 @@ export async function fetchStoreOrders(shopIdOverride?: string): Promise<ActionR
   }
 }
 
+export async function countPendingStoreOrders(shopIdOverride?: string): Promise<ActionResult<{ count: number }>> {
+  try {
+    let shopId: string | undefined = shopIdOverride;
+    if (!shopId) {
+      const shopIdResult = await requireShopId();
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    }
+
+    const admin = await createAdminClient();
+
+    const { count, error } = await admin
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .eq("shop_id", shopId)
+      .eq("status", "pending_payment");
+
+    if (error) return { success: false, error: error.message };
+
+    return { success: true, data: { count: count || 0 } };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al contar pedidos" };
+  }
+}
+
 export async function confirmStoreOrder(orderId: string, shopIdOverride?: string): Promise<ActionResult> {
   try {
     let shopId: string | undefined = shopIdOverride;

@@ -78,7 +78,14 @@ export default function OrdersPanel({ shopId, orders, isOwnerOrAdmin = false, on
         const isPending = order.status === "pending_payment";
 
         return (
-          <div key={order.id} className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+          <div
+            key={order.id}
+            className={`bg-white dark:bg-zinc-900 rounded-2xl border shadow-sm overflow-hidden transition-shadow ${
+              isPending
+                ? "border-emerald-300 dark:border-emerald-500/40 ring-2 ring-emerald-400/50 dark:ring-emerald-500/30 shadow-[0_0_24px_rgba(16,185,129,0.18)]"
+                : "border-zinc-200 dark:border-zinc-800"
+            }`}
+          >
             <div className="px-4 sm:px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 <div className="flex items-center justify-center w-10 h-10 rounded-2xl bg-gradient-to-br from-violet-400 to-violet-500 dark:from-violet-500 dark:to-violet-600 text-white shadow-lg shadow-violet-200/50 dark:shadow-violet-900/50 shrink-0">
@@ -105,6 +112,12 @@ export default function OrdersPanel({ shopId, orders, isOwnerOrAdmin = false, on
                 <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${statusStyle}`}>
                   {statusLabel}
                 </span>
+                {isPending && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700/50 animate-pulse">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    Nuevo
+                  </span>
+                )}
                 <span className="text-xs text-zinc-400 dark:text-zinc-500">
                   {order.payment_method === "bank_transfer" ? "Transferencia" : "Mercado Pago"}
                 </span>
