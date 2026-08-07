@@ -753,12 +753,12 @@ function StoreTab({ products, storeError, storeCart, status, orderId, updateProd
                   key={product.id}
                   className={`flex flex-col ${templateStyles.plain} ${templateStyles.cardDepth} rounded-2xl ${templateStyles.hoverBorder} overflow-hidden ${soldOut ? "opacity-55" : ""}`}
                 >
-                  <div className="group relative h-44 w-full overflow-hidden">
+                  <div className="relative h-44 w-full overflow-hidden">
                     {product.image_url ? (
                       <button
                         type="button"
                         onClick={() => onShowImage(product)}
-                        className="absolute inset-0 w-full h-full"
+                        className="group absolute inset-0 w-full h-full"
                         aria-label={`Ampliar imagen de ${product.name}`}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
