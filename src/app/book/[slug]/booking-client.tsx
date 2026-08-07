@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Clock,
   CreditCard,
   ExternalLink,
   Info,
@@ -119,6 +120,12 @@ function formatARSAmount(amount: number): string {
   return `$${amount.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
+function formatDuration(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${h}:${String(m).padStart(2, "0")}`;
+}
+
 function releaseCard3D(e: React.PointerEvent<HTMLDivElement | HTMLButtonElement>) {
   const card = e.currentTarget;
   card.style.transform = '';
@@ -163,7 +170,7 @@ const RippleWaves = memo(function RippleWaves({ position, colors }: {
 
 const ServiceCard = memo(function ServiceCard({
   svc, isInCart, cartIdx, ripplePosition, waves,
-  cardDepth, selected, plain, plate, hoverBorder, heading, tiny, priceText, priceFx, selectedText,
+  cardDepth, selected, plain, plate, hoverBorder, heading, tiny, priceText, priceFx, selectedText, accentBg,
   tactileClass, onToggle,
 }: {
   svc: Service;
@@ -181,6 +188,7 @@ const ServiceCard = memo(function ServiceCard({
   priceText: string;
   priceFx: string;
   selectedText: string;
+  accentBg: string;
   tactileClass: string;
   onToggle: (svc: Service, e: React.MouseEvent<HTMLButtonElement>) => void;
 }) {
@@ -219,13 +227,19 @@ const ServiceCard = memo(function ServiceCard({
                   ...(isInCart ? { color: selectedText } as React.CSSProperties : {}),
                 } as React.CSSProperties}>{svc.description}</p>
               )}
-              <p className={`mt-0.5 text-sm ${tiny}`} style={isInCart ? { color: selectedText } as React.CSSProperties : undefined}>{svc.duration_minutes} min</p>
             </div>
             <div className="shrink-0 text-right">
               <p className={`shrink-0 ${priceText} ${priceFx} tabular-nums`} style={isInCart ? { color: selectedText } as React.CSSProperties : undefined}>
                 <span className="mr-1.5 align-top text-[0.72em] font-semibold opacity-85">$</span>
                 <span className="tracking-[-0.045em]">{svc.price.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
               </p>
+              <span
+                className="mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold leading-none tabular-nums"
+                style={{ backgroundColor: isInCart ? selectedText : accentBg, color: isInCart ? accentBg : selectedText } as React.CSSProperties}
+              >
+                <Clock className="w-3 h-3" strokeWidth={2} />
+                {formatDuration(svc.duration_minutes)}
+              </span>
               {cartIdx >= 0 && (
                 <span className={`inline-block mt-1 text-[10px] font-medium ${tiny}`} style={isInCart ? { color: selectedText } as React.CSSProperties : undefined}>
                   #{cartIdx + 1}
@@ -2230,9 +2244,6 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                                             </span>
                                           ))}
                                         </div>
-                                        <p className={`mt-2 text-sm ${templateStyles.tiny}`} style={isSelected ? { color: rippleConfig.text } as React.CSSProperties : undefined}>
-                                          {combo.total_duration} min
-                                        </p>
                                       </div>
                                       <div className="shrink-0 text-right">
                                         {savingsPct > 0 && (
@@ -2251,6 +2262,13 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                                             ${totalOriginal.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                                           </p>
                                         )}
+                                        <span
+                                          className="mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold leading-none tabular-nums"
+                                          style={{ backgroundColor: isSelected ? rippleConfig.text : rippleConfig.bg, color: isSelected ? rippleConfig.bg : rippleConfig.text } as React.CSSProperties}
+                                        >
+                                          <Clock className="w-3 h-3" strokeWidth={2} />
+                                          {formatDuration(combo.total_duration)}
+                                        </span>
                                       </div>
                                     </div>
                                   </button>
@@ -2280,6 +2298,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                                   priceText={templateStyles.priceText}
                                   priceFx={templateStyles.priceFx}
                                   selectedText={rippleConfig.text}
+                                  accentBg={rippleConfig.bg}
                                   tactileClass={tactileClass}
                                   onToggle={handleToggleService}
                                 />
