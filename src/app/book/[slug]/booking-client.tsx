@@ -638,7 +638,7 @@ function StoreImageModal({ product, onClose }: { product: PublicStoreProduct; on
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0, transition: { duration: 0.15 } }}
-        transition={{ type: "spring", stiffness: 380, damping: 26, mass: 0.8 }}
+        transition={{ type: "spring", stiffness: 1520, damping: 52, mass: 0.8 }}
         onClick={(e) => e.stopPropagation()}
         className="relative w-full max-w-lg"
       >
@@ -3451,14 +3451,14 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                             initial={{ opacity: 0, width: 0 }}
                             animate={{ opacity: 1, width: "auto" }}
                             exit={{ opacity: 0, width: 0 }}
-                            transition={{ type: "spring", stiffness: 380, damping: 26, mass: 0.8 }}
+                            transition={{ type: "spring", stiffness: 1520, damping: 52, mass: 0.8 }}
                             className="overflow-hidden whitespace-nowrap"
                           >
                             <motion.span
                               initial={{ scale: 0.5, y: 4, opacity: 0 }}
                               animate={{ scale: 1, y: 0, opacity: 1 }}
                               exit={{ scale: 0.5, y: 4, opacity: 0 }}
-                              transition={{ type: "spring", stiffness: 550, damping: 20, mass: 0.6, delay: 0.03 }}
+                              transition={{ type: "spring", stiffness: 2200, damping: 40, mass: 0.6, delay: 0.015 }}
                               className={`inline-block max-w-[140px] truncate pl-2 text-xs font-medium ${templateStyles.heading}`}
                             >
                               {shop.address}
@@ -3491,14 +3491,14 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                             initial={{ opacity: 0, width: 0 }}
                             animate={{ opacity: 1, width: "auto" }}
                             exit={{ opacity: 0, width: 0 }}
-                            transition={{ type: "spring", stiffness: 380, damping: 26, mass: 0.8 }}
+                            transition={{ type: "spring", stiffness: 1520, damping: 52, mass: 0.8 }}
                             className="overflow-hidden whitespace-nowrap"
                           >
                             <motion.span
                               initial={{ scale: 0.5, y: 4, opacity: 0 }}
                               animate={{ scale: 1, y: 0, opacity: 1 }}
                               exit={{ scale: 0.5, y: 4, opacity: 0 }}
-                              transition={{ type: "spring", stiffness: 550, damping: 20, mass: 0.6, delay: 0.03 }}
+                              transition={{ type: "spring", stiffness: 2200, damping: 40, mass: 0.6, delay: 0.015 }}
                               className={`inline-block max-w-[140px] truncate pl-2 text-xs font-medium ${templateStyles.heading}`}
                             >
                               {shop.phone}
@@ -3531,14 +3531,14 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                             initial={{ opacity: 0, width: 0 }}
                             animate={{ opacity: 1, width: "auto" }}
                             exit={{ opacity: 0, width: 0 }}
-                            transition={{ type: "spring", stiffness: 380, damping: 26, mass: 0.8 }}
+                            transition={{ type: "spring", stiffness: 1520, damping: 52, mass: 0.8 }}
                             className="overflow-hidden whitespace-nowrap"
                           >
                             <motion.span
                               initial={{ scale: 0.5, y: 4, opacity: 0 }}
                               animate={{ scale: 1, y: 0, opacity: 1 }}
                               exit={{ scale: 0.5, y: 4, opacity: 0 }}
-                              transition={{ type: "spring", stiffness: 550, damping: 20, mass: 0.6, delay: 0.03 }}
+                              transition={{ type: "spring", stiffness: 2200, damping: 40, mass: 0.6, delay: 0.015 }}
                               className={`inline-block max-w-[140px] truncate pl-2 text-xs font-medium ${templateStyles.heading}`}
                             >
                               Instagram
