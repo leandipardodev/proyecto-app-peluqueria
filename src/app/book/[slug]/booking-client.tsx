@@ -881,15 +881,36 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const [showSummary, setShowSummary] = useState(false);
   const [expandedContact, setExpandedContact] = useState<"address" | "whatsapp" | "instagram" | null>(null);
   const contactRowRef = useRef<HTMLDivElement>(null);
+  const pendingContactRef = useRef<"address" | "whatsapp" | "instagram" | null>(null);
   const [storeCart, setStoreCart] = useState<Record<string, number>>({});
   const [storeLightbox, setStoreLightbox] = useState<PublicStoreProduct | null>(null);
   const [storeArrivedViaButton, setStoreArrivedViaButton] = useState(false);
   const storeJumpOriginRef = useRef(0);
 
+  const handleExpandContact = useCallback(
+    (e: React.MouseEvent<HTMLAnchorElement>, contact: "address" | "whatsapp" | "instagram") => {
+      if (expandedContact === contact) {
+        pendingContactRef.current = null;
+        return;
+      }
+      e.preventDefault();
+      triggerHaptic(8);
+      if (expandedContact) {
+        pendingContactRef.current = contact;
+        setExpandedContact(null);
+      } else {
+        pendingContactRef.current = null;
+        setExpandedContact(contact);
+      }
+    },
+    [expandedContact]
+  );
+
   useEffect(() => {
     if (!expandedContact) return;
     const handler = (event: MouseEvent | TouchEvent) => {
       if (contactRowRef.current && !contactRowRef.current.contains(event.target as Node)) {
+        pendingContactRef.current = null;
         setExpandedContact(null);
       }
     };
@@ -3412,17 +3433,19 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                       href={`https://www.google.com/maps/search/${encodeURIComponent(shop.city ? `${shop.address}, ${shop.city}` : shop.address)}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={(e) => {
-                        if (expandedContact === "address") return;
-                        e.preventDefault();
-                        triggerHaptic(8);
-                        setExpandedContact("address");
-                      }}
+                      onClick={(e) => handleExpandContact(e, "address")}
                       className={`group inline-flex h-8 items-center rounded-full border px-2 transition-colors ${templateStyles.plate} ${templateStyles.hoverBorder}`}
                       aria-label={shop.address}
                     >
                       <MapPin className={`w-3.5 h-3.5 shrink-0 transition-colors ${templateStyles.meta} ${templateStyles.metaHover}`} />
-                      <AnimatePresence>
+                      <AnimatePresence
+                        onExitComplete={() => {
+                          if (pendingContactRef.current) {
+                            setExpandedContact(pendingContactRef.current);
+                            pendingContactRef.current = null;
+                          }
+                        }}
+                      >
                         {expandedContact === "address" && (
                           <motion.span
                             initial={{ opacity: 0, width: 0 }}
@@ -3450,17 +3473,19 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                       href={`https://wa.me/${shop.phone.replace(/\D/g, "")}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={(e) => {
-                        if (expandedContact === "whatsapp") return;
-                        e.preventDefault();
-                        triggerHaptic(8);
-                        setExpandedContact("whatsapp");
-                      }}
+                      onClick={(e) => handleExpandContact(e, "whatsapp")}
                       className={`group inline-flex h-8 items-center rounded-full border px-2 transition-colors ${templateStyles.plate} ${templateStyles.hoverBorder}`}
                       aria-label={shop.phone}
                     >
                       <WhatsappIcon className={`w-3.5 h-3.5 shrink-0 transition-colors ${templateStyles.meta} ${templateStyles.metaHover}`} />
-                      <AnimatePresence>
+                      <AnimatePresence
+                        onExitComplete={() => {
+                          if (pendingContactRef.current) {
+                            setExpandedContact(pendingContactRef.current);
+                            pendingContactRef.current = null;
+                          }
+                        }}
+                      >
                         {expandedContact === "whatsapp" && (
                           <motion.span
                             initial={{ opacity: 0, width: 0 }}
@@ -3488,17 +3513,19 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                       href={shop.instagramUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={(e) => {
-                        if (expandedContact === "instagram") return;
-                        e.preventDefault();
-                        triggerHaptic(8);
-                        setExpandedContact("instagram");
-                      }}
+                      onClick={(e) => handleExpandContact(e, "instagram")}
                       className={`group inline-flex h-8 items-center rounded-full border px-2 transition-colors ${templateStyles.plate} ${templateStyles.hoverBorder}`}
                       aria-label="Instagram"
                     >
                       <InstagramIcon className={`w-3.5 h-3.5 shrink-0 transition-colors ${templateStyles.meta} ${templateStyles.metaHover}`} />
-                      <AnimatePresence>
+                      <AnimatePresence
+                        onExitComplete={() => {
+                          if (pendingContactRef.current) {
+                            setExpandedContact(pendingContactRef.current);
+                            pendingContactRef.current = null;
+                          }
+                        }}
+                      >
                         {expandedContact === "instagram" && (
                           <motion.span
                             initial={{ opacity: 0, width: 0 }}
