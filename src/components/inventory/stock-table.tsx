@@ -34,6 +34,7 @@ interface StockTableProps {
   storeEnabled?: boolean;
   tab?: InventoryTab;
   onTabChange?: (tab: InventoryTab) => void;
+  pendingOrdersCount?: number;
 }
 
 function productColor(id: string): string {
@@ -49,7 +50,7 @@ function productColor(id: string): string {
   return gradients[hash % gradients.length];
 }
 
-const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = false, storeEnabled = true, tab, onTabChange }: StockTableProps) {
+const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = false, storeEnabled = true, tab, onTabChange, pendingOrdersCount = 0 }: StockTableProps) {
   const router = useRouter();
   const [stockItems, setStockItems] = useState(items);
   const [search, setSearch] = useState("");
@@ -271,7 +272,7 @@ const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = fa
 
         {storeEnabled && tab && onTabChange && (
           <div className="flex justify-center shrink-0">
-            <InventoryTabs tab={tab} onChange={onTabChange} />
+            <InventoryTabs tab={tab} onChange={onTabChange} pendingOrdersCount={pendingOrdersCount} />
           </div>
         )}
 

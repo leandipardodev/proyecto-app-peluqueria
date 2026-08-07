@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, memo } from "react";
 import { LayoutGroup, animate, motion, useMotionValue, useSpring } from "framer-motion";
 import {
@@ -14,8 +14,6 @@ import {
   Gift,
   ArrowLeftRight,
   Clock,
-  ShoppingBag,
-  type LucideIcon,
 } from "lucide-react";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { haptic } from "@/lib/haptic";
@@ -28,27 +26,18 @@ import { resolveIndustry } from "@/lib/industry/resolve";
 import { getDashboardBasePath } from "@/lib/dashboard/shared/dashboard-base";
 import { useNotifications } from "@/lib/dashboard/use-notifications";
 
-type NavItem = {
-  label: string;
-  href: string;
-  icon: LucideIcon;
-  tab?: "products" | "orders";
-  query?: string;
-};
-
-const navItems: NavItem[] = [
+const navItems = [
   { label: "Inicio", href: "/dashboard", icon: Home },
   { label: "Calendario", href: "/dashboard/calendar", icon: CalendarDays },
   { label: "Caja", href: "/dashboard/finances", icon: Wallet },
-  { label: "Productos", href: "/dashboard/inventory", icon: Package, tab: "products" },
-  { label: "Pedidos", href: "/dashboard/inventory", icon: ShoppingBag, tab: "orders", query: "?tab=orders" },
+  { label: "Productos", href: "/dashboard/inventory", icon: Package },
   { label: "Marketing", href: "/dashboard/fidelizacion", icon: Gift },
   { label: "Transferencias", href: "/dashboard/bank-transfers", icon: ArrowLeftRight },
   { label: "__CUSTOMERS_LABEL__", href: "/dashboard/customers", icon: UserRound },
   { label: "Mi Negocio", href: "/dashboard/business", icon: Store },
 ];
 
-const staffOnlyItems: NavItem[] = [
+const staffOnlyItems = [
   { label: "Mi Horario", href: "/dashboard/my-schedule", icon: Clock },
 ];
 
@@ -82,22 +71,17 @@ const DashboardSidebar = memo(function DashboardSidebar({
   const { shop, user } = useAuth();
   const industry = resolveIndustry(shop?.industry);
   const customerPlural = INDUSTRY_CONFIG[industry].labels.customerPlural;
-  const liveNotifications = useNotifications();
   const resolvedNavItems = [
-    ...navItems.filter(
-      (item) =>
-        (item.href !== "/dashboard/bank-transfers" || shop?.bankTransferEnabled) &&
-        (item.label !== "Pedidos" || liveNotifications.storeEnabled)
-    ),
+    ...navItems.filter((item) => item.href !== "/dashboard/bank-transfers" || shop?.bankTransferEnabled),
     ...(user?.role === "staff" ? staffOnlyItems : []),
   ].map((item) => (item.label === "__CUSTOMERS_LABEL__" ? { ...item, label: customerPlural } : item));
   const pathname = usePathname();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const dashboardBasePath = getDashboardBasePath(pathname);
   const { playClick } = useKlipSounds();
   const { performanceMode } = usePerformanceMode();
   const [needsSetup, setNeedsSetup] = useState(false);
+  const liveNotifications = useNotifications();
 
   useEffect(() => {
     const slug = shop?.slug;
@@ -166,30 +150,27 @@ const DashboardSidebar = memo(function DashboardSidebar({
           initial={false}
           animate="show"
         >
-          {resolvedNavItems.map(({ label, href, icon: Icon, tab, query }) => {
+          {resolvedNavItems.map(({ label, href, icon: Icon }) => {
             const targetHref = href === "/dashboard" ? dashboardBasePath : `${dashboardBasePath}${href.replace("/dashboard", "")}`;
-            const linkHref = query ? `${targetHref}${query}` : targetHref;
-            const isInventoryNav = href === "/dashboard/inventory";
-            const currentTab = searchParams.get("tab") ?? "products";
             const isActive =
-              (href === "/dashboard" ? pathname === targetHref : pathname.startsWith(targetHref)) &&
-              (!isInventoryNav || currentTab === (tab ?? "products"));
+              pathname === targetHref ||
+              (href !== "/dashboard" && pathname.startsWith(targetHref));
 
             const isBusiness = href === "/dashboard/business";
-            const showLowStockAlert = isInventoryNav && tab !== "orders" && liveNotifications.lowStock;
-            const showPendingOrdersAlert = isInventoryNav && liveNotifications.pendingOrders > 0;
+            const showLowStockAlert = href === "/dashboard/inventory" && liveNotifications.lowStock;
+            const showPendingOrdersAlert = href === "/dashboard/inventory" && liveNotifications.pendingOrders > 0;
             const showUrgentAppointmentsAlert = href === "/dashboard/calendar" && liveNotifications.urgentAppointments;
             const showTransferBadge = href === "/dashboard/bank-transfers" && liveNotifications.pendingTransfers > 0;
 
             return (
               <motion.div
-                key={tab ? `${href}?tab=${tab}` : href}
+                key={href}
                 variants={navItemVariants}
                 whileHover={performanceMode ? undefined : { x: 5 }}
                 whileTap={performanceMode ? undefined : { scale: 0.97 }}
               >
                   <Link
-                    href={linkHref}
+                    href={targetHref}
                     prefetch={true}
                     draggable={false}
                     onMouseDown={() => {

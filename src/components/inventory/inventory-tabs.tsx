@@ -11,7 +11,7 @@ const tabButtonClass = (active: boolean) =>
       : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
   }`;
 
-export default function InventoryTabs({ tab, onChange }: { tab: InventoryTab; onChange: (tab: InventoryTab) => void }) {
+export default function InventoryTabs({ tab, onChange, pendingOrdersCount = 0 }: { tab: InventoryTab; onChange: (tab: InventoryTab) => void; pendingOrdersCount?: number }) {
   return (
     <div className="inline-flex items-center gap-1 p-1 rounded-2xl bg-zinc-100 dark:bg-zinc-800/80">
       <button type="button" onClick={() => onChange("products")} className={tabButtonClass(tab === "products")}>
@@ -21,6 +21,9 @@ export default function InventoryTabs({ tab, onChange }: { tab: InventoryTab; on
       <button type="button" onClick={() => onChange("orders")} className={tabButtonClass(tab === "orders")}>
         <ShoppingBag className="w-4 h-4" />
         Pedidos
+        {pendingOrdersCount > 0 && (
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" title="Pedidos nuevos de tienda" />
+        )}
       </button>
     </div>
   );

@@ -12,6 +12,7 @@ import { StatePanel } from "@/components/ui/state-panel";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { setShopStoreEnabled } from "@/lib/dashboard/inventory/inventory-actions";
+import { useNotifications } from "@/lib/dashboard/use-notifications";
 import type { StockItem } from "@/lib/dashboard/inventory/inventory-actions";
 import type { StoreOrder } from "@/lib/dashboard/store/store-actions";
 
@@ -38,6 +39,8 @@ export default function InventoryPageClient({
 }: InventoryPageClientProps) {
   const router = useRouter();
   const { addToast } = useToast();
+  const liveNotifications = useNotifications();
+  const pendingOrdersCount = liveNotifications.pendingOrders;
   const [tab, setTabState] = useState<InventoryTab>(initialTab);
   const [modalOpen, setModalOpen] = useState(false);
   const [batchModalOpen, setBatchModalOpen] = useState(false);
@@ -143,7 +146,7 @@ export default function InventoryPageClient({
 
       {tab === "products" || !storeEnabled ? (
         <>
-          <StockTable shopId={shopId} items={initialItems} isOwnerOrAdmin={isOwnerOrAdmin} storeEnabled={storeEnabled} tab={tab} onTabChange={setTab} />
+          <StockTable shopId={shopId} items={initialItems} isOwnerOrAdmin={isOwnerOrAdmin} storeEnabled={storeEnabled} tab={tab} onTabChange={setTab} pendingOrdersCount={pendingOrdersCount} />
           <AddProductModal shopId={shopId} open={modalOpen} onClose={() => setModalOpen(false)} storeEnabled={storeEnabled} />
           <BatchAddProductModal shopId={shopId} open={batchModalOpen} onClose={() => setBatchModalOpen(false)} storeEnabled={storeEnabled} />
         </>
@@ -151,7 +154,7 @@ export default function InventoryPageClient({
         <>
           {storeEnabled && (
             <div className="flex justify-center mb-6">
-              <InventoryTabs tab={tab} onChange={setTab} />
+              <InventoryTabs tab={tab} onChange={setTab} pendingOrdersCount={pendingOrdersCount} />
             </div>
           )}
           <OrdersPanel shopId={shopId} orders={initialOrders} isOwnerOrAdmin={isOwnerOrAdmin} onChanged={() => router.refresh()} />

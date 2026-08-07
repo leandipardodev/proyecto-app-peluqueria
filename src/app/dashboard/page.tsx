@@ -181,7 +181,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
     aiMessages.push({
       id: "new-store-orders",
       title: "Pedidos nuevos de tienda",
-      body: `Tenés ${activeOrdersCount} pedido(s) recibido(s) esperando confirmación. Revisalos: te espera el LED verde en «Pedidos».`,
+      body: `Tenés ${activeOrdersCount} pedido(s) recibido(s) esperando confirmación. Revisalos: te espera el LED verde en «Productos › Pedidos».`,
       tone: "action",
       href: withDashboardBase("/dashboard/inventory", dashboardBasePath) + "?tab=orders",
     });

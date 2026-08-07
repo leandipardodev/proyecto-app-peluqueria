@@ -8,7 +8,6 @@ type NotificationData = {
   pendingTransfers: number;
   unreadCount: number;
   pendingOrders: number;
-  storeEnabled: boolean;
 };
 
 type RawApiResponse = {
@@ -18,7 +17,6 @@ type RawApiResponse = {
   lowStock?: boolean;
   pendingTransfers?: number;
   pendingOrders?: number;
-  storeEnabled?: boolean;
 };
 
 const POLL_INTERVAL = 45_000;
@@ -58,7 +56,6 @@ async function fetchNotifications(): Promise<NotificationData | null> {
       pendingTransfers: data.pendingTransfers ?? 0,
       unreadCount: computeUnreadCount(data),
       pendingOrders: data.pendingOrders ?? 0,
-      storeEnabled: Boolean(data.storeEnabled),
     };
   } catch {
     return null;
@@ -89,7 +86,7 @@ function stopPolling() {
 
 export function useNotifications(): NotificationData {
   const [data, setData] = useState<NotificationData>(
-    cachedData ?? { urgentAppointments: false, lowStock: false, pendingTransfers: 0, unreadCount: 0, pendingOrders: 0, storeEnabled: false }
+    cachedData ?? { urgentAppointments: false, lowStock: false, pendingTransfers: 0, unreadCount: 0, pendingOrders: 0 }
   );
 
   const subscriber = useCallback((fn: NotificationData | null) => {
