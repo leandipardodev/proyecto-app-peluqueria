@@ -154,7 +154,7 @@ export default function InventoryPageClient({
         <>
           {storeEnabled && (
             <div className="flex justify-center mb-6">
-              <InventoryTabs tab={tab} onChange={setTab} pendingOrdersCount={pendingOrdersCount} />
+              <InventoryTabs tab={tab} onChange={setTab} pendingOrdersCount={pendingOrdersCount} lowStockAlert={liveNotifications.lowStock} />
             </div>
           )}
           <OrdersPanel shopId={shopId} orders={initialOrders} isOwnerOrAdmin={isOwnerOrAdmin} onChanged={() => router.refresh()} />

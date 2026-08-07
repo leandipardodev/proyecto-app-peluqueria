@@ -272,7 +272,7 @@ const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = fa
 
         {storeEnabled && tab && onTabChange && (
           <div className="flex justify-center shrink-0">
-            <InventoryTabs tab={tab} onChange={onTabChange} pendingOrdersCount={pendingOrdersCount} />
+            <InventoryTabs tab={tab} onChange={onTabChange} pendingOrdersCount={pendingOrdersCount} lowStockAlert={lowStockCount > 0} />
           </div>
         )}
 
