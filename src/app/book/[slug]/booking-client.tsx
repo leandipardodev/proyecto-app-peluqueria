@@ -169,13 +169,14 @@ const RippleWaves = memo(function RippleWaves({ position, colors }: {
 });
 
 const ServiceCard = memo(function ServiceCard({
-  svc, isInCart, cartIdx, ripplePosition, waves,
-  cardDepth, selected, plain, plate, hoverBorder, heading, tiny, priceText, priceFx, selectedText, accentBg,
+  svc, isInCart, cartIdx, cartLength, ripplePosition, waves,
+  cardDepth, selected, plain, plate, hoverBorder, heading, tiny, priceText, priceFx, selectedText, accentBg, progressFill,
   tactileClass, onToggle,
 }: {
   svc: Service;
   isInCart: boolean;
   cartIdx: number;
+  cartLength: number;
   ripplePosition?: RipplePosition;
   waves: string[];
   cardDepth: string;
@@ -189,6 +190,7 @@ const ServiceCard = memo(function ServiceCard({
   priceFx: string;
   selectedText: string;
   accentBg: string;
+  progressFill: string;
   tactileClass: string;
   onToggle: (svc: Service, e: React.MouseEvent<HTMLButtonElement>) => void;
 }) {
@@ -199,7 +201,7 @@ const ServiceCard = memo(function ServiceCard({
       onPointerDown={pushCard3D}
       onPointerUp={releaseCard3D}
       onPointerLeave={releaseCard3D}
-      className={`w-full rounded-3xl border-2 transition-[transform,box-shadow] duration-200 ${cardDepth} ${isInCart ? `${selected} border-transparent` : `${plain} ${plate} ${hoverBorder}`}`}
+      className={`relative w-full rounded-3xl border-2 transition-[transform,box-shadow] duration-200 ${cardDepth} ${isInCart ? `${selected} border-transparent` : `${plain} ${plate} ${hoverBorder}`}`}
       style={{ scrollSnapAlign: "start" }}
     >
       <div className="overflow-hidden rounded-3xl relative">
@@ -240,15 +242,17 @@ const ServiceCard = memo(function ServiceCard({
                 <Clock className="w-3 h-3" strokeWidth={2} />
                 {formatDuration(svc.duration_minutes)}
               </span>
-              {cartIdx >= 0 && (
-                <span className={`inline-block mt-1 text-[10px] font-medium ${tiny}`} style={isInCart ? { color: selectedText } as React.CSSProperties : undefined}>
-                  #{cartIdx + 1}
-                </span>
-              )}
             </div>
           </div>
         </button>
       </div>
+      {cartIdx >= 0 && cartLength > 1 && (
+        <span
+          className={`absolute -right-3 top-1/2 -translate-y-1/2 z-10 inline-flex items-center justify-center min-w-6 h-6 rounded-full px-1.5 text-[11px] font-bold leading-none text-white tabular-nums ${progressFill} shadow-[0_4px_14px_rgba(0,0,0,0.35)] ring-2 ring-white/90 dark:ring-black/50`}
+        >
+          {cartIdx + 1}
+        </span>
+      )}
     </motion.div>
   );
 });
@@ -751,8 +755,9 @@ function StoreTab({ products, storeError, storeCart, status, orderId, updateProd
               return (
                 <div
                   key={product.id}
-                  className={`flex flex-col ${templateStyles.plain} ${templateStyles.cardDepth} rounded-2xl ${templateStyles.hoverBorder} overflow-hidden ${soldOut ? "opacity-55" : ""}`}
+                  className={`relative flex flex-col ${templateStyles.plain} ${templateStyles.cardDepth} rounded-2xl ${templateStyles.hoverBorder} overflow-hidden ${soldOut ? "opacity-55" : ""}`}
                 >
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/80 via-white/30 to-white/5 dark:from-white/[0.1] dark:via-white/[0.04] dark:to-transparent" />
                   <div className="relative h-44 w-full overflow-hidden">
                     {product.image_url ? (
                       <button
@@ -821,11 +826,12 @@ function StoreTab({ products, storeError, storeCart, status, orderId, updateProd
                     )}
                   </div>
 
-                  <div className="p-3.5 flex-1 flex flex-col">
-                    <div className="flex items-center justify-between gap-2">
+                  <div className="relative p-3.5 flex-1 flex flex-col">
+                    <div className={`pointer-events-none absolute inset-0 ${templateStyles.progressFill} opacity-20 dark:opacity-25`} />
+                    <div className="relative flex items-center justify-between gap-2">
                       <span className={`text-base font-bold ${templateStyles.priceFx}`}>{formatARSAmount(product.price)}</span>
                     </div>
-                    <div className="mt-3">
+                    <div className="relative mt-3">
                       {soldOut ? (
                         <div className={`w-full rounded-xl ${templateStyles.plate} ${templateStyles.tiny} text-sm font-medium px-4 py-2 text-center`}>
                           Sin stock
@@ -2174,7 +2180,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                             </div>
                           </motion.div>
                         </div>
-                          <div className="flex-1 overflow-y-auto overflow-x-hidden delicate-scroll px-1 pt-2 pb-3 [scroll-snap-type:y_proximity]">
+                          <div className="flex-1 overflow-y-auto overflow-x-hidden delicate-scroll px-4 pt-2 pb-3 [scroll-snap-type:y_proximity]">
                           <motion.div variants={stepItemReveal} className="space-y-3">
                           {servicesError && (
                             <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-4 py-3 text-xs text-amber-700 dark:text-amber-300">
@@ -2281,11 +2287,12 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                               const isInCart = cart.some((s) => s.id === svc.id);
                               const cartIdx = cart.findIndex((s) => s.id === svc.id);
                               return (
-                                <ServiceCard
+                                  <ServiceCard
                                   key={svc.id}
                                   svc={svc}
                                   isInCart={isInCart}
                                   cartIdx={cartIdx}
+                                  cartLength={cart.length}
                                   ripplePosition={ripplePositions[svc.id]}
                                   waves={rippleWaves}
                                   cardDepth={templateStyles.cardDepth}
@@ -2299,6 +2306,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                                   priceFx={templateStyles.priceFx}
                                   selectedText={rippleConfig.text}
                                   accentBg={rippleConfig.bg}
+                                  progressFill={templateStyles.progressFill}
                                   tactileClass={tactileClass}
                                   onToggle={handleToggleService}
                                 />
