@@ -23,6 +23,122 @@ import { completedBookingCache } from "@/lib/booking-cache";
 
 const slotsLimiter = createRateLimiter({ intervalMs: 60_000, maxRequests: 30 });
 
+type AdminClient = Awaited<ReturnType<typeof createAdminClient>>;
+
+/**
+ * Find or create a customer for (shop_id, telefono).
+ * Tolerant of concurrent duplicate inserts (unique_customer_phone_per_shop):
+ * if the INSERT fails with 23505 we re-read the existing row and update it instead.
+ * For authenticated users the customer row keyed by user id is preferred, falling
+ * back to the phone-matched row when a phone uniqueness conflict arises.
+ */
+async function resolveCustomer(
+  admin: AdminClient,
+  input: {
+    shopId: string;
+    customerName: string;
+    customerPhone: string;
+    customerEmail?: string | null;
+    authenticatedUserId?: string;
+  }
+): Promise<ActionResult<{ customerId: string }>> {
+  const { shopId, customerName, customerPhone, customerEmail, authenticatedUserId } = input;
+
+  const selectByPhone = () =>
+    admin
+      .from("customers")
+      .select("id")
+      .eq("shop_id", shopId)
+      .eq("telefono", customerPhone)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+  const updateCustomer = (id: string, extra?: { user_id?: string }) =>
+    admin
+      .from("customers")
+      .update({
+        nombre: customerName,
+        email: customerEmail ?? null,
+        ...extra,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+
+  if (authenticatedUserId) {
+    const { data: created, error } = await admin
+      .from("customers")
+      .upsert(
+        {
+          id: authenticatedUserId,
+          user_id: authenticatedUserId,
+          shop_id: shopId,
+          nombre: customerName,
+          email: customerEmail ?? null,
+          telefono: customerPhone,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "id" }
+      )
+      .select("id")
+      .maybeSingle();
+
+    if (!error && created?.id) {
+      return { success: true, data: { customerId: created.id } };
+    }
+
+    if (error && error.code !== "23505") {
+      return { success: false, error: error.message };
+    }
+
+    // Phone uniqueness conflict (e.g. an anonymous booking used this phone before):
+    // reuse the existing phone-matched customer and link it to the logged-in user.
+    const existing = await selectByPhone();
+    if (existing.data) {
+      const { error: updateError } = await updateCustomer(existing.data.id, { user_id: authenticatedUserId });
+      if (updateError) return { success: false, error: updateError.message };
+      return { success: true, data: { customerId: existing.data.id } };
+    }
+
+    if (error) return { success: false, error: error.message };
+    return { success: true, data: { customerId: authenticatedUserId } };
+  }
+
+  const existing = await selectByPhone();
+  if (existing.data) {
+    const { error: updateError } = await updateCustomer(existing.data.id);
+    if (updateError) return { success: false, error: updateError.message };
+    return { success: true, data: { customerId: existing.data.id } };
+  }
+
+  const { data: created, error: insertError } = await admin
+    .from("customers")
+    .insert({
+      user_id: null,
+      shop_id: shopId,
+      nombre: customerName,
+      telefono: customerPhone,
+      email: customerEmail ?? null,
+    })
+    .select("id")
+    .single();
+
+  if (insertError) {
+    // Race: another request created this customer between our SELECT and INSERT.
+    if (insertError.code === "23505") {
+      const retry = await selectByPhone();
+      if (retry.data) {
+        const { error: updateError } = await updateCustomer(retry.data.id);
+        if (updateError) return { success: false, error: updateError.message };
+        return { success: true, data: { customerId: retry.data.id } };
+      }
+    }
+    return { success: false, error: insertError.message };
+  }
+
+  return { success: true, data: { customerId: created.id } };
+}
+
 type ComboService = { id: string; name: string; duration_minutes: number; price: number; pay_at_shop: boolean };
 type ComboRow = { id: string; name: string; description: string | null; price: number; total_duration: number; duration_minutes: number | null; services: ComboService[] };
 
@@ -354,6 +470,7 @@ export async function createPublicAppointment(data: {
   customerPhone: string;
   authenticatedUserId?: string;
   status?: "scheduled" | "pending_payment";
+  skipRepeatCache?: boolean;
   startTime: string;
   endTime: string;
 }): Promise<ActionResult<{ customerId: string; appointmentId: string }>> {
@@ -692,61 +809,18 @@ export async function createPublicAppointment(data: {
       return { success: false, error: "slot_taken" };
     }
 
-    // Create or find customer
-    let customerId: string;
+    // Create or find customer (atomic: tolerant of concurrent duplicate inserts)
+    const customerResolve = await resolveCustomer(admin, {
+      shopId: data.shopId,
+      customerName,
+      customerPhone: data.customerPhone,
+      customerEmail: data.customerEmail ?? null,
+      authenticatedUserId: data.authenticatedUserId,
+    });
 
-    if (data.authenticatedUserId) {
-      customerId = data.authenticatedUserId;
-      const { error: upsertError } = await admin
-        .from("customers")
-        .upsert({
-          id: customerId,
-          user_id: customerId,
-          shop_id: data.shopId,
-          nombre: customerName,
-          email: data.customerEmail ?? null,
-          telefono: data.customerPhone,
-          updated_at: new Date().toISOString(),
-        });
-
-      if (upsertError) return { success: false, error: upsertError.message };
-    } else {
-      const { data: existingCustomer } = await admin
-        .from("customers")
-        .select("id")
-        .eq("shop_id", data.shopId)
-        .eq("telefono", data.customerPhone)
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-
-      if (existingCustomer) {
-        customerId = existingCustomer.id;
-        await admin
-          .from("customers")
-          .update({
-            nombre: customerName,
-            email: data.customerEmail ?? null,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", customerId);
-      } else {
-        const { data: newCustomer, error: custError } = await admin
-        .from("customers")
-        .insert({
-          user_id: data.authenticatedUserId ?? null,
-          shop_id: data.shopId,
-          nombre: customerName,
-          telefono: data.customerPhone,
-          email: data.customerEmail ?? null,
-        })
-        .select("id")
-        .single();
-
-        if (custError) return { success: false, error: custError.message };
-        customerId = newCustomer.id;
-      }
-    }
+    if (!customerResolve.success) return { success: false, error: customerResolve.error };
+    if (!customerResolve.data) return { success: false, error: "No se pudo registrar el cliente" };
+    const customerId = customerResolve.data.customerId;
 
     const { data: serviceRow } = await admin
       .from("services")
@@ -849,7 +923,9 @@ export async function createPublicAppointment(data: {
       }
     }
 
-    completedBookingCache.set(ipKey, true);
+    if (data.status !== "pending_payment" && !data.skipRepeatCache) {
+      completedBookingCache.set(ipKey, true);
+    }
 
     return { success: true, data: { customerId, appointmentId: createdAppointment.id } };
   } catch (e) {
@@ -1172,54 +1248,18 @@ export async function createPublicComboAppointment(data: {
       }
     }
 
-    // Create or find customer
-    let customerId: string;
-    if (data.authenticatedUserId) {
-      customerId = data.authenticatedUserId;
-      const { error: upsertError } = await admin
-        .from("customers")
-        .upsert({
-          id: customerId,
-          user_id: customerId,
-          shop_id: data.shopId,
-          nombre: customerName,
-          email: data.customerEmail ?? null,
-          telefono: data.customerPhone,
-          updated_at: new Date().toISOString(),
-        });
-      if (upsertError) return { success: false, error: upsertError.message };
-    } else {
-      const { data: existingCustomer } = await admin
-        .from("customers")
-        .select("id")
-        .eq("shop_id", data.shopId)
-        .eq("telefono", data.customerPhone)
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .maybeSingle();
+    // Create or find customer (atomic: tolerant of concurrent duplicate inserts)
+    const comboCustomerResolve = await resolveCustomer(admin, {
+      shopId: data.shopId,
+      customerName,
+      customerPhone: data.customerPhone,
+      customerEmail: data.customerEmail ?? null,
+      authenticatedUserId: data.authenticatedUserId,
+    });
 
-      if (existingCustomer) {
-        customerId = existingCustomer.id;
-        await admin
-          .from("customers")
-          .update({ nombre: customerName, email: data.customerEmail ?? null, updated_at: new Date().toISOString() })
-          .eq("id", customerId);
-      } else {
-        const { data: newCustomer, error: custError } = await admin
-          .from("customers")
-          .insert({
-            user_id: data.authenticatedUserId ?? null,
-            shop_id: data.shopId,
-            nombre: customerName,
-            telefono: data.customerPhone,
-            email: data.customerEmail ?? null,
-          })
-          .select("id")
-          .single();
-        if (custError) return { success: false, error: custError.message };
-        customerId = newCustomer.id;
-      }
-    }
+    if (!comboCustomerResolve.success) return { success: false, error: comboCustomerResolve.error };
+    if (!comboCustomerResolve.data) return { success: false, error: "No se pudo registrar el cliente" };
+    const customerId = comboCustomerResolve.data.customerId;
 
     // Clean up expired pending bookings
     admin.from("pending_bookings").delete().lt("expires_at", new Date().toISOString()).then(() => {}, () => {});

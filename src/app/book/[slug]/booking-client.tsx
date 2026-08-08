@@ -1210,6 +1210,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const [bankTransferWhatsAppMessage, setBankTransferWhatsAppMessage] = useState<string | null>(null);
 
   const pendingAppointmentIdsRef = useRef<string[]>([]);
+  const confirmLockRef = useRef(false);
   const slotsRef = useRef<HTMLDivElement>(null);
   const horariosScrollRef = useRef<HTMLDivElement>(null);
   const stepsScrollRef = useRef<HTMLDivElement>(null);
@@ -1613,7 +1614,8 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   async function createCartAppointments(status: "scheduled" | "pending_payment", phone: string): Promise<{ ids: string[] } | null> {
     const createdIds: string[] = [];
     let prevEnd = selectedSlot!.start;
-    for (const svc of cart) {
+    for (let i = 0; i < cart.length; i++) {
+      const svc = cart[i];
       const svcStart = prevEnd;
       const svcEnd = new Date(new Date(svcStart).getTime() + svc.duration_minutes * 60000).toISOString();
       const result = await createPublicAppointment({
@@ -1624,6 +1626,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
         customerEmail: customerEmail.trim() || undefined,
         customerPhone: phone,
         authenticatedUserId: user?.id,
+        skipRepeatCache: i < cart.length - 1,
         startTime: svcStart,
         endTime: svcEnd,
         status,
@@ -1640,6 +1643,8 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   }
 
   async function handleConfirm() {
+    if (confirmLockRef.current) return;
+    confirmLockRef.current = true;
     try {
     if (cart.length === 0 && !selectedCombo && !hasStoreItems) return;
     if (hasServices && !selectedSlot) return;
@@ -1856,6 +1861,8 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     setSubmitting(false);
     setCreatingPreference(false);
     setError(e instanceof Error ? e.message : "Error inesperado al procesar el turno");
+  } finally {
+    confirmLockRef.current = false;
   }
   }
 
@@ -2920,6 +2927,11 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                             </p>
                           </div>
                         )}
+                        {error && (
+                          <div className={`mx-0.5 mb-2 text-sm px-4 py-2.5 rounded-xl border ${templateStyles.errorBox}`}>
+                            {error === "slot_taken" ? "Ese turno ya no está disponible. Elegí otro horario." : error}
+                          </div>
+                        )}
                         <div className="flex-1 overflow-y-auto delicate-scroll pb-4 px-0.5">
                           <StoreTab
                             products={storeProducts}
@@ -3403,13 +3415,15 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                     layout
                     transition={{ type: "spring", stiffness: 500, damping: 26, mass: 0.9 }}
                     onClick={(e) => {
+                      if (submitting || creatingPreference) return;
                       triggerHaptic(12, e.currentTarget);
                       if (storeArrivedViaButton) { setStep(storeJumpOriginRef.current); return; }
                       continueFromTienda();
                     }}
+                    disabled={submitting || creatingPreference}
                     whileHover={storeArrivedViaButton || storeCartCount > 0 ? { scale: 1.06 } : { scale: 1.02 }}
                     whileTap={storeArrivedViaButton || storeCartCount > 0 ? { scale: 0.9 } : { scale: 0.98 }}
-                    className={`relative overflow-hidden px-6 py-2.5 rounded-full text-sm font-medium whitespace-nowrap ${templateStyles.next}`}
+                    className={`relative overflow-hidden px-6 py-2.5 rounded-full text-sm font-medium whitespace-nowrap ${templateStyles.next} ${submitting || creatingPreference ? "opacity-60 cursor-not-allowed" : ""}`}
                   >
                     <span className="relative z-10 flex items-center gap-1.5">
                       {storeArrivedViaButton ? (

@@ -405,27 +405,33 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        // Create or update customer
+        // Create or update customer (tolerant of concurrent duplicate inserts)
         let customerId: string;
-        const { data: existingCustomer } = await admin
-          .from("customers")
-          .select("id")
-          .eq("shop_id", booking.shop_id)
-          .eq("telefono", booking.customer_phone)
-          .order("created_at", { ascending: true })
-          .limit(1)
-          .maybeSingle();
+        const selectCustomerByPhone = () =>
+          admin
+            .from("customers")
+            .select("id")
+            .eq("shop_id", booking.shop_id)
+            .eq("telefono", booking.customer_phone)
+            .order("created_at", { ascending: true })
+            .limit(1)
+            .maybeSingle();
 
-        if (existingCustomer) {
-          customerId = existingCustomer.id;
-          const { error: updateCustError } = await admin
+        const updateCustomerById = (id: string) =>
+          admin
             .from("customers")
             .update({
               nombre: booking.customer_name,
               email: booking.customer_email || null,
               updated_at: new Date().toISOString(),
             })
-            .eq("id", customerId);
+            .eq("id", id);
+
+        const { data: existingCustomer } = await selectCustomerByPhone();
+
+        if (existingCustomer) {
+          customerId = existingCustomer.id;
+          const { error: updateCustError } = await updateCustomerById(customerId);
           if (updateCustError) throw updateCustError;
         } else {
           const { data: newCustomer, error: custError } = await admin
@@ -439,8 +445,22 @@ export async function POST(request: NextRequest) {
             .select("id")
             .single();
 
-          if (custError) throw custError;
-          customerId = newCustomer.id;
+          if (custError) {
+            if (isUniqueViolation(custError)) {
+              const { data: racedCustomer } = await selectCustomerByPhone();
+              if (racedCustomer) {
+                customerId = racedCustomer.id;
+                const { error: updateCustError } = await updateCustomerById(customerId);
+                if (updateCustError) throw updateCustError;
+              } else {
+                throw custError;
+              }
+            } else {
+              throw custError;
+            }
+          } else {
+            customerId = newCustomer.id;
+          }
         }
 
         // Re-check slot availability — may have been taken since pending_booking was created

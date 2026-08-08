@@ -6,14 +6,15 @@ import {
 import { getArgentinaDateKey, getArgentinaMinutesSinceMidnight } from "@/lib/argentina-time";
 import { mockQueryResult } from "@/__tests__/setup";
 
-const { cacheHasMock, adminClientMock, overridesMock } = vi.hoisted(() => ({
+const { cacheHasMock, cacheSetMock, adminClientMock, overridesMock } = vi.hoisted(() => ({
   cacheHasMock: vi.fn(),
+  cacheSetMock: vi.fn(),
   adminClientMock: vi.fn(),
   overridesMock: vi.fn(),
 }));
 
 vi.mock("@/lib/booking-cache", () => ({
-  completedBookingCache: { has: cacheHasMock, set: vi.fn() },
+  completedBookingCache: { has: cacheHasMock, set: cacheSetMock },
 }));
 
 vi.mock("@/lib/rate-limiter", () => ({
@@ -63,6 +64,46 @@ function makeAdmin(routes: Record<string, unknown> = {}): never {
     }),
   };
   return client as never;
+}
+
+// Admin stub that drives createPublicAppointment through a full SUCCESS path.
+// Each table's response is selected by call number, so we can simulate the
+// SELECT -> INSERT race on "customers" (23505) and the final appointments insert.
+function makeSuccessAdmin(): never {
+  const counters: Record<string, number> = {};
+  return {
+    from: vi.fn((table: string) => {
+      counters[table] = (counters[table] ?? 0) + 1;
+      const call = counters[table];
+
+      if (table === "customers") {
+        if (call === 1) return mockQueryResult(null, null);
+        if (call === 2) return mockQueryResult(null, { code: "23505", message: 'duplicate key value violates unique constraint "unique_customer_phone_per_shop"' });
+        if (call === 3) return mockQueryResult({ id: "cust-1" }, null);
+        return mockQueryResult(null, null);
+      }
+
+      if (table === "appointments") {
+        if (call === 3) return mockQueryResult({ id: "apt-1" }, null);
+        return mockQueryResult([], null);
+      }
+
+      if (table === "pending_bookings") return mockQueryResult([], null);
+
+      if (table === "shops") {
+        return mockQueryResult({ business_hours: { saturday: { open: true, start: "09:00", end: "20:00" } } }, null);
+      }
+
+      if (table === "staff_schedules") {
+        return mockQueryResult({ is_active: true, start_time: "09:00:00", end_time: "20:00:00", break_start: null, break_end: null }, null);
+      }
+
+      if (table === "staff_services") return mockQueryResult([{ service_id: "svc-1" }], null);
+      if (table === "services") return mockQueryResult({ price: 100 }, null);
+
+      return mockQueryResult(null, null);
+    }),
+  } as never;
 }
 
 beforeEach(() => {
@@ -168,6 +209,35 @@ describe("createPublicAppointment - validacion", () => {
     );
     const res = await createPublicAppointment(baseAppointment);
     expect(res).toEqual({ success: false, error: "El horario seleccionado coincide con el descanso" });
+  });
+});
+
+describe("createPublicAppointment - cliente atomico y cache", () => {
+  it("resuelve una carrera de insercion de cliente (23505) reusando el registro existente", async () => {
+    adminClientMock.mockResolvedValue(makeSuccessAdmin());
+    const res = await createPublicAppointment({ ...baseAppointment, staffId: "s1", customerEmail: undefined });
+    expect(res).toEqual({ success: true, data: { customerId: "cust-1", appointmentId: "apt-1" } });
+  });
+
+  it("no marca el booking como repetido cuando el turno queda pending_payment", async () => {
+    adminClientMock.mockResolvedValue(makeSuccessAdmin());
+    const res = await createPublicAppointment({ ...baseAppointment, staffId: "s1", customerEmail: undefined, status: "pending_payment" });
+    expect(res.success).toBe(true);
+    expect(cacheSetMock).not.toHaveBeenCalled();
+  });
+
+  it("no marca el booking como repetido para items intermedios del carrito (skipRepeatCache)", async () => {
+    adminClientMock.mockResolvedValue(makeSuccessAdmin());
+    const res = await createPublicAppointment({ ...baseAppointment, staffId: "s1", customerEmail: undefined, status: "scheduled", skipRepeatCache: true });
+    expect(res.success).toBe(true);
+    expect(cacheSetMock).not.toHaveBeenCalled();
+  });
+
+  it("marca el booking como completado para un turno pagado en local (scheduled)", async () => {
+    adminClientMock.mockResolvedValue(makeSuccessAdmin());
+    const res = await createPublicAppointment({ ...baseAppointment, staffId: "s1", customerEmail: undefined, status: "scheduled" });
+    expect(res.success).toBe(true);
+    expect(cacheSetMock).toHaveBeenCalledTimes(1);
   });
 });
 
