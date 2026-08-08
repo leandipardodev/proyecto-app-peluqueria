@@ -8,13 +8,16 @@ export const dynamic = "force-dynamic";
 
 type DashboardNotification = {
   id: string;
-  type: "nuevo_turno" | "turno_cancelado" | "recompensa_disponible" | "cliente_cumpleaños" | "stock_bajo" | "nuevo_miembro" | "oportunidad_estacional" | "voucher_enviado" | "plan_por_vencer" | "transferencia_pendiente" | "nuevo_pedido";
+  type: string;
   category: "urgent" | "action" | "info";
   title: string;
   description: string;
   href: string;
   timestamp: string;
+  isRead: boolean;
 };
+
+const EMPTY_RESPONSE = { items: [], pendingComplete: [], urgentAppointments: false, lowStock: false, pendingTransfers: 0, pendingOrders: 0, unreadCount: 0 };
 
 function seasonalMomentLabel(now: Date): string | null {
   const sameMonthDay = (month: number, day: number) => now.getMonth() === month && now.getDate() === day;
@@ -55,11 +58,111 @@ function isBirthdayThisWeek(dateStr: string, now: Date): boolean {
   }
 }
 
-function formatTime(iso: string): string {
+function isTodayInART(dateStr: string, now: Date): boolean {
   try {
-    return new Date(iso).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Argentina/Buenos_Aires" });
+    const d = new Date(dateStr);
+    return d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
   } catch {
-    return "";
+    return false;
+  }
+}
+
+async function assureNotifications(admin: Awaited<ReturnType<typeof createServiceRoleClient>>, shopId: string) {
+  const nowAr = getArgentinaNow();
+  const nowIso = nowAr.toISOString();
+
+  const [loyaltyRes, customersRes, shopRes] = await Promise.all([
+    admin.from("customers").select("id, nombre, loyalty_rewards_available").eq("shop_id", shopId).gt("loyalty_rewards_available", 0).order("loyalty_rewards_available", { ascending: false }).limit(10),
+    admin.from("customers").select("id, nombre, cumpleaños" as string).eq("shop_id", shopId).not("cumpleaños", "is", null).limit(100),
+    admin.from("shops").select("plan_expiry").eq("id", shopId).single(),
+  ]);
+
+  // Recompensas: asegurar las que existen y borrar las que ya no aplican.
+  const keepRewardKeys = (loyaltyRes.data ?? []).map((c) => `recompensa:${c.id}`);
+  const rewardDelete = admin.from("notifications").delete().eq("shop_id", shopId).eq("type", "recompensa_disponible");
+  if (keepRewardKeys.length > 0) rewardDelete.not("entity_key", "in", keepRewardKeys);
+  await rewardDelete;
+  if (loyaltyRes.data && loyaltyRes.data.length > 0) {
+    const rows = loyaltyRes.data.map((c) => ({
+      shop_id: shopId,
+      type: "recompensa_disponible",
+      category: "action" as const,
+      title: "Recompensa disponible",
+      description: `${c.nombre} tiene ${c.loyalty_rewards_available} recompensa(s) pendiente(s)`,
+      href: "/dashboard/customers",
+      entity_key: `recompensa:${c.id}`,
+      created_at: nowIso,
+    }));
+    await admin.from("notifications").upsert(rows, { onConflict: "shop_id,entity_key" });
+  }
+
+  // Cumpleaños: una vez por año por cliente.
+  if (customersRes.data && customersRes.data.length > 0) {
+    const customersData = customersRes.data as unknown as { id: string; nombre: string; cumpleaños: string | null }[];
+    const rows = [];
+    for (const c of customersData) {
+      const cumple = c.cumpleaños;
+      if (!cumple || !isBirthdayThisWeek(cumple, nowAr)) continue;
+      const isToday = isTodayInART(cumple, nowAr);
+      rows.push({
+        shop_id: shopId,
+        type: "cliente_cumpleaños",
+        category: "action" as const,
+        title: isToday ? "¡Hoy cumple años!" : "Cumpleaños esta semana",
+        description: `${c.nombre} ${isToday ? "cumple años hoy" : "cumple años esta semana"}`,
+        href: "/dashboard/customers",
+        entity_key: `cumple:${c.id}:${nowAr.getFullYear()}`,
+        created_at: nowIso,
+      });
+    }
+    if (rows.length > 0) {
+      await admin.from("notifications").upsert(rows, { onConflict: "shop_id,entity_key" });
+    }
+  }
+
+  // Plan por vencer: se asegura si vence en <=7 días y se limpia si ya no aplica.
+  const planRows = [];
+  let planKey: string | null = null;
+  if (shopRes.data?.plan_expiry) {
+    const planExpiry = new Date(shopRes.data.plan_expiry);
+    const daysUntilExpiry = Math.ceil((planExpiry.getTime() - nowAr.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysUntilExpiry > 0 && daysUntilExpiry <= 7) {
+      planKey = "plan-por-vencer";
+      planRows.push({
+        shop_id: shopId,
+        type: "plan_por_vencer",
+        category: "urgent" as const,
+        title: "Plan por vencer",
+        description: `Tu plan vence en ${daysUntilExpiry} día(s). Renová para seguir operando.`,
+        href: "/dashboard/billing",
+        entity_key: planKey,
+        created_at: planExpiry.toISOString(),
+      });
+    }
+  }
+  if (planKey) {
+    await admin.from("notifications").upsert(planRows, { onConflict: "shop_id,entity_key" });
+  } else {
+    await admin.from("notifications").delete().eq("shop_id", shopId).eq("type", "plan_por_vencer");
+  }
+
+  // Oportunidad estacional: una por fecha.
+  const seasonalMessage = seasonalMomentLabel(nowAr);
+  if (seasonalMessage) {
+    const mm = String(nowAr.getMonth() + 1).padStart(2, "0");
+    const dd = String(nowAr.getDate()).padStart(2, "0");
+    await admin.from("notifications").upsert([
+      {
+        shop_id: shopId,
+        type: "oportunidad_estacional",
+        category: "info" as const,
+        title: "Fecha importante detectada",
+        description: seasonalMessage,
+        href: "/dashboard/business",
+        entity_key: `estacional:${mm}-${dd}`,
+        created_at: nowIso,
+      },
+    ], { onConflict: "shop_id,entity_key" });
   }
 }
 
@@ -68,19 +171,18 @@ export async function GET() {
     const supabase = await createServerClient();
     const authUser = (await supabase.auth.getUser()).data?.user;
     if (!authUser) {
-      return NextResponse.json({ items: [], pendingComplete: [], urgentAppointments: false, lowStock: false, pendingOrders: 0 }, { status: 200 });
+      return NextResponse.json(EMPTY_RESPONSE, { status: 200 });
     }
 
     const shopId = await getShopId({ user: { id: authUser.id } });
     if (!shopId) {
-      return NextResponse.json({ items: [], pendingComplete: [], urgentAppointments: false, lowStock: false, pendingOrders: 0 }, { status: 200 });
+      return NextResponse.json(EMPTY_RESPONSE, { status: 200 });
     }
 
     const admin = await createServiceRoleClient();
     const nowAr = getArgentinaNow();
     const todayDateStr = getArgentinaDateString();
-    const { start: todayStart, end: todayEnd } = getArgentinaDayBounds(todayDateStr);
-    const todayStartIso = todayStart.toISOString();
+    const { end: todayEnd } = getArgentinaDayBounds(todayDateStr);
     const todayEndIso = todayEnd.toISOString();
     const yesterdayAr = new Date(nowAr.getTime() - 24 * 60 * 60 * 1000);
     const { start: yesterdayStart } = getArgentinaDayBounds(
@@ -88,92 +190,32 @@ export async function GET() {
     );
     const yesterdayStartIso = yesterdayStart.toISOString();
     const oneHourFromNow = new Date(nowAr.getTime() + 60 * 60 * 1000).toISOString();
-    const weekAgoIso = new Date(nowAr.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const [urgentRes, stockCountRes, todayApptsRes, cancelledRes, loyaltyRes, customersRes, vouchersRes, staffRes, shopRes, pendingCompleteRes, businessHoursRes, bankTransfersRes, ordersRes] = await Promise.all([
+
+    await assureNotifications(admin, shopId);
+
+    const [notifsRes, readsRes, urgentRes, stockCountRes, pendingCompleteRes, businessHoursRes, bankTransfersRes, ordersRes] = await Promise.all([
+      admin.from("notifications").select("id, type, category, title, description, href, created_at").eq("shop_id", shopId).order("created_at", { ascending: false }).limit(50),
+      admin.from("notification_reads").select("notification_id").eq("user_id", authUser.id),
       admin.from("appointments").select("id", { count: "exact", head: true }).eq("shop_id", shopId).in("status", APPOINTMENT_STATUS_NEEDS_CONFIRMATION as unknown as string[]).gte("start_time", nowAr.toISOString()).lte("start_time", oneHourFromNow),
       admin.from("stock").select("id", { count: "exact", head: true }).eq("shop_id", shopId).lt("quantity", 5),
-      admin.from("appointments").select("id, start_time, customers(nombre)").eq("shop_id", shopId).in("status", ["scheduled", "confirmed", "pending_payment"]).gte("start_time", todayStartIso).lte("start_time", todayEndIso).order("start_time", { ascending: true }).limit(10),
-      admin.from("appointments").select("id, start_time, customers(nombre)").eq("shop_id", shopId).eq("status", "cancelled").gte("start_time", todayStartIso).lte("start_time", todayEndIso).order("start_time", { ascending: true }).limit(10),
-      admin.from("customers").select("id, nombre, loyalty_rewards_available").eq("shop_id", shopId).gt("loyalty_rewards_available", 0).order("loyalty_rewards_available", { ascending: false }).limit(10),
-      admin.from("customers").select("id, nombre, cumpleaños" as string).eq("shop_id", shopId).not("cumpleaños", "is", null).limit(100),
-      admin.from("vouchers").select("id, gifted_to_name, service_name, created_at").eq("shop_id", shopId).eq("status", "sent").gte("created_at", todayStartIso).lte("created_at", todayEndIso).order("created_at", { ascending: false }).limit(10),
-      admin.from("user_profiles").select("user_id, name, role, created_at").eq("shop_id", shopId).in("role", ["owner", "staff"]).gte("created_at", weekAgoIso).order("created_at", { ascending: false }).limit(10),
-      admin.from("shops").select("plan_expiry").eq("id", shopId).single(),
       admin.from("appointments").select("id, start_time, customers(nombre)").eq("shop_id", shopId).in("status", ["confirmed", "in_progress"]).gte("start_time", yesterdayStartIso).lte("start_time", todayEndIso).order("start_time", { ascending: true }).limit(100),
       admin.from("shops").select("business_hours").eq("id", shopId).single(),
-      admin.from("pending_bookings").select("id, customer_name, start_time, payment_amount", { count: "exact", head: true }).eq("shop_id", shopId).eq("status", "pending").eq("payment_method", "bank_transfer").gt("expires_at", nowAr.toISOString()),
+      admin.from("pending_bookings").select("id", { count: "exact", head: true }).eq("shop_id", shopId).eq("status", "pending").eq("payment_method", "bank_transfer").gt("expires_at", nowAr.toISOString()),
       admin.from("orders").select("id", { count: "exact", head: true }).eq("shop_id", shopId).eq("status", "pending_payment"),
     ]);
 
-    const items: DashboardNotification[] = [];
+    const readSet = new Set((readsRes.data ?? []).map((r) => r.notification_id));
 
-    if (todayApptsRes.data && todayApptsRes.data.length > 0) {
-      for (const apt of todayApptsRes.data) {
-        const c = Array.isArray(apt.customers) ? apt.customers[0] : apt.customers;
-        if (!c?.nombre) continue;
-        items.push({ id: `nuevo_turno-${apt.id}`, type: "nuevo_turno", category: "info", title: "Nuevo turno agendado", description: `${c.nombre} tiene turno hoy a las ${formatTime(apt.start_time)}`, href: "/dashboard/calendar", timestamp: apt.start_time });
-      }
-    }
-
-    if (cancelledRes.data && cancelledRes.data.length > 0) {
-      for (const apt of cancelledRes.data) {
-        const c = Array.isArray(apt.customers) ? apt.customers[0] : apt.customers;
-        items.push({ id: `turno_cancelado-${apt.id}`, type: "turno_cancelado", category: "urgent", title: "Turno cancelado", description: c?.nombre ? `${c.nombre} canceló su turno de las ${formatTime(apt.start_time)}` : `Un turno fue cancelado para las ${formatTime(apt.start_time)}`, href: "/dashboard/calendar", timestamp: apt.start_time });
-      }
-    }
-
-    if (loyaltyRes.data && loyaltyRes.data.length > 0) {
-      for (const c of loyaltyRes.data) {
-        items.push({ id: `recompensa-${c.id}`, type: "recompensa_disponible", category: "action", title: "Recompensa disponible", description: `${c.nombre} tiene ${c.loyalty_rewards_available} recompensa(s) pendiente(s)`, href: "/dashboard/customers", timestamp: nowAr.toISOString() });
-      }
-    }
-
-    if (customersRes.data && customersRes.data.length > 0) {
-      const customersData = customersRes.data as unknown as { id: string; nombre: string; cumpleaños: string | null }[];
-      for (const c of customersData) {
-        const cumple = c.cumpleaños;
-        if (!cumple || !isBirthdayThisWeek(cumple, nowAr)) continue;
-        const isToday = (() => { try { const d = new Date(cumple); return d.getMonth() === nowAr.getMonth() && d.getDate() === nowAr.getDate(); } catch { return false; } })();
-        items.push({ id: `cumple-${c.id}`, type: "cliente_cumpleaños", category: "action", title: isToday ? "¡Hoy cumple años!" : "Cumpleaños esta semana", description: `${c.nombre} ${isToday ? "cumple años hoy" : "cumple años esta semana"}`, href: "/dashboard/customers", timestamp: nowAr.toISOString() });
-      }
-    }
-
-    if (stockCountRes.count && stockCountRes.count > 0) {
-      items.push({ id: "stock-bajo", type: "stock_bajo", category: "urgent", title: "Stock bajo", description: `${stockCountRes.count} producto(s) tienen stock bajo (menos de 5 unidades)`, href: "/dashboard/inventory", timestamp: nowAr.toISOString() });
-    }
-
-    if (ordersRes.count && ordersRes.count > 0) {
-      items.push({ id: "nuevo-pedido", type: "nuevo_pedido", category: "action", title: "Nuevo pedido de tienda", description: `${ordersRes.count} pedido(s) recibido(s) esperando confirmación`, href: "/dashboard/inventory?tab=orders", timestamp: nowAr.toISOString() });
-    }
-
-    if (staffRes.data && staffRes.data.length > 0) {
-      for (const s of staffRes.data) {
-        items.push({ id: `nuevo-miembro-${s.user_id}`, type: "nuevo_miembro", category: "info", title: "Nuevo miembro del equipo", description: `${s.name || "Nuevo miembro"} se unió como ${s.role === "owner" ? "dueño" : "staff"}`, href: "/dashboard/staff", timestamp: s.created_at ?? "" });
-      }
-    }
-
-    const seasonalMessage = seasonalMomentLabel(nowAr);
-    if (seasonalMessage) {
-      items.push({ id: "oportunidad-estacional", type: "oportunidad_estacional", category: "info", title: "Fecha importante detectada", description: seasonalMessage, href: "/dashboard/business", timestamp: nowAr.toISOString() });
-    }
-
-    if (vouchersRes.data && vouchersRes.data.length > 0) {
-      for (const v of vouchersRes.data) {
-        items.push({ id: `voucher-enviado-${v.id}`, type: "voucher_enviado", category: "action", title: "Voucher enviado", description: `Voucher de ${v.service_name || "servicio"} enviado a ${v.gifted_to_name}`, href: "/dashboard/fidelizacion", timestamp: v.created_at });
-      }
-    }
-
-    if (shopRes.data?.plan_expiry) {
-      const planExpiry = new Date(shopRes.data.plan_expiry);
-      const daysUntilExpiry = Math.ceil((planExpiry.getTime() - nowAr.getTime()) / (1000 * 60 * 60 * 24));
-      if (daysUntilExpiry > 0 && daysUntilExpiry <= 7) {
-        items.push({ id: "plan-por-vencer", type: "plan_por_vencer", category: "urgent", title: "Plan por vencer", description: `Tu plan vence en ${daysUntilExpiry} día(s). Renová para seguir operando.`, href: "/dashboard/billing", timestamp: planExpiry.toISOString() });
-      }
-    }
-
-    if (bankTransfersRes.count && bankTransfersRes.count > 0) {
-      items.push({ id: "bank-transfers-pending", type: "transferencia_pendiente", category: "urgent", title: "Transferencia pendiente", description: `${bankTransfersRes.count} transferencia(s) esperando confirmación`, href: "/dashboard/bank-transfers", timestamp: nowAr.toISOString() });
-    }
+    const items: DashboardNotification[] = (notifsRes.data ?? []).map((n) => ({
+      id: n.id,
+      type: n.type,
+      category: (n.category === "urgent" || n.category === "action" || n.category === "info" ? n.category : "info") as DashboardNotification["category"],
+      title: n.title,
+      description: n.description,
+      href: n.href,
+      timestamp: n.created_at,
+      isRead: readSet.has(n.id),
+    }));
 
     let todayAfterClosing = false;
     if (businessHoursRes.data?.business_hours) {
@@ -208,9 +250,58 @@ export async function GET() {
       lowStock: (stockCountRes.count || 0) > 0,
       pendingTransfers: bankTransfersRes.count || 0,
       pendingOrders: ordersRes.count || 0,
+      unreadCount: items.filter((i) => !i.isRead).length,
     }, { status: 200 });
   } catch (e) {
     console.error("Error en notificaciones:", e);
-    return NextResponse.json({ items: [], pendingComplete: [], urgentAppointments: false, lowStock: false, pendingTransfers: 0, pendingOrders: 0 }, { status: 200 });
+    return NextResponse.json(EMPTY_RESPONSE, { status: 200 });
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const supabase = await createServerClient();
+    const authUser = (await supabase.auth.getUser()).data?.user;
+    if (!authUser) {
+      return NextResponse.json({ error: "SESION_EXPIRADA" }, { status: 401 });
+    }
+
+    const shopId = await getShopId({ user: { id: authUser.id } });
+    if (!shopId) {
+      return NextResponse.json({ error: "SESION_EXPIRADA" }, { status: 401 });
+    }
+
+    const body = (await request.json().catch(() => ({}))) as { ids?: string[]; all?: boolean };
+    const all = Boolean(body.all);
+    const ids = Array.isArray(body.ids) ? body.ids.filter((x): x is string => typeof x === "string" && x.length > 0) : [];
+    if (!all && ids.length === 0) {
+      return NextResponse.json({ error: "BAD_REQUEST" }, { status: 400 });
+    }
+
+    const admin = await createServiceRoleClient();
+    let targetIds = ids;
+    if (all) {
+      const { data } = await admin.from("notifications").select("id").eq("shop_id", shopId);
+      targetIds = (data ?? []).map((n) => n.id);
+    }
+
+    if (targetIds.length > 0) {
+      await admin.from("notification_reads").upsert(
+        targetIds.map((notificationId) => ({ user_id: authUser.id, notification_id: notificationId })),
+        { onConflict: "user_id,notification_id" }
+      );
+    }
+
+    const [{ data: notifs }, { data: reads }] = await Promise.all([
+      admin.from("notifications").select("id").eq("shop_id", shopId),
+      admin.from("notification_reads").select("notification_id").eq("user_id", authUser.id),
+    ]);
+    const readSet = new Set((reads ?? []).map((r) => r.notification_id));
+    const unreadCount = (notifs ?? []).filter((n) => !readSet.has(n.id)).length;
+
+    return NextResponse.json({ unreadCount }, { status: 200 });
+  } catch (e) {
+    console.error("Error al marcar notificaciones:", e);
+    return NextResponse.json({ error: "INTERNAL" }, { status: 500 });
   }
 }

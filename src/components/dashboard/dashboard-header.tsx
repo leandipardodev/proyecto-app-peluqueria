@@ -86,7 +86,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
   const [logoutPending, startLogoutTransition] = useTransition();
   const [soundMuted, setSoundMuted] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const { unreadCount: notifCount } = useNotifications();
+  const { unreadCount: notifCount } = useNotifications(shop?.id);
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);

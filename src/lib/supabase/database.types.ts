@@ -676,6 +676,79 @@ export type Database = {
           },
         ]
       }
+      notification_reads: {
+        Row: {
+          notification_id: string
+          read_at: string
+          user_id: string
+        }
+        Insert: {
+          notification_id: string
+          read_at?: string
+          user_id: string
+        }
+        Update: {
+          notification_id?: string
+          read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_reads_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          category: string
+          created_at: string
+          description: string
+          entity_key: string
+          href: string
+          id: string
+          payload: Json | null
+          shop_id: string
+          title: string
+          type: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description: string
+          entity_key: string
+          href?: string
+          id?: string
+          payload?: Json | null
+          shop_id: string
+          title: string
+          type: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string
+          entity_key?: string
+          href?: string
+          id?: string
+          payload?: Json | null
+          shop_id?: string
+          title?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           created_at: string
@@ -2165,15 +2238,11 @@ export type Database = {
         }[]
       }
       current_user_role: { Args: never; Returns: string }
-      decrement_stock: {
-        Args: { p_stock_id: string; p_shop_id: string; p_qty: number }
-        Returns: number
-      }
-      restore_stock: {
-        Args: { p_stock_id: string; p_shop_id: string; p_qty: number }
-        Returns: number
-      }
       current_user_shop_id: { Args: never; Returns: string }
+      decrement_stock: {
+        Args: { p_qty: number; p_shop_id: string; p_stock_id: string }
+        Returns: number
+      }
       generate_shop_slug: { Args: { shop_name: string }; Returns: string }
       get_staff_for_my_shop: {
         Args: never
@@ -2206,6 +2275,10 @@ export type Database = {
       redeem_customer_reward: {
         Args: { p_customer_id: string; p_shop_id: string }
         Returns: Json
+      }
+      restore_stock: {
+        Args: { p_qty: number; p_shop_id: string; p_stock_id: string }
+        Returns: number
       }
       set_staff_role_for_my_shop: {
         Args: { p_role: string; p_user_id: string }

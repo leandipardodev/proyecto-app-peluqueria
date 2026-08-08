@@ -1,48 +1,63 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { supabase } from "@/lib/supabase";
 
-type NotificationData = {
+export type NotificationItem = {
+  id: string;
+  type: string;
+  category: "urgent" | "action" | "info";
+  title: string;
+  description: string;
+  href: string;
+  timestamp: string;
+  isRead: boolean;
+};
+
+export type PendingComplete = {
+  id: string;
+  customer_name: string;
+  start_time: string;
+};
+
+export type NotificationsState = {
+  items: NotificationItem[];
+  pendingComplete: PendingComplete[];
   urgentAppointments: boolean;
   lowStock: boolean;
   pendingTransfers: number;
-  unreadCount: number;
   pendingOrders: number;
-};
-
-type RawApiResponse = {
-  items?: Array<{ id: string }>;
-  pendingComplete?: Array<unknown>;
-  urgentAppointments?: boolean;
-  lowStock?: boolean;
-  pendingTransfers?: number;
-  pendingOrders?: number;
+  unreadCount: number;
+  loading: boolean;
 };
 
 const POLL_INTERVAL = 45_000;
 
-let cachedData: NotificationData | null = null;
-let lastRawData: RawApiResponse | null = null;
+const EMPTY_STATE: NotificationsState = {
+  items: [],
+  pendingComplete: [],
+  urgentAppointments: false,
+  lowStock: false,
+  pendingTransfers: 0,
+  pendingOrders: 0,
+  unreadCount: 0,
+  loading: true,
+};
+
+let cachedState: NotificationsState | null = null;
 let lastFetchTime = 0;
-const subscribers = new Set<(data: NotificationData) => void>();
+const subscribers = new Set<(state: NotificationsState) => void>();
 let pollTimer: ReturnType<typeof setInterval> | null = null;
+let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
+let activeShopId: string | null = null;
 
-function getReadIds(): string[] {
-  try {
-    const raw = localStorage.getItem("klip-notifications-read");
-    if (raw) return JSON.parse(raw) as string[];
-  } catch {}
-  return [];
+function publish(state: NotificationsState) {
+  cachedState = state;
+  lastFetchTime = Date.now();
+  subscribers.forEach((fn) => fn(state));
 }
 
-function computeUnreadCount(data: RawApiResponse): number {
-  const read = getReadIds();
-  const unreadItems = (data.items || []).filter((i) => !read.includes(i.id)).length;
-  const pendingCount = data.pendingComplete?.length ?? 0;
-  return unreadItems + pendingCount;
-}
-
-async function fetchNotifications(): Promise<NotificationData | null> {
+async function fetchState(): Promise<NotificationsState | null> {
   try {
     const res = await fetch("/api/dashboard/notifications", {
       method: "GET",
@@ -50,42 +65,83 @@ async function fetchNotifications(): Promise<NotificationData | null> {
       cache: "no-store",
     });
     if (!res.ok) return null;
-    const data = (await res.json()) as RawApiResponse;
-    lastRawData = data;
+    const data = (await res.json()) as {
+      items?: NotificationItem[];
+      pendingComplete?: PendingComplete[];
+      urgentAppointments?: boolean;
+      lowStock?: boolean;
+      pendingTransfers?: number;
+      pendingOrders?: number;
+    };
+    const items = Array.isArray(data.items) ? data.items : [];
+    const pendingComplete = Array.isArray(data.pendingComplete) ? data.pendingComplete : [];
     return {
+      items,
+      pendingComplete,
       urgentAppointments: Boolean(data.urgentAppointments),
       lowStock: Boolean(data.lowStock),
-      pendingTransfers: data.pendingTransfers ?? 0,
-      unreadCount: computeUnreadCount(data),
-      pendingOrders: data.pendingOrders ?? 0,
+      pendingTransfers: typeof data.pendingTransfers === "number" ? data.pendingTransfers : 0,
+      pendingOrders: typeof data.pendingOrders === "number" ? data.pendingOrders : 0,
+      unreadCount: items.filter((i) => !i.isRead).length + pendingComplete.length,
+      loading: false,
     };
   } catch {
     return null;
   }
 }
 
-function notifySubscribers(data: NotificationData) {
-  cachedData = data;
-  lastFetchTime = Date.now();
-  subscribers.forEach((fn) => fn(data));
+async function refreshFromServer() {
+  const state = await fetchState();
+  if (state) publish(state);
 }
 
+/** Recalcula el estado local (compat: lo usaba el panel). */
 export function refreshNotifications() {
-  if (!lastRawData) return;
-  notifySubscribers({
-    urgentAppointments: Boolean(lastRawData.urgentAppointments),
-    lowStock: Boolean(lastRawData.lowStock),
-    pendingTransfers: lastRawData.pendingTransfers ?? 0,
-    unreadCount: computeUnreadCount(lastRawData),
-    pendingOrders: lastRawData.pendingOrders ?? 0,
-  });
+  if (cachedState) publish(cachedState);
+}
+
+/** Fuerza un fetch al servidor y publica. */
+export async function refetchNotifications() {
+  await refreshFromServer();
+}
+
+/** Marca como leídas (optimista + server). */
+export async function markNotificationsRead(ids: string[] | "all") {
+  if (cachedState) {
+    const idSet = ids === "all" ? null : new Set(ids);
+    const items = cachedState.items.map((i) => (idSet === null || idSet.has(i.id) ? { ...i, isRead: true } : i));
+    publish({
+      ...cachedState,
+      items,
+      unreadCount: items.filter((i) => !i.isRead).length + cachedState.pendingComplete.length,
+    });
+  }
+  try {
+    const res = await fetch("/api/dashboard/notifications", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(ids === "all" ? { all: true } : { ids }),
+      cache: "no-store",
+    });
+    if (res.ok) {
+      const data = (await res.json()) as { unreadCount?: number };
+      if (typeof data.unreadCount === "number" && cachedState) {
+        publish({
+          ...cachedState,
+          unreadCount: data.unreadCount + cachedState.pendingComplete.length,
+        });
+      }
+      return;
+    }
+  } catch { /* best effort */ }
+  await refreshFromServer();
 }
 
 function startPolling() {
   if (pollTimer) return;
-  pollTimer = setInterval(async () => {
-    const data = await fetchNotifications();
-    if (data) notifySubscribers(data);
+  pollTimer = setInterval(() => {
+    void refreshFromServer();
   }, POLL_INTERVAL);
 }
 
@@ -95,35 +151,59 @@ function stopPolling() {
     clearInterval(pollTimer);
     pollTimer = null;
   }
+  if (activeShopId) {
+    realtimeChannel?.unsubscribe().catch(() => {});
+    realtimeChannel = null;
+    activeShopId = null;
+  }
 }
 
-export function useNotifications(): NotificationData {
-  const [data, setData] = useState<NotificationData>(
-    cachedData ?? { urgentAppointments: false, lowStock: false, pendingTransfers: 0, unreadCount: 0, pendingOrders: 0 }
-  );
+function subscribeRealtime(shopId: string) {
+  if (activeShopId === shopId) return;
+  activeShopId = shopId;
+  realtimeChannel?.unsubscribe().catch(() => {});
+  realtimeChannel = supabase
+    .channel(`dashboard-notifications-${shopId}`)
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "notifications", filter: `shop_id=eq.${shopId}` },
+      () => {
+        void refreshFromServer();
+      }
+    )
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "notification_reads" },
+      () => {
+        void refreshFromServer();
+      }
+    )
+    .subscribe();
+}
 
-  const subscriber = useCallback((fn: NotificationData | null) => {
-    if (fn) setData(fn);
-  }, []);
+export function useNotifications(shopId?: string | null): NotificationsState {
+  const [state, setState] = useState<NotificationsState>(cachedState ?? EMPTY_STATE);
+  const currentShopId = shopId ?? null;
+
+  const subscriber = useCallback((s: NotificationsState) => setState(s), []);
 
   useEffect(() => {
     subscribers.add(subscriber);
 
-    if (cachedData && Date.now() - lastFetchTime < POLL_INTERVAL) {
-      setData(cachedData);
+    if (cachedState && Date.now() - lastFetchTime < POLL_INTERVAL) {
+      setState(cachedState);
     } else {
-      fetchNotifications().then((d) => {
-        if (d) notifySubscribers(d);
-      });
+      void refreshFromServer();
     }
 
     startPolling();
+    if (currentShopId) subscribeRealtime(currentShopId);
 
     return () => {
       subscribers.delete(subscriber);
       stopPolling();
     };
-  }, [subscriber]);
+  }, [subscriber, currentShopId]);
 
-  return data;
+  return state;
 }

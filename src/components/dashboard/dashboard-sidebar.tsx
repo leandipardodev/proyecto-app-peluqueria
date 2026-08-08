@@ -81,7 +81,7 @@ const DashboardSidebar = memo(function DashboardSidebar({
   const { playClick } = useKlipSounds();
   const { performanceMode } = usePerformanceMode();
   const [needsSetup, setNeedsSetup] = useState(false);
-  const liveNotifications = useNotifications();
+  const liveNotifications = useNotifications(shop?.id);
 
   useEffect(() => {
     const slug = shop?.slug;
