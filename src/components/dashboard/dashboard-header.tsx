@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, Search, Moon, Sun, Gauge, Repeat2, Check, Volume2, VolumeX, Sparkles, Bell, Bug, CircleHelp, LogOut } from "lucide-react";
+import { Menu, Search, Moon, Sun, Gauge, Repeat2, Check, Volume2, VolumeX, Sparkles, Bell, Bug, CircleHelp, LogOut, KeyRound } from "lucide-react";
 import { useState, useRef, useEffect, useTransition, useMemo, useCallback, memo, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -26,6 +26,8 @@ import NotificationsPanel from "./notifications-panel";
 import { useNotifications } from "@/lib/dashboard/use-notifications";
 import { NAV_COMMANDS, ACTION_COMMANDS, type CommandItem, type CommandNav, type CommandAction, type CommandData } from "@/lib/dashboard/search/search-commands";
 import { getIndustrySearchKeywords, getInitials, normalizeSearchText, scoreQueryAgainstTerms, formatDataLabel, formatDataHint } from "@/lib/dashboard/search/search-utils";
+import BaseModal from "@/components/ui/modal";
+import { useToast } from "@/components/ui/toast";
 
 interface DashboardHeaderProps {
   shopName: string;
@@ -77,6 +79,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
   const { dark, toggle: toggleDark } = useDarkMode();
   const { performanceMode, togglePerformanceMode } = usePerformanceMode();
   const { playClick, playSearchExpand } = useKlipSounds();
+  const { addToast } = useToast();
   const shouldReduceMotion = useReducedMotion();
 
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -87,6 +90,10 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
   const [soundMuted, setSoundMuted] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const { unreadCount: notifCount } = useNotifications(shop?.id);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
@@ -464,6 +471,34 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
       try { await onLogout(); } catch { /* server action redirect */ }
       router.refresh();
     });
+  }
+
+  async function handleChangePassword() {
+    if (savingPassword) return;
+    if (newPassword.length < 6) {
+      addToast("La contraseña debe tener al menos 6 caracteres", "error");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      addToast("Las contraseñas no coinciden", "error");
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) {
+        addToast(error.message, "error");
+        return;
+      }
+      addToast("Contraseña actualizada correctamente", "success");
+      setShowPasswordModal(false);
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (e) {
+      addToast(e instanceof Error ? e.message : "Error al cambiar la contraseña", "error");
+    } finally {
+      setSavingPassword(false);
+    }
   }
 
   function handleShopSwitch(nextSlug: string) {
@@ -954,6 +989,17 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                       Plan
                     </motion.span>
                   </motion.button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setShowPasswordModal(true);
+                    }}
+                    className="mt-2 flex w-full items-center gap-2 rounded-xl border border-white/20 dark:border-white/10 px-3 py-2 text-sm text-gray-800 dark:text-gray-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
+                  >
+                    <KeyRound className="w-4 h-4 text-zinc-400" />
+                    Cambiar contraseña
+                  </button>
                 </div>
                 <div className="p-3 space-y-3">
                     <div className="flex items-center justify-between rounded-xl border border-white/20 dark:border-white/10 px-3 py-2">
@@ -1073,6 +1119,50 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
         onClose={() => setMobileOpen(false)}
         userName={userName}
       />
+
+      <BaseModal
+        open={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+        title="Cambiar contraseña"
+        subtitle="Elegí una nueva contraseña para tu cuenta"
+        maxWidth="sm"
+        icon={<KeyRound className="w-5 h-5" />}
+      >
+        <div className="p-5 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Nueva contraseña</label>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Mínimo 6 caracteres"
+              autoFocus
+              className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Repetí la nueva contraseña</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Mínimo 6 caracteres"
+              className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+            />
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 px-5 pb-5">
+          <button type="button" onClick={() => setShowPasswordModal(false)} className="ui-btn-ghost rounded-lg px-4 py-2 text-sm font-medium">Cancelar</button>
+          <button
+            type="button"
+            onClick={handleChangePassword}
+            disabled={savingPassword}
+            className="ui-btn-primary rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
+          >
+            {savingPassword ? "Guardando..." : "Guardar"}
+          </button>
+        </div>
+      </BaseModal>
 
       <style jsx global>{`
         #search-input-klip::-webkit-search-decoration,
