@@ -34,6 +34,8 @@ export type BusinessData = {
   bank_cvu_cbu: string | null;
   bank_alias: string | null;
   bank_name: string | null;
+  mp_max_installments: number | null;
+  mp_excluded_payment_types: string[];
 };
 
 export async function fetchBusinessData(shopIdOverride?: string): Promise<ActionResult<BusinessData>> {
@@ -50,7 +52,7 @@ export async function fetchBusinessData(shopIdOverride?: string): Promise<Action
       const admin = await createAdminClient();
       return admin
         .from("shops")
-        .select("id, nombre, description, address, localidad, phone, instagram_url, facebook_url, tiktok_url, mp_public_key, mp_access_token, whatsapp_template, loyalty_enabled, loyalty_cuts_required, loyalty_discount_percent, booking_deposit_enabled, booking_deposit_amount, pay_at_shop, bank_transfer_enabled, bank_cvu_cbu, bank_alias, bank_name")
+        .select("id, nombre, description, address, localidad, phone, instagram_url, facebook_url, tiktok_url, mp_public_key, mp_access_token, mp_max_installments, mp_excluded_payment_types, whatsapp_template, loyalty_enabled, loyalty_cuts_required, loyalty_discount_percent, booking_deposit_enabled, booking_deposit_amount, pay_at_shop, bank_transfer_enabled, bank_cvu_cbu, bank_alias, bank_name")
         .eq("id", shopId)
         .maybeSingle();
     });
@@ -82,6 +84,10 @@ export async function fetchBusinessData(shopIdOverride?: string): Promise<Action
         bank_cvu_cbu: data.bank_cvu_cbu || null,
         bank_alias: data.bank_alias || null,
         bank_name: data.bank_name || null,
+        mp_max_installments: Number(data.mp_max_installments) || null,
+        mp_excluded_payment_types: Array.isArray(data.mp_excluded_payment_types)
+          ? (data.mp_excluded_payment_types as string[]).filter((v) => typeof v === "string")
+          : [],
       },
     };
   } catch (e) {
@@ -668,5 +674,42 @@ export async function updateBankTransferSettings(
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al guardar datos bancarios" };
+  }
+}
+
+export async function updateMercadoPagoPaymentConfigAction(
+  maxInstallments: number | null,
+  excludedPaymentTypes: string[]
+): Promise<ActionResult> {
+  try {
+    const shopIdResult = await requireOwnerShopId();
+    if (!shopIdResult.success) return { success: false, error: shopIdResult.error };
+    const shopId = shopIdResult.data;
+    const admin = await createAdminClient();
+
+    const safeMaxInstallments =
+      Number.isFinite(Number(maxInstallments)) && Number(maxInstallments) >= 1 && Number(maxInstallments) <= 24
+        ? Math.floor(Number(maxInstallments))
+        : null;
+
+    const allowedExcluded = new Set(["credit_card", "debit_card", "prepaid_card", "account_money"]);
+    const safeExcluded = Array.isArray(excludedPaymentTypes)
+      ? excludedPaymentTypes.filter((v) => typeof v === "string" && allowedExcluded.has(v))
+      : [];
+
+    const { error } = await admin
+      .from("shops")
+      .update({
+        mp_max_installments: safeMaxInstallments,
+        mp_excluded_payment_types: safeExcluded.length > 0 ? safeExcluded : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", shopId!);
+
+    if (error) return { success: false, error: error.message };
+    await revalidateDashboardSegments(shopId, ["/business"]);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al guardar configuracion de cobro" };
   }
 }

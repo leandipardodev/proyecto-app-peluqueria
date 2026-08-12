@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import { MercadoPagoConfig, Preference } from "mercadopago";
+import { buildMpPaymentMethods, fetchShopMpPaymentConfig } from "@/lib/payments/mp-payment-config";
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,6 +14,7 @@ export async function POST(request: NextRequest) {
     let shopSlug = "";
     let mpItems: { id: string; title: string; quantity: number; unit_price: number; currency_id: string }[] = [];
     let shopName = "";
+    let paymentMethods: ReturnType<typeof buildMpPaymentMethods> = undefined;
 
     if (rawItems && Array.isArray(rawItems) && rawItems.length > 0) {
       if (!shopId) {
@@ -32,6 +34,7 @@ export async function POST(request: NextRequest) {
       mpAccessToken = shop.mp_access_token as string;
       shopName = shop.nombre as string;
       shopSlug = (shop.slug as string) || "local";
+      paymentMethods = buildMpPaymentMethods(await fetchShopMpPaymentConfig(admin, shopId));
 
       const requestedServiceIds = rawItems
         .map((item: { id?: string }) => item?.id)
@@ -97,6 +100,7 @@ export async function POST(request: NextRequest) {
       mpAccessToken = shop.mp_access_token as string;
       shopName = shop.nombre as string;
       shopSlug = (shop.slug as string) || "local";
+      paymentMethods = buildMpPaymentMethods(await fetchShopMpPaymentConfig(admin, service.shop_id));
       mpItems = [{
         id: service.id,
         title: `${shopName} - ${service.name}`,
@@ -140,6 +144,7 @@ export async function POST(request: NextRequest) {
         auto_return: "approved",
         external_reference: serviceId || "booking",
         notification_url: notificationUrl,
+        ...(paymentMethods ? { payment_methods: paymentMethods } : {}),
       },
     });
 

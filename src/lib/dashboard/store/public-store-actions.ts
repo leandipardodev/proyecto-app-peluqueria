@@ -1,6 +1,7 @@
 "use server";
 
 import { MercadoPagoConfig, Preference } from "mercadopago";
+import { buildMpPaymentMethods, fetchShopMpPaymentConfig } from "@/lib/payments/mp-payment-config";
 import type { ActionResult } from "@/lib/types";
 import { createAdminClient } from "@/lib/dashboard/appointments/shared";
 import { createRateLimiter } from "@/lib/rate-limiter";
@@ -250,6 +251,10 @@ export async function createStoreOrder(input: StoreCheckoutInput): Promise<Actio
       return { success: false, error: "Mercado Pago no esta configurado para este local. Intenta mas tarde." };
     }
 
+    const paymentMethods = buildMpPaymentMethods(
+      await fetchShopMpPaymentConfig(admin, input.shopId)
+    );
+
     const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || "https://klip.com.ar").replace(/\/+$/, "");
     const storeBase = `${baseUrl}/book/${encodeURIComponent(input.shopSlug)}`;
     const successUrl = `${storeBase}?status=success&order=${orderId}`;
@@ -276,6 +281,7 @@ export async function createStoreOrder(input: StoreCheckoutInput): Promise<Actio
         auto_return: canUseBackUrls ? "approved" : undefined,
         external_reference: orderId,
         notification_url: shouldSendWebhook ? notificationUrl : undefined,
+        ...(paymentMethods ? { payment_methods: paymentMethods } : {}),
         metadata: { type: "store_order", order_id: orderId, shop_id: input.shopId },
       },
     });

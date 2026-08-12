@@ -2,6 +2,7 @@
 
 import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import { MercadoPagoConfig, Preference } from "mercadopago";
+import { buildMpPaymentMethods, fetchShopMpPaymentConfig } from "@/lib/payments/mp-payment-config";
 import {
   getArgentinaDateKey,
   getArgentinaDateString,
@@ -336,6 +337,10 @@ export async function createPendingBooking(
       return { success: false, error: "Mercado Pago no esta configurado" };
     }
 
+    const paymentMethods = buildMpPaymentMethods(
+      await fetchShopMpPaymentConfig(admin, input.shopId)
+    );
+
     const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || "https://klip.com.ar").replace(/\/+$/, "");
     const successUrl = `${baseUrl}/confirmacion?status=success&slug=${encodeURIComponent(input.shopSlug)}`;
     const pendingUrl = `${baseUrl}/confirmacion?status=pending&slug=${encodeURIComponent(input.shopSlug)}`;
@@ -364,6 +369,7 @@ export async function createPendingBooking(
         auto_return: canUseBackUrls ? "approved" : undefined,
         external_reference: `pending_booking:${booking.id}`,
         notification_url: shouldSendWebhook ? notificationUrl : undefined,
+        ...(paymentMethods ? { payment_methods: paymentMethods } : {}),
         metadata: {
           pending_booking_id: booking.id,
           shop_id: input.shopId,

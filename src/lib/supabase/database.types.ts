@@ -1556,6 +1556,8 @@ export type Database = {
           loyalty_discount_percent: number
           loyalty_enabled: boolean
           mp_access_token: string | null
+          mp_excluded_payment_types: string[] | null
+          mp_max_installments: number | null
           mp_public_key: string | null
           nombre: string
           pay_at_shop: boolean
@@ -1590,6 +1592,8 @@ export type Database = {
           loyalty_discount_percent?: number
           loyalty_enabled?: boolean
           mp_access_token?: string | null
+          mp_excluded_payment_types?: string[] | null
+          mp_max_installments?: number | null
           mp_public_key?: string | null
           nombre: string
           pay_at_shop?: boolean
@@ -1624,6 +1628,8 @@ export type Database = {
           loyalty_discount_percent?: number
           loyalty_enabled?: boolean
           mp_access_token?: string | null
+          mp_excluded_payment_types?: string[] | null
+          mp_max_installments?: number | null
           mp_public_key?: string | null
           nombre?: string
           pay_at_shop?: boolean

@@ -10,6 +10,7 @@ import {
 import { computeSlotsForDay } from "./slots";
 import type { DateOverrideEntry, Slot, StaffScheduleEntry } from "./slots";
 import { MercadoPagoConfig, Preference } from "mercadopago";
+import { buildMpPaymentMethods, fetchShopMpPaymentConfig } from "@/lib/payments/mp-payment-config";
 import type { ActionResult } from "@/lib/types";
 import { sendAppointmentConfirmationEmail, scheduleAppointmentReminderEmail } from "@/lib/email/booking-emails";
 import { createRateLimiter } from "@/lib/rate-limiter";
@@ -1497,6 +1498,10 @@ export async function createPaymentPreference(
       return { success: false, error: "Mercado Pago no esta configurado para este local. Reconecta Mercado Pago en Mi Negocio." };
     }
 
+    const paymentMethods = buildMpPaymentMethods(
+      await fetchShopMpPaymentConfig(admin, appointmentData.shopId)
+    );
+
     const servicePrice = Math.max(0, effectivePrice);
     const depositEnabled = resolvedShopPolicy?.booking_deposit_enabled !== false;
     const configuredDeposit = Math.max(0, Number(resolvedShopPolicy?.booking_deposit_amount ?? 0));
@@ -1545,6 +1550,7 @@ export async function createPaymentPreference(
         auto_return: canUseBackUrls ? "approved" : undefined,
         external_reference: appointment.id,
         notification_url: shouldSendWebhook ? notificationUrl : undefined,
+        ...(paymentMethods ? { payment_methods: paymentMethods } : {}),
         metadata: {
           appointment_id: appointment.id,
           shop_id: appointmentData.shopId,
@@ -1762,6 +1768,10 @@ export async function createCombinedCheckout(
       return { success: false, error: "Mercado Pago no esta configurado para este local. Reconecta Mercado Pago en Mi Negocio." };
     }
 
+    const paymentMethods = buildMpPaymentMethods(
+      await fetchShopMpPaymentConfig(admin, input.shopId)
+    );
+
     // Deposit applies only to the service portion; products always charge full price
     const depositEnabled = shop?.booking_deposit_enabled !== false;
     const configuredDeposit = Math.max(0, Number(shop?.booking_deposit_amount ?? 0));
@@ -1815,6 +1825,7 @@ export async function createCombinedCheckout(
           auto_return: canUseBackUrls ? "approved" : undefined,
           external_reference: mainAppointmentId,
           notification_url: shouldSendWebhook ? notificationUrl : undefined,
+          ...(paymentMethods ? { payment_methods: paymentMethods } : {}),
           metadata: {
             type: "combined",
             appointment_id: mainAppointmentId,

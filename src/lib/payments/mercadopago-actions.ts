@@ -3,6 +3,7 @@
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient, requireOwnerShopId } from "@/lib/dashboard/auth/server";
 import { MercadoPagoConfig, Preference, PaymentRefund } from "mercadopago";
+import { buildMpPaymentMethods, fetchShopMpPaymentConfig } from "@/lib/payments/mp-payment-config";
 import type { ActionResult } from "@/lib/types";
 import type { Json } from "@/lib/supabase/database.types";
 import "server-only";
@@ -104,6 +105,8 @@ export async function createPaymentLink(appointmentId: string): Promise<ActionRe
     const accessToken = mpKeys.mp_access_token as string;
     const shopName = (mpKeys.nombre as string) || "Mi Peluquería";
 
+    const paymentMethods = buildMpPaymentMethods(await fetchShopMpPaymentConfig(admin, shopId!));
+
     const { data: appointment } = await supabase
       .from("appointments")
       .select("id, service_id, start_time, loyalty_discount_percent_applied, customers:customer_id ( id, nombre, email )")
@@ -157,6 +160,7 @@ export async function createPaymentLink(appointmentId: string): Promise<ActionRe
         auto_return: "approved",
         external_reference: appointmentId,
         notification_url: `${siteUrl}/api/payments/mercadopago-webhook?shop_id=${shopId}`,
+        ...(paymentMethods ? { payment_methods: paymentMethods } : {}),
       },
     });
 

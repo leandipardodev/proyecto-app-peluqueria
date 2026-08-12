@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect, useMemo, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
-import { Store, CreditCard, MessageSquareText, Link2, MapPin, Phone, Share2, AlertTriangle, Trash2, Users, Scissors, Calendar, Plus, CheckCircle2, XCircle, Landmark } from "lucide-react";
+import { Store, CreditCard, MessageSquareText, Link2, MapPin, Phone, Share2, AlertTriangle, Trash2, Users, Scissors, Calendar, Plus, CheckCircle2, XCircle, Landmark, Settings2 } from "lucide-react";
 import { TagChips, useTagInsert } from "@/components/ui/tag-chips";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -26,6 +26,7 @@ import {
   updateWhatsappTemplateAction,
   updateBusinessHours,
   updateBankTransferSettings,
+  updateMercadoPagoPaymentConfigAction,
   fetchShopDateOverrides,
   upsertShopDateOverride,
   deleteShopDateOverride,
@@ -45,6 +46,7 @@ import { DEFAULT_BOOKING_TEMPLATE, type BookingTemplateId } from "@/lib/booking/
 import { useAuth } from "@/lib/auth-context";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { resolveIndustry } from "@/lib/industry/resolve";
+import { MP_EXCLUDABLE_PAYMENT_TYPES } from "@/lib/payments/mp-payment-config";
 
 type MessageType = { type: "success" | "error"; text: string } | null;
 type InitialServiceItem = { id: string; name: string; category?: string | null; price: number; duration_minutes: number | null; pay_at_shop: boolean };
@@ -251,6 +253,12 @@ export default function BusinessClient({
   const [bankCvuCb, setBankCvuCb] = useState(data?.bank_cvu_cbu ?? "");
   const [bankAlias, setBankAlias] = useState(data?.bank_alias ?? "");
   const [bankName, setBankName] = useState(data?.bank_name ?? "");
+  const [mpMaxInstallments, setMpMaxInstallments] = useState<number | null>(data?.mp_max_installments ?? null);
+  const [mpExcludedPaymentTypes, setMpExcludedPaymentTypes] = useState<string[]>(data?.mp_excluded_payment_types ?? []);
+  const [isSavingMpConfig, setIsSavingMpConfig] = useState(false);
+  const [showMpConfigModal, setShowMpConfigModal] = useState(false);
+  const [draftMaxInstallments, setDraftMaxInstallments] = useState<number | null>(null);
+  const [draftAcceptedTypes, setDraftAcceptedTypes] = useState<string[]>([]);
   const [message, setMessage] = useState<MessageType>(null);
   const [businessHours, setBusinessHours] = useState<BusinessHoursData | null>(initialBusinessHours);
   const [tourAdvancing, setTourAdvancing] = useState(false);
@@ -1032,6 +1040,41 @@ export default function BusinessClient({
     }
   }
 
+  function openMpConfigModal() {
+    setDraftMaxInstallments(mpMaxInstallments);
+    setDraftAcceptedTypes(MP_EXCLUDABLE_PAYMENT_TYPES.map((t) => t.id).filter((id) => !mpExcludedPaymentTypes.includes(id)));
+    setShowMpConfigModal(true);
+  }
+
+  async function handleSaveMpPaymentConfig(maxInstallments: number | null, acceptedTypes: string[]) {
+    if (!isOwnerOrAdmin || isSavingMpConfig) return;
+    if (acceptedTypes.length === 0) {
+      playError();
+      showError("Debes aceptar al menos un medio de pago.");
+      return;
+    }
+    setIsSavingMpConfig(true);
+    try {
+      const excludedPaymentTypes = MP_EXCLUDABLE_PAYMENT_TYPES.map((t) => t.id).filter((id) => !acceptedTypes.includes(id));
+      const result = await updateMercadoPagoPaymentConfigAction(maxInstallments, excludedPaymentTypes);
+      if (!result.success) {
+        playError();
+        showError(result.error);
+        return;
+      }
+      setMpMaxInstallments(maxInstallments);
+      setMpExcludedPaymentTypes(excludedPaymentTypes);
+      setShowMpConfigModal(false);
+      playSuccess();
+      showSuccess("Configuracion de cobro guardada");
+    } catch (e) {
+      playError();
+      showError(e instanceof Error ? e.message : "Error al guardar la configuracion de cobro");
+    } finally {
+      setIsSavingMpConfig(false);
+    }
+  }
+
 
   async function handleCloseShop() {
     if (!canManageBilling || isDeleting) return;
@@ -1412,7 +1455,15 @@ export default function BusinessClient({
                 }`}
               >
                 {data?.mp_oauth_connected && !payAtShop && (
-                  <CheckCircle2 className="absolute top-4 right-4 w-5 h-5 text-zinc-900 dark:text-white" />
+                  <button
+                    type="button"
+                    onClick={openMpConfigModal}
+                    disabled={!isOwnerOrAdmin}
+                    title="Configurar cobros"
+                    className="absolute top-4 right-4 p-2 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
+                  >
+                    <Settings2 className="w-5 h-5" />
+                  </button>
                 )}
                 <div className="flex items-center gap-3 mb-3">
                   <div className="p-2 rounded-xl bg-zinc-100 dark:bg-zinc-800">
@@ -1429,7 +1480,10 @@ export default function BusinessClient({
                   <div className="space-y-3" onClick={bankTransferEnabled ? (e) => e.stopPropagation() : undefined}>
                       {data?.mp_oauth_connected ? (
                         <div className="rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 p-3">
-                          <p className="text-xs text-zinc-600 dark:text-zinc-300 mb-2">Cuenta vinculada y lista para cobrar</p>
+                          <div className="flex items-center gap-1.5 mb-2">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                            <p className="text-xs text-zinc-600 dark:text-zinc-300">Cuenta vinculada y lista para cobrar</p>
+                          </div>
                           <button
                             type="button"
                             onMouseDown={playClick}
@@ -1976,6 +2030,85 @@ export default function BusinessClient({
         <div className="flex justify-end gap-3 px-5 pb-5">
           <button type="button" onClick={() => setShowOverrideModal(false)} className="ui-btn-ghost rounded-lg px-4 py-2 text-sm font-medium">Cancelar</button>
           <button type="button" onClick={handleSaveOverride} className="ui-btn-primary rounded-lg px-4 py-2 text-sm font-medium">Guardar</button>
+        </div>
+      </BaseModal>
+
+      <BaseModal
+        open={showMpConfigModal}
+        onClose={() => setShowMpConfigModal(false)}
+        title="Cobros con Mercado Pago"
+        subtitle="Configura cuotas y medios de pago"
+        maxWidth="sm"
+        icon={<Settings2 className="w-5 h-5" />}
+      >
+        <div className="p-5 space-y-5">
+          <div className="rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-100 dark:border-sky-900/60 px-4 py-3">
+            <p className="text-xs text-sky-800 dark:text-sky-200 leading-relaxed">
+              Cada pago tiene una comision: las tarjetas de credito son las mas caras y el saldo en cuenta, el mas barato. El plazo para recibir el dinero se elige en tu cuenta de Mercado Pago.
+            </p>
+            <a
+              href="https://www.mercadopago.com.ar/ayuda/costo-recibir-pagos_220"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block mt-1 text-xs text-sky-800 dark:text-sky-200 font-medium underline underline-offset-2 hover:opacity-80"
+            >
+              Ver planes de cobro
+            </a>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">¿Hasta cuantas cuotas?</label>
+            <select
+              value={draftMaxInstallments ?? ""}
+              onChange={(e) => setDraftMaxInstallments(e.target.value === "" ? null : Number(e.target.value))}
+              disabled={!isOwnerOrAdmin}
+              className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-500/30 disabled:opacity-50"
+            >
+              <option value="">Sin limite (recomendado)</option>
+              <option value={1}>1 cuota</option>
+              <option value={3}>Hasta 3 cuotas</option>
+              <option value={6}>Hasta 6 cuotas</option>
+              <option value={12}>Hasta 12 cuotas</option>
+            </select>
+          </div>
+
+          <div>
+            <p className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-2">¿Que medios de pago aceptas?</p>
+            <div className="space-y-2">
+              {MP_EXCLUDABLE_PAYMENT_TYPES.map((t) => {
+                const checked = draftAcceptedTypes.includes(t.id);
+                return (
+                  <label key={t.id} className="flex items-center gap-2.5 cursor-pointer rounded-xl border border-zinc-200 dark:border-zinc-700 px-3 py-2.5">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) =>
+                        setDraftAcceptedTypes((prev) =>
+                          e.target.checked ? [...prev, t.id] : prev.filter((id) => id !== t.id)
+                        )
+                      }
+                      disabled={!isOwnerOrAdmin}
+                      className="rounded border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-white focus:ring-zinc-500/30 disabled:opacity-50"
+                    />
+                    <span className="text-sm text-gray-900 dark:text-white">{t.label}</span>
+                    <span className="ml-auto text-xs text-zinc-400 dark:text-zinc-500">{t.hint}</span>
+                  </label>
+                );
+              })}
+            </div>
+            <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1">Comisiones aproximadas; dependen del plan de cobro de tu cuenta de Mercado Pago.</p>
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 px-5 pb-5">
+          <button type="button" onClick={() => setShowMpConfigModal(false)} className="ui-btn-ghost rounded-lg px-4 py-2 text-sm font-medium">Cancelar</button>
+          <button
+            type="button"
+            onClick={() => handleSaveMpPaymentConfig(draftMaxInstallments, draftAcceptedTypes)}
+            disabled={!isOwnerOrAdmin || isSavingMpConfig}
+            className="ui-btn-primary rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
+          >
+            {isSavingMpConfig ? "Guardando..." : "Guardar"}
+          </button>
         </div>
       </BaseModal>
 
