@@ -116,7 +116,7 @@ async function assureNotifications(admin: Awaited<ReturnType<typeof createServic
       });
     }
     if (rows.length > 0) {
-      await admin.from("notifications").upsert(rows, { onConflict: "shop_id,entity_key" });
+      await admin.from("notifications").upsert(rows, { onConflict: "shop_id,entity_key", ignoreDuplicates: true });
     }
   }
 
@@ -136,12 +136,12 @@ async function assureNotifications(admin: Awaited<ReturnType<typeof createServic
         description: `Tu plan vence en ${daysUntilExpiry} día(s). Renová para seguir operando.`,
         href: "/dashboard/billing",
         entity_key: planKey,
-        created_at: planExpiry.toISOString(),
+        created_at: nowIso,
       });
     }
   }
   if (planKey) {
-    await admin.from("notifications").upsert(planRows, { onConflict: "shop_id,entity_key" });
+    await admin.from("notifications").upsert(planRows, { onConflict: "shop_id,entity_key", ignoreDuplicates: true });
   } else {
     await admin.from("notifications").delete().eq("shop_id", shopId).eq("type", "plan_por_vencer");
   }
@@ -162,7 +162,7 @@ async function assureNotifications(admin: Awaited<ReturnType<typeof createServic
         entity_key: `estacional:${mm}-${dd}`,
         created_at: nowIso,
       },
-    ], { onConflict: "shop_id,entity_key" });
+    ], { onConflict: "shop_id,entity_key", ignoreDuplicates: true });
   }
 }
 
