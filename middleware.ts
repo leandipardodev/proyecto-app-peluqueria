@@ -15,6 +15,16 @@ function isProtectedPath(pathname: string): boolean {
   );
 }
 
+function clearActiveShopCookies(response: NextResponse): NextResponse {
+  response.cookies.delete(ACTIVE_SHOP_ID_COOKIE);
+  response.cookies.delete(ACTIVE_SHOP_SLUG_COOKIE);
+  return response;
+}
+
+function hasSessionCookie(request: NextRequest): boolean {
+  return request.cookies.getAll().some((c) => c.name.startsWith("sb-"));
+}
+
 export async function middleware(request: NextRequest) {
   try {
     return await middlewareHandler(request);
@@ -29,6 +39,9 @@ async function middlewareHandler(request: NextRequest) {
   const isSlugRewriteRequest = request.headers.get("x-klip-slug-rewrite") === "1";
 
   if (!isProtectedPath(pathname)) {
+    if (pathname === LOGIN_PATH && !hasSessionCookie(request)) {
+      return clearActiveShopCookies(NextResponse.next());
+    }
     return NextResponse.next();
   }
 
@@ -43,7 +56,7 @@ async function middlewareHandler(request: NextRequest) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = LOGIN_PATH;
     loginUrl.searchParams.set("redirect", pathname);
-    return NextResponse.redirect(loginUrl);
+    return clearActiveShopCookies(NextResponse.redirect(loginUrl));
   }
 
   const [

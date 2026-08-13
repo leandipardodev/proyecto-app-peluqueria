@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Nunito } from "next/font/google";
 import { redirect } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, House } from "lucide-react";
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import BillingRequiredClient from "./billing-required-client";
@@ -90,6 +90,13 @@ export default async function BillingRequiredPage({
           >
             <ArrowLeft className="w-4 h-4" />
             Volver al dashboard
+          </Link>
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-zinc-700 hover:text-zinc-900 border border-zinc-300 hover:border-zinc-400 rounded-xl px-3 py-1.5 hover:bg-zinc-50 transition-colors"
+          >
+            <House className="w-4 h-4" />
+            Ir a la página inicial
           </Link>
 
           {isActuallyExpired ? (

@@ -15,6 +15,9 @@ export async function logout() {
   }
   cookieStore.delete("klip_active_shop_id");
   cookieStore.delete("klip_active_shop_slug");
+  cookieStore.delete("klip_oauth_flow");
+  cookieStore.delete("klip_oauth_next");
+  cookieStore.delete("klip_oauth_state");
 
   redirect("/login");
 }

@@ -30,6 +30,9 @@ function createMockRequest(url: string, options: {
         const v = cookieStore.get(name);
         return v ? { value: v, name } : undefined;
       }),
+      getAll: vi.fn(() =>
+        Array.from(cookieStore.entries()).map(([name, value]) => ({ name, value })),
+      ),
     },
     headers,
   };
@@ -110,11 +113,46 @@ describe("middleware", () => {
       }),
     );
 
-    const res = await runMiddleware("/dashboard/staff");
+    const res = await runMiddleware("/dashboard/staff", {
+      cookies: {
+        klip_active_shop_id: "shop-1",
+        klip_active_shop_slug: "mi-local",
+      },
+    });
     expect(res.status).toBe(307);
     const location = res.headers.get("Location");
     expect(location).toContain("/login");
     expect(location).toContain("redirect=%2Fdashboard%2Fstaff");
+    const setCookie = res.headers.get("set-cookie") ?? "";
+    expect(setCookie).toContain("klip_active_shop_id=");
+    expect(setCookie).toContain("klip_active_shop_slug=");
+    expect(setCookie).toContain("Expires=Thu, 01 Jan 1970");
+  });
+
+  it("clears stale active-shop cookies on /login when no session cookie is present", async () => {
+    const res = await runMiddleware("/login", {
+      cookies: {
+        klip_active_shop_id: "shop-1",
+        klip_active_shop_slug: "mi-local",
+      },
+    });
+    expect(res.status).toBe(200);
+    const setCookie = res.headers.get("set-cookie") ?? "";
+    expect(setCookie).toContain("klip_active_shop_id=");
+    expect(setCookie).toContain("klip_active_shop_slug=");
+    expect(setCookie).toContain("Expires=Thu, 01 Jan 1970");
+  });
+
+  it("preserves active-shop cookies on /login when a session cookie is present", async () => {
+    const res = await runMiddleware("/login", {
+      cookies: {
+        klip_active_shop_id: "shop-1",
+        klip_active_shop_slug: "mi-local",
+        "sb-test-session": "token",
+      },
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("set-cookie")).toBeNull();
   });
 
   it("redirects to login and preserves query params in redirect", async () => {
