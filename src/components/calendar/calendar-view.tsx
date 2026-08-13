@@ -44,6 +44,7 @@ type Appointment = {
   end_time: string;
   status: string;
   is_paid: boolean;
+  was_pending_payment?: boolean;
   loyalty_reward_applied?: boolean;
   deposit_amount?: number | null;
   recurring_group_id: string | null;
@@ -373,6 +374,9 @@ function MonthAppointmentBlock({
       onContextMenu={(e) => onContextMenu?.(appt, e)}
     >
       {appt.start_hhmm} {appt.customers?.nombre?.split(/\s+/)[0] || "Sin"}
+      {appt.was_pending_payment && (
+        <span className="ml-1 inline-block w-1.5 h-1.5 rounded-full bg-white/90 shadow-sm" title="Falta cobrar" />
+      )}
     </div>
   );
 }
@@ -1625,8 +1629,17 @@ export default memo(function CalendarView({
                     <span className="font-medium text-zinc-600 dark:text-zinc-300 truncate">{tipAppt.staff?.name || "Sin asignar"}</span>
                   </div>
                 </div>
-                {(tipAppt.services?.price != null || (tipAppt.deposit_amount != null && tipAppt.deposit_amount > 0)) && (
+                {(tipAppt.services?.price != null || (tipAppt.deposit_amount != null && tipAppt.deposit_amount > 0) || tipAppt.was_pending_payment) && (
                   <div className="mt-3.5 flex flex-wrap items-center gap-1.5">
+                    {tipAppt.was_pending_payment && (
+                      <span className="inline-flex items-center gap-1 rounded-lg bg-rose-500 dark:bg-rose-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_2px_6px_rgba(244,63,94,0.25)]">
+                        Falta cobrar
+                        <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10" />
+                          <polyline points="12 6 12 12 16 14" />
+                        </svg>
+                      </span>
+                    )}
                     {tipAppt.services?.price != null && tipAppt.is_paid && (
                       <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-500 dark:bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_2px_6px_rgba(16,185,129,0.25)]">
                         ${tipAppt.services.price.toLocaleString("es-AR")}
@@ -1725,7 +1738,14 @@ export default memo(function CalendarView({
                   >
                     <span className="text-xs font-bold text-violet-600 dark:text-violet-400 tabular-nums w-10 shrink-0">{appt.start_hhmm}</span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{appt.customers?.nombre || "Sin cliente"}</p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {appt.customers?.nombre || "Sin cliente"}
+                        {appt.was_pending_payment && (
+                          <span className="ml-1.5 inline-flex items-center rounded-md bg-rose-100 dark:bg-rose-950/60 px-1.5 py-0.5 text-[9px] font-semibold text-rose-700 dark:text-rose-300 align-middle">
+                            Falta cobrar
+                          </span>
+                        )}
+                      </p>
                       <p className="text-[11px] text-zinc-400 dark:text-zinc-500 truncate">
                         {appt.services?.name || appt.custom_service_name || "Sin servicio"}
                         <span className="mx-1">·</span>

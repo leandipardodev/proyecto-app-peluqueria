@@ -19,6 +19,7 @@ type Appointment = {
   end_time: string;
   status: string;
   is_paid: boolean;
+  was_pending_payment?: boolean;
   deposit_amount: number | null;
   customers: { id: string; nombre: string | null; email: string; telefono: string | null } | null;
   staff: { user_id: string; name: string | null } | null;
@@ -110,7 +111,7 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
       const now = new Date().toISOString();
       const { data: rows, error } = await supabase
         .from("appointments")
-        .select("id, start_time, end_time, status, is_paid, deposit_amount, customer_id, staff_id, service_id, custom_service_name")
+        .select("id, start_time, end_time, status, is_paid, was_pending_payment, deposit_amount, customer_id, staff_id, service_id, custom_service_name")
         .eq("shop_id", shopId)
         .gte("start_time", now)
         .order("start_time", { ascending: true })
@@ -316,6 +317,11 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       {apt.is_paid ? <span className="text-emerald-600">Pagado</span> : <span className="text-rose-500">Pendiente</span>}
+                      {apt.was_pending_payment && (
+                        <span className="ml-2 inline-flex items-center whitespace-nowrap rounded-full bg-rose-50 dark:bg-rose-950/60 px-2 py-0.5 text-[11px] font-semibold text-rose-600 dark:text-rose-400">
+                          Falta cobrar
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-zinc-300">
                       {apt.deposit_amount ? `$${apt.deposit_amount.toFixed(2)}` : "—"}

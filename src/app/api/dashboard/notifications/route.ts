@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient, getShopId } from "@/lib/dashboard/auth/server";
-import { getArgentinaNow, getArgentinaDateString, getArgentinaDayBounds, getArgentinaMinutesSinceMidnight, minutesFromHHmm } from "@/lib/argentina-time";
+import { getArgentinaNow } from "@/lib/argentina-time";
 import { APPOINTMENT_STATUS_NEEDS_CONFIRMATION } from "@/lib/dashboard/appointments/status";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +17,7 @@ type DashboardNotification = {
   isRead: boolean;
 };
 
-const EMPTY_RESPONSE = { items: [], pendingComplete: [], urgentAppointments: false, lowStock: false, pendingTransfers: 0, pendingOrders: 0, unreadCount: 0 };
+const EMPTY_RESPONSE = { items: [], urgentAppointments: false, lowStock: false, pendingTransfers: 0, pendingOrders: 0, unreadCount: 0 };
 
 function seasonalMomentLabel(now: Date): string | null {
   const sameMonthDay = (month: number, day: number) => now.getMonth() === month && now.getDate() === day;
@@ -181,25 +181,15 @@ export async function GET() {
 
     const admin = await createServiceRoleClient();
     const nowAr = getArgentinaNow();
-    const todayDateStr = getArgentinaDateString();
-    const { end: todayEnd } = getArgentinaDayBounds(todayDateStr);
-    const todayEndIso = todayEnd.toISOString();
-    const yesterdayAr = new Date(nowAr.getTime() - 24 * 60 * 60 * 1000);
-    const { start: yesterdayStart } = getArgentinaDayBounds(
-      `${yesterdayAr.getFullYear()}-${String(yesterdayAr.getMonth() + 1).padStart(2, "0")}-${String(yesterdayAr.getDate()).padStart(2, "0")}`
-    );
-    const yesterdayStartIso = yesterdayStart.toISOString();
     const oneHourFromNow = new Date(nowAr.getTime() + 60 * 60 * 1000).toISOString();
 
     await assureNotifications(admin, shopId);
 
-    const [notifsRes, readsRes, urgentRes, stockCountRes, pendingCompleteRes, businessHoursRes, bankTransfersRes, ordersRes] = await Promise.all([
+    const [notifsRes, readsRes, urgentRes, stockCountRes, bankTransfersRes, ordersRes] = await Promise.all([
       admin.from("notifications").select("id, type, category, title, description, href, created_at").eq("shop_id", shopId).order("created_at", { ascending: false }).limit(50),
       admin.from("notification_reads").select("notification_id").eq("user_id", authUser.id),
       admin.from("appointments").select("id", { count: "exact", head: true }).eq("shop_id", shopId).in("status", APPOINTMENT_STATUS_NEEDS_CONFIRMATION as unknown as string[]).gte("start_time", nowAr.toISOString()).lte("start_time", oneHourFromNow),
       admin.from("stock").select("id", { count: "exact", head: true }).eq("shop_id", shopId).lt("quantity", 5),
-      admin.from("appointments").select("id, start_time, customers(nombre)").eq("shop_id", shopId).in("status", ["confirmed", "in_progress"]).gte("start_time", yesterdayStartIso).lte("start_time", todayEndIso).order("start_time", { ascending: true }).limit(100),
-      admin.from("shops").select("business_hours").eq("id", shopId).single(),
       admin.from("pending_bookings").select("id", { count: "exact", head: true }).eq("shop_id", shopId).eq("status", "pending").eq("payment_method", "bank_transfer").gt("expires_at", nowAr.toISOString()),
       admin.from("orders").select("id", { count: "exact", head: true }).eq("shop_id", shopId).eq("status", "pending_payment"),
     ]);
@@ -217,35 +207,8 @@ export async function GET() {
       isRead: readSet.has(n.id),
     }));
 
-    let todayAfterClosing = false;
-    if (businessHoursRes.data?.business_hours) {
-      const hours = businessHoursRes.data.business_hours as Record<string, { open: boolean; end: string }>;
-      const dayName = new Intl.DateTimeFormat("en-US", {
-        timeZone: "America/Argentina/Buenos_Aires",
-        weekday: "long",
-      }).format(new Date()).toLowerCase();
-      const todayHours = hours[dayName];
-      if (todayHours?.open && todayHours.end) {
-        const closingMinutes = minutesFromHHmm(todayHours.end);
-        const currentMinutes = getArgentinaMinutesSinceMidnight(new Date());
-        todayAfterClosing = currentMinutes >= closingMinutes;
-      }
-    }
-
-    const pendingComplete = (pendingCompleteRes.data ?? [])
-      .filter((apt) => {
-        const aptDate = apt.start_time.slice(0, 10);
-        if (aptDate < todayDateStr) return true;
-        return todayAfterClosing;
-      })
-      .map((apt) => {
-        const c = Array.isArray(apt.customers) ? apt.customers[0] : apt.customers;
-        return { id: apt.id, customer_name: c?.nombre || "Cliente", start_time: apt.start_time };
-      });
-
     return NextResponse.json({
       items,
-      pendingComplete,
       urgentAppointments: (urgentRes.count || 0) > 0,
       lowStock: (stockCountRes.count || 0) > 0,
       pendingTransfers: bankTransfersRes.count || 0,

@@ -14,15 +14,8 @@ export type NotificationItem = {
   isRead: boolean;
 };
 
-export type PendingComplete = {
-  id: string;
-  customer_name: string;
-  start_time: string;
-};
-
 export type NotificationsState = {
   items: NotificationItem[];
-  pendingComplete: PendingComplete[];
   urgentAppointments: boolean;
   lowStock: boolean;
   pendingTransfers: number;
@@ -35,7 +28,6 @@ const POLL_INTERVAL = 45_000;
 
 const EMPTY_STATE: NotificationsState = {
   items: [],
-  pendingComplete: [],
   urgentAppointments: false,
   lowStock: false,
   pendingTransfers: 0,
@@ -67,22 +59,19 @@ async function fetchState(): Promise<NotificationsState | null> {
     if (!res.ok) return null;
     const data = (await res.json()) as {
       items?: NotificationItem[];
-      pendingComplete?: PendingComplete[];
       urgentAppointments?: boolean;
       lowStock?: boolean;
       pendingTransfers?: number;
       pendingOrders?: number;
     };
     const items = Array.isArray(data.items) ? data.items : [];
-    const pendingComplete = Array.isArray(data.pendingComplete) ? data.pendingComplete : [];
     return {
       items,
-      pendingComplete,
       urgentAppointments: Boolean(data.urgentAppointments),
       lowStock: Boolean(data.lowStock),
       pendingTransfers: typeof data.pendingTransfers === "number" ? data.pendingTransfers : 0,
       pendingOrders: typeof data.pendingOrders === "number" ? data.pendingOrders : 0,
-      unreadCount: items.filter((i) => !i.isRead).length + pendingComplete.length,
+      unreadCount: items.filter((i) => !i.isRead).length,
       loading: false,
     };
   } catch {
@@ -113,7 +102,7 @@ export async function markNotificationsRead(ids: string[] | "all") {
     publish({
       ...cachedState,
       items,
-      unreadCount: items.filter((i) => !i.isRead).length + cachedState.pendingComplete.length,
+      unreadCount: items.filter((i) => !i.isRead).length,
     });
   }
   try {
@@ -129,7 +118,7 @@ export async function markNotificationsRead(ids: string[] | "all") {
       if (typeof data.unreadCount === "number" && cachedState) {
         publish({
           ...cachedState,
-          unreadCount: data.unreadCount + cachedState.pendingComplete.length,
+          unreadCount: data.unreadCount,
         });
       }
       return;

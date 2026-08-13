@@ -1,11 +1,9 @@
 "use client";
 
-import { useRef, useEffect, useCallback, useState } from "react";
+import { useRef, useEffect } from "react";
 import {
   Bell,
   Check,
-  ChevronRight,
-  Loader2,
   CalendarPlus,
   CalendarX2,
   Package,
@@ -40,14 +38,6 @@ function artDateKey(iso: string): string {
     if (y && m && d) return `${y}-${m}-${d}`;
   } catch { }
   return "unknown";
-}
-
-function formatTime(iso: string): string {
-  try {
-    return new Date(iso).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", timeZone: ART_TZ });
-  } catch {
-    return "";
-  }
 }
 
 function timeLabel(iso: string, now: Date): string {
@@ -149,8 +139,7 @@ function NotificationRow({ item, onClose }: { item: NotificationItem; onClose: (
 }
 
 export default function NotificationsPanel({ onClose, shopId }: { onClose: () => void; shopId?: string | null }) {
-  const { items, pendingComplete, unreadCount, loading } = useNotifications(shopId);
-  const [completing, setCompleting] = useState(false);
+  const { items, unreadCount, loading } = useNotifications(shopId);
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -163,20 +152,6 @@ export default function NotificationsPanel({ onClose, shopId }: { onClose: () =>
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [onClose]);
-
-  const handleBulkComplete = useCallback(async () => {
-    if (completing || pendingComplete.length === 0 || !shopId) return;
-    setCompleting(true);
-    try {
-      const { bulkCompleteAppointments } = await import("@/lib/dashboard/appointments/mutations");
-      const res = await bulkCompleteAppointments(shopId, pendingComplete.map((p) => p.id));
-      if (res.success) {
-        window.dispatchEvent(new CustomEvent("appointments-updated"));
-        void import("@/lib/dashboard/use-notifications").then((m) => m.refetchNotifications());
-      }
-    } catch { }
-    setCompleting(false);
-  }, [shopId, completing, pendingComplete]);
 
   const sorted = [...items].sort((a, b) => (a.timestamp < b.timestamp ? 1 : a.timestamp > b.timestamp ? -1 : 0));
   const unreadItems = sorted.filter((i) => !i.isRead);
@@ -231,44 +206,6 @@ export default function NotificationsPanel({ onClose, shopId }: { onClose: () =>
 
         {!loading && (
           <>
-            {pendingComplete.length > 0 && (
-              <div className="mb-2 rounded-xl bg-amber-50 dark:bg-amber-950/25 border border-amber-200/50 dark:border-amber-800/30 p-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                  <span className="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
-                    Turnos por completar
-                  </span>
-                </div>
-                <div className="space-y-1.5">
-                  {pendingComplete.map((p) => (
-                    <div key={p.id} className="flex items-center justify-between gap-2">
-                      <span className="text-sm text-amber-900 dark:text-amber-100 font-medium truncate">
-                        {p.customer_name}
-                      </span>
-                      <span className="text-[10px] text-amber-500 dark:text-amber-400 shrink-0">
-                        {formatTime(p.start_time)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void handleBulkComplete()}
-                  disabled={completing}
-                  className="w-full mt-2 flex items-center justify-center gap-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white text-xs font-semibold px-3 py-2 transition-colors"
-                >
-                  {completing ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  )}
-                  {completing
-                    ? "Completando..."
-                    : `Completar ${pendingComplete.length} turno${pendingComplete.length !== 1 ? "s" : ""} como pagado`}
-                </button>
-              </div>
-            )}
-
             {unreadItems.length > 0 && (
               <div className="mb-2">
                 <div className="flex items-center gap-2 px-3 py-1.5">
@@ -285,7 +222,7 @@ export default function NotificationsPanel({ onClose, shopId }: { onClose: () =>
               </div>
             )}
 
-            {dayGroups.length === 0 && unreadItems.length === 0 && pendingComplete.length === 0 && (
+            {dayGroups.length === 0 && unreadItems.length === 0 && (
               <div className="text-center py-8 text-zinc-500 dark:text-zinc-400 text-sm">
                 No hay notificaciones nuevas
               </div>

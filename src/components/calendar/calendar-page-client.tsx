@@ -91,6 +91,7 @@ type Appointment = {
   end_time: string;
   status: string;
   is_paid: boolean;
+  was_pending_payment?: boolean;
   deposit_amount?: number | null;
   recurring_group_id: string | null;
   notes: string | null;
@@ -271,7 +272,7 @@ export default function CalendarPageClient({
       try {
         const { data: rows, error } = await supabase
           .from("appointments")
-          .select("id, customer_id, staff_id, service_id, start_time, end_time, status, is_paid, deposit_amount, loyalty_reward_applied, loyalty_discount_percent_applied, recurring_group_id, notes")
+          .select("id, customer_id, staff_id, service_id, start_time, end_time, status, is_paid, was_pending_payment, deposit_amount, loyalty_reward_applied, loyalty_discount_percent_applied, recurring_group_id, notes")
           .eq("shop_id", shopId)
           .gte("start_time", rangeStart.toISOString())
           .lte("start_time", fetchedRangeEndRef.current)

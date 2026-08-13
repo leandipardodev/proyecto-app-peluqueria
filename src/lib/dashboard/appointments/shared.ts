@@ -189,6 +189,7 @@ export type AppointmentEnriched = {
   end_time: string;
   status: string;
   is_paid: boolean;
+  was_pending_payment?: boolean;
   deposit_amount: number | null;
   loyalty_reward_applied?: boolean;
   loyalty_discount_percent_applied?: number;
@@ -312,6 +313,7 @@ export type AppointmentTableRow = {
   end_time: string;
   status: string;
   is_paid: boolean;
+  was_pending_payment?: boolean;
   deposit_amount: number | null;
   loyalty_reward_applied?: boolean;
   loyalty_discount_percent_applied?: number;

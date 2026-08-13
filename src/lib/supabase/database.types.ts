@@ -131,6 +131,7 @@ export type Database = {
           start_time: string
           status: string | null
           updated_at: string | null
+          was_pending_payment: boolean
         }
         Insert: {
           created_at?: string | null
@@ -155,6 +156,7 @@ export type Database = {
           start_time: string
           status?: string | null
           updated_at?: string | null
+          was_pending_payment?: boolean
         }
         Update: {
           created_at?: string | null
@@ -179,6 +181,7 @@ export type Database = {
           start_time?: string
           status?: string | null
           updated_at?: string | null
+          was_pending_payment?: boolean
         }
         Relationships: [
           {

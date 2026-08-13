@@ -23,6 +23,7 @@ type Appointment = {
   end_time: string;
   status: string;
   is_paid: boolean;
+  was_pending_payment?: boolean;
   deposit_amount?: number | null;
   loyalty_reward_applied?: boolean;
   loyalty_discount_percent_applied?: number;
@@ -998,6 +999,12 @@ export default function AppointmentDetailModal({
                 </button>
               </div>
             </div>
+
+            {appointment?.was_pending_payment && (
+              <p className="text-xs text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200/50 dark:border-rose-800/30 rounded-lg px-3 py-2">
+                Este turno quedaba con pago pendiente cuando se auto-completó. Verificá que el cliente haya pagado.
+              </p>
+            )}
 
             {actions.length > 0 && (
               <div className="flex flex-wrap gap-2">
