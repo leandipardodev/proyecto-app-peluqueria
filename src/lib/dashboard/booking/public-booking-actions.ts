@@ -15,7 +15,7 @@ import type { ActionResult } from "@/lib/types";
 import { sendAppointmentConfirmationEmail, scheduleAppointmentReminderEmail } from "@/lib/email/booking-emails";
 import { createRateLimiter } from "@/lib/rate-limiter";
 import { headers } from "next/headers";
-import { fetchShopDateOverrides } from "@/lib/dashboard/shop/business-actions";
+import type { DateOverride } from "@/lib/dashboard/shop/business-actions";
 import { createStoreOrderRecord, type StoreCheckoutItem } from "@/lib/dashboard/store/public-store-actions";
 import { restoreOrderStock } from "@/lib/dashboard/store/stock";
 import "server-only";
@@ -25,6 +25,50 @@ import { completedBookingCache } from "@/lib/booking-cache";
 const slotsLimiter = createRateLimiter({ intervalMs: 60_000, maxRequests: 30 });
 
 type AdminClient = Awaited<ReturnType<typeof createAdminClient>>;
+
+/**
+ * Lee excepciones/feriados del local para el flujo publico de reserva.
+ * No exige membresia: un cliente logueado que no pertenece al local tambien
+ * debe ver los dias/horarios bloqueados. El dashboard usa fetchShopDateOverrides
+ * (con check de acceso).
+ */
+export async function fetchPublicShopDateOverrides(
+  shopId: string,
+  startDate: string,
+  endDate: string
+): Promise<ActionResult<DateOverride[]>> {
+  try {
+    if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    const admin = await createAdminClient();
+    const { data, error } = await admin
+      .from("shop_date_overrides")
+      .select("id, staff_id, date, is_closed, start_time, end_time, break_start, break_end")
+      .eq("shop_id", shopId)
+      .gte("date", startDate)
+      .lte("date", endDate)
+      .order("date", { ascending: true });
+
+    if (error) return { success: false, error: error.message };
+
+    return {
+      success: true,
+      data: (data || []).map((o) => ({
+        id: o.id,
+        staff_id: o.staff_id,
+        staff_name: null,
+        date: o.date,
+        is_closed: o.is_closed,
+        start_time: o.start_time?.slice(0, 5) ?? null,
+        end_time: o.end_time?.slice(0, 5) ?? null,
+        break_start: o.break_start?.slice(0, 5) ?? null,
+        break_end: o.break_end?.slice(0, 5) ?? null,
+        reason: null,
+      })),
+    };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al cargar excepciones" };
+  }
+}
 
 /**
  * Find or create a customer for (shop_id, telefono).
@@ -365,7 +409,7 @@ export async function fetchPublicAvailableSlots(
     }
 
     // Fetch date overrides for this date
-    const overrideResult = await fetchShopDateOverrides(shopId, date, date);
+    const overrideResult = await fetchPublicShopDateOverrides(shopId, date, date);
     const overrides = overrideResult.success ? (overrideResult.data || []) : [];
     const shopOverride = overrides.find(o => o.staff_id === null);
 
@@ -569,7 +613,7 @@ export async function createPublicAppointment(data: {
       }
 
     // Apply date overrides (defense in depth)
-    const aptOverrideResult = await fetchShopDateOverrides(data.shopId, bookingDate, bookingDate);
+    const aptOverrideResult = await fetchPublicShopDateOverrides(data.shopId, bookingDate, bookingDate);
     if (aptOverrideResult.success && aptOverrideResult.data) {
       const aptShopOverride = aptOverrideResult.data.find(o => o.staff_id === null);
       if (aptShopOverride) {
@@ -1047,7 +1091,7 @@ export async function createPublicComboAppointment(data: {
     }
 
     // Apply date overrides (defense in depth)
-    const comboOverrideResult = await fetchShopDateOverrides(data.shopId, bookingDate, bookingDate);
+    const comboOverrideResult = await fetchPublicShopDateOverrides(data.shopId, bookingDate, bookingDate);
     if (comboOverrideResult.success && comboOverrideResult.data) {
       const comboShopOverride = comboOverrideResult.data.find(o => o.staff_id === null);
       if (comboShopOverride) {

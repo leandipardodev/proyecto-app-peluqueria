@@ -11,7 +11,7 @@ import {
 import type { ActionResult } from "@/lib/types";
 import { createRateLimiter } from "@/lib/rate-limiter";
 import { headers } from "next/headers";
-import { fetchShopDateOverrides } from "@/lib/dashboard/shop/business-actions";
+import { fetchPublicShopDateOverrides } from "@/lib/dashboard/booking/public-booking-actions";
 import { sendAppointmentConfirmationEmail } from "@/lib/email/booking-emails";
 import { completedBookingCache } from "@/lib/booking-cache";
 import "server-only";
@@ -144,7 +144,7 @@ export async function createPendingBooking(
     }
 
     // Check date overrides (defense in depth)
-    const pbOverrideResult = await fetchShopDateOverrides(input.shopId, bookingDate, bookingDate);
+    const pbOverrideResult = await fetchPublicShopDateOverrides(input.shopId, bookingDate, bookingDate);
     if (pbOverrideResult.success && pbOverrideResult.data) {
       const pbShopOverride = pbOverrideResult.data.find(o => o.staff_id === null);
       if (pbShopOverride) {

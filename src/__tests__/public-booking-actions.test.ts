@@ -5,10 +5,9 @@ import {
 } from "@/lib/dashboard/booking/public-booking-actions";
 import { mockQueryResult } from "@/__tests__/setup";
 
-const { rateLimitCheck, adminClientMock, overridesMock } = vi.hoisted(() => ({
+const { rateLimitCheck, adminClientMock } = vi.hoisted(() => ({
   rateLimitCheck: vi.fn(),
   adminClientMock: vi.fn(),
-  overridesMock: vi.fn(),
 }));
 
 vi.mock("@/lib/rate-limiter", () => ({
@@ -17,10 +16,6 @@ vi.mock("@/lib/rate-limiter", () => ({
 
 vi.mock("@/lib/dashboard/appointments/shared", () => ({
   createAdminClient: adminClientMock,
-}));
-
-vi.mock("@/lib/dashboard/shop/business-actions", () => ({
-  fetchShopDateOverrides: overridesMock,
 }));
 
 const isoAt = (date: string, hour: number, minute = 0) =>
@@ -49,12 +44,12 @@ const defaultRoutes = () => ({
   staff_schedules: [],
   appointments: [],
   pending_bookings: [],
+  shop_date_overrides: [],
 });
 
 beforeEach(() => {
   vi.clearAllMocks();
   rateLimitCheck.mockResolvedValue({ allowed: true });
-  overridesMock.mockResolvedValue({ success: true, data: [] });
   adminClientMock.mockReset();
   adminClientMock.mockResolvedValue(makeAdmin(defaultRoutes()));
   Object.keys(queryChains).forEach((k) => delete queryChains[k]);
@@ -121,20 +116,24 @@ describe("fetchPublicAvailableSlots", () => {
   });
 
   it("aplica override del local: cerrado devuelve vacio", async () => {
-    overridesMock.mockResolvedValue({
-      success: true,
-      data: [{ staff_id: null, is_closed: true, start_time: null, end_time: null, break_start: null, break_end: null }],
-    });
+    adminClientMock.mockResolvedValue(
+      makeAdmin({
+        ...defaultRoutes(),
+        shop_date_overrides: [{ id: "o1", staff_id: null, date, is_closed: true, start_time: null, end_time: null, break_start: null, break_end: null }],
+      })
+    );
     const res = await fetchPublicAvailableSlots("shop-1", 60, date);
     expect(res).toEqual({ success: true, data: [] });
   });
 
   it("aplica override del local: recorta el horario", async () => {
-    adminClientMock.mockResolvedValue(makeAdmin({ ...defaultRoutes(), shop_memberships: memberships("s1") }));
-    overridesMock.mockResolvedValue({
-      success: true,
-      data: [{ staff_id: null, is_closed: false, start_time: "12:00", end_time: "17:00", break_start: null, break_end: null }],
-    });
+    adminClientMock.mockResolvedValue(
+      makeAdmin({
+        ...defaultRoutes(),
+        shop_memberships: memberships("s1"),
+        shop_date_overrides: [{ id: "o1", staff_id: null, date, is_closed: false, start_time: "12:00", end_time: "17:00", break_start: null, break_end: null }],
+      })
+    );
     const res = await fetchPublicAvailableSlots("shop-1", 60, date);
     expect(res.success).toBe(true);
     expect(res.data).toHaveLength(9);
@@ -143,10 +142,12 @@ describe("fetchPublicAvailableSlots", () => {
   });
 
   it("aplica override del local: el break afecta la grilla", async () => {
-    overridesMock.mockResolvedValue({
-      success: true,
-      data: [{ staff_id: null, is_closed: false, start_time: null, end_time: null, break_start: "13:00", break_end: "14:00" }],
-    });
+    adminClientMock.mockResolvedValue(
+      makeAdmin({
+        ...defaultRoutes(),
+        shop_date_overrides: [{ id: "o1", staff_id: null, date, is_closed: false, start_time: null, end_time: null, break_start: "13:00", break_end: "14:00" }],
+      })
+    );
     const res = await fetchPublicAvailableSlots("shop-1", 60, date);
     expect(res.success).toBe(true);
     expect(res.data).toHaveLength(18);

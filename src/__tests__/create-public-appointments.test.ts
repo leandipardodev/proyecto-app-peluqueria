@@ -6,11 +6,10 @@ import {
 import { getArgentinaDateKey, getArgentinaMinutesSinceMidnight } from "@/lib/argentina-time";
 import { mockQueryResult } from "@/__tests__/setup";
 
-const { cacheHasMock, cacheSetMock, adminClientMock, overridesMock } = vi.hoisted(() => ({
+const { cacheHasMock, cacheSetMock, adminClientMock } = vi.hoisted(() => ({
   cacheHasMock: vi.fn(),
   cacheSetMock: vi.fn(),
   adminClientMock: vi.fn(),
-  overridesMock: vi.fn(),
 }));
 
 vi.mock("@/lib/booking-cache", () => ({
@@ -23,10 +22,6 @@ vi.mock("@/lib/rate-limiter", () => ({
 
 vi.mock("@/lib/dashboard/appointments/shared", () => ({
   createAdminClient: adminClientMock,
-}));
-
-vi.mock("@/lib/dashboard/shop/business-actions", () => ({
-  fetchShopDateOverrides: overridesMock,
 }));
 
 const baseAppointment = {
@@ -109,7 +104,6 @@ function makeSuccessAdmin(): never {
 beforeEach(() => {
   vi.clearAllMocks();
   cacheHasMock.mockReturnValue(false);
-  overridesMock.mockResolvedValue({ success: true, data: [] });
   adminClientMock.mockReset();
   adminClientMock.mockResolvedValue(makeAdmin({}));
   vi.mocked(getArgentinaDateKey).mockImplementation(() => "2030-06-15");

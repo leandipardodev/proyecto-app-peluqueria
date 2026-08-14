@@ -32,8 +32,7 @@ import {
   ZoomIn,
 } from "lucide-react";
 import { initMercadoPago } from "@mercadopago/sdk-react";
-import { fetchPublicAvailableSlots, createPublicAppointment, createPublicComboAppointment, deletePublicAppointment } from "@/lib/dashboard/booking/public-booking-actions";
-import { fetchShopDateOverrides } from "@/lib/dashboard/shop/business-actions";
+import { fetchPublicAvailableSlots, createPublicAppointment, createPublicComboAppointment, deletePublicAppointment, fetchPublicShopDateOverrides } from "@/lib/dashboard/booking/public-booking-actions";
 import { deletePendingBooking } from "@/lib/dashboard/appointments/pending-booking-actions";
 import type { PublicStoreProduct } from "@/lib/dashboard/store/public-store-actions";
 import { productColor } from "@/lib/dashboard/store/product-color";
@@ -1464,7 +1463,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     const startDate = formatDate(new Date(viewYear, viewMonth, 1));
     const endDate = formatDate(new Date(viewYear, viewMonth + 1, 0));
     (async () => {
-      const result = await fetchShopDateOverrides(shop.id, startDate, endDate);
+      const result = await fetchPublicShopDateOverrides(shop.id, startDate, endDate);
       if (result.success && result.data) {
         const map: Record<string, { is_closed: boolean; start_time: string | null; end_time: string | null }> = {};
         for (const o of result.data) {
