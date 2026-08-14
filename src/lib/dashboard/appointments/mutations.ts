@@ -1235,10 +1235,27 @@ export async function moveAppointmentGroup(
   }
 }
 
-export async function autoCompletePastAppointments(shopId: string): Promise<ActionResult<{ completed: number; confirmed: number; flagged: number }>> {
-  try {
-    if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+type AutoCompleteResult = ActionResult<{ completed: number; confirmed: number; flagged: number }>;
 
+// Deduplica corridas concurrentes por local: varias pestañas/navegaciones del
+// dashboard (o el poll de notificaciones) pueden disparar el auto-complete a la vez.
+// Sin esto, dos corridas simultáneas podrían leer el mismo turno vencido antes de
+// que la otra actualice el estado y duplicar el corte de fidelización.
+const autoCompleteRuns = new Map<string, Promise<AutoCompleteResult>>();
+
+export async function autoCompletePastAppointments(shopId: string): Promise<AutoCompleteResult> {
+  if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+  const existing = autoCompleteRuns.get(shopId);
+  if (existing) return existing;
+  const run = runAutoCompletePastAppointments(shopId).finally(() => {
+    autoCompleteRuns.delete(shopId);
+  });
+  autoCompleteRuns.set(shopId, run);
+  return run;
+}
+
+async function runAutoCompletePastAppointments(shopId: string): Promise<AutoCompleteResult> {
+  try {
     const admin = await createAdminClient();
     const { data: shop } = await admin.from("shops").select("auto_complete_enabled").eq("id", shopId).maybeSingle();
     if (!shop?.auto_complete_enabled) {

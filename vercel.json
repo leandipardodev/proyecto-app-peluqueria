@@ -11,10 +11,6 @@
     {
       "path": "/api/cron/bank-transfer-cleanup",
       "schedule": "0 12 * * *"
-    },
-    {
-      "path": "/api/cron/auto-complete-appointments",
-      "schedule": "*/15 * * * *"
     }
   ]
 }
