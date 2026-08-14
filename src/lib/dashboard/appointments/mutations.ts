@@ -1237,6 +1237,14 @@ export async function moveAppointmentGroup(
 
 type AutoCompleteResult = ActionResult<{ completed: number; confirmed: number; flagged: number }>;
 
+// Máximo de turnos procesados por corrida: un local con mucho backlog no dispara
+// un batch gigante que agote el tiempo de la función; el resto se drena solo con
+// las corridas siguientes (poll de notificaciones cada 45s e ingresos al dashboard).
+const AUTO_COMPLETE_BATCH_SIZE = 100;
+// Los cortes de fidelización son independientes entre sí: se procesan en paralelo
+// en chunks para acortar la duración de cada corrida.
+const LOYALTY_CUT_CONCURRENCY = 10;
+
 // Deduplica corridas concurrentes por local: varias pestañas/navegaciones del
 // dashboard (o el poll de notificaciones) pueden disparar el auto-complete a la vez.
 // Sin esto, dos corridas simultáneas podrían leer el mismo turno vencido antes de
@@ -1275,7 +1283,7 @@ async function runAutoCompletePastAppointments(shopId: string): Promise<AutoComp
       .eq("auto_completed", false)
       .lt("start_time", confirmCutoff)
       .select("id")
-      .limit(500);
+      .limit(AUTO_COMPLETE_BATCH_SIZE);
 
     if (confirmError) return { success: false, error: confirmError.message };
 
@@ -1292,7 +1300,7 @@ async function runAutoCompletePastAppointments(shopId: string): Promise<AutoComp
       .eq("auto_completed", false)
       .lt("end_time", nowIso)
       .select("id, customer_id")
-      .limit(500);
+      .limit(AUTO_COMPLETE_BATCH_SIZE);
 
     if (standardError) return { success: false, error: standardError.message };
 
@@ -1304,17 +1312,20 @@ async function runAutoCompletePastAppointments(shopId: string): Promise<AutoComp
       .eq("auto_completed", false)
       .lt("end_time", nowIso)
       .select("id, customer_id")
-      .limit(500);
+      .limit(AUTO_COMPLETE_BATCH_SIZE);
 
     if (flaggedError) return { success: false, error: flaggedError.message };
 
     const completedData = [...(standardData ?? []), ...(flaggedData ?? [])];
 
     if (completedData.length > 0) {
-      for (const apt of completedData) {
-        if (apt.customer_id) {
-          await registerLoyaltyCut(shopId, apt.customer_id);
-        }
+      for (let i = 0; i < completedData.length; i += LOYALTY_CUT_CONCURRENCY) {
+        const chunk = completedData.slice(i, i + LOYALTY_CUT_CONCURRENCY);
+        await Promise.all(
+          chunk.map((apt) =>
+            apt.customer_id ? registerLoyaltyCut(shopId, apt.customer_id) : Promise.resolve()
+          )
+        );
       }
     }
 

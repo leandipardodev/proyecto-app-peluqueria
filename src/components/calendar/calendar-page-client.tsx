@@ -202,7 +202,11 @@ export default function CalendarPageClient({
       }
       addToast(next ? "Autocompletado de turnos activado" : "Autocompletado de turnos desactivado", "success");
       if (next) {
-        await autoCompletePastAppointments(shopId);
+        const result = await autoCompletePastAppointments(shopId);
+        const data = result && result.success ? result.data : null;
+        if (data && data.completed + data.confirmed + data.flagged > 0) {
+          window.dispatchEvent(new Event("appointments-updated"));
+        }
       }
     } catch (e) {
       setAutoCompleteOn(!next);
