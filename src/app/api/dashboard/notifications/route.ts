@@ -3,6 +3,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient, getShopId } from "@/lib/dashboard/auth/server";
 import { getArgentinaNow } from "@/lib/argentina-time";
 import { APPOINTMENT_STATUS_NEEDS_CONFIRMATION } from "@/lib/dashboard/appointments/status";
+import { autoCompletePastAppointments } from "@/lib/dashboard/appointments/mutations";
 
 export const dynamic = "force-dynamic";
 
@@ -93,7 +94,7 @@ async function assureNotifications(admin: Awaited<ReturnType<typeof createServic
       entity_key: `recompensa:${c.id}`,
       created_at: nowIso,
     }));
-    await admin.from("notifications").upsert(rows, { onConflict: "shop_id,entity_key" });
+    await admin.from("notifications").upsert(rows, { onConflict: "shop_id,entity_key", ignoreDuplicates: true });
   }
 
   // Cumpleaños: una vez por año por cliente.
@@ -184,6 +185,8 @@ export async function GET() {
     const oneHourFromNow = new Date(nowAr.getTime() + 60 * 60 * 1000).toISOString();
 
     await assureNotifications(admin, shopId);
+
+    await autoCompletePastAppointments(shopId);
 
     const [notifsRes, readsRes, urgentRes, stockCountRes, bankTransfersRes, ordersRes] = await Promise.all([
       admin.from("notifications").select("id, type, category, title, description, href, created_at").eq("shop_id", shopId).order("created_at", { ascending: false }).limit(50),

@@ -99,3 +99,22 @@ export async function deleteCurrentShop(shopSlug?: string): Promise<ActionResult
     return { success: false, error: e instanceof Error ? e.message : "Error al borrar local" };
   }
 }
+
+export async function toggleAutoComplete(enabled: boolean): Promise<ActionResult> {
+  try {
+    const shopIdResult = await requireOwnerShopId();
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
+    const admin = await createAdminClient();
+
+    const { error } = await admin
+      .from("shops")
+      .update({ auto_complete_enabled: enabled, updated_at: new Date().toISOString() })
+      .eq("id", shopId!);
+
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al actualizar autocompletado" };
+  }
+}

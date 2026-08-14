@@ -1,6 +1,7 @@
 import { Suspense } from "react";
-import { getCachedUser, getCachedShopIdBySlug, getShopId } from "@/lib/dashboard/auth/server";
+import { getCachedUser, getCachedShopIdBySlug, getShopId, createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import { redirect } from "next/navigation";
+import { createServerClient } from "@/lib/supabase/server";
 import { fetchActiveServices, fetchStaffMembers } from "@/lib/dashboard/appointments/queries";
 import { fetchStaffMembers as fetchStaffMembersFull } from "@/lib/dashboard/staff/staff-actions";
 import CalendarSection, { fetchCustomersByShop, type CustomersData } from "./calendar-section";
@@ -79,6 +80,7 @@ export default async function CalendarByShopSlugPage({
       <Suspense fallback={<CombinedSkeleton />}>
         <CalendarPageContent
           shopId={shopId}
+          userId={user.id}
           initialDateParam={resolvedSearchParams?.date}
           initialAppointmentId={resolvedSearchParams?.appointmentId}
           initialViewMode={resolvedSearchParams?.view}
@@ -90,19 +92,40 @@ export default async function CalendarByShopSlugPage({
 
 async function CalendarPageContent({
   shopId,
+  userId,
   initialDateParam,
   initialAppointmentId,
   initialViewMode,
 }: {
   shopId: string;
+  userId: string;
   initialDateParam?: string;
   initialAppointmentId?: string;
   initialViewMode?: string;
 }) {
-  const [servicesResult, staffResult, customers] = await Promise.all([
+  const [servicesResult, staffResult, customers, shopFlag] = await Promise.all([
     fetchActiveServices(shopId),
     fetchStaffMembersFull(shopId),
     fetchCustomersByShop(shopId),
+    (async () => {
+      const admin = await createServiceRoleClient();
+      const { data: shop } = await admin
+        .from("shops")
+        .select("auto_complete_enabled")
+        .eq("id", shopId)
+        .maybeSingle();
+      const supabase = await createServerClient();
+      const { data: membership } = await supabase
+        .from("shop_memberships")
+        .select("role")
+        .eq("user_id", userId)
+        .eq("shop_id", shopId)
+        .maybeSingle();
+      return {
+        autoCompleteEnabled: shop?.auto_complete_enabled ?? false,
+        isOwner: membership?.role === "owner",
+      };
+    })(),
   ]);
 
   let services: ServicesData = [];
@@ -111,7 +134,7 @@ async function CalendarPageContent({
   if (isActionSuccess<StaffData>(staffResult)) staff = staffResult.data ?? [];
 
   const [calendarEl, tableEl] = await Promise.all([
-    CalendarSection({ shopId, services, staff, customers, initialDateParam, initialAppointmentId, initialViewMode }),
+    CalendarSection({ shopId, services, staff, customers, initialDateParam, initialAppointmentId, initialViewMode, autoCompleteEnabled: shopFlag.autoCompleteEnabled, isOwner: shopFlag.isOwner }),
     AppointmentsTableSection({ shopId }),
   ]);
   return <>{calendarEl}{tableEl}</>;

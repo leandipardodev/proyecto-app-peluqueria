@@ -21,7 +21,10 @@ export function useAutoCompleteAppointments(shopId: string | null): void {
       const id = shopIdRef.current;
       if (!id) { runningRef.current = false; return; }
       try {
-        await autoCompletePastAppointments(id);
+        const result = await autoCompletePastAppointments(id);
+        if (result && result.success === false) {
+          console.error("[AUTO-COMPLETE] error:", result.error);
+        }
       } catch (e) {
         console.error("[AUTO-COMPLETE] error", e);
       } finally {

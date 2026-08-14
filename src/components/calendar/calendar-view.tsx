@@ -94,6 +94,9 @@ interface CalendarViewProps {
   onMonthChange?: (newDate: Date) => void;
   initialViewMode?: "week" | "day" | "month";
   onMoveAppointment?: (appointmentId: string, newStartIso: string) => void;
+  autoCompleteEnabled?: boolean;
+  onToggleAutoComplete?: () => void;
+  canToggleAutoComplete?: boolean;
 }
 
 function hourFromHHmm(v: string): number {
@@ -470,6 +473,9 @@ export default memo(function CalendarView({
   initialViewMode,
   onMoveAppointment,
   onMonthChange,
+  autoCompleteEnabled = false,
+  onToggleAutoComplete,
+  canToggleAutoComplete = false,
 }: CalendarViewProps) {
   const { weekStart, weekEnd, weekDays } = useMemo(() => {
     const ws = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -1309,6 +1315,26 @@ export default memo(function CalendarView({
             </motion.div>
           </div>
         </div>
+        {canToggleAutoComplete && (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={autoCompleteEnabled}
+            aria-label="Autocompletar turnos automáticamente"
+            title="Al activar, los turnos vencidos se confirman y completan automáticamente"
+            onClick={onToggleAutoComplete}
+            className="inline-flex items-center gap-2 rounded-full border border-zinc-200/80 dark:border-zinc-700/80 bg-white/60 dark:bg-zinc-800/60 px-3 py-1.5 text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:bg-white dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors cursor-pointer select-none backdrop-blur-sm"
+          >
+            <span
+              className={`w-2 h-2 rounded-full transition-all ${
+                autoCompleteEnabled
+                  ? "bg-emerald-500 shadow-[0_0_6px_2px_rgba(16,185,129,0.7)]"
+                  : "bg-zinc-300 dark:bg-zinc-600"
+              }`}
+            />
+            Autocompletar turnos
+          </button>
+        )}
         <div className="flex items-center gap-2">
           {viewMode === "week" && (
             <button

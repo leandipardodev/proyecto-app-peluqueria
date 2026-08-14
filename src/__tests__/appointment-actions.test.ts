@@ -7,6 +7,7 @@ import {
   deleteAppointment,
 } from "@/lib/dashboard/appointments/actions";
 import { fetchAppointments } from "@/lib/dashboard/appointments/queries";
+import { autoCompletePastAppointments } from "@/lib/dashboard/appointments/mutations";
 import { createServerClient as mockCreateServerClient } from "@/lib/supabase/server";
 import { canAccessShopId as mockCanAccessShopId, createServiceRoleClient as mockCreateServiceRole, requireShopId as mockRequireShopId } from "@/lib/dashboard/auth/server";
 import { sendEmailWithResend as mockSendEmail } from "@/lib/email/resend";
@@ -359,5 +360,35 @@ describe("fetchAppointments", () => {
     vi.mocked(mockRequireShopId).mockResolvedValue({ success: false, error: "SESION_EXPIRADA" });
     const result = await fetchAppointments("2024-01-01", "2024-01-31");
     expect(result).toEqual({ success: false, error: "SESION_EXPIRADA" });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// autoCompletePastAppointments guard
+// ---------------------------------------------------------------------------
+describe("autoCompletePastAppointments", () => {
+  it("no hace nada si el local tiene el autocompletado apagado", async () => {
+    const shopsChain = chainableQuery({
+      maybeSingle: vi.fn().mockResolvedValue({ data: { auto_complete_enabled: false }, error: null }),
+    });
+    vi.mocked(mockCreateServiceRole).mockResolvedValue({ from: vi.fn(() => shopsChain) } as never);
+
+    const result = await autoCompletePastAppointments("shop-123");
+    expect(result).toEqual({ success: true, data: { completed: 0, confirmed: 0, flagged: 0 } });
+    expect(shopsChain.update).not.toHaveBeenCalled();
+  });
+
+  it("procesa turnos cuando el autocompletado está activo", async () => {
+    const shopsChain = chainableQuery({
+      maybeSingle: vi.fn().mockResolvedValue({ data: { auto_complete_enabled: true }, error: null }),
+    });
+    const appointmentsChain = chainableQuery();
+    const fromMock = vi.fn((table: string) => (table === "shops" ? shopsChain : appointmentsChain));
+    vi.mocked(mockCreateServiceRole).mockResolvedValue({ from: fromMock } as never);
+
+    const result = await autoCompletePastAppointments("shop-123");
+    expect(result).toEqual({ success: true, data: { completed: 0, confirmed: 0, flagged: 0 } });
+    expect(fromMock).toHaveBeenCalledWith("appointments");
+    expect(appointmentsChain.update).toHaveBeenCalled();
   });
 });

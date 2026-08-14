@@ -1240,6 +1240,11 @@ export async function autoCompletePastAppointments(shopId: string): Promise<Acti
     if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
 
     const admin = await createAdminClient();
+    const { data: shop } = await admin.from("shops").select("auto_complete_enabled").eq("id", shopId).maybeSingle();
+    if (!shop?.auto_complete_enabled) {
+      return { success: true, data: { completed: 0, confirmed: 0, flagged: 0 } };
+    }
+
     const nowAr = getArgentinaNow();
     const nowIso = nowAr.toISOString();
     const confirmCutoff = new Date(nowAr.getTime() - 15 * 60 * 1000).toISOString();

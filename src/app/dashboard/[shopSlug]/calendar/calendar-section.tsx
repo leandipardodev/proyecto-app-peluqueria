@@ -22,6 +22,8 @@ export default async function CalendarSection({
   initialDateParam,
   initialAppointmentId,
   initialViewMode,
+  autoCompleteEnabled,
+  isOwner,
 }: {
   shopId: string;
   services: ServicesData;
@@ -30,6 +32,8 @@ export default async function CalendarSection({
   initialDateParam?: string;
   initialAppointmentId?: string;
   initialViewMode?: string;
+  autoCompleteEnabled?: boolean;
+  isOwner?: boolean;
 }) {
   const weekStart = getArgentinaWeekStart();
   const rangeStart = new Date(weekStart);
@@ -68,6 +72,8 @@ export default async function CalendarSection({
       initialDateParam={initialDateParam}
       initialAppointmentId={initialAppointmentId}
       initialViewMode={initialViewMode}
+      autoCompleteEnabled={autoCompleteEnabled}
+      isOwner={isOwner}
     />
   );
 }

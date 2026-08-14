@@ -6,6 +6,8 @@ import { addWeeks, subWeeks } from "date-fns";
 import { motion } from "framer-motion";
 import { RefreshCcw } from "lucide-react";
 import { moveAppointmentGroup } from "@/lib/dashboard/appointments/actions";
+import { autoCompletePastAppointments } from "@/lib/dashboard/appointments/mutations";
+import { toggleAutoComplete } from "@/lib/dashboard/shop/shop-actions";
 import { useToast } from "@/components/ui/toast";
 import { getUserFriendlyError } from "@/lib/dashboard/appointments/errors";
 
@@ -146,6 +148,8 @@ interface CalendarPageClientProps {
   initialDateParam?: string;
   initialAppointmentId?: string;
   initialViewMode?: string;
+  autoCompleteEnabled?: boolean;
+  isOwner?: boolean;
 }
 
 export default function CalendarPageClient({
@@ -159,8 +163,11 @@ export default function CalendarPageClient({
   initialDateParam,
   initialAppointmentId,
   initialViewMode,
+  autoCompleteEnabled = false,
+  isOwner = false,
 }: CalendarPageClientProps) {
   const router = useRouter();
+  const { addToast } = useToast();
   const [currentDate, setCurrentDate] = useState(() => {
     if (!initialDateParam) return new Date();
     const parsed = new Date(`${initialDateParam}T12:00:00-03:00`);
@@ -178,6 +185,33 @@ export default function CalendarPageClient({
   const [hydrated, setHydrated] = useState(false);
   const calendarViewModeRef = useRef<"week" | "day" | "month">("week");
   const [batchModalOpen, setBatchModalOpen] = useState(false);
+  const [autoCompleteOn, setAutoCompleteOn] = useState(autoCompleteEnabled);
+  const [togglingAutoComplete, setTogglingAutoComplete] = useState(false);
+
+  const handleToggleAutoComplete = useCallback(async () => {
+    if (togglingAutoComplete) return;
+    const next = !autoCompleteOn;
+    setTogglingAutoComplete(true);
+    setAutoCompleteOn(next);
+    try {
+      const result = await toggleAutoComplete(next);
+      if (result.success === false) {
+        setAutoCompleteOn(!next);
+        addToast(getUserFriendlyError(result.error), "error");
+        return;
+      }
+      addToast(next ? "Autocompletado de turnos activado" : "Autocompletado de turnos desactivado", "success");
+      if (next) {
+        await autoCompletePastAppointments(shopId);
+      }
+    } catch (e) {
+      setAutoCompleteOn(!next);
+      addToast("Error al cambiar el autocompletado", "error");
+      console.error("toggleAutoComplete error", e);
+    } finally {
+      setTogglingAutoComplete(false);
+    }
+  }, [autoCompleteOn, togglingAutoComplete, shopId, addToast]);
 
   const [fetchedRangeEnd, setFetchedRangeEnd] = useState(() => {
     const ws = getArgentinaWeekStart();
@@ -367,9 +401,7 @@ export default function CalendarPageClient({
     setSelectedAppointment(appt);
   }, []);
 
-  const { addToast } = useToast();
   const pendingMove = useRef(false);
-
   const handleMoveAppointment = useCallback(async (appointmentId: string, newStartIso: string) => {
     if (pendingMove.current) return;
     pendingMove.current = true;
@@ -625,6 +657,9 @@ export default function CalendarPageClient({
           initialViewMode={initialViewMode as "week" | "day" | "month" | undefined}
           onMoveAppointment={handleMoveAppointment}
           onMonthChange={handleMonthChange}
+          autoCompleteEnabled={autoCompleteOn}
+          onToggleAutoComplete={handleToggleAutoComplete}
+          canToggleAutoComplete={isOwner}
         />
       </div>
 
