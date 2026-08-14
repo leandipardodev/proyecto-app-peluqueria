@@ -391,4 +391,21 @@ describe("autoCompletePastAppointments", () => {
     expect(fromMock).toHaveBeenCalledWith("appointments");
     expect(appointmentsChain.update).toHaveBeenCalled();
   });
+
+  it("marca auto_completed y excluye turnos ya auto-completados", async () => {
+    const shopsChain = chainableQuery({
+      maybeSingle: vi.fn().mockResolvedValue({ data: { auto_complete_enabled: true }, error: null }),
+    });
+    const appointmentsChain = chainableQuery();
+    const fromMock = vi.fn((table: string) => (table === "shops" ? shopsChain : appointmentsChain));
+    vi.mocked(mockCreateServiceRole).mockResolvedValue({ from: fromMock } as never);
+
+    await autoCompletePastAppointments("shop-123");
+
+    const updates = appointmentsChain.update.mock.calls.map((c) => c[0] as Record<string, unknown>);
+    expect(updates.some((u) => u.auto_completed === true)).toBe(true);
+
+    const eqCalls = appointmentsChain.eq.mock.calls as [string, unknown][];
+    expect(eqCalls.some((c) => c[0] === "auto_completed" && c[1] === false)).toBe(true);
+  });
 });

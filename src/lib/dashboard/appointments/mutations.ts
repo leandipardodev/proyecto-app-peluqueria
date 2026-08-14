@@ -1255,6 +1255,7 @@ export async function autoCompletePastAppointments(shopId: string): Promise<Acti
       .update({ status: "confirmed", updated_at: nowIso })
       .eq("shop_id", shopId)
       .in("status", ["scheduled"])
+      .eq("auto_completed", false)
       .lt("start_time", confirmCutoff)
       .select("id")
       .limit(500);
@@ -1264,11 +1265,14 @@ export async function autoCompletePastAppointments(shopId: string): Promise<Acti
     // Auto-completar todos los turnos abiertos cuyo horario de fin ya pasó.
     // Se completan como pagados por default. Los que estaban en pending_payment
     // quedan marcados con was_pending_payment para que el local pueda reclamar el pago.
+    // Los turnos ya auto-completados (auto_completed) quedan excluidos: si alguien los
+    // reabre manualmente no vuelven a auto-completarse.
     const { data: standardData, error: standardError } = await admin
       .from("appointments")
-      .update({ status: "completed", is_paid: true, was_pending_payment: false, updated_at: nowIso })
+      .update({ status: "completed", is_paid: true, was_pending_payment: false, auto_completed: true, updated_at: nowIso })
       .eq("shop_id", shopId)
       .in("status", ["scheduled", "confirmed", "in_progress"])
+      .eq("auto_completed", false)
       .lt("end_time", nowIso)
       .select("id, customer_id")
       .limit(500);
@@ -1277,9 +1281,10 @@ export async function autoCompletePastAppointments(shopId: string): Promise<Acti
 
     const { data: flaggedData, error: flaggedError } = await admin
       .from("appointments")
-      .update({ status: "completed", is_paid: true, was_pending_payment: true, updated_at: nowIso })
+      .update({ status: "completed", is_paid: true, was_pending_payment: true, auto_completed: true, updated_at: nowIso })
       .eq("shop_id", shopId)
       .eq("status", "pending_payment")
+      .eq("auto_completed", false)
       .lt("end_time", nowIso)
       .select("id, customer_id")
       .limit(500);
