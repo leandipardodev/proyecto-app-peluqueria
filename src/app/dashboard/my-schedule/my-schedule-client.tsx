@@ -229,7 +229,7 @@ export default function MyScheduleClient(_props: MyScheduleClientProps) {
                           }}
                           className="w-24 rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-zinc-800 px-2 py-1 text-xs text-gray-900 dark:text-gray-100"
                         />
-                        <span className="text-xs text-amber-500">break</span>
+                        <span className="text-xs text-amber-500">corte</span>
                         <input
                           type="time"
                           value={day.break_end ?? ""}
@@ -266,6 +266,7 @@ export default function MyScheduleClient(_props: MyScheduleClientProps) {
               </div>
             ))
           )}
+          <p className="text-xs text-zinc-400 dark:text-zinc-500">El corte es un descanso: durante ese horario no se aceptan turnos.</p>
           {!scheduleLoading && (
             <div className="flex justify-end pt-2">
               <button
@@ -378,6 +379,11 @@ export default function MyScheduleClient(_props: MyScheduleClientProps) {
               Horario reducido
             </button>
           </div>
+          <p className={`text-xs leading-relaxed ${overrideIsClosed ? "text-red-500 dark:text-red-400" : "text-amber-600 dark:text-amber-400"}`}>
+            {overrideIsClosed
+              ? "Nadie podrá reservar ese día. No se muestra ningún horario."
+              : "Solo se reserva en ese horario. Ej: 9 a 11 = turnos de 9 a 11."}
+          </p>
           {!overrideIsClosed && (
             <>
               <div className="flex gap-3">

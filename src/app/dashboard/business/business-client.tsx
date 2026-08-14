@@ -1717,7 +1717,8 @@ export default function BusinessClient({
             {hoursLoading ? (
               <div className="py-8 text-center text-sm text-zinc-400">Cargando horarios...</div>
             ) : businessHours ? (
-              <div className="space-y-1">
+              <>
+                <div className="space-y-1">
                 {DAYS.map((day) => {
                   const h = businessHours[day.key];
                   if (!h) return null;
@@ -1805,7 +1806,9 @@ export default function BusinessClient({
                     </div>
                   );
                 })}
-              </div>
+                </div>
+                <p className="mt-2 px-1 text-xs text-zinc-400 dark:text-zinc-500">El corte es un descanso: durante ese horario no se aceptan turnos.</p>
+              </>
             ) : (
               <div className="py-8 text-center text-sm text-red-500">Error al cargar horarios</div>
             )}
@@ -1949,6 +1952,11 @@ export default function BusinessClient({
               Horario reducido
             </button>
           </div>
+          <p className={`text-xs leading-relaxed ${overrideIsClosed ? "text-red-500 dark:text-red-400" : "text-amber-600 dark:text-amber-400"}`}>
+            {overrideIsClosed
+              ? "Nadie podrá reservar ese día. No se muestra ningún horario."
+              : "Solo se reserva en ese horario. Ej: 9 a 11 = turnos de 9 a 11."}
+          </p>
           {!overrideIsClosed && (
             <>
               <div className="flex gap-3">

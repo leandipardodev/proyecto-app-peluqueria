@@ -887,7 +887,7 @@ export default function StaffList({
                           }}
                           className="w-24 rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-zinc-800 px-2 py-1 text-xs text-gray-900 dark:text-gray-100"
                         />
-                        <span className="text-xs text-amber-500">break</span>
+                        <span className="text-xs text-amber-500">corte</span>
                         <input
                           type="time"
                           value={day.break_end ?? ""}
@@ -932,6 +932,9 @@ export default function StaffList({
               </div>
             );
           })}
+        </div>
+        <div className="px-5 pt-1">
+          <p className="text-xs text-zinc-400 dark:text-zinc-500">El corte es un descanso: durante ese horario no se aceptan turnos.</p>
         </div>
         <div className="px-5 pb-5 flex items-center justify-end gap-2">
           <button type="button" onClick={() => setScheduleEditor(null)} className="ui-btn-ghost rounded-lg px-3 py-1.5 text-sm">Cancelar</button>
