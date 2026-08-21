@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, memo, useRef } from "react";
 
 let realtimeChannelCounter = 0;
-import { MessageCircle, Bell } from "lucide-react";
+import { CheckCircle2, Bell } from "lucide-react";
 import { useAppointmentAlarm } from "@/lib/use-appointment-alarm";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp/whatsapp-constants";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
@@ -35,28 +35,15 @@ function extractEmoji(name: string): { emoji: string; label: string } {
   return { emoji: "", label: name };
 }
 
-const statusBadge: Record<string, string> = {
-  scheduled: "bg-amber-50 text-amber-700",
-  confirmed: "bg-emerald-50 text-emerald-700",
-  in_progress: "bg-emerald-50 text-emerald-700",
-  completed: "bg-emerald-50 text-emerald-700",
-  cancelled: "bg-rose-50 text-rose-700",
-  no_show: "bg-rose-50 text-rose-700",
-};
+const artDayFmt = new Intl.DateTimeFormat("es-AR", { timeZone: "America/Argentina/Buenos_Aires", day: "2-digit", month: "2-digit" });
+const artTimeFmt = new Intl.DateTimeFormat("es-AR", { timeZone: "America/Argentina/Buenos_Aires", hour: "numeric", minute: "2-digit", hourCycle: "h23" });
 
-function getStatusBadgeClass(status: string, isPaid: boolean): string {
-  if (status === "scheduled" && isPaid) return "bg-sky-50 text-sky-700";
-  if (status === "scheduled" && !isPaid) return "bg-amber-50 text-amber-700";
-  return statusBadge[status] || "bg-zinc-100 text-zinc-800";
+function formatArtDay(d: Date | string): string {
+  return artDayFmt.format(new Date(d));
 }
 
-function getTurnoStatusLabel(status: string, isPaid: boolean): string {
-  if (status === "pending_payment") return "Pago pendiente";
-  if (status === "scheduled") return "Nuevo";
-  if (status === "confirmed" || status === "in_progress") return "Confirmado";
-  if (status === "completed") return "Completado";
-  if (status === "cancelled" || status === "no_show") return "Cancelado";
-  return status;
+function formatArtTime(d: Date | string): string {
+  return artTimeFmt.format(new Date(d));
 }
 
 function needsStatusAttention(startTime: string): boolean {
@@ -220,18 +207,13 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
             return (
               <div key={apt.id} className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-4">
                 <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900 dark:text-zinc-100">{apt.customers?.nombre || "N/A"}</p>
-                    <p className="text-xs text-gray-500 dark:text-zinc-400">{new Date(apt.start_time).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })}</p>
-                  </div>
-                  <span className={`px-2 inline-flex items-center justify-center whitespace-nowrap text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(apt.status, apt.is_paid)}`}>
-                    {getTurnoStatusLabel(apt.status, apt.is_paid)}
-                  </span>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-zinc-100">{apt.customers?.nombre || "N/A"}</p>
+                  {urgent && <Bell className="w-4 h-4 text-red-500 animate-pulse shrink-0" />}
                 </div>
-                <p className="mt-2 text-sm text-gray-700 dark:text-zinc-300">
-                  {new Date(apt.start_time).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
-                  {" - "}
-                  {new Date(apt.end_time).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+                <p className="mt-1 text-sm text-gray-700 dark:text-zinc-300 tabular-nums">
+                  {formatArtDay(apt.start_time)} {formatArtTime(apt.start_time)}
+                  {" a "}
+                  {formatArtTime(apt.end_time)}
                 </p>
                 <p className="text-sm text-gray-700 dark:text-zinc-300">{svc ? `${svc.emoji} ${svc.label}` : serviceName || "N/A"}</p>
                 <p className="text-xs text-gray-500 dark:text-zinc-400">{staffWord}: {apt.staff?.name || "N/A"}</p>
@@ -255,10 +237,8 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
                       window.open(whatsappUrl, "_blank", "noopener,noreferrer");
                     }}
                   >
-                    <MessageCircle className="w-4 h-4" />
                     WhatsApp
                   </button>
-                  {urgent && <Bell className="w-4 h-4 text-red-500 animate-pulse shrink-0" />}
                 </div>
               </div>
             );
@@ -268,15 +248,13 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
 
       <div className="hidden md:block bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors">
         <div className="w-full overflow-x-auto">
-        <table className="min-w-[1100px] w-full divide-y divide-white/20 dark:divide-white/10">
+        <table className="min-w-[860px] w-full divide-y divide-white/20 dark:divide-white/10">
           <thead className="bg-white dark:bg-zinc-900">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Fecha</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Horario</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Fecha y hora</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">{customerWord}</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">{serviceWord}</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">{staffWord}</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Estado</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Pago</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Seña</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Acciones</th>
@@ -285,7 +263,7 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
           <tbody className="bg-transparent dark:bg-transparent divide-y divide-white/20 dark:divide-white/10">
             {appointments.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-6 py-4 text-center text-gray-500 dark:text-zinc-400">No hay turnos registrados</td>
+                <td colSpan={7} className="px-6 py-4 text-center text-gray-500 dark:text-zinc-400">No hay turnos registrados</td>
               </tr>
             ) : (
               pagedAppointments.map((apt) => {
@@ -293,13 +271,10 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
                 const serviceNameT = apt.services?.name || apt.custom_service_name || "";
                 return (
                   <tr key={apt.id} className="hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer">
-                    <td suppressHydrationWarning className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100">
-                      {new Date(apt.start_time).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })}
-                    </td>
-                    <td suppressHydrationWarning className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100">
-                      {new Date(apt.start_time).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
-                      {" - "}
-                      {new Date(apt.end_time).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+                    <td suppressHydrationWarning className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100 tabular-nums">
+                      {formatArtDay(apt.start_time)} {formatArtTime(apt.start_time)}
+                      {" a "}
+                      {formatArtTime(apt.end_time)}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900 dark:text-zinc-100 max-w-[180px]">
                       {apt.customers?.nombre || "N/A"}
@@ -310,21 +285,15 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
                     <td className="px-6 py-4 text-sm text-gray-900 dark:text-zinc-100 max-w-[160px]">
                       {apt.staff?.name || "N/A"}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                       <span className={`px-2 inline-flex items-center justify-center whitespace-nowrap text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(apt.status, apt.is_paid)}`}>
-                        {getTurnoStatusLabel(apt.status, apt.is_paid)}
-                       </span>
-                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {apt.is_paid ? <span className="text-emerald-600">Pagado</span> : <span className="text-rose-500">Pendiente</span>}
-                      {apt.was_pending_payment && (
-                        <span className="ml-2 inline-flex items-center whitespace-nowrap rounded-full bg-rose-50 dark:bg-rose-950/60 px-2 py-0.5 text-[11px] font-semibold text-rose-600 dark:text-rose-400">
-                          Falta cobrar
+                      {apt.is_paid ? (
+                        <span title="Pagado" className="inline-flex items-center text-emerald-600 dark:text-emerald-400">
+                          <CheckCircle2 className="w-5 h-5" />
                         </span>
-                      )}
+                      ) : null}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-zinc-300">
-                      {apt.deposit_amount ? `$${apt.deposit_amount.toFixed(2)}` : "—"}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-zinc-300 tabular-nums">
+                      {apt.deposit_amount ? `$${apt.deposit_amount.toFixed(2)}` : ""}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex items-center gap-2">
@@ -355,7 +324,6 @@ const AppointmentsTable = memo(function AppointmentsTable({ shopId, initialAppoi
                                   window.open(whatsappUrl, "_blank", "noopener,noreferrer");
                                 }}
                               >
-                                <MessageCircle className="w-4 h-4" />
                                 WhatsApp
                               </button>
                               {urgent && (

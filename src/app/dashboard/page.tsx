@@ -387,7 +387,6 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
     weekday: "long",
     day: "numeric",
     month: "long",
-    year: "numeric",
   });
   const whatsappHref = buildWhatsAppContactUrl(
     socialLinks.phone,
