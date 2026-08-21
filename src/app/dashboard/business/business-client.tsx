@@ -253,6 +253,15 @@ export default function BusinessClient({
   const [bankCvuCb, setBankCvuCb] = useState(data?.bank_cvu_cbu ?? "");
   const [bankAlias, setBankAlias] = useState(data?.bank_alias ?? "");
   const [bankName, setBankName] = useState(data?.bank_name ?? "");
+  const [highlightTiming, setHighlightTiming] = useState(false);
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const goToTimingSelector = () => {
+    document.getElementById("payment-timing")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlightTiming(true);
+    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    highlightTimerRef.current = setTimeout(() => setHighlightTiming(false), 2200);
+  };
   const [mpMaxInstallments, setMpMaxInstallments] = useState<number | null>(data?.mp_max_installments ?? null);
   const [mpExcludedPaymentTypes, setMpExcludedPaymentTypes] = useState<string[]>(data?.mp_excluded_payment_types ?? []);
   const [isSavingMpConfig, setIsSavingMpConfig] = useState(false);
@@ -351,7 +360,7 @@ export default function BusinessClient({
   const [tourRect, setTourRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const [portalReady, setPortalReady] = useState(false);
   const [mpConnectUnlockAt, setMpConnectUnlockAt] = useState(0);
-  const [isConnectingMp, setIsConnectingMp] = useState(false);
+  const [, setIsConnectingMp] = useState(false);
   const [isDisconnectingMp, setIsDisconnectingMp] = useState(false);
   const [bookingTheme, setBookingTheme] = useState<BookingThemeData | null>(initialBookingTheme);
   const [selectedTemplateId, setSelectedTemplateId] = useState<BookingTemplateId>(
@@ -1450,8 +1459,29 @@ export default function BusinessClient({
 
               {/* Mercado Pago card */}
               <div
+                role={isOwnerOrAdmin && !payAtShop && !data?.mp_oauth_connected ? "button" : undefined}
+                tabIndex={isOwnerOrAdmin && !payAtShop && !data?.mp_oauth_connected ? 0 : -1}
+                aria-disabled={!isOwnerOrAdmin || payAtShop || !!data?.mp_oauth_connected}
+                onClick={() => {
+                  if (!isOwnerOrAdmin) return;
+                  if (payAtShop) { goToTimingSelector(); return; }
+                  if (!data?.mp_oauth_connected) handleConnectMercadoPago();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter" && e.key !== " ") return;
+                  if (!isOwnerOrAdmin) return;
+                  e.preventDefault();
+                  if (payAtShop) { goToTimingSelector(); return; }
+                  if (!data?.mp_oauth_connected) handleConnectMercadoPago();
+                }}
                 className={`relative flex flex-col rounded-2xl border border-white/20 dark:border-white/10 bg-white dark:bg-zinc-900 p-5 transition-opacity ${
-                  !payAtShop && data?.mp_oauth_connected ? "opacity-100" : "opacity-40"
+                  payAtShop
+                    ? "opacity-40 cursor-default"
+                    : data?.mp_oauth_connected
+                      ? "opacity-100"
+                      : isOwnerOrAdmin
+                        ? "opacity-60 cursor-pointer hover:opacity-80"
+                        : "opacity-40 cursor-default"
                 }`}
               >
                 {data?.mp_oauth_connected && !payAtShop && (
@@ -1495,20 +1525,34 @@ export default function BusinessClient({
                           </button>
                         </div>
                       ) : (
-                        <button
-                          type="button"
-                          onMouseDown={playClick}
-                          onClick={(e) => { e.stopPropagation(); handleConnectMercadoPago(); }}
-                          disabled={!isOwnerOrAdmin || isConnectingMp}
-                          className="w-full rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 px-4 py-2.5 text-sm font-medium transition-colors inline-flex items-center justify-center gap-2 hover:opacity-90"
-                        >
-                          <Link2 className="w-4 h-4" />
-                          {isConnectingMp ? "Conectando..." : "Conectar cuenta"}
-                        </button>
+                        <div className="h-[42px]" aria-hidden="true" />
                       )}
                     </div>
                   )}
                 </div>
+
+                {/* Overlay: desactivada pero activable, o bloqueada por cobro en local */}
+                {(!data?.mp_oauth_connected || payAtShop) && (
+                  <div
+                    className={`absolute inset-0 z-10 flex flex-col items-center justify-center gap-1 rounded-2xl px-4 text-center transition-colors ${
+                      payAtShop || !isOwnerOrAdmin || data?.mp_oauth_connected
+                        ? "bg-white/70 dark:bg-zinc-900/70"
+                        : "bg-white/60 dark:bg-zinc-900/60 hover:bg-white/40 dark:hover:bg-zinc-900/40"
+                    }`}
+                  >
+                    {payAtShop ? (
+                      <>
+                        <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Desactivado por cobro en el local</p>
+                        <p className="text-[10px] text-zinc-400 dark:text-zinc-500">Click para cambiar el metodo de cobro</p>
+                      </>
+                    ) : (
+                      <>
+                        <Link2 className="w-4 h-4 mb-0.5 text-zinc-500 dark:text-zinc-400" />
+                        <p className="text-xs font-semibold text-zinc-600 dark:text-zinc-300">Click para conectar</p>
+                      </>
+                    )}
+                  </div>
+                )}
 
                 {/* Pros / Cons */}
                 <div className="mt-auto space-y-1.5 pt-2">
@@ -1528,14 +1572,48 @@ export default function BusinessClient({
                 role="button"
                 tabIndex={isOwnerOrAdmin ? 0 : -1}
                 aria-disabled={!isOwnerOrAdmin}
-                onClick={() => { if (isOwnerOrAdmin) { setBankTransferEnabled(!bankTransferEnabled); if (!bankTransferEnabled) { setPayAtShop(false); setBookingDepositEnabled(true); } } }}
+                onClick={() => {
+                  if (!isOwnerOrAdmin) return;
+                  if (payAtShop) { goToTimingSelector(); return; }
+                  setBankTransferEnabled(!bankTransferEnabled);
+                  if (!bankTransferEnabled) { setPayAtShop(false); setBookingDepositEnabled(true); }
+                }}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.currentTarget.click(); } }}
-                className={`relative flex flex-col rounded-2xl border border-white/20 dark:border-white/10 bg-white dark:bg-zinc-900 p-5 text-left transition-all duration-200 cursor-pointer hover:border-zinc-300 dark:hover:border-zinc-600 ${
-                  !payAtShop && bankTransferEnabled ? "opacity-100" : "opacity-40"
+                className={`relative flex flex-col rounded-2xl border border-white/20 dark:border-white/10 bg-white dark:bg-zinc-900 p-5 text-left transition-all duration-200 hover:border-zinc-300 dark:hover:border-zinc-600 ${
+                  payAtShop
+                    ? "opacity-40 cursor-default"
+                    : bankTransferEnabled
+                      ? "opacity-100 cursor-pointer"
+                      : isOwnerOrAdmin
+                        ? "opacity-60 cursor-pointer hover:opacity-80"
+                        : "opacity-40 cursor-default"
                 }`}
               >
                 {bankTransferEnabled && (
                   <CheckCircle2 className="absolute top-4 right-4 w-5 h-5 text-zinc-900 dark:text-white" />
+                )}
+
+                {/* Overlay: desactivada pero activable, o bloqueada por cobro en local */}
+                {!bankTransferEnabled && (
+                  <div
+                    className={`absolute inset-0 z-10 flex flex-col items-center justify-center gap-1 rounded-2xl px-4 text-center transition-colors ${
+                      payAtShop || !isOwnerOrAdmin
+                        ? "bg-white/70 dark:bg-zinc-900/70"
+                        : "bg-white/60 dark:bg-zinc-900/60 hover:bg-white/40 dark:hover:bg-zinc-900/40"
+                    }`}
+                  >
+                    {payAtShop ? (
+                      <>
+                        <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Desactivado por cobro en el local</p>
+                        <p className="text-[10px] text-zinc-400 dark:text-zinc-500">Click para cambiar el metodo de cobro</p>
+                      </>
+                    ) : (
+                      <>
+                        <Landmark className="w-4 h-4 mb-0.5 text-zinc-500 dark:text-zinc-400" />
+                        <p className="text-xs font-semibold text-zinc-600 dark:text-zinc-300">Click para activar</p>
+                      </>
+                    )}
+                  </div>
                 )}
                 <div className="flex items-center gap-3 mb-3">
                   <div className="p-2 rounded-xl bg-zinc-100 dark:bg-zinc-800">
@@ -1603,7 +1681,14 @@ export default function BusinessClient({
             </div>
 
             {/* Payment timing selector */}
-            <div className="rounded-2xl border border-white/20 dark:border-white/10 bg-white dark:bg-zinc-900 p-5 space-y-3">
+            <div
+              id="payment-timing"
+              className={`rounded-2xl border bg-white dark:bg-zinc-900 p-5 space-y-3 transition-all duration-300 ${
+                highlightTiming
+                  ? "border-amber-400 ring-2 ring-amber-400/60"
+                  : "border-white/20 dark:border-white/10"
+              }`}
+            >
               <p className="text-sm font-semibold text-gray-900 dark:text-white">Cuando se cobra</p>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 -mt-1">Defini si el cliente paga al reservar, al finalizar, o en el local.</p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

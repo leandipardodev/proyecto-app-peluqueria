@@ -251,6 +251,12 @@ const AppointmentBlock = memo(function AppointmentBlock({
   onAppointmentClick: (appt: Appointment | null) => void;
   onContextMenu?: (appt: NormalizedAppointment, e: React.MouseEvent) => void;
 }) {
+  const staffColor = appt.staff
+    ? staffColorMap[appt.staff_id || ""] || STAFF_COLORS[0]
+    : STAFF_COLORS[0];
+
+  const svcName = appt.services?.name || appt.custom_service_name || "";
+
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `appt-${appt.id}`,
     data: {
@@ -258,6 +264,9 @@ const AppointmentBlock = memo(function AppointmentBlock({
       startMin,
       customerName: appt.customers?.nombre || "Sin cliente",
       startHhmm: appt.start_hhmm,
+      serviceName: svcName,
+      accent: staffColor.accent,
+      fromMonth: false,
     },
   });
   const isWeekMode = viewMode === "week";
@@ -266,12 +275,6 @@ const AppointmentBlock = memo(function AppointmentBlock({
   const heightPx = (durationMin / 60) * HOUR_HEIGHT;
   const widthPct = 100 / cols;
   const leftPct = col * widthPct;
-
-  const staffColor = appt.staff
-    ? staffColorMap[appt.staff_id || ""] || STAFF_COLORS[0]
-    : STAFF_COLORS[0];
-
-  const svcName = appt.services?.name || appt.custom_service_name || "";
 
   const isCancelled = appt.status === "cancelled";
   const isNoShow = appt.status === "no_show";
@@ -358,6 +361,9 @@ function MonthAppointmentBlock({
       startMin: minutesFromHHmm(appt.start_hhmm),
       customerName: appt.customers?.nombre || "Sin cliente",
       startHhmm: appt.start_hhmm,
+      serviceName: "",
+      accent: (appt.staff_id ? staffColorMap[appt.staff_id]?.accent : undefined) || "#8B5CF6",
+      fromMonth: true,
     },
   });
   const staffColor = appt.staff_id ? staffColorMap[appt.staff_id] : undefined;
@@ -617,7 +623,14 @@ export default memo(function CalendarView({
       });
   }, [filteredAppointments]);
 
-  const [activeDragInfo, setActiveDragInfo] = useState<{ customerName: string; startHhmm: string; targetTime?: string } | null>(null);
+  const [activeDragInfo, setActiveDragInfo] = useState<{
+    customerName: string;
+    startHhmm: string;
+    targetTime?: string;
+    accent: string;
+    serviceName: string;
+    fromMonth: boolean;
+  } | null>(null);
   const [activeSnapFrac, setActiveSnapFrac] = useState<number | null>(null);
 
   const sensors = useSensors(
@@ -657,6 +670,9 @@ export default memo(function CalendarView({
       startMin?: number;
       customerName?: string;
       startHhmm?: string;
+      serviceName?: string;
+      accent?: string;
+      fromMonth?: boolean;
     } | undefined;
     if (!data?.appointmentId) return;
     document.body.classList.add("calendar-grabbing");
@@ -664,6 +680,9 @@ export default memo(function CalendarView({
     setActiveDragInfo({
       customerName: data.customerName || "Sin cliente",
       startHhmm: data.startHhmm || "",
+      accent: data.accent || "#8B5CF6",
+      serviceName: data.serviceName || "",
+      fromMonth: !!data.fromMonth,
     });
   }, []);
 
@@ -1596,12 +1615,39 @@ export default memo(function CalendarView({
       )}
         <DragOverlay dropAnimation={null}>
           {activeDragInfo && (
-            <div
-              className="rounded-lg bg-white dark:bg-zinc-800 border-2 border-sky-400/70 shadow-xl opacity-85 flex items-center px-3 py-1.5 text-xs font-medium text-gray-900 dark:text-gray-100 min-w-[120px] pointer-events-none select-none"
-              style={{ fontFamily: "Inter, sans-serif" }}
-            >
-              <span className="truncate">{activeDragInfo.customerName}</span>
-              <span className="shrink-0 font-bold tabular-nums ml-auto">{activeDragInfo.targetTime ?? activeDragInfo.startHhmm}</span>
+            <div className="pointer-events-none select-none relative h-full w-full">
+              {activeDragInfo.fromMonth ? (
+                <div
+                  className="flex h-full w-full items-center rounded px-1.5 text-[11px] font-medium leading-tight text-white opacity-90 shadow-xl"
+                  style={{ backgroundColor: activeDragInfo.accent }}
+                >
+                  <span className="truncate">
+                    {activeDragInfo.startHhmm} {activeDragInfo.customerName.split(/\s+/)[0]}
+                  </span>
+                </div>
+              ) : (
+                <div
+                  className="flex h-full w-full flex-col gap-0.5 overflow-hidden rounded-lg border border-zinc-200/50 bg-white p-1 shadow-xl ring-2 ring-sky-400 dark:bg-zinc-800/90 dark:border-zinc-700/50"
+                  style={{ fontFamily: "Inter, sans-serif", borderLeft: `3px solid ${activeDragInfo.accent}` }}
+                >
+                  <div className="min-w-0 space-y-0.5">
+                    <div className="flex items-center gap-1">
+                      <span className="inline-flex h-1.5 w-1.5 shrink-0 rounded-full bg-sky-500" />
+                      <span className="text-[11px] font-medium leading-tight truncate text-gray-800 dark:text-gray-100">
+                        {activeDragInfo.customerName}
+                      </span>
+                    </div>
+                    {activeDragInfo.serviceName && (
+                      <div className="flex items-center gap-1.5 text-[10px] leading-tight min-w-0 text-gray-500 dark:text-gray-400">
+                        <span className="truncate">{activeDragInfo.serviceName}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              <div className="absolute -top-6 right-0 z-10 whitespace-nowrap rounded-md bg-sky-500 px-1.5 py-px text-[11px] font-bold tabular-nums text-white shadow-lg">
+                {activeDragInfo.targetTime ?? activeDragInfo.startHhmm}
+              </div>
             </div>
           )}
         </DragOverlay>
