@@ -95,7 +95,7 @@ export default function InventoryPageClient({
     <div>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
-          <h1 className="text-3xl sm:text-5xl font-bold text-gray-900 dark:text-white tracking-tight leading-none">Productos</h1>
+          <h1 className="text-3xl sm:text-5xl text-gray-900 dark:text-white leading-none lowercase pt-2" style={{ fontFamily: "var(--font-borel), cursive", letterSpacing: "-0.07em" }}>Productos</h1>
           <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">Control de stock y venta online</p>
         </div>
         {isOwnerOrAdmin && (

@@ -335,7 +335,7 @@ export default function CustomersPage({
   return (
     <div className="space-y-6 relative">
       <div>
-        <h1 className="text-3xl sm:text-5xl font-bold tracking-tight leading-none text-slate-900 dark:text-zinc-100">{customerPlural}</h1>
+        <h1 className="text-3xl sm:text-5xl leading-none text-slate-900 dark:text-zinc-100 lowercase pt-2" style={{ fontFamily: "var(--font-borel), cursive", letterSpacing: "-0.07em" }}>{customerPlural}</h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-zinc-400">Gestión de fichas técnicas y datos de contacto.</p>
       </div>
 

@@ -575,7 +575,7 @@ export default function CalendarPageClient({
         <StatePanel title="Sin personal" description="No hay personal registrado. Agregá personal en la sección Personal." />
       )}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-        <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white tracking-tight leading-none">Calendario</h1>
+        <h1 className="text-3xl sm:text-5xl lg:text-6xl text-gray-900 dark:text-white leading-none lowercase pt-2" style={{ fontFamily: "var(--font-borel), cursive", letterSpacing: "-0.07em" }}>Calendario</h1>
         <div className="flex flex-col gap-2 p-1.5 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm">
           <div className="flex flex-wrap items-center gap-1">
             <button

@@ -169,6 +169,7 @@ export default function FidelizacionClient({
 
   return (
     <div className="space-y-6">
+      <h1 className="text-3xl sm:text-5xl text-gray-900 dark:text-white leading-none lowercase pt-2" style={{ fontFamily: "var(--font-borel), cursive", letterSpacing: "-0.07em" }}>Marketing</h1>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="rounded-[1.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors bg-white dark:bg-zinc-900">
           <div className="px-5 py-4 border-b border-white/10 flex items-center gap-2.5">

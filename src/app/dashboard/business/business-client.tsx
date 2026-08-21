@@ -1129,7 +1129,7 @@ export default function BusinessClient({
     >
       {/* Header */}
       <div>
-        <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white leading-none">Negocio</h1>
+        <h1 className="text-4xl sm:text-5xl text-gray-900 dark:text-white leading-none lowercase pt-2" style={{ fontFamily: "var(--font-borel), cursive", letterSpacing: "-0.07em" }}>Negocio</h1>
         <p className="mt-1.5 text-[13px] text-zinc-400 dark:text-zinc-500">Información pública y configuración técnica de tu local</p>
         <div className="mt-8 flex flex-col sm:flex-row sm:items-start gap-3">
           <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2 min-w-0">

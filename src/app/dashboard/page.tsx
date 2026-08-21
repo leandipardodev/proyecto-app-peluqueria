@@ -404,9 +404,9 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
       )}
       <div className="flex min-w-0 items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white capitalize tracking-tight leading-tight">
-            {today}
-          </h1>
+            <h1 className="text-3xl sm:text-4xl text-gray-900 dark:text-white leading-tight lowercase pt-2" style={{ fontFamily: "var(--font-borel), cursive", letterSpacing: "-0.07em" }}>
+              {today}
+            </h1>
           <div className="mt-4 flex min-w-0 items-center gap-2">
             <a
               href={whatsappHref}

@@ -495,7 +495,7 @@ export default function FinancesClient({
       {isOwnerOrAdmin && (
         <>
       <header className="flex flex-wrap items-center gap-3">
-        <h1 className="text-3xl sm:text-5xl font-bold text-gray-900 dark:text-white tracking-tight leading-none">Finanzas</h1>
+        <h1 className="text-3xl sm:text-5xl text-gray-900 dark:text-white leading-none lowercase pt-2" style={{ fontFamily: "var(--font-borel), cursive", letterSpacing: "-0.07em" }}>Finanzas</h1>
         {uiMessage && <span className="ui-badge">{uiMessage}</span>}
         {error && <span className="rounded-full bg-red-500/15 px-3 py-1 text-xs font-semibold text-red-700 dark:text-red-300">{error}</span>}
       </header>

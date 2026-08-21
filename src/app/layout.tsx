@@ -1,9 +1,12 @@
 import type { Metadata, Viewport } from "next";
+import { Borel } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import WebVitalsReporter from "@/components/perf/web-vitals-reporter";
 import { GoogleAnalytics } from "@/components/google-analytics";
 import { absoluteUrl, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE } from "@/lib/seo";
+
+const borel = Borel({ weight: "400", subsets: ["latin"], display: "swap", variable: "--font-borel" });
 
 const softwareJsonLd = {
   "@context": "https://schema.org",
@@ -119,10 +122,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es" suppressHydrationWarning>
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      <link href="https://fonts.googleapis.com/css2?family=Borel&display=swap" rel="stylesheet" />
+    <html lang="es" suppressHydrationWarning className={borel.variable}>
       <link rel="icon" href="/favicon/favicon_light_mode_32x32.png" media="(prefers-color-scheme: light)" sizes="32x32" type="image/png" />
       <link rel="icon" href="/favicon/favicon_dark_mode_32x32.png" media="(prefers-color-scheme: dark)" sizes="32x32" type="image/png" />
       <link rel="icon" href="/favicon/favicon_light_mode_64x64.png" media="(prefers-color-scheme: light)" sizes="64x64" type="image/png" />
