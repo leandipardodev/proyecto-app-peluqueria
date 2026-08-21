@@ -498,3 +498,22 @@ html.perf-mode .carousel-image-zoom {
   animation-duration: 1s !important;
   animation-iteration-count: infinite !important;
 }
+
+/* Cursores de mano personalizados para drag & drop del calendario */
+.cursor-hand-open {
+  cursor: url("/cursors/hand-open.svg") 15 3, grab;
+}
+
+.dark .cursor-hand-open {
+  cursor: url("/cursors/hand-open-white.svg") 15 3, grab;
+}
+
+body.calendar-grabbing,
+body.calendar-grabbing * {
+  cursor: url("/cursors/hand-grab.svg") 15 7, grabbing !important;
+}
+
+.dark body.calendar-grabbing,
+.dark body.calendar-grabbing * {
+  cursor: url("/cursors/hand-grab-white.svg") 15 7, grabbing !important;
+}

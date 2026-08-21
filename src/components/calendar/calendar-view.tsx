@@ -282,7 +282,7 @@ const AppointmentBlock = memo(function AppointmentBlock({
       ref={setNodeRef}
       {...listeners}
       {...attributes}
-      className={`absolute pointer-events-auto min-w-0 cursor-grab active:cursor-grabbing bg-white dark:bg-zinc-800/90 border border-zinc-200/50 dark:border-zinc-700/50 group overflow-hidden ${isCancelled ? "opacity-0 pointer-events-none" : isCompleted ? "opacity-55" : isNoShow ? "opacity-40" : ""} ${isDragging ? "opacity-30 ring-2 ring-sky-400" : ""}`}
+      className={`absolute pointer-events-auto min-w-0 cursor-hand-open bg-white dark:bg-zinc-800/90 border border-zinc-200/50 dark:border-zinc-700/50 group overflow-hidden ${isCancelled ? "opacity-0 pointer-events-none" : isCompleted ? "opacity-55" : isNoShow ? "opacity-40" : ""} ${isDragging ? "opacity-30 ring-2 ring-sky-400" : ""}`}
       style={{
         top: `${topPx}px`,
         height: `${Math.max(heightPx - 2, 18)}px`,
@@ -366,7 +366,7 @@ function MonthAppointmentBlock({
       ref={setNodeRef}
       {...listeners}
       {...attributes}
-      className={`text-[11px] font-medium leading-tight truncate rounded px-1.5 py-[3px] cursor-grab active:cursor-grabbing select-none text-white ${isCancelled ? "opacity-0 pointer-events-none" : ""} ${isDragging ? "opacity-30" : "hover:opacity-80"}`}
+      className={`text-[11px] font-medium leading-tight truncate rounded px-1.5 py-[3px] cursor-hand-open select-none text-white ${isCancelled ? "opacity-0 pointer-events-none" : ""} ${isDragging ? "opacity-30" : "hover:opacity-80"}`}
       style={{
         backgroundColor: staffColor?.accent || "#8B5CF6",
       }}
@@ -643,6 +643,13 @@ export default memo(function CalendarView({
 
   const processedDropRef = useRef<string | null>(null);
 
+  useEffect(
+    () => () => {
+      document.body.classList.remove("calendar-grabbing");
+    },
+    []
+  );
+
   const handleDragStart = useCallback((event: DragStartEvent) => {
     processedDropRef.current = null;
     const data = event.active.data.current as {
@@ -652,6 +659,7 @@ export default memo(function CalendarView({
       startHhmm?: string;
     } | undefined;
     if (!data?.appointmentId) return;
+    document.body.classList.add("calendar-grabbing");
     setActiveSnapFrac(null);
     setActiveDragInfo({
       customerName: data.customerName || "Sin cliente",
@@ -661,6 +669,7 @@ export default memo(function CalendarView({
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
+    document.body.classList.remove("calendar-grabbing");
     setActiveDragInfo(null);
     setActiveSnapFrac(null);
     if (!over || !onMoveAppointment) return;
@@ -726,6 +735,7 @@ export default memo(function CalendarView({
   }, []);
 
   const handleDragCancel = useCallback(() => {
+    document.body.classList.remove("calendar-grabbing");
     setActiveDragInfo(null);
     setActiveSnapFrac(null);
   }, []);
@@ -1129,7 +1139,7 @@ export default memo(function CalendarView({
         isDragging.current = true;
         startX.current = e.pageX - container.offsetLeft;
         scrollLeft.current = container.scrollLeft;
-        container.style.cursor = "grabbing";
+        container.style.cursor = "url('/cursors/hand-grab.svg') 15 7, grabbing";
         e.preventDefault();
       }
     };
@@ -1143,7 +1153,7 @@ export default memo(function CalendarView({
 
     const handleMouseUp = () => {
       isDragging.current = false;
-      if (container) container.style.cursor = "default";
+      if (container) container.style.cursor = "";
     };
 
     container.addEventListener("mousedown", handleMouseDown);
@@ -1281,6 +1291,7 @@ export default memo(function CalendarView({
               drag="x"
               dragElastic={0.1}
               onDragEnd={(_, info) => {
+                document.body.classList.remove("calendar-grabbing");
                 const pillWidth = 76;
                 const idx = pillAnimIdxRef.current;
                 const slotsMoved = Math.round(-info.offset.x / pillWidth);
@@ -1301,7 +1312,8 @@ export default memo(function CalendarView({
               animate={pillControls}
               initial={{ x: -pillModes.indexOf(viewMode) * 76 }}
               transition={{ type: "spring", stiffness: 400, damping: 35 }}
-              className="flex cursor-grab active:cursor-grabbing"
+              onDragStart={() => document.body.classList.add("calendar-grabbing")}
+              className="flex cursor-hand-open"
               style={{ width: 228 }}
             >
               {["Mes", "Semana", "Día"].map((label) => (
