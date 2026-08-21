@@ -145,14 +145,14 @@ const NowLine = memo(function NowLine({ day, gridStartHour, gridEndHour }: { day
     && getArgentinaDateKey(prev.day) === getArgentinaDateKey(next.day);
 });
 
-function HourDroppable({ hour, dayStr, isOpenSlot, onSlotClick, mobileLabel, showGuides, activeSnapFrac }: {
+function HourDroppable({ hour, dayStr, isOpenSlot, onSlotClick, mobileLabel, showGuides, activeSnap }: {
   hour: number;
   dayStr: string;
   isOpenSlot: boolean;
   onSlotClick: (date: Date, hour: number) => void;
   mobileLabel?: string;
   showGuides: boolean;
-  activeSnapFrac: number | null;
+  activeSnap: { dayStr: string; hour: number; frac: number } | null;
 }) {
   const droppableId = `slot-${dayStr}-${hour}`;
   const { setNodeRef, isOver } = useDroppable({
@@ -171,16 +171,14 @@ function HourDroppable({ hour, dayStr, isOpenSlot, onSlotClick, mobileLabel, sho
       onClick={isOpenSlot ? () => onSlotClick(new Date(`${dayStr}T12:00:00`), hour) : undefined}
     >
       {[0, 0.25, 0.5, 0.75].map((frac) => {
-        const isActive = showGuides && isOver && activeSnapFrac === frac;
+        const isActive = showGuides && activeSnap?.dayStr === dayStr && activeSnap.hour === hour && activeSnap.frac === frac;
         return (
           <div
             key={frac}
-            className={`absolute left-0 right-0 h-px pointer-events-none transition-all duration-200 ${
-              !showGuides
-                ? "bg-transparent"
-                : isActive
-                  ? "bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.6)]"
-                  : "bg-zinc-300/60 dark:bg-zinc-500/50"
+            className={`absolute pointer-events-none transition-all duration-200 ${
+              isActive
+                ? "-left-2.5 -right-2.5 h-[2px] rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.6)] z-10"
+                : "h-px bg-transparent"
             }`}
             style={{ top: `${frac * 100}%` }}
           />
@@ -285,6 +283,7 @@ const AppointmentBlock = memo(function AppointmentBlock({
       ref={setNodeRef}
       {...listeners}
       {...attributes}
+      data-appt-id={appt.id}
       className={`absolute pointer-events-auto min-w-0 cursor-hand-open bg-white dark:bg-zinc-800/90 border border-zinc-200/50 dark:border-zinc-700/50 group overflow-hidden ${isCancelled ? "opacity-0 pointer-events-none" : isCompleted ? "opacity-55" : isNoShow ? "opacity-40" : ""} ${isDragging ? "opacity-30 ring-2 ring-sky-400" : ""}`}
       style={{
         top: `${topPx}px`,
@@ -631,7 +630,7 @@ export default memo(function CalendarView({
     serviceName: string;
     fromMonth: boolean;
   } | null>(null);
-  const [activeSnapFrac, setActiveSnapFrac] = useState<number | null>(null);
+  const [activeSnap, setActiveSnap] = useState<{ dayStr: string; hour: number; frac: number } | null>(null);
 
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -653,6 +652,9 @@ export default memo(function CalendarView({
     window.addEventListener("pointermove", onMove);
     return () => window.removeEventListener("pointermove", onMove);
   }, []);
+
+  // Distancia vertical entre el puntero y el borde superior del turno agarrado
+  const grabOffsetYRef = useRef(0);
 
   const processedDropRef = useRef<string | null>(null);
 
@@ -676,7 +678,17 @@ export default memo(function CalendarView({
     } | undefined;
     if (!data?.appointmentId) return;
     document.body.classList.add("calendar-grabbing");
-    setActiveSnapFrac(null);
+    setActiveSnap(null);
+    const apptEl = document.querySelector(`[data-appt-id="${CSS.escape(data.appointmentId)}"]`);
+    if (apptEl) {
+      const r = apptEl.getBoundingClientRect();
+      grabOffsetYRef.current = Math.min(Math.max(pointerPosRef.current.y - r.top, 0), r.height);
+    } else {
+      const startRect = event.active.rect.current.initial;
+      grabOffsetYRef.current = startRect
+        ? Math.min(Math.max(pointerPosRef.current.y - startRect.top, 0), startRect.height)
+        : 0;
+    }
     setActiveDragInfo({
       customerName: data.customerName || "Sin cliente",
       startHhmm: data.startHhmm || "",
@@ -690,7 +702,7 @@ export default memo(function CalendarView({
     const { active, over } = event;
     document.body.classList.remove("calendar-grabbing");
     setActiveDragInfo(null);
-    setActiveSnapFrac(null);
+    setActiveSnap(null);
     if (!over || !onMoveAppointment) return;
 
     const activeData = active.data.current as { appointmentId?: string; startMin?: number } | undefined;
@@ -706,15 +718,15 @@ export default memo(function CalendarView({
       let offsetMinutes = 0;
       if (droppableEl) {
         const rect = droppableEl.getBoundingClientRect();
-        const pointerY = pointerPosRef.current.y;
-        const offsetY = pointerY - rect.top;
+        const topEdgeY = pointerPosRef.current.y - grabOffsetYRef.current;
+        const offsetY = topEdgeY - rect.top;
         offsetMinutes = Math.round((offsetY / HOUR_HEIGHT) * 60 / 15) * 15;
-        offsetMinutes = Math.min(Math.max(offsetMinutes, 0), 45);
       }
       totalMinutes = overData.hour * 60 + offsetMinutes;
     } else {
       totalMinutes = activeData.startMin ?? (GRID_START_HOUR * 60);
     }
+    totalMinutes = Math.min(Math.max(totalMinutes, GRID_START_HOUR * 60), GRID_END_HOUR * 60);
 
     const h = Math.floor(totalMinutes / 60);
     const m = totalMinutes % 60;
@@ -736,17 +748,18 @@ export default memo(function CalendarView({
     let offsetMinutes = 0;
     if (droppableEl) {
       const rect = droppableEl.getBoundingClientRect();
-      const pointerY = pointerPosRef.current.y;
-      const offsetY = pointerY - rect.top;
+      const topEdgeY = pointerPosRef.current.y - grabOffsetYRef.current;
+      const offsetY = topEdgeY - rect.top;
       offsetMinutes = Math.round((offsetY / HOUR_HEIGHT) * 60 / 15) * 15;
-      offsetMinutes = Math.min(Math.max(offsetMinutes, 0), 45);
     }
 
-    const frac = offsetMinutes / 60;
-    setActiveSnapFrac(frac);
+    let totalMinutes = overData.hour * 60 + offsetMinutes;
+    totalMinutes = Math.min(Math.max(totalMinutes, GRID_START_HOUR * 60), GRID_END_HOUR * 60);
 
-    const totalMinutes = overData.hour * 60 + offsetMinutes;
-    const h = Math.floor(totalMinutes / 60);
+    const guideHour = Math.floor(totalMinutes / 60);
+    setActiveSnap({ dayStr: overData.dayStr, hour: guideHour, frac: (totalMinutes % 60) / 60 });
+
+    const h = guideHour;
     const m = totalMinutes % 60;
     const timeStr = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 
@@ -756,7 +769,7 @@ export default memo(function CalendarView({
   const handleDragCancel = useCallback(() => {
     document.body.classList.remove("calendar-grabbing");
     setActiveDragInfo(null);
-    setActiveSnapFrac(null);
+    setActiveSnap(null);
   }, []);
 
   const staffColorMap = useMemo(() => {
@@ -1576,7 +1589,7 @@ export default memo(function CalendarView({
                           onSlotClick={onSlotClick}
                           mobileLabel={(isMobileDayMode || (isMobileViewport && viewMode === "week" && dayIndex === 0)) ? `${String(hour).padStart(2, "0")}:00` : undefined}
                           showGuides={!!activeDragInfo}
-                          activeSnapFrac={activeSnapFrac}
+                          activeSnap={activeSnap}
                         />
                       );})}
 
@@ -1645,9 +1658,14 @@ export default memo(function CalendarView({
                   </div>
                 </div>
               )}
-              <div className="absolute -top-6 right-0 z-10 whitespace-nowrap rounded-md bg-sky-500 px-1.5 py-px text-[11px] font-bold tabular-nums text-white shadow-lg">
+              <motion.div
+                initial={{ opacity: 0, y: 5, scale: 0.85 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ type: "spring", stiffness: 500, damping: 26 }}
+                className="absolute -top-6 right-0 z-10 whitespace-nowrap rounded-md border border-white/30 bg-sky-600 px-2 py-[3px] text-xs font-bold tabular-nums text-white shadow-lg"
+              >
                 {activeDragInfo.targetTime ?? activeDragInfo.startHhmm}
-              </div>
+              </motion.div>
             </div>
           )}
         </DragOverlay>
