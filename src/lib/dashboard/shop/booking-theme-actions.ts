@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import sharp from "sharp";
 import { createServiceRoleClient, getAuthSession, getShopIdBySlug, getCurrentUserRole, requireShopId } from "@/lib/dashboard/auth/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { DEFAULT_BOOKING_TEMPLATE, BOOKING_TEMPLATE_PRESETS, type BookingTemplateId } from "@/lib/booking/theme-presets";
@@ -164,6 +163,7 @@ export async function uploadBookingLogo(formData: FormData): Promise<ActionResul
     let finalExt = safeExt;
 
     // Skip sharp for SVG — it handles SVG input poorly for output
+    const sharp = (await import("sharp")).default;
     if (safeExt !== "svg") {
       const metadata = await sharp(buffer).metadata();
       if (metadata.width && metadata.height && (metadata.width > MAX_DIMENSION || metadata.height > MAX_DIMENSION)) {

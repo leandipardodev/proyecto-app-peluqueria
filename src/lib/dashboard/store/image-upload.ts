@@ -1,5 +1,3 @@
-import sharp from "sharp";
-
 const MAX_DIMENSION = 800;
 const MAX_OUTPUT_BYTES = 150 * 1024;
 const MAX_INPUT_BYTES = 2 * 1024 * 1024;
@@ -17,6 +15,7 @@ export async function processProductImage(file: File): Promise<ProcessImageResul
   if (!file.type.startsWith("image/")) return { ok: false, error: "Archivo de imagen invalido" };
 
   const buffer = Buffer.from(await file.arrayBuffer());
+  const sharp = (await import("sharp")).default;
 
   try {
     let output = await sharp(buffer)
