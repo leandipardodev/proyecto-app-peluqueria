@@ -1,10 +1,7 @@
 import withPWAInit from "@ducanh2912/next-pwa";
 import { withSentryConfig } from "@sentry/nextjs";
-import workboxBuild from "workbox-build";
 
 const isDev = process.env.NODE_ENV === "development";
-
-const cacheOkOnly = [new workboxBuild.CacheableResponsePlugin({ statuses: [0, 200] })];
 
 const withPWA = withPWAInit({
   dest: "public",
@@ -18,7 +15,6 @@ const withPWA = withPWAInit({
         options: {
           cacheName: "api-calls",
           networkTimeoutSeconds: 5,
-          plugins: cacheOkOnly,
           expiration: {
             maxEntries: 32,
             maxAgeSeconds: 60 * 60,
@@ -31,7 +27,6 @@ const withPWA = withPWAInit({
         options: {
           cacheName: "dashboard-pages",
           networkTimeoutSeconds: 8,
-          plugins: cacheOkOnly,
           expiration: {
             maxEntries: 16,
             maxAgeSeconds: 6 * 60 * 60,
@@ -43,7 +38,6 @@ const withPWA = withPWAInit({
         handler: "StaleWhileRevalidate",
         options: {
           cacheName: "static-assets",
-          plugins: cacheOkOnly,
           expiration: {
             maxEntries: 128,
             maxAgeSeconds: 7 * 24 * 60 * 60,
