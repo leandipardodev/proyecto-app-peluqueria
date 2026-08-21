@@ -10,24 +10,26 @@ const withPWA = withPWAInit({
   workboxOptions: {
     runtimeCaching: [
       {
-        urlPattern: /^https?.*/i,
+        urlPattern: /^https?:\/\/[^\/]*\/api\//i,
         handler: "NetworkFirst",
         options: {
-          cacheName: "pages-and-api",
+          cacheName: "api-calls",
+          networkTimeoutSeconds: 5,
           expiration: {
-            maxEntries: 64,
-            maxAgeSeconds: 24 * 60 * 60,
+            maxEntries: 32,
+            maxAgeSeconds: 60 * 60,
           },
         },
       },
       {
-        urlPattern: /\/dashboard(\/.*)?$/,
+        urlPattern: /^https?:\/\/[^\/]*\/dashboard(\/.*)?$/i,
         handler: "NetworkFirst",
         options: {
           cacheName: "dashboard-pages",
+          networkTimeoutSeconds: 8,
           expiration: {
-            maxEntries: 32,
-            maxAgeSeconds: 24 * 60 * 60,
+            maxEntries: 16,
+            maxAgeSeconds: 6 * 60 * 60,
           },
         },
       },
