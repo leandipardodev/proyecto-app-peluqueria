@@ -453,7 +453,8 @@ export async function fetchPublicAvailableSlots(
       .eq("shop_id", shopId)
       .lt("start_time", dayEnd.toISOString())
       .gt("end_time", dayStart.toISOString())
-      .not("status", "in", "('cancelled','no_show')");
+      .neq("status", "cancelled")
+      .neq("status", "no_show");
 
     const appointments = (appointmentsRaw || []).filter((apt) =>
       shouldBlockSlot(apt.status as string | null | undefined, apt.created_at as string | null | undefined)

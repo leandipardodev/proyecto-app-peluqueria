@@ -28,7 +28,7 @@ SaaS de gestión para peluquerías y barberías. Booking online, dashboard admin
 ```bash
 # Clonar el repo
 git clone <repo-url>
-cd proyecto-app-peluqueria
+cd klip
 
 # Instalar dependencias
 npm install

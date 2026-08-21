@@ -282,7 +282,7 @@ const AppointmentBlock = memo(function AppointmentBlock({
       ref={setNodeRef}
       {...listeners}
       {...attributes}
-      className={`absolute pointer-events-auto min-w-0 text-xs cursor-grab active:cursor-grabbing bg-white dark:bg-zinc-800/90 border border-zinc-200/50 dark:border-zinc-700/50 group overflow-hidden ${isCancelled ? "opacity-0 pointer-events-none" : isCompleted ? "opacity-55" : isNoShow ? "opacity-40" : ""} ${isDragging ? "opacity-30 ring-2 ring-sky-400" : ""}`}
+      className={`absolute pointer-events-auto min-w-0 cursor-grab active:cursor-grabbing bg-white dark:bg-zinc-800/90 border border-zinc-200/50 dark:border-zinc-700/50 group overflow-hidden ${isCancelled ? "opacity-0 pointer-events-none" : isCompleted ? "opacity-55" : isNoShow ? "opacity-40" : ""} ${isDragging ? "opacity-30 ring-2 ring-sky-400" : ""}`}
       style={{
         top: `${topPx}px`,
         height: `${Math.max(heightPx - 2, 18)}px`,
@@ -314,19 +314,19 @@ const AppointmentBlock = memo(function AppointmentBlock({
           <div className="flex items-center justify-between gap-1">
             <div className="min-w-0 flex items-center gap-1">
               <span className={`inline-flex h-1.5 w-1.5 shrink-0 rounded-full ${isCancelled ? "bg-transparent" : isCompleted ? "bg-emerald-500" : isConfirmed ? "bg-sky-500" : isNoShow ? "bg-zinc-300" : "bg-amber-400"}`} />
-              <span className={`font-semibold leading-tight truncate ${isWeekMode ? "text-[10px]" : isCompact ? "text-[11px]" : "text-xs"} ${isCancelled ? "line-through" : ""} text-gray-900 dark:text-gray-100`}>
+              <span className={`font-medium leading-tight truncate ${isWeekMode ? "text-[11px]" : isCompact ? "text-[12px]" : "text-[13px]"} ${isCancelled ? "line-through" : ""} text-gray-800 dark:text-gray-100`}>
                 {isWeekMode ? (appt.customers?.nombre?.split(/\s+/)[0] || "Sin") : (appt.customers?.nombre || "Sin cliente")}
               </span>
             </div>
             <div className="flex items-center gap-1 shrink-0">
               {appt.start_hhmm && (
-                <span className={`tabular-nums leading-none ${isWeekMode ? "text-[9px] text-gray-400 dark:text-gray-500" : "text-[10px] text-gray-400 dark:text-gray-500"}`}>{appt.start_hhmm}</span>
+                <span className={`tabular-nums leading-none ${isWeekMode ? "text-[10px] text-gray-400 dark:text-gray-500" : "text-[11px] text-gray-400 dark:text-gray-500"}`}>{appt.start_hhmm}</span>
               )}
 
             </div>
           </div>
           {svcName && (
-            <div className={`flex items-center gap-1.5 leading-tight min-w-0 ${isWeekMode ? "text-[9px] text-gray-500 dark:text-gray-400" : "text-[10px] text-gray-500 dark:text-gray-400"}`}>
+            <div className={`flex items-center gap-1.5 leading-tight min-w-0 ${isWeekMode ? "text-[10px] text-gray-500 dark:text-gray-400" : "text-[11px] text-gray-500 dark:text-gray-400"}`}>
               <span className="truncate">{svcName}</span>
               {appt.services?.price != null && !isWeekMode && (
                 <span className="shrink-0 font-medium text-gray-700 dark:text-gray-300">${appt.services.price.toLocaleString("es-AR")}</span>
@@ -366,7 +366,7 @@ function MonthAppointmentBlock({
       ref={setNodeRef}
       {...listeners}
       {...attributes}
-      className={`text-[10px] leading-tight truncate rounded px-1 py-0.5 cursor-grab active:cursor-grabbing select-none text-white ${isCancelled ? "opacity-0 pointer-events-none" : ""} ${isDragging ? "opacity-30" : "hover:opacity-80"}`}
+      className={`text-[11px] font-medium leading-tight truncate rounded px-1.5 py-[3px] cursor-grab active:cursor-grabbing select-none text-white ${isCancelled ? "opacity-0 pointer-events-none" : ""} ${isDragging ? "opacity-30" : "hover:opacity-80"}`}
       style={{
         backgroundColor: staffColor?.accent || "#8B5CF6",
       }}

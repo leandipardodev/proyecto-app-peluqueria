@@ -48,6 +48,7 @@ class CalendarErrorBoundary extends Component<{ children: React.ReactNode }, { e
 import CalendarView from "./calendar-view";
 import dynamic from "next/dynamic";
 const AppointmentFormModal = dynamic(() => import("./appointment-form-modal"), { ssr: false });
+const AppointmentPreviewModal = dynamic(() => import("./appointment-preview-modal"), { ssr: false });
 const AppointmentDetailModal = dynamic(() => import("./appointment-detail-modal"), { ssr: false });
 const BatchAppointmentModal = dynamic(() => import("./batch-appointment-modal"), { ssr: false });
 import { StatePanel } from "@/components/ui/state-panel";
@@ -176,7 +177,9 @@ export default function CalendarPageClient({
   const [formModalOpen, setFormModalOpen] = useState(false);
   const [formInitialDate, setFormInitialDate] = useState<string | undefined>();
   const [formInitialHour, setFormInitialHour] = useState<number | undefined>();
-  const [selectedAppointment, setSelectedAppointment] =
+  const [previewAppointment, setPreviewAppointment] =
+    useState<Appointment | null>(null);
+  const [editingAppointment, setEditingAppointment] =
     useState<Appointment | null>(null);
   const [staffFilter, setStaffFilter] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
@@ -286,7 +289,7 @@ export default function CalendarPageClient({
     if (!initialAppointmentId) return;
     const found = enrichedAppointments.find((a) => a.id === initialAppointmentId);
     if (found) {
-      setSelectedAppointment(found);
+      setPreviewAppointment(found);
     }
   }, [initialAppointmentId, enrichedAppointments]);
 
@@ -314,6 +317,8 @@ export default function CalendarPageClient({
           .eq("shop_id", shopId)
           .gte("start_time", rangeStart.toISOString())
           .lte("start_time", fetchedRangeEndRef.current)
+          .neq("status", "cancelled")
+          .neq("status", "no_show")
           .order("start_time", { ascending: true });
         if (!error && rows) {
           const customerIds = [...new Set(rows.map((r) => r.customer_id).filter((id): id is string => id !== null))];
@@ -402,8 +407,13 @@ export default function CalendarPageClient({
   }, []);
 
   const handleAppointmentClick = useCallback((appt: Appointment | null) => {
-    setSelectedAppointment(appt);
+    setPreviewAppointment(appt);
   }, []);
+
+  const handleEditFromPreview = useCallback(() => {
+    setEditingAppointment(previewAppointment);
+    setPreviewAppointment(null);
+  }, [previewAppointment]);
 
   const pendingMove = useRef(false);
   const handleMoveAppointment = useCallback(async (appointmentId: string, newStartIso: string) => {
@@ -687,20 +697,40 @@ export default function CalendarPageClient({
         shopId={shopId}
       />
 
-      <AppointmentDetailModal
-        key={selectedAppointment?.id || "none"}
-        appointment={selectedAppointment}
+      <AppointmentPreviewModal
+        key={`preview-${previewAppointment?.id || "none"}`}
+        appointment={previewAppointment}
         shopId={shopId}
         staff={staff}
-        services={services}
-        allAppointments={enrichedAppointments}
-        onClose={() => setSelectedAppointment(null)}
+        onClose={() => setPreviewAppointment(null)}
+        onEdit={handleEditFromPreview}
         onSuccess={refreshAppointments}
         onDeleted={(recurringGroupId) => {
           if (recurringGroupId) {
             setAppointments((prev) => prev.filter((a) => a.recurring_group_id !== recurringGroupId));
           } else {
-            const deletedId = selectedAppointment?.id;
+            const deletedId = previewAppointment?.id;
+            if (deletedId) {
+              setAppointments((prev) => prev.filter((a) => a.id !== deletedId));
+            }
+          }
+        }}
+      />
+
+      <AppointmentDetailModal
+        key={editingAppointment?.id || "none"}
+        appointment={editingAppointment}
+        shopId={shopId}
+        staff={staff}
+        services={services}
+        allAppointments={enrichedAppointments}
+        onClose={() => setEditingAppointment(null)}
+        onSuccess={refreshAppointments}
+        onDeleted={(recurringGroupId) => {
+          if (recurringGroupId) {
+            setAppointments((prev) => prev.filter((a) => a.recurring_group_id !== recurringGroupId));
+          } else {
+            const deletedId = editingAppointment?.id;
             if (deletedId) {
               setAppointments((prev) => prev.filter((a) => a.id !== deletedId));
             }

@@ -209,7 +209,8 @@ export async function createPendingBooking(
       .eq("shop_id", input.shopId)
       .lt("start_time", input.endTime)
       .gt("end_time", input.startTime)
-      .not("status", "in", "('cancelled','no_show')");
+      .neq("status", "cancelled")
+      .neq("status", "no_show");
 
     if (input.staffId) {
       aptConflictQuery = aptConflictQuery.eq("staff_id", input.staffId);

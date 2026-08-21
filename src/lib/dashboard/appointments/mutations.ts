@@ -201,15 +201,14 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
         const cleanPhone = sd?.phone?.replace(/^\+/, "").replace(/\D/g, "") || "";
         const whatsappUrl = cleanPhone.length >= 7 ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(sd?.whatsapp_template || "Hola! Quiero consultar sobre un turno")}` : undefined;
         const serviceNames = orderedServices.map((s) => s.name).join(", ");
-        const firstRow = rowsToInsert[0];
-        if (firstRow) {
+        for (const row of rowsToInsert) {
           await sendAppointmentAutomationEmails({
             to: emailTo,
             customerName: customer?.nombre || "Cliente",
             shopName: sd?.nombre || "Klip",
             serviceName: serviceNames,
-            startTime: firstRow.start_time,
-            endTime: firstRow.end_time,
+            startTime: row.start_time,
+            endTime: row.end_time,
             shopAddress,
             mapsUrl,
             instagramUrl: sd?.instagram_url?.trim() || undefined,
@@ -424,22 +423,20 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
         const cleanPhone = sd?.phone?.replace(/^\+/, "").replace(/\D/g, "") || "";
         const whatsappUrl = cleanPhone.length >= 7 ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(sd?.whatsapp_template || "Hola! Quiero consultar sobre un turno")}` : undefined;
         const serviceNames = orderedServices.map((s) => s.name).join(", ");
-        await Promise.allSettled(
-          rowsToInsert.map((row) =>
-            sendAppointmentAutomationEmails({
-              to: customerEmail.trim(),
-              customerName: customerName,
-              shopName: sd?.nombre || "Klip",
-              serviceName: serviceNames,
-              startTime: row.start_time,
-              endTime: row.end_time,
-              shopAddress,
-              mapsUrl,
-              instagramUrl: sd?.instagram_url?.trim() || undefined,
-              whatsappUrl,
-            })
-          )
-        );
+        for (const row of rowsToInsert) {
+          await sendAppointmentAutomationEmails({
+            to: customerEmail.trim(),
+            customerName: customerName,
+            shopName: sd?.nombre || "Klip",
+            serviceName: serviceNames,
+            startTime: row.start_time,
+            endTime: row.end_time,
+            shopAddress,
+            mapsUrl,
+            instagramUrl: sd?.instagram_url?.trim() || undefined,
+            whatsappUrl,
+          }).catch((mailError) => console.error("[createCustomerAndAppointment] email automation error:", mailError));
+        }
       }
     } catch (mailError) {
       console.error("[createCustomerAndAppointment] email automation error:", mailError);
@@ -856,14 +853,13 @@ export async function updateAppointmentServices(
       const conditions = rowsToInsert.map(
         (row) => `and(end_time.gt.${row.start_time},start_time.lt.${row.end_time})`
       );
-      const excludeIds = allOldIds.map((id) => `"${id}"`).join(",");
       const { data: conflict } = await supabase
         .from("appointments")
         .select("id")
         .eq("shop_id", shopId)
         .eq("staff_id", effectiveStaffId)
         .not("status", "eq", "cancelled")
-        .not("id", "in", `(${excludeIds})`)
+        .not("id", "in", allOldIds)
         .or(conditions.join(","))
         .limit(1);
 
@@ -976,9 +972,7 @@ export async function deleteAppointment(id: string, shopIdOverride?: string): Pr
     const allowed = await canAccessShopId(user.id, shopId);
     if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
 
-    const supabase = await createServerClient();
-
-    const { error } = await supabase
+    const { error } = await auth
       .from("appointments")
       .delete()
       .eq("id", id)
@@ -1004,14 +998,13 @@ export async function cancelRecurringSeries(groupId: string, shopId: string): Pr
     const allowed = await canAccessShopId(user.id, shopId);
     if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
 
-    const { data: target, error: findError } = await auth
+    const { data: seriesRows, error: findError } = await auth
       .from("appointments")
       .select("id")
       .eq("recurring_group_id", groupId)
-      .eq("shop_id", shopId)
-      .limit(1);
+      .eq("shop_id", shopId);
     if (findError) return { success: false, error: findError.message };
-    if (!target || target.length === 0) return { success: false, error: "No se encontraron turnos de esta serie" };
+    if (!seriesRows || seriesRows.length === 0) return { success: false, error: "No se encontraron turnos de esta serie" };
 
     const { error } = await auth
       .from("appointments")
@@ -1151,7 +1144,8 @@ export async function moveAppointmentGroup(
         .eq("staff_id", staffId)
         .eq("date_key_ar", primary.date_key_ar ?? "")
         .neq("id", primaryId)
-        .not("status", "in", '("cancelled","no_show")')
+        .neq("status", "cancelled")
+        .neq("status", "no_show")
         .order("start_time", { ascending: true });
 
       if (siblings && siblings.length > 0) {
@@ -1197,7 +1191,8 @@ export async function moveAppointmentGroup(
         .select("id")
         .eq("shop_id", shopId)
         .eq("staff_id", staffId)
-        .not("status", "in", '("cancelled","no_show")')
+        .neq("status", "cancelled")
+        .neq("status", "no_show")
         .or(conditions.join(","))
         .limit(1);
 

@@ -120,6 +120,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es" suppressHydrationWarning>
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      <link href="https://fonts.googleapis.com/css2?family=Borel&display=swap" rel="stylesheet" />
       <link rel="icon" href="/favicon/favicon_light_mode_32x32.png" media="(prefers-color-scheme: light)" sizes="32x32" type="image/png" />
       <link rel="icon" href="/favicon/favicon_dark_mode_32x32.png" media="(prefers-color-scheme: dark)" sizes="32x32" type="image/png" />
       <link rel="icon" href="/favicon/favicon_light_mode_64x64.png" media="(prefers-color-scheme: light)" sizes="64x64" type="image/png" />

@@ -44,6 +44,7 @@ function timeLabel(iso: string, now: Date): string {
   try {
     const date = new Date(iso);
     const diffMs = now.getTime() - date.getTime();
+    if (diffMs < 0) return dayLabel(artDateKey(iso), artDateKey(now.toISOString()));
     const minutes = Math.floor(diffMs / 60000);
     if (minutes < 1) return "ahora";
     if (minutes < 60) return `hace ${minutes} min`;
