@@ -1,10 +1,10 @@
 import withPWAInit from "@ducanh2912/next-pwa";
 import { withSentryConfig } from "@sentry/nextjs";
-import { CacheableResponsePlugin } from "workbox-build";
+import workboxBuild from "workbox-build";
 
 const isDev = process.env.NODE_ENV === "development";
 
-const cacheOkOnly = [new CacheableResponsePlugin({ statuses: [0, 200] })];
+const cacheOkOnly = [new workboxBuild.CacheableResponsePlugin({ statuses: [0, 200] })];
 
 const withPWA = withPWAInit({
   dest: "public",
