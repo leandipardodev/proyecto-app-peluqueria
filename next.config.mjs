@@ -51,6 +51,9 @@ const withPWA = withPWAInit({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   turbopack: {},
+  // Sharp debe resolverse desde node_modules del SO donde corre el server,
+  // nunca bundleado (evita DLOPEN_FAILED con binarios de otra plataforma).
+  serverExternalPackages: ["sharp"],
   experimental: {
     serverActions: {
       bodySizeLimit: "6mb",
