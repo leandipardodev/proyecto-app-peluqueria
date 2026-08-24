@@ -252,7 +252,12 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-3xl sm:text-5xl font-bold text-gray-900 dark:text-white tracking-tight leading-none">{serviceWord}s</h1>
+            <h1
+  className="text-3xl sm:text-5xl text-gray-900 dark:text-white leading-none lowercase pt-2"
+  style={{ fontFamily: "var(--font-borel), cursive", letterSpacing: "-0.07em" }}
+>
+  {serviceWord}s
+</h1>
             <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">Las secciones/categorías de /book ahora se editan en Mi Negocio - Personalización.</p>
           </div>
         </div>

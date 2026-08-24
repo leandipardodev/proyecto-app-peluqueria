@@ -334,13 +334,8 @@ function SectionGroup({
         highlight ? "border-blue-400/70 bg-blue-500/10 ring-2 ring-blue-400/30" : "border-black/10 dark:border-white/15"
       }`}
     >
-      <div className="flex items-center justify-between px-1 pb-2">
-        <span
-          className={`text-xl leading-none lowercase tracking-tight ${s.heading}`}
-          style={{ fontFamily: "var(--font-borel), cursive" }}
-        >
-          {section}
-        </span>
+      <div className="flex items-center justify-between px-1 pb-1.5">
+        <span className={`text-[11px] font-semibold uppercase tracking-wide ${s.heading}`}>{section}</span>
         {serviceCount > 0 && (
           <span className={`text-[10px] tabular-nums ${s.tiny}`}>{serviceCount}</span>
         )}

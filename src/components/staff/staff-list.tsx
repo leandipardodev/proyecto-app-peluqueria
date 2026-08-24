@@ -374,7 +374,12 @@ export default function StaffList({
           <button type="button" onClick={() => router.back()} className="p-2 rounded-xl text-zinc-400 hover:text-zinc-600 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer select-none">
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white tracking-tight">{staffPlural}</h2>
+          <h2
+            className="text-3xl sm:text-4xl text-gray-900 dark:text-white leading-none lowercase"
+            style={{ fontFamily: "var(--font-borel), cursive", letterSpacing: "-0.07em" }}
+          >
+            {staffPlural}
+          </h2>
         </div>
         {canManageStaff ? (
           <Button type="button" onClick={() => setShowForm(true)}>Agregar {staffWord}</Button>
