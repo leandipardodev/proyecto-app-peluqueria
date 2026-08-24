@@ -538,6 +538,26 @@ html.perf-mode .carousel-image-zoom {
   user-select: none;
 }
 
+/* En la PWA, por defecto nada es seleccionable (los toques largos en controles
+   disparaban la seleccion de toda la pantalla). Se re-habilita solo donde el
+   usuario necesita texto: inputs, editores o nodos con .select-text */
+body {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+input,
+textarea,
+select,
+[contenteditable="true"],
+[contenteditable=""],
+.select-text {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
 .force-spin,
 .force-spin * {
   animation: spin 1s linear infinite !important;
