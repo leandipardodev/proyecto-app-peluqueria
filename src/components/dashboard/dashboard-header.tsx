@@ -111,81 +111,104 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
   const inputRef = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
 
-  // Auto-oculte del header al scrollear (premium morph del hamburger)
-  // El header reclama su espacio con marginTop negativo y la decisión se toma
-  // SOLO cuando el scroll se detiene (130ms sin eventos) => nunca interfiere
-  // con el momentum ni genera loops con el rubber-band de iOS.
-  const [headerHidden, setHeaderHidden] = useState(false);
+  // Header progresivo: se oculta/revela 1:1 con el scroll (estilo Chrome móvil).
+  // Sin estados ni decisiones: el offset sigue al dedo y al soltar hace un
+  // snap suave hacia el extremo más cercano. Guards de rubber-band de iOS.
   const headerElRef = useRef<HTMLElement | null>(null);
-  const [headerH, setHeaderH] = useState(0);
-  const headerHiddenRef = useRef(false);
-  const lockUntilRef = useRef(0);
+  const floatBtnRef = useRef<HTMLButtonElement | null>(null);
+  const inHeaderMenuRef = useRef<HTMLButtonElement | null>(null);
+  const headerHRef = useRef(0);
+  const offsetRef = useRef(0);
+  const lastYRef = useRef(0);
+  const floatingRef = useRef(false);
   const menuOpenRef = useRef(false);
+  const [headerFloating, setHeaderFloating] = useState(false);
 
+  const applyHeaderOffset = useCallback((offset: number, smooth: boolean) => {
+    const el = headerElRef.current;
+    const h = headerHRef.current;
+    if (!el || h <= 0) return;
+    const o = Math.max(0, Math.min(h, offset));
+    offsetRef.current = o;
+    const p = o / h;
+
+    el.style.transition = smooth
+      ? "transform 300ms cubic-bezier(0.22, 1, 0.36, 1), margin-bottom 300ms cubic-bezier(0.22, 1, 0.36, 1)"
+      : "none";
+    el.style.transform = `translateY(${-o}px)`;
+    el.style.marginBottom = `${-o}px`;
+
+    const fb = floatBtnRef.current;
+    if (fb) {
+      fb.style.transition = smooth
+        ? "opacity 250ms cubic-bezier(0.22, 1, 0.36, 1), transform 300ms cubic-bezier(0.22, 1, 0.36, 1), border-radius 300ms cubic-bezier(0.22, 1, 0.36, 1)"
+        : "border-radius 150ms cubic-bezier(0.22, 1, 0.36, 1)";
+      fb.style.opacity = String(p);
+      fb.style.transform = `scale(${0.55 + 0.45 * p})`;
+      fb.style.borderRadius = `${14 + 10 * p}px`;
+      fb.style.pointerEvents = p >= 0.85 ? "auto" : "none";
+    }
+
+    // El hamburguesa del header se desvanece en la primera mitad de la salida
+    const inHeaderBtn = inHeaderMenuRef.current;
+    if (inHeaderBtn) inHeaderBtn.style.opacity = String(Math.max(0, 1 - p * 2));
+
+    const nextFloating = p >= 0.85;
+    if (nextFloating !== floatingRef.current) {
+      floatingRef.current = nextFloating;
+      setHeaderFloating(nextFloating);
+    }
+  }, []);
+
+  // Medición inicial
   useLayoutEffect(() => {
     const el = headerElRef.current;
     if (!el) return;
-    const measure = () => setHeaderH(el.offsetHeight);
+    const measure = () => {
+      headerHRef.current = el.offsetHeight;
+      applyHeaderOffset(offsetRef.current, false);
+    };
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
-  }, []);
+  }, [applyHeaderOffset]);
 
-  useEffect(() => { headerHiddenRef.current = headerHidden; }, [headerHidden]);
   useEffect(() => { menuOpenRef.current = menuOpen; }, [menuOpen]);
   useEffect(() => {
-    if (menuOpen) setHeaderHidden(false);
-  }, [menuOpen]);
+    if (menuOpen && floatingRef.current) {
+      floatingRef.current = false;
+      setHeaderFloating(false);
+      offsetRef.current = 0;
+      applyHeaderOffset(0, true);
+    }
+  }, [menuOpen, applyHeaderOffset]);
 
   useEffect(() => {
     const scroller: HTMLElement | null = document.querySelector("main");
     if (!scroller) return;
-    let anchorY = scroller.scrollTop;
-    let scrolling = false;
-    let idleTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const decide = () => {
-      const y = scroller.scrollTop;
-      const max = scroller.scrollHeight - scroller.clientHeight;
-      const now = Date.now();
-
-      // Arriba de todo o contenido sin scroll: siempre visible
-      if (max <= 4 || y <= 24) {
-        if (headerHiddenRef.current) setHeaderHidden(false);
-        return;
-      }
-      // Fondo alcanzado / rubber-band inferior / en cooldown: no decidir
-      if (y >= max - 2 || now < lockUntilRef.current) return;
-
-      const total = y - anchorY;
-      if (total > 40 && !headerHiddenRef.current) {
-        setHeaderHidden(true);
-        lockUntilRef.current = now + 300;
-      } else if (total < -20 && headerHiddenRef.current) {
-        setHeaderHidden(false);
-        lockUntilRef.current = now + 300;
-      }
-    };
+    let lastY = scroller.scrollTop;
 
     const onScroll = () => {
       if (menuOpenRef.current) return;
-      if (!scrolling) {
-        scrolling = true;
-        anchorY = scroller.scrollTop;
+      const y = scroller.scrollTop;
+      const max = scroller.scrollHeight - scroller.clientHeight;
+      const dy = y - lastY;
+      lastY = y;
+
+      // Sin contenido scrolleable o rubber-band superior: mostrar
+      if (max <= 4 || y <= 0) {
+        applyHeaderOffset(0, false);
+        return;
       }
-      if (idleTimer) clearTimeout(idleTimer);
-      idleTimer = setTimeout(() => {
-        scrolling = false;
-        decide();
-        anchorY = scroller.scrollTop;
-      }, 130);
+      // Zona final: congelar progreso (evita loops con el rebote de iOS)
+      if (y >= max - 2) return;
+
+      // Progresivo puro: cada pixel de scroll mueve la animacion 1:1
+      applyHeaderOffset(offsetRef.current + dy, false);
     };
 
     scroller.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      if (idleTimer) clearTimeout(idleTimer);
-      scroller.removeEventListener("scroll", onScroll);
-    };
+    return () => scroller.removeEventListener("scroll", onScroll);
   }, []);
 
   const rotatingWords = useMemo(() => [
@@ -594,20 +617,19 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
 
   return (
     <>
-      <motion.header
+      <header
         ref={headerElRef}
-        initial={false}
-        animate={{ y: headerHidden ? "-115%" : "0%", marginTop: headerHidden ? -headerH : 0 }}
-        transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
         className="dashboard-mobile-header sticky top-0 z-50 shrink-0 flex items-center gap-4 bg-white/30 dark:bg-black/30 backdrop-blur-xl shadow-sm border-b border-white/10 dark:border-white/5 px-4 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.5rem)] touch-pan-x [overscroll-behavior-y:none] lg:px-6 lg:pt-2.5"
       >
         <button
+          ref={inHeaderMenuRef}
+          type="button"
           onClick={handleMobileOpen}
           aria-label="Abrir menú de navegación"
-          aria-hidden={headerHidden}
-          tabIndex={headerHidden ? -1 : 0}
+          aria-hidden={headerFloating}
+          tabIndex={headerFloating ? -1 : 0}
           className={`min-[1367px]:hidden p-2 rounded-xl text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/5 transition-all duration-200 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${
-            headerHidden ? "opacity-0 pointer-events-none" : "opacity-100"
+            headerFloating ? "pointer-events-none" : ""
           }`}
         >
           <Menu className="w-5 h-5" strokeWidth={1.5} />
@@ -1186,34 +1208,26 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
             </AnimatePresence>
           </div>
         </div>
-      </motion.header>
+      </header>
 
-      {/* Hamburger flotante: emerge del header y se vuelve botón circular */}
-      <motion.button
+      {/* Hamburger flotante: emerge progresivamente con el scroll */}
+      <button
+        ref={floatBtnRef}
         type="button"
         onClick={handleMobileOpen}
         aria-label="Abrir menú de navegación"
-        aria-hidden={!headerHidden}
-        tabIndex={headerHidden ? 0 : -1}
-        initial={false}
-        animate={{
-          opacity: headerHidden ? 1 : 0,
-          scale: headerHidden ? 1 : 0.55,
-          y: headerHidden ? 0 : -12,
-          borderRadius: headerHidden ? 22 : 14,
+        aria-hidden={!headerFloating}
+        tabIndex={headerFloating ? 0 : -1}
+        style={{
+          opacity: 0,
+          transform: "scale(0.55)",
+          borderRadius: "14px",
+          pointerEvents: "none",
         }}
-        transition={{
-          duration: 0.5,
-          ease: [0.22, 1, 0.36, 1],
-          opacity: { duration: 0.32, ease: [0.22, 1, 0.36, 1], delay: headerHidden ? 0.18 : 0 },
-          scale: { delay: headerHidden ? 0.15 : 0 },
-          y: { delay: headerHidden ? 0.15 : 0 },
-        }}
-        style={{ pointerEvents: headerHidden ? "auto" : "none" }}
         className="fixed left-4 top-[calc(env(safe-area-inset-top)+0.65rem)] z-[60] min-[1367px]:hidden flex items-center justify-center w-11 h-11 text-gray-500 dark:text-zinc-200 bg-white/75 dark:bg-zinc-900/70 backdrop-blur-xl border border-white/50 dark:border-white/10 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.25)] hover:bg-white dark:hover:bg-zinc-800/90 hover:shadow-[0_10px_28px_-6px_rgba(124,58,237,0.35)] hover:text-violet-600 dark:hover:text-violet-300 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
       >
         <Menu className="w-5 h-5" strokeWidth={1.5} />
-      </motion.button>
+      </button>
 
       <AnimatePresence>
         {menuOpen && (
