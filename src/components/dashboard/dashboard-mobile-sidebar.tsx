@@ -112,12 +112,6 @@ export default function DashboardMobileSidebar({ open, onClose, userName }: Prop
               >
                 <span id="klip-mobile-logo" className="text-xl font-bold tracking-tight text-[#0071E3]">Klip</span>
               </div>
-              <button
-                onClick={onClose}
-                className="p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-white/60 transition-all cursor-pointer select-none"
-              >
-                <X className="w-5 h-5" strokeWidth={1.5} />
-              </button>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto">
               <DashboardSidebar

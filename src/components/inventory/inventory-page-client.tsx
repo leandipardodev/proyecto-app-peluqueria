@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition, useCallback } from "react";
+import { useState, useTransition, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { AnimatePresence, motion, type Transition } from "framer-motion";
 import { Plus, RefreshCcw, Layers, ExternalLink, Power } from "lucide-react";
 import StockTable from "./stock-table";
 import AddProductModal from "./add-product-modal";
@@ -16,8 +17,9 @@ import { useNotifications } from "@/lib/dashboard/use-notifications";
 import type { StockItem } from "@/lib/dashboard/inventory/inventory-actions";
 import type { StoreOrder } from "@/lib/dashboard/store/store-actions";
 
-interface InventoryPageClientProps {
-  shopId: string;
+const SOFT_TRANSITION: Transition = { duration: 0.3, ease: [0.22, 1, 0.36, 1] };
+
+interface InventoryPageClientProps {  shopId: string;
   initialItems: StockItem[];
   initialOrders?: StoreOrder[];
   storeEnabled?: boolean;
@@ -42,15 +44,47 @@ export default function InventoryPageClient({
   const liveNotifications = useNotifications();
   const pendingOrdersCount = liveNotifications.pendingOrders;
   const [tab, setTabState] = useState<InventoryTab>(initialTab);
+  const [tabDir, setTabDir] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [batchModalOpen, setBatchModalOpen] = useState(false);
   const [storeConfirmOpen, setStoreConfirmOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const addRef = useRef<HTMLDivElement>(null);
+  const collapsedBtnRef = useRef<HTMLButtonElement>(null);
+  const pairRef = useRef<HTMLDivElement>(null);
+  const [addWidths, setAddWidths] = useState({ collapsed: 0, pair: 0 });
+
+  useLayoutEffect(() => {
+    const measure = () => {
+      setAddWidths({
+        collapsed: collapsedBtnRef.current?.offsetWidth ?? 0,
+        pair: pairRef.current?.offsetWidth ?? 0,
+      });
+    };
+    measure();
+    document.fonts?.ready.then(measure).catch(() => {});
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+
+  useEffect(() => {
+    if (!addOpen) return;
+    function onDocMouseDown(e: MouseEvent) {
+      if (addRef.current?.contains(e.target as Node)) return;
+      setAddOpen(false);
+    }
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, [addOpen]);
   const [storePending, startStoreTransition] = useTransition();
   const isOwnerOrAdmin = role !== "staff";
 
   const setTab = useCallback(
     (next: InventoryTab) => {
-      setTabState(next);
+      setTabState((prev) => {
+        if (next !== prev) setTabDir(next === "orders" ? 1 : -1);
+        return next;
+      });
       const url = new URL(window.location.href);
       if (next === "orders") url.searchParams.set("tab", "orders");
       else url.searchParams.delete("tab");
@@ -100,66 +134,119 @@ export default function InventoryPageClient({
         </div>
         {isOwnerOrAdmin && (
           <div className="flex items-center gap-2 flex-wrap">
+            <div
+              ref={addRef}
+              className="keep-motion relative inline-flex items-center"
+              onMouseEnter={() => setAddOpen(true)}
+              onMouseLeave={() => setAddOpen(false)}
+              style={{
+                width: addWidths.collapsed ? (addOpen ? addWidths.pair : addWidths.collapsed) : undefined,
+                transition: "width 300ms cubic-bezier(0.22, 1, 0.36, 1)",
+              }}
+            >
+              <div
+                ref={pairRef}
+                aria-hidden={!addOpen}
+                className={`absolute left-0 top-1/2 -translate-y-1/2 flex items-center gap-2 transition-opacity duration-200 ease-out ${
+                  addOpen ? "opacity-100 delay-75" : "opacity-0 pointer-events-none"
+                }`}
+              >
+                <button
+                  type="button"
+                  tabIndex={addOpen ? 0 : -1}
+                  onClick={() => { setAddOpen(false); setBatchModalOpen(true); }}
+                  className="inline-flex items-center justify-center gap-2 bg-white dark:bg-zinc-800 text-violet-700 dark:text-violet-300 border border-violet-300 dark:border-violet-700 px-4 py-2 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-50 dark:hover:bg-violet-900/30 transition-colors cursor-pointer select-none whitespace-nowrap"
+                >
+                  <Layers className="w-4 h-4" />
+                  Múltiples
+                </button>
+                <button
+                  type="button"
+                  tabIndex={addOpen ? 0 : -1}
+                  onClick={() => { setAddOpen(false); setModalOpen(true); }}
+                  className="inline-flex items-center justify-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 transition-colors cursor-pointer select-none whitespace-nowrap"
+                >
+                  <Plus className="w-4 h-4" />
+                  Nuevo producto
+                </button>
+              </div>
+              <button
+                ref={collapsedBtnRef}
+                type="button"
+                aria-expanded={addOpen}
+                aria-hidden={addOpen}
+                tabIndex={addOpen ? -1 : 0}
+                onClick={() => setAddOpen((o) => !o)}
+                className={`inline-flex items-center justify-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 cursor-pointer select-none whitespace-nowrap transition-opacity duration-200 ${
+                  addOpen ? "opacity-0 pointer-events-none" : "opacity-100"
+                }`}
+                style={{ transition: "opacity 200ms cubic-bezier(0.22, 1, 0.36, 1)" }}
+              >
+                <Plus className="w-4 h-4" />
+                Agregar
+              </button>
+            </div>
             {storeEnabled && storeUrl && (
               <a
                 href={storeUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 px-4 py-2 rounded-2xl text-sm font-medium shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors cursor-pointer select-none"
+                aria-label="Ver tienda"
+                title="Ver tienda"
+                className="inline-flex items-center justify-center bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 px-3 py-2 rounded-2xl shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors cursor-pointer select-none"
               >
                 <ExternalLink className="w-4 h-4" />
-                Ver tienda
               </a>
             )}
             <button
               type="button"
               onClick={() => (storeEnabled ? setStoreConfirmOpen(true) : toggleStore(true))}
               disabled={storePending}
-              className={`inline-flex items-center justify-center gap-2 bg-white dark:bg-zinc-800 px-4 py-2 rounded-2xl text-sm font-medium shadow-sm border transition-colors cursor-pointer select-none disabled:opacity-50 disabled:cursor-not-allowed ${
+              aria-label={storeEnabled ? "Apagar tienda online" : "Activar tienda online"}
+              title={storeEnabled ? "Apagar tienda online" : "Activar tienda online"}
+              className={`inline-flex items-center justify-center bg-white dark:bg-zinc-800 px-3 py-2 rounded-2xl shadow-sm border transition-colors cursor-pointer select-none disabled:opacity-50 disabled:cursor-not-allowed ${
                 storeEnabled
                   ? "text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-700 hover:bg-rose-50 dark:hover:bg-rose-900/30"
                   : "text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
               }`}
             >
               <Power className="w-4 h-4" />
-              {storeEnabled ? "Apagar tienda online" : "Activar tienda online"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setBatchModalOpen(true)}
-              className="inline-flex items-center justify-center gap-2 bg-white dark:bg-zinc-800 text-violet-700 dark:text-violet-300 border border-violet-300 dark:border-violet-700 px-4 py-2 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-50 dark:hover:bg-violet-900/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 transition-colors cursor-pointer select-none"
-            >
-              <Layers className="w-4 h-4" />
-              Agregar múltiples
-            </button>
-            <button
-              type="button"
-              onClick={() => setModalOpen(true)}
-              className="inline-flex items-center justify-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 transition-colors cursor-pointer select-none"
-            >
-              <Plus className="w-4 h-4" />
-              Nuevo producto
             </button>
           </div>
         )}
       </div>
 
-      {tab === "products" || !storeEnabled ? (
-        <>
-          <StockTable shopId={shopId} items={initialItems} isOwnerOrAdmin={isOwnerOrAdmin} storeEnabled={storeEnabled} tab={tab} onTabChange={setTab} pendingOrdersCount={pendingOrdersCount} />
-          <AddProductModal shopId={shopId} open={modalOpen} onClose={() => setModalOpen(false)} storeEnabled={storeEnabled} />
-          <BatchAddProductModal shopId={shopId} open={batchModalOpen} onClose={() => setBatchModalOpen(false)} storeEnabled={storeEnabled} />
-        </>
-      ) : (
-        <>
-          {storeEnabled && (
-            <div className="flex justify-center mb-6">
-              <InventoryTabs tab={tab} onChange={setTab} pendingOrdersCount={pendingOrdersCount} lowStockAlert={liveNotifications.lowStock} />
-            </div>
-          )}
-          <OrdersPanel shopId={shopId} orders={initialOrders} isOwnerOrAdmin={isOwnerOrAdmin} onChanged={() => router.refresh()} />
-        </>
+      {storeEnabled && (
+        <div className="flex justify-center mb-6">
+          <InventoryTabs tab={tab} onChange={setTab} pendingOrdersCount={pendingOrdersCount} lowStockAlert={liveNotifications.lowStock} />
+        </div>
       )}
+
+      <AnimatePresence mode="wait" initial={false}>
+        {tab === "products" || !storeEnabled ? (
+          <motion.div
+            key="products-panel"
+            initial={{ opacity: 0, x: 16 * tabDir }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -12 * tabDir }}
+            transition={SOFT_TRANSITION}
+          >
+            <StockTable shopId={shopId} items={initialItems} isOwnerOrAdmin={isOwnerOrAdmin} storeEnabled={storeEnabled} />
+            <AddProductModal shopId={shopId} open={modalOpen} onClose={() => setModalOpen(false)} storeEnabled={storeEnabled} />
+            <BatchAddProductModal shopId={shopId} open={batchModalOpen} onClose={() => setBatchModalOpen(false)} storeEnabled={storeEnabled} />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="orders-panel"
+            initial={{ opacity: 0, x: 16 * tabDir }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -12 * tabDir }}
+            transition={SOFT_TRANSITION}
+          >
+            <OrdersPanel shopId={shopId} orders={initialOrders} isOwnerOrAdmin={isOwnerOrAdmin} onChanged={() => router.refresh()} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <ConfirmDialog
         open={storeConfirmOpen}

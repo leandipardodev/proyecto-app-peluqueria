@@ -3,7 +3,6 @@
 import { useRef, useEffect } from "react";
 import {
   Bell,
-  Check,
   CalendarPlus,
   CalendarX2,
   Package,
@@ -43,8 +42,7 @@ function artDateKey(iso: string): string {
 function timeLabel(iso: string, now: Date): string {
   try {
     const date = new Date(iso);
-    const diffMs = now.getTime() - date.getTime();
-    if (diffMs < 0) return dayLabel(artDateKey(iso), artDateKey(now.toISOString()));
+    const diffMs = Math.max(0, now.getTime() - date.getTime());
     const minutes = Math.floor(diffMs / 60000);
     if (minutes < 1) return "ahora";
     if (minutes < 60) return `hace ${minutes} min`;
@@ -142,6 +140,18 @@ function NotificationRow({ item, onClose }: { item: NotificationItem; onClose: (
 export default function NotificationsPanel({ onClose, shopId }: { onClose: () => void; shopId?: string | null }) {
   const { items, unreadCount, loading } = useNotifications(shopId);
   const panelRef = useRef<HTMLDivElement>(null);
+  const autoMarkedRef = useRef(false);
+
+  useEffect(() => {
+    if (loading || autoMarkedRef.current) return;
+    const unread = items.filter((i) => !i.isRead);
+    if (unread.length === 0) return;
+    const t = setTimeout(() => {
+      autoMarkedRef.current = true;
+      void markNotificationsRead(unread.map((i) => i.id));
+    }, 800);
+    return () => clearTimeout(t);
+  }, [items, loading]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -175,28 +185,23 @@ export default function NotificationsPanel({ onClose, shopId }: { onClose: () =>
     }));
 
   return (
-    <div ref={panelRef} className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl border border-white/20 dark:border-white/10 bg-white/95 dark:bg-black/85 backdrop-blur-xl shadow-xl overflow-hidden z-50">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/20 dark:border-white/10">
-        <div className="flex items-center gap-2">
-          <Bell className="w-4 h-4 text-zinc-500" />
-          <span className="text-sm font-semibold text-gray-900 dark:text-white">Notificaciones</span>
-          {unreadCount > 0 && (
-            <span className="text-[10px] font-semibold text-white bg-red-500 rounded-full px-1.5 py-0.5 leading-none">
-              {unreadCount}
-            </span>
-          )}
+    <div className="absolute right-0 mt-2 z-50">
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-1 right-4 w-3 h-3 rotate-45 rounded-[2px] bg-white/95 dark:bg-black/85 border-l border-t border-white/20 dark:border-white/10"
+      />
+      <div ref={panelRef} className="relative w-80 sm:w-96 rounded-2xl border border-white/20 dark:border-white/10 bg-white/95 dark:bg-black/85 backdrop-blur-xl shadow-xl overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-white/20 dark:border-white/10">
+          <div className="flex items-center gap-2">
+            <Bell className="w-4 h-4 text-zinc-500" />
+            <span className="text-sm font-semibold text-gray-900 dark:text-white">Notificaciones</span>
+            {unreadCount > 0 && (
+              <span className="text-[10px] font-semibold text-white bg-red-500 rounded-full px-1.5 py-0.5 leading-none">
+                {unreadCount}
+              </span>
+            )}
+          </div>
         </div>
-        {unreadItems.length > 0 && (
-          <button
-            type="button"
-            onClick={() => void markNotificationsRead("all")}
-            className="text-xs text-violet-600 hover:text-violet-700 dark:text-violet-400 dark:hover:text-violet-300 font-medium flex items-center gap-1 transition-colors"
-          >
-            <Check className="w-3 h-3" />
-            Leer todas
-          </button>
-        )}
-      </div>
 
       <div className="max-h-[60vh] overflow-y-auto p-2">
         {loading && (
@@ -245,6 +250,7 @@ export default function NotificationsPanel({ onClose, shopId }: { onClose: () =>
             ))}
           </>
         )}
+      </div>
       </div>
     </div>
   );

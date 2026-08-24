@@ -1,7 +1,7 @@
 "use client";
 
 import { Menu, Search, Moon, Sun, Gauge, Repeat2, Check, Volume2, VolumeX, Sparkles, Bell, Bug, CircleHelp, LogOut, KeyRound } from "lucide-react";
-import { useState, useRef, useEffect, useTransition, useMemo, useCallback, memo, type KeyboardEvent } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useTransition, useMemo, useCallback, memo, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import DashboardMobileSidebar from "./dashboard-mobile-sidebar";
@@ -110,6 +110,46 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
   const shopMenuRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
+
+  // Auto-oculte del header al scrollear (premium morph del hamburger)
+  const [headerHidden, setHeaderHidden] = useState(false);
+  const headerElRef = useRef<HTMLElement | null>(null);
+  const [headerH, setHeaderH] = useState(0);
+  useLayoutEffect(() => {
+    const el = headerElRef.current;
+    if (!el) return;
+    const measure = () => setHeaderH(el.offsetHeight);
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+  const menuOpenRef = useRef(false);
+  useEffect(() => { menuOpenRef.current = menuOpen; }, [menuOpen]);
+  useEffect(() => {
+    if (menuOpen) setHeaderHidden(false);
+  }, [menuOpen]);
+  useEffect(() => {
+    // El scroll del dashboard ocurre en <main> (contenedor interno), no en window
+    const scroller = document.querySelector("main");
+    if (!scroller) return;
+    let lastY = (scroller as HTMLElement).scrollTop;
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking || menuOpenRef.current) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const y = (scroller as HTMLElement).scrollTop;
+        const dy = y - lastY;
+        lastY = y;
+        if (y < 24) setHeaderHidden(false);
+        else if (dy > 6) setHeaderHidden(true);
+        else if (dy < -4) setHeaderHidden(false);
+        ticking = false;
+      });
+    };
+    scroller.addEventListener("scroll", onScroll, { passive: true });
+    return () => scroller.removeEventListener("scroll", onScroll);
+  }, []);
 
   const rotatingWords = useMemo(() => [
     "clientes...",
@@ -517,11 +557,21 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
 
   return (
     <>
-      <header className="dashboard-mobile-header sticky top-0 z-50 shrink-0 flex items-center gap-4 bg-white/30 dark:bg-black/30 backdrop-blur-xl shadow-sm border-b border-white/10 dark:border-white/5 px-4 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.5rem)] touch-pan-x [overscroll-behavior-y:none] lg:px-6 lg:pt-2.5">
+      <motion.header
+        ref={headerElRef}
+        initial={false}
+        animate={{ y: headerHidden ? "-115%" : "0%", marginBottom: headerHidden ? -headerH : 0 }}
+        transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+        className="dashboard-mobile-header sticky top-0 z-50 shrink-0 flex items-center gap-4 bg-white/30 dark:bg-black/30 backdrop-blur-xl shadow-sm border-b border-white/10 dark:border-white/5 px-4 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.5rem)] touch-pan-x [overscroll-behavior-y:none] lg:px-6 lg:pt-2.5"
+      >
         <button
           onClick={handleMobileOpen}
           aria-label="Abrir menú de navegación"
-          className="min-[1367px]:hidden p-2 rounded-xl text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/5 transition-all cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
+          aria-hidden={headerHidden}
+          tabIndex={headerHidden ? -1 : 0}
+          className={`min-[1367px]:hidden p-2 rounded-xl text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/5 transition-all duration-200 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${
+            headerHidden ? "opacity-0 pointer-events-none" : "opacity-100"
+          }`}
         >
           <Menu className="w-5 h-5" strokeWidth={1.5} />
         </button>
@@ -1099,7 +1149,34 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
             </AnimatePresence>
           </div>
         </div>
-      </header>
+      </motion.header>
+
+      {/* Hamburger flotante: emerge del header y se vuelve botón circular */}
+      <motion.button
+        type="button"
+        onClick={handleMobileOpen}
+        aria-label="Abrir menú de navegación"
+        aria-hidden={!headerHidden}
+        tabIndex={headerHidden ? 0 : -1}
+        initial={false}
+        animate={{
+          opacity: headerHidden ? 1 : 0,
+          scale: headerHidden ? 1 : 0.55,
+          y: headerHidden ? 0 : -12,
+          borderRadius: headerHidden ? 22 : 14,
+        }}
+        transition={{
+          duration: 0.5,
+          ease: [0.22, 1, 0.36, 1],
+          opacity: { duration: 0.32, ease: [0.22, 1, 0.36, 1], delay: headerHidden ? 0.18 : 0 },
+          scale: { delay: headerHidden ? 0.15 : 0 },
+          y: { delay: headerHidden ? 0.15 : 0 },
+        }}
+        style={{ pointerEvents: headerHidden ? "auto" : "none" }}
+        className="fixed left-4 top-[calc(env(safe-area-inset-top)+0.65rem)] z-[60] min-[1367px]:hidden flex items-center justify-center w-11 h-11 text-gray-500 dark:text-zinc-200 bg-white/75 dark:bg-zinc-900/70 backdrop-blur-xl border border-white/50 dark:border-white/10 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.25)] hover:bg-white dark:hover:bg-zinc-800/90 hover:shadow-[0_10px_28px_-6px_rgba(124,58,237,0.35)] hover:text-violet-600 dark:hover:text-violet-300 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
+      >
+        <Menu className="w-5 h-5" strokeWidth={1.5} />
+      </motion.button>
 
       <AnimatePresence>
         {menuOpen && (

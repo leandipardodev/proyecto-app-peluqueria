@@ -3,15 +3,13 @@
 import { useEffect, useState, useMemo, useRef, memo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Package,
   AlertTriangle,
   Trash2,
   Search,
   Plus,
   Minus,
-  DollarSign,
   ArrowUpDown,
-  ShoppingBag,
+  Check,
   Settings2,
 } from "lucide-react";
 import {
@@ -25,36 +23,31 @@ import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { StatePanel } from "@/components/ui/state-panel";
 import SaleConfigModal from "./sale-config-modal";
-import InventoryTabs, { type InventoryTab } from "./inventory-tabs";
 
 interface StockTableProps {
   shopId: string;
   items: StockItem[];
   isOwnerOrAdmin?: boolean;
   storeEnabled?: boolean;
-  tab?: InventoryTab;
-  onTabChange?: (tab: InventoryTab) => void;
-  pendingOrdersCount?: number;
 }
 
-function productColor(id: string): string {
-  const gradients = [
-    "from-violet-400 to-violet-500 dark:from-violet-500 dark:to-violet-600 shadow-violet-200/50 dark:shadow-violet-900/50",
-    "from-emerald-400 to-emerald-500 dark:from-emerald-500 dark:to-emerald-600 shadow-emerald-200/50 dark:shadow-emerald-900/50",
-    "from-sky-400 to-sky-500 dark:from-sky-500 dark:to-sky-600 shadow-sky-200/50 dark:shadow-sky-900/50",
-    "from-amber-400 to-amber-500 dark:from-amber-500 dark:to-amber-600 shadow-amber-200/50 dark:shadow-amber-900/50",
-    "from-rose-400 to-rose-500 dark:from-rose-500 dark:to-rose-600 shadow-rose-200/50 dark:shadow-rose-900/50",
-    "from-cyan-400 to-cyan-500 dark:from-cyan-500 dark:to-cyan-600 shadow-cyan-200/50 dark:shadow-cyan-900/50",
-  ];
-  const hash = id.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  return gradients[hash % gradients.length];
-}
+const SORT_OPTIONS: { key: "name" | "stock_asc" | "stock_desc" | "price_asc" | "price_desc"; label: string }[] = [
+  { key: "name", label: "Nombre" },
+  { key: "stock_asc", label: "Stock ▲" },
+  { key: "stock_desc", label: "Stock ▼" },
+  { key: "price_asc", label: "Precio ▲" },
+  { key: "price_desc", label: "Precio ▼" },
+];
 
-const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = false, storeEnabled = true, tab, onTabChange, pendingOrdersCount = 0 }: StockTableProps) {
+const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = false, storeEnabled = true }: StockTableProps) {
   const router = useRouter();
   const [stockItems, setStockItems] = useState(items);
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "stock_asc" | "stock_desc" | "price_asc" | "price_desc">("name");
+  const sortLabel = SORT_OPTIONS.find((o) => o.key === sortBy)?.label ?? "Ordenar";
+  const [sortOpen, setSortOpen] = useState(false);
+  const [sortAlignLeft, setSortAlignLeft] = useState(false);
+  const sortRef = useRef<HTMLDivElement>(null);
   const [bulkAmountById, setBulkAmountById] = useState<Record<string, string>>({});
   const [queuedById, setQueuedById] = useState<Record<string, number>>({});
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
@@ -66,6 +59,16 @@ const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = fa
   useEffect(() => {
     setStockItems(items);
   }, [items]);
+
+  useEffect(() => {
+    if (!sortOpen) return;
+    function onDocMouseDown(e: MouseEvent) {
+      if (sortRef.current?.contains(e.target as Node)) return;
+      setSortOpen(false);
+    }
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, [sortOpen]);
 
   const realtimeCooldown = useRef(false);
 
@@ -240,41 +243,63 @@ const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = fa
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+      <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+        <div className="group/sz keep-motion flex items-center gap-1.5 flex-1 min-w-0">
+          <div className="relative flex items-center h-8 w-9 rounded-full border border-transparent bg-transparent overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover/sz:w-52 group-hover/sz:border-zinc-200 group-hover/sz:bg-white dark:group-hover/sz:border-zinc-700 dark:group-hover/sz:bg-zinc-900 focus-within:w-52 focus-within:border-zinc-200 focus-within:bg-white dark:focus-within:border-zinc-700 dark:focus-within:bg-zinc-900 pointer-coarse:w-44 pointer-coarse:border-zinc-200 pointer-coarse:bg-white dark:pointer-coarse:border-zinc-700 dark:pointer-coarse:bg-zinc-900">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover/sz:scale-110 group-hover/sz:text-violet-500 group-focus-within/sz:scale-110 group-focus-within/sz:text-violet-500" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar producto..."
+              placeholder="Buscar..."
               aria-label="Buscar producto"
-              className="w-full pl-9 pr-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all"
+              className="w-full pl-9 pr-3 py-1.5 text-xs bg-transparent text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none"
             />
           </div>
-          <div className="relative shrink-0">
-            <ArrowUpDown className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-              aria-label="Ordenar por"
-              className="appearance-none pl-8 pr-7 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-sm text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-violet-500/40 focus:border-violet-500 transition-all cursor-pointer"
+            <div className="relative shrink-0 keep-motion" ref={sortRef}>
+            <button
+              type="button"
+              onClick={() => {
+                const r = sortRef.current?.getBoundingClientRect();
+                if (r) setSortAlignLeft(window.innerWidth - r.left >= 184);
+                setSortOpen((o) => !o);
+              }}
+              aria-label={sortLabel}
+              title={sortLabel}
+              aria-expanded={sortOpen}
+              className={`inline-flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-transparent bg-transparent text-xs font-medium transition-colors cursor-pointer select-none ${
+                sortBy !== "name"
+                  ? "text-violet-600 dark:text-violet-400"
+                  : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              } ${sortOpen ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300" : ""}`}
             >
-              <option value="name">Nombre</option>
-              <option value="stock_asc">Stock ▲</option>
-              <option value="stock_desc">Stock ▼</option>
-              <option value="price_asc">Precio ▲</option>
-              <option value="price_desc">Precio ▼</option>
-            </select>
+              <ArrowUpDown className="w-3.5 h-3.5" />
+              {sortBy !== "name" && <span>{sortLabel}</span>}
+            </button>
+            {sortOpen && (
+              <div className={`absolute top-full mt-1 z-20 w-40 max-w-[calc(100vw-1.5rem)] rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg overflow-hidden py-1 ${sortAlignLeft ? "left-0" : "right-0"}`}>
+                {SORT_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() => {
+                      setSortBy(opt.key);
+                      setSortOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between gap-2 text-left px-3 py-1.5 text-xs transition-colors cursor-pointer select-none ${
+                      sortBy === opt.key
+                        ? "text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/30 font-medium"
+                        : "text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700/60"
+                    }`}
+                  >
+                    {opt.label}
+                    {sortBy === opt.key && <Check className="w-3.5 h-3.5 shrink-0" />}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
-
-        {storeEnabled && tab && onTabChange && (
-          <div className="flex justify-center shrink-0">
-            <InventoryTabs tab={tab} onChange={onTabChange} pendingOrdersCount={pendingOrdersCount} lowStockAlert={lowStockCount > 0} />
-          </div>
-        )}
 
         <div className="flex items-center gap-2 flex-wrap flex-1 justify-start sm:justify-end">
           {lowStockCount > 0 && (
@@ -299,150 +324,119 @@ const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = fa
           />
         </div>
       ) : (
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filtered.map((item) => {
             const isLow = item.quantity < 5;
             const total = item.quantity * (item.unit_cost ?? 0);
-            const gradient = productColor(item.id);
+            const canSell = storeEnabled && isOwnerOrAdmin;
 
             return (
-              <div key={item.id} className={`group bg-white dark:bg-zinc-900 rounded-2xl border shadow-sm hover:shadow-md transition-all duration-200 ${isLow ? "border-red-300 dark:border-red-700 bg-red-50/40 dark:bg-red-950/20 hover:border-red-400 dark:hover:border-red-600" : "border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700"}`}>
-                <div className="p-4 sm:p-5">
-                  <div className="flex items-start gap-4">
-                    <div className={`flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br ${gradient} text-white shadow-lg shrink-0`}>
-                      <Package className="w-6 h-6" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <h3 className="text-base font-semibold text-gray-900 dark:text-white truncate">{item.nombre_producto}</h3>
-                        </div>
-                        <div className="flex items-center gap-1.5 flex-wrap justify-end shrink-0">
-                          {storeEnabled && item.for_sale && (
-                            <span
-                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                                item.visible
-                                  ? "bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-700/50"
-                                  : "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-700/50"
-                              }`}
-                            >
-                              <ShoppingBag className="w-3 h-3" />
-                              {item.visible ? "En tienda" : "Oculta"}
-                            </span>
-                          )}
-                          {isLow && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-700">
-                              <AlertTriangle className="w-3 h-3" />
-                              Bajo
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="mt-3 flex items-end gap-4">
-                        <div className="flex items-baseline gap-0.5">
-                          <span className={`font-black leading-none ${isLow ? "text-3xl text-red-600 dark:text-red-400" : "text-2xl text-gray-900 dark:text-white"}`}>
-                            {item.quantity}
-                          </span>
-                          <span className="text-xs text-zinc-400 ml-0.5">u</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-sm text-zinc-500 dark:text-zinc-400">
-                          <DollarSign className="w-3.5 h-3.5" />
-                          <span className="font-semibold text-zinc-700 dark:text-zinc-300">${(item.unit_cost ?? 0).toFixed(2)}</span>
-                        </div>
-                      </div>
-
-                      <div className="mt-1.5 flex items-center gap-1.5 text-xs text-zinc-400">
-                        Total en stock: <span className="font-semibold text-zinc-700 dark:text-zinc-300">${total.toFixed(2)}</span>
-                      </div>
-                      {storeEnabled && item.for_sale && (
-                        <div className="mt-1 flex items-center gap-1.5 text-xs">
-                          <span className="text-zinc-400">Venta:</span>
-                          <span className="font-bold text-emerald-600 dark:text-emerald-400">${Number(item.price || 0).toFixed(2)}</span>
-                          {item.category && <span className="text-zinc-400">· {item.category}</span>}
-                        </div>
-                      )}
-                    </div>
+              <div key={item.id} className={`group relative overflow-hidden bg-white dark:bg-zinc-900 rounded-2xl border shadow-sm hover:shadow-md transition-all duration-200 ${isLow ? "border-red-300 dark:border-red-700 bg-red-50/40 dark:bg-red-950/20 hover:border-red-400 dark:hover:border-red-600" : "border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700"}`}>
+                <div className="p-4 pb-3 origin-bottom transition-transform duration-300 ease-in-out group-hover:scale-[0.97] group-focus-within:scale-[0.97]">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white truncate leading-tight">{item.nombre_producto}</h3>
+                    {isLow && (
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-red-600 text-white shadow-sm shadow-red-600/30 shrink-0">
+                        Stock bajo
+                      </span>
+                    )}
                   </div>
 
-                  {storeEnabled && isOwnerOrAdmin && (
-                    <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleSale(item)}
-                        disabled={pending}
-                        title={item.for_sale ? "Desactivar modo venta" : "Activar modo venta"}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer select-none ${
-                          item.for_sale
-                            ? "text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60"
-                            : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-200"
-                        } disabled:opacity-40 disabled:cursor-not-allowed`}
-                      >
-                        <ShoppingBag className="w-3.5 h-3.5" />
-                        Modo venta
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConfigTarget(item)}
-                        disabled={pending}
-                        title="Configurar venta online"
-                        aria-label="Configurar venta online"
-                        className={`inline-flex items-center justify-center w-9 h-9 rounded-lg transition-colors cursor-pointer select-none ${
-                          item.for_sale
-                            ? "text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/30 hover:bg-violet-100 dark:hover:bg-violet-900/50"
-                            : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-200"
-                        } disabled:opacity-40 disabled:cursor-not-allowed`}
-                      >
-                        <Settings2 className="w-4 h-4" />
-                      </button>
+                  <div className="mt-3 flex items-start gap-6">
+                    <div>
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-400 dark:text-zinc-500">Stock</p>
+                      <p className={`mt-1 text-lg font-bold leading-none tabular-nums ${isLow ? "text-red-600 dark:text-red-400" : "text-gray-900 dark:text-white"}`}>
+                        {item.quantity}
+                        <span className="text-xs font-medium text-zinc-400 ml-0.5">u</span>
+                      </p>
                     </div>
-                  )}
+                    <div>
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-400 dark:text-zinc-500">Dinero en stock</p>
+                      <p className="mt-1 text-sm font-semibold leading-none tabular-nums text-zinc-700 dark:text-zinc-300 pt-1">${total.toFixed(2)}</p>
+                    </div>
+                    {storeEnabled && item.for_sale && (
+                      <div>
+                        <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-400 dark:text-zinc-500">Precio de venta</p>
+                        <p className="mt-1 text-sm font-bold leading-none tabular-nums text-emerald-600 dark:text-emerald-400 pt-1">${Number(item.price || 0).toFixed(2)}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
 
-                  <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min="1"
-                        value={bulkAmountById[item.id] ?? ""}
-                        placeholder="1"
-                        onChange={(e) => setBulkAmountById((prev) => ({ ...prev, [item.id]: e.target.value }))}
-                        className="w-14 px-2 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs text-center text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                        aria-label="Cantidad a ajustar"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleBulkAdjust(item.id, 1)}
-                        disabled={pending}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-700/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 hover:border-emerald-300 dark:hover:border-emerald-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer select-none active:scale-95"
-                        title="Agregar cantidad"
-                        aria-label={`Agregar cantidad de ${item.nombre_producto}`}
-                      >
-                        <Plus className="w-4 h-4" />
-                        Agregar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleBulkAdjust(item.id, -1)}
-                        disabled={pending || item.quantity <= 0}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 border border-rose-200/50 dark:border-rose-700/50 hover:bg-rose-100 dark:hover:bg-rose-900/50 hover:border-rose-300 dark:hover:border-rose-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer select-none active:scale-95"
-                        title="Quitar cantidad"
-                        aria-label={`Quitar cantidad de ${item.nombre_producto}`}
-                      >
-                        <Minus className="w-4 h-4" />
-                        Quitar
-                      </button>
-                      <div className="flex-1" />
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(item.id)}
-                        disabled={pending}
-                        className="inline-flex items-center justify-center w-9 h-9 rounded-xl text-zinc-400 dark:text-zinc-500 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer select-none active:scale-95"
-                        title="Eliminar producto"
-                        aria-label={`Eliminar ${item.nombre_producto}`}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+                {canSell && <div className="h-9 pointer-coarse:hidden" aria-hidden="true" />}
+
+                {canSell && (
+                  <div className="keep-motion absolute inset-x-0 bottom-0 z-10 h-9 px-4 flex items-center justify-between transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:-translate-y-9 group-focus-within:-translate-y-9 pointer-coarse:static pointer-coarse:h-auto pointer-coarse:pb-3 pointer-coarse:translate-y-0">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleSale(item)}
+                      disabled={pending}
+                      title={item.for_sale ? "Quitar de la tienda online" : "Publicar en la tienda online"}
+                      className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer select-none ${
+                        item.for_sale
+                          ? "text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm shadow-emerald-600/30"
+                          : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                      } disabled:opacity-40 disabled:cursor-not-allowed`}
+                    >
+                      En tienda
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfigTarget(item)}
+                      disabled={pending}
+                      title="Configurar venta online"
+                      aria-label="Configurar venta online"
+                      className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-zinc-400 dark:text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-600 dark:hover:text-zinc-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
+                    >
+                      <Settings2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+
+                <div className="keep-motion h-9 overflow-hidden rounded-b-2xl border-t border-transparent bg-transparent transition-colors duration-300 ease-in-out group-hover:border-zinc-100 group-hover:bg-zinc-50 dark:group-hover:border-zinc-800 dark:group-hover:bg-zinc-800/60 pointer-coarse:border-zinc-100 pointer-coarse:bg-zinc-50 dark:pointer-coarse:border-zinc-800 dark:pointer-coarse:bg-zinc-800/60">
+                  <div className="keep-motion h-full flex items-center gap-1.5 px-4 opacity-0 translate-y-5 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto pointer-coarse:opacity-100 pointer-coarse:translate-y-0 pointer-coarse:pointer-events-auto">
+                    <input
+                      type="number"
+                      min="1"
+                      value={bulkAmountById[item.id] ?? ""}
+                      placeholder="1"
+                      onChange={(e) => setBulkAmountById((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                      className="w-12 px-1.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs text-center text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none pointer-coarse:hidden"
+                      aria-label="Cantidad a ajustar"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleBulkAdjust(item.id, 1)}
+                      disabled={pending}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-700/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer select-none active:scale-95 text-xs font-medium"
+                      title="Agregar cantidad"
+                      aria-label={`Agregar cantidad de ${item.nombre_producto}`}
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span className="pointer-coarse:hidden">Agregar</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleBulkAdjust(item.id, -1)}
+                      disabled={pending || item.quantity <= 0}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 border border-rose-200/50 dark:border-rose-700/50 hover:bg-rose-100 dark:hover:bg-rose-900/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer select-none active:scale-95 text-xs font-medium"
+                      title="Quitar cantidad"
+                      aria-label={`Quitar cantidad de ${item.nombre_producto}`}
+                    >
+                      <Minus className="w-3.5 h-3.5" />
+                      <span className="pointer-coarse:hidden">Quitar</span>
+                    </button>
+                    <div className="flex-1" />
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(item.id)}
+                      disabled={pending}
+                      className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-zinc-400 dark:text-zinc-500 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer select-none active:scale-95"
+                      title="Eliminar producto"
+                      aria-label={`Eliminar ${item.nombre_producto}`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               </div>

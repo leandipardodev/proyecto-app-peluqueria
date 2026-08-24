@@ -48,7 +48,7 @@ export default async function DashboardShopInventoryPage({
       initialItems={result.success ? result.data ?? [] : []}
       initialOrders={ordersResult.success ? ordersResult.data ?? [] : []}
       storeEnabled={features.store}
-      storeUrl={`/book/${shopSlug}`}
+      storeUrl={`/book/${shopSlug}?step=tienda`}
       initialError={initialError}
       initialTab={resolvedSearchParams?.tab === "orders" ? "orders" : "products"}
     />

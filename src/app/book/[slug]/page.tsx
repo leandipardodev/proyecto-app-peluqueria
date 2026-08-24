@@ -13,7 +13,7 @@ async function createAdminClient() {
 
 interface BookPageProps {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ status?: string; order?: string }>;
+  searchParams: Promise<{ status?: string; order?: string; step?: string }>;
 }
 
 export const dynamic = "force-dynamic";
@@ -195,6 +195,7 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
         storeError={productsError}
         status={sp.status ?? null}
         orderId={sp.order ?? null}
+        initialStep={!sp.status && !sp.order && sp.step === "tienda" ? "tienda" : null}
       />
     </>
   );

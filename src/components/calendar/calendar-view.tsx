@@ -155,7 +155,7 @@ function HourDroppable({ hour, dayStr, isOpenSlot, onSlotClick, mobileLabel, sho
   activeSnap: { dayStr: string; hour: number; frac: number } | null;
 }) {
   const droppableId = `slot-${dayStr}-${hour}`;
-  const { setNodeRef, isOver } = useDroppable({
+  const { setNodeRef } = useDroppable({
     id: droppableId,
     data: { dayStr, hour },
   });
@@ -167,7 +167,7 @@ function HourDroppable({ hour, dayStr, isOpenSlot, onSlotClick, mobileLabel, sho
         isOpenSlot
           ? "hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer"
           : "bg-zinc-100/70 dark:bg-zinc-800/50 closed-slot-pattern"
-      } ${isOver ? "bg-sky-200/60 dark:bg-sky-700/40 ring-2 ring-sky-400/50 ring-inset z-20" : ""}`}
+      }`}
       onClick={isOpenSlot ? () => onSlotClick(new Date(`${dayStr}T12:00:00`), hour) : undefined}
     >
       {[0, 0.25, 0.5, 0.75].map((frac) => {
@@ -1367,13 +1367,11 @@ export default memo(function CalendarView({
             aria-label="Autocompletar turnos automáticamente"
             title="Al activar, los turnos vencidos se confirman y completan automáticamente"
             onClick={onToggleAutoComplete}
-            className="inline-flex items-center gap-2 rounded-full border border-zinc-200/80 dark:border-zinc-700/80 bg-white/60 dark:bg-zinc-800/60 px-3 py-1.5 text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:bg-white dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors cursor-pointer select-none backdrop-blur-sm"
+            className="inline-flex items-center gap-2 self-start rounded-full border border-zinc-200/80 dark:border-zinc-700/80 bg-white/60 dark:bg-zinc-800/60 px-3 py-1.5 text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:bg-white dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors cursor-pointer select-none backdrop-blur-sm"
           >
             <span
               className={`w-2 h-2 rounded-full transition-all ${
-                autoCompleteEnabled
-                  ? "bg-emerald-500 shadow-[0_0_6px_2px_rgba(16,185,129,0.7)]"
-                  : "bg-zinc-300 dark:bg-zinc-600"
+                autoCompleteEnabled ? "auto-dot-on" : "bg-zinc-300 dark:bg-zinc-600"
               }`}
             />
             Autocompletar turnos

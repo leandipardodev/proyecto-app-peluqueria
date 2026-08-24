@@ -104,6 +104,7 @@ interface BookingClientProps {
   storeError?: string | null;
   status?: string | null;
   orderId?: string | null;
+  initialStep?: string | null;
 }
 
 function pushCard3D(e: React.PointerEvent<HTMLDivElement | HTMLButtonElement>) {
@@ -893,10 +894,11 @@ function StoreTab({ products, storeError, storeCart, status, orderId, updateProd
   );
 }
 
-const BookingClient = memo(function BookingClient({ shop, services, servicesError, combos, combosError, staffMembers, staffServicesMap, storeEnabled = false, storeProducts = [], storeError = null, status = null, orderId = null }: BookingClientProps) {
+const BookingClient = memo(function BookingClient({ shop, services, servicesError, combos, combosError, staffMembers, staffServicesMap, storeEnabled = false, storeProducts = [], storeError = null, status = null, orderId = null, initialStep = null }: BookingClientProps) {
   const { user, isLoading: isAuthLoading } = useAuth();
 
-  const [step, setStep] = useState(0);
+  const isStorePreview = initialStep === "tienda" && storeEnabled;
+  const [step, setStep] = useState(() => (isStorePreview ? 4 : 0));
   const [showSummary, setShowSummary] = useState(false);
   const [expandedContact, setExpandedContact] = useState<"address" | "whatsapp" | "instagram" | null>(null);
   const contactRowRef = useRef<HTMLDivElement>(null);
@@ -996,12 +998,12 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
       if (draft.customerEmail) setCustomerEmail(draft.customerEmail);
       if (draft.customerPhone) setCustomerPhone(draft.customerPhone);
       if (draft.selectedCategory) setSelectedCategory(draft.selectedCategory);
-      if (draft.step) setStep(draft.step);
+      if (draft.step && !isStorePreview) setStep(draft.step);
       sessionStorage.removeItem("klip_booking_draft");
     } catch {
       /* ignore corrupt data */
     }
-  }, [shop.slug]);
+  }, [shop.slug, isStorePreview]);
 
   const categoryRef = useCallback((el: HTMLDivElement | null) => {
     categoryScrollRef.current = el;
@@ -3349,16 +3351,10 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                 </AnimatePresence>
 
                 <motion.div layout className="flex-1 min-w-0" transition={{ type: "spring", stiffness: 400, damping: 28 }}>
-                  {step === storeStep && storeEnabled && (
+                  {step === storeStep && storeEnabled && storeItemsCount > 0 && (
                     <div className="min-w-0 text-right sm:text-left">
-                      {storeItemsCount > 0 ? (
-                        <>
-                          <p className={`text-[10px] uppercase tracking-wider font-semibold ${templateStyles.tiny}`}>{storeItemsCount} {storeItemsCount > 1 ? "productos" : "producto"}</p>
-                          <p className={`text-base font-bold tabular-nums ${templateStyles.checkoutAmount}`}>{formatARSAmount(productsTotal)}</p>
-                        </>
-                      ) : (
-                        <p className={`text-xs ${templateStyles.tiny}`}>Sumá productos o combiná con tu turno.</p>
-                      )}
+                      <p className={`text-[10px] uppercase tracking-wider font-semibold ${templateStyles.tiny}`}>{storeItemsCount} {storeItemsCount > 1 ? "productos" : "producto"}</p>
+                      <p className={`text-base font-bold tabular-nums ${templateStyles.checkoutAmount}`}>{formatARSAmount(productsTotal)}</p>
                     </div>
                   )}
                 </motion.div>
