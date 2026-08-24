@@ -2015,10 +2015,10 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
             "radial-gradient(circle at 50% 40%, rgba(255,255,255,0.10), transparent 52%), radial-gradient(circle at 28% 68%, rgba(255,255,255,0.08), transparent 48%)",
         }}
       />
-      <div className="relative z-10 flex h-full items-start justify-center p-3 sm:p-6 lg:p-8">
+      <div className="relative z-10 flex h-full items-start justify-center pt-[calc(env(safe-area-inset-top)+0.75rem)] pr-3 pb-3 pl-3 sm:pr-6 sm:pb-6 sm:pl-6 lg:p-8">
         <div className="w-full max-w-md md:max-w-xl">
         <motion.div
-          className={`rounded-[32px] p-4 sm:p-6 lg:p-8 h-[min(860px,calc(100dvh-2rem))] sm:h-[min(900px,calc(100dvh-3rem))] flex flex-col ${templateStyles.shell}`}
+          className={`rounded-[32px] p-4 sm:p-6 lg:p-8 h-[min(860px,calc(100dvh-env(safe-area-inset-top)-1.5rem))] sm:h-[min(900px,calc(100dvh-env(safe-area-inset-top)-3rem))] flex flex-col ${templateStyles.shell}`}
           style={(step === 3 || step === pagoStep) && !done ? { height: 'auto' } as React.CSSProperties : undefined}>
           {!done ? (
             <>
