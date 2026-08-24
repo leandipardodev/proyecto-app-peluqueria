@@ -84,13 +84,13 @@ export default function DashboardMobileSidebar({ open, onClose, userName }: Prop
             exit={{ opacity: 0, transition: { duration: 0.2, ease: [0.22, 1, 0.36, 1], delay: 0.04 } }}
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
           >
-            <div className="ml-4 flex flex-col items-start">
+            <div className="ml-4 flex flex-col items-start -translate-y-3">
               {/* Logo flotando fuera del panel */}
               <motion.button
                 type="button"
                 onClick={() => setPlayKey((k) => k + 1)}
                 whileTap={{ scale: 0.94 }}
-                className="-mb-2 relative z-10 ml-3 inline-flex cursor-pointer select-none"
+                className="relative z-10 ml-3 mb-3 inline-flex cursor-pointer select-none"
                 aria-label="Klip"
               >
                 {["K", "l", "i", "p"].map((ch, i) => (
@@ -99,9 +99,7 @@ export default function DashboardMobileSidebar({ open, onClose, userName }: Prop
                     initial={{ y: -22, opacity: 0, rotate: i % 2 ? 8 : -8, filter: "blur(4px)" }}
                     animate={{ y: 0, opacity: 1, rotate: 0, filter: "blur(0px)" }}
                     transition={{ delay: 0.08 + i * 0.055, type: "spring", stiffness: 420, damping: 17 }}
-                    className={`inline-block text-2xl font-bold tracking-tight drop-shadow-sm ${
-                      i === 0 ? "text-[#0071E3] dark:text-[#5da8ff]" : "text-gray-800 dark:text-white"
-                    }`}
+                    className="inline-block text-2xl font-bold tracking-tight text-[#0071E3]"
                   >
                     {ch}
                   </motion.span>
