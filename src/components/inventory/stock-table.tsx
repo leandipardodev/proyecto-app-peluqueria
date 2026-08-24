@@ -401,7 +401,7 @@ const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = fa
                       value={bulkAmountById[item.id] ?? ""}
                       placeholder="1"
                       onChange={(e) => setBulkAmountById((prev) => ({ ...prev, [item.id]: e.target.value }))}
-                      className="w-12 px-1.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs text-center text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none pointer-coarse:hidden"
+                      className="w-12 px-1.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs text-center text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                       aria-label="Cantidad a ajustar"
                     />
                     <button
