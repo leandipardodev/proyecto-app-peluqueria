@@ -76,17 +76,22 @@ export default function DashboardMobileSidebar({ open, onClose, userName }: Prop
       <AnimatePresence>
         {open && (
           <motion.div
+            key="mobile-drawer"
             className="fixed inset-0 z-[70] min-[1367px]:hidden flex items-center pointer-events-none"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            exit={{ opacity: 0, transition: { duration: 0.2, ease: [0.22, 1, 0.36, 1], delay: 0.04 } }}
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
           >
             <motion.div
               className="relative ml-4 w-[17rem] max-h-[85dvh] rounded-3xl overflow-hidden bg-gradient-to-b from-white via-white to-zinc-50/90 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-950 border border-white/40 dark:border-white/10 shadow-2xl shadow-black/25 dark:shadow-black/60 flex flex-col pointer-events-auto"
               initial={{ x: -320, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -320, opacity: 0, transition: { duration: 0.18, ease: [0.32, 0, 0.67, 0] } }}
+              exit={{
+                x: -340,
+                opacity: 0,
+                transition: { duration: 0.26, ease: [0.4, 0, 1, 1] },
+              }}
               transition={{ type: "spring", damping: 20, stiffness: 250, mass: 0.8 }}
             >
             <div className="flex items-center px-4 py-3 border-b border-white/20 dark:border-white/10 bg-white/30 dark:bg-black/30 backdrop-blur-3xl shrink-0">
