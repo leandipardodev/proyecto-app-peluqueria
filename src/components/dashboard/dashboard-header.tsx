@@ -112,13 +112,12 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
   const searchRef = useRef<HTMLDivElement>(null);
 
   // Auto-oculte del header al scrollear (premium morph del hamburger)
-  // Patrón overlay: se anima el padding-top de <main> junto con el slide,
-  // la ALTURA del scroller nunca cambia => cero shifts de scroll y cero loops
-  // con el rubber-band de iOS.
+  // El header reclama su espacio con marginTop negativo y la decisión se toma
+  // SOLO cuando el scroll se detiene (130ms sin eventos) => nunca interfiere
+  // con el momentum ni genera loops con el rubber-band de iOS.
   const [headerHidden, setHeaderHidden] = useState(false);
   const headerElRef = useRef<HTMLElement | null>(null);
-  const mainElRef = useRef<HTMLElement | null>(null);
-  const mainBasePadRef = useRef<string | null>(null);
+  const [headerH, setHeaderH] = useState(0);
   const headerHiddenRef = useRef(false);
   const lockUntilRef = useRef(0);
   const menuOpenRef = useRef(false);
@@ -126,64 +125,67 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
   useLayoutEffect(() => {
     const el = headerElRef.current;
     if (!el) return;
-    const apply = () => {
-      if (!mainElRef.current) mainElRef.current = document.querySelector("main");
-      const main = mainElRef.current;
-      if (!main) return;
-      if (!headerHidden) mainBasePadRef.current = getComputedStyle(main).paddingTop;
-      if (mainBasePadRef.current === null) return;
-      main.style.transition = "padding-top 420ms cubic-bezier(0.22, 1, 0.36, 1)";
-      main.style.paddingTop = headerHidden ? "0px" : mainBasePadRef.current;
-    };
-    apply();
-    window.addEventListener("resize", apply);
-    return () => window.removeEventListener("resize", apply);
-  }, [headerHidden]);
+    const measure = () => setHeaderH(el.offsetHeight);
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
 
   useEffect(() => { headerHiddenRef.current = headerHidden; }, [headerHidden]);
   useEffect(() => { menuOpenRef.current = menuOpen; }, [menuOpen]);
   useEffect(() => {
     if (menuOpen) setHeaderHidden(false);
   }, [menuOpen]);
+
   useEffect(() => {
-    const scroller: HTMLElement | null = mainElRef.current ?? document.querySelector("main");
+    const scroller: HTMLElement | null = document.querySelector("main");
     if (!scroller) return;
-    let lastY = scroller.scrollTop;
-    let ticking = false;
-    const onScroll = () => {
-      if (ticking || menuOpenRef.current) return;
-      ticking = true;
-      requestAnimationFrame(() => {
-        ticking = false;
-        const y = scroller.scrollTop;
-        const max = scroller.scrollHeight - scroller.clientHeight;
-        const now = Date.now();
+    let anchorY = scroller.scrollTop;
+    let scrolling = false;
+    let idleTimer: ReturnType<typeof setTimeout> | null = null;
 
-        // Tope superior o contenido sin scroll: siempre visible
-        if (max <= 0 || y <= 0) {
-          lastY = y;
-          if (y <= 0 && headerHiddenRef.current) setHeaderHidden(false);
-          return;
-        }
-        // Fondo alcanzado o rubber-band inferior de iOS: ignorar
-        if (y >= max - 2 || now < lockUntilRef.current) {
-          lastY = y;
-          return;
-        }
+    const decide = () => {
+      const y = scroller.scrollTop;
+      const max = scroller.scrollHeight - scroller.clientHeight;
+      const now = Date.now();
 
-        const dy = y - lastY;
-        lastY = y;
-        if (dy > 8 && !headerHiddenRef.current) {
-          setHeaderHidden(true);
-          lockUntilRef.current = now + 250;
-        } else if (dy < -8 && headerHiddenRef.current) {
-          setHeaderHidden(false);
-          lockUntilRef.current = now + 250;
-        }
-      });
+      // Arriba de todo o contenido sin scroll: siempre visible
+      if (max <= 4 || y <= 24) {
+        if (headerHiddenRef.current) setHeaderHidden(false);
+        return;
+      }
+      // Fondo alcanzado / rubber-band inferior / en cooldown: no decidir
+      if (y >= max - 2 || now < lockUntilRef.current) return;
+
+      const total = y - anchorY;
+      if (total > 40 && !headerHiddenRef.current) {
+        setHeaderHidden(true);
+        lockUntilRef.current = now + 300;
+      } else if (total < -20 && headerHiddenRef.current) {
+        setHeaderHidden(false);
+        lockUntilRef.current = now + 300;
+      }
     };
+
+    const onScroll = () => {
+      if (menuOpenRef.current) return;
+      if (!scrolling) {
+        scrolling = true;
+        anchorY = scroller.scrollTop;
+      }
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        scrolling = false;
+        decide();
+        anchorY = scroller.scrollTop;
+      }, 130);
+    };
+
     scroller.addEventListener("scroll", onScroll, { passive: true });
-    return () => scroller.removeEventListener("scroll", onScroll);
+    return () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      scroller.removeEventListener("scroll", onScroll);
+    };
   }, []);
 
   const rotatingWords = useMemo(() => [
@@ -595,7 +597,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
       <motion.header
         ref={headerElRef}
         initial={false}
-        animate={{ y: headerHidden ? "-115%" : "0%" }}
+        animate={{ y: headerHidden ? "-115%" : "0%", marginTop: headerHidden ? -headerH : 0 }}
         transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
         className="dashboard-mobile-header sticky top-0 z-50 shrink-0 flex items-center gap-4 bg-white/30 dark:bg-black/30 backdrop-blur-xl shadow-sm border-b border-white/10 dark:border-white/5 px-4 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.5rem)] touch-pan-x [overscroll-behavior-y:none] lg:px-6 lg:pt-2.5"
       >
