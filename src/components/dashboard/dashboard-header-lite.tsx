@@ -1,6 +1,6 @@
 export default function DashboardHeaderLite() {
   return (
-    <header className="dashboard-mobile-header sticky top-0 z-50 shrink-0 flex items-center gap-4 bg-white/30 dark:bg-black/30 backdrop-blur-xl shadow-sm border-b border-white/10 dark:border-white/5 px-4 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.5rem)] lg:px-6 lg:pt-2.5">
+    <header className="dashboard-mobile-header absolute inset-x-0 top-0 z-50 flex items-center gap-4 bg-white/30 dark:bg-black/30 backdrop-blur-xl shadow-sm border-b border-white/10 dark:border-white/5 px-4 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.5rem)] lg:px-6 lg:pt-2.5">
       <div className="min-[1367px]:hidden w-9 shrink-0" />
       <div className="flex items-center gap-2 shrink-0">
         <div className="h-7 w-32 sm:w-40 rounded-xl bg-white/40 dark:bg-white/10 animate-pulse" />

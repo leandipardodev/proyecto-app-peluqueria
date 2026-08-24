@@ -131,9 +131,8 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
     const h = headerHRef.current;
     if (!el || h <= 0) return;
     const p = o / h;
-
+    el.style.setProperty("--hp", p.toFixed(3));
     el.style.transform = `translateY(${-o}px)`;
-    el.style.marginBottom = `${-o}px`;
 
     const fb = floatBtnRef.current;
     if (fb) {
@@ -643,7 +642,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
     <>
       <header
         ref={headerElRef}
-        className="dashboard-mobile-header sticky top-0 z-50 shrink-0 flex items-center gap-4 bg-white/30 dark:bg-black/30 backdrop-blur-xl shadow-sm border-b border-white/10 dark:border-white/5 px-4 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.5rem)] touch-pan-x [overscroll-behavior-y:none] lg:px-6 lg:pt-2.5"
+        className="dashboard-mobile-header absolute inset-x-0 top-0 z-50 flex items-center gap-4 backdrop-blur-xl shadow-sm border-b border-white/10 dark:border-white/5 px-4 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.5rem)] touch-pan-x [overscroll-behavior-y:none] lg:px-6 lg:pt-2.5"
       >
         <button
           ref={inHeaderMenuRef}
@@ -659,7 +658,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
           <Menu className="w-5 h-5" strokeWidth={1.5} />
         </button>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0" style={{ transform: "translateY(calc(var(--hp, 0) * 9px))", opacity: "calc(1 - var(--hp, 0) * 0.85)" }}>
           <div className="relative group" ref={shopMenuRef}>
             <button
               type="button"
@@ -719,7 +718,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
           </div>
         </div>
 
-        <div className="hidden sm:flex flex-1 justify-center">
+        <div className="hidden sm:flex flex-1 justify-center" style={{ transform: "translateY(calc(var(--hp, 0) * -8px))", opacity: "calc(1 - var(--hp, 0) * 1.15)" }}>
           <motion.div
             ref={searchRef}
             animate={{ width: searchOpen ? SEARCH_EXPANDED_WIDTH : SEARCH_COLLAPSED_WIDTH }}
@@ -977,7 +976,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
           </motion.div>
         </div>
 
-        <div className="flex items-center gap-2 ml-auto">
+        <div className="flex items-center gap-2 ml-auto" style={{ transform: "translateY(calc(var(--hp, 0) * -16px))", opacity: "calc(1 - var(--hp, 0) * 1.35)" }}>
           <div className="relative">
               <motion.button
               type="button"

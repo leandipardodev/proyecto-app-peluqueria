@@ -523,6 +523,14 @@ html.perf-mode .carousel-image-zoom {
   }
 }
 
+/* Header del dashboard: fondo se vuelve transparente con --hp (progreso de oculte) */
+.dashboard-mobile-header {
+  background-color: rgb(255 255 255 / calc(0.30 * (1 - var(--hp, 0))));
+}
+.dark .dashboard-mobile-header {
+  background-color: rgb(24 24 27 / calc(0.30 * (1 - var(--hp, 0))));
+}
+
 .force-spin,
 .force-spin * {
   animation: spin 1s linear infinite !important;
