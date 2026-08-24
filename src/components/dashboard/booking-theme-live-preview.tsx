@@ -15,6 +15,8 @@ import {
   TouchSensor,
   useSensor,
   useSensors,
+  useDndContext,
+  useDroppable,
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
@@ -28,6 +30,23 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import InlineEdit from "@/components/ui/inline-edit";
+
+const DRAG_CURSOR_BODY_CLASS = "calendar-grabbing";
+
+function setDragCursorActive(active: boolean) {
+  if (typeof document === "undefined") return;
+  document.body.classList.toggle(DRAG_CURSOR_BODY_CLASS, active);
+}
+
+function normalizeCategory(category?: string) {
+  return (category || "General").trim() || "General";
+}
+
+function canAutoScrollDuringDrag(element: Element) {
+  return element.getAttribute("data-dnd-autoscroll") === "true";
+}
+
+const AUTO_SCROLL_OPTIONS = { canScroll: canAutoScrollDuringDrag } as const;
 
 type PreviewService = {
   id: string;
@@ -135,10 +154,13 @@ function SortableSectionChip({
   s: PreviewTheme;
   disabled: boolean;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({
     id: name,
     disabled,
+    data: { type: "section" },
   });
+  const dnd = useDndContext();
+  const serviceHovering = isOver && !disabled && dnd.active?.data.current?.type === "service";
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -152,9 +174,11 @@ function SortableSectionChip({
         type="button"
         onClick={onSelect}
         onDoubleClick={onDoubleClick}
-        className={`relative min-h-10 rounded-full px-4 text-xs sm:text-sm whitespace-nowrap text-center cursor-grab active:cursor-grabbing ${
+        className={`relative min-h-10 rounded-full px-4 text-xs sm:text-sm whitespace-nowrap text-center cursor-hand-open ${
           isActive ? "font-semibold" : s.sectionTag
-        } ${s.sectionFocus} active:scale-[0.97] transition-all duration-150 hover:ring-2 hover:ring-inset hover:ring-[#0071E3]/20`}
+        } ${s.sectionFocus} active:scale-[0.97] transition-all duration-150 hover:ring-2 hover:ring-inset hover:ring-[#0071E3]/20 ${
+          serviceHovering ? "ring-2 ring-inset ring-blue-400/70 scale-[1.05] opacity-80" : ""
+        }`}
       >
         {isActive && (
           <span className={`absolute inset-0 rounded-full ${s.sectionTagActive}`} />
@@ -177,7 +201,10 @@ const SortableServiceCard = memo(function SortableServiceCard({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({
     id: service.id,
     disabled,
+    data: { type: "service" },
   });
+  const dnd = useDndContext();
+  const showDropIndicator = isOver && !isDragging && dnd.active?.data.current?.type !== "section";
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -189,7 +216,7 @@ const SortableServiceCard = memo(function SortableServiceCard({
   return (
     <div className="relative">
       {/* Drop indicator line above the card */}
-      {isOver && !isDragging && (
+      {showDropIndicator && (
         <div className="absolute -top-[1px] left-4 right-4 z-20 flex items-center gap-1 pointer-events-none">
           <div className="h-[3px] flex-1 rounded-full bg-blue-500/80" />
           <svg className="w-2 h-2 text-blue-500/80" viewBox="0 0 10 10" fill="currentColor">
@@ -202,7 +229,7 @@ const SortableServiceCard = memo(function SortableServiceCard({
         style={style}
         {...attributes}
         {...listeners}
-        className={`rounded-3xl border-2 transition-shadow duration-200 select-none group ${isDragging ? "touch-none" : "touch-pan-y"} ${s.cardDepth} ${s.plate} ${s.hoverBorder} ${isOver && !isDragging ? "border-blue-400/60 ring-2 ring-blue-400/30 opacity-60" : ""} ${!disabled ? "cursor-grab active:cursor-grabbing" : ""}`}
+        className={`rounded-3xl border-2 transition-shadow duration-200 select-none group ${isDragging ? "touch-none" : "touch-pan-y"} ${s.cardDepth} ${s.plate} ${s.hoverBorder} ${showDropIndicator ? "border-blue-400/60 ring-2 ring-blue-400/30 opacity-60" : ""} ${!disabled ? "cursor-hand-open" : ""}`}
       >
         {!disabled && (
           <span className="absolute left-1.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-40 transition-all duration-200 flex flex-col gap-0.5">
@@ -236,7 +263,7 @@ const SortableServiceCard = memo(function SortableServiceCard({
 
 function ServiceCardOverlay({ service, s }: { service: PreviewService; s: PreviewTheme }) {
   return (
-    <div className={`rounded-3xl border-2 shadow-2xl ${s.cardDepth} ${s.plate} opacity-90`}>
+    <div className={`pointer-events-none select-none rounded-3xl border-2 shadow-2xl ${s.cardDepth} ${s.plate} opacity-90`}>
       <div className="overflow-hidden rounded-3xl">
         <div className="px-4 py-3 text-left">
           <div className="flex items-start justify-between gap-3">
@@ -253,6 +280,43 @@ function ServiceCardOverlay({ service, s }: { service: PreviewService; s: Previe
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function SectionGroup({
+  section,
+  serviceCount,
+  draggingService,
+  s,
+  children,
+}: {
+  section: string;
+  serviceCount: number;
+  draggingService: boolean;
+  s: PreviewTheme;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `zone:${section}`,
+    data: { type: "section-zone", section },
+  });
+  const highlight = isOver && draggingService;
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`rounded-2xl border p-2 transition-all duration-150 ${
+        highlight ? "border-blue-400/70 bg-blue-500/10 ring-2 ring-blue-400/30" : "border-black/10 dark:border-white/15"
+      }`}
+    >
+      <div className="flex items-center justify-between px-1 pb-1.5">
+        <span className={`text-[11px] font-semibold uppercase tracking-wide ${s.heading}`}>{section}</span>
+        {serviceCount > 0 && (
+          <span className={`text-[10px] tabular-nums ${s.tiny}`}>{serviceCount}</span>
+        )}
+      </div>
+      {children}
     </div>
   );
 }
@@ -349,6 +413,29 @@ export default function BookingThemeLivePreview({
     return (servicesByCategory.get(activeCategory) || []).map((s) => s.id);
   }, [activeCategory, allServiceIds, servicesByCategory]);
 
+  const groupedSections = useMemo(() => {
+    const sections: string[] = [];
+    for (const section of sectionCatalog) {
+      if (!sections.includes(section)) sections.push(section);
+    }
+    for (const service of sourceServices) {
+      const category = normalizeCategory(service.category);
+      if (!sections.includes(category)) sections.push(category);
+    }
+    return sections;
+  }, [sectionCatalog, sourceServices]);
+
+  const serviceIdsBySection = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const section of groupedSections) map.set(section, []);
+    for (const service of sourceServices) {
+      const category = normalizeCategory(service.category);
+      if (!map.has(category)) map.set(category, []);
+      map.get(category)!.push(service.id);
+    }
+    return map;
+  }, [groupedSections, sourceServices]);
+
   const labels = INDUSTRY_CONFIG[industry].labels;
   const serviceWordLower = labels.serviceSingular.toLowerCase();
 
@@ -367,12 +454,24 @@ export default function BookingThemeLivePreview({
   );
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
+    setDragCursorActive(true);
+    if (event.active.data.current?.type !== "service") return;
     const service = serviceMap.get(event.active.id as string);
     if (service) setActiveDragService(service);
   }, [serviceMap]);
 
+  const handleDragCancel = useCallback(() => {
+    setActiveDragService(null);
+    setDragCursorActive(false);
+  }, []);
+
+  useEffect(() => {
+    return () => setDragCursorActive(false);
+  }, []);
+
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     setActiveDragService(null);
+    setDragCursorActive(false);
     const { active, over } = event;
     if (!over || disabled) return;
 
@@ -381,20 +480,44 @@ export default function BookingThemeLivePreview({
 
     if (activeId === overId) return;
 
+    if (active.data.current?.type === "section") {
+      const oldIndex = sectionCatalog.indexOf(activeId);
+      const newIndex = sectionCatalog.indexOf(overId);
+      if (oldIndex === -1 || newIndex === -1 || !onSectionReorder) return;
+      const reordered = [...sectionCatalog];
+      reordered.splice(oldIndex, 1);
+      reordered.splice(newIndex, 0, activeId);
+      onSectionReorder(reordered);
+      return;
+    }
+
     const activeService = serviceMap.get(activeId);
     if (!activeService) return;
 
+    if (over.data.current?.type === "section-zone") {
+      const zoneSection = over.data.current.section as string;
+      if (zoneSection) onServiceMove(activeId, zoneSection);
+      return;
+    }
+
     const isOverService = serviceMap.has(overId);
 
-    if (activeCategory === "Todos" && isOverService && onServiceReorder) {
+    if (activeCategory === "Todos" && isOverService) {
+      const overService = serviceMap.get(overId)!;
+      const overSection = (overService.category || "General").trim() || "General";
+      const activeSection = (activeService.category || "General").trim() || "General";
+      let beforeId: string | undefined;
       const activeIndex = currentServiceIds.indexOf(activeId);
       const overIndex = currentServiceIds.indexOf(overId);
       if (activeIndex >= 0 && overIndex >= 0 && activeIndex < overIndex) {
-        const nextIndex = overIndex + 1;
-        const beforeId = nextIndex < currentServiceIds.length ? currentServiceIds[nextIndex] : undefined;
-        onServiceReorder(activeId, beforeId);
+        beforeId = overIndex + 1 < currentServiceIds.length ? currentServiceIds[overIndex + 1] : undefined;
       } else {
-        onServiceReorder(activeId, overId);
+        beforeId = overId;
+      }
+      if (overSection !== activeSection) {
+        onServiceMove(activeId, overSection, beforeId);
+      } else if (onServiceReorder) {
+        onServiceReorder(activeId, beforeId);
       }
       return;
     }
@@ -414,22 +537,7 @@ export default function BookingThemeLivePreview({
     } else if (sectionCatalog.includes(overId)) {
       onServiceMove(activeId, overId);
     }
-  }, [disabled, serviceMap, sectionCatalog, onServiceMove, onServiceReorder, currentServiceIds, activeCategory]);
-
-  function handleSectionDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    if (!over || !onSectionReorder || disabled) return;
-    if (active.id === over.id) return;
-
-    const oldIndex = sectionCatalog.indexOf(active.id as string);
-    const newIndex = sectionCatalog.indexOf(over.id as string);
-    if (oldIndex === -1 || newIndex === -1) return;
-
-    const reordered = [...sectionCatalog];
-    reordered.splice(oldIndex, 1);
-    reordered.splice(newIndex, 0, active.id as string);
-    onSectionReorder(reordered);
-  }
+  }, [disabled, serviceMap, sectionCatalog, onServiceMove, onServiceReorder, onSectionReorder, currentServiceIds, activeCategory]);
 
   useEffect(() => {
     if (addingSection) addInputRef.current?.focus();
@@ -526,6 +634,14 @@ export default function BookingThemeLivePreview({
 
             <div className="relative z-10 flex-1 min-h-0 flex flex-col items-center justify-start p-2 sm:p-4">
               <div className="w-full flex flex-col flex-1 min-h-0">
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={pointerWithin}
+                  autoScroll={AUTO_SCROLL_OPTIONS}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                  onDragCancel={handleDragCancel}
+                >
                 <div className={`rounded-[32px] p-3 sm:p-5 flex flex-col flex-1 min-h-0 ${s.shell}`}>
                   {/* Header */}
                   <div className="pb-3">
@@ -569,7 +685,7 @@ export default function BookingThemeLivePreview({
                     <p className={`text-center text-sm font-semibold ${s.heading}`}>
                       Elegi tu {serviceWordLower}
                     </p>
-                    <div className="mt-2 -mx-1 overflow-x-auto pb-0.5 max-sm:no-scrollbar">
+                    <div className="mt-2 -mx-1 overflow-x-auto pb-0.5 max-sm:no-scrollbar" data-dnd-autoscroll="true">
                       <div className="flex items-center gap-2 px-1">
                         <button
                           type="button"
@@ -583,12 +699,7 @@ export default function BookingThemeLivePreview({
                           )}
                           <span className="relative z-10">Todos</span>
                         </button>
-                        <DndContext
-                          sensors={sensors}
-                          collisionDetection={pointerWithin}
-                          onDragEnd={handleSectionDragEnd}
-                        >
-                          <SortableContext items={sectionCatalog} strategy={horizontalListSortingStrategy}>
+                        <SortableContext items={sectionCatalog} strategy={horizontalListSortingStrategy}>
                             {sectionCatalog.map((category) => {
                               const isActive = category === activeCategory;
                               const isGeneral = category === "General";
@@ -634,7 +745,6 @@ export default function BookingThemeLivePreview({
                               );
                             })}
                           </SortableContext>
-                        </DndContext>
                         {!disabled && (
                           <button
                             type="button"
@@ -683,42 +793,60 @@ export default function BookingThemeLivePreview({
                         {labels.servicePlural} de ejemplo hasta que cargues los tuyos.
                       </p>
                     )}
-                    <div className="flex-1 min-h-0 overflow-y-auto" style={{ scrollbarWidth: 'thin', overscrollBehavior: 'contain' }}>
-                    <DndContext
-                      sensors={sensors}
-                      collisionDetection={pointerWithin}
-                      onDragStart={handleDragStart}
-                      onDragEnd={handleDragEnd}
-                    >
+                    <div className="flex-1 min-h-0 overflow-y-auto" style={{ scrollbarWidth: 'thin', overscrollBehavior: 'contain' }} data-dnd-autoscroll="true">
+                    {activeCategory === "Todos" ? (
+                      <div className="space-y-2.5">
+                        {groupedSections.map((section) => {
+                          const ids = serviceIdsBySection.get(section) || [];
+                          return (
+                            <SectionGroup
+                              key={section}
+                              section={section}
+                              serviceCount={ids.length}
+                              draggingService={!!activeDragService}
+                              s={s}
+                            >
+                              <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+                                {ids.length > 0 ? (
+                                  <div className="space-y-1.5">
+                                    {ids.map((id) => {
+                                      const service = serviceMap.get(id);
+                                      if (!service) return null;
+                                      return (
+                                        <SortableServiceCard
+                                          key={id}
+                                          service={service}
+                                          disabled={disabled}
+                                          s={s}
+                                        />
+                                      );
+                                    })}
+                                  </div>
+                                ) : (
+                                  <p className={`px-1 pb-1 text-[11px] italic ${s.tiny}`}>Sin servicios</p>
+                                )}
+                              </SortableContext>
+                            </SectionGroup>
+                          );
+                        })}
+                      </div>
+                    ) : (
                       <SortableContext items={currentServiceIds} strategy={verticalListSortingStrategy}>
-                        {activeCategory === "Todos" ? (
-                          <div className="space-y-1.5">
-                            {sourceServices.map((service) => (
-                                <SortableServiceCard
-                                  key={service.id}
-                                  service={service}
-                                  disabled={disabled}
-                                  s={s}
-                                />
-                              ))}
-                          </div>
-                        ) : (
-                          <div className="space-y-1.5">
-                            {(servicesByCategory.get(activeCategory) || []).map((service) => (
-                                <SortableServiceCard
-                                  key={service.id}
-                                  service={service}
-                                  disabled={disabled}
-                                  s={s}
-                                />
-                              ))}
-                          </div>
-                        )}
+                        <div className="space-y-1.5">
+                          {(servicesByCategory.get(activeCategory) || []).map((service) => (
+                              <SortableServiceCard
+                                key={service.id}
+                                service={service}
+                                disabled={disabled}
+                                s={s}
+                              />
+                            ))}
+                        </div>
                       </SortableContext>
+                    )}
                       <DragOverlay>
                         {activeDragService ? <ServiceCardOverlay service={activeDragService} s={s} /> : null}
                       </DragOverlay>
-                    </DndContext>
                     </div>
                   </div>
                   {/* Footer */}
@@ -751,6 +879,7 @@ export default function BookingThemeLivePreview({
                     <span className="opacity-50">— powered by KLIP</span>
                   </div>
                 </div>
+                </DndContext>
               </div>
             </div>
           </div>
