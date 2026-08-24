@@ -162,17 +162,23 @@ export async function uploadBookingLogo(formData: FormData): Promise<ActionResul
     let finalContentType = file.type;
     let finalExt = safeExt;
 
-    // Skip sharp for SVG — it handles SVG input poorly for output
-    const sharp = (await import("sharp")).default;
+    // Skip sharp for SVG (maneja mal el input). Sharp es opcional en runtime:
+    // si falla la carga nativa, se sube el original sin procesar.
     if (safeExt !== "svg") {
-      const metadata = await sharp(buffer).metadata();
-      if (metadata.width && metadata.height && (metadata.width > MAX_DIMENSION || metadata.height > MAX_DIMENSION)) {
-        processedBuffer = await sharp(buffer)
-          .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: "inside", withoutEnlargement: true })
-          .webp({ quality: 85 })
-          .toBuffer();
-        finalContentType = "image/webp";
-        finalExt = "webp";
+      try {
+        const sharpModule = await import("sharp");
+        const sharp = sharpModule.default;
+        const metadata = await sharp(buffer).metadata();
+        if (metadata.width && metadata.height && (metadata.width > MAX_DIMENSION || metadata.height > MAX_DIMENSION)) {
+          processedBuffer = await sharp(buffer)
+            .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: "inside", withoutEnlargement: true })
+            .webp({ quality: 85 })
+            .toBuffer();
+          finalContentType = "image/webp";
+          finalExt = "webp";
+        }
+      } catch {
+        // mantener original
       }
     }
 

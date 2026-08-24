@@ -4,7 +4,7 @@ const MAX_INPUT_BYTES = 2 * 1024 * 1024;
 
 export type ProcessedImage = {
   buffer: Buffer;
-  contentType: "image/webp";
+  contentType: string;
 };
 
 export type ProcessImageResult = { ok: true; data: ProcessedImage } | { ok: false; error: string };
@@ -15,9 +15,9 @@ export async function processProductImage(file: File): Promise<ProcessImageResul
   if (!file.type.startsWith("image/")) return { ok: false, error: "Archivo de imagen invalido" };
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const sharp = (await import("sharp")).default;
 
   try {
+    const sharp = (await import("sharp")).default;
     let output = await sharp(buffer)
       .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: "inside", withoutEnlargement: true })
       .webp({ quality: 80 })
@@ -36,7 +36,9 @@ export async function processProductImage(file: File): Promise<ProcessImageResul
 
     return { ok: true, data: { buffer: output, contentType: "image/webp" } };
   } catch {
-    return { ok: false, error: "No se pudo procesar la imagen" };
+    // Sharp no disponible en este runtime (binarios de otra plataforma, etc.):
+    // subimos la imagen original sin procesar para no romper la carga.
+    return { ok: true, data: { buffer, contentType: file.type || "application/octet-stream" } };
   }
 }
 
