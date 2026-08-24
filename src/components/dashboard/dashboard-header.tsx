@@ -658,7 +658,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
           <Menu className="w-5 h-5" strokeWidth={1.5} />
         </button>
 
-        <div className="flex items-center gap-2 shrink-0" style={{ transform: "translateY(calc(var(--hp, 0) * 26px))", opacity: "calc(1 - var(--hp, 0) * 0.65)" }}>
+        <div className="flex items-center gap-2 shrink-0" style={{ transform: "translateY(calc(var(--hp, 0) * 26px))", opacity: "calc((1 - var(--hp, 0)) * (1 - var(--hp, 0)))" }}>
           <div className="relative group" ref={shopMenuRef}>
             <button
               type="button"
