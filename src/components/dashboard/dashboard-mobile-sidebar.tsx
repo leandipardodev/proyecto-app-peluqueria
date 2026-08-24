@@ -46,8 +46,8 @@ export default function DashboardMobileSidebar({ open, onClose, userName }: Prop
 
     el.animate(
       [
-        { backgroundColor: open ? "rgba(0,0,0,0)" : "rgba(0,0,0,0.2)" },
-        { backgroundColor: open ? "rgba(0,0,0,0.2)" : "rgba(0,0,0,0)" },
+        { backgroundColor: open ? "rgba(0,0,0,0)" : "rgba(0,0,0,0.15)" },
+        { backgroundColor: open ? "rgba(0,0,0,0.15)" : "rgba(0,0,0,0)" },
       ],
       { duration: 300, easing: "ease", fill: "forwards" },
     );

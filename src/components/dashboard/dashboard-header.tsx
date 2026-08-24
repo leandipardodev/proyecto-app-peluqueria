@@ -746,7 +746,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
               aria-hidden="true"
               className="absolute opacity-0 pointer-events-none h-0 w-0"
             />
-            <div className="rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-4 py-2 text-sm text-zinc-500 transition-all flex items-center">
+            <div className="header-search-shrink rounded-full bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 px-4 py-2 text-sm text-zinc-500 transition-[background-color,border-color] flex items-center">
               <Search className="w-4 h-4 mr-3" />
               {!searchFocused && query.trim().length === 0 && (
                 <div className="absolute left-11 right-24 pointer-events-none flex items-center text-sm">
