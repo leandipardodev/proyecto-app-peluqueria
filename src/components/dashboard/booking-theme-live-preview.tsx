@@ -202,7 +202,9 @@ function SortableSectionChip({
               onDeleteSection(name);
             }
           }}
-          className="absolute -top-1.5 -right-1.5 z-20 flex items-center justify-center w-5 h-5 rounded-full bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-800 shadow-md border border-white/60 dark:border-zinc-700 hover:bg-red-500 dark:hover:bg-red-500 hover:text-white dark:hover:text-white transition-colors cursor-pointer select-none no-native-callout"
+          className={`absolute -top-1.5 -right-1.5 z-20 flex items-center justify-center w-5 h-5 rounded-full bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-800 shadow-md border border-white/60 dark:border-zinc-700 transition-all duration-150 cursor-pointer select-none no-native-callout ${
+            isActive ? "opacity-100" : "opacity-0 pointer-events-none"
+          } group-hover:opacity-100 group-hover:pointer-events-auto`}
         >
           <X className="w-3 h-3" strokeWidth={2.5} />
         </button>
@@ -332,8 +334,13 @@ function SectionGroup({
         highlight ? "border-blue-400/70 bg-blue-500/10 ring-2 ring-blue-400/30" : "border-black/10 dark:border-white/15"
       }`}
     >
-      <div className="flex items-center justify-between px-1 pb-1.5">
-        <span className={`text-[11px] font-semibold uppercase tracking-wide ${s.heading}`}>{section}</span>
+      <div className="flex items-center justify-between px-1 pb-2">
+        <span
+          className={`text-xl leading-none lowercase tracking-tight ${s.heading}`}
+          style={{ fontFamily: "var(--font-borel), cursive" }}
+        >
+          {section}
+        </span>
         {serviceCount > 0 && (
           <span className={`text-[10px] tabular-nums ${s.tiny}`}>{serviceCount}</span>
         )}
@@ -707,7 +714,7 @@ export default function BookingThemeLivePreview({
                     <p className={`text-center text-sm font-semibold ${s.heading}`}>
                       Elegi tu {serviceWordLower}
                     </p>
-                    <div className="mt-2 -mx-1 overflow-x-auto pb-0.5 max-sm:no-scrollbar" data-dnd-autoscroll="true">
+                    <div className="mt-2 -mx-1 overflow-x-auto pt-2 pb-0.5 max-sm:no-scrollbar" data-dnd-autoscroll="true">
                       <div className="flex items-center gap-2 px-1">
                         <button
                           type="button"
