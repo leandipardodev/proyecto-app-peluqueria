@@ -84,7 +84,7 @@ export default function DashboardMobileSidebar({ open, onClose, userName }: Prop
             exit={{ opacity: 0, transition: { duration: 0.2, ease: [0.22, 1, 0.36, 1], delay: 0.04 } }}
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
           >
-            <div className="ml-4 flex flex-col items-start -translate-y-3">
+            <div className="ml-4 my-4 flex flex-col items-start -translate-y-3">
               {/* Logo flotando fuera del panel */}
               <motion.button
                 type="button"
