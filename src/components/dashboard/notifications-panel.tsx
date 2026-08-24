@@ -140,18 +140,21 @@ function NotificationRow({ item, onClose }: { item: NotificationItem; onClose: (
 export default function NotificationsPanel({ onClose, shopId }: { onClose: () => void; shopId?: string | null }) {
   const { items, unreadCount, loading } = useNotifications(shopId);
   const panelRef = useRef<HTMLDivElement>(null);
-  const autoMarkedRef = useRef(false);
+  const seenUnreadRef = useRef<Set<string>>(new Set());
 
+  // Mientras el panel esta abierto las no leidas se mantienen resaltadas.
+  // Al CERRAR (desmontar) se marcan como leidas todas las que se vieron.
   useEffect(() => {
-    if (loading || autoMarkedRef.current) return;
-    const unread = items.filter((i) => !i.isRead);
-    if (unread.length === 0) return;
-    const t = setTimeout(() => {
-      autoMarkedRef.current = true;
-      void markNotificationsRead(unread.map((i) => i.id));
-    }, 800);
-    return () => clearTimeout(t);
-  }, [items, loading]);
+    for (const i of items) {
+      if (!i.isRead) seenUnreadRef.current.add(i.id);
+    }
+  }, [items]);
+
+  useEffect(() => () => {
+    const ids = Array.from(seenUnreadRef.current);
+    seenUnreadRef.current = new Set();
+    if (ids.length > 0) void markNotificationsRead(ids);
+  }, []);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
