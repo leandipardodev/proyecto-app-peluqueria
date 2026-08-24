@@ -132,6 +132,9 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
     if (!el || h <= 0) return;
     const p = o / h;
     el.style.setProperty("--hp", p.toFixed(3));
+    // Al desvanecerse el fondo, el blur deja de aportar: apagarlo ahorra GPU
+    if (p > 0.35) { el.style.backdropFilter = "none"; el.style.setProperty("-webkit-backdrop-filter", "none"); }
+    else { el.style.backdropFilter = ""; el.style.setProperty("-webkit-backdrop-filter", ""); }
     el.style.transform = `translateY(${-o}px)`;
 
     const fb = floatBtnRef.current;
