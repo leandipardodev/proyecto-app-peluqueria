@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from "react";
 import { AnimatePresence, animate, motion } from "framer-motion";
-import { X } from "lucide-react";
 import DashboardSidebar from "./dashboard-sidebar";
 
 type Props = {
@@ -77,20 +76,20 @@ export default function DashboardMobileSidebar({ open, onClose, userName }: Prop
       <AnimatePresence>
         {open && (
           <motion.div
-            className="fixed inset-0 z-[70] min-[1367px]:hidden overflow-hidden pointer-events-none"
+            className="fixed inset-0 z-[70] min-[1367px]:hidden flex items-center pointer-events-none"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
           >
             <motion.div
-              className="absolute inset-y-0 -left-4 w-[17rem] pl-4 bg-gradient-to-b from-white via-white to-zinc-50/90 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-950 shadow-2xl shadow-black/15 dark:shadow-black/60 flex flex-col max-h-full pointer-events-auto"
-              initial={{ x: -280, opacity: 0, scale: 0.96 }}
-              animate={{ x: 0, opacity: 1, scale: 1 }}
-              exit={{ x: -280, opacity: 0, scale: 0.96, transition: { duration: 0.18, ease: [0.32, 0, 0.67, 0] } }}
+              className="relative ml-4 w-[17rem] max-h-[85dvh] rounded-3xl overflow-hidden bg-gradient-to-b from-white via-white to-zinc-50/90 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-950 border border-white/40 dark:border-white/10 shadow-2xl shadow-black/25 dark:shadow-black/60 flex flex-col pointer-events-auto"
+              initial={{ x: -320, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -320, opacity: 0, transition: { duration: 0.18, ease: [0.32, 0, 0.67, 0] } }}
               transition={{ type: "spring", damping: 20, stiffness: 250, mass: 0.8 }}
             >
-            <div className="flex items-center justify-between px-4 pb-3 pt-[max(env(safe-area-inset-top),0.75rem)] border-b border-white/20 dark:border-white/10 bg-white/30 dark:bg-black/30 backdrop-blur-3xl shrink-0">
+            <div className="flex items-center px-4 py-3 border-b border-white/20 dark:border-white/10 bg-white/30 dark:bg-black/30 backdrop-blur-3xl shrink-0">
               <div
                 onClick={() => {
                   const els = document.querySelectorAll<HTMLSpanElement>("#klip-mobile-logo span");
@@ -113,10 +112,11 @@ export default function DashboardMobileSidebar({ open, onClose, userName }: Prop
                 <span id="klip-mobile-logo" className="text-xl font-bold tracking-tight text-[#0071E3]">Klip</span>
               </div>
             </div>
-            <div className="flex-1 min-h-0 overflow-y-auto">
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain">
               <DashboardSidebar
                 userName={userName}
                 showBrand={false}
+                showUser={false}
               />
             </div>
           </motion.div>

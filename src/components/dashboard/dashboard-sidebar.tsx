@@ -58,6 +58,7 @@ interface DashboardSidebarProps {
   className?: string;
   notifications?: { urgentAppointments?: boolean; lowStock?: boolean };
   showBrand?: boolean;
+  showUser?: boolean;
   onNavigate?: () => void;
 }
 
@@ -66,6 +67,7 @@ const DashboardSidebar = memo(function DashboardSidebar({
   className = "",
   notifications,
   showBrand = true,
+  showUser = true,
   onNavigate,
 }: DashboardSidebarProps) {
   const { shop, user } = useAuth();
@@ -224,11 +226,13 @@ const DashboardSidebar = memo(function DashboardSidebar({
         </motion.nav>
       </LayoutGroup>
 
-      <div className="px-4 py-5">
-        <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400 truncate block">
-          {userName}
-        </span>
-      </div>
+      {showUser && (
+        <div className="px-4 py-5">
+          <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400 truncate block">
+            {userName}
+          </span>
+        </div>
+      )}
     </motion.aside>
   );
 });
