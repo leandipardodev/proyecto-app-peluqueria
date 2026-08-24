@@ -1660,7 +1660,7 @@ export default memo(function CalendarView({
                 initial={{ opacity: 0, y: 5, scale: 0.85 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 transition={{ type: "spring", stiffness: 500, damping: 26 }}
-                className="absolute -top-6 right-0 z-10 whitespace-nowrap rounded-md border border-white/30 bg-sky-600 px-2 py-[3px] text-xs font-bold tabular-nums text-white shadow-lg"
+                className="absolute -top-10 right-0 z-10 whitespace-nowrap rounded-md border border-white/30 bg-sky-600 px-2 py-[3px] text-xs font-bold tabular-nums text-white shadow-lg"
               >
                 {activeDragInfo.targetTime ?? activeDragInfo.startHhmm}
               </motion.div>
