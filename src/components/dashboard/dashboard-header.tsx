@@ -111,45 +111,38 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
   const inputRef = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
 
-  // Header progresivo: se oculta/revela 1:1 con el scroll (estilo Chrome móvil).
-  // Sin estados ni decisiones: el offset sigue al dedo y al soltar hace un
-  // snap suave hacia el extremo más cercano. Guards de rubber-band de iOS.
+  // Header progresivo: se oculta/revela 1:1 con el scroll (estilo Chrome movil).
+  // Un loop de rAF interpola exponencialmente hacia el objetivo: los eventos de
+  // scroll agrupados del momentum se convierten en movimiento continuo sin saltos.
   const headerElRef = useRef<HTMLElement | null>(null);
   const floatBtnRef = useRef<HTMLButtonElement | null>(null);
   const inHeaderMenuRef = useRef<HTMLButtonElement | null>(null);
   const headerHRef = useRef(0);
   const offsetRef = useRef(0);
+  const targetRef = useRef(0);
+  const rafRef = useRef<number | null>(null);
   const lastYRef = useRef(0);
   const floatingRef = useRef(false);
   const menuOpenRef = useRef(false);
   const [headerFloating, setHeaderFloating] = useState(false);
 
-  const applyHeaderOffset = useCallback((offset: number, smooth: boolean) => {
+  const paintHeaderOffset = useCallback((o: number) => {
     const el = headerElRef.current;
     const h = headerHRef.current;
     if (!el || h <= 0) return;
-    const o = Math.max(0, Math.min(h, offset));
-    offsetRef.current = o;
     const p = o / h;
 
-    el.style.transition = smooth
-      ? "transform 300ms cubic-bezier(0.22, 1, 0.36, 1), margin-bottom 300ms cubic-bezier(0.22, 1, 0.36, 1)"
-      : "none";
     el.style.transform = `translateY(${-o}px)`;
     el.style.marginBottom = `${-o}px`;
 
     const fb = floatBtnRef.current;
     if (fb) {
-      fb.style.transition = smooth
-        ? "opacity 250ms cubic-bezier(0.22, 1, 0.36, 1), transform 300ms cubic-bezier(0.22, 1, 0.36, 1), border-radius 300ms cubic-bezier(0.22, 1, 0.36, 1)"
-        : "border-radius 150ms cubic-bezier(0.22, 1, 0.36, 1)";
       fb.style.opacity = String(p);
       fb.style.transform = `scale(${0.55 + 0.45 * p})`;
       fb.style.borderRadius = `${14 + 10 * p}px`;
       fb.style.pointerEvents = p >= 0.85 ? "auto" : "none";
     }
 
-    // El hamburguesa del header se desvanece en la primera mitad de la salida
     const inHeaderBtn = inHeaderMenuRef.current;
     if (inHeaderBtn) inHeaderBtn.style.opacity = String(Math.max(0, 1 - p * 2));
 
@@ -160,18 +153,42 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
     }
   }, []);
 
-  // Medición inicial
+  const ensureLoop = useCallback(() => {
+    if (rafRef.current !== null) return;
+    const step = () => {
+      const target = targetRef.current;
+      const current = offsetRef.current;
+      const diff = target - current;
+      if (Math.abs(diff) < 0.35) {
+        offsetRef.current = target;
+        paintHeaderOffset(target);
+        rafRef.current = null;
+        return;
+      }
+      offsetRef.current = current + diff * 0.28;
+      paintHeaderOffset(offsetRef.current);
+      rafRef.current = requestAnimationFrame(step);
+    };
+    rafRef.current = requestAnimationFrame(step);
+  }, [paintHeaderOffset]);
+
+  const setTargetOffset = useCallback((offset: number) => {
+    const h = headerHRef.current;
+    targetRef.current = Math.max(0, Math.min(h || 0, offset));
+    ensureLoop();
+  }, [ensureLoop]);
+// Medición inicial
   useLayoutEffect(() => {
     const el = headerElRef.current;
     if (!el) return;
     const measure = () => {
       headerHRef.current = el.offsetHeight;
-      applyHeaderOffset(offsetRef.current, false);
+      setTargetOffset(offsetRef.current);
     };
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
-  }, [applyHeaderOffset]);
+  }, [paintHeaderOffset, setTargetOffset]);
 
   useEffect(() => { menuOpenRef.current = menuOpen; }, [menuOpen]);
   useEffect(() => {
@@ -179,9 +196,9 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
       floatingRef.current = false;
       setHeaderFloating(false);
       offsetRef.current = 0;
-      applyHeaderOffset(0, true);
+      setTargetOffset(0);
     }
-  }, [menuOpen, applyHeaderOffset]);
+  }, [menuOpen, setTargetOffset]);
 
   useEffect(() => {
     const scroller: HTMLElement | null = document.querySelector("main");
@@ -197,14 +214,14 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
 
       // Sin contenido scrolleable o rubber-band superior: mostrar
       if (max <= 4 || y <= 0) {
-        applyHeaderOffset(0, false);
+        setTargetOffset(0);
         return;
       }
       // Zona final: congelar progreso (evita loops con el rebote de iOS)
       if (y >= max - 2) return;
 
       // Progresivo puro: cada pixel de scroll mueve la animacion 1:1
-      applyHeaderOffset(offsetRef.current + dy, false);
+      setTargetOffset(offsetRef.current + dy);
     };
 
     scroller.addEventListener("scroll", onScroll, { passive: true });
