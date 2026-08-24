@@ -112,39 +112,74 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
   const searchRef = useRef<HTMLDivElement>(null);
 
   // Auto-oculte del header al scrollear (premium morph del hamburger)
+  // Patrón overlay: se anima el padding-top de <main> junto con el slide,
+  // la ALTURA del scroller nunca cambia => cero shifts de scroll y cero loops
+  // con el rubber-band de iOS.
   const [headerHidden, setHeaderHidden] = useState(false);
   const headerElRef = useRef<HTMLElement | null>(null);
-  const [headerH, setHeaderH] = useState(0);
+  const mainElRef = useRef<HTMLElement | null>(null);
+  const mainBasePadRef = useRef<string | null>(null);
+  const headerHiddenRef = useRef(false);
+  const lockUntilRef = useRef(0);
+  const menuOpenRef = useRef(false);
+
   useLayoutEffect(() => {
     const el = headerElRef.current;
     if (!el) return;
-    const measure = () => setHeaderH(el.offsetHeight);
-    measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, []);
-  const menuOpenRef = useRef(false);
+    const apply = () => {
+      if (!mainElRef.current) mainElRef.current = document.querySelector("main");
+      const main = mainElRef.current;
+      if (!main) return;
+      if (!headerHidden) mainBasePadRef.current = getComputedStyle(main).paddingTop;
+      if (mainBasePadRef.current === null) return;
+      main.style.transition = "padding-top 420ms cubic-bezier(0.22, 1, 0.36, 1)";
+      main.style.paddingTop = headerHidden ? "0px" : mainBasePadRef.current;
+    };
+    apply();
+    window.addEventListener("resize", apply);
+    return () => window.removeEventListener("resize", apply);
+  }, [headerHidden]);
+
+  useEffect(() => { headerHiddenRef.current = headerHidden; }, [headerHidden]);
   useEffect(() => { menuOpenRef.current = menuOpen; }, [menuOpen]);
   useEffect(() => {
     if (menuOpen) setHeaderHidden(false);
   }, [menuOpen]);
   useEffect(() => {
-    // El scroll del dashboard ocurre en <main> (contenedor interno), no en window
-    const scroller = document.querySelector("main");
+    const scroller: HTMLElement | null = mainElRef.current ?? document.querySelector("main");
     if (!scroller) return;
-    let lastY = (scroller as HTMLElement).scrollTop;
+    let lastY = scroller.scrollTop;
     let ticking = false;
     const onScroll = () => {
       if (ticking || menuOpenRef.current) return;
       ticking = true;
       requestAnimationFrame(() => {
-        const y = (scroller as HTMLElement).scrollTop;
+        ticking = false;
+        const y = scroller.scrollTop;
+        const max = scroller.scrollHeight - scroller.clientHeight;
+        const now = Date.now();
+
+        // Tope superior o contenido sin scroll: siempre visible
+        if (max <= 0 || y <= 0) {
+          lastY = y;
+          if (y <= 0 && headerHiddenRef.current) setHeaderHidden(false);
+          return;
+        }
+        // Fondo alcanzado o rubber-band inferior de iOS: ignorar
+        if (y >= max - 2 || now < lockUntilRef.current) {
+          lastY = y;
+          return;
+        }
+
         const dy = y - lastY;
         lastY = y;
-        if (y < 24) setHeaderHidden(false);
-        else if (dy > 6) setHeaderHidden(true);
-        else if (dy < -4) setHeaderHidden(false);
-        ticking = false;
+        if (dy > 8 && !headerHiddenRef.current) {
+          setHeaderHidden(true);
+          lockUntilRef.current = now + 250;
+        } else if (dy < -8 && headerHiddenRef.current) {
+          setHeaderHidden(false);
+          lockUntilRef.current = now + 250;
+        }
       });
     };
     scroller.addEventListener("scroll", onScroll, { passive: true });
@@ -560,7 +595,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
       <motion.header
         ref={headerElRef}
         initial={false}
-        animate={{ y: headerHidden ? "-115%" : "0%", marginBottom: headerHidden ? -headerH : 0 }}
+        animate={{ y: headerHidden ? "-115%" : "0%" }}
         transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
         className="dashboard-mobile-header sticky top-0 z-50 shrink-0 flex items-center gap-4 bg-white/30 dark:bg-black/30 backdrop-blur-xl shadow-sm border-b border-white/10 dark:border-white/5 px-4 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.5rem)] touch-pan-x [overscroll-behavior-y:none] lg:px-6 lg:pt-2.5"
       >
