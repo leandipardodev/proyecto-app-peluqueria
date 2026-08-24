@@ -183,6 +183,9 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
     if (!el) return;
     const measure = () => {
       headerHRef.current = el.offsetHeight;
+      // Clamp por si el header cambio de alto (rotacion, zoom): nunca >100%
+      offsetRef.current = Math.min(offsetRef.current, headerHRef.current);
+      targetRef.current = Math.min(targetRef.current, headerHRef.current);
       setTargetOffset(offsetRef.current);
     };
     measure();
@@ -191,6 +194,10 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
   }, [paintHeaderOffset, setTargetOffset]);
 
   useEffect(() => { menuOpenRef.current = menuOpen; }, [menuOpen]);
+  useEffect(() => () => {
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+  }, []);
   useEffect(() => {
     if (menuOpen && floatingRef.current) {
       floatingRef.current = false;
