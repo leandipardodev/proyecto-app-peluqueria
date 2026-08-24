@@ -857,8 +857,8 @@ function EntryForm({
       </div>
 
       {/* Staff + Fecha + Hora */}
-      <div className="flex items-center gap-2">
-        <div className="flex-1">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+        <div className="flex-1 min-w-0">
           <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Profesional</label>
           <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm">
             <button
@@ -900,44 +900,50 @@ function EntryForm({
             })}
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="shrink-0 flex flex-col items-stretch gap-1.5 sm:flex-row sm:items-start sm:gap-2">
           <div>
-            <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Fecha</label>
-            <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800">
-              <CalendarDays className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-              <input
-                type="date"
-                data-form-nav="self"
-                value={entry.date}
-                onChange={(e) => onUpdate({ date: e.target.value })}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    timeInputRef.current?.focus();
-                  }
-                }}
-                className="w-28 bg-transparent text-xs text-gray-900 dark:text-gray-100 focus:outline-none"
-              />
+            <label className="hidden sm:block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Fecha</label>
+            <div className="flex items-center gap-1.5">
+              <label className="block text-[10px] font-medium text-zinc-500 dark:text-zinc-400 w-9 shrink-0 sm:hidden">Fecha</label>
+              <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 flex-1 min-w-0">
+                <CalendarDays className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                <input
+                  type="date"
+                  data-form-nav="self"
+                  value={entry.date}
+                  onChange={(e) => onUpdate({ date: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      timeInputRef.current?.focus();
+                    }
+                  }}
+                  className="w-full min-w-0 bg-transparent text-xs text-gray-900 dark:text-gray-100 focus:outline-none"
+                />
+              </div>
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Hora</label>
-            <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800">
-              <Clock className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-              <input
-                ref={timeInputRef}
-                type="time"
-                data-form-nav="self"
-                value={entry.time}
-                onChange={(e) => onUpdate({ time: e.target.value })}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    e.currentTarget.closest("form")?.querySelector<HTMLButtonElement>('button[type="submit"]')?.focus();
-                  }
-                }}
-                className="w-20 bg-transparent text-xs text-gray-900 dark:text-gray-100 focus:outline-none"
-              />
+            <label className="hidden sm:block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Hora</label>
+            <div className="flex items-center gap-1.5">
+              <label className="block text-[10px] font-medium text-zinc-500 dark:text-zinc-400 w-9 shrink-0 sm:hidden">Hora</label>
+              <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 flex-1 min-w-0">
+                <Clock className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                <input
+                  ref={timeInputRef}
+                  type="time"
+                  data-form-nav="self"
+                  value={entry.time}
+                  onChange={(e) => onUpdate({ time: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      e.currentTarget.closest("form")?.querySelector<HTMLButtonElement>('button[type="submit"]')?.focus();
+                    }
+                  }}
+                  className="w-full min-w-0 bg-transparent text-xs text-gray-900 dark:text-gray-100 focus:outline-none"
+                />
+              </div>
             </div>
           </div>
         </div>

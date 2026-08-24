@@ -29,6 +29,7 @@ import {
   defaultAnimateLayoutChanges,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { X } from "lucide-react";
 import InlineEdit from "@/components/ui/inline-edit";
 
 const DRAG_CURSOR_BODY_CLASS = "calendar-grabbing";
@@ -146,11 +147,13 @@ function SortableSectionChip({
   onDoubleClick,
   s,
   disabled,
+  onDeleteSection,
 }: {
   name: string;
   isActive: boolean;
   onSelect: () => void;
   onDoubleClick?: () => void;
+  onDeleteSection?: (sectionName: string) => void;
   s: PreviewTheme;
   disabled: boolean;
 }) {
@@ -169,7 +172,7 @@ function SortableSectionChip({
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className={`relative shrink-0 group ${isDragging ? "touch-none" : ""}`}>
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className={`relative shrink-0 group no-native-callout ${isDragging ? "touch-none" : ""}`}>
       <button
         type="button"
         onClick={onSelect}
@@ -185,6 +188,25 @@ function SortableSectionChip({
         )}
         <span className="relative z-10">{name}</span>
       </button>
+      {!disabled && onDeleteSection && (
+        <button
+          type="button"
+          aria-label={`Eliminar sección ${name}`}
+          title={`Eliminar sección ${name}`}
+          onPointerDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (window.confirm(`¿Eliminar la sección "${name}"? Sus servicios pasarán a General.`)) {
+              onDeleteSection(name);
+            }
+          }}
+          className="absolute -top-1.5 -right-1.5 z-20 flex items-center justify-center w-5 h-5 rounded-full bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-800 shadow-md border border-white/60 dark:border-zinc-700 hover:bg-red-500 dark:hover:bg-red-500 hover:text-white dark:hover:text-white transition-colors cursor-pointer select-none no-native-callout"
+        >
+          <X className="w-3 h-3" strokeWidth={2.5} />
+        </button>
+      )}
     </div>
   );
 }
@@ -229,7 +251,7 @@ const SortableServiceCard = memo(function SortableServiceCard({
         style={style}
         {...attributes}
         {...listeners}
-        className={`rounded-3xl border-2 transition-shadow duration-200 select-none group ${isDragging ? "touch-none" : "touch-pan-y"} ${s.cardDepth} ${s.plate} ${s.hoverBorder} ${showDropIndicator ? "border-blue-400/60 ring-2 ring-blue-400/30 opacity-60" : ""} ${!disabled ? "cursor-hand-open" : ""}`}
+        className={`no-native-callout rounded-3xl border-2 transition-shadow duration-200 select-none group ${isDragging ? "touch-none" : "touch-pan-y"} ${s.cardDepth} ${s.plate} ${s.hoverBorder} ${showDropIndicator ? "border-blue-400/60 ring-2 ring-blue-400/30 opacity-60" : ""} ${!disabled ? "cursor-hand-open" : ""}`}
       >
         {!disabled && (
           <span className="absolute left-1.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-40 transition-all duration-200 flex flex-col gap-0.5">
@@ -263,7 +285,7 @@ const SortableServiceCard = memo(function SortableServiceCard({
 
 function ServiceCardOverlay({ service, s }: { service: PreviewService; s: PreviewTheme }) {
   return (
-    <div className={`pointer-events-none select-none rounded-3xl border-2 shadow-2xl ${s.cardDepth} ${s.plate} opacity-90`}>
+    <div className={`pointer-events-none no-native-callout select-none rounded-3xl border-2 shadow-2xl ${s.cardDepth} ${s.plate} opacity-90`}>
       <div className="overflow-hidden rounded-3xl">
         <div className="px-4 py-3 text-left">
           <div className="flex items-start justify-between gap-3">
@@ -725,21 +747,10 @@ export default function BookingThemeLivePreview({
                                       isActive={isActive}
                                       onSelect={() => setSelectedCategory(category)}
                                       onDoubleClick={!isGeneral && !disabled ? () => { setRenamingSection(category); setRenameValue(category); } : undefined}
+                                      onDeleteSection={!isGeneral ? onSectionRemove : undefined}
                                       s={s}
                                       disabled={disabled}
                                     />
-                                  )}
-                                  {!isGeneral && !disabled && (
-                                    <button
-                                      type="button"
-                                      onClick={() => setConfirmRemove(category)}
-                                      className="absolute -top-1 -right-1 z-20 p-0.5 rounded text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 opacity-0 group-hover:opacity-100 transition-all duration-150"
-                                      title={`Eliminar ${category}`}
-                                    >
-                                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                      </svg>
-                                    </button>
                                   )}
                                 </div>
                               );
