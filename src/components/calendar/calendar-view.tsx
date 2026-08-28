@@ -501,7 +501,6 @@ export default memo(function CalendarView({
   const [isCoarsePointer, setIsCoarsePointer] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [hoverTooltip, setHoverTooltip] = useState<HoverTooltipState | null>(null);
-  const [tooltipPos, setTooltipPos] = useState({ left: -9999, top: -9999 });
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
   const [contextMenuAppt, setContextMenuAppt] = useState<NormalizedAppointment | null>(null);
   const portalReady = true;
@@ -510,14 +509,46 @@ export default memo(function CalendarView({
   const startX = useRef(0);
   const scrollLeft = useRef(0);
 
-  const handleTooltipMove = useCallback((clientX: number, clientY: number) => {
-    setTooltipPos(getTooltipPosition(clientX, clientY));
+  // El tooltip se posiciona de forma imperativa (sin setState) para no
+  // re-renderizar todo el calendario con cada mousemove.
+  const tooltipBoxRef = useRef<HTMLDivElement | null>(null);
+  const tooltipPosRef = useRef<{ x: number; y: number } | null>(null);
+  const tooltipRafRef = useRef<number | null>(null);
+
+  const applyTooltipPosition = useCallback(() => {
+    tooltipRafRef.current = null;
+    const coords = tooltipPosRef.current;
+    const el = tooltipBoxRef.current;
+    if (!coords || !el) return;
+    const pos = getTooltipPosition(coords.x, coords.y);
+    el.style.transform = `translate(${pos.left}px, ${pos.top}px)`;
   }, []);
+
+  const handleTooltipMove = useCallback((clientX: number, clientY: number) => {
+    tooltipPosRef.current = { x: clientX, y: clientY };
+    if (tooltipRafRef.current != null) return;
+    tooltipRafRef.current = requestAnimationFrame(applyTooltipPosition);
+  }, [applyTooltipPosition]);
+
   const handleAppointmentHover = useCallback((appt: NormalizedAppointment) => {
     setHoverTooltip({ appointment: appt });
   }, []);
+
   const handleAppointmentLeave = useCallback(() => {
+    if (tooltipRafRef.current != null) {
+      cancelAnimationFrame(tooltipRafRef.current);
+      tooltipRafRef.current = null;
+    }
+    tooltipPosRef.current = null;
+    const el = tooltipBoxRef.current;
+    if (el) el.style.transform = "translate(-9999px, -9999px)";
     setHoverTooltip(null);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (tooltipRafRef.current != null) cancelAnimationFrame(tooltipRafRef.current);
+    };
   }, []);
   const handleContextMenu = useCallback((appt: NormalizedAppointment, e: React.MouseEvent) => {
     e.preventDefault();
@@ -925,9 +956,13 @@ export default memo(function CalendarView({
 
   const pillControls = useAnimation();
   const pillModes = useMemo(() => ["month", "week", "day"] as const, []);
-  const pillAnimIdxRef = useRef(pillModes.indexOf(
-    initialViewMode === "day" || initialViewMode === "month" ? initialViewMode : "week"
-  ));
+
+  // El pill sigue a viewMode como única fuente de verdad: cualquier cambio de
+  // vista (arrastre, tap, atajos W/D/M, init mobile) lo reposiciona.
+  useEffect(() => {
+    const idx = pillModes.indexOf(viewMode);
+    pillControls.start({ x: -idx * 76 });
+  }, [viewMode, pillControls, pillModes]);
 
   const monthAppointmentsByDateKey = useMemo(() => {
     const map = new Map<string, NormalizedAppointment[]>();
@@ -1158,9 +1193,9 @@ export default memo(function CalendarView({
 
   useEffect(() => {
     if (isCoarsePointer) {
-      setHoverTooltip(null);
+      handleAppointmentLeave();
     }
-  }, [isCoarsePointer]);
+  }, [isCoarsePointer, handleAppointmentLeave]);
 
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -1254,9 +1289,7 @@ export default memo(function CalendarView({
     if (appts.length === 0 || isCoarsePointer || isMobileViewport) {
       setFocusedDayKey(dateKey);
       setViewMode("day");
-      const targetIdx = pillModes.indexOf("day");
-      pillAnimIdxRef.current = targetIdx;
-      pillControls.start({ x: -targetIdx * 76 });
+      pillControls.start({ x: -pillModes.indexOf("day") * 76 });
       return;
     }
     setSelectedDayPopover({ dateKey, el });
@@ -1321,24 +1354,29 @@ export default memo(function CalendarView({
           <div className="relative w-[76px] h-9 overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm select-none">
             <motion.div
               drag="x"
-              dragElastic={0.1}
+              dragElastic={0.08}
+              dragMomentum={false}
+              dragConstraints={{ left: -76 * (pillModes.length - 1), right: 0 }}
               onDragEnd={(_, info) => {
                 document.body.classList.remove("calendar-grabbing");
                 const pillWidth = 76;
-                const idx = pillAnimIdxRef.current;
-                const slotsMoved = Math.round(-info.offset.x / pillWidth);
-                const targetIdx = ((idx + slotsMoved) % pillModes.length + pillModes.length) % pillModes.length;
-                if (targetIdx !== idx) {
-                  setViewMode(pillModes[targetIdx]);
+                const idx = pillModes.indexOf(viewMode);
+                let delta;
+                const flung = Math.abs(info.velocity.x) > 250 && Math.abs(info.offset.x) > 18;
+                if (flung) {
+                  delta = info.velocity.x < 0 ? 1 : -1;
+                } else {
+                  delta = Math.round(-info.offset.x / pillWidth);
                 }
-                pillAnimIdxRef.current = targetIdx;
+                delta = Math.min(Math.max(delta, -1), 1);
+                const targetIdx = ((idx + delta) % pillModes.length + pillModes.length) % pillModes.length;
+                setViewMode(pillModes[targetIdx]);
                 pillControls.start({ x: -targetIdx * pillWidth });
               }}
               onTap={() => {
-                const idx = pillAnimIdxRef.current;
+                const idx = pillModes.indexOf(viewMode);
                 const targetIdx = (idx + 1) % pillModes.length;
                 setViewMode(pillModes[targetIdx]);
-                pillAnimIdxRef.current = targetIdx;
                 pillControls.start({ x: -targetIdx * 76 });
               }}
               animate={pillControls}
@@ -1346,7 +1384,7 @@ export default memo(function CalendarView({
               transition={{ type: "spring", stiffness: 400, damping: 35 }}
               onDragStart={() => document.body.classList.add("calendar-grabbing")}
               className="flex cursor-hand-open"
-              style={{ width: 228 }}
+              style={{ width: 228, touchAction: "none" }}
             >
               {["Mes", "Semana", "Día"].map((label) => (
                 <div
@@ -1681,9 +1719,9 @@ export default memo(function CalendarView({
         const solidStaffColor = tipStaffColor.replace(/[\d.]+\)$/, "1)");
         return (
           <div
-            key={tipAppt.id}
-            className="fixed pointer-events-none z-[60]"
-            style={{ left: tooltipPos.left, top: tooltipPos.top }}
+            ref={tooltipBoxRef}
+            className="fixed pointer-events-none z-[60] will-change-transform"
+            style={{ left: 0, top: 0, transform: "translate(-9999px, -9999px)" }}
           >
             <div
               className="w-[270px] rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-700/60 overflow-hidden"
@@ -1862,9 +1900,7 @@ export default memo(function CalendarView({
                     closeDayPopover();
                     setFocusedDayKey(selectedDayPopover.dateKey);
                     setViewMode("day");
-                    const targetIdx = pillModes.indexOf("day");
-                    pillAnimIdxRef.current = targetIdx;
-                    pillControls.start({ x: -targetIdx * 76 });
+                    pillControls.start({ x: -pillModes.indexOf("day") * 76 });
                   }}
                 >
                   Ver día completo →
