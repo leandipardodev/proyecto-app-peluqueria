@@ -510,6 +510,7 @@ function SelectionSummary({ cart, selectedCombo, staff, noPreference, totalDurat
       className="fixed inset-0 z-[60] flex items-center justify-center p-4"
       onClick={onClose}
     >
+      <div className="absolute inset-0 bg-black/45 backdrop-blur-md" />
       <motion.div
         initial={{ scale: 0.88, opacity: 0, y: 24 }}
         animate={{
@@ -522,7 +523,7 @@ function SelectionSummary({ cart, selectedCombo, staff, noPreference, totalDurat
           default: { type: "spring", stiffness: 400, damping: 28, mass: 0.8 },
         }}
         onClick={(e) => e.stopPropagation()}
-        className={`w-full max-w-sm overflow-hidden ${templateStyles.shell}`}
+        className={`relative w-full max-w-sm overflow-hidden ${templateStyles.shell}`}
       >
         <div className="p-5 space-y-4">
           <div className="flex items-center justify-between">
@@ -2625,11 +2626,12 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           exit={{ opacity: 0 }}
-                          className="fixed inset-0 z-[60] flex items-center justify-center p-4"
-                          onClick={() => setSlotStaffPicker(null)}
-                        >
-                          <motion.div
-                            initial={{ scale: 0.88, opacity: 0, y: 24 }}
+className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+          onClick={() => setSlotStaffPicker(null)}
+        >
+          <div className="absolute inset-0 bg-black/45 backdrop-blur-md" />
+          <motion.div
+            initial={{ scale: 0.88, opacity: 0, y: 24 }}
                             animate={{
                               scale: 1, opacity: 1, y: 0,
                               borderRadius: ["1.5rem 0.75rem 1.5rem 0.75rem", "1.25rem 1.25rem 0.85rem 1.5rem", "1.5rem 0.75rem 1.5rem 0.75rem"],
@@ -2640,7 +2642,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                               default: { type: "spring", stiffness: 400, damping: 28, mass: 0.8 },
                             }}
                             onClick={(e) => e.stopPropagation()}
-                            className={`w-full max-w-sm overflow-hidden ${templateStyles.shell}`}
+                            className={`relative w-full max-w-sm overflow-hidden ${templateStyles.shell}`}
                           >
                             <div className="p-5 space-y-4">
                               <div className="flex items-center justify-between">
