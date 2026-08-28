@@ -65,6 +65,22 @@ function makeShopChain(shops: Array<{ id: string; slug: string; active: boolean;
   return chain;
 }
 
+function makeAccessToken(sub: string, expSeconds: number): string {
+  const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const payload = btoa(JSON.stringify({ sub, exp: Math.floor(expSeconds), email: "u1@test.com" }));
+  return `${header}.${payload}.signature`;
+}
+
+function makeAuthTokenCookie(sub: string, expSeconds: number): Record<string, string> {
+  return {
+    "sb-test-auth-token": JSON.stringify({
+      access_token: makeAccessToken(sub, expSeconds),
+      refresh_token: "rt-1",
+      expires_at: Math.floor(expSeconds),
+    }),
+  };
+}
+
 let fetchSpy: ReturnType<typeof vi.spyOn> | null = null;
 
 function runMiddleware(url: string, opts?: Parameters<typeof createMockRequest>[1]) {
@@ -491,5 +507,125 @@ describe("middleware", () => {
     const res = await runMiddleware("/dashboard/nonexistent-slug/staff");
     expect(res.status).toBe(307);
     expect(res.headers.get("Location")).toBe("http://localhost/dashboard");
+  });
+
+  // -----------------------------------------------------------------------
+  // Local JWT decode (fresher access token skips getUser)
+  // -----------------------------------------------------------------------
+  it("skips getUser() and passes through when access token is fresh", async () => {
+    const getUser = vi.fn();
+    vi.mocked(mockCreateMiddlewareClient).mockImplementation((_req, _res) => {
+      const profileChain = chainableQuery();
+      profileChain.then = (onfulfilled: any) =>
+        Promise.resolve({ data: { role: "owner" }, error: null }).then(onfulfilled);
+
+      const membershipChain = chainableQuery();
+      membershipChain.then = (onfulfilled: any) =>
+        Promise.resolve({ data: [{ shop_id: "shop-1", role: "owner", is_active: true }], error: null }).then(onfulfilled);
+
+      const shopsData = [{ id: "shop-1", slug: "mi-local", active: true, plan_expiry: "2099-12-31" }];
+      mockServiceRoleShops(shopsData);
+      const shopsChain = makeShopChain(shopsData);
+
+      let callCount = 0;
+      return makeMiddlewareClient({
+        auth: { getUser },
+        from: vi.fn((table: string) => {
+          callCount++;
+          if (table === "user_profiles" && callCount === 1) return profileChain;
+          if (table === "shops") return shopsChain;
+          return membershipChain;
+        }),
+      });
+    });
+
+    const exp = Math.floor(Date.now() / 1000) + 600;
+    const res = await runMiddleware("/dashboard/mi-local/staff", {
+      cookies: {
+        ...makeAuthTokenCookie("u1", exp),
+        klip_active_shop_id: "shop-1",
+        klip_active_shop_slug: "mi-local",
+      },
+    });
+    expect(res.status).toBe(200);
+    expect(getUser).not.toHaveBeenCalled();
+  });
+
+  it("falls back to getUser() when access token in cookie is expired", async () => {
+    const getUser = vi.fn().mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
+    vi.mocked(mockCreateMiddlewareClient).mockImplementation((_req, _res) => {
+      const profileChain = chainableQuery();
+      profileChain.then = (onfulfilled: any) =>
+        Promise.resolve({ data: { role: "owner" }, error: null }).then(onfulfilled);
+
+      const membershipChain = chainableQuery();
+      membershipChain.then = (onfulfilled: any) =>
+        Promise.resolve({ data: [{ shop_id: "shop-1", role: "owner", is_active: true }], error: null }).then(onfulfilled);
+
+      const shopsData = [{ id: "shop-1", slug: "mi-local", active: true, plan_expiry: "2099-12-31" }];
+      mockServiceRoleShops(shopsData);
+      const shopsChain = makeShopChain(shopsData);
+
+      let callCount = 0;
+      return makeMiddlewareClient({
+        auth: { getUser },
+        from: vi.fn((table: string) => {
+          callCount++;
+          if (table === "user_profiles" && callCount === 1) return profileChain;
+          if (table === "shops") return shopsChain;
+          return membershipChain;
+        }),
+      });
+    });
+
+    const exp = Math.floor(Date.now() / 1000) - 600;
+    const res = await runMiddleware("/dashboard/mi-local/staff", {
+      cookies: {
+        ...makeAuthTokenCookie("u1", exp),
+        klip_active_shop_id: "shop-1",
+        klip_active_shop_slug: "mi-local",
+      },
+    });
+    expect(res.status).toBe(200);
+    expect(getUser).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to getUser() when access token is within expiry margin", async () => {
+    const getUser = vi.fn().mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
+    vi.mocked(mockCreateMiddlewareClient).mockImplementation((_req, _res) => {
+      const profileChain = chainableQuery();
+      profileChain.then = (onfulfilled: any) =>
+        Promise.resolve({ data: { role: "owner" }, error: null }).then(onfulfilled);
+
+      const membershipChain = chainableQuery();
+      membershipChain.then = (onfulfilled: any) =>
+        Promise.resolve({ data: [{ shop_id: "shop-1", role: "owner", is_active: true }], error: null }).then(onfulfilled);
+
+      const shopsData = [{ id: "shop-1", slug: "mi-local", active: true, plan_expiry: "2099-12-31" }];
+      mockServiceRoleShops(shopsData);
+      const shopsChain = makeShopChain(shopsData);
+
+      let callCount = 0;
+      return makeMiddlewareClient({
+        auth: { getUser },
+        from: vi.fn((table: string) => {
+          callCount++;
+          if (table === "user_profiles" && callCount === 1) return profileChain;
+          if (table === "shops") return shopsChain;
+          return membershipChain;
+        }),
+      });
+    });
+
+    const exp = Math.floor(Date.now() / 1000) + 30;
+    const res = await runMiddleware("/dashboard/mi-local/staff", {
+      cookies: {
+        ...makeAuthTokenCookie("u1", exp),
+        klip_active_shop_id: "shop-1",
+        klip_active_shop_slug: "mi-local",
+      },
+    });
+    expect(res.status).toBe(200);
+    expect(getUser).toHaveBeenCalledTimes(1);
   });
 });

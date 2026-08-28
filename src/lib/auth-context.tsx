@@ -2,10 +2,13 @@
 
 import { createContext, useCallback, useContext, useEffect, useState, useMemo, useRef, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
+import { decodeJwtPayload } from "@/lib/jwt";
 import { resolveIndustry } from "@/lib/industry/resolve";
 import type { Industry } from "@/lib/industry/types";
 import { usePathname, useRouter } from "next/navigation";
 import { DASHBOARD_LEGACY_SEGMENTS_SET } from "@/lib/dashboard/shared/legacy-segments";
+
+const SUPABASE_AUTH_COOKIE_RE = /^sb-.+-auth-token$/;
 
 export type UserInfo = {
   id: string;
@@ -40,6 +43,38 @@ function readServerAuthData(): AuthInitData | null {
     const el = document.getElementById("__AUTH_INIT__");
     if (!el?.textContent) return null;
     return JSON.parse(el.textContent) as AuthInitData;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Best-effort recovery for spurious SIGNED_OUT events (refresh token race).
+ * Returns a still-valid user id from the sb-* cookies if the server rotated
+ * the token before the browser's stale auto-refresh cleared it.
+ */
+function freshUserIdFromCookies(): string | null {
+  if (typeof document === "undefined") return null;
+  try {
+    const authCookie = document.cookie
+      .split(";")
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .map((part) => {
+        const eq = part.indexOf("=");
+        return { name: part.slice(0, eq), value: part.slice(eq + 1) };
+      })
+      .find((c) => SUPABASE_AUTH_COOKIE_RE.test(c.name));
+    if (!authCookie) return null;
+
+    const session = JSON.parse(authCookie.value);
+    const accessToken = session?.access_token ?? session?.currentSession?.access_token;
+    if (!accessToken) return null;
+
+    const payload = decodeJwtPayload(accessToken);
+    if (typeof payload?.sub !== "string") return null;
+    if (typeof payload?.exp === "number" && payload.exp * 1000 < Date.now()) return null;
+    return payload.sub;
   } catch {
     return null;
   }
@@ -210,6 +245,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT" || !session?.user) {
+        // A SIGNED_OUT here is usually the auto-refresh failing with a stale
+        // refresh token (server rotated it first). Before hard-logging out,
+        // try to recover from cookies the server may have just refreshed.
+        const freshUserId = freshUserIdFromCookies();
+        if (freshUserId) {
+          fetchSession({ id: freshUserId }).catch(() => {
+            setState({ user: null, shop: null, isLoading: false });
+          });
+          return;
+        }
         setState({ user: null, shop: null, isLoading: false });
       } else if (event === "SIGNED_IN") {
         fetchSession(session.user).catch(() => {

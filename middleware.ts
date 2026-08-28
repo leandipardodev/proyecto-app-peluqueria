@@ -1,12 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createMiddlewareClient } from "@/lib/supabase/middleware";
 import { DASHBOARD_LEGACY_SEGMENTS_SET } from "@/lib/dashboard/shared/legacy-segments";
+import { decodeJwtPayload, extractAccessToken } from "@/lib/jwt";
 
 const LOGIN_PATH = "/login";
 const BILLING_REQUIRED_PATH = "/billing-required";
 const LANDING_PATH = "/";
 const ACTIVE_SHOP_ID_COOKIE = "klip_active_shop_id";
 const ACTIVE_SHOP_SLUG_COOKIE = "klip_active_shop_slug";
+
+// Match auth-js EXPIRY_MARGIN_MS. Only let the server client refresh when the
+// access token is actually close to expiry; otherwise decode locally and avoid
+// racing the browser's autoRefreshToken (Refresh Token Not Found race).
+const EXPIRY_MARGIN_MS = 90_000;
 
 const PROTECTED_PATHS = ["/dashboard", "/admin", "/client"];
 function isProtectedPath(pathname: string): boolean {
@@ -48,9 +54,25 @@ async function middlewareHandler(request: NextRequest) {
   let response = NextResponse.next();
   const supabase = createMiddlewareClient(request, response);
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user: { id: string } | null = null;
+
+  // If the access token is still fresh, decode it locally instead of calling
+  // getUser() — getUser() refreshes near expiry and can race the browser's
+  // autoRefreshToken, producing "Invalid Refresh Token" logouts.
+  const tokenInfo = extractAccessToken(request.cookies.getAll());
+  if (tokenInfo && tokenInfo.expiresAt * 1000 - Date.now() > EXPIRY_MARGIN_MS) {
+    const payload = decodeJwtPayload(tokenInfo.accessToken);
+    if (typeof payload?.sub === "string") {
+      user = { id: payload.sub };
+    }
+  }
+
+  if (!user) {
+    const {
+      data: { user: refreshedUser },
+    } = await supabase.auth.getUser();
+    user = refreshedUser;
+  }
 
   if (!user) {
     const loginUrl = request.nextUrl.clone();
