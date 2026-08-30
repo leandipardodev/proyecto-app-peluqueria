@@ -77,7 +77,7 @@ function buildFlowSteps(
   payAtShop: boolean,
 ): { number: string; label: string; on: boolean; reason?: string; hint: string }[] {
   const storeOn = storeEnabled && hasStoreProducts;
-  const paymentOn = storeEnabled ? true : payAtShop === false;
+  const paymentOn = payAtShop === false;
   return [
     { number: "1", label: "Servicios", on: servicesCount > 0, reason: servicesCount === 0 ? "Sin servicios cargados" : undefined, hint: "Se skipea automáticamente si tenés solo 1 servicio" },
     {
@@ -90,7 +90,7 @@ function buildFlowSteps(
     { number: "3", label: "Fecha y hora", on: true, hint: "No se puede desactivar" },
     { number: "4", label: "Tus datos", on: true, hint: "No se puede desactivar" },
     { number: "5", label: "Tienda", on: storeOn, reason: !storeEnabled ? "Tienda apagada" : !hasStoreProducts ? "Sin productos para la venta" : undefined, hint: "Se desactiva apagando la tienda de productos online" },
-    { number: "6", label: "Pago", on: paymentOn, reason: paymentOn ? undefined : "Pago en el local", hint: "Se desactiva eligiendo pago en el local" },
+    { number: "6", label: "Pago", on: paymentOn, reason: paymentOn ? undefined : "Pago en el local activado", hint: "Se desactiva eligiendo pago en el local" },
     { number: "7", label: "Listo", on: true, hint: "No se puede desactivar" },
   ];
 }
