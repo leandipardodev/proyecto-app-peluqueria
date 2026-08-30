@@ -164,6 +164,7 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
           mpPublicKey: shop.mp_public_key || "",
           payAtShop: shop.pay_at_shop ?? false,
           assignStaffLater: shop.assign_staff_later === true,
+          businessHours: shop.business_hours as Record<string, { open: boolean }> | null,
           bankTransferEnabled: shop.bank_transfer_enabled === true,
           bookingDepositEnabled: shop.booking_deposit_enabled !== false,
           bookingDepositAmount: Math.max(0, Number(shop.booking_deposit_amount ?? 0)),

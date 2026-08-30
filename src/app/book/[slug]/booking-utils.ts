@@ -59,6 +59,8 @@ export const MONTH_NAMES = [
 
 export const DAY_NAMES = ["Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab"];
 
+export const WEEKDAY_KEYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+
 export function getWeekDates(): Date[] {
   const today = new Date();
   const dates: Date[] = [];

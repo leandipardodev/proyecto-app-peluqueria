@@ -58,6 +58,7 @@ import {
   getMonthDays,
   MONTH_NAMES,
   DAY_NAMES,
+  WEEKDAY_KEYS,
   formatDate,
   formatDisplayDate,
   parseHHmmToMinutes,
@@ -82,6 +83,7 @@ interface BookingClientProps {
     mpPublicKey: string;
     payAtShop: boolean;
     assignStaffLater: boolean;
+    businessHours?: Record<string, { open: boolean }> | null;
     bankTransferEnabled: boolean;
     bookingDepositEnabled: boolean;
     bookingDepositAmount: number;
@@ -2469,7 +2471,10 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                             const isSelected = selectedDate && formatDate(selectedDate) === dateStr;
                             const isToday = formatDate(d) === formatDate(todayDate);
                             const override = monthOverrides[dateStr];
-                            const isClosed = override?.is_closed === true;
+                            const weekdayClosed = shop.businessHours
+                              ? shop.businessHours[WEEKDAY_KEYS[d.getDay()]]?.open === false
+                              : false;
+                            const isClosed = override ? override.is_closed === true : weekdayClosed;
                             return (
                               <button
                                 key={dateStr}
