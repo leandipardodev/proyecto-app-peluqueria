@@ -115,6 +115,7 @@ type StaffMember = {
   role: string;
   name: string | null;
   email: string | null;
+  photo_url?: string | null;
 };
 
 type Customer = {
@@ -150,6 +151,7 @@ interface CalendarPageClientProps {
   initialAppointmentId?: string;
   initialViewMode?: string;
   autoCompleteEnabled?: boolean;
+  assignStaffLater?: boolean;
   isOwner?: boolean;
 }
 
@@ -165,6 +167,7 @@ export default function CalendarPageClient({
   initialAppointmentId,
   initialViewMode,
   autoCompleteEnabled = false,
+  assignStaffLater = false,
   isOwner = false,
 }: CalendarPageClientProps) {
   const router = useRouter();
@@ -724,6 +727,7 @@ export default function CalendarPageClient({
         staff={staff}
         services={services}
         allAppointments={enrichedAppointments}
+        assignStaffLater={assignStaffLater}
         onClose={() => setEditingAppointment(null)}
         onSuccess={refreshAppointments}
         onDeleted={(recurringGroupId) => {

@@ -111,7 +111,7 @@ async function CalendarPageContent({
       const admin = await createServiceRoleClient();
       const { data: shop } = await admin
         .from("shops")
-        .select("auto_complete_enabled")
+        .select("auto_complete_enabled, assign_staff_later, industry")
         .eq("id", shopId)
         .maybeSingle();
       const supabase = await createServerClient();
@@ -123,6 +123,7 @@ async function CalendarPageContent({
         .maybeSingle();
       return {
         autoCompleteEnabled: shop?.auto_complete_enabled ?? false,
+        assignStaffLater: shop?.assign_staff_later ?? false,
         isOwner: membership?.role === "owner",
       };
     })(),
@@ -134,7 +135,7 @@ async function CalendarPageContent({
   if (isActionSuccess<StaffData>(staffResult)) staff = staffResult.data ?? [];
 
   const [calendarEl, tableEl] = await Promise.all([
-    CalendarSection({ shopId, services, staff, customers, initialDateParam, initialAppointmentId, initialViewMode, autoCompleteEnabled: shopFlag.autoCompleteEnabled, isOwner: shopFlag.isOwner }),
+    CalendarSection({ shopId, services, staff, customers, initialDateParam, initialAppointmentId, initialViewMode, autoCompleteEnabled: shopFlag.autoCompleteEnabled, assignStaffLater: shopFlag.assignStaffLater, isOwner: shopFlag.isOwner }),
     AppointmentsTableSection({ shopId }),
   ]);
   return <>{calendarEl}{tableEl}</>;

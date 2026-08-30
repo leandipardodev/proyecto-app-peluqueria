@@ -16,3 +16,12 @@ export const DEFAULT_FEATURES: Record<Industry, IndustryFeatures> = {
   masajista: { inventory: false, marketing: true, staff: true, vouchers: true, store: false },
   canchas: { inventory: false, marketing: true, staff: true, vouchers: true, store: false },
 };
+
+// assign_staff_later: true = el dueno asigna el profesional (el cliente no elige).
+// false = el cliente elige a su profesional.
+export const DEFAULT_ASSIGN_STAFF_LATER: Record<Industry, boolean> = {
+  peluqueria: false,
+  psicologo: false,
+  masajista: true,
+  canchas: true,
+};

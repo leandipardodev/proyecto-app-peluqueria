@@ -81,6 +81,7 @@ interface BookingClientProps {
     industry: Industry;
     mpPublicKey: string;
     payAtShop: boolean;
+    assignStaffLater: boolean;
     bankTransferEnabled: boolean;
     bookingDepositEnabled: boolean;
     bookingDepositAmount: number;
@@ -986,8 +987,8 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
       if (draft.shopSlug !== shop.slug) return;
       if (draft.cart) setCart(draft.cart);
       else if (draft.selectedService) setCart([draft.selectedService]);
-      if (draft.selectedStaff) setSelectedStaff(draft.selectedStaff);
-      if (draft.noPreference) setNoPreference(true);
+      if (draft.selectedStaff && !assignStaffLater) setSelectedStaff(draft.selectedStaff);
+      if (draft.noPreference || assignStaffLater) setNoPreference(true);
       if (draft.selectedDate) setSelectedDate(new Date(draft.selectedDate));
       if (draft.selectedSlot) {
         setSelectedSlot(draft.selectedSlot);
@@ -999,7 +1000,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
       if (draft.customerEmail) setCustomerEmail(draft.customerEmail);
       if (draft.customerPhone) setCustomerPhone(draft.customerPhone);
       if (draft.selectedCategory) setSelectedCategory(draft.selectedCategory);
-      if (draft.step && !isStorePreview) setStep(draft.step);
+      if (draft.step && !isStorePreview) setStep(assignStaffLater && draft.step === 1 ? 2 : draft.step);
       sessionStorage.removeItem("klip_booking_draft");
     } catch {
       /* ignore corrupt data */
@@ -1025,7 +1026,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [staffForAppointment, setStaffForAppointment] = useState<StaffMember | null>(null);
   const [slotStaffPicker, setSlotStaffPicker] = useState<{ slot: Slot; availableStaff: StaffMember[] } | null>(null);
-  const [noPreference, setNoPreference] = useState(false);
+  const [noPreference, setNoPreference] = useState(() => shop.assignStaffLater);
   const staffLookup = useMemo(() => new Map(staffMembers.map(s => [s.id, s])), [staffMembers]);
 
   const [ripplePositions, setRipplePositions] = useState<Record<string, RipplePosition>>({});
@@ -1252,6 +1253,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const industryConfig = INDUSTRY_CONFIG[shop.industry] || INDUSTRY_CONFIG.peluqueria;
   const serviceWord = industryConfig.labels.serviceSingular;
   const staffWord = industryConfig.labels.staffSingular;
+  const assignStaffLater = shop.assignStaffLater;
   const serviceWordLower = serviceWord.toLowerCase();
   const staffWordLower = staffWord.toLowerCase();
 
@@ -1373,16 +1375,16 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     if (step === 0 && services.length <= 1 && combos.length === 0) {
       autoSkippedRef.current = true;
       if (services.length === 1) setCart([services[0]]);
-      setStep(1);
+      setStep(assignStaffLater ? 2 : 1);
     }
-  }, [step, services, combos]);
+  }, [step, services, combos, assignStaffLater]);
   useEffect(() => {
     if (!autoSkippedRef.current || step !== 1) return;
-    if (availableStaff.length <= 1) {
-      if (availableStaff.length === 1) setSelectedStaff([availableStaff[0]]);
+    if (availableStaff.length <= 1 || assignStaffLater) {
+      if (availableStaff.length === 1 && !assignStaffLater) setSelectedStaff([availableStaff[0]]);
       setStep(2);
     }
-  }, [step, availableStaff]);
+  }, [step, availableStaff, assignStaffLater]);
 
   useEffect(() => {
     const publicKey = shop.mpPublicKey || process.env.NEXT_PUBLIC_MP_PUBLIC_KEY || process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY;
@@ -2353,7 +2355,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                       </div>
                     )}
 
-                    {step === 1 && (
+                    {step === 1 && !assignStaffLater && (
                       <div className="flex flex-col h-full min-h-0">
                         <div className="flex flex-col min-h-0 max-h-full w-full">
                         <div className="flex-1 overflow-y-auto overflow-x-hidden delicate-scroll px-1 pt-2 pb-3 [scroll-snap-type:y_proximity]">
@@ -3314,7 +3316,7 @@ className="fixed inset-0 z-[60] flex items-center justify-center p-4"
                       animate={{ opacity: 1, x: 0, scale: 1 }}
                       exit={{ opacity: 0, x: -70, scale: 0.5 }}
                       transition={{ type: "spring", stiffness: 550, damping: 20, mass: 0.7 }}
-                      onClick={(e) => { triggerHaptic(10, e.currentTarget); if (isStoreOnly && step === 3) { setStep(0); return; } if (isStoreOnly && step === storeStep) { setStep(0); return; } setStep((s) => s - 1); }}
+                      onClick={(e) => { triggerHaptic(10, e.currentTarget); if (isStoreOnly && step === 3) { setStep(0); return; } if (isStoreOnly && step === storeStep) { setStep(0); return; } if (assignStaffLater && step === 2) { setStep(0); return; } setStep((s) => s - 1); }}
                       whileHover={{ scale: 1.07, x: -3 }}
                       whileTap={{ scale: 0.88 }}
                       className={`inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors relative overflow-hidden ${templateStyles.back}`}
@@ -3370,6 +3372,7 @@ className="fixed inset-0 z-[60] flex items-center justify-center p-4"
                       if (!canGoNext) return;
                       triggerHaptic(12, e.currentTarget);
                       if (!hasServices && hasStoreItems) { setStep(3); return; }
+                      if (assignStaffLater && step === 0) { setStep(2); return; }
                       setStep((s) => s + 1);
                     }}
                     disabled={!canGoNext}

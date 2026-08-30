@@ -1542,6 +1542,7 @@ export type Database = {
         Row: {
           active: boolean | null
           address: string | null
+          assign_staff_later: boolean
           auto_complete_enabled: boolean
           bank_alias: string | null
           bank_cvu_cbu: string | null
@@ -1579,6 +1580,7 @@ export type Database = {
         Insert: {
           active?: boolean | null
           address?: string | null
+          assign_staff_later?: boolean
           auto_complete_enabled?: boolean
           bank_alias?: string | null
           bank_cvu_cbu?: string | null
@@ -1616,6 +1618,7 @@ export type Database = {
         Update: {
           active?: boolean | null
           address?: string | null
+          assign_staff_later?: boolean
           auto_complete_enabled?: boolean
           bank_alias?: string | null
           bank_cvu_cbu?: string | null

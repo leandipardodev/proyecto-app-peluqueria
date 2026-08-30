@@ -7,7 +7,7 @@ import type { ActionResult } from "@/lib/types";
 
 type AppointmentsData = Awaited<ReturnType<typeof fetchAppointments>> extends ActionResult<infer T> ? T : never;
 type ServicesData = Array<{ id: string; name: string; price: number; duration_minutes: number }>;
-type StaffData = Array<{ id: string; name: string | null; email: string | null; role: string; revenue: number; payModel: string; percentageRate: number; fixedAmount: number }>;
+type StaffData = Array<{ id: string; name: string | null; email: string | null; photo_url: string | null; role: string; revenue: number; payModel: string; percentageRate: number; fixedAmount: number }>;
 type BusinessHoursData = Awaited<ReturnType<typeof fetchBusinessHours>> extends ActionResult<infer T> ? T : never;
 
 function isActionSuccess<T>(value: unknown): value is ActionResult<T> & { success: true; data?: T } {
@@ -23,6 +23,7 @@ export default async function CalendarSection({
   initialAppointmentId,
   initialViewMode,
   autoCompleteEnabled,
+  assignStaffLater,
   isOwner,
 }: {
   shopId: string;
@@ -33,6 +34,7 @@ export default async function CalendarSection({
   initialAppointmentId?: string;
   initialViewMode?: string;
   autoCompleteEnabled?: boolean;
+  assignStaffLater?: boolean;
   isOwner?: boolean;
 }) {
   const weekStart = getArgentinaWeekStart();
@@ -73,6 +75,7 @@ export default async function CalendarSection({
       initialAppointmentId={initialAppointmentId}
       initialViewMode={initialViewMode}
       autoCompleteEnabled={autoCompleteEnabled}
+      assignStaffLater={assignStaffLater}
       isOwner={isOwner}
     />
   );

@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import type { Database } from "@/lib/supabase/database.types";
 import { resolveIndustry } from "@/lib/industry/resolve";
+import { DEFAULT_ASSIGN_STAFF_LATER } from "@/lib/industry/types";
 import { DASHBOARD_LEGACY_SEGMENTS_SET } from "@/lib/dashboard/shared/legacy-segments";
 import { trackProductEvent } from "@/lib/analytics/product-events";
 
@@ -258,6 +259,7 @@ export async function GET(request: NextRequest) {
           nombre: ownerShopName,
           slug,
           industry: ownerIndustry,
+          assign_staff_later: DEFAULT_ASSIGN_STAFF_LATER[ownerIndustry],
           active: true,
           plan_expiry: trialEnd,
         })

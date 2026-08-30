@@ -38,6 +38,7 @@ type StaffMember = {
   id: string;
   name: string | null;
   email: string | null;
+  photo_url?: string | null;
 };
 
 type ServiceItem = {
@@ -65,6 +66,7 @@ interface AppointmentDetailModalProps {
   onSuccess?: () => void;
   onDeleted?: (recurringGroupId?: string) => void;
   allAppointments?: SiblingAppointment[];
+  assignStaffLater?: boolean;
 }
 
 const statusFlow: Record<string, { label: string; nextStatus: string; setIsPaid?: boolean }[]> = {
@@ -110,6 +112,11 @@ function formatTime(d: Date): string {
   return d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Argentina/Buenos_Aires" });
 }
 
+function getInitials(name: string | null): string {
+  if (!name) return "?";
+  return name.split(" ").map((w) => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+}
+
 export default function AppointmentDetailModal({
   shopId,
   appointment,
@@ -119,6 +126,7 @@ export default function AppointmentDetailModal({
   onSuccess,
   onDeleted,
   allAppointments,
+  assignStaffLater = false,
 }: AppointmentDetailModalProps) {
   const backdropRef = useRef<HTMLDivElement>(null);
   const [pending, startTransition] = useTransition();
@@ -917,18 +925,75 @@ export default function AppointmentDetailModal({
               <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium uppercase tracking-wide">
                 Profesional
               </span>
-              <div className="mt-1.5">
-                <GlassSelect
-                  options={[
-                    { value: "", label: "Sin peluquero asignado (disponible)" },
-                    ...staff.map((s) => ({ value: s.id, label: s.name || s.email || "Sin nombre" })),
-                  ]}
-                  value={selectedStaffId}
-                  onChange={handleStaffChange}
-                  placeholder="Sin peluquero asignado"
-                  className="w-full"
-                />
-              </div>
+              {assignStaffLater ? (
+                <div className="mt-2">
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-2">
+                    {selectedStaffId ? "Profesional asignado — tocá para cambiarlo" : "Sin asignar — tocá para asignar"}
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    {staff.map((s) => {
+                      const active = selectedStaffId === s.id;
+                      return (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => handleStaffChange(active ? "" : s.id)}
+                          title={s.name || s.email || "Sin nombre"}
+                          className={`group flex flex-col items-center gap-1.5 rounded-2xl p-2 transition-all cursor-pointer select-none ${
+                            active
+                              ? "ring-2 ring-violet-500 bg-violet-500/10"
+                              : "hover:bg-zinc-100 dark:hover:bg-zinc-800/60"
+                          }`}
+                        >
+                          <span className="relative">
+                            {s.photo_url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={s.photo_url}
+                                alt={s.name || "profesional"}
+                                className={`w-12 h-12 rounded-full object-cover border-2 ${
+                                  active ? "border-violet-500" : "border-zinc-200 dark:border-zinc-700"
+                                }`}
+                              />
+                            ) : (
+                              <span
+                                className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-semibold border-2 ${
+                                  active
+                                    ? "bg-violet-500/20 text-violet-700 dark:text-violet-300 border-violet-500"
+                                    : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700"
+                                }`}
+                              >
+                                {getInitials(s.name)}
+                              </span>
+                            )}
+                            {active && (
+                              <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-violet-500 flex items-center justify-center">
+                                <Check className="w-3 h-3 text-white" />
+                              </span>
+                            )}
+                          </span>
+                          <span className="text-[11px] leading-tight text-center max-w-16 truncate text-zinc-700 dark:text-zinc-300">
+                            {s.name || s.email || "Sin nombre"}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-1.5">
+                  <GlassSelect
+                    options={[
+                      { value: "", label: "Sin peluquero asignado (disponible)" },
+                      ...staff.map((s) => ({ value: s.id, label: s.name || s.email || "Sin nombre" })),
+                    ]}
+                    value={selectedStaffId}
+                    onChange={handleStaffChange}
+                    placeholder="Sin peluquero asignado"
+                    className="w-full"
+                  />
+                </div>
+              )}
             </div>
 
             <div>

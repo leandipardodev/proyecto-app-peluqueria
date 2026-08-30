@@ -22,7 +22,7 @@ export default async function DashboardShopStaffPage({ params }: { params: Promi
     .eq("shop_id", shopId)
     .maybeSingle();
   const canManageStaff = Boolean(membership?.is_active && membership.role === "owner");
-  const { data: shop } = await supabase.from("shops").select("industry").eq("id", shopId).maybeSingle();
+  const { data: shop } = await supabase.from("shops").select("industry, assign_staff_later").eq("id", shopId).maybeSingle();
   const industry = resolveIndustry((shop as { industry?: string | null } | null)?.industry || null);
   const features = await getShopFeatures(shopId);
   if (!features.staff) {
@@ -36,5 +36,5 @@ export default async function DashboardShopStaffPage({ params }: { params: Promi
     .eq("shop_id", shopId)
     .order("name", { ascending: true });
   const services = (servicesData || []).map((s) => ({ id: s.id, name: s.name }));
-  return <StaffList shopId={shopId} shopSlug={shopSlug} industry={industry} initialStaff={result.success ? result.data ?? [] : []} currentUserId={user.id} canManageStaff={canManageStaff} services={services} />;
+  return <StaffList shopId={shopId} shopSlug={shopSlug} industry={industry} initialStaff={result.success ? result.data ?? [] : []} currentUserId={user.id} canManageStaff={canManageStaff} services={services} assignStaffLater={(shop as { assign_staff_later?: boolean | null } | null)?.assign_staff_later === true} />;
 }

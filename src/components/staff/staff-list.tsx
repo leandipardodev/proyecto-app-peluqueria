@@ -21,6 +21,7 @@ import {
   updateStaffProfile,
   type ServiceOverride,
 } from "@/lib/dashboard/staff/staff-actions";
+import { updateAssignStaffLater } from "@/lib/dashboard/shop/business-actions";
 import { supabase } from "@/lib/supabase";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
@@ -75,6 +76,7 @@ export default function StaffList({
   currentUserId,
   canManageStaff,
   services,
+  assignStaffLater,
 }: {
   shopId: string;
   shopSlug?: string;
@@ -83,9 +85,12 @@ export default function StaffList({
   currentUserId: string;
   canManageStaff: boolean;
   services: { id: string; name: string }[];
+  assignStaffLater?: boolean;
 }) {
   const router = useRouter();
   const [staff, setStaff] = useState<StaffMember[]>(initialStaff);
+  const [assignStaffLaterOn, setAssignStaffLaterOn] = useState(assignStaffLater ?? false);
+  const [assignStaffLaterSaving, setAssignStaffLaterSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -111,6 +116,21 @@ export default function StaffList({
   const staffWord = INDUSTRY_CONFIG[industry].labels.staffSingular;
   const staffWordLower = staffWord.toLowerCase();
   const staffPlural = INDUSTRY_CONFIG[industry].labels.staffPlural;
+
+  async function handleAssignStaffLaterChange(enabled: boolean) {
+    if (!canManageStaff || assignStaffLaterSaving) return;
+    const prev = assignStaffLaterOn;
+    setAssignStaffLaterOn(enabled);
+    setAssignStaffLaterSaving(true);
+    const result = await updateAssignStaffLater(enabled);
+    setAssignStaffLaterSaving(false);
+    if (!result.success) {
+      setAssignStaffLaterOn(prev);
+      addToast(result.error, "error");
+      return;
+    }
+    addToast(enabled ? "Asignación de profesional activada" : "Asignación de profesional desactivada", "success");
+  }
 
   useEffect(() => {
     const key = `klip-business-onboarding-v1:${shopSlug || "default"}`;
@@ -386,6 +406,33 @@ export default function StaffList({
         ) : (
           <span className="text-xs text-gray-500 dark:text-gray-400">Solo el owner puede invitar y editar personal</span>
         )}
+      </div>
+
+      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 sm:p-5 mb-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-gray-900 dark:text-white">Elegir {staffWordLower} después de la reserva</p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+              El cliente reserva sin elegir {staffWordLower} y el turno queda &quot;sin asignar&quot;. Después lo asignás vos desde el calendario con un toque.
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={assignStaffLaterOn}
+            onClick={() => { if (canManageStaff) void handleAssignStaffLaterChange(!assignStaffLaterOn); }}
+            disabled={!canManageStaff || assignStaffLaterSaving}
+            className={`relative w-12 h-7 rounded-full transition-colors duration-200 shrink-0 ${
+              assignStaffLaterOn ? "bg-violet-600" : "bg-zinc-300 dark:bg-zinc-700"
+            } ${!canManageStaff ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+          >
+            <span
+              className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-all duration-200 ${
+                assignStaffLaterOn ? "left-6" : "left-1"
+              }`}
+            />
+          </button>
+        </div>
       </div>
 
       {error && (

@@ -7,6 +7,7 @@ import type { ActionResult } from "@/lib/types";
 import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import { trackProductEvent } from "@/lib/analytics/product-events";
 import { resolveIndustry } from "@/lib/industry/resolve";
+import { DEFAULT_ASSIGN_STAFF_LATER } from "@/lib/industry/types";
 import { sendVerificationCode, verifyEmailCode } from "@/lib/dashboard/auth/verification-actions";
 import "server-only";
 
@@ -225,6 +226,7 @@ export async function completeRegistration(
         nombre: shopName,
         slug,
         industry,
+        assign_staff_later: DEFAULT_ASSIGN_STAFF_LATER[industry],
         active: true,
         plan_expiry: trialEnd,
       })
@@ -440,6 +442,7 @@ export async function createAdditionalShop(shopName: string): Promise<ActionResu
         nombre: trimmedName,
         slug,
         industry: "peluqueria",
+        assign_staff_later: DEFAULT_ASSIGN_STAFF_LATER.peluqueria,
         active: true,
         plan_expiry: planExpiry,
       })

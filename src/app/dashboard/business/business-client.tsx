@@ -23,6 +23,7 @@ import {
   updateBusinessInfo,
   disconnectMercadoPagoOauthAction,
   updateBookingDepositPolicyAction,
+  updateAssignStaffLater,
   updateWhatsappTemplateAction,
   updateBusinessHours,
   updateBankTransferSettings,
@@ -247,6 +248,8 @@ export default function BusinessClient({
   const [showHolidaysCard, setShowHolidaysCard] = useState(false);
   const [showCommsCard, setShowCommsCard] = useState(false);
   const [bookingDepositEnabled, setBookingDepositEnabled] = useState(data?.booking_deposit_enabled ?? true);
+  const [assignStaffLater, setAssignStaffLater] = useState(data?.assign_staff_later ?? false);
+  const [assignStaffLaterSaving, setAssignStaffLaterSaving] = useState(false);
   const [bookingDepositAmount, setBookingDepositAmount] = useState(String(data?.booking_deposit_amount ?? 3000));
   const [payAtShop, setPayAtShop] = useState(data?.pay_at_shop ?? false);
   const [bankTransferEnabled, setBankTransferEnabled] = useState(data?.bank_transfer_enabled ?? false);
@@ -848,6 +851,21 @@ export default function BusinessClient({
     playSuccess();
     showSuccess("Todo guardado correctamente");
     return true;
+  }
+
+  async function handleAssignStaffLaterChange(enabled: boolean) {
+    if (!isOwnerOrAdmin || assignStaffLaterSaving) return;
+    const prev = assignStaffLater;
+    setAssignStaffLater(enabled);
+    setAssignStaffLaterSaving(true);
+    const result = await updateAssignStaffLater(enabled);
+    setAssignStaffLaterSaving(false);
+    if (!result.success) {
+      setAssignStaffLater(prev);
+      showError(result.error);
+      return;
+    }
+    showSuccess(enabled ? "Asignación de profesional activada" : "Asignación de profesional desactivada");
   }
 
   function showSuccess(text: string) {
@@ -1678,6 +1696,37 @@ export default function BusinessClient({
                 </div>
               </div>
 
+            </div>
+
+            {/* Assign staff later toggle */}
+            <div
+              id="assign-staff-later"
+              className="rounded-2xl border bg-white dark:bg-zinc-900 p-5 space-y-3 transition-all duration-300 border-white/20 dark:border-white/10"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white">Elegir profesional después de la reserva</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                    Al activarlo, el cliente reserva sin elegir profesional y el turno queda &quot;sin asignar&quot;. Después lo asignás vos desde el calendario.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={assignStaffLater}
+                  onClick={() => { if (isOwnerOrAdmin) void handleAssignStaffLaterChange(!assignStaffLater); }}
+                  disabled={!isOwnerOrAdmin || assignStaffLaterSaving}
+                  className={`relative w-12 h-7 rounded-full transition-colors duration-200 shrink-0 ${
+                    assignStaffLater ? "bg-violet-600" : "bg-zinc-300 dark:bg-zinc-700"
+                  } ${!isOwnerOrAdmin ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+                >
+                  <span
+                    className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-all duration-200 ${
+                      assignStaffLater ? "left-6" : "left-1"
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
 
             {/* Payment timing selector */}
