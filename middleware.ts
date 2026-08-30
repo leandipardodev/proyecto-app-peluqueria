@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createMiddlewareClient } from "@/lib/supabase/middleware";
 import { DASHBOARD_LEGACY_SEGMENTS_SET } from "@/lib/dashboard/shared/legacy-segments";
 import { decodeJwtPayload, extractAccessToken } from "@/lib/jwt";
+import { getArgentinaDateString, toArgentinaLocalIsoString } from "@/lib/argentina-time";
 
 const LOGIN_PATH = "/login";
 const BILLING_REQUIRED_PATH = "/billing-required";
@@ -212,8 +213,10 @@ async function middlewareHandler(request: NextRequest) {
       return NextResponse.redirect(destUrl);
     }
 
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const planExpiryStr = targetShop.plan_expiry?.slice(0, 10);
+    const todayStr = getArgentinaDateString();
+    const planExpiryStr = targetShop.plan_expiry
+      ? toArgentinaLocalIsoString(targetShop.plan_expiry).slice(0, 10)
+      : null;
     const planExpired = Boolean(planExpiryStr && planExpiryStr <= todayStr);
     if (!targetShop.active || planExpired) {
       const billingUrl = request.nextUrl.clone();

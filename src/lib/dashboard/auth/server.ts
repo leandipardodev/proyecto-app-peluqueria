@@ -7,6 +7,7 @@ import { headers } from "next/headers";
 import { cookies } from "next/headers";
 import { cache } from "react";
 import { withRetry } from "@/lib/retry";
+import { getArgentinaDateString, toArgentinaLocalIsoString } from "@/lib/argentina-time";
 
 const ACTIVE_SHOP_ID_COOKIE = "klip_active_shop_id";
 
@@ -240,8 +241,8 @@ export async function checkShopExpired(shopId: string): Promise<{ expired: boole
   if (!shop.active) return { expired: true, active: false };
 
   if (shop.plan_expiry) {
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const planExpiryStr = shop.plan_expiry.slice(0, 10);
+    const todayStr = getArgentinaDateString();
+    const planExpiryStr = toArgentinaLocalIsoString(shop.plan_expiry).slice(0, 10);
     if (planExpiryStr <= todayStr) return { expired: true, active: true };
   }
 

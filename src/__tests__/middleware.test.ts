@@ -378,7 +378,7 @@ describe("middleware", () => {
   });
 
   it("blocks when plan_expiry is today (0 days remaining)", async () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = "2030-06-15";
     vi.mocked(mockCreateMiddlewareClient).mockImplementation((_req, _res) => {
       const profileChain = chainableQuery();
       profileChain.then = (onfulfilled: any) =>
