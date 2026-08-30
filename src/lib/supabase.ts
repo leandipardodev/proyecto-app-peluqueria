@@ -43,7 +43,11 @@ function serializeCookieOptions(options: CookieOptions): string {
 export const supabase = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
-    autoRefreshToken: true,
+    // Auto-refresh desactivado a propósito. El refresh lo maneja el servidor
+    // (middleware + server components): si el browser refresca solo con un
+    // refresh token que el servidor ya rotó, se produce el error de consola
+    // "Invalid Refresh Token: Refresh Token Not Found" y riesgos de deslogueo.
+    autoRefreshToken: false,
     detectSessionInUrl: true,
   },
   cookies: {
