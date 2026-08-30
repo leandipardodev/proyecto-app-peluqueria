@@ -282,7 +282,7 @@ function InfoTooltip({ text }: { text: string }) {
             top: pos.top,
             left: pos.left,
             transform: "translate(-50%, 0)",
-            maxWidth: "calc(100vw - 1rem)",
+            maxWidth: "min(20rem, calc(100vw - 1rem))",
             width: "max-content",
           }}
         >
