@@ -99,7 +99,7 @@ function FlowStepChip({ step }: { step: { number: string; label: string; on: boo
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
   const bubbleRef = useRef<HTMLSpanElement>(null);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const [pos, setPos] = useState<{ top: number; bottom: number; left: number; below: boolean } | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -109,7 +109,7 @@ function FlowStepChip({ step }: { step: { number: string; label: string; on: boo
     const reposition = () => {
       if (ref.current) {
         const r = ref.current.getBoundingClientRect();
-        setPos({ top: r.top, left: r.left + r.width / 2 });
+        setPos({ top: r.top, bottom: r.bottom, left: r.left + r.width / 2, below: false });
       }
     };
     reposition();
@@ -128,12 +128,24 @@ function FlowStepChip({ step }: { step: { number: string; label: string; on: boo
   useLayoutEffect(() => {
     if (!open || !pos || !bubbleRef.current) return;
     const bw = bubbleRef.current.offsetWidth;
+    const bh = bubbleRef.current.offsetHeight;
     const vw = window.innerWidth;
+    const vh = window.innerHeight;
     const margin = 8;
     let left = pos.left;
     if (left - bw / 2 < margin) left = bw / 2 + margin;
     if (left + bw / 2 > vw - margin) left = vw - margin - bw / 2;
-    if (left !== pos.left) setPos((p) => (p ? { ...p, left } : p));
+
+    const spaceAbove = pos.top - margin;
+    const spaceBelow = vh - pos.bottom - margin;
+    const below = !pos.below && spaceAbove < bh + margin && spaceBelow >= bh + margin ? true : pos.below;
+
+    let top = below ? pos.bottom + margin : pos.top - margin - bh;
+    top = Math.max(margin, Math.min(vh - bh - margin, top));
+
+    if (Math.abs(left - pos.left) > 0.5 || below !== pos.below || Math.abs(top - pos.top) > 0.5) {
+      setPos({ top, bottom: pos.bottom, left, below });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -166,16 +178,17 @@ function FlowStepChip({ step }: { step: { number: string; label: string; on: boo
           role="tooltip"
           className="fixed z-[9999] w-56 rounded-xl px-3 py-2 text-xs leading-snug shadow-lg border bg-zinc-900 text-zinc-100 border-zinc-700 dark:bg-white dark:text-zinc-800 dark:border-zinc-200"
           style={{
-            top: pos.top - 8,
+            top: pos.top,
             left: pos.left,
-            transform: "translate(-50%, -100%)",
+            transform: pos.below ? "translate(-50%, 0)" : "translate(-50%, -100%)",
             maxWidth: "calc(100vw - 1rem)",
           }}
         >
           {step.hint}
           <span
-            className="absolute left-1/2 -translate-x-1/2 w-2 h-2 rotate-45 border-b border-r bg-zinc-900 border-zinc-700 dark:bg-white dark:border-zinc-200"
-            style={{ bottom: -4 }}
+            className={`absolute left-1/2 -translate-x-1/2 w-2 h-2 rotate-45 bg-zinc-900 border-zinc-700 dark:bg-white dark:border-zinc-200 ${
+              pos.below ? "-top-1 border-l border-b" : "-bottom-1 border-b border-r"
+            }`}
           />
         </span>,
         document.body
@@ -188,7 +201,7 @@ function InfoTooltip({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
   const bubbleRef = useRef<HTMLSpanElement>(null);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const [pos, setPos] = useState<{ top: number; bottom: number; left: number; below: boolean } | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -200,7 +213,7 @@ function InfoTooltip({ text }: { text: string }) {
     const reposition = () => {
       if (!ref.current) return;
       const r = ref.current.getBoundingClientRect();
-      setPos({ top: r.top + r.height, left: r.left + r.width / 2 });
+      setPos({ top: r.top, bottom: r.bottom, left: r.left + r.width / 2, below: true });
     };
     reposition();
     document.addEventListener("mousedown", handleClick);
@@ -216,12 +229,28 @@ function InfoTooltip({ text }: { text: string }) {
   useLayoutEffect(() => {
     if (!open || !pos || !bubbleRef.current) return;
     const bw = bubbleRef.current.offsetWidth;
+    const bh = bubbleRef.current.offsetHeight;
     const vw = window.innerWidth;
+    const vh = window.innerHeight;
     const margin = 8;
     let left = pos.left;
     if (left - bw / 2 < margin) left = bw / 2 + margin;
     if (left + bw / 2 > vw - margin) left = vw - margin - bw / 2;
-    if (left !== pos.left) setPos((p) => (p ? { ...p, left } : p));
+
+    const spaceBelow = vh - pos.bottom - margin;
+    const spaceAbove = pos.top - margin;
+    const below = !pos.below && spaceBelow < bh + margin && spaceAbove >= bh + margin ? false : pos.below;
+
+    let top = below ? pos.bottom + margin : pos.top - margin - bh;
+    top = Math.max(margin, Math.min(vh - bh - margin, top));
+
+    if (
+      Math.abs(left - pos.left) > 0.5 ||
+      below !== pos.below ||
+      Math.abs(top - (below ? pos.bottom : pos.top)) > 0.5
+    ) {
+      setPos({ top, bottom: pos.bottom, left, below });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -250,7 +279,7 @@ function InfoTooltip({ text }: { text: string }) {
           ref={bubbleRef}
           className="fixed z-[9999] p-3 rounded-xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs leading-relaxed shadow-lg text-left whitespace-normal"
           style={{
-            top: pos.top + 8,
+            top: pos.top,
             left: pos.left,
             transform: "translate(-50%, 0)",
             maxWidth: "calc(100vw - 1rem)",
