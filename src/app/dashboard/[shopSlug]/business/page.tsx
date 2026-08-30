@@ -5,6 +5,7 @@ import { fetchVoucherWhatsappTemplate } from "@/lib/dashboard/vouchers/voucher-a
 import BusinessClient from "@/app/dashboard/business/business-client";
 import { createServerClient } from "@/lib/supabase/server";
 import { getCachedUser, getCachedShopIdBySlug, createServiceRoleClient } from "@/lib/dashboard/auth/server";
+import { getShopFeatures } from "@/lib/industry/features";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -33,14 +34,23 @@ export default async function DashboardShopBusinessPage({ params }: { params: Pr
     .eq("is_active", true)
     .in("role", ["owner", "staff", "admin"]);
 
-  const [result, servicesResult, businessHoursResult, bookingThemeResult, voucherTemplateResult, staffResult] = await Promise.all([
+  const sellablePromise = adminClient
+    .from("stock")
+    .select("id")
+    .eq("shop_id", shopId)
+    .eq("for_sale", true);
+
+  const [result, servicesResult, businessHoursResult, bookingThemeResult, voucherTemplateResult, staffResult, sellableResult, features] = await Promise.all([
     fetchBusinessData(shopId),
     fetchServices(shopId),
     fetchBusinessHours(shopId),
     fetchBookingTheme(shopId),
     fetchVoucherWhatsappTemplate(shopId),
     staffPromise,
+    sellablePromise,
+    getShopFeatures(shopId),
   ]);
+  const storeProductCount = sellableResult.data?.length ?? 0;
 
   const memberIds = (staffResult.data || []).map((m) => m.user_id).filter(Boolean);
   const staffNames: { id: string; name: string }[] = [];
@@ -68,6 +78,8 @@ export default async function DashboardShopBusinessPage({ params }: { params: Pr
       initialVoucherWhatsappTemplate={voucherTemplateResult.success ? voucherTemplateResult.data ?? null : null}
       initialStaff={staffNames}
       userEmail={user.email}
+      storeEnabled={features.store}
+      storeProductCount={storeProductCount}
     />
   );
 }

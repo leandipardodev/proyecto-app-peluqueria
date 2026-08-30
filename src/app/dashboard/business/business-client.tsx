@@ -38,6 +38,8 @@ import {
 import { updateVoucherWhatsappTemplate } from "@/lib/dashboard/vouchers/voucher-actions";
 import { DEFAULT_BIRTHDAY_WHATSAPP_TEMPLATE, DEFAULT_VOUCHER_WHATSAPP_TEMPLATE } from "@/lib/dashboard/vouchers/voucher-constants";
 import { deleteCurrentShop } from "@/lib/dashboard/shop/shop-actions";
+import { setShopStoreEnabled } from "@/lib/dashboard/inventory/inventory-actions";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
 import {
   upsertBookingTheme,
   uploadBookingLogo,
@@ -64,6 +66,32 @@ function getTourSteps(staffPlural: string, servicePlural: string) {
     { id: "setup-staff", title: `4. ${staffPlural}`, text: `Agrega y administra tus ${staffPlural.toLowerCase()} para asignar turnos correctamente.` },
     { id: "setup-services", title: `5. ${servicePlural}`, text: `Carga tu catalogo de ${servicePlural.toLowerCase()} con precio y duracion.` },
   ] as const;
+}
+
+function buildFlowSteps(
+  servicesCount: number,
+  staffCount: number,
+  assignStaffLater: boolean,
+  storeEnabled: boolean,
+  hasStoreProducts: boolean,
+  payAtShop: boolean,
+): { number: string; label: string; on: boolean; reason?: string }[] {
+  const storeOn = storeEnabled && hasStoreProducts;
+  const paymentOn = storeEnabled ? true : payAtShop === false;
+  return [
+    { number: "1", label: "Servicios", on: servicesCount > 0, reason: servicesCount === 0 ? "Sin servicios cargados" : undefined },
+    {
+      number: "2",
+      label: "Profesional",
+      on: !assignStaffLater && staffCount > 1,
+      reason: assignStaffLater ? "Activaste elegir profesional después" : staffCount <= 1 ? "Solo hay un profesional" : undefined,
+    },
+    { number: "3", label: "Fecha y hora", on: true },
+    { number: "4", label: "Tus datos", on: true },
+    { number: "5", label: "Tienda", on: storeOn, reason: !storeEnabled ? "Tienda apagada" : !hasStoreProducts ? "Sin productos para la venta" : undefined },
+    { number: "6", label: "Pago", on: paymentOn, reason: paymentOn ? undefined : "Pago en el local" },
+    { number: "7", label: "Listo", on: true },
+  ];
 }
 
 function InfoTooltip({ text }: { text: string }) {
@@ -176,6 +204,8 @@ export default function BusinessClient({
   initialVoucherWhatsappTemplate,
   initialStaff,
   userEmail,
+  storeEnabled,
+  storeProductCount,
 }: {
   initialData: BusinessData | null;
   initialError: string | null;
@@ -189,6 +219,8 @@ export default function BusinessClient({
   initialVoucherWhatsappTemplate?: string | null;
   initialStaff: { id: string; name: string }[];
   userEmail?: string;
+  storeEnabled?: boolean;
+  storeProductCount?: number;
 }) {
   const { shop } = useAuth();
   const industry = resolveIndustry(shop?.industry);
@@ -250,6 +282,9 @@ export default function BusinessClient({
   const [bookingDepositEnabled, setBookingDepositEnabled] = useState(data?.booking_deposit_enabled ?? true);
   const [assignStaffLater, setAssignStaffLater] = useState(data?.assign_staff_later ?? false);
   const [assignStaffLaterSaving, setAssignStaffLaterSaving] = useState(false);
+  const [storeEnabledState, setStoreEnabledState] = useState(storeEnabled ?? false);
+  const [storeSaving, setStoreSaving] = useState(false);
+  const [storeConfirmOpen, setStoreConfirmOpen] = useState(false);
   const [bookingDepositAmount, setBookingDepositAmount] = useState(String(data?.booking_deposit_amount ?? 3000));
   const [payAtShop, setPayAtShop] = useState(data?.pay_at_shop ?? false);
   const [bankTransferEnabled, setBankTransferEnabled] = useState(data?.bank_transfer_enabled ?? false);
@@ -289,6 +324,8 @@ export default function BusinessClient({
   const [overrideReason, setOverrideReason] = useState("");
 
   const staffList = initialStaff;
+  const staffCount = initialStaff.length;
+  const hasStoreProducts = (storeProductCount ?? 0) > 0;
 
   const loadOverrides = useCallback(async () => {
     const start = new Date();
@@ -868,6 +905,43 @@ export default function BusinessClient({
     showSuccess(enabled ? "Asignación de profesional activada" : "Asignación de profesional desactivada");
   }
 
+  async function handleStoreToggle(enabled: boolean) {
+    if (!isOwnerOrAdmin || storeSaving) return;
+    if (!enabled) {
+      setStoreConfirmOpen(true);
+      return;
+    }
+    const prev = storeEnabledState;
+    setStoreEnabledState(true);
+    setStoreSaving(true);
+    const result = await setShopStoreEnabled(true, shopId);
+    setStoreSaving(false);
+    if (!result.success) {
+      setStoreEnabledState(prev);
+      showError(result.error);
+      return;
+    }
+    showSuccess("Tienda online activada");
+    router.refresh();
+  }
+
+  async function handleStoreTurnOffConfirmed() {
+    if (storeSaving) return;
+    const prev = storeEnabledState;
+    setStoreConfirmOpen(false);
+    setStoreEnabledState(false);
+    setStoreSaving(true);
+    const result = await setShopStoreEnabled(false, shopId);
+    setStoreSaving(false);
+    if (!result.success) {
+      setStoreEnabledState(prev);
+      showError(result.error);
+      return;
+    }
+    showSuccess("Tienda online apagada");
+    router.refresh();
+  }
+
   function showSuccess(text: string) {
     setMessage({ type: "success", text });
     clearTimeout(messageTimerRef.current ?? undefined);
@@ -1439,10 +1513,125 @@ export default function BusinessClient({
                   disabled={!isOwnerOrAdmin}
                 />
                 </ErrorBoundary>
+
+                <div className="mt-6 pt-6 border-t border-zinc-100 dark:border-zinc-800">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Settings2 className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                    <h3 className="text-base font-semibold text-gray-900 dark:text-white">Flujo de la reserva</h3>
+                    <div className="flex-1" />
+                    <InfoTooltip text="Activá o desactivá las opciones que ve el cliente durante la reserva. Los pasos apagados se ocultan automáticamente." />
+                  </div>
+
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
+                    Estos son los pasos que verá tu cliente al reservar. Encendé o apagá los que quieras mostrar.
+                  </p>
+
+                  {/* Switch 1: asignar profesional después */}
+                  <div
+                    id="assign-staff-later"
+                    className="rounded-2xl border bg-white dark:bg-zinc-900 p-5 space-y-3 transition-all duration-300 border-white/20 dark:border-white/10"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">Elegir profesional después de la reserva</p>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                          Al activarlo, el cliente reserva sin elegir profesional y el turno queda &quot;sin asignar&quot;. Después lo asignás vos desde el calendario.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={assignStaffLater}
+                        onClick={() => { if (isOwnerOrAdmin) void handleAssignStaffLaterChange(!assignStaffLater); }}
+                        disabled={!isOwnerOrAdmin || assignStaffLaterSaving}
+                        className={`relative w-12 h-7 rounded-full transition-colors duration-200 shrink-0 ${
+                          assignStaffLater ? "bg-violet-600" : "bg-zinc-300 dark:bg-zinc-700"
+                        } ${!isOwnerOrAdmin ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+                      >
+                        <span
+                          className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-all duration-200 ${
+                            assignStaffLater ? "left-6" : "left-1"
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Switch 2: tienda de productos online */}
+                  <div className="rounded-2xl border bg-white dark:bg-zinc-900 p-5 space-y-3 transition-all duration-300 border-white/20 dark:border-white/10 mt-3">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">Tienda de productos online</p>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                          {hasStoreProducts
+                            ? "Mostrá productos para la venta en tu tienda online. El cliente podrá sumarlos a su reserva."
+                            : "Agregá al menos un producto para la venta desde Inventario para activar la tienda online."}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={storeEnabledState}
+                        onClick={() => { if (isOwnerOrAdmin && hasStoreProducts) void handleStoreToggle(!storeEnabledState); }}
+                        disabled={!isOwnerOrAdmin || storeSaving || !hasStoreProducts}
+                        className={`relative w-12 h-7 rounded-full transition-colors duration-200 shrink-0 ${
+                          storeEnabledState ? "bg-violet-600" : "bg-zinc-300 dark:bg-zinc-700"
+                        } ${!isOwnerOrAdmin || !hasStoreProducts ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+                      >
+                        <span
+                          className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-all duration-200 ${
+                            storeEnabledState ? "left-6" : "left-1"
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Diagrama de pasos */}
+                  <div className="mt-5">
+                    <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2 uppercase tracking-wide">Pasos de la reserva</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {buildFlowSteps(initialServices.length, staffCount, assignStaffLater, storeEnabledState, hasStoreProducts, payAtShop).map((step) => (
+                        <div
+                          key={step.label}
+                          title={step.reason ?? undefined}
+                          className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors cursor-default ${
+                            step.on
+                              ? "bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800"
+                              : "bg-zinc-100 dark:bg-zinc-800/60 text-zinc-400 dark:text-zinc-500 border border-zinc-200 dark:border-zinc-700/60"
+                          }`}
+                        >
+                          <span
+                            className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold shrink-0 ${
+                              step.on
+                                ? "bg-violet-600 text-white"
+                                : "bg-zinc-300 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400"
+                            }`}
+                          >
+                            {step.number}
+                          </span>
+                          {step.label}
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-2">
+                      Los pasos en gris se ocultan automáticamente del flujo según tu configuración.
+                    </p>
+                  </div>
+                </div>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
+
+        <ConfirmDialog
+          open={storeConfirmOpen}
+          title="Apagar tienda online"
+          message="Se va a quitar el paso y el botón de tienda del flujo de reservas (/book). Los productos no se borran: podés volver a activarla cuando quieras."
+          danger
+          onCancel={() => setStoreConfirmOpen(false)}
+          onConfirm={handleStoreTurnOffConfirmed}
+        />
       </section>
 
       {/* Card: Configuración Técnica */}
@@ -1696,37 +1885,6 @@ export default function BusinessClient({
                 </div>
               </div>
 
-            </div>
-
-            {/* Assign staff later toggle */}
-            <div
-              id="assign-staff-later"
-              className="rounded-2xl border bg-white dark:bg-zinc-900 p-5 space-y-3 transition-all duration-300 border-white/20 dark:border-white/10"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-sm font-semibold text-gray-900 dark:text-white">Elegir profesional después de la reserva</p>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                    Al activarlo, el cliente reserva sin elegir profesional y el turno queda &quot;sin asignar&quot;. Después lo asignás vos desde el calendario.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={assignStaffLater}
-                  onClick={() => { if (isOwnerOrAdmin) void handleAssignStaffLaterChange(!assignStaffLater); }}
-                  disabled={!isOwnerOrAdmin || assignStaffLaterSaving}
-                  className={`relative w-12 h-7 rounded-full transition-colors duration-200 shrink-0 ${
-                    assignStaffLater ? "bg-violet-600" : "bg-zinc-300 dark:bg-zinc-700"
-                  } ${!isOwnerOrAdmin ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
-                >
-                  <span
-                    className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-all duration-200 ${
-                      assignStaffLater ? "left-6" : "left-1"
-                    }`}
-                  />
-                </button>
-              </div>
             </div>
 
             {/* Payment timing selector */}
