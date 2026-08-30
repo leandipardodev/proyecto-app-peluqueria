@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect, useMemo, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
-import { Store, CreditCard, MessageSquareText, Link2, MapPin, Phone, Share2, AlertTriangle, Trash2, Users, Scissors, Calendar, Plus, CheckCircle2, XCircle, Landmark, Settings2 } from "lucide-react";
+import { Store, CreditCard, MessageSquareText, Link2, MapPin, Phone, Share2, AlertTriangle, Trash2, Users, Scissors, Calendar, Plus, CheckCircle2, XCircle, Landmark, Settings2, ArrowRight } from "lucide-react";
 import { TagChips, useTagInsert } from "@/components/ui/tag-chips";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -75,23 +75,80 @@ function buildFlowSteps(
   storeEnabled: boolean,
   hasStoreProducts: boolean,
   payAtShop: boolean,
-): { number: string; label: string; on: boolean; reason?: string }[] {
+): { number: string; label: string; on: boolean; reason?: string; hint: string }[] {
   const storeOn = storeEnabled && hasStoreProducts;
   const paymentOn = storeEnabled ? true : payAtShop === false;
   return [
-    { number: "1", label: "Servicios", on: servicesCount > 0, reason: servicesCount === 0 ? "Sin servicios cargados" : undefined },
+    { number: "1", label: "Servicios", on: servicesCount > 0, reason: servicesCount === 0 ? "Sin servicios cargados" : undefined, hint: "Se skipea automáticamente si tenés solo 1 servicio" },
     {
       number: "2",
       label: "Profesional",
       on: !assignStaffLater && staffCount > 1,
       reason: assignStaffLater ? "Activaste elegir profesional después" : staffCount <= 1 ? "Solo hay un profesional" : undefined,
+      hint: "Se skipea si hay solo 1 profesional o si está desactivada la selección de profesional",
     },
-    { number: "3", label: "Fecha y hora", on: true },
-    { number: "4", label: "Tus datos", on: true },
-    { number: "5", label: "Tienda", on: storeOn, reason: !storeEnabled ? "Tienda apagada" : !hasStoreProducts ? "Sin productos para la venta" : undefined },
-    { number: "6", label: "Pago", on: paymentOn, reason: paymentOn ? undefined : "Pago en el local" },
-    { number: "7", label: "Listo", on: true },
+    { number: "3", label: "Fecha y hora", on: true, hint: "No se puede desactivar" },
+    { number: "4", label: "Tus datos", on: true, hint: "No se puede desactivar" },
+    { number: "5", label: "Tienda", on: storeOn, reason: !storeEnabled ? "Tienda apagada" : !hasStoreProducts ? "Sin productos para la venta" : undefined, hint: "Se desactiva apagando la tienda de productos online" },
+    { number: "6", label: "Pago", on: paymentOn, reason: paymentOn ? undefined : "Pago en el local", hint: "Se desactiva eligiendo pago en el local" },
+    { number: "7", label: "Listo", on: true, hint: "No se puede desactivar" },
   ];
+}
+
+function FlowStepChip({ step }: { step: { number: string; label: string; on: boolean; hint: string } }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: Event) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("touchstart", close, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("touchstart", close);
+    };
+  }, [open]);
+
+  return (
+    <span ref={ref} className="relative inline-flex group" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
+      <button
+        type="button"
+        aria-label={`${step.label}: ${step.hint}`}
+        onClick={() => setOpen((v) => !v)}
+        className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
+          step.on
+            ? "bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800"
+            : "bg-zinc-100 dark:bg-zinc-800/60 text-zinc-400 dark:text-zinc-500 border border-zinc-200 dark:border-zinc-700/60"
+        }`}
+      >
+        <span
+          className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold shrink-0 ${
+            step.on
+              ? "bg-violet-600 text-white"
+              : "bg-zinc-300 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400"
+          }`}
+        >
+          {step.number}
+        </span>
+        {step.label}
+      </button>
+      <span
+        role="tooltip"
+        className={`absolute z-30 bottom-full mb-2 left-1/2 -translate-x-1/2 w-56 rounded-xl px-3 py-2 text-xs leading-snug shadow-lg border bg-zinc-900 text-zinc-100 border-zinc-700 dark:bg-white dark:text-zinc-800 dark:border-zinc-200 transition-opacity duration-150 ${
+          open ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
+      >
+        {step.hint}
+        <span
+          className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 rotate-45 border-b border-r bg-zinc-900 border-zinc-700 dark:bg-white dark:border-zinc-200"
+          style={{ marginTop: "-3px" }}
+        />
+      </span>
+    </span>
+  );
 }
 
 function InfoTooltip({ text }: { text: string }) {
@@ -1590,28 +1647,14 @@ export default function BusinessClient({
                   {/* Diagrama de pasos */}
                   <div className="mt-5">
                     <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2 uppercase tracking-wide">Pasos de la reserva</p>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {buildFlowSteps(initialServices.length, staffCount, assignStaffLater, storeEnabledState, hasStoreProducts, payAtShop).map((step) => (
-                        <div
-                          key={step.label}
-                          title={step.reason ?? undefined}
-                          className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors cursor-default ${
-                            step.on
-                              ? "bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800"
-                              : "bg-zinc-100 dark:bg-zinc-800/60 text-zinc-400 dark:text-zinc-500 border border-zinc-200 dark:border-zinc-700/60"
-                          }`}
-                        >
-                          <span
-                            className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold shrink-0 ${
-                              step.on
-                                ? "bg-violet-600 text-white"
-                                : "bg-zinc-300 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400"
-                            }`}
-                          >
-                            {step.number}
-                          </span>
-                          {step.label}
-                        </div>
+                    <div className="flex flex-wrap items-center gap-y-2">
+                      {buildFlowSteps(initialServices.length, staffCount, assignStaffLater, storeEnabledState, hasStoreProducts, payAtShop).map((step, idx) => (
+                        <span key={step.label} className="inline-flex items-center">
+                          {idx > 0 && (
+                            <ArrowRight className="w-4 h-4 mx-1.5 text-zinc-300 dark:text-zinc-600 shrink-0" strokeWidth={2.5} />
+                          )}
+                          <FlowStepChip step={step} />
+                        </span>
                       ))}
                     </div>
                     <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-2">
