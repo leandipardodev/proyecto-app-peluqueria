@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useTransition, useEffect, useMemo, useRef, useCallback, useLayoutEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
 import { Store, CreditCard, MessageSquareText, Link2, MapPin, Phone, Share2, AlertTriangle, Trash2, Users, Scissors, Calendar, Plus, CheckCircle2, XCircle, Landmark, Settings2, ArrowRight } from "lucide-react";
@@ -98,18 +98,43 @@ function buildFlowSteps(
 function FlowStepChip({ step }: { step: { number: string; label: string; on: boolean; hint: string } }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
+  const bubbleRef = useRef<HTMLSpanElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
   useEffect(() => {
     if (!open) return;
     const close = (e: Event) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
+    const reposition = () => {
+      if (ref.current) {
+        const r = ref.current.getBoundingClientRect();
+        setPos({ top: r.top, left: r.left + r.width / 2 });
+      }
+    };
+    reposition();
     document.addEventListener("mousedown", close);
     document.addEventListener("touchstart", close, { passive: true });
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
     return () => {
       document.removeEventListener("mousedown", close);
       document.removeEventListener("touchstart", close);
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
     };
+  }, [open]);
+
+  useLayoutEffect(() => {
+    if (!open || !pos || !bubbleRef.current) return;
+    const bw = bubbleRef.current.offsetWidth;
+    const vw = window.innerWidth;
+    const margin = 8;
+    let left = pos.left;
+    if (left - bw / 2 < margin) left = bw / 2 + margin;
+    if (left + bw / 2 > vw - margin) left = vw - margin - bw / 2;
+    if (left !== pos.left) setPos((p) => (p ? { ...p, left } : p));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   return (
@@ -135,18 +160,26 @@ function FlowStepChip({ step }: { step: { number: string; label: string; on: boo
         </span>
         {step.label}
       </button>
-      <span
-        role="tooltip"
-        className={`absolute z-30 bottom-full mb-2 left-1/2 -translate-x-1/2 w-56 rounded-xl px-3 py-2 text-xs leading-snug shadow-lg border bg-zinc-900 text-zinc-100 border-zinc-700 dark:bg-white dark:text-zinc-800 dark:border-zinc-200 transition-opacity duration-150 ${
-          open ? "opacity-100" : "opacity-0 pointer-events-none"
-        }`}
-      >
-        {step.hint}
+      {open && pos && createPortal(
         <span
-          className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 rotate-45 border-b border-r bg-zinc-900 border-zinc-700 dark:bg-white dark:border-zinc-200"
-          style={{ marginTop: "-3px" }}
-        />
-      </span>
+          ref={bubbleRef}
+          role="tooltip"
+          className="fixed z-[9999] w-56 rounded-xl px-3 py-2 text-xs leading-snug shadow-lg border bg-zinc-900 text-zinc-100 border-zinc-700 dark:bg-white dark:text-zinc-800 dark:border-zinc-200"
+          style={{
+            top: pos.top - 8,
+            left: pos.left,
+            transform: "translate(-50%, -100%)",
+            maxWidth: "calc(100vw - 1rem)",
+          }}
+        >
+          {step.hint}
+          <span
+            className="absolute left-1/2 -translate-x-1/2 w-2 h-2 rotate-45 border-b border-r bg-zinc-900 border-zinc-700 dark:bg-white dark:border-zinc-200"
+            style={{ bottom: -4 }}
+          />
+        </span>,
+        document.body
+      )}
     </span>
   );
 }
@@ -154,6 +187,8 @@ function FlowStepChip({ step }: { step: { number: string; label: string; on: boo
 function InfoTooltip({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
+  const bubbleRef = useRef<HTMLSpanElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -162,8 +197,32 @@ function InfoTooltip({ text }: { text: string }) {
         setOpen(false);
       }
     };
+    const reposition = () => {
+      if (!ref.current) return;
+      const r = ref.current.getBoundingClientRect();
+      setPos({ top: r.top + r.height, left: r.left + r.width / 2 });
+    };
+    reposition();
     document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+    };
+  }, [open]);
+
+  useLayoutEffect(() => {
+    if (!open || !pos || !bubbleRef.current) return;
+    const bw = bubbleRef.current.offsetWidth;
+    const vw = window.innerWidth;
+    const margin = 8;
+    let left = pos.left;
+    if (left - bw / 2 < margin) left = bw / 2 + margin;
+    if (left + bw / 2 > vw - margin) left = vw - margin - bw / 2;
+    if (left !== pos.left) setPos((p) => (p ? { ...p, left } : p));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   return (
@@ -186,10 +245,21 @@ function InfoTooltip({ text }: { text: string }) {
       >
         ?
       </span>
-      {open && (
-        <span className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-max max-w-[calc(100vw-2rem)] sm:max-w-xs p-3 rounded-xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs leading-relaxed shadow-lg z-[9999] text-left whitespace-normal">
+      {open && pos && createPortal(
+        <span
+          ref={bubbleRef}
+          className="fixed z-[9999] p-3 rounded-xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs leading-relaxed shadow-lg text-left whitespace-normal"
+          style={{
+            top: pos.top + 8,
+            left: pos.left,
+            transform: "translate(-50%, 0)",
+            maxWidth: "calc(100vw - 1rem)",
+            width: "max-content",
+          }}
+        >
           {text}
-        </span>
+        </span>,
+        document.body
       )}
     </span>
   );
