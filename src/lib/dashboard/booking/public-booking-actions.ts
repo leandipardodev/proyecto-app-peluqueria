@@ -74,10 +74,11 @@ export async function fetchPublicShopDateOverrides(
  * Find or create a customer for (shop_id, telefono).
  * Tolerant of concurrent duplicate inserts (unique_customer_phone_per_shop):
  * if the INSERT fails with 23505 we re-read the existing row and update it instead.
- * For authenticated users the customer row keyed by user id is preferred, falling
- * back to the phone-matched row when a phone uniqueness conflict arises.
+ * NEVER key the customer by the authenticated user id: customers.id es un uuid
+ * generado y la identidad por cada local se resuelve por (shop_id, telefono).
+ * user_id es solo informativo (nullable).
  */
-async function resolveCustomer(
+export async function resolveCustomer(
   admin: AdminClient,
   input: {
     shopId: string;
@@ -110,48 +111,11 @@ async function resolveCustomer(
       })
       .eq("id", id);
 
-  if (authenticatedUserId) {
-    const { data: created, error } = await admin
-      .from("customers")
-      .upsert(
-        {
-          id: authenticatedUserId,
-          user_id: authenticatedUserId,
-          shop_id: shopId,
-          nombre: customerName,
-          email: customerEmail ?? null,
-          telefono: customerPhone,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "id" }
-      )
-      .select("id")
-      .maybeSingle();
-
-    if (!error && created?.id) {
-      return { success: true, data: { customerId: created.id } };
-    }
-
-    if (error && error.code !== "23505") {
-      return { success: false, error: error.message };
-    }
-
-    // Phone uniqueness conflict (e.g. an anonymous booking used this phone before):
-    // reuse the existing phone-matched customer and link it to the logged-in user.
-    const existing = await selectByPhone();
-    if (existing.data) {
-      const { error: updateError } = await updateCustomer(existing.data.id, { user_id: authenticatedUserId });
-      if (updateError) return { success: false, error: updateError.message };
-      return { success: true, data: { customerId: existing.data.id } };
-    }
-
-    if (error) return { success: false, error: error.message };
-    return { success: true, data: { customerId: authenticatedUserId } };
-  }
-
   const existing = await selectByPhone();
   if (existing.data) {
-    const { error: updateError } = await updateCustomer(existing.data.id);
+    const { error: updateError } = await updateCustomer(existing.data.id, {
+      user_id: authenticatedUserId ?? undefined,
+    });
     if (updateError) return { success: false, error: updateError.message };
     return { success: true, data: { customerId: existing.data.id } };
   }
@@ -159,7 +123,7 @@ async function resolveCustomer(
   const { data: created, error: insertError } = await admin
     .from("customers")
     .insert({
-      user_id: null,
+      user_id: authenticatedUserId ?? null,
       shop_id: shopId,
       nombre: customerName,
       telefono: customerPhone,
@@ -173,7 +137,9 @@ async function resolveCustomer(
     if (insertError.code === "23505") {
       const retry = await selectByPhone();
       if (retry.data) {
-        const { error: updateError } = await updateCustomer(retry.data.id);
+        const { error: updateError } = await updateCustomer(retry.data.id, {
+          user_id: authenticatedUserId ?? undefined,
+        });
         if (updateError) return { success: false, error: updateError.message };
         return { success: true, data: { customerId: retry.data.id } };
       }

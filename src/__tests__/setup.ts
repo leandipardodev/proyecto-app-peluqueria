@@ -216,6 +216,7 @@ vi.mock("@/lib/dashboard/auth/server", () => ({
   createServiceRoleClient: vi.fn(),
   getAuthSession: vi.fn(),
   getCachedUser: vi.fn(),
+  getShopId: vi.fn(),
   getShopIdBySlug: vi.fn(),
   getCurrentUserRole: vi.fn(),
 }));

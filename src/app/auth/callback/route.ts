@@ -414,21 +414,33 @@ export async function GET(request: NextRequest) {
     }
 
     if (role === "customer") {
-      const { error: customerError } = await adminClient
+      // Crear un customer placeholder por (shop_id, user_id). NUNCA keyear por
+      // id = user.id: customers.id es un uuid global y cada local tiene su propia
+      // fila. Se deduplica por (shop_id, user_id) para no duplicar en cada login.
+      const { data: existingCustomer } = await adminClient
         .from("customers")
-        .upsert({
-          user_id: user.id,
-          shop_id: shopId!,
-          nombre: String(user.user_metadata?.full_name || user.email || "Cliente"),
-          email: user.email ?? "",
-          telefono: null,
-        });
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("shop_id", shopId!)
+        .maybeSingle();
 
-      if (customerError) {
-        try { await adminClient.from("user_profiles").delete().eq("user_id", user.id); } catch (cleanupErr) { console.error("[auth/callback] cleanup after customer error:", cleanupErr); }
-        return NextResponse.redirect(
-          new URL(`/login?error=${encodeURIComponent(customerError.message)}`, request.url)
-        );
+      if (!existingCustomer) {
+        const { error: customerError } = await adminClient
+          .from("customers")
+          .insert({
+            user_id: user.id,
+            shop_id: shopId!,
+            nombre: String(user.user_metadata?.full_name || user.email || "Cliente"),
+            email: user.email ?? "",
+            telefono: null,
+          });
+
+        if (customerError) {
+          try { await adminClient.from("user_profiles").delete().eq("user_id", user.id); } catch (cleanupErr) { console.error("[auth/callback] cleanup after customer error:", cleanupErr); }
+          return NextResponse.redirect(
+            new URL(`/login?error=${encodeURIComponent(customerError.message)}`, request.url)
+          );
+        }
       }
     }
     } else if (isAllowlistedAdmin && allowlistEntry?.shop_id && ["owner", "admin", "staff"].includes(allowlistEntry.role)) {
@@ -467,14 +479,22 @@ export async function GET(request: NextRequest) {
     }
     } else if (existingProfile.shop_id) {
       if (existingProfile.role === "customer") {
-        await adminClient.from("customers").upsert({
-          id: user.id,
-          user_id: user.id,
-          shop_id: existingProfile.shop_id,
-          nombre: user.user_metadata?.full_name || user.email || "Cliente",
-          email: user.email || "",
-          telefono: null,
-        });
+        const { data: existingCustomer } = await adminClient
+          .from("customers")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("shop_id", existingProfile.shop_id)
+          .maybeSingle();
+
+        if (!existingCustomer) {
+          await adminClient.from("customers").insert({
+            user_id: user.id,
+            shop_id: existingProfile.shop_id,
+            nombre: user.user_metadata?.full_name || user.email || "Cliente",
+            email: user.email || "",
+            telefono: null,
+          });
+        }
       }
     }
 

@@ -240,7 +240,7 @@ export default function CustomersPage({
       recurring_weekday: draftRecurringWeekday ? Number(draftRecurringWeekday) : null,
       recurring_frequency: draftRecurringFrequency || null,
       recurring_notes: draftRecurringNotes || null,
-      user_id: user.id,
+      user_id: null,
       shop_id: shopId,
     };
 

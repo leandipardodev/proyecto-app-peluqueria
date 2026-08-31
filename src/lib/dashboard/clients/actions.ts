@@ -2,7 +2,7 @@
 
 import { createServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { createServiceRoleClient, getAuthSession, getShopId } from "@/lib/dashboard/auth/server";
+import { getAuthSession, getShopId } from "@/lib/dashboard/auth/server";
 import { getArgentinaDateKey } from "@/lib/argentina-time";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
@@ -68,6 +68,76 @@ type ClientAppointment = {
   staff: { name: string } | null;
 };
 
+/**
+ * Resolver el customer de un cliente logueado dentro de un local, POR (shop_id,
+ * telefono). NUNCA por id = user.id: el id es un uuid global y cada local tiene
+ * su propia fila. Devuelve el id real del customer o null.
+ */
+async function resolveClientCustomerId(
+  admin: Awaited<ReturnType<typeof createAdminClient>>,
+  shopId: string,
+  input: { nombre: string; telefono: string | null; email?: string | null; userId?: string }
+): Promise<string | null> {
+  const selectByPhone = () => {
+    if (input.telefono) {
+      return admin
+        .from("customers")
+        .select("id")
+        .eq("shop_id", shopId)
+        .eq("telefono", input.telefono)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+    }
+    return admin
+      .from("customers")
+      .select("id")
+      .eq("shop_id", shopId)
+      .is("telefono", null)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+  };
+
+  const existing = await selectByPhone();
+  if (existing.data) {
+    await admin
+      .from("customers")
+      .update({
+        nombre: input.nombre,
+        email: input.email ?? null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existing.data.id);
+    return existing.data.id;
+  }
+
+  const { data: created, error } = await admin
+    .from("customers")
+    .insert({
+      user_id: input.userId ?? null,
+      shop_id: shopId,
+      nombre: input.nombre,
+      telefono: input.telefono,
+      email: input.email ?? null,
+    })
+    .select("id")
+    .maybeSingle();
+
+  if (!error && created?.id) return created.id;
+
+  const retry = await selectByPhone();
+  if (retry.data) {
+    await admin
+      .from("customers")
+      .update({ nombre: input.nombre, updated_at: new Date().toISOString() })
+      .eq("id", retry.data.id);
+    return retry.data.id;
+  }
+
+  return null;
+}
+
 export async function fetchClientAppointments(): Promise<ActionResult<ClientAppointment[]>> {
   try {
     const session = await getAuthSession();
@@ -75,12 +145,20 @@ export async function fetchClientAppointments(): Promise<ActionResult<ClientAppo
     const shopId = await getShopId(session);
     if (!shopId) return { success: false, error: "SESION_EXPIRADA" };
 
+    const admin = await createAdminClient();
+    const customerId = await resolveClientCustomerId(admin, shopId, {
+      nombre: "Cliente",
+      telefono: null,
+      userId: session.user.id,
+    });
+    if (!customerId) return { success: true, data: [] };
+
     const supabase = await createServerClient();
 
     const { data, error } = await supabase
       .from("appointments")
       .select("id, start_time, end_time, status, is_paid, notes, services!appointments_service_id_fkey(name, price, duration_minutes), user_profiles!appointments_staff_id_fkey(name)")
-      .eq("customer_id", session.user.id)
+      .eq("customer_id", customerId)
       .order("start_time", { ascending: false });
 
     if (error) return { success: false, error: error.message };
@@ -113,6 +191,14 @@ export async function cancelClientAppointment(id: string): Promise<ActionResult>
     const shopId = await getShopId(session);
     if (!shopId) return { success: false, error: "SESION_EXPIRADA" };
 
+    const admin = await createAdminClient();
+    const customerId = await resolveClientCustomerId(admin, shopId, {
+      nombre: "Cliente",
+      telefono: null,
+      userId: session.user.id,
+    });
+    if (!customerId) return { success: false, error: "No tienes permiso para cancelar este turno" };
+
     const supabase = await createServerClient();
 
     const { data: appointment, error: fetchError } = await supabase
@@ -125,7 +211,7 @@ export async function cancelClientAppointment(id: string): Promise<ActionResult>
       return { success: false, error: "Turno no encontrado" };
     }
 
-    if (appointment.customer_id !== session.user.id) {
+    if (appointment.customer_id !== customerId) {
       return { success: false, error: "No tienes permiso para cancelar este turno" };
     }
 
@@ -133,7 +219,7 @@ export async function cancelClientAppointment(id: string): Promise<ActionResult>
       .from("appointments")
       .update({ status: "cancelled" })
       .eq("id", id)
-      .eq("customer_id", session.user.id);
+      .eq("customer_id", customerId);
 
     if (error) return { success: false, error: error.message };
 
@@ -153,18 +239,27 @@ export async function fetchClientProfile(): Promise<ActionResult<ClientProfile>>
     const shopId = await getShopId(session);
     if (!shopId) return { success: false, error: "SESION_EXPIRADA" };
 
-    const supabase = await createServerClient();
-
-    const { data, error } = await supabase
+    const admin = await createAdminClient();
+    const { data: customerRow } = await admin
       .from("customers")
-      .select("nombre, email, telefono")
-      .eq("id", session.user.id)
+      .select("id")
+      .eq("user_id", session.user.id)
       .eq("shop_id", shopId)
       .maybeSingle();
 
-    if (error) return { success: false, error: error.message };
+    const supabase = await createServerClient();
 
-    if (data) return { success: true, data };
+    if (customerRow?.id) {
+      const { data, error } = await supabase
+        .from("customers")
+        .select("nombre, email, telefono")
+        .eq("id", customerRow.id)
+        .maybeSingle();
+
+      if (error) return { success: false, error: error.message };
+
+      if (data) return { success: true, data };
+    }
 
     const { data: fallback, error: fallbackError } = await supabase
       .from("user_profiles")
@@ -199,18 +294,14 @@ export async function updateClientProfile(formData: FormData): Promise<ActionRes
 
     const admin = await createAdminClient();
 
-    const { error } = await admin
-      .from("customers")
-      .upsert({
-        id: session.user.id,
-        user_id: session.user.id,
-        shop_id: shopId,
-        nombre: name,
-        telefono: phone,
-        updated_at: new Date().toISOString(),
-      });
+    const customerId = await resolveClientCustomerId(admin, shopId, {
+      nombre: name,
+      telefono: phone,
+      email: null,
+      userId: session.user.id,
+    });
 
-    if (error) return { success: false, error: error.message };
+    if (!customerId) return { success: false, error: "No se pudo registrar el perfil de cliente" };
 
     revalidatePath("/client/profile");
     return { success: true };
@@ -251,16 +342,14 @@ export async function createClientAppointment(formData: FormData): Promise<Actio
       .eq("user_id", session.user.id)
       .maybeSingle();
 
-    const { error: customerError } = await admin.from("customers").upsert({
-      id: session.user.id,
-      user_id: session.user.id,
-      shop_id: shopId,
+    const customerId = await resolveClientCustomerId(admin, shopId, {
       nombre: profile?.name || "Cliente",
       telefono: phone || null,
-      updated_at: startDate.toISOString(),
+      email: null,
+      userId: session.user.id,
     });
 
-    if (customerError) return { success: false, error: customerError.message };
+    if (!customerId) return { success: false, error: "No se pudo registrar el cliente" };
 
     const parsedServiceIds = serviceIdsRaw
       ? serviceIdsRaw.split(",").map((id) => id.trim()).filter(Boolean)
@@ -288,7 +377,7 @@ export async function createClientAppointment(formData: FormData): Promise<Actio
       const currentEnd = new Date(currentStart.getTime() + duration * 60000);
       const appointment = {
         shop_id: shopId,
-        customer_id: session.user.id,
+        customer_id: customerId,
         staff_id: staffId || null,
         service_id: id,
         service_price: svc.price ?? null,
