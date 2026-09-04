@@ -33,7 +33,6 @@ import {
 } from "lucide-react";
 import { initMercadoPago } from "@mercadopago/sdk-react";
 import { fetchPublicAvailableSlots, createPublicAppointment, createPublicComboAppointment, deletePublicAppointment, fetchPublicShopDateOverrides } from "@/lib/dashboard/booking/public-booking-actions";
-import { deletePendingBooking } from "@/lib/dashboard/appointments/pending-booking-actions";
 import type { PublicStoreProduct } from "@/lib/dashboard/store/public-store-actions";
 import { productColor } from "@/lib/dashboard/store/product-color";
 import QRCode from "qrcode";
@@ -1216,6 +1215,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
 
   const pendingAppointmentIdsRef = useRef<string[]>([]);
   const confirmLockRef = useRef(false);
+  const slotRetriedRef = useRef(false);
   const slotsRef = useRef<HTMLDivElement>(null);
   const horariosScrollRef = useRef<HTMLDivElement>(null);
   const stepsScrollRef = useRef<HTMLDivElement>(null);
@@ -1648,6 +1648,22 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     return { ids: createdIds };
   }
 
+  async function maybeRetrySlotTaken(error: string | undefined): Promise<boolean> {
+    if (error !== "slot_taken") return false;
+    if (slotRetriedRef.current) return false;
+    const ownIds = pendingAppointmentIdsRef.current;
+    if (ownIds.length === 0) return false;
+    slotRetriedRef.current = true;
+    await Promise.allSettled(ownIds.map((id) => deletePublicAppointment({ appointmentId: id, shopId: shop.id }).catch(() => {})));
+    pendingAppointmentIdsRef.current = [];
+    confirmLockRef.current = false;
+    setSubmitting(false);
+    setCreatingPreference(false);
+    setError(null);
+    handleConfirm();
+    return true;
+  }
+
   async function handleConfirm() {
     if (confirmLockRef.current) return;
     confirmLockRef.current = true;
@@ -1816,6 +1832,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
       if (!comboResult.success) {
         setSubmitting(false); setCreatingPreference(false);
         if (comboResult.error === "login_required") { handleLoginRequired(); return; }
+        if (await maybeRetrySlotTaken(comboResult.error)) return;
         setError(comboResult.error || "No se pudo crear el turno"); return;
       }
       if (!comboResult.data) { setSubmitting(false); setCreatingPreference(false); setError("No se pudo crear el turno"); return; }
@@ -1864,9 +1881,11 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     setIsDepositPayment(Boolean(prefResult.data.isDeposit));
     setStep(pagoStep);
   } catch (e) {
+    const msg = e instanceof Error ? e.message : "Error inesperado al procesar el turno";
+    if (await maybeRetrySlotTaken(msg)) return;
     setSubmitting(false);
     setCreatingPreference(false);
-    setError(e instanceof Error ? e.message : "Error inesperado al procesar el turno");
+    setError(msg);
   } finally {
     confirmLockRef.current = false;
   }
@@ -2967,14 +2986,10 @@ className="fixed inset-0 z-[60] flex items-center justify-center p-4"
                               initial={{ opacity: 0, x: -70, scale: 0.5 }}
                               animate={{ opacity: 1, x: 0, scale: 1 }}
                               transition={{ type: "spring", stiffness: 550, damping: 20, mass: 0.7 }}
-                              onClick={() => {
+                              onClick={async () => {
                                 const ids = pendingAppointmentIdsRef.current;
                                 if (ids.length > 0) {
-                                  if (selectedCombo) {
-                                    Promise.allSettled(ids.map((id) => deletePublicAppointment({ appointmentId: id, shopId: shop.id }).catch(() => {})));
-                                  } else {
-                                    Promise.allSettled(ids.map((id) => deletePendingBooking(id, shop.id).catch(() => {})));
-                                  }
+                                  await Promise.allSettled(ids.map((id) => deletePublicAppointment({ appointmentId: id, shopId: shop.id }).catch(() => {})));
                                 }
                                 pendingAppointmentIdsRef.current = [];
                                 setPaymentPreferenceId(null);
@@ -3104,11 +3119,7 @@ className="fixed inset-0 z-[60] flex items-center justify-center p-4"
                                   if (selectedPaymentMethod === "mp") return;
                                   if (selectedPaymentMethod === "bank_transfer" && pendingAppointmentIdsRef.current.length > 0) {
                                     const ids = pendingAppointmentIdsRef.current;
-                                    if (selectedCombo) {
-                                      await Promise.allSettled(ids.map((id) => deletePublicAppointment({ appointmentId: id, shopId: shop.id }).catch(() => {})));
-                                    } else {
-                                      await Promise.allSettled(ids.map((id) => deletePendingBooking(id, shop.id).catch(() => {})));
-                                    }
+                                    await Promise.allSettled(ids.map((id) => deletePublicAppointment({ appointmentId: id, shopId: shop.id }).catch(() => {})));
                                     pendingAppointmentIdsRef.current = [];
                                     setBankTransferDetails(null);
                                     setBankTransferWhatsAppMessage(null);
@@ -3153,11 +3164,7 @@ className="fixed inset-0 z-[60] flex items-center justify-center p-4"
                                   if (selectedPaymentMethod === "bank_transfer") return;
                                   if (selectedPaymentMethod === "mp" && pendingAppointmentIdsRef.current.length > 0) {
                                     const ids = pendingAppointmentIdsRef.current;
-                                    if (selectedCombo) {
-                                      await Promise.allSettled(ids.map((id) => deletePublicAppointment({ appointmentId: id, shopId: shop.id }).catch(() => {})));
-                                    } else {
-                                      await Promise.allSettled(ids.map((id) => deletePendingBooking(id, shop.id).catch(() => {})));
-                                    }
+                                    await Promise.allSettled(ids.map((id) => deletePublicAppointment({ appointmentId: id, shopId: shop.id }).catch(() => {})));
                                     pendingAppointmentIdsRef.current = [];
                                     setPaymentPreferenceId(null);
                                     setPaymentInitPoint(null);

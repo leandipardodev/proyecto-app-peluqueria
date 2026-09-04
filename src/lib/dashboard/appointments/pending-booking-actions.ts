@@ -218,7 +218,7 @@ export async function createPendingBooking(
 
     let pendingConflictQuery = admin
       .from("pending_bookings")
-      .select("id")
+      .select("id, ip_address")
       .eq("shop_id", input.shopId)
       .eq("status", "pending")
       .gt("expires_at", new Date().toISOString())
@@ -243,8 +243,20 @@ export async function createPendingBooking(
       return apt.status !== "no_show";
     });
 
-    if (hasConflict || (existingPendingBookings.data && existingPendingBookings.data.length > 0)) {
+    const pendingRows = existingPendingBookings.data || [];
+    // Let the same client re-take its own slot: a pending booking from the same IP
+    // (e.g. an abandoned or stale checkout) is released instead of blocking.
+    const ownPendingIds = pendingRows
+      .filter((pb) => pb.ip_address && pb.ip_address === ip)
+      .map((pb) => pb.id);
+    const hasOtherPending = pendingRows.some((pb) => !pb.ip_address || pb.ip_address !== ip);
+
+    if (hasConflict || hasOtherPending) {
       return { success: false, error: "slot_taken" };
+    }
+
+    if (ownPendingIds.length > 0) {
+      await admin.from("pending_bookings").delete().in("id", ownPendingIds);
     }
 
     const { data: shopPolicy } = await admin
