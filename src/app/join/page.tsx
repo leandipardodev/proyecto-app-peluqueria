@@ -44,11 +44,21 @@ export default async function JoinPage({ searchParams }: { searchParams?: Promis
     return <JoinMessageClient title="Local no encontrado" text="El local asociado a esta invitacion ya no existe." />;
   }
 
+  const { data: existingMembership } = await admin
+    .from("shop_memberships")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("shop_id", shop.id)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  const effectiveRole = existingMembership?.role === "owner" ? "owner" : invite.role;
+
   await admin.from("shop_memberships").upsert(
     {
       user_id: user.id,
       shop_id: shop.id,
-      role: invite.role,
+      role: effectiveRole,
       is_active: true,
       invite_accepted_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -56,28 +66,39 @@ export default async function JoinPage({ searchParams }: { searchParams?: Promis
     { onConflict: "user_id,shop_id" }
   );
 
-  await admin.from("user_profiles").upsert(
-    {
+  const { data: existingProfile } = await admin
+    .from("user_profiles")
+    .select("role")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (existingProfile) {
+    if ((existingProfile.role === null || existingProfile.role === "customer") && effectiveRole === "staff") {
+      await admin
+        .from("user_profiles")
+        .update({ role: "staff", is_active: true, updated_at: new Date().toISOString() })
+        .eq("user_id", user.id);
+    }
+  } else {
+    await admin.from("user_profiles").insert({
       user_id: user.id,
       shop_id: shop.id,
       name: user.user_metadata?.full_name || user.email || "Staff",
       email: invite.email,
-      role: invite.role,
+      role: effectiveRole,
       is_active: true,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id,shop_id" }
-  );
+    });
+  }
 
   await admin.from("admin_allowlist").upsert(
     {
       email: invite.email,
       shop_id: shop.id,
-      role: invite.role,
+      role: effectiveRole,
       is_active: true,
       updated_at: new Date().toISOString(),
     },
-    { onConflict: "email" }
+    { onConflict: "email", ignoreDuplicates: true }
   );
 
   redirect(`/dashboard/${shop.slug}`);

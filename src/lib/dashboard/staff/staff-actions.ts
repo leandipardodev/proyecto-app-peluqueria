@@ -6,6 +6,7 @@ import { createServiceRoleClient, getCurrentUserRole, requireShopId } from "@/li
 import { trackProductEvent } from "@/lib/analytics/product-events";
 import { revalidateDashboardSegments } from "@/lib/dashboard/shared/revalidate-dashboard";
 import { createStaffInviteToken } from "@/lib/dashboard/staff/staff-invite";
+import { getArgentinaDateString } from "@/lib/argentina-time";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
 import { createAdminClient } from "../appointments/shared";
@@ -252,6 +253,7 @@ export async function addStaffMember(formData: FormData, shopIdOverride?: string
 
     const ownerAccess = await requireOwnerAccessForShop(shopId);
     if (!ownerAccess.success) return ownerAccess;
+    const callerUserId = ownerAccess.data?.userId;
 
     const name = formData.get("name") as string;
     const email = formData.get("email") as string;
@@ -296,6 +298,22 @@ export async function addStaffMember(formData: FormData, shopIdOverride?: string
       .maybeSingle();
 
     if (existingUser?.user_id) {
+      if (existingUser.user_id === callerUserId) {
+        return { success: false, error: "No podés agregarte a vos mismo como profesional" };
+      }
+
+      const { data: existingMembership } = await admin
+        .from("shop_memberships")
+        .select("id, role")
+        .eq("user_id", existingUser.user_id)
+        .eq("shop_id", shopId)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (existingMembership?.role === "owner") {
+        return { success: false, error: "Ese usuario ya es owner de este local" };
+      }
+
       await admin.from("shop_memberships").upsert(
         {
           user_id: existingUser.user_id,
@@ -334,11 +352,19 @@ export async function addStaffMember(formData: FormData, shopIdOverride?: string
         }
       }
 
-      await admin
-        .from("user_profiles")
-        .update({ role, is_active: true, updated_at: new Date().toISOString() })
-        .eq("user_id", existingUser.user_id)
-        .eq("shop_id", shopId);
+      if (role === "staff") {
+        const { data: existingProfile } = await admin
+          .from("user_profiles")
+          .select("user_id, role")
+          .eq("user_id", existingUser.user_id)
+          .maybeSingle();
+        if (existingProfile && (existingProfile.role === null || existingProfile.role === "customer")) {
+          await admin
+            .from("user_profiles")
+            .update({ role: "staff", is_active: true, updated_at: new Date().toISOString() })
+            .eq("user_id", existingUser.user_id);
+        }
+      }
 
       await admin.from("admin_allowlist").upsert(
         {
@@ -348,7 +374,7 @@ export async function addStaffMember(formData: FormData, shopIdOverride?: string
           is_active: true,
           updated_at: new Date().toISOString(),
         },
-        { onConflict: "email" }
+        { onConflict: "email", ignoreDuplicates: true }
       );
 
       if (role === "staff") {
@@ -365,18 +391,45 @@ export async function addStaffMember(formData: FormData, shopIdOverride?: string
         (u: { email?: string | null }) => u.email?.toLowerCase() === normalizedEmail
       );
       if (existingAuthUser) {
-        await admin.from("user_profiles").upsert(
-          {
+        if (existingAuthUser.id === callerUserId) {
+          return { success: false, error: "No podés agregarte a vos mismo como profesional" };
+        }
+
+        const { data: existingAuthMembership } = await admin
+          .from("shop_memberships")
+          .select("id, role")
+          .eq("user_id", existingAuthUser.id)
+          .eq("shop_id", shopId)
+          .eq("is_active", true)
+          .maybeSingle();
+
+        if (existingAuthMembership?.role === "owner") {
+          return { success: false, error: "Ese usuario ya es owner de este local" };
+        }
+
+        const { data: existingAuthProfile } = await admin
+          .from("user_profiles")
+          .select("user_id, role")
+          .eq("user_id", existingAuthUser.id)
+          .maybeSingle();
+
+        if (existingAuthProfile) {
+          if ((existingAuthProfile.role === null || existingAuthProfile.role === "customer") && role === "staff") {
+            await admin
+              .from("user_profiles")
+              .update({ role: "staff", is_active: true, updated_at: new Date().toISOString() })
+              .eq("user_id", existingAuthUser.id);
+          }
+        } else {
+          await admin.from("user_profiles").insert({
             user_id: existingAuthUser.id,
             shop_id: shopId,
             name,
             email: normalizedEmail,
             role,
             is_active: true,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "user_id" }
-        );
+          });
+        }
 
         await admin.from("shop_memberships").upsert(
           {
@@ -422,7 +475,7 @@ export async function addStaffMember(formData: FormData, shopIdOverride?: string
             is_active: true,
             updated_at: new Date().toISOString(),
           },
-          { onConflict: "email" }
+          { onConflict: "email", ignoreDuplicates: true }
         );
 
         if (role === "staff") {
@@ -573,7 +626,7 @@ export async function updateStaffPayMode(
     const admin = await createAdminClient();
     const percentage = input.payModel === "fixed" ? 0 : Math.max(0, Math.min(100, Number(input.percentageRate) || 0));
     const fixed = input.payModel === "percentage" ? 0 : Math.max(0, Number(input.fixedAmount) || 0);
-    const today = new Date().toISOString().slice(0, 10);
+    const today = getArgentinaDateString();
     const overridesEnabled = Boolean(input.overridesEnabled);
     const serviceOverrides = input.serviceOverrides ?? [];
 
@@ -643,9 +696,41 @@ export async function updateStaffRole(id: string, role: "staff" | "owner", shopI
       return { success: false, error: "No podés editar tu propio rol de administrador" };
     }
 
+    const { data: targetMembership } = await admin
+      .from("shop_memberships")
+      .select("role")
+      .eq("user_id", id)
+      .eq("shop_id", shopId)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (targetMembership?.role === "owner" && role !== "owner") {
+      const { count: shopOwners, error: ownerCountErr } = await admin
+        .from("shop_memberships")
+        .select("id", { count: "exact", head: true })
+        .eq("shop_id", shopId)
+        .eq("role", "owner")
+        .eq("is_active", true);
+      if (ownerCountErr) return { success: false, error: ownerCountErr.message };
+      if ((shopOwners ?? 0) <= 1) {
+        return { success: false, error: "No podés quitar el único owner del local" };
+      }
+    }
+
+    const { count: ownsOtherShop, error: otherOwnerErr } = await admin
+      .from("shop_memberships")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", id)
+      .eq("role", "owner")
+      .eq("is_active", true)
+      .neq("shop_id", shopId);
+    if (otherOwnerErr) return { success: false, error: otherOwnerErr.message };
+
+    const profileRole = role === "owner" || (ownsOtherShop ?? 0) > 0 ? "owner" : role;
+
     const { error } = await admin
       .from("user_profiles")
-      .update({ role, updated_at: new Date().toISOString() })
+      .update({ role: profileRole, updated_at: new Date().toISOString() })
       .eq("user_id", id)
       .eq("shop_id", shopId);
 

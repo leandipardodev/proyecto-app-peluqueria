@@ -211,6 +211,9 @@ export async function GET(request: NextRequest) {
       allowlistEntry && allowlistEntry.is_active && ["owner", "admin", "staff"].includes(allowlistEntry.role)
     );
 
+    let effectiveSyncRole: "owner" | "admin" | "staff" | null =
+      allowlistEntry && isAllowlistedAdmin ? (allowlistEntry.role as "owner" | "admin" | "staff") : null;
+
     const { data: existingOperationalMembership } = await adminClient
       .from("shop_memberships")
       .select("shop_id")
@@ -444,11 +447,25 @@ export async function GET(request: NextRequest) {
       }
     }
     } else if (isAllowlistedAdmin && allowlistEntry?.shop_id && ["owner", "admin", "staff"].includes(allowlistEntry.role)) {
-    if (existingProfile.role !== allowlistEntry.role || existingProfile.shop_id !== allowlistEntry.shop_id) {
+    const { data: currentOAuthMembership } = await adminClient
+      .from("shop_memberships")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("shop_id", allowlistEntry.shop_id)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    const isOwnerMember = currentOAuthMembership?.role === "owner";
+    const mustPreserveOwner = isOwnerMember && allowlistEntry.role !== "owner";
+    if (mustPreserveOwner) {
+      effectiveSyncRole = "owner";
+    }
+
+    if (!mustPreserveOwner && (existingProfile.role !== effectiveSyncRole || existingProfile.shop_id !== allowlistEntry.shop_id)) {
       const { error: roleSyncError } = await adminClient
         .from("user_profiles")
         .update({
-          role: allowlistEntry.role,
+          role: effectiveSyncRole,
           shop_id: allowlistEntry.shop_id,
           updated_at: new Date().toISOString(),
         })
@@ -461,21 +478,23 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const { error: membershipError } = await adminClient.from("shop_memberships").upsert(
-      {
-        user_id: user.id,
-        shop_id: allowlistEntry.shop_id,
-        role: allowlistEntry.role,
-        is_active: true,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id,shop_id" }
-    );
-
-    if (membershipError) {
-      return NextResponse.redirect(
-        new URL(`/login?error=${encodeURIComponent(membershipError.message)}`, request.url)
+    if (!mustPreserveOwner) {
+      const { error: membershipSyncError } = await adminClient.from("shop_memberships").upsert(
+        {
+          user_id: user.id,
+          shop_id: allowlistEntry.shop_id,
+          role: effectiveSyncRole ?? "staff",
+          is_active: true,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,shop_id" }
       );
+
+      if (membershipSyncError) {
+        return NextResponse.redirect(
+          new URL(`/login?error=${encodeURIComponent(membershipSyncError.message)}`, request.url)
+        );
+      }
     }
     } else if (existingProfile.shop_id) {
       if (existingProfile.role === "customer") {
@@ -499,7 +518,7 @@ export async function GET(request: NextRequest) {
     }
 
     const effectiveRole =
-      (isAllowlistedAdmin ? allowlistEntry?.role : null) || existingProfile?.role || "customer";
+      (isAllowlistedAdmin ? effectiveSyncRole : null) || existingProfile?.role || "customer";
     const isDashboardRole = ["owner", "admin", "staff"].includes(effectiveRole);
 
     let dashboardSlug: string | null = null;

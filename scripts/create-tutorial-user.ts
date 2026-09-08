@@ -1,7 +1,15 @@
 import { createClient } from "@supabase/supabase-js";
+import dotenv from "dotenv";
 
-const supabaseUrl = "https://ildsxnhangxuytyerukh.supabase.co";
-const serviceRoleKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlsZHN4bmhhbmd4dXl0eWVydWtoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzY2OTQxMiwiZXhwIjoyMDkzMjQ1NDEyfQ.Sew1Tv7Fa7Tc-GJLdqiARTnVyhbInhA-2mO1ozUi7sQ";
+dotenv.config({ path: ".env.local" });
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !serviceRoleKey) {
+  console.error("Faltan NEXT_PUBLIC_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY en .env.local");
+  process.exit(1);
+}
 
 const admin = createClient(supabaseUrl, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
@@ -9,7 +17,7 @@ const admin = createClient(supabaseUrl, serviceRoleKey, {
 
 async function main() {
   const email = "tutorial@gmail.com";
-  const password = "Wd10exec";
+  const password = process.env.TUTORIAL_PASSWORD ?? "Wd10exec";
 
   // Delete existing user if any
   console.log("Looking for existing user...");
