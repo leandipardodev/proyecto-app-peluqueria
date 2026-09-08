@@ -229,15 +229,15 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
     <>
       {tutorialActive && (
         <div className="mb-4 rounded-2xl border border-violet-300/50 bg-violet-50/80 dark:bg-violet-900/20 px-4 py-3">
-          <p className="text-sm font-semibold text-violet-800 dark:text-violet-200">Paso 2: {serviceWord}s</p>
+          <p className="text-sm font-semibold text-violet-800 dark:text-violet-200">Paso 5: {serviceWord}s</p>
           <p className="mt-1 text-xs text-violet-700/90 dark:text-violet-200/90">Carga o valida tus {serviceWordLower}s con precio y duracion.</p>
           <div className="mt-3 flex justify-end">
             <button
               type="button"
               onClick={() => {
                 const key = `klip-business-onboarding-v1:${shopSlug || "default"}`;
-                window.localStorage.setItem(key, JSON.stringify({ active: true, step: 3 }));
-                router.push(shopSlug ? `/dashboard/${shopSlug}/business` : "/dashboard/business");
+                window.localStorage.setItem(key, JSON.stringify({ active: false, step: 5, doneAt: Date.now() }));
+                router.push(shopSlug ? `/dashboard/${shopSlug}` : "/dashboard");
               }}
               className="ui-btn-primary rounded-full px-4 py-1.5 text-xs"
             >
@@ -261,14 +261,18 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
             <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">Las secciones/categorías de /book ahora se editan en Mi Negocio - Personalización.</p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="inline-flex items-center justify-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 transition-colors cursor-pointer select-none"
-        >
-          <Plus className="w-4 h-4" />
-          Nuevo {serviceWord}
-        </button>
+        {isOwnerOrAdmin ? (
+          <button
+            type="button"
+            onClick={openCreate}
+            className="inline-flex items-center justify-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-2xl text-sm font-medium shadow-sm hover:bg-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 transition-colors cursor-pointer select-none"
+          >
+            <Plus className="w-4 h-4" />
+            Nuevo {serviceWord}
+          </button>
+        ) : (
+          <span className="text-xs text-gray-500 dark:text-gray-400">Solo el owner puede agregar o editar {serviceWordLower}s</span>
+        )}
       </div>
 
       <div className="flex gap-1 mb-6 bg-zinc-100 dark:bg-zinc-800 rounded-2xl p-1 w-fit">
@@ -302,14 +306,16 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
           {services.length === 0 ? (
             <div className="bg-white dark:bg-zinc-900 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm py-16 px-6 text-center">
               <StatePanel title={`Sin ${serviceWordLower}s`} description={`Todavía no hay ${serviceWordLower}s creados.`} />
-              <button
-                type="button"
-                onClick={openCreate}
-                className="mt-4 inline-flex items-center gap-2 text-violet-600 text-sm font-medium hover:text-violet-700 cursor-pointer select-none"
-              >
-                <Plus className="w-4 h-4" />
-                Crear el primero
-              </button>
+              {isOwnerOrAdmin && (
+                <button
+                  type="button"
+                  onClick={openCreate}
+                  className="mt-4 inline-flex items-center gap-2 text-violet-600 text-sm font-medium hover:text-violet-700 cursor-pointer select-none"
+                >
+                  <Plus className="w-4 h-4" />
+                  Crear el primero
+                </button>
+              )}
             </div>
           ) : (
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
@@ -367,7 +373,9 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
                               })}
                             </div>
                           )}
-                          <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-end gap-1.5">
+<div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-end gap-1.5">
+                        {isOwnerOrAdmin && (
+                          <>
                         <button
                           type="button"
                           onClick={() => openEdit(service)}
@@ -386,6 +394,8 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
                           <Trash2 className="w-4 h-4" />
                           <span className="hidden sm:inline">Eliminar</span>
                         </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -401,17 +411,19 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
           {combos.length === 0 ? (
             <div className="bg-white dark:bg-zinc-900 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm py-16 px-6 text-center">
               <StatePanel title="Sin combos" description="Agrupá servicios en combos para que tus clientes los reserven juntos." />
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingService(null);
-                  setModalOpen(true);
-                }}
-                className="mt-4 inline-flex items-center gap-2 text-violet-600 text-sm font-medium hover:text-violet-700 cursor-pointer select-none"
-              >
-                <Sparkles className="w-4 h-4" />
-                Crear combo
-              </button>
+              {isOwnerOrAdmin && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingService(null);
+                    setModalOpen(true);
+                  }}
+                  className="mt-4 inline-flex items-center gap-2 text-violet-600 text-sm font-medium hover:text-violet-700 cursor-pointer select-none"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Crear combo
+                </button>
+              )}
             </div>
           ) : (
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
@@ -499,7 +511,7 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
             </div>
           )}
 
-          {services.length > 0 && (
+          {services.length > 0 && isOwnerOrAdmin && (
             <div className="mt-4 flex justify-center">
               <button
                 type="button"

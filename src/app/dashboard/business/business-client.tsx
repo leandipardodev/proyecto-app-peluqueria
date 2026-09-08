@@ -2617,6 +2617,12 @@ export default function BusinessClient({
                           })();
                           return;
                         }
+                        if (tourStep === 3) {
+                          const key = `klip-business-onboarding-v1:${shopSlug || "default"}`;
+                          window.localStorage.setItem(key, JSON.stringify({ active: true, step: 4 }));
+                          router.push(shopSlug ? `/dashboard/${shopSlug}/services` : "/dashboard/services");
+                          return;
+                        }
                         const nextStep = Math.min(tourStep + 1, tourSteps.length - 1);
                         setTourStep(nextStep);
                         window.localStorage.setItem(`klip-business-onboarding-v1:${shopSlug || "default"}`, JSON.stringify({ active: true, step: nextStep }));
