@@ -13,16 +13,16 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 
-  if (!auth) {
+  if (!auth || !auth.startsWith("Bearer ")) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 
-  const expected = `Bearer ${secret}`;
-  const actual = auth;
+  const expected = Buffer.from(secret);
+  const actual = Buffer.from(auth.slice(7));
 
   if (
     expected.length !== actual.length ||
-    !crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(actual))
+    !crypto.timingSafeEqual(expected, actual)
   ) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }

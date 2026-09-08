@@ -14,6 +14,7 @@ import { createServerClient as mockCreateServerClient } from "@/lib/supabase/ser
 import { revalidateDashboardSegments as mockRevalidate } from "@/lib/dashboard/shared/revalidate-dashboard";
 import { DEFAULT_VOUCHER_WHATSAPP_TEMPLATE } from "@/lib/dashboard/vouchers/voucher-constants";
 import { supabaseStub, chainableQuery } from "@/__tests__/setup";
+import { getArgentinaDateString } from "@/lib/argentina-time";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -73,9 +74,9 @@ describe("fetchVouchers", () => {
 // ---------------------------------------------------------------------------
 describe("fetchTodayVoucherAlerts", () => {
   it("filters vouchers whose birthday matches today", async () => {
-    const now = new Date();
-    const mm = String(now.getMonth() + 1).padStart(2, "0");
-    const dd = String(now.getDate()).padStart(2, "0");
+    const todayAr = getArgentinaDateString();
+    const mm = todayAr.slice(5, 7);
+    const dd = todayAr.slice(8, 10);
 
     const vouchers = [
       { id: "v1", gifted_to_name: "Ana", gifted_to_birthday: `1990-${mm}-${dd}`, service_name: "Corte", gifted_by_name: null, status: "pending" },
@@ -262,8 +263,8 @@ describe("markVoucherRedeemed", () => {
 // ---------------------------------------------------------------------------
 describe("runVoucherReminderSweep", () => {
   it("updates vouchers whose birthday matches today", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2030-06-15T00:00:00.000Z"));
+    const todayAr = getArgentinaDateString();
+    const matchingBirthday = `1990-${todayAr.slice(5, 7)}-${todayAr.slice(8, 10)}`;
 
     const shopsChain = chainableQuery();
     shopsChain.then = (onfulfilled: any) =>
@@ -273,7 +274,7 @@ describe("runVoucherReminderSweep", () => {
     selectChain.then = (onfulfilled: any) =>
       Promise.resolve({
         data: [
-          { id: "v1", gifted_to_birthday: "1990-06-15", status: "pending" },
+          { id: "v1", gifted_to_birthday: matchingBirthday, status: "pending" },
           { id: "v2", gifted_to_birthday: "1990-01-01", status: "pending" },
         ],
         error: null,
@@ -296,7 +297,6 @@ describe("runVoucherReminderSweep", () => {
     } as never);
 
     const result = await runVoucherReminderSweep();
-    vi.useRealTimers();
     expect(result).toEqual({ success: true, data: { updated: 1 } });
   });
 

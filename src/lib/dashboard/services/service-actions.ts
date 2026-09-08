@@ -1,6 +1,6 @@
 "use server";
 
-import { createServiceRoleClient, requireOwnerShopId, requireShopId } from "@/lib/dashboard/auth/server";
+import { createServiceRoleClient, requireOwnerShopId, requireShopId, getCachedUser, canAccessShopId } from "@/lib/dashboard/auth/server";
 import { trackProductEvent } from "@/lib/analytics/product-events";
 import { revalidateDashboardSegments } from "@/lib/dashboard/shared/revalidate-dashboard";
 import type { ActionResult } from "@/lib/types";
@@ -86,6 +86,26 @@ function parseStaffIds(formData: FormData): string[] {
   return raw.split(",").map((s) => s.trim()).filter(Boolean);
 }
 
+function normalizePriceValue(raw: FormDataEntryValue | null): number {
+  let cleaned = String(raw ?? "").trim().replace(/[$]/g, "").replace(/\s/g, "");
+  if (!cleaned) return NaN;
+  const hasDot = cleaned.includes(".");
+  const hasComma = cleaned.includes(",");
+  if (hasDot && hasComma) {
+    const lastDot = cleaned.lastIndexOf(".");
+    const lastComma = cleaned.lastIndexOf(",");
+    if (lastComma > lastDot) {
+      cleaned = cleaned.replace(/\./g, "").replace(",", ".");
+    } else {
+      cleaned = cleaned.replace(/,/g, "").replace(/\.(?=[^.]*\.)/g, "");
+    }
+  } else if (hasComma) {
+    cleaned = cleaned.replace(",", ".");
+  }
+  const value = parseFloat(cleaned);
+  return isNaN(value) ? NaN : value;
+}
+
 export async function createService(formData: FormData, shopIdOverride?: string): Promise<ActionResult> {
   try {
     let shopId: string | undefined = shopIdOverride;
@@ -98,7 +118,7 @@ export async function createService(formData: FormData, shopIdOverride?: string)
 
     const name = formData.get("name") as string;
     const rawCategory = String(formData.get("category") || "General");
-    const price = parseFloat(formData.get("price") as string);
+    const price = normalizePriceValue(formData.get("price"));
     const durationMinutes = parseInt(formData.get("duration_minutes") as string);
     const payAtShop = formData.get("pay_at_shop") === "on";
 
@@ -162,7 +182,7 @@ export async function updateService(id: string, formData: FormData, shopIdOverri
 
     const name = formData.get("name") as string;
     const rawCategory = String(formData.get("category") || "General");
-    const price = parseFloat(formData.get("price") as string);
+    const price = normalizePriceValue(formData.get("price"));
     const durationMinutes = parseInt(formData.get("duration_minutes") as string);
     const payAtShop = formData.get("pay_at_shop") === "on";
 
@@ -269,6 +289,12 @@ export async function deleteService(id: string, shopIdOverride?: string): Promis
 
 export async function fetchServiceStaffMap(shopId: string): Promise<ActionResult<Record<string, string[]>>> {
   try {
+    const user = await getCachedUser();
+    if (!user) return { success: false, error: "SESION_EXPIRADA" };
+    if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+    const allowed = await canAccessShopId(user.id, shopId);
+    if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
+
     const admin = await createAdminClient();
     const { data: svcIds } = await admin
       .from("services")

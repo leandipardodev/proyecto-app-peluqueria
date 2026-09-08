@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthSession } from "@/lib/dashboard/auth/server";
+import { getAuthSession, canAccessShopId } from "@/lib/dashboard/auth/server";
 import { getShopFeatures } from "@/lib/industry/features";
 
 export const dynamic = "force-dynamic";
@@ -16,6 +16,11 @@ export async function GET(request: Request) {
     const session = await getAuthSession();
     if (!session) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    const allowed = await canAccessShopId(session.user.id, shopId);
+    if (!allowed) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
     const features = await getShopFeatures(shopId);

@@ -252,15 +252,26 @@ export default function AppointmentDetailModal({
 
   useEffect(() => {
     if (!serviceSearchOpen) return;
+    const recalc = () => {
+      if (!serviceSearchRef.current) return;
+      const r = serviceSearchRef.current.getBoundingClientRect();
+      setServiceDropdownStyle({ top: r.bottom + 4, left: r.left, width: r.width });
+    };
     function handleMove(e: Event) {
+      if (e.type === "resize") {
+        recalc();
+        return;
+      }
       if (serviceDropdownRef.current && serviceDropdownRef.current.contains(e.target as Node)) return;
       setServiceSearchOpen(false);
     }
     window.addEventListener("scroll", handleMove, true);
     window.addEventListener("resize", handleMove);
+    window.visualViewport?.addEventListener("resize", recalc);
     return () => {
       window.removeEventListener("scroll", handleMove, true);
       window.removeEventListener("resize", handleMove);
+      window.visualViewport?.removeEventListener("resize", recalc);
     };
   }, [serviceSearchOpen]);
 
@@ -739,6 +750,7 @@ export default function AppointmentDetailModal({
                 {serviceSearchOpen && filteredServices.length > 0 && serviceDropdownStyle && typeof document !== "undefined" && createPortal(
                   <div
                     ref={serviceDropdownRef}
+                    onMouseDown={(e) => e.preventDefault()}
                     style={{
                       position: "fixed",
                       top: serviceDropdownStyle.top,
@@ -754,7 +766,7 @@ export default function AppointmentDetailModal({
                         <button
                           key={s.id}
                           type="button"
-                          onMouseDown={() => { if (!already) addService(s.id); }}
+                          onClick={() => { if (!already) addService(s.id); }}
                           disabled={already}
                           className={`w-full text-left px-3 py-2.5 text-sm transition-colors cursor-pointer select-none flex items-center justify-between ${
                             already

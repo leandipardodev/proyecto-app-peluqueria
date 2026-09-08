@@ -5,12 +5,17 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
-    const expectedToken = process.env.TEST_EMAIL_TOKEN;
-    if (expectedToken) {
-      const provided = request.headers.get("x-test-email-token");
-      if (provided !== expectedToken) {
-        return NextResponse.json({ ok: false, error: "UNAUTHORIZED" }, { status: 401 });
-      }
+    const expectedToken = process.env.TEST_EMAIL_TOKEN || process.env.STAFF_INVITE_SECRET;
+    if (!expectedToken) {
+      return NextResponse.json({ ok: false, error: "NOT_CONFIGURED" }, { status: 500 });
+    }
+
+    const provided =
+      request.headers.get("x-test-email-token") ||
+      request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ||
+      "";
+    if (provided !== expectedToken) {
+      return NextResponse.json({ ok: false, error: "UNAUTHORIZED" }, { status: 401 });
     }
 
     const targetEmail = "leandro@klip.com.ar";

@@ -154,7 +154,21 @@ export default function AppointmentFormModal({
 
   useEffect(() => {
     if (!customerSearchOpen && !serviceSearchOpen) return;
+    const recalcAll = () => {
+      if (customerSearchOpen && customerSearchRef.current) {
+        const r = customerSearchRef.current.getBoundingClientRect();
+        setCustomerDropdownStyle({ top: r.bottom + 4, left: r.left, width: r.width });
+      }
+      if (serviceSearchOpen && serviceSearchRef.current) {
+        const r = serviceSearchRef.current.getBoundingClientRect();
+        setServiceDropdownStyle({ top: r.bottom + 4, left: r.left, width: r.width });
+      }
+    };
     function handleMove(e: Event) {
+      if (e.type === "resize") {
+        recalcAll();
+        return;
+      }
       const target = e.target as Node;
       if (
         (customerDropdownRef.current && customerDropdownRef.current.contains(target)) ||
@@ -167,9 +181,11 @@ export default function AppointmentFormModal({
     }
     window.addEventListener("scroll", handleMove, true);
     window.addEventListener("resize", handleMove);
+    window.visualViewport?.addEventListener("resize", recalcAll);
     return () => {
       window.removeEventListener("scroll", handleMove, true);
       window.removeEventListener("resize", handleMove);
+      window.visualViewport?.removeEventListener("resize", recalcAll);
     };
   }, [customerSearchOpen, serviceSearchOpen]);
 
@@ -410,6 +426,7 @@ export default function AppointmentFormModal({
                     {customerSearchOpen && customerDropdownStyle && (filteredCustomers.length > 0 || customerSearchQuery.trim()) && typeof document !== "undefined" && createPortal(
                       <div
                         ref={customerDropdownRef}
+                        onMouseDown={(e) => e.preventDefault()}
                         onKeyDown={(e) => {
                           const buttons = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>("button"));
                           const activeIdx = buttons.indexOf(document.activeElement as HTMLButtonElement);
@@ -635,6 +652,7 @@ export default function AppointmentFormModal({
                     {serviceSearchOpen && filteredServices.length > 0 && serviceDropdownStyle && typeof document !== "undefined" && createPortal(
                       <div
                         ref={serviceDropdownRef}
+                        onMouseDown={(e) => e.preventDefault()}
                         onKeyDown={(e) => {
                           const buttons = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>("button"));
                           const activeIdx = buttons.indexOf(document.activeElement as HTMLButtonElement);

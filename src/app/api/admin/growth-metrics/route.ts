@@ -36,8 +36,9 @@ export async function GET(request: NextRequest) {
     const metrics = await fetchGrowthMetrics(lookbackDays);
     return NextResponse.json({ ok: true, data: metrics });
   } catch (error) {
+    console.error("[growth-metrics] error:", error);
     return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : "internal_error" },
+      { ok: false, error: "internal_error" },
       { status: 500 }
     );
   }

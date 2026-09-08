@@ -106,11 +106,10 @@ const ServiceForm = memo(function ServiceForm({ shopId, service, onSuccess, staf
       <InputForm
         label="Precio ($)"
         name="price"
-        type="number"
-        step="0.01"
-        min="0"
+        type="text"
+        inputMode="decimal"
         required
-        defaultValue={service?.price ?? ""}
+        defaultValue={service?.price != null ? String(service.price) : ""}
         placeholder="0.00"
       />
 

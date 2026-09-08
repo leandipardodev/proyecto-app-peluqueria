@@ -154,7 +154,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (e) {
     console.error("[checkout] error:", e);
-    const message = e instanceof Error ? e.message : "Error al procesar el pago";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Error al procesar el pago" }, { status: 500 });
   }
 }

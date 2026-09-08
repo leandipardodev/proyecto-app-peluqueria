@@ -5,6 +5,7 @@ import ServicesList from "@/components/services/services-list";
 import { getCachedUser, getCachedShopIdBySlug } from "@/lib/dashboard/auth/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { resolveIndustry } from "@/lib/industry/resolve";
+import { withRetry } from "@/lib/retry";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -16,13 +17,22 @@ export default async function DashboardShopServicesPage({ params }: { params: Pr
   if (!shopId) redirect("/dashboard");
 
   const supabase = await createServerClient();
-  const { data: membership } = await supabase
-    .from("shop_memberships")
-    .select("role")
-    .eq("user_id", user.id)
-    .eq("shop_id", shopId)
-    .maybeSingle();
-  const role = membership?.role ?? "staff";
+  const role = await withRetry(
+    async () => {
+      const { data } = await supabase
+        .from("shop_memberships")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("shop_id", shopId)
+        .maybeSingle();
+      return data?.role ?? null;
+    },
+    { retries: 2, delayMs: 300 }
+  ).catch(() => null);
+
+  if (!role) {
+    redirect("/dashboard");
+  }
 
   const [servicesResult, combosResult, staffResult, staffMapResult] = await Promise.all([
     fetchServices(shopId),

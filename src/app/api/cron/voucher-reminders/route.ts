@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
+import { getArgentinaDateString } from "@/lib/argentina-time";
 
 function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
@@ -18,8 +19,8 @@ export async function GET(request: Request) {
   }
 
   const admin = await createServiceRoleClient();
-  const today = new Date();
-  const todayMMDD = `${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const today = getArgentinaDateString();
+  const todayMMDD = today.slice(5);
   const { data, error } = await admin
     .from("vouchers")
     .select("id, gifted_to_birthday, status")
@@ -29,8 +30,7 @@ export async function GET(request: Request) {
 
   const dueIds = (data || [])
     .filter((v) => {
-      const d = new Date(`${v.gifted_to_birthday}T00:00:00`);
-      const mmdd = `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const mmdd = v.gifted_to_birthday?.slice(5);
       return mmdd === todayMMDD;
     })
     .map((v) => v.id);

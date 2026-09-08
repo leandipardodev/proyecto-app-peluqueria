@@ -3,7 +3,7 @@
 import { createServiceRoleClient, getCurrentUserRole, requireOwnerShopId, requireShopId } from "@/lib/dashboard/auth/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { revalidateDashboardSegments } from "@/lib/dashboard/shared/revalidate-dashboard";
-import { getArgentinaDateString, getArgentinaDayBounds } from "@/lib/argentina-time";
+import { getArgentinaDateString, getArgentinaDayBounds, getArgentinaNow } from "@/lib/argentina-time";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
 import { createAdminClient } from "../appointments/shared";
@@ -605,7 +605,7 @@ export async function fetchCashSession(shopIdOverride?: string): Promise<ActionR
         .eq("status", "completed")
         .eq("is_paid", true)
         .gte("start_time", data.opened_at)
-        .lte("start_time", new Date().toISOString())
+        .lte("start_time", getArgentinaNow().toISOString())
         .limit(500);
       appointmentIncome = (sessionAppts || []).reduce((sum, a) => {
         const svc = Array.isArray(a.services) ? a.services[0] : a.services;
@@ -708,7 +708,7 @@ export async function closeCashSession(formData: FormData, shopIdOverride?: stri
       .eq("status", "completed")
       .eq("is_paid", true)
       .gte("start_time", session.opened_at)
-      .lte("start_time", new Date().toISOString())
+      .lte("start_time", getArgentinaNow().toISOString())
       .limit(500);
 
     const appointmentIncome = (sessionAppts || []).reduce((sum, a) => {
@@ -1064,7 +1064,7 @@ export async function fetchCashSessionsHistory(fromDate?: string, toDate?: strin
             .eq("status", "completed")
             .eq("is_paid", true)
             .gte("start_time", s.opened_at)
-            .lte("start_time", s.closed_at || new Date().toISOString())
+            .lte("start_time", s.closed_at || getArgentinaNow().toISOString())
         )
       ),
     ]);

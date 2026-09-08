@@ -3,6 +3,7 @@
 import { createServerClient } from "@/lib/supabase/server";
 import { canAccessShopId, getCachedUser, getCurrentUserRole, requireShopId } from "@/lib/dashboard/auth/server";
 import { revalidateDashboardSegments } from "@/lib/dashboard/shared/revalidate-dashboard";
+import { getArgentinaDateString } from "@/lib/argentina-time";
 import { DEFAULT_VOUCHER_WHATSAPP_TEMPLATE } from "@/lib/dashboard/vouchers/voucher-constants";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
@@ -72,12 +73,9 @@ export async function fetchTodayVoucherAlerts(shopIdOverride?: string): Promise<
 
     if (error) return { success: false, error: error.message };
 
-    const now = new Date();
-    const mm = now.getMonth();
-    const dd = now.getDate();
+    const todayMMDD = getArgentinaDateString().slice(5);
     const today = (data || []).filter((v) => {
-      const d = new Date(`${v.gifted_to_birthday}T00:00:00`);
-      return d.getMonth() === mm && d.getDate() === dd;
+      return (v.gifted_to_birthday ?? "").slice(5) === todayMMDD;
     });
 
     return {
@@ -145,9 +143,7 @@ export async function updateVoucherWhatsappTemplate(shopId: string, template: st
 export async function runVoucherReminderSweep(): Promise<ActionResult<{ updated: number }>> {
   try {
     const supabase = await createServerClient();
-    const today = new Date();
-    const todayMonth = today.getMonth() + 1;
-    const todayDay = today.getDate();
+    const todayMMDD = getArgentinaDateString().slice(5);
 
     const { data: shops } = await supabase.from("shops").select("id");
     if (!shops || shops.length === 0) return { success: true, data: { updated: 0 } };
@@ -161,10 +157,7 @@ export async function runVoucherReminderSweep(): Promise<ActionResult<{ updated:
           .in("status", ["pending", "sent"]);
         if (!data) return [] as string[];
         return data
-          .filter((v) => {
-            const d = new Date(v.gifted_to_birthday);
-            return d.getMonth() + 1 === todayMonth && d.getDate() === todayDay;
-          })
+          .filter((v) => (v.gifted_to_birthday ?? "").slice(5) === todayMMDD)
           .map((v) => v.id);
       })
     );
