@@ -173,7 +173,7 @@ export default function HomeFeaturesCarousel() {
                     transition={{ duration: 24, ease: "easeInOut", repeat: Infinity, repeatType: "reverse" }}
                   >
                     <Image
-                      src="/landing/carousel/parallax-bg-2.webp"
+                      src="/landing/carousel/parallax-bg-2-v2.webp"
                       alt=""
                       aria-hidden
                       fill
