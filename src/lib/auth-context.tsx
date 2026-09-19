@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState, useMemo, useRef, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
-import { decodeJwtPayload } from "@/lib/jwt";
+import { decodeJwtPayload, parseAuthCookieValue } from "@/lib/jwt";
 import { resolveIndustry } from "@/lib/industry/resolve";
 import type { Industry } from "@/lib/industry/types";
 import { usePathname, useRouter } from "next/navigation";
@@ -48,12 +48,7 @@ function readServerAuthData(): AuthInitData | null {
   }
 }
 
-/**
- * Best-effort recovery for spurious SIGNED_OUT events (refresh token race).
- * Returns a still-valid user id from the sb-* cookies if the server rotated
- * the token before the browser's stale auto-refresh cleared it.
- */
-function freshUserIdFromCookies(): string | null {
+function readAuthCookieSession(): Record<string, unknown> | null {
   if (typeof document === "undefined") return null;
   try {
     const authCookie = document.cookie
@@ -66,18 +61,43 @@ function freshUserIdFromCookies(): string | null {
       })
       .find((c) => SUPABASE_AUTH_COOKIE_RE.test(c.name));
     if (!authCookie) return null;
-
-    const session = JSON.parse(authCookie.value);
-    const accessToken = session?.access_token ?? session?.currentSession?.access_token;
-    if (!accessToken) return null;
-
-    const payload = decodeJwtPayload(accessToken);
-    if (typeof payload?.sub !== "string") return null;
-    if (typeof payload?.exp === "number" && payload.exp * 1000 < Date.now()) return null;
-    return payload.sub;
+    return parseAuthCookieValue(authCookie.value);
   } catch {
     return null;
   }
+}
+
+function readUserFromCookie(): { id: string; email?: string | null; user_metadata?: Record<string, unknown> } | null {
+  const session = readAuthCookieSession();
+  if (!session) return null;
+
+  const accessToken = (session.access_token as string | undefined) ??
+    ((session.currentSession as Record<string, unknown> | undefined)?.access_token as string | undefined);
+  if (!accessToken) return null;
+
+  const payload = decodeJwtPayload(accessToken);
+  if (typeof payload?.sub !== "string") return null;
+  // Usamos la cookie solo si el token tiene margen de vida (>60s): si esta por
+  // expirar dejamos que getSession() refresque, que en paginas sin middleware
+  // (landing, /book) es el unico refresher y no hay race con el servidor.
+  if (typeof payload?.exp === "number" && payload.exp * 1000 - Date.now() < 60_000) return null;
+
+  const email = typeof payload.email === "string" ? payload.email : null;
+  const user_metadata =
+    payload.user_metadata && typeof payload.user_metadata === "object"
+      ? (payload.user_metadata as Record<string, unknown>)
+      : undefined;
+
+  return user_metadata ? { id: payload.sub, email, user_metadata } : { id: payload.sub, email };
+}
+
+/**
+ * Best-effort recovery for spurious SIGNED_OUT events (refresh token race).
+ * Returns a still-valid user id from the sb-* cookies if the server rotated
+ * the token before the browser's stale auto-refresh cleared it.
+ */
+function freshUserIdFromCookies(): string | null {
+  return readUserFromCookie()?.id ?? null;
 }
 
 const AuthContext = createContext<AuthState>({
@@ -124,15 +144,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let user = userOverride ?? null;
     if (!user) {
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        user = session?.user ?? null;
-      } catch {
-        await supabase.auth.signOut();
-        setState({ user: null, shop: null, isLoading: false });
-        return;
+      // Preferimos decodificar el user desde la cookie sb-* sin refrescar:
+      // getSession() refresca el token cuando quedan <90s (ventana gotrue) y ese
+      // refresh desde el browser es el que compite con el refresh del middleware
+      // -> "Invalid Refresh Token Not Found". Solo llamamos getSession() como
+      // fallback cuando no hay token valido en la cookie.
+      const cookieUser = readUserFromCookie();
+      if (cookieUser) {
+        user = cookieUser;
+      } else {
+        try {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          user = session?.user ?? null;
+        } catch {
+          await supabase.auth.signOut();
+          setState({ user: null, shop: null, isLoading: false });
+          return;
+        }
       }
     }
 

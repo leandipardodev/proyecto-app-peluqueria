@@ -10,10 +10,13 @@ const LANDING_PATH = "/";
 const ACTIVE_SHOP_ID_COOKIE = "klip_active_shop_id";
 const ACTIVE_SHOP_SLUG_COOKIE = "klip_active_shop_slug";
 
-// Match auth-js EXPIRY_MARGIN_MS. Only let the server client refresh when the
-// access token is actually close to expiry; otherwise decode locally and avoid
-// racing the browser's autoRefreshToken (Refresh Token Not Found race).
-const EXPIRY_MARGIN_MS = 90_000;
+// El browser (gotrue) refresca el token cuando quedan <90s de vida (EXPIRY_MARGIN_MS
+// de auth-js). Si el servidor refresca en esa misma ventana, ambos rotan el mismo
+// refresh token y uno inhabilita al otro -> "Invalid Refresh Token: Refresh Token
+// Not Found" + deslogueo. Por eso el middleware refresca CON ANTELACION (5 min
+// antes de expirar): rota el token fuera de la ventana del browser y deja la
+// cookie fresca para que el cliente nunca necesite refrescar.
+const EXPIRY_MARGIN_MS = 300_000;
 
 const PROTECTED_PATHS = ["/dashboard", "/admin", "/client"];
 function isProtectedPath(pathname: string): boolean {
