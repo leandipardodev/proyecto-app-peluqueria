@@ -58,7 +58,7 @@ export default function HomeFeaturesCarousel() {
   const [paused, setPaused] = useState(false);
   const [dragX, setDragX] = useState(0);
   const slide = SLIDES[active];
-  const imageScale = slide.id === "dashboard" ? 2 : 1;
+  const imageScale = slide.id === "dashboard" ? 1.35 : 1;
 
   const elapsedRef = useRef(0);
   const progressFillRef = useRef<HTMLSpanElement | null>(null);
@@ -259,7 +259,7 @@ export default function HomeFeaturesCarousel() {
                 animate={{ opacity: 1, scale: 1, x: dragX }}
                 exit={{ opacity: 0, scale: 1.04 }}
                 transition={{ duration: 0.6, ease: EASE }}
-                className="absolute inset-2 md:inset-4"
+                className="absolute inset-3 md:inset-5"
                 drag="x"
                 dragConstraints={{ left: 0, right: 0 }}
                 dragElastic={0.12}
@@ -278,13 +278,12 @@ export default function HomeFeaturesCarousel() {
               >
                 <motion.div
                   className="absolute inset-0"
-                  initial={{ scale: imageScale, x: 10, y: -10 }}
-                  animate={{ scale: imageScale * 1.035, x: -10, y: 10 }}
+                  initial={{ scale: imageScale, x: 8, y: -8 }}
+                  animate={{ scale: imageScale * 1.03, x: -8, y: 8 }}
                   transition={{ duration: 18, ease: "easeInOut", repeat: Infinity, repeatType: "reverse" }}
                 >
                   <Image src={slide.image} alt={slide.alt} fill sizes="(max-width: 768px) 100vw, 60vw" className="object-contain" priority={active === 0} />
                 </motion.div>
-                <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,transparent_3%,rgba(255,255,255,0.07)_28%,transparent_52%,rgba(56,189,248,0.06)_75%,transparent_97%)]" />
               </motion.div>
             </AnimatePresence>
           </div>
