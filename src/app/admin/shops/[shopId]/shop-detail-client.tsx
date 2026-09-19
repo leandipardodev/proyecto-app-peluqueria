@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronDown,
@@ -19,8 +20,11 @@ import {
   CheckCircle,
   XCircle,
   Link as LinkIcon,
+  Pencil,
 } from "lucide-react";
 import type { ShopDetail } from "@/lib/admin/shop-detail";
+import BaseModal from "@/components/ui/modal";
+import { getArgentinaDateKey, getArgentinaDateString, getArgentinaDayBounds } from "@/lib/argentina-time";
 
 const DAY_NAMES = [
   "Lunes",
@@ -95,6 +99,13 @@ function daysUntil(iso: string | null): number | null {
   if (!iso) return null;
   const diff = new Date(iso).getTime() - Date.now();
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
+}
+
+function arDateAddDays(days: number): string {
+  const [y, m, d] = getArgentinaDateString().split("-").map(Number);
+  const base = new Date(Date.UTC(y, m - 1, d));
+  base.setUTCDate(base.getUTCDate() + days);
+  return `${base.getUTCFullYear()}-${String(base.getUTCMonth() + 1).padStart(2, "0")}-${String(base.getUTCDate()).padStart(2, "0")}`;
 }
 
 function AccordionSection({
@@ -196,9 +207,59 @@ function Badge({ className, children }: { className: string; children: React.Rea
   );
 }
 
-export default function ShopDetailClient({ shop }: { shop: ShopDetail }) {
-  const planDaysLeft = daysUntil(shop.planExpiry);
+export default function ShopDetailClient({
+  shop,
+  onUpdatePlanExpiry,
+}: {
+  shop: ShopDetail;
+  onUpdatePlanExpiry: (
+    planExpiryDate: string | null,
+    reason?: string,
+  ) => Promise<{ success: boolean; error?: string }>;
+}) {
+  const router = useRouter();
+  const [planExpiry, setPlanExpiry] = useState<string | null>(shop.planExpiry);
+  const [expiryModalOpen, setExpiryModalOpen] = useState(false);
+  const [expiryDate, setExpiryDate] = useState("");
+  const [expiryReason, setExpiryReason] = useState("");
+  const [savingExpiry, setSavingExpiry] = useState(false);
+  const [expiryError, setExpiryError] = useState<string | null>(null);
+  const [expirySaved, setExpirySaved] = useState(false);
+
+  const planDaysLeft = daysUntil(planExpiry);
   const planExpired = planDaysLeft !== null && planDaysLeft < 0;
+
+  const todayAr = getArgentinaDateString();
+  const expiryInPast = expiryDate !== "" && expiryDate <= todayAr;
+
+  function openExpiryModal() {
+    setExpiryDate(planExpiry ? getArgentinaDateKey(planExpiry) : "");
+    setExpiryReason("");
+    setExpiryError(null);
+    setExpirySaved(false);
+    setExpiryModalOpen(true);
+  }
+
+  async function handleSaveExpiry() {
+    setSavingExpiry(true);
+    setExpiryError(null);
+    try {
+      const value = expiryDate.trim() === "" ? null : expiryDate.trim();
+      const result = await onUpdatePlanExpiry(value, expiryReason);
+      if (!result.success) {
+        setExpiryError(result.error || "No se pudo actualizar el vencimiento");
+        return;
+      }
+      setPlanExpiry(value ? getArgentinaDayBounds(value).end.toISOString() : null);
+      setExpiryModalOpen(false);
+      setExpirySaved(true);
+      router.refresh();
+    } catch {
+      setExpiryError("No se pudo actualizar el vencimiento");
+    } finally {
+      setSavingExpiry(false);
+    }
+  }
 
   return (
     <div className="space-y-8">
@@ -271,9 +332,9 @@ export default function ShopDetailClient({ shop }: { shop: ShopDetail }) {
                 : "-"
           }
           sub={
-            shop.planExpiry
-              ? formatDate(shop.planExpiry)
-              : undefined
+            planExpiry
+              ? formatDate(planExpiry)
+              : "Sin vencimiento"
           }
         />
       </div>
@@ -644,7 +705,7 @@ export default function ShopDetailClient({ shop }: { shop: ShopDetail }) {
                   </p>
                   <p className="text-xs text-zinc-500">
                     Vence:{" "}
-                    {shop.planExpiry ? (
+                    {planExpiry ? (
                       <span
                         className={
                           planExpired
@@ -652,14 +713,14 @@ export default function ShopDetailClient({ shop }: { shop: ShopDetail }) {
                             : "text-zinc-600"
                         }
                       >
-                        {formatDate(shop.planExpiry)}
+                        {formatDate(planExpiry)}
                         {planExpired && " (vencido)"}
                         {!planExpired &&
                           planDaysLeft !== null &&
                           ` (${planDaysLeft} dias)`}
                       </span>
                     ) : (
-                      "-"
+                      <span className="text-zinc-600">Sin vencimiento</span>
                     )}
                   </p>
                 </div>
@@ -669,6 +730,21 @@ export default function ShopDetailClient({ shop }: { shop: ShopDetail }) {
                   </Badge>
                 ) : (
                   <Badge className="bg-red-100 text-red-700">Inactiva</Badge>
+                )}
+              </div>
+              <div className="mt-3 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={openExpiryModal}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  Editar vencimiento
+                </button>
+                {expirySaved && (
+                  <span className="text-xs font-medium text-emerald-600">
+                    Vencimiento actualizado
+                  </span>
                 )}
               </div>
             </div>
@@ -833,6 +909,131 @@ export default function ShopDetailClient({ shop }: { shop: ShopDetail }) {
             </div>
           )}
         </AccordionSection>
+
+        <BaseModal
+          open={expiryModalOpen}
+          onClose={() => {
+            if (!savingExpiry) setExpiryModalOpen(false);
+          }}
+          title="Editar vencimiento"
+          subtitle={`${shop.nombre} · Plan Mensual`}
+          icon={<Calendar className="h-5 w-5" />}
+          maxWidth="md"
+        >
+          <div className="space-y-4 px-5 pb-5 pt-1">
+            <div>
+              <label
+                htmlFor="plan-expiry-date"
+                className="text-xs font-medium uppercase tracking-wide text-zinc-500"
+              >
+                Fecha de vencimiento
+              </label>
+              <input
+                id="plan-expiry-date"
+                type="date"
+                value={expiryDate}
+                onChange={(e) => {
+                  setExpiryDate(e.target.value);
+                  setExpiryError(null);
+                }}
+                className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-200"
+              />
+              <p className="mt-1 text-[11px] text-zinc-400">
+                Deja la fecha vacia para quitar el vencimiento (la tienda nunca se
+                bloquea por plan).
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {[7, 15, 30].map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => {
+                    setExpiryDate(arDateAddDays(d));
+                    setExpiryError(null);
+                  }}
+                  className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+                >
+                  +{d} dias
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => {
+                  setExpiryDate("");
+                  setExpiryError(null);
+                }}
+                className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+              >
+                Sin vencimiento
+              </button>
+            </div>
+
+            <div>
+              <label
+                htmlFor="plan-expiry-reason"
+                className="text-xs font-medium uppercase tracking-wide text-zinc-500"
+              >
+                Motivo (opcional)
+              </label>
+              <input
+                id="plan-expiry-reason"
+                type="text"
+                value={expiryReason}
+                onChange={(e) => setExpiryReason(e.target.value)}
+                placeholder="Ej: pago manual, cortesia, soporte"
+                className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-200"
+              />
+            </div>
+
+            <div
+              className={`rounded-xl border px-3 py-2 text-sm ${
+                expiryInPast
+                  ? "border-red-200 bg-red-50 text-red-700"
+                  : "border-zinc-200 bg-zinc-50 text-zinc-600"
+              }`}
+            >
+              {expiryDate === "" ? (
+                "La tienda quedara sin vencimiento: no se bloqueara por plan."
+              ) : expiryInPast ? (
+                <>
+                  Al guardar, el plan vence el{" "}
+                  {expiryDate.split("-").reverse().join("/")} y la tienda
+                  quedara bloqueada (billing-required).
+                </>
+              ) : (
+                <>
+                  El plan vencera el{" "}
+                  {expiryDate.split("-").reverse().join("/")}.
+                </>
+              )}
+            </div>
+
+            {expiryError && (
+              <p className="text-sm font-medium text-red-600">{expiryError}</p>
+            )}
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setExpiryModalOpen(false)}
+                disabled={savingExpiry}
+                className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveExpiry}
+                disabled={savingExpiry}
+                className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-violet-500 disabled:opacity-50"
+              >
+                {savingExpiry ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
+          </div>
+        </BaseModal>
       </div>
     </div>
   );

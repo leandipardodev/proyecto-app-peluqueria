@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireSuperAdmin } from "@/lib/admin/auth";
 import { fetchShopDetail } from "@/lib/admin/shop-detail";
+import { updateShopPlanExpiry } from "@/lib/admin/user-management";
 import ShopDetailClient from "./shop-detail-client";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,14 @@ export default async function AdminShopDetailPage({
   const shop = await fetchShopDetail(shopId);
   if (!shop) notFound();
 
+  async function handleUpdatePlanExpiry(
+    planExpiryDate: string | null,
+    reason?: string,
+  ) {
+    "use server";
+    return updateShopPlanExpiry(shopId, planExpiryDate, reason);
+  }
+
   return (
     <div className="space-y-6">
       <section>
@@ -28,7 +37,10 @@ export default async function AdminShopDetailPage({
         </Link>
       </section>
 
-      <ShopDetailClient shop={shop} />
+      <ShopDetailClient
+        shop={shop}
+        onUpdatePlanExpiry={handleUpdatePlanExpiry}
+      />
     </div>
   );
 }

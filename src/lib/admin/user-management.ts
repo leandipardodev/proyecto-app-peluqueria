@@ -2,6 +2,7 @@
 
 import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import { requireSuperAdmin } from "@/lib/admin/auth";
+import { getArgentinaDayBounds } from "@/lib/argentina-time";
 import type { Json } from "@/lib/supabase/database.types";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { resolveIndustry } from "@/lib/industry/resolve";
@@ -357,5 +358,66 @@ export async function toggleShopActive(
     return { success: true };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "No se pudo cambiar el estado" };
+  }
+}
+
+export async function updateShopPlanExpiry(
+  shopId: string,
+  planExpiryDate: string | null,
+  reason?: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireSuperAdmin();
+    if (!shopId) return { success: false, error: "Tienda no encontrada" };
+
+    let nextExpiry: string | null = null;
+    if (planExpiryDate !== null) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(planExpiryDate)) {
+        return { success: false, error: "Fecha invalida (formato esperado YYYY-MM-DD)" };
+      }
+      const parsed = new Date(`${planExpiryDate}T12:00:00-03:00`);
+      if (Number.isNaN(parsed.getTime())) {
+        return { success: false, error: "Fecha invalida" };
+      }
+      const maxDate = new Date();
+      maxDate.setFullYear(maxDate.getFullYear() + 10);
+      if (parsed.getTime() > maxDate.getTime()) {
+        return { success: false, error: "La fecha supera el maximo permitido (10 anios)" };
+      }
+      // Guardamos al fin del dia en hora Argentina para que el dia elegido
+      // cuente completo en la comparacion de vencimiento del middleware.
+      nextExpiry = getArgentinaDayBounds(planExpiryDate).end.toISOString();
+    }
+
+    const admin = await createServiceRoleClient();
+
+    const { data: shop } = await admin
+      .from("shops")
+      .select("plan_expiry")
+      .eq("id", shopId)
+      .maybeSingle();
+
+    if (!shop) return { success: false, error: "Tienda no encontrada" };
+
+    const { error } = await admin
+      .from("shops")
+      .update({
+        plan_expiry: nextExpiry,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", shopId);
+
+    if (error) return { success: false, error: error.message };
+
+    await appendAdminAudit("admin.set_plan_expiry", {
+      targetShopId: shopId,
+      previousExpiry: shop.plan_expiry ?? null,
+      newExpiry: nextExpiry,
+      reason: reason?.trim() ? reason.trim().slice(0, 500) : null,
+    });
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "No se pudo actualizar el vencimiento" };
   }
 }
