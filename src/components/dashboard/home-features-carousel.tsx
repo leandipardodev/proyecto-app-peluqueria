@@ -58,7 +58,6 @@ export default function HomeFeaturesCarousel() {
   const [paused, setPaused] = useState(false);
   const [dragX, setDragX] = useState(0);
   const slide = SLIDES[active];
-  const imageScale = slide.id === "dashboard" ? 1.35 : 1;
 
   const elapsedRef = useRef(0);
   const progressFillRef = useRef<HTMLSpanElement | null>(null);
@@ -126,78 +125,56 @@ export default function HomeFeaturesCarousel() {
       style={{ boxShadow: "0 22px 68px rgba(14,165,233,0.12), 0 34px 88px rgba(15,23,42,0.30)" }}
       onClick={handleSectionClick}
     >
-      <AnimatePresence>
-        {active === 0 && (
-          <motion.div
-            key="bg-slide-1"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.6, ease: EASE }}
-            className="pointer-events-none absolute inset-y-0 left-4 right-0 overflow-hidden md:left-6"
-          >
-            <Image
-              src="/landing/carousel/parallax-bg-v2.webp"
-              alt=""
-              aria-hidden
-              fill
-              sizes="100vw"
-              className="object-cover opacity-70"
-              draggable={false}
-            />
-            <div className="absolute inset-0 bg-[radial-gradient(140%_120%_at_60%_50%,rgba(8,13,24,0)_42%,rgba(8,13,24,0.78)_100%)]" />
-          </motion.div>
-        )}
-        {active === 1 && (
-          <motion.div
-            key="bg-slide-2"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.6, ease: EASE }}
-            className="pointer-events-none absolute inset-y-0 left-4 right-0 overflow-hidden md:left-6"
-          >
+      <div className="pointer-events-none absolute inset-y-0 left-0 right-0 overflow-hidden md:left-6">
+        {[
+          { key: "bg-slide-1", src: "/landing/carousel/parallax-bg-v2.webp", drift: false },
+          { key: "bg-slide-2", src: "/landing/carousel/parallax-bg-2-v2.webp", drift: true },
+          { key: "bg-slide-3", src: "/landing/carousel/parallax-bg-4.webp", drift: false },
+        ].map((bg, idx) => {
+          const isActive = idx === active;
+          return (
             <motion.div
+              key={bg.key}
               className="absolute inset-0"
-              initial={{ x: 60, scale: 1.2 }}
-              animate={{ x: -60, scale: 1.2 }}
-              transition={{ duration: 24, ease: "easeInOut", repeat: Infinity, repeatType: "reverse" }}
+              initial={false}
+              animate={{ opacity: isActive ? 1 : 0 }}
+              transition={{ duration: 0.6, ease: EASE }}
             >
-              <Image
-                src="/landing/carousel/parallax-bg-2-v2.webp"
-                alt=""
-                aria-hidden
-                fill
-                sizes="100vw"
-                className="object-cover opacity-70"
-                draggable={false}
-              />
+              {bg.drift ? (
+                <motion.div
+                  className="absolute inset-0"
+                  initial={{ x: 60, scale: 1.2 }}
+                  animate={{ x: -60, scale: 1.2 }}
+                  transition={{ duration: 24, ease: "easeInOut", repeat: Infinity, repeatType: "reverse" }}
+                >
+                  <Image
+                    src={bg.src}
+                    alt=""
+                    aria-hidden
+                    fill
+                    sizes="100vw"
+                    loading="eager"
+                    className="object-cover opacity-70"
+                    draggable={false}
+                  />
+                </motion.div>
+              ) : (
+                <Image
+                  src={bg.src}
+                  alt=""
+                  aria-hidden
+                  fill
+                  sizes="100vw"
+                  loading="eager"
+                  className="object-cover opacity-70"
+                  draggable={false}
+                />
+              )}
+              <div className="absolute inset-0 bg-[radial-gradient(140%_120%_at_60%_50%,rgba(8,13,24,0)_42%,rgba(8,13,24,0.78)_100%)]" />
             </motion.div>
-            <div className="absolute inset-0 bg-[radial-gradient(140%_120%_at_60%_50%,rgba(8,13,24,0)_42%,rgba(8,13,24,0.78)_100%)]" />
-          </motion.div>
-        )}
-        {active === 2 && (
-          <motion.div
-            key="bg-slide-3"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.6, ease: EASE }}
-            className="pointer-events-none absolute inset-y-0 left-4 right-0 overflow-hidden md:left-6"
-          >
-            <Image
-              src="/landing/carousel/parallax-bg-4.webp"
-              alt=""
-              aria-hidden
-              fill
-              sizes="100vw"
-              className="object-cover opacity-70"
-              draggable={false}
-            />
-            <div className="absolute inset-0 bg-[radial-gradient(140%_120%_at_60%_50%,rgba(8,13,24,0)_42%,rgba(8,13,24,0.78)_100%)]" />
-          </motion.div>
-        )}
-      </AnimatePresence>
+          );
+        })}
+      </div>
       <div className="pointer-events-none absolute left-[5%] top-1/2 h-56 w-56 -translate-y-1/2 rounded-full bg-sky-300/20 blur-2xl" />
       <div className="pointer-events-none absolute right-[5%] top-6 h-52 w-52 rounded-full bg-cyan-300/18 blur-2xl" />
       <div className="pointer-events-none absolute inset-0 opacity-55" style={{ background: "linear-gradient(118deg, rgba(14,165,233,0.08) 0%, rgba(255,255,255,0) 42%, rgba(37,99,235,0.08) 100%)" }} />
@@ -252,13 +229,7 @@ export default function HomeFeaturesCarousel() {
 
         <div className="order-1 md:order-2 md:col-span-8 relative z-0">
           <div className="relative h-[380px] overflow-visible md:h-[560px]">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={slide.id}
-                initial={{ opacity: 0, scale: 1.02 }}
-                animate={{ opacity: 1, scale: 1, x: dragX }}
-                exit={{ opacity: 0, scale: 1.04 }}
-                transition={{ duration: 0.6, ease: EASE }}
+            <motion.div
                 className="absolute inset-3 md:inset-5"
                 drag="x"
                 dragConstraints={{ left: 0, right: 0 }}
@@ -276,16 +247,37 @@ export default function HomeFeaturesCarousel() {
                   filter: "drop-shadow(0 20px 40px rgba(15,23,42,0.18))",
                 }}
               >
-                <motion.div
-                  className="absolute inset-0"
-                  initial={{ scale: imageScale, x: 8, y: -8 }}
-                  animate={{ scale: imageScale * 1.03, x: -8, y: 8 }}
-                  transition={{ duration: 18, ease: "easeInOut", repeat: Infinity, repeatType: "reverse" }}
-                >
-                  <Image src={slide.image} alt={slide.alt} fill sizes="(max-width: 768px) 100vw, 60vw" className="object-contain" priority={active === 0} />
-                </motion.div>
+                {SLIDES.map((s, idx) => {
+                  const isActive = idx === active;
+                  const scale = s.id === "dashboard" ? 1.35 : 1;
+                  return (
+                    <motion.div
+                      key={s.id}
+                      className={`absolute inset-0 ${isActive ? "" : "pointer-events-none"}`}
+                      initial={false}
+                      animate={{ opacity: isActive ? 1 : 0, scale: isActive ? 1 : 0.96, x: isActive ? dragX : 0 }}
+                      transition={{ duration: 0.6, ease: EASE }}
+                    >
+                      <motion.div
+                        className="absolute inset-0"
+                        initial={false}
+                        animate={
+                          isActive
+                            ? { scale: scale * 1.03, x: -8, y: 8 }
+                            : { scale, x: 8, y: -8 }
+                        }
+                        transition={
+                          isActive
+                            ? { duration: 18, ease: "easeInOut", repeat: Infinity, repeatType: "reverse" }
+                            : { duration: 0.4, ease: "easeOut" }
+                        }
+                      >
+                        <Image src={s.image} alt={s.alt} fill sizes="(max-width: 768px) 100vw, 60vw" loading="eager" className="object-contain" />
+                      </motion.div>
+                    </motion.div>
+                  );
+                })}
               </motion.div>
-            </AnimatePresence>
           </div>
         </div>
       </div>
