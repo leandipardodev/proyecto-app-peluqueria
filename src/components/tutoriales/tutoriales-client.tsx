@@ -218,12 +218,6 @@ export default function TutorialesClient() {
               >
                 {TUTORIALS_PAGE.ctaLabel}
               </Link>
-              <a
-                href="#tutoriales"
-                className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-[#1D1D1F] transition hover:bg-slate-50"
-              >
-                {TUTORIALS_PAGE.seeVideosLabel} <ChevronRight className="h-4 w-4" />
-              </a>
             </div>
           </div>
         </motion.section>

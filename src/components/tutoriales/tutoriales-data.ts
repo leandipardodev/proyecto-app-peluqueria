@@ -177,7 +177,6 @@ export const TUTORIALS_PAGE = {
     "Aprende paso a paso a usar cada parte de Klip: agenda, cobros, clientes, inventario y finanzas. Videos cortos para que configures y aproveches todo el sistema.",
   ctaLabel: "Empezar gratis ahora",
   ctaHref: "/register",
-  seeVideosLabel: "Ver videos",
   comingSoonLabel: "Proximamente",
   popularLabel: "Popular",
   watchLabel: "Ver tutorial",

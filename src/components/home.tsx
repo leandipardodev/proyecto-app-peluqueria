@@ -6,7 +6,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, useInView, useMotionValue, useScroll, useSpring, useTransform } from "framer-motion";
-import { LogOut } from "lucide-react";
+import { ArrowRight, GraduationCap, LogOut, Play } from "lucide-react";
 import { Playfair_Display } from "next/font/google";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import HomeFeaturesCarousel from "@/components/dashboard/home-features-carousel";
@@ -662,6 +662,65 @@ export default function Home({ monthlyPrice, trialDays }: { monthlyPrice: number
               </div>
             </div>
           </Card>
+        </Section>
+
+        <Section className="pb-12 sm:pb-14 pt-2 sm:pt-4">
+          <Link href="/tutoriales" className="group block h-full" aria-label="Ir a Tutoriales">
+            <motion.div
+              whileHover={{ y: -4 }}
+              transition={MOTION.hover}
+              className="relative isolate h-full overflow-hidden rounded-[2rem] border border-white/80 bg-[linear-gradient(135deg,#ffffff_0%,#eef4ff_55%,#e0f2fe_100%)] shadow-[0_30px_70px_rgba(2,6,23,0.16)]"
+            >
+              <div className="pointer-events-none absolute -top-24 -right-16 h-64 w-64 rounded-full bg-sky-300/40 blur-3xl" />
+              <div className="pointer-events-none absolute -bottom-28 -left-16 h-64 w-64 rounded-full bg-cyan-300/40 blur-3xl" />
+              <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,transparent_5%,rgba(255,255,255,0.6)_30%,transparent_52%,rgba(56,189,248,0.14)_74%,transparent_96%)]" />
+              <div className="relative z-10 grid gap-7 p-6 sm:p-8 md:grid-cols-12 md:items-center md:gap-8 md:p-10">
+                <div className="md:col-span-7">
+                  <p className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white/90 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-[#0071E3] shadow-[0_8px_20px_rgba(2,6,23,0.06)]">
+                    <GraduationCap className="h-3.5 w-3.5" />
+                    Centro de aprendizaje
+                  </p>
+                  <h3 className={`${playfair.className} mt-4 text-3xl sm:text-4xl font-bold tracking-[-0.03em] text-[#101625]`}>
+                    Domina Klip con tutoriales cortos
+                  </h3>
+                  <p className="mt-3 max-w-xl leading-relaxed text-[#5f6673]">
+                    Videos paso a paso para configurar tu local, cargar servicios, cobrar y aprovechar cada funcion. Aprendelo a tu ritmo, en 2 o 3 minutos.
+                  </p>
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    {["Configuracion", "Agenda y turnos", "Cobros y senas", "Panel y IA"].map((chip) => (
+                      <span key={chip} className="rounded-full border border-sky-100 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-600">
+                        {chip}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="mt-7 inline-flex items-center gap-2 rounded-full bg-[#0071E3] px-6 py-3 text-sm font-bold text-white shadow-[0_18px_40px_rgba(0,113,227,0.38)] transition group-hover:bg-[#0064cc] group-hover:shadow-[0_22px_48px_rgba(0,113,227,0.5)]">
+                    Ver tutoriales
+                    <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                  </div>
+                </div>
+                <div className="hidden md:block md:col-span-5">
+                  <div className="ml-auto w-full max-w-sm rounded-2xl border border-white/80 bg-white/85 p-4 shadow-[0_24px_56px_rgba(2,6,23,0.12)]">
+                    {[
+                      { title: "Primeros pasos en Klip", time: "2 min", grad: "from-sky-200 to-blue-300" },
+                      { title: "Cargar servicios y precios", time: "3 min", grad: "from-cyan-200 to-sky-300" },
+                      { title: "Atender turnos sin apuro", time: "2 min", grad: "from-indigo-200 to-blue-300" },
+                    ].map((v) => (
+                      <div key={v.title} className="flex items-center gap-3 rounded-xl p-2.5 transition hover:bg-sky-50">
+                        <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${v.grad} text-white shadow-inner`}>
+                          <Play className="ml-0.5 h-4 w-4 fill-current" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-bold text-[#101625]">{v.title}</span>
+                          <span className="block text-xs text-slate-400">Video tutorial - {v.time}</span>
+                        </span>
+                        <ArrowRight className="h-4 w-4 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-[#0071E3]" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </Link>
         </Section>
 
         <Section className="pb-12">
