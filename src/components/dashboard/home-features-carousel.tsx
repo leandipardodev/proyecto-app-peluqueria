@@ -48,7 +48,7 @@ const SLIDES: Slide[] = [
     kicker: "Calendario completo",
     title: "Gestioná turnos con una vista potente y súper práctica.",
     text: "Editá, reprogramá y controlá toda la agenda desde un solo lugar, con estados visuales claros y flujo operativo en tiempo real.",
-    image: "/landing/carousel/aa3.webp",
+    image: "/landing/carousel/aa3-v2.webp",
     alt: "Calendario de Klip con funcionalidades de agenda",
   },
 ];
@@ -130,6 +130,7 @@ export default function HomeFeaturesCarousel() {
           { key: "bg-slide-1", src: "/landing/carousel/parallax-bg-v2.webp", drift: false },
           { key: "bg-slide-2", src: "/landing/carousel/parallax-bg-2-v2.webp", drift: true },
           { key: "bg-slide-3", src: "/landing/carousel/parallax-bg-4.webp", drift: false },
+          { key: "bg-slide-4", src: "/landing/carousel/parallax-bg-3.webp", drift: false },
         ].map((bg, idx) => {
           const isActive = idx === active;
           return (
