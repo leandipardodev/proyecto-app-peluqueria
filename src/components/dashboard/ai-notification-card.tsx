@@ -337,6 +337,7 @@ export default function AINotificationCard({
           }
           .wave-timer {
             z-index: 0;
+            box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.16);
           }
           .wave-orb {
             position: absolute;
@@ -344,21 +345,33 @@ export default function AINotificationCard({
             width: 220%;
             height: 220%;
             border-radius: 42%;
-            background: radial-gradient(120% 120% at 32% 30%, rgba(165, 243, 252, 0.55), rgba(34, 211, 238, 0.3) 45%, rgba(8, 145, 178, 0.14) 72%);
-            box-shadow: inset 0 -8px 16px rgba(8, 47, 73, 0.16);
-            opacity: 0.62;
+            background: radial-gradient(110% 110% at 30% 22%, rgba(165, 243, 252, 0.85), rgba(34, 211, 238, 0.55) 46%, rgba(8, 145, 178, 0.34) 74%);
+            box-shadow: inset 0 -10px 18px rgba(2, 6, 23, 0.3), 0 0 20px rgba(34, 211, 238, 0.25);
+            opacity: 0.85;
             will-change: transform;
             animation: waterSurface 3.4s linear infinite;
           }
+          .wave-orb::after {
+            content: "";
+            position: absolute;
+            top: 4%;
+            left: -8%;
+            right: -8%;
+            height: 4px;
+            border-radius: 999px;
+            background: linear-gradient(90deg, transparent, rgba(224, 242, 254, 0.95) 14%, rgba(224, 242, 254, 0.95) 86%, transparent);
+            filter: blur(0.4px);
+            box-shadow: 0 0 14px rgba(103, 232, 249, 0.85);
+          }
           :global(html.dark) .wave-orb {
-            background: radial-gradient(120% 120% at 32% 30%, rgba(34, 211, 238, 0.4), rgba(8, 145, 178, 0.24) 45%, rgba(2, 6, 23, 0.1) 72%);
-            box-shadow: inset 0 -8px 16px rgba(2, 6, 23, 0.22);
+            background: radial-gradient(110% 110% at 30% 22%, rgba(103, 232, 249, 0.7), rgba(14, 165, 233, 0.45) 46%, rgba(8, 145, 178, 0.28) 74%);
+            box-shadow: inset 0 -12px 20px rgba(2, 6, 23, 0.38), 0 0 22px rgba(34, 211, 238, 0.22);
           }
           .ai-wave-rise {
             animation: waterFillRise 20s linear forwards, waterSurface 3.4s linear infinite;
           }
           .icon-arrow-pop {
-            animation: arrowPop 620ms cubic-bezier(0.22, 1, 0.36, 1);
+            animation: arrowPop 520ms cubic-bezier(0.16, 1, 0.3, 1);
           }
           .ai-matrix-grid {
             background-image:
@@ -445,8 +458,7 @@ export default function AINotificationCard({
             to { transform: rotate(360deg); }
           }
           @keyframes arrowPop {
-            0% { opacity: 0; transform: translateX(-5px) scale(0.7); }
-            60% { opacity: 1; transform: translateX(1px) scale(1.08); }
+            0% { opacity: 0; transform: translateX(8px) scale(0.9); }
             100% { opacity: 1; transform: translateX(0) scale(1); }
           }
           @keyframes aiBot {
