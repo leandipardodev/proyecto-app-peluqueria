@@ -163,7 +163,7 @@ export default function TutorialesClient() {
               <>
                 <Link
                   href="/dashboard"
-                  className="rounded-full bg-[#0071E3] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#0064cc]"
+                  className="rounded-full bg-[linear-gradient(140deg,#080d18_0%,#0b1222_48%,#0d172d_100%)] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[linear-gradient(140deg,#0c1830_0%,#11203a_48%,#142743_100%)]"
                 >
                   Panel
                 </Link>
@@ -214,7 +214,7 @@ export default function TutorialesClient() {
             <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
               <Link
                 href={TUTORIALS_PAGE.ctaHref}
-                className="inline-flex items-center rounded-full bg-[#0071E3] px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_40px_rgba(0,113,227,0.40)] transition hover:translate-y-[-1px] hover:bg-[#0064cc] sm:px-8 sm:py-3.5"
+                className="inline-flex items-center rounded-full bg-[linear-gradient(140deg,#080d18_0%,#0b1222_48%,#0d172d_100%)] px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_40px_rgba(2,6,23,0.45)] transition hover:translate-y-[-1px] hover:bg-[linear-gradient(140deg,#0c1830_0%,#11203a_48%,#142743_100%)] sm:px-8 sm:py-3.5"
               >
                 {TUTORIALS_PAGE.ctaLabel}
               </Link>
