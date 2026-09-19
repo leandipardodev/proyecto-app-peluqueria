@@ -228,14 +228,14 @@ export default function AINotificationCard({
                     <div className="ai-orb absolute inset-0 rounded-full" />
                     <div className="ai-orb-glow absolute inset-[-8px] rounded-full" />
                     <div key={`wave-${activeIndex}-${cycle}`} className="wave-timer absolute inset-0 overflow-hidden rounded-full pointer-events-none">
-                      <div className="wave-orb ai-wave-rise" />
+                      <div className="wave-body ai-wave-rise" />
                     </div>
                   </>
                 )}
                 {!poweredOn && <div className="absolute inset-0 rounded-full bg-zinc-300 dark:bg-zinc-600" />}
                 <div
                   className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${
-                    thinking || skipping ? "opacity-0" : "opacity-100"
+                    thinking || skipping ? "opacity-0" : "opacity-60 md:group-hover:opacity-25"
                   }`}
                 >
                   <Sparkles className={`h-5 w-5 ${poweredOn ? "text-cyan-700 ai-star dark:text-cyan-100" : "text-zinc-400 dark:text-zinc-500"}`} />
@@ -244,12 +244,12 @@ export default function AINotificationCard({
                   className={`absolute inset-0 z-10 flex items-center justify-center transition-all duration-300 ${
                     thinking || skipping
                       ? "opacity-100 scale-100"
-                      : "opacity-0 scale-75 md:opacity-0 md:group-hover:opacity-100 md:group-hover:scale-100"
+                      : "opacity-30 scale-90 md:opacity-40 md:group-hover:opacity-100 md:group-hover:scale-100"
                   }`}
                   aria-hidden={!thinking && !skipping}
                 >
-                  <div className={`flex h-7 w-7 items-center justify-center rounded-full border border-cyan-300/40 bg-cyan-950/35 shadow-[0_6px_16px_rgba(8,145,178,0.35)] backdrop-blur-[2px] ${thinking || skipping ? "icon-arrow-pop" : ""}`}>
-                    <ArrowRight className="h-4 w-4 text-cyan-100" />
+                  <div className={`flex h-7 w-7 items-center justify-center rounded-full border border-cyan-300/50 bg-white/45 dark:bg-cyan-950/45 shadow-[0_6px_16px_rgba(8,145,178,0.3)] backdrop-blur-[2px] ${thinking || skipping ? "icon-arrow-pop" : ""}`}>
+                    <ArrowRight className="h-4 w-4 text-cyan-700 dark:text-cyan-100" />
                   </div>
                 </div>
               </div>
@@ -337,38 +337,43 @@ export default function AINotificationCard({
           }
           .wave-timer {
             z-index: 0;
-            box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.16);
           }
-          .wave-orb {
+          .wave-body {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 100%;
+            height: 135%;
+            background: linear-gradient(180deg, rgba(103, 232, 249, 0.92), rgba(14, 165, 233, 0.72) 40%, rgba(8, 145, 178, 0.5));
+            box-shadow: inset 0 10px 14px rgba(224, 242, 254, 0.45), inset 0 -8px 14px rgba(2, 6, 23, 0.22);
+            border-radius: 3px;
+          }
+          .wave-body::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 0;
+            height: 30%;
+            background: linear-gradient(180deg, rgba(165, 243, 252, 0.55), transparent);
+          }
+          .wave-body::after {
+            content: "";
             position: absolute;
             left: -60%;
             width: 220%;
-            height: 220%;
-            border-radius: 42%;
-            background: radial-gradient(110% 110% at 30% 22%, rgba(165, 243, 252, 0.85), rgba(34, 211, 238, 0.55) 46%, rgba(8, 145, 178, 0.34) 74%);
-            box-shadow: inset 0 -10px 18px rgba(2, 6, 23, 0.3), 0 0 20px rgba(34, 211, 238, 0.25);
-            opacity: 0.85;
-            will-change: transform;
-            animation: waterSurface 3.4s linear infinite;
+            top: -3px;
+            height: 7px;
+            border-radius: 50%;
+            background: linear-gradient(180deg, rgba(224, 242, 254, 0.98), rgba(103, 232, 249, 0.35));
+            filter: blur(0.3px);
+            animation: waveScroll 3.6s ease-in-out infinite;
           }
-          .wave-orb::after {
-            content: "";
-            position: absolute;
-            top: 4%;
-            left: -8%;
-            right: -8%;
-            height: 4px;
-            border-radius: 999px;
-            background: linear-gradient(90deg, transparent, rgba(224, 242, 254, 0.95) 14%, rgba(224, 242, 254, 0.95) 86%, transparent);
-            filter: blur(0.4px);
-            box-shadow: 0 0 14px rgba(103, 232, 249, 0.85);
-          }
-          :global(html.dark) .wave-orb {
-            background: radial-gradient(110% 110% at 30% 22%, rgba(103, 232, 249, 0.7), rgba(14, 165, 233, 0.45) 46%, rgba(8, 145, 178, 0.28) 74%);
-            box-shadow: inset 0 -12px 20px rgba(2, 6, 23, 0.38), 0 0 22px rgba(34, 211, 238, 0.22);
+          :global(html.dark) .wave-body {
+            background: linear-gradient(180deg, rgba(103, 232, 249, 0.88), rgba(8, 145, 178, 0.62) 40%, rgba(8, 47, 73, 0.55));
           }
           .ai-wave-rise {
-            animation: waterFillRise 20s linear forwards, waterSurface 3.4s linear infinite;
+            animation: waveFill 20s linear forwards;
           }
           .icon-arrow-pop {
             animation: arrowPop 520ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -449,13 +454,13 @@ export default function AINotificationCard({
             0% { transform: translateY(-100%); }
             100% { transform: translateY(100%); }
           }
-          @keyframes waterFillRise {
+          @keyframes waveFill {
             from { top: 100%; }
-            to { top: -100%; }
+            to { top: 0%; }
           }
-          @keyframes waterSurface {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
+          @keyframes waveScroll {
+            0%, 100% { transform: translateX(-14%); }
+            50% { transform: translateX(14%); }
           }
           @keyframes arrowPop {
             0% { opacity: 0; transform: translateX(8px) scale(0.9); }
