@@ -299,7 +299,7 @@ export default function HomeFeaturesCarousel() {
                 {SLIDES.map((s, idx) => {
                   const isActive = idx === active;
                   const scheme = SLIDE_SCHEME[s.id];
-                  const scale = s.id === "dashboard" ? 1.35 : s.id === "calendar" ? 2 : 1;
+                  const scale = s.id === "dashboard" ? 1.5 : s.id === "calendar" ? 2 : 1;
                   return (
                     <motion.div
                       key={s.id}

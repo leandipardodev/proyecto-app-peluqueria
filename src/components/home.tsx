@@ -355,7 +355,7 @@ export default function Home({ monthlyPrice, trialDays }: { monthlyPrice: number
               <>
                 <Link
                   href="/dashboard"
-                  className="rounded-full bg-[#0071E3] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#0064cc]"
+                  className="rounded-full bg-[linear-gradient(140deg,#080d18_0%,#0b1222_48%,#0d172d_100%)] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[linear-gradient(140deg,#0c1830_0%,#11203a_48%,#142743_100%)]"
                 >
                   Panel
                 </Link>
@@ -452,7 +452,7 @@ export default function Home({ monthlyPrice, trialDays }: { monthlyPrice: number
               <div className="mt-7 sm:mt-10">
                 <Link
                   href={user ? "/dashboard" : "/register"}
-                  className="inline-flex rounded-full bg-[#0071E3] px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_40px_rgba(0,113,227,0.40)] transition hover:translate-y-[-1px] hover:bg-[#0064cc] sm:px-10 sm:py-4 sm:text-base"
+                  className="inline-flex rounded-full bg-[linear-gradient(140deg,#080d18_0%,#0b1222_48%,#0d172d_100%)] px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_40px_rgba(2,6,23,0.45)] transition hover:translate-y-[-1px] hover:bg-[linear-gradient(140deg,#0c1830_0%,#11203a_48%,#142743_100%)] sm:px-10 sm:py-4 sm:text-base"
                 >
                   {user ? "Ir al panel" : "Empezar gratis ahora"}
                 </Link>
@@ -686,14 +686,7 @@ export default function Home({ monthlyPrice, trialDays }: { monthlyPrice: number
                   <p className="mt-3 max-w-xl leading-relaxed text-[#5f6673]">
                     Videos paso a paso para configurar tu local, cargar servicios, cobrar y aprovechar cada funcion. Aprendelo a tu ritmo, en 2 o 3 minutos.
                   </p>
-                  <div className="mt-5 flex flex-wrap gap-2">
-                    {["Configuracion", "Agenda y turnos", "Cobros y senas", "Panel y IA"].map((chip) => (
-                      <span key={chip} className="rounded-full border border-sky-100 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-600">
-                        {chip}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="mt-7 inline-flex items-center gap-2 rounded-full bg-[#0071E3] px-6 py-3 text-sm font-bold text-white shadow-[0_18px_40px_rgba(0,113,227,0.38)] transition group-hover:bg-[#0064cc] group-hover:shadow-[0_22px_48px_rgba(0,113,227,0.5)]">
+                  <div className="mt-7 inline-flex items-center gap-2 rounded-full bg-[linear-gradient(140deg,#080d18_0%,#0b1222_48%,#0d172d_100%)] px-6 py-3 text-sm font-bold text-white shadow-[0_18px_40px_rgba(2,6,23,0.28)] transition group-hover:bg-[linear-gradient(140deg,#0c1830_0%,#11203a_48%,#142743_100%)] group-hover:shadow-[0_22px_48px_rgba(2,6,23,0.4)]">
                     Ver tutoriales
                     <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
                   </div>
