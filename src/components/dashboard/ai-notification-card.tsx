@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bot, Sparkles, BookOpen } from "lucide-react";
+import { ArrowRight, BookOpen, Bot, Sparkles } from "lucide-react";
 import { openGuideModal } from "@/components/dashboard/guide-modal";
 
 type Message = {
@@ -93,6 +93,28 @@ export default function AINotificationCard({
     [messages, pwaTip]
   );
 
+  const [cycle, setCycle] = useState(0);
+  const [skipping, setSkipping] = useState(false);
+  const skippingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const goNext = useCallback(() => {
+    if (!poweredOn || feed.length <= 1) return;
+    if (skippingTimer.current) clearTimeout(skippingTimer.current);
+    setSkipping(true);
+    skippingTimer.current = setTimeout(() => setSkipping(false), 700);
+    setActiveIndex((prev) => (prev + 1) % feed.length);
+    setCycle((c) => c + 1);
+  }, [feed.length, poweredOn]);
+
+  useEffect(() => () => {
+    if (skippingTimer.current) clearTimeout(skippingTimer.current);
+  }, []);
+
+  function handleIconClick(e: React.MouseEvent) {
+    e.stopPropagation();
+    goNext();
+  }
+
   const handleClick = useCallback(() => {
     const target = feed[activeIndex]?.href;
     if (target) router.push(target);
@@ -137,7 +159,7 @@ export default function AINotificationCard({
       clearTimeout(delay);
       clearTimeout(inner);
     };
-  }, [feed.length, poweredOn]);
+  }, [feed.length, activeIndex, cycle, poweredOn]);
 
   const active = feed[poweredOn ? activeIndex : 0];
   const toneClass =
@@ -196,16 +218,39 @@ export default function AINotificationCard({
           </div>
 
           <div className={`relative z-10 mt-2 flex h-[84px] items-start gap-3 ${poweredOn ? "" : "opacity-60"}`}>
-              <div className="relative mt-0.5 h-12 w-12 shrink-0">
+              <div
+                onClick={handleIconClick}
+                title="Siguiente mensaje"
+                className="relative mt-0.5 h-12 w-12 shrink-0 cursor-pointer transition-transform duration-300 md:group-hover:scale-105"
+              >
                 {poweredOn && (
                   <>
                     <div className="ai-orb absolute inset-0 rounded-full" />
                     <div className="ai-orb-glow absolute inset-[-8px] rounded-full" />
+                    <div key={`wave-${activeIndex}-${cycle}`} className="wave-timer absolute inset-0 overflow-hidden rounded-full pointer-events-none">
+                      <div className="wave-orb ai-wave-rise" />
+                    </div>
                   </>
                 )}
                 {!poweredOn && <div className="absolute inset-0 rounded-full bg-zinc-300 dark:bg-zinc-600" />}
-                <div className="absolute inset-0 flex items-center justify-center">
+                <div
+                  className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${
+                    thinking || skipping ? "opacity-0" : "opacity-100"
+                  }`}
+                >
                   <Sparkles className={`h-5 w-5 ${poweredOn ? "text-cyan-700 ai-star dark:text-cyan-100" : "text-zinc-400 dark:text-zinc-500"}`} />
+                </div>
+                <div
+                  className={`absolute inset-0 z-10 flex items-center justify-center transition-all duration-300 ${
+                    thinking || skipping
+                      ? "opacity-100 scale-100"
+                      : "opacity-0 scale-75 md:opacity-0 md:group-hover:opacity-100 md:group-hover:scale-100"
+                  }`}
+                  aria-hidden={!thinking && !skipping}
+                >
+                  <div className={`flex h-7 w-7 items-center justify-center rounded-full border border-cyan-300/40 bg-cyan-950/35 shadow-[0_6px_16px_rgba(8,145,178,0.35)] backdrop-blur-[2px] ${thinking || skipping ? "icon-arrow-pop" : ""}`}>
+                    <ArrowRight className="h-4 w-4 text-cyan-100" />
+                  </div>
                 </div>
               </div>
 
@@ -290,6 +335,31 @@ export default function AINotificationCard({
             background: radial-gradient(circle, rgba(34,211,238,0.28), transparent 68%);
             animation: orbPulse 2.1s ease-in-out infinite;
           }
+          .wave-timer {
+            z-index: 0;
+          }
+          .wave-orb {
+            position: absolute;
+            left: -60%;
+            width: 220%;
+            height: 220%;
+            border-radius: 42%;
+            background: radial-gradient(120% 120% at 32% 30%, rgba(165, 243, 252, 0.55), rgba(34, 211, 238, 0.3) 45%, rgba(8, 145, 178, 0.14) 72%);
+            box-shadow: inset 0 -8px 16px rgba(8, 47, 73, 0.16);
+            opacity: 0.62;
+            will-change: transform;
+            animation: waterSurface 3.4s linear infinite;
+          }
+          :global(html.dark) .wave-orb {
+            background: radial-gradient(120% 120% at 32% 30%, rgba(34, 211, 238, 0.4), rgba(8, 145, 178, 0.24) 45%, rgba(2, 6, 23, 0.1) 72%);
+            box-shadow: inset 0 -8px 16px rgba(2, 6, 23, 0.22);
+          }
+          .ai-wave-rise {
+            animation: waterFillRise 20s linear forwards, waterSurface 3.4s linear infinite;
+          }
+          .icon-arrow-pop {
+            animation: arrowPop 620ms cubic-bezier(0.22, 1, 0.36, 1);
+          }
           .ai-matrix-grid {
             background-image:
               linear-gradient(rgba(14,165,233,0.26) 1px, transparent 1px),
@@ -365,6 +435,19 @@ export default function AINotificationCard({
           @keyframes aiScan {
             0% { transform: translateY(-100%); }
             100% { transform: translateY(100%); }
+          }
+          @keyframes waterFillRise {
+            from { top: 100%; }
+            to { top: -100%; }
+          }
+          @keyframes waterSurface {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+          @keyframes arrowPop {
+            0% { opacity: 0; transform: translateX(-5px) scale(0.7); }
+            60% { opacity: 1; transform: translateX(1px) scale(1.08); }
+            100% { opacity: 1; transform: translateX(0) scale(1); }
           }
           @keyframes aiBot {
             0%, 100% { transform: translateY(0px) rotate(0deg); }

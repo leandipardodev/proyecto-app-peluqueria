@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { findLargestGap } from "@/lib/dashboard/finances/dashboard-summary";
+import { findLargestGap } from "@/lib/dashboard/finances/agenda-gaps";
 
 const DAY_START = new Date("2030-06-15T03:00:00.000Z");
 const at = (hhmm: string) => new Date(`2030-06-15T${hhmm}:00-03:00`).toISOString();
