@@ -678,6 +678,10 @@ export default function Home({ monthlyPrice, trialDays }: { monthlyPrice: number
               Soporte
             </Link>
             <span className="text-xs text-[#a1a1aa]">-</span>
+            <Link href="/tutoriales" className="text-xs text-[#86868B] underline-offset-2 hover:underline">
+              Tutoriales
+            </Link>
+            <span className="text-xs text-[#a1a1aa]">-</span>
             <span className="inline-flex items-center gap-2 rounded-full bg-white/80 px-2 py-1 text-xs text-[#4b5563] ring-1 ring-slate-200">
               <Image src="/dix-logo.svg" alt="di.X" width={64} height={20} sizes="64px" className="h-5 w-auto object-contain" />
               Powered by di.X

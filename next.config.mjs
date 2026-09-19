@@ -65,6 +65,10 @@ const nextConfig = {
         protocol: "https",
         hostname: "*.supabase.co",
       },
+      {
+        protocol: "https",
+        hostname: "i.ytimg.com",
+      },
     ],
   },
   async headers() {
@@ -78,7 +82,7 @@ const nextConfig = {
       "img-src 'self' data: blob: https:",
       "font-src 'self' data: https:",
       "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.mercadopago.com https://sdk.mercadopago.com https://*.mercadopago.com https://*.ingest.sentry.io https://*.sentry.io",
-      "frame-src 'self' https://www.mercadopago.com https://sdk.mercadopago.com https://*.mercadopago.com",
+      "frame-src 'self' https://www.mercadopago.com https://sdk.mercadopago.com https://*.mercadopago.com https://www.youtube-nocookie.com",
       "manifest-src 'self'",
       "worker-src 'self' blob:",
       "upgrade-insecure-requests",

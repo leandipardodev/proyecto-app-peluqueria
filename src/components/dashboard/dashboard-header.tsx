@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, Search, Moon, Sun, Gauge, Repeat2, Check, Volume2, VolumeX, Sparkles, Bell, Bug, CircleHelp, LogOut, KeyRound } from "lucide-react";
+import { Menu, Search, Moon, Sun, Gauge, Repeat2, Check, Volume2, VolumeX, Sparkles, Bell, Bug, CircleHelp, LogOut, KeyRound, GraduationCap, ChevronRight } from "lucide-react";
 import { useState, useRef, useEffect, useLayoutEffect, useTransition, useMemo, useCallback, memo, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -28,6 +28,7 @@ import { NAV_COMMANDS, ACTION_COMMANDS, type CommandItem, type CommandNav, type 
 import { getIndustrySearchKeywords, getInitials, normalizeSearchText, scoreQueryAgainstTerms, formatDataLabel, formatDataHint } from "@/lib/dashboard/search/search-utils";
 import BaseModal from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
+import { TUTORIALES_GUIDE } from "@/components/tutoriales/tutoriales-data";
 
 interface DashboardHeaderProps {
   shopName: string;
@@ -1139,6 +1140,19 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                   </button>
                 </div>
                 <div className="p-3 space-y-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        router.push(TUTORIALES_GUIDE.href);
+                      }}
+                      className="relative flex w-full items-center gap-2 overflow-hidden rounded-xl px-3 py-2.5 text-sm font-semibold text-white shadow-lg transition-shadow hover:shadow-[#0071E3]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 bg-gradient-to-r from-[#0071E3] via-[#2563eb] to-[#7c3aed]"
+                    >
+                      <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_120%_at_20%_0%,rgba(255,255,255,0.28),transparent_55%)]" />
+                      <GraduationCap className="relative h-4 w-4" />
+                      <span className="relative flex-1 text-left">{TUTORIALES_GUIDE.menuLabel}</span>
+                      <ChevronRight className="relative h-4 w-4 opacity-80" />
+                    </button>
                     <div className="flex items-center justify-between rounded-xl border border-white/20 dark:border-white/10 px-3 py-2">
                     <span className="text-sm text-gray-800 dark:text-gray-100">Modo oscuro</span>
                     <button
