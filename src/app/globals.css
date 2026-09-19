@@ -446,6 +446,14 @@ html.perf-mode .analytics-card-bg::after {
   animation: carousel-zoom 20s ease-in-out infinite alternate;
 }
 
+/* Relleno de la barra de progreso del carrusel: se escala desde la izquierda
+   por JS (requestAnimationFrame), por lo que arranca vacío. */
+.carousel-progress-fill {
+  transform: scaleX(0);
+  transform-origin: left center;
+  will-change: transform;
+}
+
 @keyframes shimmer {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(200%); }

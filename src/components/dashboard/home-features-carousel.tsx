@@ -3,9 +3,11 @@
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 
 const EASE: [number, number, number, number] = [0.43, 0.13, 0.23, 0.96];
+const AUTOPLAY_MS = 6500;
+const DRAG_CLICK_GUARD_MS = 250;
 
 type Slide = {
   id: string;
@@ -38,7 +40,7 @@ const SLIDES: Slide[] = [
     kicker: "Inicio optimizado",
     title: "Métricas y estadísticas claras para no perder ningún detalle.",
     text: "Tu panel principal resume lo importante de ingresos, actividad y alertas para que tomes decisiones rápido, sin fricción.",
-    image: "/landing/carousel/aa4.webp",
+    image: "/landing/carousel/aa4-v2.webp",
     alt: "Panel principal de Klip con métricas del negocio",
   },
   {
@@ -56,27 +58,63 @@ export default function HomeFeaturesCarousel() {
   const [paused, setPaused] = useState(false);
   const [dragX, setDragX] = useState(0);
   const slide = SLIDES[active];
+  const imageScale = slide.id === "dashboard" ? 2 : 1;
+
+  const elapsedRef = useRef(0);
+  const progressFillRef = useRef<HTMLSpanElement | null>(null);
+  const dragEndAtRef = useRef(0);
+  const manualPauseRef = useRef(false);
 
   function goPrev() {
+    elapsedRef.current = 0;
     setActive((prev) => (prev - 1 + SLIDES.length) % SLIDES.length);
   }
 
   function goNext() {
+    elapsedRef.current = 0;
     setActive((prev) => (prev + 1) % SLIDES.length);
+  }
+
+  function goTo(index: number) {
+    elapsedRef.current = 0;
+    setActive(index);
+  }
+
+  function handleSectionClick(event: MouseEvent<HTMLElement>) {
+    if (Date.now() - dragEndAtRef.current < DRAG_CLICK_GUARD_MS) return;
+    const target = event.target as HTMLElement;
+    if (target.closest("button")) return;
+    const next = !paused;
+    manualPauseRef.current = next;
+    setPaused(next);
   }
 
   useEffect(() => {
     if (paused) return;
-    const timer = window.setInterval(() => {
-      goNext();
-    }, 6500);
-    return () => window.clearInterval(timer);
-  }, [paused]);
+    let raf = 0;
+    let last = performance.now();
+    const tick = (now: number) => {
+      elapsedRef.current += now - last;
+      last = now;
+      const progress = Math.min(1, elapsedRef.current / AUTOPLAY_MS);
+      if (progressFillRef.current) {
+        progressFillRef.current.style.transform = `scaleX(${progress})`;
+      }
+      if (progress >= 1) {
+        elapsedRef.current = 0;
+        goNext();
+        return;
+      }
+      raf = window.requestAnimationFrame(tick);
+    };
+    raf = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(raf);
+  }, [active, paused]);
 
   useEffect(() => {
     function onVisibility() {
       if (document.hidden) setPaused(true);
-      else setPaused(false);
+      else if (!manualPauseRef.current) setPaused(false);
     }
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
@@ -86,13 +124,82 @@ export default function HomeFeaturesCarousel() {
     <section
       className="glass-sheen-card relative overflow-hidden rounded-[2.5rem] border border-slate-700/70 bg-[linear-gradient(140deg,#080d18_0%,#0b1222_48%,#0d172d_100%)] transition-colors"
       style={{ boxShadow: "0 22px 68px rgba(14,165,233,0.12), 0 34px 88px rgba(15,23,42,0.30)" }}
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-      onFocusCapture={() => setPaused(true)}
-      onBlurCapture={() => setPaused(false)}
+      onClick={handleSectionClick}
     >
-      <div className="pointer-events-none absolute -left-24 top-1/2 h-52 w-52 -translate-y-1/2 rounded-full bg-sky-300/20 blur-2xl" />
-      <div className="pointer-events-none absolute -right-20 top-6 h-48 w-48 rounded-full bg-cyan-300/18 blur-2xl" />
+      <AnimatePresence>
+        {active === 0 && (
+          <motion.div
+            key="bg-slide-1"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.6, ease: EASE }}
+            className="pointer-events-none absolute inset-y-0 left-4 right-0 overflow-hidden md:left-6"
+          >
+            <Image
+              src="/landing/carousel/parallax-bg-v2.webp"
+              alt=""
+              aria-hidden
+              fill
+              sizes="100vw"
+              className="object-cover opacity-70"
+              draggable={false}
+            />
+            <div className="absolute inset-0 bg-[radial-gradient(140%_120%_at_60%_50%,rgba(8,13,24,0)_42%,rgba(8,13,24,0.78)_100%)]" />
+          </motion.div>
+        )}
+        {active === 1 && (
+          <motion.div
+            key="bg-slide-2"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.6, ease: EASE }}
+            className="pointer-events-none absolute inset-y-0 left-4 right-0 overflow-hidden md:left-6"
+          >
+            <motion.div
+              className="absolute inset-0"
+              initial={{ x: 60, scale: 1.2 }}
+              animate={{ x: -60, scale: 1.2 }}
+              transition={{ duration: 24, ease: "easeInOut", repeat: Infinity, repeatType: "reverse" }}
+            >
+              <Image
+                src="/landing/carousel/parallax-bg-2-v2.webp"
+                alt=""
+                aria-hidden
+                fill
+                sizes="100vw"
+                className="object-cover opacity-70"
+                draggable={false}
+              />
+            </motion.div>
+            <div className="absolute inset-0 bg-[radial-gradient(140%_120%_at_60%_50%,rgba(8,13,24,0)_42%,rgba(8,13,24,0.78)_100%)]" />
+          </motion.div>
+        )}
+        {active === 2 && (
+          <motion.div
+            key="bg-slide-3"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.6, ease: EASE }}
+            className="pointer-events-none absolute inset-y-0 left-4 right-0 overflow-hidden md:left-6"
+          >
+            <Image
+              src="/landing/carousel/parallax-bg-4.webp"
+              alt=""
+              aria-hidden
+              fill
+              sizes="100vw"
+              className="object-cover opacity-70"
+              draggable={false}
+            />
+            <div className="absolute inset-0 bg-[radial-gradient(140%_120%_at_60%_50%,rgba(8,13,24,0)_42%,rgba(8,13,24,0.78)_100%)]" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <div className="pointer-events-none absolute left-[5%] top-1/2 h-56 w-56 -translate-y-1/2 rounded-full bg-sky-300/20 blur-2xl" />
+      <div className="pointer-events-none absolute right-[5%] top-6 h-52 w-52 rounded-full bg-cyan-300/18 blur-2xl" />
       <div className="pointer-events-none absolute inset-0 opacity-55" style={{ background: "linear-gradient(118deg, rgba(14,165,233,0.08) 0%, rgba(255,255,255,0) 42%, rgba(37,99,235,0.08) 100%)" }} />
 
       <div className="relative z-10 grid grid-cols-1 gap-5 p-4 md:grid-cols-12 md:gap-7 md:p-6">
@@ -116,9 +223,26 @@ export default function HomeFeaturesCarousel() {
               <ChevronLeft className="h-4 w-4" />
             </button>
             <div className="mx-3 flex items-center gap-1.5">
-              {SLIDES.map((s, idx) => (
-                  <button key={s.id} type="button" onClick={() => setActive(idx)} className={`h-1.5 rounded-full transition-all duration-300 ${idx === active ? "w-8 bg-sky-300" : "w-2.5 bg-zinc-500/50 hover:bg-zinc-400/80"}`} aria-label={`Ir al slide ${idx + 1}`} />
-              ))}
+              {SLIDES.map((s, idx) => {
+                const isActive = idx === active;
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => goTo(idx)}
+                    className={`relative h-1.5 overflow-hidden rounded-full transition-all duration-300 ${isActive ? "w-10 bg-zinc-100/20" : "w-2.5 bg-zinc-500/50 hover:bg-zinc-400/80"}`}
+                    aria-label={`Ir al slide ${idx + 1}`}
+                    aria-current={isActive}
+                  >
+                    {isActive && (
+                      <span
+                        ref={progressFillRef}
+                        className={`carousel-progress-fill absolute inset-0 rounded-full ${paused ? "bg-amber-300/80" : "bg-sky-300"}`}
+                      />
+                    )}
+                  </button>
+                );
+              })}
             </div>
             <button type="button" onClick={goNext} className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-600/80 bg-slate-800/90 text-slate-200 transition-all duration-200 hover:bg-slate-700 active:scale-95" aria-label="Slide siguiente">
               <ChevronRight className="h-4 w-4" />
@@ -128,64 +252,6 @@ export default function HomeFeaturesCarousel() {
 
         <div className="order-1 md:order-2 md:col-span-8 relative z-0">
           <div className="relative h-[380px] overflow-visible md:h-[560px]">
-            <AnimatePresence>
-              {active === 0 && (
-                <motion.div
-                  key="bg-slide-1"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.6, ease: EASE }}
-                  className="pointer-events-none absolute inset-0"
-                >
-                  <motion.div
-                    className="absolute inset-[1%]"
-                    initial={{ x: -14, y: 14 }}
-                    animate={{ x: 14, y: -14 }}
-                    transition={{ duration: 18, ease: "easeInOut", repeat: Infinity, repeatType: "reverse" }}
-                  >
-                    <Image
-                      src="/landing/carousel/parallax-bg.webp"
-                      alt=""
-                      aria-hidden
-                      fill
-                      sizes="(max-width: 768px) 98vw, 60vw"
-                      className="object-contain opacity-70"
-                      draggable={false}
-                    />
-                  </motion.div>
-                  <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_50%_50%,rgba(8,13,24,0)_38%,rgba(8,13,24,0.72)_100%)]" />
-                </motion.div>
-              )}
-              {active === 1 && (
-                <motion.div
-                  key="bg-slide-2"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.6, ease: EASE }}
-                  className="pointer-events-none absolute inset-0 overflow-hidden"
-                >
-                  <motion.div
-                    className="absolute inset-0"
-                    initial={{ x: 60, scale: 1.2 }}
-                    animate={{ x: -60, scale: 1.2 }}
-                    transition={{ duration: 24, ease: "easeInOut", repeat: Infinity, repeatType: "reverse" }}
-                  >
-                    <Image
-                      src="/landing/carousel/parallax-bg-2-v2.webp"
-                      alt=""
-                      aria-hidden
-                      fill
-                      sizes="(max-width: 768px) 100vw, 60vw"
-                      className="object-cover opacity-70"
-                      draggable={false}
-                    />
-                  </motion.div>
-                  <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_50%_50%,rgba(8,13,24,0)_42%,rgba(8,13,24,0.72)_100%)]" />
-                </motion.div>
-              )}
-            </AnimatePresence>
             <AnimatePresence mode="wait">
               <motion.div
                 key={slide.id}
@@ -193,12 +259,13 @@ export default function HomeFeaturesCarousel() {
                 animate={{ opacity: 1, scale: 1, x: dragX }}
                 exit={{ opacity: 0, scale: 1.04 }}
                 transition={{ duration: 0.6, ease: EASE }}
-                className="absolute -inset-x-4 inset-y-0 md:-inset-x-6"
+                className="absolute inset-2 md:inset-4"
                 drag="x"
                 dragConstraints={{ left: 0, right: 0 }}
                 dragElastic={0.12}
                 onDrag={(_, info) => setDragX(info.offset.x * 0.12)}
                 onDragEnd={(_, info) => {
+                  dragEndAtRef.current = Date.now();
                   setDragX(0);
                   const shouldPrev = info.offset.x > 56 || info.velocity.x > 540;
                   const shouldNext = info.offset.x < -56 || info.velocity.x < -540;
@@ -211,13 +278,13 @@ export default function HomeFeaturesCarousel() {
               >
                 <motion.div
                   className="absolute inset-0"
-                  initial={{ scale: 1, x: 14, y: -14 }}
-                  animate={{ scale: 1.08, x: -14, y: 14 }}
+                  initial={{ scale: imageScale, x: 10, y: -10 }}
+                  animate={{ scale: imageScale * 1.035, x: -10, y: 10 }}
                   transition={{ duration: 18, ease: "easeInOut", repeat: Infinity, repeatType: "reverse" }}
                 >
                   <Image src={slide.image} alt={slide.alt} fill sizes="(max-width: 768px) 100vw, 60vw" className="object-contain" priority={active === 0} />
                 </motion.div>
-                <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,rgba(255,255,255,0.08)_0%,transparent_42%,rgba(14,165,233,0.08)_100%)]" />
+                <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,transparent_3%,rgba(255,255,255,0.07)_28%,transparent_52%,rgba(56,189,248,0.06)_75%,transparent_97%)]" />
               </motion.div>
             </AnimatePresence>
           </div>
