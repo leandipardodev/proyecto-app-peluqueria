@@ -30,7 +30,7 @@ const SLIDES: Slide[] = [
     kicker: "Inteligencia artificial",
     title: "IA integrada trabaja codo a codo con vos",
     text: "Dandote recomendaciones e información en tiempo real de tu local. Analizamos el comportamiento de tu negocio para sugerirte los mejores horarios, servicios más rentables y alertas inteligentes. Todo sin que tengas que hacer nada extra.",
-    image: "/landing/carousel/aa2.webp",
+    image: "/landing/carousel/aa2-v2.webp",
     alt: "Klip con inteligencia artificial integrada",
   },
   {
@@ -128,6 +128,64 @@ export default function HomeFeaturesCarousel() {
 
         <div className="order-1 md:order-2 md:col-span-8 relative z-0">
           <div className="relative h-[380px] overflow-visible md:h-[560px]">
+            <AnimatePresence>
+              {active === 0 && (
+                <motion.div
+                  key="bg-slide-1"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.6, ease: EASE }}
+                  className="pointer-events-none absolute inset-0"
+                >
+                  <motion.div
+                    className="absolute inset-[1%]"
+                    initial={{ x: -14, y: 14 }}
+                    animate={{ x: 14, y: -14 }}
+                    transition={{ duration: 18, ease: "easeInOut", repeat: Infinity, repeatType: "reverse" }}
+                  >
+                    <Image
+                      src="/landing/carousel/parallax-bg.webp"
+                      alt=""
+                      aria-hidden
+                      fill
+                      sizes="(max-width: 768px) 98vw, 60vw"
+                      className="object-contain opacity-70"
+                      draggable={false}
+                    />
+                  </motion.div>
+                  <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_50%_50%,rgba(8,13,24,0)_38%,rgba(8,13,24,0.72)_100%)]" />
+                </motion.div>
+              )}
+              {active === 1 && (
+                <motion.div
+                  key="bg-slide-2"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.6, ease: EASE }}
+                  className="pointer-events-none absolute inset-0 overflow-hidden"
+                >
+                  <motion.div
+                    className="absolute inset-0"
+                    initial={{ x: 60, scale: 1.2 }}
+                    animate={{ x: -60, scale: 1.2 }}
+                    transition={{ duration: 24, ease: "easeInOut", repeat: Infinity, repeatType: "reverse" }}
+                  >
+                    <Image
+                      src="/landing/carousel/parallax-bg-2.webp"
+                      alt=""
+                      aria-hidden
+                      fill
+                      sizes="(max-width: 768px) 100vw, 60vw"
+                      className="object-cover opacity-70"
+                      draggable={false}
+                    />
+                  </motion.div>
+                  <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_50%_50%,rgba(8,13,24,0)_42%,rgba(8,13,24,0.72)_100%)]" />
+                </motion.div>
+              )}
+            </AnimatePresence>
             <AnimatePresence mode="wait">
               <motion.div
                 key={slide.id}
@@ -151,9 +209,14 @@ export default function HomeFeaturesCarousel() {
                   filter: "drop-shadow(0 20px 40px rgba(15,23,42,0.18))",
                 }}
               >
-                <div className="absolute inset-0 carousel-image-zoom">
+                <motion.div
+                  className="absolute inset-0"
+                  initial={{ scale: 1, x: 14, y: -14 }}
+                  animate={{ scale: 1.08, x: -14, y: 14 }}
+                  transition={{ duration: 18, ease: "easeInOut", repeat: Infinity, repeatType: "reverse" }}
+                >
                   <Image src={slide.image} alt={slide.alt} fill sizes="(max-width: 768px) 100vw, 60vw" className="object-contain" priority={active === 0} />
-                </div>
+                </motion.div>
                 <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,rgba(255,255,255,0.08)_0%,transparent_42%,rgba(14,165,233,0.08)_100%)]" />
               </motion.div>
             </AnimatePresence>
