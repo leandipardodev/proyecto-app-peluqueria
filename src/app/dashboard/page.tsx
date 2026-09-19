@@ -20,6 +20,7 @@ import type { CSSProperties } from "react";
 import AINotificationCard from "@/components/dashboard/ai-notification-card";
 import AlertsCarousel from "@/components/dashboard/alerts-carousel";
 import DashboardChartsWrapper from "@/components/dashboard/dashboard-charts-wrapper";
+import { TUTORIALS } from "@/components/tutoriales/tutoriales-data";
 
 const VoucherBirthdayAlert = dynamicImport(() => import("@/components/dashboard/voucher-birthday-alert"));
 
@@ -167,6 +168,19 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
     });
   }
 
+  if (summary.agendaGap && summary.appointmentsCount > 0) {
+    const suggestedService = metrics?.topServices?.[0]?.name;
+    aiMessages.push({
+      id: "agenda-gap",
+      title: "Hueco en la agenda",
+      body: `Tenés un hueco de ${summary.agendaGap.start} a ${summary.agendaGap.end} (${summary.agendaGap.minutes} min). ${
+        suggestedService ? `¿Aprovechás para agendar un «${suggestedService}»?` : "¿Aprovechás para llenarlo con un turno?"
+      }`,
+      tone: "action",
+      href: withDashboardBase("/dashboard/calendar", dashboardBasePath) + "?view=day",
+    });
+  }
+
   if (features.inventory && summary.lowStockCount > 0) {
     aiMessages.push({
       id: "low-stock",
@@ -292,17 +306,30 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
   ];
 
   const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
-  const filteredTips = APP_TIPS.filter((t) => !t.feature || features[t.feature]);
-  if (filteredTips.length > 0) {
-    const tipIndex = dayOfYear % filteredTips.length;
-    const tip = filteredTips[tipIndex];
+
+  const showTutorialTip = TUTORIALS.length > 0 && dayOfYear % 2 === 0;
+  if (showTutorialTip) {
+    const tutorial = TUTORIALS[Math.floor(dayOfYear / 2) % TUTORIALS.length];
     aiMessages.push({
-      id: tip.id,
-      title: tip.title,
-      body: tip.body,
+      id: `tip-tutorial-${tutorial.title}`,
+      title: "Tutorial del día",
+      body: `Aprendé a «${tutorial.title}». Mirá la web de tutoriales cuando tengas 2 minutos.`,
       tone: "insight",
-      href: withDashboardBase("/dashboard/calendar", dashboardBasePath),
+      href: "/tutoriales",
     });
+  } else {
+    const filteredTips = APP_TIPS.filter((t) => !t.feature || features[t.feature]);
+    if (filteredTips.length > 0) {
+      const tipIndex = dayOfYear % filteredTips.length;
+      const tip = filteredTips[tipIndex];
+      aiMessages.push({
+        id: tip.id,
+        title: tip.title,
+        body: tip.body,
+        tone: "insight",
+        href: withDashboardBase("/dashboard/calendar", dashboardBasePath),
+      });
+    }
   }
 
   const shopNameLower = summary.shopName.toLowerCase();

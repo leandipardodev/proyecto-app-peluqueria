@@ -207,7 +207,7 @@ export type DayHours = {
 
 export type BusinessHoursData = Record<string, DayHours>;
 
-const DEFAULT_BUSINESS_HOURS: BusinessHoursData = {
+export const DEFAULT_BUSINESS_HOURS: BusinessHoursData = {
   monday:    { open: true,  start: "09:00", end: "20:00" },
   tuesday:   { open: true,  start: "09:00", end: "20:00" },
   wednesday: { open: true,  start: "09:00", end: "20:00" },
