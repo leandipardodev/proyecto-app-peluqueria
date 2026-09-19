@@ -233,10 +233,12 @@ const ServiceCard = memo(function ServiceCard({
               )}
             </div>
             <div className="shrink-0 text-right">
-              <p className={`shrink-0 ${priceText} ${priceFx} tabular-nums`} style={isInCart ? { color: selectedText } as React.CSSProperties : undefined}>
-                <span className="mr-1.5 align-top text-[0.72em] font-semibold opacity-85">$</span>
-                <span className="tracking-[-0.045em]">{svc.price.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
-              </p>
+              {!svc.hide_price && (
+                <p className={`shrink-0 ${priceText} ${priceFx} tabular-nums`} style={isInCart ? { color: selectedText } as React.CSSProperties : undefined}>
+                  <span className="mr-1.5 align-top text-[0.72em] font-semibold opacity-85">$</span>
+                  <span className="tracking-[-0.045em]">{svc.price.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                </p>
+              )}
               <span
                 className="mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold leading-none tabular-nums"
                 style={{ backgroundColor: isInCart ? selectedText : accentBg, color: isInCart ? accentBg : selectedText } as React.CSSProperties}
@@ -500,8 +502,8 @@ function SelectionSummary({ cart, selectedCombo, staff, noPreference, totalDurat
   onClose: () => void;
 }) {
   const items = selectedCombo
-    ? [{ id: selectedCombo.id, name: selectedCombo.name, duration: selectedCombo.total_duration, price: selectedCombo.price }]
-    : cart.map(s => ({ id: s.id, name: s.name, duration: s.duration_minutes, price: s.price }));
+    ? [{ id: selectedCombo.id, name: selectedCombo.name, duration: selectedCombo.total_duration, price: selectedCombo.price, hide_price: false }]
+    : cart.map(s => ({ id: s.id, name: s.name, duration: s.duration_minutes, price: s.price, hide_price: s.hide_price ?? false }));
   const storeItems = products.filter((p) => (storeCart[p.id] ?? 0) > 0);
 
   return (
@@ -546,9 +548,11 @@ function SelectionSummary({ cart, selectedCombo, staff, noPreference, totalDurat
                     <p className={`text-sm font-medium truncate ${templateStyles.heading}`}>{item.name}</p>
                     <p className={`text-[11px] mt-0.5 ${templateStyles.tiny}`}>{item.duration} min</p>
                   </div>
-                  <span className={`text-sm font-semibold tabular-nums shrink-0 ${templateStyles.priceText}`}>
-                    ${item.price.toLocaleString("es-AR")}
-                  </span>
+                  {!item.hide_price && (
+                    <span className={`text-sm font-semibold tabular-nums shrink-0 ${templateStyles.priceText}`}>
+                      ${item.price.toLocaleString("es-AR")}
+                    </span>
+                  )}
                 </div>
               ))}
 
@@ -607,7 +611,7 @@ function SelectionSummary({ cart, selectedCombo, staff, noPreference, totalDurat
               {items.length > 0 && ` · ${totalDuration} min`}
             </span>
             <span className={`text-sm font-bold tabular-nums ${templateStyles.priceText} ${templateStyles.priceFx}`}>
-              $ {totalPrice.toLocaleString("es-AR")}
+              {items.some((i) => i.hide_price) ? "A convenir" : `$ ${totalPrice.toLocaleString("es-AR")}`}
             </span>
           </div>
 
@@ -1105,6 +1109,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const [nameError, setNameError] = useState("");
 
   const hasServices = cart.length > 0 || selectedCombo !== null;
+  const hasHiddenPriceService = cart.some((s) => s.hide_price);
   const storeCartCount = useMemo(() => Object.values(storeCart).reduce((sum, q) => sum + q, 0), [storeCart]);
   const hasStoreItems = storeCartCount > 0;
   const productsTotal = useMemo(
@@ -1617,11 +1622,12 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     setDone(true);
   }
 
-  async function createCartAppointments(status: "scheduled" | "pending_payment", phone: string): Promise<{ ids: string[] } | null> {
+  async function createCartAppointments(status: "scheduled" | "pending_payment", phone: string, items?: Service[]): Promise<{ ids: string[] } | null> {
+    const list = items ?? cart;
     const createdIds: string[] = [];
     let prevEnd = selectedSlot!.start;
-    for (let i = 0; i < cart.length; i++) {
-      const svc = cart[i];
+    for (let i = 0; i < list.length; i++) {
+      const svc = list[i];
       const svcStart = prevEnd;
       const svcEnd = new Date(new Date(svcStart).getTime() + svc.duration_minutes * 60000).toISOString();
       const result = await createPublicAppointment({
@@ -1632,7 +1638,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
         customerEmail: customerEmail.trim() || undefined,
         customerPhone: phone,
         authenticatedUserId: user?.id,
-        skipRepeatCache: i < cart.length - 1,
+        skipRepeatCache: i < list.length - 1,
         startTime: svcStart,
         endTime: svcEnd,
         status,
@@ -1729,7 +1735,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     }
 
     // Combined checkout: appointment(s) + store order paid together
-    if (hasStoreItems && hasServices) {
+    if (hasStoreItems && hasServices && !hasHiddenPriceService) {
       setCreatingPreference(true);
       const { createCombinedCheckout } = await import("@/lib/dashboard/booking/public-booking-actions");
       const result = await createCombinedCheckout({
@@ -1773,6 +1779,78 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
         setBankTransferDetails({ cvuCb: data.bankTransfer.cbu, alias: data.bankTransfer.alias, bankName: data.bankTransfer.bankName });
         setBankTransferWhatsAppMessage(
           `Hola ${shop.name}, reservé turno por ${formatARSAmount(data.totalAmount)} y pagué por transferencia. Quedo a la espera de confirmación.`
+        );
+        setStep(pagoStep);
+        return;
+      }
+      setError("No se pudo iniciar el pago. Intenta de nuevo.");
+      return;
+    }
+
+    // Services with hidden price are pay-at-shop only: book them locally and
+    // charge only the store items online
+    if (hasStoreItems && hasServices && hasHiddenPriceService) {
+      setCreatingPreference(true);
+      try {
+        if (selectedCombo) {
+          const result = await createPublicComboAppointment({
+            shopId: shop.id,
+            comboId: selectedCombo.id,
+            comboName: selectedCombo.name,
+            comboPrice: selectedCombo.price,
+            services: selectedCombo.services,
+            staffId: staffForAppointment?.id,
+            customerName: customerName.trim(),
+            customerEmail: customerEmail.trim() || undefined,
+            customerPhone: formattedPhone,
+            authenticatedUserId: user?.id,
+            startTime: selectedSlot!.start,
+            status: "scheduled",
+          });
+          if (!result.success) {
+            if (result.error === "login_required") { handleLoginRequired(); return; }
+            throw new Error(result.error || "No se pudo reservar el turno");
+          }
+        } else {
+          const cartResult = await createCartAppointments("scheduled", formattedPhone);
+          if (cartResult === null) { handleLoginRequired(); return; }
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Error al reservar el turno";
+        if (await maybeRetrySlotTaken(msg)) return;
+        setSubmitting(false); setCreatingPreference(false);
+        setError(msg);
+        return;
+      }
+
+      const { createStoreOrder } = await import("@/lib/dashboard/store/public-store-actions");
+      const storeResult = await createStoreOrder({
+        shopId: shop.id,
+        shopSlug: shop.slug,
+        items: storeItems,
+        customerName: customerName.trim(),
+        customerEmail: customerEmail.trim(),
+        customerPhone: formattedPhone,
+        paymentMethod,
+      });
+      setSubmitting(false); setCreatingPreference(false);
+      if (!storeResult.success) { setError(storeResult.error || "No se pudo iniciar el pago"); return; }
+      if (!storeResult.data) { setError("No se pudo iniciar el pago"); return; }
+      const storeData = storeResult.data;
+      setChargedAmount(storeData.totalAmount);
+      setIsDepositPayment(false);
+      if (paymentMethod === "mp" && storeData.initPoint) {
+        setSelectedPaymentMethod("mp");
+        setPaymentPreferenceId(storeData.preferenceId ?? null);
+        setPaymentInitPoint(storeData.initPoint);
+        setStep(pagoStep);
+        return;
+      }
+      if (paymentMethod === "bank_transfer" && storeData.bankTransfer) {
+        setSelectedPaymentMethod("bank_transfer");
+        setBankTransferDetails({ cvuCb: storeData.bankTransfer.cbu, alias: storeData.bankTransfer.alias, bankName: storeData.bankTransfer.bankName });
+        setBankTransferWhatsAppMessage(
+          `Hola ${shop.name}, hice un pedido por ${formatARSAmount(storeData.totalAmount)} por transferencia. Mi pedido queda pendiente de confirmar.`
         );
         setStep(pagoStep);
         return;
@@ -1857,12 +1935,20 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
       return;
     }
 
-    // Cart paid flow — create appointments with pending_payment then payment preference
+    // Cart paid flow — book hidden-price services at shop, pay online for the rest
     setCreatingPreference(true);
-    const cartResult = await createCartAppointments("pending_payment", formattedPhone);
+    const atShopItems = cart.filter((s) => s.hide_price);
+    const payableItems = cart.filter((s) => !s.hide_price);
+
+    if (atShopItems.length > 0) {
+      const atShopResult = await createCartAppointments("scheduled", formattedPhone, atShopItems);
+      if (atShopResult === null) { setCreatingPreference(false); handleLoginRequired(); return; }
+    }
+
+    const cartResult = await createCartAppointments("pending_payment", formattedPhone, payableItems);
     if (cartResult === null) { setCreatingPreference(false); handleLoginRequired(); return; }
 
-    const totalPrice = cart.reduce((sum, s) => sum + s.price, 0);
+    const totalPrice = payableItems.reduce((sum, s) => sum + s.price, 0);
     const { createPaymentPreference } = await import("@/lib/dashboard/booking/public-booking-actions");
     const prefResult = await createPaymentPreference({
       appointmentId: cartResult.ids[0],
@@ -1948,16 +2034,19 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const summaryTime = selectedSlot ? formatTimeFromIso(selectedSlot.start) || to24HourTimeLabel(selectedSlot.time) : "Sin hora";
 
   const servicePrice = selectedCombo?.price ?? cart.reduce((sum, s) => sum + s.price, 0);
-  const totalPrice = servicePrice + productsTotal;
+  const publicServicePrice = hasHiddenPriceService ? 0 : servicePrice;
+  const totalPrice = publicServicePrice + productsTotal;
   const totalDuration = selectedCombo
     ? selectedCombo.total_duration
     : cart.reduce((sum, s) => sum + s.duration_minutes, 0);
   const depositEnabled = shop.bookingDepositEnabled !== false;
   const configuredDeposit = shop.bookingDepositAmount;
-  const depositPortion = depositEnabled && hasServices
-    ? Math.max(1, Math.min(servicePrice, configuredDeposit > 0 ? configuredDeposit : servicePrice))
-    : servicePrice;
-  const previewIsDeposit = depositEnabled && hasServices && depositPortion < servicePrice;
+  const depositPortion = hasHiddenPriceService
+    ? 0
+    : depositEnabled && hasServices
+      ? Math.max(1, Math.min(publicServicePrice, configuredDeposit > 0 ? configuredDeposit : publicServicePrice))
+      : publicServicePrice;
+  const previewIsDeposit = !hasHiddenPriceService && depositEnabled && hasServices && depositPortion < servicePrice;
   const previewChargeAmount = depositPortion + productsTotal;
   const effectiveIsDeposit = isDepositPayment || previewIsDeposit;
   const effectiveChargedAmount = chargedAmount ?? previewChargeAmount;
@@ -2356,7 +2445,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                                 {cart.length} servicio{cart.length > 1 ? "s" : ""}
                               </span>
                               <span className={`font-semibold tabular-nums ${templateStyles.priceText}`}>
-                                $ {cart.reduce((s, svc) => s + svc.price, 0).toLocaleString("es-AR")}
+                                {cart.some((svc) => svc.hide_price) ? "A convenir" : `$ ${cart.reduce((s, svc) => s + svc.price, 0).toLocaleString("es-AR")}`}
                               </span>
                             </div>
                             <div className="mt-1 flex flex-wrap gap-1">
@@ -3771,11 +3860,17 @@ className="fixed inset-0 z-[60] flex items-center justify-center p-4"
                   {hasStoreItems && (
                     <p className="truncate"><span className={templateStyles.tiny}>Productos:</span> {storeCartCount} · {formatARSAmount(productsTotal)}</p>
                   )}
-                  <p className="truncate">
-                    <span className={templateStyles.tiny}>
-                      {effectiveIsDeposit && hasServices && effectiveChargedAmount < totalPrice ? "Seña online:" : "Pago online:"}
-                    </span> {formatARSAmount(effectiveChargedAmount)}
-                  </p>
+                  {hasHiddenPriceService && !needsPayment ? (
+                    <p className="truncate">
+                      <span className={templateStyles.tiny}>Pago:</span> En el local
+                    </p>
+                  ) : (
+                    <p className="truncate">
+                      <span className={templateStyles.tiny}>
+                        {effectiveIsDeposit && hasServices && effectiveChargedAmount < totalPrice ? "Seña online:" : "Pago online:"}
+                      </span> {formatARSAmount(effectiveChargedAmount)}
+                    </p>
+                  )}
                 </div>
 
                 <div className="relative w-full sm:w-auto flex-shrink-0">
@@ -3810,7 +3905,7 @@ className="fixed inset-0 z-[60] flex items-center justify-center p-4"
                         }
                         return;
                       }
-                      if (shop.bankTransferEnabled) {
+                      if (shop.bankTransferEnabled && !hasHiddenPriceService) {
                         setStep(pagoStep);
                         return;
                       }

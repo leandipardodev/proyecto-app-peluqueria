@@ -12,6 +12,7 @@ type ServiceOption = {
   name: string;
   duration_minutes: number;
   price: number;
+  hide_price?: boolean;
 };
 
 type ComboFormProps = {
@@ -46,6 +47,10 @@ const ComboForm = memo(function ComboForm({ shopId, services, combo, onSuccess }
     return services
       .filter((s) => selectedIds.includes(s.id))
       .reduce((sum, s) => sum + s.price, 0);
+  }, [services, selectedIds]);
+
+  const hasHiddenPrice = useMemo(() => {
+    return services.some((s) => selectedIds.includes(s.id) && s.hide_price);
   }, [services, selectedIds]);
 
   function toggleService(id: string) {
@@ -125,7 +130,7 @@ const ComboForm = memo(function ComboForm({ shopId, services, combo, onSuccess }
           defaultValue={combo?.price ?? ""}
           placeholder="0.00"
         />
-        {totalOriginalPrice > 0 && (
+        {!hasHiddenPrice && totalOriginalPrice > 0 && (
           <p className="mt-1 text-xs text-gray-400">
             Precio original sin combo: ${totalOriginalPrice.toFixed(2)}
           </p>
@@ -155,7 +160,7 @@ const ComboForm = memo(function ComboForm({ shopId, services, combo, onSuccess }
                   />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900">{svc.name}</p>
-                    <p className="text-xs text-gray-400">{svc.duration_minutes} min · ${svc.price.toFixed(2)}</p>
+                    <p className="text-xs text-gray-400">{svc.duration_minutes} min{svc.hide_price ? "" : ` · $${svc.price.toFixed(2)}`}</p>
                   </div>
                 </label>
               );

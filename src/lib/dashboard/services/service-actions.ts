@@ -15,6 +15,7 @@ type ServiceRow = {
   price: number;
   duration_minutes: number | null;
   pay_at_shop: boolean;
+  hide_price: boolean;
   created_at: string | null;
   updated_at: string | null;
   shop_id: string;
@@ -66,7 +67,7 @@ export async function fetchServices(shopIdOverride?: string): Promise<ActionResu
 
     const { data, error } = await admin
       .from("services")
-      .select("id, name, description, category, price, duration_minutes, pay_at_shop, created_at, updated_at, shop_id")
+      .select("id, name, description, category, price, duration_minutes, pay_at_shop, hide_price, created_at, updated_at, shop_id")
       .eq("shop_id", shopId)
       .order("created_at", { ascending: false });
 
@@ -121,6 +122,7 @@ export async function createService(formData: FormData, shopIdOverride?: string)
     const price = normalizePriceValue(formData.get("price"));
     const durationMinutes = parseInt(formData.get("duration_minutes") as string);
     const payAtShop = formData.get("pay_at_shop") === "on";
+    const hidePrice = formData.get("hide_price") === "on";
 
     if (!name || isNaN(price) || isNaN(durationMinutes)) {
       return { success: false, error: "Todos los campos son obligatorios" };
@@ -143,7 +145,8 @@ export async function createService(formData: FormData, shopIdOverride?: string)
       category,
       price,
       duration_minutes: durationMinutes,
-      pay_at_shop: payAtShop,
+      pay_at_shop: payAtShop || hidePrice,
+      hide_price: hidePrice,
     }).select("id").single();
 
     if (error) {
@@ -185,6 +188,7 @@ export async function updateService(id: string, formData: FormData, shopIdOverri
     const price = normalizePriceValue(formData.get("price"));
     const durationMinutes = parseInt(formData.get("duration_minutes") as string);
     const payAtShop = formData.get("pay_at_shop") === "on";
+    const hidePrice = formData.get("hide_price") === "on";
 
     if (!name || isNaN(price) || isNaN(durationMinutes)) {
       return { success: false, error: "Todos los campos son obligatorios" };
@@ -198,7 +202,7 @@ export async function updateService(id: string, formData: FormData, shopIdOverri
 
     const { error } = await admin
       .from("services")
-      .update({ name, description, category, price, duration_minutes: durationMinutes, pay_at_shop: payAtShop, updated_at: new Date().toISOString() })
+      .update({ name, description, category, price, duration_minutes: durationMinutes, pay_at_shop: payAtShop || hidePrice, hide_price: hidePrice, updated_at: new Date().toISOString() })
       .eq("id", id)
       .eq("shop_id", shopId);
 

@@ -22,6 +22,7 @@ type Service = {
   category: string;
   price: number;
   duration_minutes: number | null;
+  hide_price?: boolean;
 };
 
 type ComboService = {
@@ -352,6 +353,11 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
                             <div className="flex items-center gap-2 text-sm">
                               <DollarSign className="w-4 h-4 text-gray-400" />
                               <span className="font-semibold text-gray-900 dark:text-white text-lg">${service.price.toFixed(2)}</span>
+                              {service.hide_price && (
+                                <span className="inline-flex items-center rounded-full bg-amber-100 dark:bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-400 leading-none">
+                                  Oculto
+                                </span>
+                              )}
                             </div>
                             <div className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400">
                               <Clock className="w-4 h-4" />
@@ -537,7 +543,7 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
         {editingCombo || (activeTab === "combos" && !editingService) ? (
           <ComboForm
             shopId={shopId}
-            services={services.map((s) => ({ id: s.id, name: s.name, duration_minutes: s.duration_minutes ?? 0, price: s.price }))}
+            services={services.map((s) => ({ id: s.id, name: s.name, duration_minutes: s.duration_minutes ?? 0, price: s.price, hide_price: s.hide_price ?? false }))}
             combo={editingCombo ? {
               id: editingCombo.id,
               name: editingCombo.name,

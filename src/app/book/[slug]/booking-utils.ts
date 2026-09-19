@@ -1,4 +1,4 @@
-export type Service = { id: string; name: string; description?: string; price: number; duration_minutes: number; category: string | null; pay_at_shop: boolean };
+export type Service = { id: string; name: string; description?: string; price: number; duration_minutes: number; category: string | null; pay_at_shop: boolean; hide_price?: boolean };
 export type StaffMember = { id: string; name: string; photo_url?: string | null; description?: string | null; instagram?: string | null; whatsapp?: string | null };
 export type Slot = { start: string; end: string; time: string; staffIds: string[] };
 export type Combo = {

@@ -19,6 +19,7 @@ interface ServiceFormProps {
     price: number;
     duration_minutes: number | null;
     pay_at_shop?: boolean;
+    hide_price?: boolean;
   };
   onSuccess: () => void;
   staffMembers?: { id: string; name: string | null }[];
@@ -33,6 +34,8 @@ const ServiceForm = memo(function ServiceForm({ shopId, service, onSuccess, staf
   const nameRef = useRef<HTMLInputElement>(null);
   const [selectedStaff, setSelectedStaff] = useState<string[]>([]);
   const [loadingStaff, setLoadingStaff] = useState(true);
+  const [hidePrice, setHidePrice] = useState(service?.hide_price ?? false);
+  const [payAtShop, setPayAtShop] = useState(service?.pay_at_shop ?? false);
 
   useEffect(() => {
     if (!service) {
@@ -115,8 +118,23 @@ const ServiceForm = memo(function ServiceForm({ shopId, service, onSuccess, staf
 
       <CheckboxForm
         name="pay_at_shop"
-        defaultChecked={service?.pay_at_shop ?? false}
+        checked={payAtShop}
+        disabled={hidePrice}
+        onChange={(e) => setPayAtShop(e.target.checked)}
         label="Pago en el local"
+        helperText={hidePrice ? "Obligatorio cuando el precio está oculto" : undefined}
+      />
+
+      <CheckboxForm
+        name="hide_price"
+        checked={hidePrice}
+        onChange={(e) => {
+          const next = e.target.checked;
+          setHidePrice(next);
+          if (next) setPayAtShop(true);
+        }}
+        label="Ocultar precio en la tienda"
+        helperText="El precio no se muestra y solo se podrá pagar en el local"
       />
 
       <SelectForm

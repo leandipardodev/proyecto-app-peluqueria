@@ -48,7 +48,7 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
   const [servicesRes, membershipsRes, combosRes] = await Promise.all([
     admin
       .from("services")
-      .select("id, name, description, price, duration_minutes, category, pay_at_shop")
+      .select("id, name, description, price, duration_minutes, category, pay_at_shop, hide_price")
       .eq("shop_id", shop.id)
       .order("name", { ascending: true }),
     admin
@@ -113,7 +113,7 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
         }
       : undefined,
     sameAs: shop.instagram_url ? [shop.instagram_url] : undefined,
-    makesOffer: services.map((service) => ({
+    makesOffer: services.filter((service) => !service.hide_price).map((service) => ({
       "@type": "Offer",
       itemOffered: {
         "@type": "Service",
