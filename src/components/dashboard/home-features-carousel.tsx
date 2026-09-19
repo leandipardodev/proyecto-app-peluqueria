@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, type TargetAndTransition, type Transition } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 
@@ -50,6 +50,72 @@ const SLIDES: Slide[] = [
     text: "Editá, reprogramá y controlá toda la agenda desde un solo lugar, con estados visuales claros y flujo operativo en tiempo real.",
     image: "/landing/carousel/aa3-v2.webp",
     alt: "Calendario de Klip con funcionalidades de agenda",
+  },
+];
+
+type SlidePose = { opacity: number; scale: number; x: number; y: number; rotate: number };
+type SlideScheme = Record<string, { off: SlidePose; enter: Transition }>;
+
+const SLIDE_SCHEME: SlideScheme = {
+  devices: {
+    off: { opacity: 0, scale: 0.9, x: 0, y: 64, rotate: -3 },
+    enter: { type: "spring", stiffness: 120, damping: 17 },
+  },
+  ai: {
+    off: { opacity: 0, scale: 0.72, x: 36, y: -34, rotate: 5 },
+    enter: { type: "spring", stiffness: 96, damping: 15 },
+  },
+  dashboard: {
+    off: { opacity: 0, scale: 1.24, x: 0, y: -34, rotate: 0 },
+    enter: { duration: 0.55, ease: EASE },
+  },
+  calendar: {
+    off: { opacity: 0, scale: 0.94, x: -72, y: 8, rotate: 7 },
+    enter: { type: "spring", stiffness: 132, damping: 16 },
+  },
+};
+
+type BgLayer = {
+  key: string;
+  src: string;
+  off: { opacity: number; scale: number; x: number; y: number };
+  enter: Transition;
+  ambient: TargetAndTransition;
+  ambientMs: number;
+};
+
+const BG_LAYERS: BgLayer[] = [
+  {
+    key: "bg-slide-1",
+    src: "/landing/carousel/parallax-bg-v2.webp",
+    off: { opacity: 0, scale: 1.1, x: 0, y: 0 },
+    enter: { duration: 0.9, ease: EASE },
+    ambient: { x: [-28, 28], scale: 1.28 },
+    ambientMs: 26,
+  },
+  {
+    key: "bg-slide-2",
+    src: "/landing/carousel/parallax-bg-2-v2.webp",
+    off: { opacity: 0, scale: 1, x: 0, y: 44 },
+    enter: { duration: 0.5, ease: EASE },
+    ambient: { x: [-60, 60], scale: 1.2 },
+    ambientMs: 24,
+  },
+  {
+    key: "bg-slide-3",
+    src: "/landing/carousel/parallax-bg-4.webp",
+    off: { opacity: 0, scale: 1.3, x: 0, y: 0 },
+    enter: { duration: 1.1, ease: EASE },
+    ambient: { scale: [1.12, 1.22], y: [12, -12] },
+    ambientMs: 20,
+  },
+  {
+    key: "bg-slide-4",
+    src: "/landing/carousel/parallax-bg-3.webp",
+    off: { opacity: 0, scale: 1, x: 0, y: -48 },
+    enter: { duration: 0.5, ease: EASE },
+    ambient: { y: [30, -34], scale: 1.16 },
+    ambientMs: 22,
   },
 ];
 
@@ -126,40 +192,22 @@ export default function HomeFeaturesCarousel() {
       onClick={handleSectionClick}
     >
       <div className="pointer-events-none absolute inset-y-0 left-0 right-0 overflow-hidden">
-        {[
-          { key: "bg-slide-1", src: "/landing/carousel/parallax-bg-v2.webp", drift: false },
-          { key: "bg-slide-2", src: "/landing/carousel/parallax-bg-2-v2.webp", drift: true },
-          { key: "bg-slide-3", src: "/landing/carousel/parallax-bg-4.webp", drift: false },
-          { key: "bg-slide-4", src: "/landing/carousel/parallax-bg-3.webp", drift: false },
-        ].map((bg, idx) => {
+        {BG_LAYERS.map((bg, idx) => {
           const isActive = idx === active;
           return (
             <motion.div
               key={bg.key}
               className="absolute inset-0"
               initial={false}
-              animate={{ opacity: isActive ? 1 : 0 }}
-              transition={{ duration: 0.6, ease: EASE }}
+              animate={isActive ? { opacity: 1, scale: 1, x: 0, y: 0 } : { ...bg.off }}
+              transition={bg.enter}
             >
-              {bg.drift ? (
-                <motion.div
-                  className="absolute inset-0"
-                  initial={{ x: 60, scale: 1.2 }}
-                  animate={{ x: -60, scale: 1.2 }}
-                  transition={{ duration: 24, ease: "easeInOut", repeat: Infinity, repeatType: "reverse" }}
-                >
-                  <Image
-                    src={bg.src}
-                    alt=""
-                    aria-hidden
-                    fill
-                    sizes="100vw"
-                    loading="eager"
-                    className="object-cover opacity-70"
-                    draggable={false}
-                  />
-                </motion.div>
-              ) : (
+              <motion.div
+                className="absolute inset-0"
+                initial={false}
+                animate={bg.ambient}
+                transition={{ duration: bg.ambientMs, ease: "easeInOut", repeat: Infinity, repeatType: "reverse" }}
+              >
                 <Image
                   src={bg.src}
                   alt=""
@@ -170,7 +218,7 @@ export default function HomeFeaturesCarousel() {
                   className="object-cover opacity-70"
                   draggable={false}
                 />
-              )}
+              </motion.div>
               <div className="absolute inset-0 bg-[radial-gradient(140%_120%_at_60%_50%,rgba(8,13,24,0)_42%,rgba(8,13,24,0.78)_100%)]" />
             </motion.div>
           );
@@ -187,8 +235,8 @@ export default function HomeFeaturesCarousel() {
               key={slide.id}
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              transition={{ duration: 0.44, ease: EASE }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={SLIDE_SCHEME[slide.id].enter}
             >
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-300">{slide.kicker}</p>
               <h3 className="mt-3 text-[2.02rem] font-black leading-[1.02] tracking-[-0.045em] text-white md:text-[2.3rem]">{slide.title}</h3>
@@ -250,14 +298,15 @@ export default function HomeFeaturesCarousel() {
               >
                 {SLIDES.map((s, idx) => {
                   const isActive = idx === active;
+                  const scheme = SLIDE_SCHEME[s.id];
                   const scale = s.id === "dashboard" ? 1.35 : s.id === "calendar" ? 2 : 1;
                   return (
                     <motion.div
                       key={s.id}
                       className={`absolute inset-0 ${isActive ? "" : "pointer-events-none"}`}
                       initial={false}
-                      animate={{ opacity: isActive ? 1 : 0, scale: isActive ? 1 : 0.96, x: isActive ? dragX : 0 }}
-                      transition={{ duration: 0.6, ease: EASE }}
+                      animate={isActive ? { opacity: 1, scale: 1, x: dragX, y: 0, rotate: 0 } : { ...scheme.off }}
+                      transition={scheme.enter}
                     >
                       <motion.div
                         className="absolute inset-0"
