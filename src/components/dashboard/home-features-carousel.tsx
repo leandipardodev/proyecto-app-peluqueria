@@ -125,7 +125,7 @@ export default function HomeFeaturesCarousel() {
       style={{ boxShadow: "0 22px 68px rgba(14,165,233,0.12), 0 34px 88px rgba(15,23,42,0.30)" }}
       onClick={handleSectionClick}
     >
-      <div className="pointer-events-none absolute inset-y-0 left-0 right-0 overflow-hidden md:left-6">
+      <div className="pointer-events-none absolute inset-y-0 left-0 right-0 overflow-hidden">
         {[
           { key: "bg-slide-1", src: "/landing/carousel/parallax-bg-v2.webp", drift: false },
           { key: "bg-slide-2", src: "/landing/carousel/parallax-bg-2-v2.webp", drift: true },
@@ -250,7 +250,7 @@ export default function HomeFeaturesCarousel() {
               >
                 {SLIDES.map((s, idx) => {
                   const isActive = idx === active;
-                  const scale = s.id === "dashboard" ? 1.35 : 1;
+                  const scale = s.id === "dashboard" ? 1.35 : s.id === "calendar" ? 2 : 1;
                   return (
                     <motion.div
                       key={s.id}
