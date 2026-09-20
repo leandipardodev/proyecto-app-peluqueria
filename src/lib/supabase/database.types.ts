@@ -2185,6 +2185,7 @@ export type Database = {
           id: string
           redeemed_at: string | null
           reminder_sent_at: string | null
+          service_id: string | null
           service_name: string
           shop_id: string
           status: string
@@ -2201,6 +2202,7 @@ export type Database = {
           id?: string
           redeemed_at?: string | null
           reminder_sent_at?: string | null
+          service_id?: string | null
           service_name: string
           shop_id: string
           status?: string
@@ -2217,6 +2219,7 @@ export type Database = {
           id?: string
           redeemed_at?: string | null
           reminder_sent_at?: string | null
+          service_id?: string | null
           service_name?: string
           shop_id?: string
           status?: string
@@ -2229,6 +2232,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vouchers_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
             referencedColumns: ["id"]
           },
           {

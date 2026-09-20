@@ -148,7 +148,7 @@ export default function AINotificationCard({
           setThinking(false);
           scheduleNext();
         }, 3000);
-      }, 20000);
+      }, 13000);
     }
 
     scheduleNext();
@@ -373,7 +373,7 @@ export default function AINotificationCard({
             background: linear-gradient(180deg, rgba(103, 232, 249, 0.88), rgba(8, 145, 178, 0.62) 40%, rgba(8, 47, 73, 0.55));
           }
           .ai-wave-rise {
-            animation: waveFill 20s linear forwards;
+            animation: waveFill 13s linear forwards;
           }
           .icon-arrow-pop {
             animation: arrowPop 520ms cubic-bezier(0.16, 1, 0.3, 1);

@@ -18,10 +18,24 @@ type LoyaltyRewardCustomer = {
   loyalty_rewards_available: number | null;
 };
 
+export type FidelizacionService = {
+  id: string;
+  name: string;
+};
+
+export type FidelizacionCustomer = {
+  id: string;
+  nombre: string | null;
+  telefono: string | null;
+  cumpleaños: string | null;
+};
+
 type Props = {
   shopId: string;
   vouchers: VoucherRow[];
   voucherTemplate?: string;
+  initialServices?: FidelizacionService[];
+  initialCustomers?: FidelizacionCustomer[];
   loyaltyEnabled: boolean;
   loyaltyCutsRequired: number;
   loyaltyDiscountPercent: number;
@@ -34,6 +48,8 @@ export default function FidelizacionClient({
   shopId,
   vouchers,
   voucherTemplate,
+  initialServices,
+  initialCustomers,
   loyaltyEnabled,
   loyaltyCutsRequired,
   loyaltyDiscountPercent,
@@ -444,7 +460,13 @@ export default function FidelizacionClient({
       </div>
       )}
 
-      <VouchersClient shopId={shopId} initialVouchers={vouchers} initialTemplate={voucherTemplate} />
+      <VouchersClient
+        shopId={shopId}
+        initialVouchers={vouchers}
+        initialTemplate={voucherTemplate}
+        initialServices={initialServices ?? []}
+        initialCustomers={initialCustomers ?? []}
+      />
     </div>
   );
 }

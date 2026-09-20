@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useTransition, useRef } from "react";
 import { createVoucher, markVoucherRedeemed, markVoucherReminderSent, type VoucherRow } from "@/lib/dashboard/vouchers/voucher-actions";
 import { DEFAULT_VOUCHER_WHATSAPP_TEMPLATE } from "@/lib/dashboard/vouchers/voucher-constants";
+import { getArgentinaDateString } from "@/lib/argentina-time";
 import { CheckCircle2, Gift, MessageCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -10,12 +11,14 @@ type Props = {
   shopId: string;
   initialVouchers: VoucherRow[];
   initialTemplate?: string;
+  initialServices?: { id: string; name: string }[];
+  initialCustomers?: { id: string; nombre: string | null; telefono: string | null; cumpleaños: string | null }[];
 };
 
 function isBirthdayToday(dateStr: string): boolean {
-  const d = new Date(`${dateStr}T00:00:00`);
-  const now = new Date();
-  return d.getDate() === now.getDate() && d.getMonth() === now.getMonth();
+  if (!dateStr) return false;
+  const birthday = dateStr.slice(5);
+  return birthday === getArgentinaDateString().slice(5);
 }
 
 function voucherWhatsappText(v: VoucherRow, template: string) {
@@ -25,9 +28,24 @@ function voucherWhatsappText(v: VoucherRow, template: string) {
     .replace(/\@Regala/g, v.gifted_by_name ? `, regalo de ${v.gifted_by_name}` : "");
 }
 
-export default function VouchersClient({ shopId, initialVouchers, initialTemplate }: Props) {
+export default function VouchersClient({ shopId, initialVouchers, initialTemplate, initialServices = [], initialCustomers = [] }: Props) {
   const [vouchers, setVouchers] = useState(initialVouchers);
   const template = useMemo(() => initialTemplate || DEFAULT_VOUCHER_WHATSAPP_TEMPLATE, [initialTemplate]);
+  const [nameValue, setNameValue] = useState("");
+  const [phoneValue, setPhoneValue] = useState("");
+  const [birthdayValue, setBirthdayValue] = useState("");
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [selectedServiceId, setSelectedServiceId] = useState("");
+
+  function handleCustomerChange(value: string) {
+    setSelectedCustomerId(value);
+    const customer = initialCustomers.find((c) => c.id === value);
+    if (customer) {
+      setNameValue(customer.nombre ?? "");
+      setPhoneValue(customer.telefono ?? "");
+      setBirthdayValue(customer.cumpleaños ?? "");
+    }
+  }
 
   useEffect(() => {
     setVouchers(initialVouchers);
@@ -46,7 +64,7 @@ export default function VouchersClient({ shopId, initialVouchers, initialTemplat
         .from("vouchers")
         .select("id, gifted_to_name, gifted_to_phone, gifted_to_birthday, gifted_by_name, service_name, voucher_message, status, reminder_sent_at, redeemed_at, created_at")
         .eq("shop_id", shopId)
-        .order("gifted_to_birthday", { ascending: true });
+        .order("created_at", { ascending: false });
       if (!error && data) {
         setVouchers(data as VoucherRow[]);
       }
@@ -116,9 +134,45 @@ export default function VouchersClient({ shopId, initialVouchers, initialTemplat
       )}
 
       <form action={handleCreate} className="grid grid-cols-1 md:grid-cols-2 gap-3 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-xl shadow-black/[0.03]">
-        <input name="gifted_to_name" required placeholder="Nombre de quien recibe" className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100" />
-        <input name="gifted_to_phone" placeholder="Telefono (WhatsApp)" className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100" />
-        <input name="gifted_to_birthday" required type="date" className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100" />
+        <div>
+          <select
+            name="customer_id"
+            value={selectedCustomerId}
+            onChange={(e) => handleCustomerChange(e.target.value)}
+            className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+          >
+            <option value="">Cliente (del CRM)</option>
+            {initialCustomers.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nombre || "Cliente sin nombre"}
+              </option>
+            ))}
+          </select>
+          {initialCustomers.length === 0 && (
+            <p className="mt-1 px-1 text-xs text-zinc-500 dark:text-zinc-400">No hay clientes en el CRM todavía.</p>
+          )}
+        </div>
+        <div>
+          <select
+            name="service_id"
+            value={selectedServiceId}
+            onChange={(e) => setSelectedServiceId(e.target.value)}
+            className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+          >
+            <option value="">Servicio (del catálogo)</option>
+            {initialServices.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+          {initialServices.length === 0 && (
+            <p className="mt-1 px-1 text-xs text-zinc-500 dark:text-zinc-400">No hay servicios en el catálogo todavía.</p>
+          )}
+        </div>
+        <input name="gifted_to_name" required placeholder="Nombre de quien recibe" value={nameValue} onChange={(e) => setNameValue(e.target.value)} className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100" />
+        <input name="gifted_to_phone" placeholder="Telefono (WhatsApp)" value={phoneValue} onChange={(e) => setPhoneValue(e.target.value)} className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100" />
+        <input name="gifted_to_birthday" required type="date" value={birthdayValue} onChange={(e) => setBirthdayValue(e.target.value)} className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100" />
         <input name="gifted_by_name" placeholder="Quien regala" className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100" />
         <input name="service_name" required placeholder="Servicio (ej: Color + brushing)" className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 md:col-span-2" />
         <textarea name="voucher_message" placeholder="Mensaje del voucher (opcional)" className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 md:col-span-2" rows={2} />

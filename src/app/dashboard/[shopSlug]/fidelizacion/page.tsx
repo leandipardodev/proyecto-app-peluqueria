@@ -12,6 +12,18 @@ type LoyaltyRewardCustomer = {
   loyalty_rewards_available: number | null;
 };
 
+type FidelizacionService = {
+  id: string;
+  name: string;
+};
+
+type FidelizacionCustomer = {
+  id: string;
+  nombre: string | null;
+  telefono: string | null;
+  cumpleaños: string | null;
+};
+
 export const dynamic = "force-dynamic";
 
 export default async function DashboardShopFidelizacionPage({ params }: { params: Promise<{ shopSlug: string }> }) {
@@ -34,10 +46,32 @@ export default async function DashboardShopFidelizacionPage({ params }: { params
     .maybeSingle();
   const role = membership?.role ?? "staff";
 
-  const [vouchersResult, templateResult, businessResult, rewardsResult] = await Promise.all([
+  const [vouchersResult, templateResult, businessResult, servicesResult, customersResult, rewardsResult] = await Promise.all([
     fetchVouchers(shopId),
     fetchVoucherWhatsappTemplate(shopId),
     fetchBusinessData(shopId),
+    (async () => {
+      try {
+        return await supabase
+          .from("services")
+          .select("id, name")
+          .eq("shop_id", shopId)
+          .order("name");
+      } catch {
+        return { data: null, error: null };
+      }
+    })(),
+    (async () => {
+      try {
+        return await supabase
+          .from("customers")
+          .select("id, nombre, telefono, cumpleaños" as string)
+          .eq("shop_id", shopId)
+          .order("nombre");
+      } catch {
+        return { data: null, error: null };
+      }
+    })(),
     (async () => {
       try {
         return await supabase
@@ -63,6 +97,8 @@ export default async function DashboardShopFidelizacionPage({ params }: { params
     : null;
 
   const loyaltyRewardCustomers: LoyaltyRewardCustomer[] = (rewardsResult.data ?? []) as LoyaltyRewardCustomer[];
+  const initialServices = (servicesResult.data ?? []) as FidelizacionService[];
+  const initialCustomers = (customersResult.data ?? []) as unknown as FidelizacionCustomer[];
 
   return (
     <FidelizacionClient
@@ -70,6 +106,8 @@ export default async function DashboardShopFidelizacionPage({ params }: { params
       shopId={shopId}
       vouchers={vouchersResult.success ? vouchersResult.data ?? [] : []}
       voucherTemplate={templateResult.success ? templateResult.data ?? undefined : undefined}
+      initialServices={initialServices}
+      initialCustomers={initialCustomers}
       loyaltyEnabled={businessResult.success ? businessResult.data?.loyalty_enabled !== false : true}
       loyaltyCutsRequired={businessResult.success ? businessResult.data?.loyalty_cuts_required ?? 10 : 10}
       loyaltyDiscountPercent={businessResult.success ? businessResult.data?.loyalty_discount_percent ?? 10 : 10}

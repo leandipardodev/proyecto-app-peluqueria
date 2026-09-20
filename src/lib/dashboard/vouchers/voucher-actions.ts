@@ -1,7 +1,7 @@
 "use server";
 
 import { createServerClient } from "@/lib/supabase/server";
-import { canAccessShopId, getCachedUser, getCurrentUserRole, requireShopId } from "@/lib/dashboard/auth/server";
+import { canAccessShopId, createServiceRoleClient, getCachedUser, getCurrentUserRole, requireShopId } from "@/lib/dashboard/auth/server";
 import { revalidateDashboardSegments } from "@/lib/dashboard/shared/revalidate-dashboard";
 import { getArgentinaDateString } from "@/lib/argentina-time";
 import { DEFAULT_VOUCHER_WHATSAPP_TEMPLATE } from "@/lib/dashboard/vouchers/voucher-constants";
@@ -44,7 +44,7 @@ export async function fetchVouchers(shopIdOverride?: string): Promise<ActionResu
       .from("vouchers")
       .select("id, gifted_to_name, gifted_to_phone, gifted_to_birthday, gifted_by_name, service_name, voucher_message, status, reminder_sent_at, redeemed_at, created_at")
       .eq("shop_id", shopId)
-      .order("gifted_to_birthday", { ascending: true });
+      .order("created_at", { ascending: false });
 
     if (error) return { success: false, error: error.message };
     return { success: true, data: (data || []) as VoucherRow[] };
@@ -140,42 +140,6 @@ export async function updateVoucherWhatsappTemplate(shopId: string, template: st
   }
 }
 
-export async function runVoucherReminderSweep(): Promise<ActionResult<{ updated: number }>> {
-  try {
-    const supabase = await createServerClient();
-    const todayMMDD = getArgentinaDateString().slice(5);
-
-    const { data: shops } = await supabase.from("shops").select("id");
-    if (!shops || shops.length === 0) return { success: true, data: { updated: 0 } };
-
-    const results = await Promise.all(
-      shops.map(async (shop) => {
-        const { data } = await supabase
-          .from("vouchers")
-          .select("id, gifted_to_birthday")
-          .eq("shop_id", shop.id)
-          .in("status", ["pending", "sent"]);
-        if (!data) return [] as string[];
-        return data
-          .filter((v) => (v.gifted_to_birthday ?? "").slice(5) === todayMMDD)
-          .map((v) => v.id);
-      })
-    );
-
-    const dueIds = results.flat();
-    if (dueIds.length === 0) return { success: true, data: { updated: 0 } };
-
-    const { error: upErr } = await supabase
-      .from("vouchers")
-      .update({ status: "due_today", updated_at: new Date().toISOString() })
-      .in("id", dueIds);
-    if (upErr) return { success: false, error: upErr.message };
-    return { success: true, data: { updated: dueIds.length } };
-  } catch (e) {
-    return { success: false, error: e instanceof Error ? e.message : "Error en sweep de vouchers" };
-  }
-}
-
 export async function createVoucher(formData: FormData, shopId: string): Promise<ActionResult> {
   try {
     if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
@@ -192,14 +156,51 @@ export async function createVoucher(formData: FormData, shopId: string): Promise
       return { success: false, error: "Solo el owner puede crear vouchers" };
     }
 
-    const giftedToName = (formData.get("gifted_to_name") as string)?.trim();
-    const giftedToPhone = (formData.get("gifted_to_phone") as string)?.trim() || null;
-    const giftedToBirthday = (formData.get("gifted_to_birthday") as string)?.trim();
+    let giftedToName = (formData.get("gifted_to_name") as string)?.trim();
+    let giftedToPhone = (formData.get("gifted_to_phone") as string)?.trim() || null;
+    let giftedToBirthday = (formData.get("gifted_to_birthday") as string)?.trim() || null;
     const giftedByName = (formData.get("gifted_by_name") as string)?.trim() || null;
     const serviceName = (formData.get("service_name") as string)?.trim();
     const voucherMessage = (formData.get("voucher_message") as string)?.trim() || null;
+    const customerId = (formData.get("customer_id") as string)?.trim() || null;
+    const serviceId = (formData.get("service_id") as string)?.trim() || null;
 
-    if (!giftedToName || !giftedToBirthday || !serviceName) {
+    let resolvedCustomerId: string | null = null;
+    let resolvedServiceId: string | null = null, resolvedServiceName = serviceName || "";
+
+    // Vinculación al CRM: si eligieron cliente/servicio, validá la pertenencia al local
+    // y usá los datos reales del catálogo/cliente como fuente de verdad.
+    if (customerId) {
+      const customerRes = await supabase
+        .from("customers")
+        .select("id, nombre, cumpleaños, telefono" as string)
+        .eq("id", customerId)
+        .eq("shop_id", shopId)
+        .maybeSingle();
+      const customerError = customerRes.error;
+      if (customerError) return { success: false, error: customerError.message };
+      const customer = (customerRes.data ?? null) as { id: string; nombre: string | null; cumpleaños: string | null; telefono: string | null } | null;
+      if (!customer) return { success: false, error: "SIN_ACCESO_CLIENTE" };
+      resolvedCustomerId = customer.id;
+      if (!giftedToName && customer.nombre) giftedToName = customer.nombre;
+      if (!giftedToBirthday) giftedToBirthday = customer.cumpleaños;
+      if (!giftedToPhone && customer.telefono) giftedToPhone = customer.telefono;
+    }
+
+    if (serviceId) {
+      const { data: service, error: serviceError } = await supabase
+        .from("services")
+        .select("id, name")
+        .eq("id", serviceId)
+        .eq("shop_id", shopId)
+        .maybeSingle();
+      if (serviceError) return { success: false, error: serviceError.message };
+      if (!service) return { success: false, error: "SIN_ACCESO_SERVICIO" };
+      resolvedServiceId = service.id;
+      resolvedServiceName = service.name;
+    }
+
+    if (!giftedToName || !giftedToBirthday || !resolvedServiceName) {
       return { success: false, error: "Completá los campos obligatorios" };
     }
 
@@ -209,9 +210,11 @@ export async function createVoucher(formData: FormData, shopId: string): Promise
       gifted_to_phone: giftedToPhone,
       gifted_to_birthday: giftedToBirthday,
       gifted_by_name: giftedByName,
-      service_name: serviceName,
+      service_name: resolvedServiceName,
       voucher_message: voucherMessage,
       status: "pending",
+      ...(resolvedCustomerId ? { customer_id: resolvedCustomerId } : {}),
+      ...(resolvedServiceId ? { service_id: resolvedServiceId } : {}),
     });
 
     if (error) return { success: false, error: error.message };
@@ -230,13 +233,39 @@ export async function markVoucherReminderSent(voucherId: string, shopId: string)
     const allowed = await canAccessShopId(user.id, shopId);
     if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
     const supabase = await createServerClient();
-    const { error } = await supabase
+    const { data: updated, error } = await supabase
       .from("vouchers")
       .update({ reminder_sent_at: new Date().toISOString(), status: "sent", updated_at: new Date().toISOString() })
       .eq("id", voucherId)
-      .eq("shop_id", shopId);
+      .eq("shop_id", shopId)
+      .select("service_name, gifted_to_name")
+      .maybeSingle();
     if (error) return { success: false, error: error.message };
     await revalidateDashboardSegments(shopId, ["/vouchers"]);
+
+    try {
+      const admin = await createServiceRoleClient();
+      await admin.from("notifications").upsert(
+        [
+          {
+            shop_id: shopId,
+            type: "voucher_enviado",
+            category: "action" as const,
+            title: "Voucher enviado",
+            description: updated
+              ? `Voucher de ${updated.service_name} enviado a ${updated.gifted_to_name}`
+              : "Voucher enviado por WhatsApp",
+            href: "/dashboard/fidelizacion",
+            entity_key: `voucher:${voucherId}`,
+            created_at: new Date().toISOString(),
+          },
+        ],
+        { onConflict: "shop_id,entity_key", ignoreDuplicates: true }
+      );
+    } catch {
+      // Best-effort: el registro de la notificación no bloquea la acción.
+    }
+
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al actualizar voucher" };
