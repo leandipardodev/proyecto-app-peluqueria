@@ -511,17 +511,17 @@ export default function FinancesClient({
 
       <div className="ui-card rounded-3xl border border-slate-200/80 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
         <div className="grid grid-cols-3 gap-3 text-center">
-          <div>
+          <div className="min-w-0">
             <p className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-zinc-400">Ingresos</p>
-            <p className="mt-1 text-lg font-bold text-emerald-600">${(data?.totalIncome ?? 0).toFixed(2)}</p>
+            <p className="mt-1 text-sm sm:text-lg font-bold text-emerald-600 tabular-nums tracking-tight">${(data?.totalIncome ?? 0).toFixed(2)}</p>
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-zinc-400">Gastos</p>
-            <p className="mt-1 text-lg font-bold text-red-500">${(data?.totalExpenses ?? 0).toFixed(2)}</p>
+            <p className="mt-1 text-sm sm:text-lg font-bold text-red-500 tabular-nums tracking-tight">${(data?.totalExpenses ?? 0).toFixed(2)}</p>
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-zinc-400">Balance</p>
-            <p className={`mt-1 text-lg font-bold ${(data?.netBalance ?? 0) >= 0 ? "text-emerald-600" : "text-red-500"}`}>${(data?.netBalance ?? 0).toFixed(2)}</p>
+            <p className={`mt-1 text-sm sm:text-lg font-bold tabular-nums tracking-tight ${(data?.netBalance ?? 0) >= 0 ? "text-emerald-600" : "text-red-500"}`}>${(data?.netBalance ?? 0).toFixed(2)}</p>
           </div>
         </div>
       </div>

@@ -122,19 +122,19 @@ export default function MonthlyGrowthCard({
           )}
 
           <div className={`grid ${isStaff ? "grid-cols-2" : "grid-cols-3"} gap-3 pt-1`}>
-            <div className="rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-800">
+            <div className="min-w-0 rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-800">
               <p className="text-[10px] font-semibold tracking-wider text-zinc-500 dark:text-zinc-400 uppercase">Base clientes</p>
-              <p className="text-sm font-bold text-zinc-800 dark:text-zinc-100">{totalClients}</p>
+              <p className="text-sm font-bold text-zinc-800 dark:text-zinc-100 truncate">{totalClients}</p>
               {latestClients > 0 && (
-                <p className="text-[10px] font-medium text-green-600">
+                <p className="text-[10px] font-medium text-green-600 truncate">
                   +{latestClients} este mes
                 </p>
               )}
             </div>
             {!isStaff && (
-            <div className="rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-800">
+            <div className="min-w-0 rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-800">
               <p className="text-[10px] font-semibold tracking-wider text-zinc-500 dark:text-zinc-400 uppercase">Ingresos</p>
-              <p className="text-sm font-bold text-zinc-800 dark:text-zinc-100">{formatMoney(latestRevenue).replace("ARS", "").trim()}</p>
+              <p className="text-[13px] sm:text-sm font-bold text-zinc-800 dark:text-zinc-100 tabular-nums tracking-tight truncate">{formatMoney(latestRevenue).replace("ARS", "").trim()}</p>
               {revenueGrowth !== null && (
                 <p className={`text-[10px] font-medium ${revenueGrowth >= 0 ? "text-green-600" : "text-red-500"}`}>
                   {revenueGrowth >= 0 ? "+" : ""}{revenueGrowth}%
@@ -142,10 +142,10 @@ export default function MonthlyGrowthCard({
               )}
             </div>
             )}
-            <div className="rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-800">
+            <div className="min-w-0 rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-800">
               <p className="text-[10px] font-semibold tracking-wider text-zinc-500 dark:text-zinc-400 uppercase">Score</p>
-              <p className={`text-sm font-bold ${healthColor(healthScore)}`}>{healthScore}/100</p>
-              <p className={`text-[10px] font-medium ${healthColor(healthScore)}`}>{healthLabel(healthScore)}</p>
+              <p className={`text-sm font-bold truncate ${healthColor(healthScore)}`}>{healthScore}/100</p>
+              <p className={`text-[10px] font-medium truncate ${healthColor(healthScore)}`}>{healthLabel(healthScore)}</p>
             </div>
           </div>
         </div>

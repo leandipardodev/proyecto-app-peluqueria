@@ -334,7 +334,7 @@ const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = fa
               <div key={item.id} className={`group relative overflow-hidden bg-white dark:bg-zinc-900 rounded-2xl border shadow-sm hover:shadow-md transition-all duration-200 ${isLow ? "border-red-300 dark:border-red-700 bg-red-50/40 dark:bg-red-950/20 hover:border-red-400 dark:hover:border-red-600" : "border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700"}`}>
                 <div className="p-4 pb-3 origin-bottom transition-transform duration-300 ease-in-out group-hover:scale-[0.97] group-focus-within:scale-[0.97]">
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white truncate leading-tight">{item.nombre_producto}</h3>
+                    <h3 title={item.nombre_producto} className="text-lg font-semibold text-gray-900 dark:text-white truncate leading-tight">{item.nombre_producto}</h3>
                     {isLow && (
                       <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-red-600 text-white shadow-sm shadow-red-600/30 shrink-0">
                         Stock bajo
@@ -342,22 +342,22 @@ const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = fa
                     )}
                   </div>
 
-                  <div className="mt-3 flex items-start gap-6">
+                  <div className="mt-3 flex flex-wrap items-start gap-x-6 gap-y-2">
                     <div>
                       <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-400 dark:text-zinc-500">Stock</p>
-                      <p className={`mt-1 text-lg font-bold leading-none tabular-nums ${isLow ? "text-red-600 dark:text-red-400" : "text-gray-900 dark:text-white"}`}>
+                      <p className={`mt-1 text-lg font-bold leading-none tabular-nums whitespace-nowrap ${isLow ? "text-red-600 dark:text-red-400" : "text-gray-900 dark:text-white"}`}>
                         {item.quantity}
                         <span className="text-xs font-medium text-zinc-400 ml-0.5">u</span>
                       </p>
                     </div>
                     <div>
                       <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-400 dark:text-zinc-500">Dinero en stock</p>
-                      <p className="mt-1 text-sm font-semibold leading-none tabular-nums text-zinc-700 dark:text-zinc-300 pt-1">${total.toFixed(2)}</p>
+                      <p className="mt-1 text-sm font-semibold leading-none tabular-nums whitespace-nowrap text-zinc-700 dark:text-zinc-300 pt-1">${total.toFixed(2)}</p>
                     </div>
                     {storeEnabled && item.for_sale && (
                       <div>
                         <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-400 dark:text-zinc-500">Precio de venta</p>
-                        <p className="mt-1 text-sm font-bold leading-none tabular-nums text-emerald-600 dark:text-emerald-400 pt-1">${Number(item.price || 0).toFixed(2)}</p>
+                        <p className="mt-1 text-sm font-bold leading-none tabular-nums whitespace-nowrap text-emerald-600 dark:text-emerald-400 pt-1">${Number(item.price || 0).toFixed(2)}</p>
                       </div>
                     )}
                   </div>

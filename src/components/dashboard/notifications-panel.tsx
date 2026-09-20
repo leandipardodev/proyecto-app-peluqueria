@@ -193,7 +193,7 @@ export default function NotificationsPanel({ onClose, shopId }: { onClose: () =>
         aria-hidden="true"
         className="pointer-events-none absolute -top-1 right-4 w-3 h-3 rotate-45 rounded-[2px] bg-white/95 dark:bg-black/85 border-l border-t border-white/20 dark:border-white/10"
       />
-      <div ref={panelRef} className="relative w-80 sm:w-96 rounded-2xl border border-white/20 dark:border-white/10 bg-white/95 dark:bg-black/85 backdrop-blur-xl shadow-xl overflow-hidden">
+      <div ref={panelRef} className="relative w-80 sm:w-96 max-w-[calc(100vw-4.5rem)] rounded-2xl border border-white/20 dark:border-white/10 bg-white/95 dark:bg-black/85 backdrop-blur-xl shadow-xl overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-white/20 dark:border-white/10">
           <div className="flex items-center gap-2">
             <Bell className="w-4 h-4 text-zinc-500" />

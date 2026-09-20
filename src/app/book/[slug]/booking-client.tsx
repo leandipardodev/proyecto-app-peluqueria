@@ -448,7 +448,7 @@ function SelectionPill({ serviceCount, productCount, staff, noPreference, templa
           Sin preferencia
         </motion.span>
       ) : staff.length > 0 && (
-        <motion.div layout className="flex items-center -space-x-1.5">
+        <motion.div layout className="hidden sm:flex items-center -space-x-1.5">
           <AnimatePresence mode="popLayout">
             {displayStaff.map((s, i) => (
               <motion.div
@@ -765,7 +765,7 @@ function StoreTab({ products, storeError, storeCart, status, orderId, updateProd
                   className={`relative flex flex-col ${templateStyles.plain} ${templateStyles.cardDepth} rounded-2xl ${templateStyles.hoverBorder} overflow-hidden ${soldOut ? "opacity-55" : ""}`}
                 >
                   <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/80 via-white/30 to-white/5 dark:from-white/[0.1] dark:via-white/[0.04] dark:to-transparent" />
-                  <div className="relative h-44 w-full overflow-hidden">
+                  <div className="relative aspect-square w-full overflow-hidden">
                     {product.image_url ? (
                       <button
                         type="button"
@@ -795,7 +795,7 @@ function StoreTab({ products, storeError, storeCart, status, orderId, updateProd
                       aria-label={isExpanded ? "Ocultar descripción completa" : "Ver descripción completa"}
                     >
                       <div className={`flex flex-col justify-end ${isExpanded ? "h-full overflow-y-auto delicate-scroll p-3.5" : "px-3.5 pb-2.5 pt-12"}`}>
-                        <h3 className={`text-sm font-bold text-white leading-tight drop-shadow ${isExpanded ? "" : "truncate"}`}>{product.name}</h3>
+                        <h3 title={product.name} className={`text-sm font-bold text-white leading-tight drop-shadow ${isExpanded ? "" : "truncate"}`}>{product.name}</h3>
                         {product.description ? (
                           <>
                             <p className={`text-[11px] leading-snug text-white/90 ${isExpanded ? "" : "line-clamp-2"}`}>
@@ -2132,7 +2132,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
         <div className="w-full max-w-md md:max-w-xl">
         <motion.div
           className={`rounded-[32px] p-4 sm:p-6 lg:p-8 h-[min(860px,calc(100dvh-env(safe-area-inset-top)-1.5rem))] sm:h-[min(900px,calc(100dvh-env(safe-area-inset-top)-3rem))] flex flex-col ${templateStyles.shell}`}
-          style={(step === 3 || step === pagoStep) && !done ? { height: 'auto' } as React.CSSProperties : undefined}>
+          >
           {!done ? (
             <>
               <div className="pb-0 sm:pb-2">
@@ -2608,10 +2608,10 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                                   <span className={`absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${templateStyles.accent} opacity-60`} />
                                 )}
                                 {isClosed && (
-                                  <span className={`text-[9px] leading-tight font-medium ${templateStyles.tiny}`}>Cerrado</span>
+                                  <span className={`block w-full truncate text-[9px] leading-tight font-medium ${templateStyles.tiny}`}>Cerrado</span>
                                 )}
                                 {override?.start_time && !isClosed && (
-                                  <span className={`text-[8px] leading-tight ${templateStyles.tiny}`}>H. reducido</span>
+                                  <span className={`block w-full truncate text-[8px] leading-tight ${templateStyles.tiny}`}>H. reducido</span>
                                 )}
                                 {isSelected && !isClosed && (
                                   <motion.span
@@ -2698,7 +2698,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                                       </span>
                                     </motion.button>
                                     {!noPreference && (
-                                      <span className={`text-[9px] leading-tight ${isSelected ? templateStyles.accent : templateStyles.tiny}`}>
+                                      <span className={`block w-full truncate text-center text-[9px] leading-tight ${isSelected ? templateStyles.accent : templateStyles.tiny}`}>
                                         {staffLabel}
                                       </span>
                                     )}
@@ -2757,7 +2757,7 @@ className="fixed inset-0 z-[60] flex items-center justify-center p-4"
                               default: { type: "spring", stiffness: 400, damping: 28, mass: 0.8 },
                             }}
                             onClick={(e) => e.stopPropagation()}
-                            className={`relative w-full max-w-sm overflow-hidden ${templateStyles.shell}`}
+className={`relative w-full max-w-sm max-h-[86dvh] overflow-y-auto ${templateStyles.shell}`}
                           >
                             <div className="p-5 space-y-4">
                               <div className="flex items-center justify-between">
@@ -2800,7 +2800,7 @@ className="fixed inset-0 z-[60] flex items-center justify-center p-4"
 
                     {step === 3 && (
                       <div className="flex flex-col h-full min-h-0">
-                      <div className="flex-1 overflow-y-auto delicate-scroll pb-4">
+                      <div className="flex-1 overflow-y-auto delicate-scroll pb-32">
                       <div className="space-y-4">
 
                         {error === "slot_taken" ? (
@@ -3142,7 +3142,7 @@ className="fixed inset-0 z-[60] flex items-center justify-center p-4"
                                   <>
                                     <div className="flex items-center justify-between gap-2">
                                       <span className={`text-xs ${templateStyles.checkoutKicker}`}>Servicio</span>
-                                      <span className={`text-sm font-semibold truncate ${templateStyles.checkoutTitle}`}>{summaryService}</span>
+                                      <span className={`text-sm font-semibold truncate min-w-0 ${templateStyles.checkoutTitle}`}>{summaryService}</span>
                                     </div>
                                     <div className="flex items-center justify-between gap-2">
                                       <span className={`text-xs ${templateStyles.checkoutKicker}`}>Fecha</span>
@@ -3356,18 +3356,18 @@ className="fixed inset-0 z-[60] flex items-center justify-center p-4"
                                       <div className={`rounded-xl px-3 py-2.5 border ${templateStyles.checkoutWallet}`}>
                                         <div className="flex items-baseline gap-2">
                                           <span className={`text-[10px] shrink-0 ${templateStyles.checkoutKicker}`}>Nombre:</span>
-                                          <span className={`text-sm font-bold truncate ${templateStyles.checkoutTitle}`}>{bankTransferDetails?.alias || shop.bankAlias || "—"}</span>
+                                          <span className={`text-sm font-bold truncate min-w-0 ${templateStyles.checkoutTitle}`}>{bankTransferDetails?.alias || shop.bankAlias || "—"}</span>
                                         </div>
                                         {(bankTransferDetails?.cvuCb || shop.bankCvuCb) && (
                                           <div className="flex items-baseline gap-2 mt-1.5">
                                             <span className={`text-[10px] shrink-0 ${templateStyles.checkoutKicker}`}>Alias/CBU:</span>
-                                            <span className={`text-sm font-bold truncate ${templateStyles.checkoutTitle}`}>{bankTransferDetails?.cvuCb || shop.bankCvuCb}</span>
+                                            <span className={`text-sm font-bold truncate min-w-0 ${templateStyles.checkoutTitle}`}>{bankTransferDetails?.cvuCb || shop.bankCvuCb}</span>
                                           </div>
                                         )}
                                         {(bankTransferDetails?.bankName || shop.bankName) && (
                                           <div className="flex items-baseline gap-2 mt-1.5">
                                             <span className={`text-[10px] shrink-0 ${templateStyles.checkoutKicker}`}>Banco:</span>
-                                            <span className={`text-sm font-bold truncate ${templateStyles.checkoutTitle}`}>{bankTransferDetails?.bankName || shop.bankName}</span>
+                                            <span className={`text-sm font-bold truncate min-w-0 ${templateStyles.checkoutTitle}`}>{bankTransferDetails?.bankName || shop.bankName}</span>
                                           </div>
                                         )}
                                       </div>
@@ -3405,7 +3405,7 @@ className="fixed inset-0 z-[60] flex items-center justify-center p-4"
               </div>
 
               <motion.div
-                className="pt-4 flex items-center gap-3"
+                className="pt-4 flex flex-wrap items-center gap-3"
                 layout
                 transition={{ type: "spring", stiffness: 400, damping: 28, mass: 0.8 }}
               >
@@ -3553,7 +3553,7 @@ className="fixed inset-0 z-[60] flex items-center justify-center p-4"
                 )}
               </motion.div>
 
-              <div ref={contactRowRef} className={`mt-5 ${step === pagoStep ? "hidden" : ""} relative flex items-center justify-center gap-2 sm:gap-2.5`}>
+              <div ref={contactRowRef} className={`mt-5 ${step === pagoStep ? "hidden" : ""} relative flex flex-wrap items-center justify-center gap-2 sm:gap-2.5`}>
                 {storeEnabled && step < storeStep && (
                   <button
                     type="button"
@@ -3730,9 +3730,9 @@ className="fixed inset-0 z-[60] flex items-center justify-center p-4"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.3, ease: "easeOut" }}
-              className="flex flex-col h-full py-6 text-center"
+              className="flex flex-col h-full min-h-0 overflow-y-auto py-6 text-center"
             >
-              <div className="flex-1 flex flex-col items-center justify-center">
+              <div className="my-auto w-full flex flex-col items-center justify-center">
                 <div className="relative mb-6">
                   <motion.span
                     className="absolute inset-0 rounded-full"
