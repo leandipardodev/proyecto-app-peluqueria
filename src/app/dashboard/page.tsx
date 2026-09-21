@@ -498,7 +498,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
                 } ${idx === 1 ? "card-enter-left" : "card-enter-right"}`}
                 style={sheenStyle}
               >
-                <div className={`absolute top-0 left-0 right-0 h-1 rounded-t-[2.5rem] ${accent}`} />
+                <div className={`absolute top-0 left-0 right-0 h-1 rounded-t-[2.5rem] ${accent} dark:hidden`} />
                 <div className={`absolute inset-0 bg-gradient-to-b ${gradient} rounded-[2.5rem] pointer-events-none`} />
                 <div className="relative z-10 flex flex-col h-full pt-3">
                   <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-zinc-500">{label}</p>

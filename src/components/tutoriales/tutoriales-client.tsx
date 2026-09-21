@@ -325,15 +325,6 @@ export default function TutorialesClient() {
           0% { background-position: 12% 50%; }
           100% { background-position: 96% 50%; }
         }
-
-        @media (prefers-reduced-motion: reduce) {
-          .title-animated,
-          .animate-\\[floatOrb_12s_ease-in-out_infinite\\],
-          .animate-\\[floatOrb_16s_ease-in-out_infinite_reverse\\],
-          .animate-\\[floatOrb_18s_ease-in-out_infinite\\] {
-            animation: none !important;
-          }
-        }
       `}</style>
     </main>
   );

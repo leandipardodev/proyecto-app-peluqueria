@@ -793,18 +793,6 @@ export default function Home({ monthlyPrice, trialDays }: { monthlyPrice: number
           }
         }
 
-        @media (prefers-reduced-motion: reduce) {
-          .hero-sheen,
-          .marquee-track,
-          .title-animated,
-          .animate-\[floatOrb_12s_ease-in-out_infinite\],
-          .animate-\[floatOrb_16s_ease-in-out_infinite_reverse\],
-          .animate-\[floatOrb_18s_ease-in-out_infinite\],
-          .animate-\[pulseSoft_4s_ease-in-out_infinite\,numberGlow_6s_ease-in-out_infinite\] {
-            animation: none !important;
-          }
-        }
-
         @keyframes marqueeX {
           0% { transform: translate3d(0, 0, 0); }
           100% { transform: translate3d(-50%, 0, 0); }

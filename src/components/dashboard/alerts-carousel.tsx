@@ -82,7 +82,7 @@ export default function AlertsCarousel({ lowStockCount, ordersCount, stockHref, 
           className="glass-sheen-card h-full min-h-[124px] lg:min-h-[132px] bg-white dark:bg-zinc-900 rounded-[2.5rem] rounded-br-none border border-zinc-200 dark:border-zinc-800 shadow-sm p-6 flex flex-col justify-between transition-colors cursor-pointer overflow-hidden relative"
           style={sheenStyle}
         >
-          <div className={`absolute top-0 left-0 right-0 h-1 rounded-t-[2.5rem] ${active.accent}`} />
+          <div className={`absolute top-0 left-0 right-0 h-1 rounded-t-[2.5rem] ${active.accent} dark:hidden`} />
           <div className={`absolute inset-0 bg-gradient-to-b ${active.gradient} rounded-[2.5rem] pointer-events-none`} />
           <div className="relative z-10 flex flex-col h-full pt-3">
             <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-zinc-500 flex items-center gap-1.5">

@@ -403,13 +403,6 @@ input[type="number"]::-webkit-inner-spin-button {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .glass-sheen-card::before {
-    animation: none;
-    opacity: 0;
-  }
-}
-
 .glass-sheen-stagger > .glass-sheen-card:nth-child(1) { --sheen-delay: -0.3s; }
 .glass-sheen-stagger > .glass-sheen-card:nth-child(2) { --sheen-delay: -1.9s; }
 .glass-sheen-stagger > .glass-sheen-card:nth-child(3) { --sheen-delay: -3.5s; }
@@ -508,27 +501,6 @@ html.perf-mode .carousel-image-zoom {
 }
 .no-scrollbar::-webkit-scrollbar {
   display: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-
-/* Excepción scoped: nodos con .keep-motion mantienen su transición suave
-   aunque el SO pida reducir movimiento (usado en la sección inventario). */
-@media (prefers-reduced-motion: reduce) {
-  .keep-motion,
-  .keep-motion *,
-  .keep-motion *::before,
-  .keep-motion *::after {
-    transition-duration: 300ms !important;
-  }
 }
 
 /* Header del dashboard: fondo se vuelve transparente con --hp (progreso de oculte) */

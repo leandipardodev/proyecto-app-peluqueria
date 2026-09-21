@@ -173,10 +173,10 @@ export default function AINotificationCard({
   const toneLabel = active.tone === "urgent" ? "Urgente" : active.tone === "action" ? "Accion" : active.tone === "joke" ? "🗣️" : "Insight";
 
   return (
-    <button type="button" onClick={handleClick} className="group block h-full w-full text-left">
+    <button type="button" onClick={handleClick} className="ai-next-btn group block h-full w-full text-left">
       <div className="relative h-[148px] md:h-[156px]">
         <div className="absolute inset-0 rounded-[2rem] rounded-tr-none rounded-bl-none" />
-        <div className={`ai-orb-wrap relative h-full overflow-hidden rounded-[2rem] rounded-tr-none rounded-bl-none border bg-white p-4 text-cyan-950 transition-all duration-300 ${poweredOn ? "border-cyan-300/30 shadow-[0_20px_48px_rgba(8,145,178,0.28)] dark:bg-zinc-900 dark:text-cyan-50 ai-on group-hover:-translate-y-0.5" : "border-zinc-200/60 shadow-none dark:bg-zinc-900/80 dark:text-zinc-400 ai-paused"}`}>
+        <div className={`ai-orb-wrap relative h-full overflow-hidden rounded-[2rem] rounded-tr-none rounded-bl-none border bg-white p-4 text-cyan-950 transition-all duration-300 ${poweredOn ? "border-cyan-300/30 dark:border-zinc-800 shadow-[0_20px_48px_rgba(8,145,178,0.28)] dark:bg-zinc-900 dark:text-cyan-50 ai-on group-hover:-translate-y-0.5" : "border-zinc-200/60 shadow-none dark:bg-zinc-900/80 dark:text-zinc-400 ai-paused"}`}>
           {poweredOn && (
             <>
               <div className="pointer-events-none absolute inset-0 ai-mode-layer ai-mode-orb bg-[radial-gradient(circle_at_22%_24%,rgba(6,182,212,0.22),transparent_42%),radial-gradient(circle_at_80%_16%,rgba(37,99,235,0.20),transparent_40%),radial-gradient(circle_at_45%_88%,rgba(14,165,233,0.16),transparent_44%)] dark:bg-[radial-gradient(circle_at_22%_24%,rgba(34,211,238,0.2),transparent_36%),radial-gradient(circle_at_80%_16%,rgba(96,165,250,0.18),transparent_34%)]" />
@@ -187,7 +187,7 @@ export default function AINotificationCard({
             </>
           )}
           {!poweredOn && <div className="pointer-events-none absolute inset-0 bg-zinc-200/50 dark:bg-zinc-800/40 rounded-[inherit]" />}
-          <div className={`pointer-events-none absolute inset-[1px] rounded-[1.95rem] rounded-tr-none rounded-bl-none border ${poweredOn ? "border-cyan-300/30 dark:border-cyan-200/12" : "border-zinc-200/40 dark:border-zinc-700/30"}`} />
+          <div className={`pointer-events-none absolute inset-[1px] rounded-[1.95rem] rounded-tr-none rounded-bl-none border ${poweredOn ? "border-cyan-300/30 dark:border-zinc-700/30" : "border-zinc-200/40 dark:border-zinc-700/30"}`} />
           {poweredOn && (
             <div
               className={`pointer-events-none absolute inset-0 z-20 flex items-center justify-center transition-opacity duration-500 ${
@@ -311,6 +311,13 @@ export default function AINotificationCard({
           </div>
 
           <style jsx>{`
+          .ai-next-btn:focus-visible {
+            outline: none;
+            box-shadow: none;
+          }
+          .ai-next-btn:active {
+            transform: none !important;
+          }
           .ai-orb-wrap {
             transform: perspective(1200px) rotateX(2deg);
           }
