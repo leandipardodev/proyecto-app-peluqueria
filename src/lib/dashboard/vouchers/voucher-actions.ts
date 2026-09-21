@@ -140,6 +140,74 @@ export async function updateVoucherWhatsappTemplate(shopId: string, template: st
   }
 }
 
+async function resolveOrCreateCustomer(
+  supabase: Awaited<ReturnType<typeof createServerClient>>,
+  shopId: string,
+  opts: { customerId: string | null; name: string; phone: string | null; birthday: string | null }
+): Promise<ActionResult<{ id: string; name: string; phone: string | null; birthday: string | null }>> {
+  if (!opts.name) return { success: false, error: "Completá los campos obligatorios" };
+
+  if (opts.customerId) {
+    const { data, error } = await supabase
+      .from("customers")
+      .select("id, nombre, cumpleaños, telefono" as string)
+      .eq("id", opts.customerId)
+      .eq("shop_id", shopId)
+      .maybeSingle();
+    if (error) return { success: false, error: error.message };
+    if (!data) return { success: false, error: "SIN_ACCESO_CLIENTE" };
+    const customer = (data ?? null) as unknown as { id: string; nombre: string | null; cumpleaños: string | null; telefono: string | null };
+    return {
+      success: true,
+      data: {
+        id: customer.id,
+        name: customer.nombre || opts.name,
+        phone: opts.phone || customer.telefono,
+        birthday: opts.birthday || customer.cumpleaños,
+      },
+    };
+  }
+
+  // find-or-create por nombre (espejo del alta de turnos)
+  const nameMatch = await supabase
+    .from("customers")
+    .select("id, cumpleaños, telefono" as string)
+    .eq("nombre", opts.name)
+    .eq("shop_id", shopId)
+    .maybeSingle();
+  if (nameMatch.error) return { success: false, error: nameMatch.error.message };
+  const existing = (nameMatch.data ?? null) as { id: string; cumpleaños: string | null; telefono: string | null } | null;
+  if (existing) {
+    return {
+      success: true,
+      data: {
+        id: existing.id,
+        name: opts.name,
+        phone: opts.phone || existing.telefono,
+        birthday: opts.birthday || existing.cumpleaños,
+      },
+    };
+  }
+
+  const created = await supabase
+    .from("customers")
+    .insert({
+      shop_id: shopId,
+      nombre: opts.name,
+      ...(opts.phone ? { telefono: opts.phone } : {}),
+      ...(opts.birthday ? { cumpleaños: opts.birthday } : {}),
+    })
+    .select("id")
+    .maybeSingle();
+  if (created.error) return { success: false, error: created.error.message };
+  const newCustomer = (created.data ?? null) as { id: string } | null;
+  if (!newCustomer) return { success: false, error: "Error al crear el cliente" };
+  return {
+    success: true,
+    data: { id: newCustomer.id, name: opts.name, phone: opts.phone, birthday: opts.birthday },
+  };
+}
+
 export async function createVoucher(formData: FormData, shopId: string): Promise<ActionResult> {
   try {
     if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
@@ -168,23 +236,22 @@ export async function createVoucher(formData: FormData, shopId: string): Promise
     let resolvedCustomerId: string | null = null;
     let resolvedServiceId: string | null = null, resolvedServiceName = serviceName || "";
 
-    // Vinculación al CRM: si eligieron cliente/servicio, validá la pertenencia al local
-    // y usá los datos reales del catálogo/cliente como fuente de verdad.
-    if (customerId) {
-      const customerRes = await supabase
-        .from("customers")
-        .select("id, nombre, cumpleaños, telefono" as string)
-        .eq("id", customerId)
-        .eq("shop_id", shopId)
-        .maybeSingle();
-      const customerError = customerRes.error;
-      if (customerError) return { success: false, error: customerError.message };
-      const customer = (customerRes.data ?? null) as { id: string; nombre: string | null; cumpleaños: string | null; telefono: string | null } | null;
-      if (!customer) return { success: false, error: "SIN_ACCESO_CLIENTE" };
+    // Vinculación al CRM: el input del obsequiado autocompleta con el cliente (como los turnos).
+    // Si matcheó del listado ya viene el id; si no, se registra una ficha nueva en el CRM.
+    if (giftedToName) {
+      const customerResult = await resolveOrCreateCustomer(supabase, shopId, {
+        customerId,
+        name: giftedToName,
+        phone: giftedToPhone,
+        birthday: giftedToBirthday,
+      });
+      if (!customerResult.success) return customerResult;
+      const customer = customerResult.data;
+      if (!customer) return { success: false, error: "Error al resolver el cliente" };
       resolvedCustomerId = customer.id;
-      if (!giftedToName && customer.nombre) giftedToName = customer.nombre;
-      if (!giftedToBirthday) giftedToBirthday = customer.cumpleaños;
-      if (!giftedToPhone && customer.telefono) giftedToPhone = customer.telefono;
+      giftedToName = customer.name;
+      giftedToPhone = customer.phone;
+      giftedToBirthday = customer.birthday;
     }
 
     if (serviceId) {

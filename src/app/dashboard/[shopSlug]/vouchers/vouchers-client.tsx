@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState, useTransition, useRef } from "react";
 import { createVoucher, markVoucherRedeemed, markVoucherReminderSent, type VoucherRow } from "@/lib/dashboard/vouchers/voucher-actions";
 import { DEFAULT_VOUCHER_WHATSAPP_TEMPLATE } from "@/lib/dashboard/vouchers/voucher-constants";
 import { getArgentinaDateString } from "@/lib/argentina-time";
-import { CheckCircle2, Gift, MessageCircle } from "lucide-react";
+import { createPortal } from "react-dom";
+import { CheckCircle2, Gift, MessageCircle, Plus, Search } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 type Props = {
@@ -31,21 +32,85 @@ function voucherWhatsappText(v: VoucherRow, template: string) {
 export default function VouchersClient({ shopId, initialVouchers, initialTemplate, initialServices = [], initialCustomers = [] }: Props) {
   const [vouchers, setVouchers] = useState(initialVouchers);
   const template = useMemo(() => initialTemplate || DEFAULT_VOUCHER_WHATSAPP_TEMPLATE, [initialTemplate]);
-  const [nameValue, setNameValue] = useState("");
+  const [recipientQuery, setRecipientQuery] = useState("");
   const [phoneValue, setPhoneValue] = useState("");
   const [birthdayValue, setBirthdayValue] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [selectedServiceId, setSelectedServiceId] = useState("");
+  const [recipientOpen, setRecipientOpen] = useState(false);
+  const [recipientDropdownStyle, setRecipientDropdownStyle] = useState<{ top: number; left: number; width: number } | null>(null);
+  const recipientInputRef = useRef<HTMLInputElement>(null);
+  const recipientDropdownRef = useRef<HTMLDivElement>(null);
 
-  function handleCustomerChange(value: string) {
-    setSelectedCustomerId(value);
-    const customer = initialCustomers.find((c) => c.id === value);
-    if (customer) {
-      setNameValue(customer.nombre ?? "");
-      setPhoneValue(customer.telefono ?? "");
-      setBirthdayValue(customer.cumpleaños ?? "");
+  const filteredRecipients = useMemo(() => {
+    if (!recipientQuery.trim()) return initialCustomers;
+    const q = recipientQuery.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return initialCustomers.filter((c) =>
+      (c.nombre || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(q)
+    );
+  }, [initialCustomers, recipientQuery]);
+
+  function handleRecipientSelect(c: { id: string; nombre: string | null; telefono: string | null; cumpleaños: string | null }) {
+    setSelectedCustomerId(c.id);
+    setRecipientQuery(c.nombre ?? "");
+    setPhoneValue(c.telefono ?? "");
+    setBirthdayValue(c.cumpleaños ?? "");
+    setRecipientOpen(false);
+  }
+
+  function handleRecipientChange(value: string) {
+    if (selectedCustomerId) {
+      const selected = initialCustomers.find((c) => c.id === selectedCustomerId);
+      if (selected && (selected.nombre ?? "") !== value.trim()) setSelectedCustomerId("");
+    }
+    setRecipientQuery(value);
+    if (!recipientOpen) {
+      setRecipientOpen(true);
+      if (recipientInputRef.current) {
+        const r = recipientInputRef.current.getBoundingClientRect();
+        setRecipientDropdownStyle({ top: r.bottom + 4, left: r.left, width: r.width });
+      }
     }
   }
+
+  useEffect(() => {
+    if (!recipientOpen) return;
+    function onDocMouseDown(e: MouseEvent) {
+      const target = e.target as Node;
+      if (recipientDropdownRef.current?.contains(target)) return;
+      if (recipientInputRef.current?.contains(target)) return;
+      setRecipientOpen(false);
+    }
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, [recipientOpen]);
+
+  useEffect(() => {
+    if (!recipientOpen) return;
+    const recalc = () => {
+      if (recipientInputRef.current) {
+        const r = recipientInputRef.current.getBoundingClientRect();
+        setRecipientDropdownStyle({ top: r.bottom + 4, left: r.left, width: r.width });
+      }
+    };
+    function handleMove(e: Event) {
+      if (e.type === "resize") {
+        recalc();
+        return;
+      }
+      const target = e.target as Node;
+      if (recipientDropdownRef.current?.contains(target)) return;
+      setRecipientOpen(false);
+    }
+    window.addEventListener("scroll", handleMove, true);
+    window.addEventListener("resize", handleMove);
+    window.visualViewport?.addEventListener("resize", recalc);
+    return () => {
+      window.removeEventListener("scroll", handleMove, true);
+      window.removeEventListener("resize", handleMove);
+      window.visualViewport?.removeEventListener("resize", recalc);
+    };
+  }, [recipientOpen]);
 
   useEffect(() => {
     setVouchers(initialVouchers);
@@ -134,23 +199,85 @@ export default function VouchersClient({ shopId, initialVouchers, initialTemplat
       )}
 
       <form action={handleCreate} className="grid grid-cols-1 md:grid-cols-2 gap-3 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-xl shadow-black/[0.03]">
-        <div>
-          <select
-            name="customer_id"
-            value={selectedCustomerId}
-            onChange={(e) => handleCustomerChange(e.target.value)}
-            className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
-          >
-            <option value="">Cliente (del CRM)</option>
-            {initialCustomers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nombre || "Cliente sin nombre"}
-              </option>
-            ))}
-          </select>
-          {initialCustomers.length === 0 && (
-            <p className="mt-1 px-1 text-xs text-zinc-500 dark:text-zinc-400">No hay clientes en el CRM todavía.</p>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+          <input
+            ref={recipientInputRef}
+            name="gifted_to_name"
+            required
+            placeholder="Nombre de quien recibe"
+            value={recipientQuery}
+            onChange={(e) => handleRecipientChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && recipientOpen && filteredRecipients.length > 0) {
+                e.preventDefault();
+                recipientDropdownRef.current?.querySelector<HTMLButtonElement>("button")?.click();
+              } else if (e.key === "ArrowDown" && recipientOpen) {
+                e.preventDefault();
+                recipientDropdownRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+              } else if (e.key === "Escape") {
+                e.preventDefault();
+                setRecipientOpen(false);
+                recipientInputRef.current?.focus();
+              }
+            }}
+            className="w-full pl-9 pr-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-gray-100"
+          />
+          {recipientOpen && recipientDropdownStyle && (filteredRecipients.length > 0 || recipientQuery.trim()) && typeof document !== "undefined" && createPortal(
+            <div
+              ref={recipientDropdownRef}
+              onMouseDown={(e) => e.preventDefault()}
+              onKeyDown={(e) => {
+                const buttons = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>("button"));
+                const activeIdx = buttons.indexOf(document.activeElement as HTMLButtonElement);
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  const next = activeIdx < buttons.length - 1 ? activeIdx + 1 : 0;
+                  buttons[next]?.focus();
+                } else if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  if (activeIdx > 0) {
+                    buttons[activeIdx - 1]?.focus();
+                  } else {
+                    recipientInputRef.current?.focus();
+                  }
+                } else if (e.key === "Escape") {
+                  e.preventDefault();
+                  setRecipientOpen(false);
+                  recipientInputRef.current?.focus();
+                }
+              }}
+              style={{ position: "fixed", top: recipientDropdownStyle.top, left: recipientDropdownStyle.left, width: recipientDropdownStyle.width, zIndex: 9999 }}
+              className="bg-white dark:bg-zinc-800 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden py-1 max-h-48 overflow-y-auto"
+            >
+              {filteredRecipients.length > 0 ? (
+                filteredRecipients.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => handleRecipientSelect(c)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleRecipientSelect(c);
+                      }
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm transition-colors cursor-pointer select-none text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20"
+                  >
+                    <span className="font-medium">{c.nombre || "Sin nombre"}</span>
+                    {c.telefono && <span className="ml-2 text-xs text-zinc-400">{c.telefono}</span>}
+                  </button>
+                ))
+              ) : (
+                <div className="px-3 py-2.5 text-sm text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+                  <Plus className="w-4 h-4" />
+                  Se creará como cliente nuevo
+                </div>
+              )}
+            </div>,
+            document.body
           )}
+          <input type="hidden" name="customer_id" value={selectedCustomerId} />
         </div>
         <div>
           <select
@@ -170,7 +297,6 @@ export default function VouchersClient({ shopId, initialVouchers, initialTemplat
             <p className="mt-1 px-1 text-xs text-zinc-500 dark:text-zinc-400">No hay servicios en el catálogo todavía.</p>
           )}
         </div>
-        <input name="gifted_to_name" required placeholder="Nombre de quien recibe" value={nameValue} onChange={(e) => setNameValue(e.target.value)} className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100" />
         <input name="gifted_to_phone" placeholder="Telefono (WhatsApp)" value={phoneValue} onChange={(e) => setPhoneValue(e.target.value)} className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100" />
         <input name="gifted_to_birthday" required type="date" value={birthdayValue} onChange={(e) => setBirthdayValue(e.target.value)} className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100" />
         <input name="gifted_by_name" placeholder="Quien regala" className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100" />

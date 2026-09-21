@@ -182,11 +182,46 @@ describe("createVoucher", () => {
 
   beforeEach(() => {
     vi.mocked(mockCanAccessShop).mockResolvedValue(true);
-    vi.mocked(mockCreateServerClient).mockResolvedValue({
-      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: "user-1" } }, error: null }) },
-      from: vi.fn(() => chainableQuery({ insert: vi.fn().mockReturnThis() })),
-    } as never);
+    makeCustomerClient({ createdId: "c-default" });
   });
+
+  function makeCustomerClient(opts?: {
+    existing?: { id: string; cumpleaños: string | null; telefono: string | null } | null;
+    createdId?: string;
+    lookupError?: unknown;
+  }) {
+    let customerCalls = 0;
+    const voucherInserts: unknown[] = [];
+    const fromMock = vi.fn((table: string) => {
+      if (table === "customers") {
+        customerCalls++;
+        if (customerCalls === 1) {
+          if (opts?.lookupError) {
+            return chainableQuery({ maybeSingle: vi.fn().mockResolvedValue({ data: null, error: { message: "DB fail" } }) });
+          }
+          return chainableQuery({ maybeSingle: vi.fn().mockResolvedValue({ data: opts?.existing ?? null, error: null }) });
+        }
+        return chainableQuery({
+          maybeSingle: vi.fn().mockResolvedValue({ data: opts?.createdId ? { id: opts.createdId } : null, error: null }),
+        });
+      }
+      if (table === "vouchers") {
+        const chain = chainableQuery();
+        chain.insert = vi.fn((payload: unknown) => {
+          voucherInserts.push(payload);
+          return chain;
+        });
+        return chain;
+      }
+      return chainableQuery();
+    });
+    const client = {
+      from: fromMock,
+      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: "user-1" } }, error: null }) },
+    };
+    vi.mocked(mockCreateServerClient).mockResolvedValue(client as never);
+    return { client, voucherInserts, customerCalls: () => customerCalls };
+  }
 
   it("returns error when shopId is empty", async () => {
     const result = await createVoucher(makeForm(), "");
@@ -223,10 +258,48 @@ describe("createVoucher", () => {
     expect(result).toEqual({ success: false, error: "Completá los campos obligatorios" });
   });
 
-  it("creates voucher successfully", async () => {
-    const result = await createVoucher(makeForm(), "shop-123");
+  it("creates voucher and registers a new customer when the name does not match", async () => {
+    const { voucherInserts } = makeCustomerClient({ createdId: "c-new" });
+    const result = await createVoucher(makeForm({ gifted_to_phone: "1122334455" }), "shop-123");
     expect(result).toEqual({ success: true });
     expect(mockRevalidate).toHaveBeenCalled();
+    expect(voucherInserts[0]).toMatchObject({
+      customer_id: "c-new",
+      gifted_to_name: "Ana",
+      gifted_to_phone: "1122334455",
+      gifted_to_birthday: "1990-06-15",
+    });
+  });
+
+  it("links the customer chosen from the autocomplete and backfills missing data", async () => {
+    const { voucherInserts } = makeCustomerClient({
+      existing: { id: "c-1", cumpleaños: "1988-05-05", telefono: "1155667788" },
+    });
+    const fd = makeForm({ gifted_to_phone: "", gifted_to_birthday: "" });
+    fd.set("customer_id", "c-1");
+    const result = await createVoucher(fd, "shop-123");
+    expect(result).toEqual({ success: true });
+    expect(voucherInserts[0]).toMatchObject({
+      customer_id: "c-1",
+      gifted_to_phone: "1155667788",
+      gifted_to_birthday: "1988-05-05",
+    });
+  });
+
+  it("links an existing customer when the typed name matches", async () => {
+    const stub = makeCustomerClient({
+      existing: { id: "c-2", cumpleaños: "1990-06-15", telefono: "1122334455" },
+    });
+    const result = await createVoucher(makeForm(), "shop-123");
+    expect(result).toEqual({ success: true });
+    expect(stub.customerCalls()).toBe(1);
+    expect(stub.voucherInserts[0]).toMatchObject({ customer_id: "c-2" });
+  });
+
+  it("returns error when customer lookup fails", async () => {
+    makeCustomerClient({ lookupError: "DB fail" });
+    const result = await createVoucher(makeForm(), "shop-123");
+    expect(result).toEqual({ success: false, error: "DB fail" });
   });
 });
 
