@@ -35,13 +35,20 @@ export default async function BillingRequiredPage({
     .limit(20);
 
   const ownerShopIds = (memberships || []).map((m) => m.shop_id);
+  const { data: ownerShops } = await admin
+    .from("shops")
+    .select("id, slug, nombre, plan_expiry, active")
+    .in("id", ownerShopIds);
   if (ownerShopIds.length === 0) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center px-4 py-10">
         <div className="w-full max-w-md text-center rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm">
           <h1 className="text-xl font-semibold">Acceso restringido</h1>
           <p className="mt-2 text-sm text-gray-600">Solo el owner del local puede renovar la membresía.</p>
-          <Link href="/dashboard" className="mt-4 inline-flex rounded-xl border border-zinc-300 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50">Volver al dashboard</Link>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link href="/dashboard" className="inline-flex rounded-xl border border-zinc-300 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50">Volver al dashboard</Link>
+            <Link href="/" className="inline-flex rounded-xl border border-zinc-300 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50">Ir a la página inicial</Link>
+          </div>
         </div>
       </div>
     );
@@ -98,6 +105,38 @@ export default async function BillingRequiredPage({
             <House className="w-4 h-4" />
             Ir a la página inicial
           </Link>
+
+          {(ownerShops || []).length > 1 && (
+            <div className="rounded-2xl border border-orange-200 bg-white/80 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-orange-700">Tus locales</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {(ownerShops || []).map((s) => {
+                  const sExpiry = s.plan_expiry ? new Date(s.plan_expiry) : null;
+                  const sExpired = !s.active || Boolean(sExpiry && sExpiry < now);
+                  const isCurrent = s.id === shop?.id;
+                  return (
+                    <Link
+                      key={s.id}
+                      href={`/dashboard/${s.slug}`}
+                      className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-sm font-medium transition-colors ${
+                        isCurrent
+                          ? "border-orange-500 bg-orange-100/70 text-orange-900"
+                          : sExpired
+                            ? "border-zinc-300 text-zinc-500 hover:bg-zinc-50"
+                            : "border-emerald-300 bg-emerald-50/70 text-emerald-800 hover:bg-emerald-50"
+                      }`}
+                    >
+                      {s.nombre || "Mi local"}
+                      <span className="text-xs opacity-80">
+                        {sExpired ? "vencido" : "activo"}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-xs text-zinc-500">Entrá directo a otro de tus locales.</p>
+            </div>
+          )}
 
           {isActuallyExpired ? (
             <>

@@ -475,6 +475,127 @@ describe("middleware", () => {
     expect(res.headers.get("Location")).toContain("/dashboard/mi-local/staff");
   });
 
+  it("legacy /dashboard prefers an active shop over the expired cookie shop", async () => {
+    vi.mocked(mockCreateMiddlewareClient).mockImplementation((_req, _res) => {
+      const profileChain = chainableQuery();
+      profileChain.then = (onfulfilled: any) =>
+        Promise.resolve({ data: { role: "owner" }, error: null }).then(onfulfilled);
+
+      const membershipChain = chainableQuery();
+      membershipChain.then = (onfulfilled: any) =>
+        Promise.resolve({
+          data: [
+            { shop_id: "shop-1", role: "owner", is_active: true },
+            { shop_id: "shop-2", role: "owner", is_active: true },
+          ],
+          error: null,
+        }).then(onfulfilled);
+
+      const shopsData = [
+        { id: "shop-1", slug: "klop", active: true, plan_expiry: "2020-01-01" },
+        { id: "shop-2", slug: "klip", active: true, plan_expiry: "2099-12-31" },
+      ];
+      mockServiceRoleShops(shopsData);
+      const shopsChain = makeShopChain(shopsData);
+
+      let callCount = 0;
+      return makeMiddlewareClient({
+        auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: "u1" } }, error: null }) },
+        from: vi.fn((table: string) => {
+          callCount++;
+          if (table === "user_profiles" && callCount === 1) return profileChain;
+          if (table === "shops") return shopsChain;
+          return membershipChain;
+        }),
+      });
+    });
+
+    const res = await runMiddleware("/dashboard", {
+      cookies: {
+        klip_active_shop_id: "shop-1",
+        klip_active_shop_slug: "klop",
+      },
+    });
+    expect(res.status).toBe(307);
+    expect(res.headers.get("Location")).toContain("/dashboard/klip");
+  });
+
+  it("still respects the active-shop cookie when it points to an active shop", async () => {
+    vi.mocked(mockCreateMiddlewareClient).mockImplementation((_req, _res) => {
+      const profileChain = chainableQuery();
+      profileChain.then = (onfulfilled: any) =>
+        Promise.resolve({ data: { role: "owner" }, error: null }).then(onfulfilled);
+
+      const membershipChain = chainableQuery();
+      membershipChain.then = (onfulfilled: any) =>
+        Promise.resolve({
+          data: [
+            { shop_id: "shop-1", role: "owner", is_active: true },
+            { shop_id: "shop-2", role: "owner", is_active: true },
+          ],
+          error: null,
+        }).then(onfulfilled);
+
+      const shopsData = [
+        { id: "shop-1", slug: "klop", active: true, plan_expiry: "2099-12-31" },
+        { id: "shop-2", slug: "klip", active: true, plan_expiry: "2099-12-31" },
+      ];
+      mockServiceRoleShops(shopsData);
+      const shopsChain = makeShopChain(shopsData);
+
+      let callCount = 0;
+      return makeMiddlewareClient({
+        auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: "u1" } }, error: null }) },
+        from: vi.fn((table: string) => {
+          callCount++;
+          if (table === "user_profiles" && callCount === 1) return profileChain;
+          if (table === "shops") return shopsChain;
+          return membershipChain;
+        }),
+      });
+    });
+
+    const res = await runMiddleware("/dashboard", {
+      cookies: {
+        klip_active_shop_id: "shop-2",
+        klip_active_shop_slug: "klip",
+      },
+    });
+    expect(res.status).toBe(307);
+    expect(res.headers.get("Location")).toContain("/dashboard/klip");
+  });
+
+  it("legacy /dashboard still routes to the first shop when all are expired", async () => {
+    vi.mocked(mockCreateMiddlewareClient).mockImplementation((_req, _res) => {
+      const profileChain = chainableQuery();
+      profileChain.then = (onfulfilled: any) =>
+        Promise.resolve({ data: { role: "owner" }, error: null }).then(onfulfilled);
+
+      const membershipChain = chainableQuery();
+      membershipChain.then = (onfulfilled: any) =>
+        Promise.resolve({ data: [{ shop_id: "shop-1", role: "owner", is_active: true }], error: null }).then(onfulfilled);
+
+      const shopsData = [{ id: "shop-1", slug: "mi-local", active: true, plan_expiry: "2020-01-01" }];
+      mockServiceRoleShops(shopsData);
+      const shopsChain = makeShopChain(shopsData);
+
+      let callCount = 0;
+      return makeMiddlewareClient({
+        auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: "u1" } }, error: null }) },
+        from: vi.fn((table: string) => {
+          callCount++;
+          if (table === "user_profiles" && callCount === 1) return profileChain;
+          if (table === "shops") return shopsChain;
+          return membershipChain;
+        }),
+      });
+    });
+
+    const res = await runMiddleware("/dashboard");
+    expect(res.status).toBe(307);
+    expect(res.headers.get("Location")).toContain("/dashboard/mi-local");
+  });
+
   // -----------------------------------------------------------------------
   // Unknown slug
   // -----------------------------------------------------------------------

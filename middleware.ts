@@ -167,14 +167,28 @@ async function middlewareHandler(request: NextRequest) {
   const shops = accessibleShops ?? [];
   const shopBySlug = new Map(shops.map((s) => [s.slug, s]));
 
+  // El local "preferido" (para /dashboard sin slug) nunca se resuelve a un local
+  // vencido o inactivo si existe otro en condiciones. Evita que /dashboard quede
+  // atrapado en un loop hacia /billing-required cuando el usuario tiene varios locales.
+  const todayDateStr = getArgentinaDateString();
+  const isShopUsable = (s: { id: string; slug: string; active: boolean | null; plan_expiry: string | null }) => {
+    if (!s.active) return false;
+    if (!s.plan_expiry) return true;
+    const planExpiryStr = toArgentinaLocalIsoString(s.plan_expiry).slice(0, 10);
+    return planExpiryStr > todayDateStr;
+  };
+
+  const usableShops = shops.filter(isShopUsable);
+  const pickPreferredShop = (candidates: typeof shops) =>
+    (activeShopIdCookie ? candidates.find((s) => s.id === activeShopIdCookie) : null) ||
+    (activeShopSlugCookie ? candidates.find((s) => s.slug === activeShopSlugCookie) : null) ||
+    candidates[0] ||
+    null;
+
   let preferredShopId: string | null = null;
   let preferredShopSlug: string | null = null;
 
-  const preferredShop =
-    (activeShopIdCookie ? shops.find((s) => s.id === activeShopIdCookie) : null) ||
-    (activeShopSlugCookie ? shops.find((s) => s.slug === activeShopSlugCookie) : null) ||
-    shops[0] ||
-    null;
+  const preferredShop = usableShops.length > 0 ? pickPreferredShop(usableShops) : pickPreferredShop(shops);
   if (preferredShop) {
     preferredShopId = preferredShop.id;
     preferredShopSlug = preferredShop.slug;
