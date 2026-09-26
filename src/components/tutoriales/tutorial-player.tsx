@@ -103,10 +103,10 @@ export default function TutorialPlayer({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.97, y: 8 }}
         transition={{ type: "spring", stiffness: 260, damping: 26 }}
-        className="relative flex max-h-[100svh] w-full max-w-6xl flex-col overflow-hidden bg-[#0B1222] sm:max-h-[92vh] sm:rounded-3xl sm:border sm:border-white/10 sm:shadow-[0_40px_90px_rgba(0,0,0,0.6)] lg:flex-row"
+        className="relative flex h-full max-h-full w-full max-w-6xl flex-col overflow-hidden bg-[#0B1222] sm:max-h-[92vh] sm:rounded-3xl sm:border sm:border-white/10 sm:shadow-[0_40px_90px_rgba(0,0,0,0.6)] lg:h-auto lg:flex-row"
       >
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <div className="relative aspect-video w-full shrink-0 bg-black">
+          <div className="relative aspect-video max-h-[46svh] w-full shrink-0 bg-black lg:max-h-none">
             {hasVideo ? (
               <iframe
                 key={tutorial.youtubeId}
@@ -130,7 +130,7 @@ export default function TutorialPlayer({
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className={`rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.16em] ${category.tag}`}>
                 {category.label}
               </span>
@@ -153,7 +153,7 @@ export default function TutorialPlayer({
           </div>
         </div>
 
-        <aside className="flex shrink-0 flex-col border-t border-white/10 bg-white/[0.02] lg:w-[21rem] lg:border-l lg:border-t-0">
+        <aside className="flex shrink-0 flex-col border-t border-white/10 bg-white/[0.02] pb-[env(safe-area-inset-bottom)] lg:w-[21rem] lg:border-l lg:border-t-0 lg:pb-0">
           <div className="flex items-center justify-between gap-2 px-4 py-3">
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
               {COPY.listTitle}
@@ -199,7 +199,7 @@ export default function TutorialPlayer({
           </div>
 
           <div
-            className={`min-h-0 overflow-y-auto transition-[max-height,opacity] duration-300 ease-out lg:block lg:max-h-none lg:flex-1 lg:opacity-100 ${listOpen ? "max-h-[46svh] opacity-100" : "max-h-0 opacity-0"}`}
+            className={`min-h-0 overflow-y-auto transition-[max-height,opacity] duration-300 ease-out lg:block lg:max-h-none lg:flex-1 lg:opacity-100 ${listOpen ? "max-h-[min(42svh,340px)] opacity-100" : "max-h-0 opacity-0"}`}
           >
             {queue.length === 0 ? (
               <p className="px-2 py-6 text-center text-xs text-slate-500">{COPY.emptyListLabel}</p>

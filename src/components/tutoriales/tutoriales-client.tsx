@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Playfair_Display } from "next/font/google";
 import { Plus_Jakarta_Sans } from "next/font/google";
-import { Clock, LogOut, Play, School } from "lucide-react";
+import { Clock, LogOut, Play } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
 import {
@@ -83,16 +83,9 @@ function VideoCard({ tutorial, onOpen }: { tutorial: Tutorial; onOpen: () => voi
       </div>
 
       <div className="flex flex-1 flex-col p-5 sm:p-6">
-        <div className="flex items-center gap-2">
-          <span className={`rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.16em] ${category.tag}`}>
-            {category.label}
-          </span>
-          {tutorial.popular && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-[#0071E3]/10 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-[#0071E3]">
-              {TUTORIALS_PAGE.popularLabel}
-            </span>
-          )}
-        </div>
+        <span className={`w-fit rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.16em] ${category.tag}`}>
+          {category.label}
+        </span>
         <h3 className={`${playfair.className} mt-3 text-xl font-bold leading-snug tracking-[-0.02em] text-[#101625] sm:text-2xl`}>
           {tutorial.title}
         </h3>
@@ -144,7 +137,7 @@ export default function TutorialesClient() {
           <div className="flex items-center gap-3">
             <Link
               href="/"
-              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-[#1D1D1F] transition hover:bg-slate-50 sm:px-5"
+              className="rounded-full border border-slate-200 bg-white px-3.5 py-2 text-[13px] text-[#1D1D1F] transition hover:bg-slate-50 sm:px-5 sm:text-sm"
             >
               Inicio
             </Link>
@@ -152,14 +145,14 @@ export default function TutorialesClient() {
               <>
                 <Link
                   href="/dashboard"
-                  className="rounded-full bg-[linear-gradient(140deg,#080d18_0%,#0b1222_48%,#0d172d_100%)] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[linear-gradient(140deg,#0c1830_0%,#11203a_48%,#142743_100%)]"
+                  className="rounded-full bg-[linear-gradient(140deg,#080d18_0%,#0b1222_48%,#0d172d_100%)] px-3.5 py-2 text-[13px] font-semibold text-white sm:px-5 sm:text-sm transition hover:bg-[linear-gradient(140deg,#0c1830_0%,#11203a_48%,#142743_100%)]"
                 >
                   Panel
                 </Link>
                 <button
                   type="button"
                   onClick={() => supabase.auth.signOut()}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-[#1D1D1F] transition hover:bg-slate-50"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-[13px] text-[#1D1D1F] transition hover:bg-slate-50 sm:px-5 sm:text-sm"
                 >
                   <LogOut className="h-3.5 w-3.5" />
                   Cerrar sesion
@@ -169,13 +162,13 @@ export default function TutorialesClient() {
               <>
                 <Link
                   href="/login"
-                  className="rounded-full border border-slate-200 bg-white px-5 py-2 text-sm text-[#1D1D1F] transition hover:bg-slate-50"
+                  className="rounded-full border border-slate-200 bg-white px-3.5 py-2 text-[13px] text-[#1D1D1F] transition hover:bg-slate-50 sm:px-5 sm:text-sm"
                 >
                   Ingresar
                 </Link>
                 <Link
                   href="/register"
-                  className="rounded-full bg-[#0071E3] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#0064cc]"
+                  className="rounded-full bg-[#0071E3] px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-[#0064cc] sm:px-5 sm:text-sm"
                 >
                   Registrarse
                 </Link>
@@ -188,26 +181,14 @@ export default function TutorialesClient() {
       <div className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <motion.section {...reveal} className="pt-16 pb-12 sm:pt-24 sm:pb-16">
           <div className="mx-auto max-w-3xl text-center">
-            <p className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.24em] text-[#0071E3] shadow-[0_10px_24px_rgba(2,6,23,0.08)]">
-              <School className="h-3.5 w-3.5" />
-              {TUTORIALS_PAGE.badge}
-            </p>
             <h1
-              className={`${playfair.className} title-animated mt-5 text-5xl font-black tracking-[-0.05em] text-[#101625] sm:text-6xl md:text-7xl`}
+              className={`${playfair.className} title-animated text-5xl font-black tracking-[-0.05em] text-[#101625] sm:text-6xl md:text-7xl`}
             >
               {TUTORIALS_PAGE.title}
             </h1>
             <p className="mt-5 text-base leading-relaxed text-[#5f6673] sm:text-lg">
               {TUTORIALS_PAGE.subtitle}
             </p>
-            <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-              <Link
-                href={TUTORIALS_PAGE.ctaHref}
-                className="inline-flex items-center rounded-full bg-[linear-gradient(140deg,#080d18_0%,#0b1222_48%,#0d172d_100%)] px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_40px_rgba(2,6,23,0.45)] transition hover:translate-y-[-1px] hover:bg-[linear-gradient(140deg,#0c1830_0%,#11203a_48%,#142743_100%)] sm:px-8 sm:py-3.5"
-              >
-                {TUTORIALS_PAGE.ctaLabel}
-              </Link>
-            </div>
           </div>
         </motion.section>
 
@@ -241,18 +222,6 @@ export default function TutorialesClient() {
               {TUTORIALS_PAGE.emptyCategoryLabel}
             </p>
           )}
-
-          <AnimatePresence>
-            {playingIndex !== null && (
-              <TutorialPlayer
-                key="tutorial-player"
-                tutorials={videos}
-                index={playingIndex}
-                onIndexChange={setPlayingIndex}
-                onClose={() => setPlayingIndex(null)}
-              />
-            )}
-          </AnimatePresence>
         </section>
 
         <motion.section {...reveal} className="relative z-[200] pb-14 pt-6 sm:pt-10">
@@ -285,7 +254,7 @@ export default function TutorialesClient() {
           </div>
         </motion.section>
 
-        <motion.section {...reveal} className="pb-12">
+        <motion.section {...reveal} className="pb-12 [padding-bottom:max(3rem,env(safe-area-inset-bottom))]">
           <div className="flex flex-wrap items-center justify-center gap-4">
             <Link href="/" className="text-xs text-[#86868B] underline-offset-2 hover:underline">
               Inicio
@@ -305,6 +274,20 @@ export default function TutorialesClient() {
           </div>
         </motion.section>
       </div>
+
+      {/* El reproductor va fuera del contenedor z-10: si queda adentro, su
+          z-100 no supera al nav sticky (z-50) y se ve la barra blanca arriba. */}
+      <AnimatePresence>
+        {playingIndex !== null && (
+          <TutorialPlayer
+            key="tutorial-player"
+            tutorials={videos}
+            index={playingIndex}
+            onIndexChange={setPlayingIndex}
+            onClose={() => setPlayingIndex(null)}
+          />
+        )}
+      </AnimatePresence>
 
       <style>{`
         @keyframes floatOrb {

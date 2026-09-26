@@ -64,7 +64,8 @@ export const CATEGORIES: TutorialCategory[] = [
  *   - duration:   Texto de duracion. Es texto libre: "3 min" o "3:35".
  *                 Solo visible cuando hay youtubeId.
  *   - category:   Debe coincidir con un id de CATEGORIES (sin "todos").
- *   - popular:    true muestra el badge "Popular" (opcional, podes omitirlo).
+ *   - popular:    marca la card como destacada para priorizar la carga de su
+ *                 miniatura (opcional, podes omitirlo).
  *   - thumbnail:  Ruta en /public de la miniatura (opcional). Si esta vacio se
  *                 usa la miniatura de YouTube. Ver /public/tutoriales.
  *   - importance: Cuanto conviene mirarlo, de 0 a 100 (opcional). Es la barra
@@ -217,14 +218,10 @@ export function tutorialThumbnail(tutorial: Tutorial): string | null {
  * ---------------------------------------------------------------------------
  */
 export const TUTORIALS_PAGE = {
-  badge: "Centro de ayuda",
   title: "Tutoriales Klip",
   subtitle:
     "Aprende paso a paso a usar cada parte de Klip: agenda, cobros, clientes, inventario y finanzas. Videos cortos para que configures y aproveches todo el sistema.",
-  ctaLabel: "Empezar gratis ahora",
-  ctaHref: "/register",
   comingSoonLabel: "Proximamente",
-  popularLabel: "Popular",
   emptyCategoryLabel: "Todavia no hay videos en esta categoria.",
   importance: {
     title: "Importancia",
