@@ -9,6 +9,10 @@
  *   2. Copia el ID de la URL. Ej: https://www.youtube.com/watch?v=AbC123xYz
  *      -> el ID es "AbC123xYz".
  *   3. Pega ese ID en el campo youtubeId del video nuevo.
+ *   4. (Opcional) Ponele una miniatura propia en /public/tutoriales y pegala en
+ *      `thumbnail`. Si lo dejas vacio se usa la miniatura de YouTube.
+ *   5. (Opcional) importance: 0 a 100. Es la barra de importancia de la card.
+ *      Sin ese campo la barra no se muestra.
  *
  * Si youtubeId esta vacio (""), la card muestra una tapa con degradado y el
  * texto "Proximamente" (no se puede reproducir hasta que cargues el ID).
@@ -54,12 +58,19 @@ export const CATEGORIES: TutorialCategory[] = [
 /* -----------------------------------------------------------------------------
  * VIDEOS / TUTORIALES
  * Fields:
- *   - youtubeId: ID del video de YouTube (""). Si esta vacio -> "Proximamente".
+ *   - youtubeId:  ID del video de YouTube (""). Si esta vacio -> "Proximamente".
  *   - title:      Titulo visible de la card.
  *   - description: Descripcion corta que aparece debajo del titulo.
- *   - duration:   Texto de duracion (ej: "3 min"). Solo visible cuando hay ID.
+ *   - duration:   Texto de duracion. Es texto libre: "3 min" o "3:35".
+ *                 Solo visible cuando hay youtubeId.
  *   - category:   Debe coincidir con un id de CATEGORIES (sin "todos").
  *   - popular:    true muestra el badge "Popular" (opcional, podes omitirlo).
+ *   - thumbnail:  Ruta en /public de la miniatura (opcional). Si esta vacio se
+ *                 usa la miniatura de YouTube. Ver /public/tutoriales.
+ *   - importance: Cuanto conviene mirarlo, de 0 a 100 (opcional). Es la barra
+ *                 "Importancia" de la card. Si lo omitis, la barra no se dibuja.
+ *                 Escala sugerida: 0-39 opcional, 40-69 recomendado,
+ *                 70-89 importante, 90-100 imprescindible.
  * ---------------------------------------------------------------------------
  */
 export type Tutorial = {
@@ -69,24 +80,33 @@ export type Tutorial = {
   duration: string;
   category: Exclude<TutorialCategoryId, "todos">;
   popular?: boolean;
+  thumbnail?: string;
+  importance?: number;
 };
+
+/** Path dentro de /public de la miniatura de un tutorial. */
+export const TUTORIAL_THUMBNAIL_DIR = "/tutoriales";
 
 export const TUTORIALS: Tutorial[] = [
   {
-    youtubeId: "",
+    youtubeId: "AX5nauXYfH4",
     title: "Primeros pasos: configurá tu negocio",
     description: "Alta de local, servicios, horarios y tu pagina publica lista en menos de 10 minutos.",
-    duration: "3 min",
+    duration: "3:35",
     category: "primeros-pasos",
     popular: true,
+    thumbnail: `${TUTORIAL_THUMBNAIL_DIR}/configuracion-del-local.webp`,
+    importance: 100,
   },
   {
-    youtubeId: "",
-    title: "Cargá tus servicios y precios",
-    description: "Servicios con duracion, precio y a que empleado le corresponde cada tarea.",
-    duration: "2 min",
+    youtubeId: "vdC7ftPdYzM",
+    title: "Profesionales y servicios",
+    description: "Carga tu equipo, crea cada servicio con su duracion y precio, y asigna quien lo hace.",
+    duration: "11:10",
     category: "primeros-pasos",
     popular: true,
+    thumbnail: `${TUTORIAL_THUMBNAIL_DIR}/profesionales-y-servicios.webp`,
+    importance: 100,
   },
   {
     youtubeId: "",
@@ -166,6 +186,76 @@ export const TUTORIALS: Tutorial[] = [
 ];
 
 /* -----------------------------------------------------------------------------
+ * BARRA DE IMPORTANCIA
+ * Convierte el numero de `importance` (0 a 100) en un valor seguro para pintar
+ * y en una etiqueta de texto. Devuelve null cuando el video no tiene
+ * importancia cargada, y en ese caso la barra no se dibuja.
+ * ---------------------------------------------------------------------------
+ */
+export type ImportanceTone = {
+  value: number;
+  label: string;
+  /** Degradado del relleno de la barra. */
+  fill: string;
+  /** Color del numero grande. */
+  text: string;
+  /** Color de la etiqueta de texto. */
+  chip: string;
+  /** Sombra/color del brillo que sigue la punta de la barra. */
+  head: string;
+  /** Clase del panel que envuelve todo. */
+  panel: string;
+};
+
+export function resolveImportance(raw: number | undefined): ImportanceTone | null {
+  if (typeof raw !== "number" || !Number.isFinite(raw)) return null;
+  const value = Math.max(0, Math.min(100, Math.round(raw)));
+
+  if (value >= 90) {
+    return {
+      value,
+      label: "Imprescindible",
+      fill: "from-emerald-400 via-sky-400 to-[#0071E3]",
+      text: "text-emerald-600",
+      chip: "bg-emerald-500/12 text-emerald-700",
+      head: "bg-emerald-300 shadow-[0_0_10px_2px_rgba(52,211,153,0.75)]",
+      panel: "border-emerald-500/25 bg-emerald-500/[0.05]",
+    };
+  }
+  if (value >= 70) {
+    return {
+      value,
+      label: "Importante",
+      fill: "from-sky-400 via-[#0071E3] to-blue-700",
+      text: "text-sky-600",
+      chip: "bg-sky-500/12 text-sky-700",
+      head: "bg-sky-300 shadow-[0_0_10px_2px_rgba(56,189,248,0.7)]",
+      panel: "border-sky-500/25 bg-sky-500/[0.05]",
+    };
+  }
+  if (value >= 40) {
+    return {
+      value,
+      label: "Recomendado",
+      fill: "from-amber-300 via-orange-400 to-rose-400",
+      text: "text-amber-600",
+      chip: "bg-amber-500/12 text-amber-700",
+      head: "bg-amber-200 shadow-[0_0_10px_2px_rgba(252,211,77,0.7)]",
+      panel: "border-amber-500/25 bg-amber-500/[0.05]",
+    };
+  }
+  return {
+    value,
+    label: "Opcional",
+    fill: "from-slate-300 via-slate-400 to-slate-500",
+    text: "text-slate-500",
+    chip: "bg-slate-500/10 text-slate-600",
+    head: "bg-slate-300 shadow-[0_0_8px_1px_rgba(148,163,184,0.6)]",
+    panel: "border-slate-200 bg-slate-50/80",
+  };
+}
+
+/* -----------------------------------------------------------------------------
  * TEXTOS DE LA PAGINA (badge, hero, botones, seccion final)
  * Editalos aca y se reflejan en toda la web sin tocar el componente.
  * ---------------------------------------------------------------------------
@@ -181,6 +271,15 @@ export const TUTORIALS_PAGE = {
   popularLabel: "Popular",
   watchLabel: "Ver tutorial",
   emptyCategoryLabel: "Todavia no hay videos en esta categoria.",
+  importance: {
+    title: "Importancia",
+    /** Texto chico a la izquierda de la barra. */
+    scaleLabel: "Cuanto conviene verlo",
+    /** Escala visible arriba de la barra. */
+    ticks: ["0", "50", "100"],
+    /** Texto para lectores de pantalla de la barra. */
+    aria: (value: number) => `Importancia ${value} de 100`,
+  },
   finalCta: {
     kicker: "Siguiente paso",
     title: "Ponelo en practica en tu local.",

@@ -16,6 +16,7 @@ import {
   type Tutorial,
   type TutorialCategoryId,
 } from "@/components/tutoriales/tutoriales-data";
+import ImportanceBar from "@/components/tutoriales/importance-bar";
 
 const playfair = Playfair_Display({ subsets: ["latin"], weight: ["600", "700", "800", "900"] });
 const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"] });
@@ -31,7 +32,9 @@ function VideoCard({ tutorial }: { tutorial: Tutorial }) {
   const [playing, setPlaying] = useState(false);
   const category = CATEGORIES.find((c) => c.id === tutorial.category) ?? CATEGORIES[1];
   const hasVideo = tutorial.youtubeId.trim().length > 0;
-  const thumb = hasVideo ? `https://i.ytimg.com/vi/${tutorial.youtubeId}/hqdefault.jpg` : "";
+  const thumb = tutorial.thumbnail?.trim()
+    ? tutorial.thumbnail
+    : `https://i.ytimg.com/vi/${tutorial.youtubeId}/hqdefault.jpg`;
 
   return (
     <motion.article
@@ -105,6 +108,7 @@ function VideoCard({ tutorial }: { tutorial: Tutorial }) {
           {tutorial.title}
         </h3>
         <p className="mt-2 flex-1 text-sm leading-relaxed text-[#5f6673]">{tutorial.description}</p>
+        <ImportanceBar value={tutorial.importance} />
         {hasVideo && !playing && (
           <button
             type="button"
