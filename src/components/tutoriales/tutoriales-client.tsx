@@ -3,20 +3,22 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { Playfair_Display } from "next/font/google";
 import { Plus_Jakarta_Sans } from "next/font/google";
-import { Clock, LogOut, Play, School, ChevronRight } from "lucide-react";
+import { Clock, LogOut, Play, School } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
 import {
   CATEGORIES,
   TUTORIALS,
   TUTORIALS_PAGE,
+  tutorialThumbnail,
   type Tutorial,
   type TutorialCategoryId,
 } from "@/components/tutoriales/tutoriales-data";
 import ImportanceBar from "@/components/tutoriales/importance-bar";
+import TutorialPlayer from "@/components/tutoriales/tutorial-player";
 
 const playfair = Playfair_Display({ subsets: ["latin"], weight: ["600", "700", "800", "900"] });
 const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"] });
@@ -28,33 +30,25 @@ const reveal = {
   transition: { type: "spring" as const, stiffness: 110, damping: 22 },
 };
 
-function VideoCard({ tutorial }: { tutorial: Tutorial }) {
-  const [playing, setPlaying] = useState(false);
+function VideoCard({ tutorial, onOpen }: { tutorial: Tutorial; onOpen: () => void }) {
   const category = CATEGORIES.find((c) => c.id === tutorial.category) ?? CATEGORIES[1];
   const hasVideo = tutorial.youtubeId.trim().length > 0;
-  const thumb = tutorial.thumbnail?.trim()
-    ? tutorial.thumbnail
-    : `https://i.ytimg.com/vi/${tutorial.youtubeId}/hqdefault.jpg`;
+  const thumb = tutorialThumbnail(tutorial) ?? "";
 
   return (
     <motion.article
       {...reveal}
-      whileHover={{ y: -3 }}
+      whileHover={hasVideo ? { y: -3 } : undefined}
       transition={{ type: "spring", stiffness: 160, damping: 18 }}
-      className="group flex flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white/95 shadow-[0_20px_40px_rgba(0,0,0,0.04)]"
+      className={`group flex flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white/95 shadow-[0_20px_40px_rgba(0,0,0,0.04)] ${
+        hasVideo ? "cursor-pointer transition-shadow hover:shadow-[0_26px_50px_rgba(0,113,227,0.16)]" : ""
+      }`}
+      onClick={hasVideo ? onOpen : undefined}
     >
       <div className="relative aspect-video overflow-hidden bg-slate-900">
-        {playing ? (
-          <iframe
-            className="absolute inset-0 h-full w-full"
-            src={`https://www.youtube-nocookie.com/embed/${tutorial.youtubeId}?autoplay=1&rel=0`}
-            title={tutorial.title}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-          />
-        ) : hasVideo ? (
+        {hasVideo ? (
           <>
-<Image src={thumb} alt={tutorial.title} fill sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" priority={tutorial.popular} className="object-cover transition duration-500 group-hover:scale-105" />
+            <Image src={thumb} alt={tutorial.title} fill sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" priority={tutorial.popular} className="object-cover transition duration-500 group-hover:scale-105" />
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/10 to-transparent" />
           </>
         ) : (
@@ -66,24 +60,17 @@ function VideoCard({ tutorial }: { tutorial: Tutorial }) {
           </div>
         )}
 
-        {!playing && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            {hasVideo ? (
-              <button
-                type="button"
-                onClick={() => setPlaying(true)}
-                aria-label={`Reproducir ${tutorial.title}`}
-                className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-white/95 text-[#0071E3] shadow-[0_18px_38px_rgba(0,113,227,0.35)] transition group-hover:scale-110 hover:bg-white"
-              >
-                <Play className="ml-0.5 h-5 w-5 fill-current" />
-              </button>
-            ) : (
-              <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-white/90 text-slate-400 shadow-lg">
-                <Play className="ml-0.5 h-5 w-5" />
-              </span>
-            )}
-          </div>
-        )}
+        <div className="absolute inset-0 flex items-center justify-center">
+          {hasVideo ? (
+            <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-white/95 text-[#0071E3] shadow-[0_18px_38px_rgba(0,113,227,0.35)] transition duration-300 group-hover:scale-110">
+              <Play className="ml-0.5 h-5 w-5 fill-current" />
+            </span>
+          ) : (
+            <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-white/90 text-slate-400 shadow-lg">
+              <Play className="ml-0.5 h-5 w-5" />
+            </span>
+          )}
+        </div>
 
         {hasVideo && (
           <span className="absolute bottom-3 right-3 inline-flex items-center gap-1 rounded-full bg-slate-950/65 px-2.5 py-1 text-[10px] font-semibold text-white backdrop-blur">
@@ -91,6 +78,8 @@ function VideoCard({ tutorial }: { tutorial: Tutorial }) {
             {tutorial.duration}
           </span>
         )}
+
+        <ImportanceBar value={tutorial.importance} />
       </div>
 
       <div className="flex flex-1 flex-col p-5 sm:p-6">
@@ -108,16 +97,6 @@ function VideoCard({ tutorial }: { tutorial: Tutorial }) {
           {tutorial.title}
         </h3>
         <p className="mt-2 flex-1 text-sm leading-relaxed text-[#5f6673]">{tutorial.description}</p>
-        <ImportanceBar value={tutorial.importance} />
-        {hasVideo && !playing && (
-          <button
-            type="button"
-            onClick={() => setPlaying(true)}
-            className="mt-4 inline-flex w-fit items-center gap-1 text-sm font-semibold text-[#0071E3] transition hover:gap-2"
-          >
-            {TUTORIALS_PAGE.watchLabel} <ChevronRight className="h-4 w-4" />
-          </button>
-        )}
       </div>
     </motion.article>
   );
@@ -126,11 +105,17 @@ function VideoCard({ tutorial }: { tutorial: Tutorial }) {
 export default function TutorialesClient() {
   const { user } = useAuth();
   const [active, setActive] = useState<TutorialCategoryId | "todos">("todos");
+  const [playingIndex, setPlayingIndex] = useState<number | null>(null);
 
   const videos = useMemo(
     () => (active === "todos" ? TUTORIALS : TUTORIALS.filter((t) => t.category === active)),
     [active],
   );
+
+  const pickCategory = (id: TutorialCategoryId | "todos") => {
+    setActive(id);
+    setPlayingIndex(null);
+  };
 
   return (
     <main className={`${jakarta.className} relative min-h-screen overflow-hidden bg-[#F6F7FB]`}>
@@ -232,7 +217,7 @@ export default function TutorialesClient() {
               <motion.button
                 key={c.id}
                 type="button"
-                onClick={() => setActive(c.id)}
+                onClick={() => pickCategory(c.id)}
                 whileTap={{ scale: 0.96 }}
                 className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
                   active === c.id
@@ -247,8 +232,8 @@ export default function TutorialesClient() {
 
           {videos.length > 0 ? (
             <motion.div layout className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {videos.map((t) => (
-                <VideoCard key={t.title} tutorial={t} />
+              {videos.map((t, i) => (
+                <VideoCard key={t.title} tutorial={t} onOpen={() => setPlayingIndex(i)} />
               ))}
             </motion.div>
           ) : (
@@ -256,6 +241,18 @@ export default function TutorialesClient() {
               {TUTORIALS_PAGE.emptyCategoryLabel}
             </p>
           )}
+
+          <AnimatePresence>
+            {playingIndex !== null && (
+              <TutorialPlayer
+                key="tutorial-player"
+                tutorials={videos}
+                index={playingIndex}
+                onIndexChange={setPlayingIndex}
+                onClose={() => setPlayingIndex(null)}
+              />
+            )}
+          </AnimatePresence>
         </section>
 
         <motion.section {...reveal} className="relative z-[200] pb-14 pt-6 sm:pt-10">

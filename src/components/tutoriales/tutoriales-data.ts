@@ -110,13 +110,6 @@ export const TUTORIALS: Tutorial[] = [
   },
   {
     youtubeId: "",
-    title: "Como sumar tus empleados",
-    description: "Invita a tu equipo, asignales turnos y que cada uno vea solo su agenda.",
-    duration: "2 min",
-    category: "primeros-pasos",
-  },
-  {
-    youtubeId: "",
     title: "Reservas online con tu link",
     description: "Tu pagina de reservas, como promocionarla y como llegan los turnos a tu agenda.",
     duration: "4 min",
@@ -133,14 +126,14 @@ export const TUTORIALS: Tutorial[] = [
   },
   {
     youtubeId: "",
-    title: "Agenda diaria y vista por profesional",
+    title: "Agenda",
     description: "Maneja la jornada del local y los horarios de cada profesional en un solo lugar.",
     duration: "2 min",
     category: "agenda",
   },
   {
     youtubeId: "",
-    title: "Seña online con Mercado Pago",
+    title: "Pagos online",
     description: "Cobra la seña de cada turno en la reserva y reduci las cancelaciones de ultimo momento.",
     duration: "3 min",
     category: "cobros",
@@ -170,7 +163,7 @@ export const TUTORIALS: Tutorial[] = [
   },
   {
     youtubeId: "",
-    title: "Inventario y stock minimo",
+    title: "Tienda e inventario",
     description: "Registra productos, baja stock con cada venta y activá alertas cuando se agote.",
     duration: "3 min",
     category: "inventario",
@@ -195,64 +188,27 @@ export const TUTORIALS: Tutorial[] = [
 export type ImportanceTone = {
   value: number;
   label: string;
-  /** Degradado del relleno de la barra. */
-  fill: string;
-  /** Color del numero grande. */
-  text: string;
-  /** Color de la etiqueta de texto. */
-  chip: string;
-  /** Sombra/color del brillo que sigue la punta de la barra. */
-  head: string;
-  /** Clase del panel que envuelve todo. */
-  panel: string;
 };
 
 export function resolveImportance(raw: number | undefined): ImportanceTone | null {
   if (typeof raw !== "number" || !Number.isFinite(raw)) return null;
   const value = Math.max(0, Math.min(100, Math.round(raw)));
+  const label =
+    value >= 90 ? "Imprescindible" : value >= 70 ? "Importante" : value >= 40 ? "Recomendado" : "Opcional";
+  return { value, label };
+}
 
-  if (value >= 90) {
-    return {
-      value,
-      label: "Imprescindible",
-      fill: "from-emerald-400 via-sky-400 to-[#0071E3]",
-      text: "text-emerald-600",
-      chip: "bg-emerald-500/12 text-emerald-700",
-      head: "bg-emerald-300 shadow-[0_0_10px_2px_rgba(52,211,153,0.75)]",
-      panel: "border-emerald-500/25 bg-emerald-500/[0.05]",
-    };
-  }
-  if (value >= 70) {
-    return {
-      value,
-      label: "Importante",
-      fill: "from-sky-400 via-[#0071E3] to-blue-700",
-      text: "text-sky-600",
-      chip: "bg-sky-500/12 text-sky-700",
-      head: "bg-sky-300 shadow-[0_0_10px_2px_rgba(56,189,248,0.7)]",
-      panel: "border-sky-500/25 bg-sky-500/[0.05]",
-    };
-  }
-  if (value >= 40) {
-    return {
-      value,
-      label: "Recomendado",
-      fill: "from-amber-300 via-orange-400 to-rose-400",
-      text: "text-amber-600",
-      chip: "bg-amber-500/12 text-amber-700",
-      head: "bg-amber-200 shadow-[0_0_10px_2px_rgba(252,211,77,0.7)]",
-      panel: "border-amber-500/25 bg-amber-500/[0.05]",
-    };
-  }
-  return {
-    value,
-    label: "Opcional",
-    fill: "from-slate-300 via-slate-400 to-slate-500",
-    text: "text-slate-500",
-    chip: "bg-slate-500/10 text-slate-600",
-    head: "bg-slate-300 shadow-[0_0_8px_1px_rgba(148,163,184,0.6)]",
-    panel: "border-slate-200 bg-slate-50/80",
-  };
+/* -----------------------------------------------------------------------------
+ * MINIATURA
+ * Devuelve la miniatura a mostrar: la propia del tutorial si tiene, y si no la
+ * de YouTube. Devuelve null si el tutorial todavia no tiene video.
+ * ---------------------------------------------------------------------------
+ */
+export function tutorialThumbnail(tutorial: Tutorial): string | null {
+  if (tutorial.youtubeId.trim().length === 0) return null;
+  const own = tutorial.thumbnail?.trim();
+  if (own) return own;
+  return `https://i.ytimg.com/vi/${tutorial.youtubeId}/hqdefault.jpg`;
 }
 
 /* -----------------------------------------------------------------------------
@@ -269,16 +225,22 @@ export const TUTORIALS_PAGE = {
   ctaHref: "/register",
   comingSoonLabel: "Proximamente",
   popularLabel: "Popular",
-  watchLabel: "Ver tutorial",
   emptyCategoryLabel: "Todavia no hay videos en esta categoria.",
   importance: {
     title: "Importancia",
-    /** Texto chico a la izquierda de la barra. */
-    scaleLabel: "Cuanto conviene verlo",
-    /** Escala visible arriba de la barra. */
-    ticks: ["0", "50", "100"],
     /** Texto para lectores de pantalla de la barra. */
     aria: (value: number) => `Importancia ${value} de 100`,
+  },
+  /** Reproductor ampliado que se abre al hacer click en una miniatura. */
+  player: {
+    closeLabel: "Cerrar reproductor",
+    listTitle: "En esta lista",
+    nextLabel: "Siguiente tutorial",
+    prevLabel: "Tutorial anterior",
+    playingLabel: "Reproduciendo",
+    emptyListLabel: "No hay mas tutoriales en esta categoria.",
+    toggleListLabel: "Mostrar u ocultar la lista de tutoriales",
+    watchHereLabel: "Este tutorial todavia no esta publicado.",
   },
   finalCta: {
     kicker: "Siguiente paso",
