@@ -25,7 +25,7 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
 
   const { data: shop, error: shopError } = await admin
     .from("shops")
-    .select("id, nombre, description, address, localidad, phone, instagram_url, business_hours, slug, mp_public_key, industry, pay_at_shop, assign_staff_later, bank_transfer_enabled, booking_deposit_enabled, booking_deposit_amount, bank_cvu_cbu, bank_alias, bank_name")
+      .select("id, nombre, description, address, localidad, phone, instagram_url, business_hours, slug, mp_public_key, industry, pay_at_shop, assign_staff_later, bank_transfer_enabled, booking_deposit_enabled, booking_deposit_amount, bank_cvu_cbu, bank_alias, bank_name, mp_access_token")
     .eq("slug", slug)
     .maybeSingle();
 
@@ -162,6 +162,9 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
           slug: shop.slug || "",
           industry: resolveIndustry((shop as { industry?: string | null }).industry || null),
           mpPublicKey: shop.mp_public_key || "",
+          // Solo el booleano viaja al browser. mp_access_token se lee del server
+          // para el flag y NUNCA se manda al cliente: es una credencial que cobra.
+          mpConnected: Boolean(shop.mp_access_token),
           payAtShop: shop.pay_at_shop ?? false,
           assignStaffLater: shop.assign_staff_later === true,
           businessHours: shop.business_hours as Record<string, { open: boolean }> | null,

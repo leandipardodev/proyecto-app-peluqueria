@@ -3,6 +3,7 @@ import { MercadoPagoConfig, PreApproval } from "mercadopago";
 import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { getBillingPrice } from "@/lib/admin/site-settings";
+import { resolveNotificationBaseUrl } from "@/lib/urls";
 
 export async function POST(request: NextRequest) {
   try {
@@ -57,8 +58,9 @@ export async function POST(request: NextRequest) {
 
     if (!shop) return NextResponse.json({ error: "Local no encontrado" }, { status: 404 });
 
-    const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
-    const baseUrl = origin.replace(/\/+$/, "");
+    // Solo variables de servidor: el header Origin lo controla el cliente y
+    // permitia redirigir back_urls y notification_url a un dominio ajeno.
+    const baseUrl = resolveNotificationBaseUrl();
     const successUrl = `${baseUrl}/dashboard/${shop.slug}/billing?subscription=success`;
     const notificationUrl = `${baseUrl}/api/payments/mercadopago-webhook`;
     const externalReference = `shop_sub_auto:${shopId}`;

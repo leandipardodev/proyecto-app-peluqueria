@@ -2,14 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import { MercadoPagoConfig, Preference } from "mercadopago";
 import { buildMpPaymentMethods, fetchShopMpPaymentConfig } from "@/lib/payments/mp-payment-config";
+import { buildShopNotificationUrl } from "@/lib/payments/shop-mp";
+import { resolveNotificationBaseUrl } from "@/lib/urls";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { serviceId, items: rawItems, shopId } = body;
+    const { serviceId, items: rawItems, shopId: rawShopId } = body;
 
     const admin = await createServiceRoleClient();
 
+    // Resuelto: si el caller mando solo serviceId, el local se deduce del
+    // servicio. La notification_url lo necesita para que el webhook use el
+    // token correcto.
+    let shopId = rawShopId;
     let mpAccessToken = "";
     let shopSlug = "";
     let mpItems: { id: string; title: string; quantity: number; unit_price: number; currency_id: string }[] = [];
@@ -98,6 +104,10 @@ export async function POST(request: NextRequest) {
       }
 
       mpAccessToken = shop.mp_access_token as string;
+      // Sin esto, la notification_url quedaba con shop_id vacio y el webhook caia
+      // al token de la plataforma: payment.get daba 404 (el pago es de la cuenta
+      // del local) y el turno nunca se confirmaba.
+      shopId = service.shop_id;
       shopName = shop.nombre as string;
       shopSlug = (shop.slug as string) || "local";
       paymentMethods = buildMpPaymentMethods(await fetchShopMpPaymentConfig(admin, service.shop_id));
@@ -112,19 +122,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Falta el ID del servicio o los items" }, { status: 400 });
     }
 
-    const origin = request.headers.get("origin");
-    const host = request.headers.get("host");
-    const baseUrl = (
-      origin
-      || (host ? `https://${host}` : null)
-      || process.env.NEXT_PUBLIC_BASE_URL
-      || new URL(request.url).origin
-    ).replace(/\/+$/, "");
+    // La notification_url se resuelve SOLO desde variables de servidor. Usar el
+    // header Origin/Host aca dejaba que un cliente falsificado mandara las
+    // notificaciones del pago a un dominio ajeno.
+    const baseUrl = resolveNotificationBaseUrl();
 
     const successUrl = `${baseUrl}/confirmacion?status=success&slug=${encodeURIComponent(shopSlug)}`;
     const failureUrl = `${baseUrl}/confirmacion?status=failure&slug=${encodeURIComponent(shopSlug)}`;
     const pendingUrl = `${baseUrl}/confirmacion?status=pending&slug=${encodeURIComponent(shopSlug)}`;
-    const notificationUrl = `${baseUrl}/api/payments/mercadopago-webhook?shop_id=${encodeURIComponent(shopId || "")}`;
+    if (!shopId) {
+      return NextResponse.json({ error: "Falta shopId para notificar el pago" }, { status: 400 });
+    }
+    const notificationUrl = buildShopNotificationUrl(baseUrl, shopId);
 
     if (!successUrl.startsWith("http")) {
       return NextResponse.json({ error: "No se pudo determinar la URL base" }, { status: 500 });

@@ -4,6 +4,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import { BILLING_LABELS, BillingCycle } from "@/lib/billing/plans";
 import { getBillingPrice } from "@/lib/admin/site-settings";
+import { resolveNotificationBaseUrl } from "@/lib/urls";
 
 function isBillingCycle(value: string): value is BillingCycle {
   return value === "monthly";
@@ -49,8 +50,9 @@ export async function POST(request: NextRequest) {
     const amount = await getBillingPrice();
     const label = BILLING_LABELS[cycleRaw];
 
-    const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
-    const baseUrl = origin.replace(/\/+$/, "");
+    // Solo variables de servidor: el header Origin lo controla el cliente y
+    // permitia redirigir back_urls y notification_url a un dominio ajeno.
+    const baseUrl = resolveNotificationBaseUrl();
     const dashboardPath = shop.slug ? `/dashboard/${shop.slug}` : "/dashboard";
     const backUrl = `${baseUrl}${dashboardPath}?billing=return&shop_id=${encodeURIComponent(shopId)}`;
     const notificationUrl = `${baseUrl}/api/payments/mercadopago-webhook?shop_id=${encodeURIComponent(shopId)}&scope=billing`;

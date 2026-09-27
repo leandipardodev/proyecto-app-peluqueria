@@ -11,6 +11,7 @@ import { computeSlotsForDay } from "./slots";
 import type { DateOverrideEntry, Slot, StaffScheduleEntry } from "./slots";
 import { MercadoPagoConfig, Preference } from "mercadopago";
 import { buildMpPaymentMethods, fetchShopMpPaymentConfig } from "@/lib/payments/mp-payment-config";
+import { buildShopNotificationUrl, resolveShopMpToken } from "@/lib/payments/shop-mp";
 import type { ActionResult } from "@/lib/types";
 import { sendAppointmentConfirmationEmail, scheduleAppointmentReminderEmail } from "@/lib/email/booking-emails";
 import { createRateLimiter } from "@/lib/rate-limiter";
@@ -1504,11 +1505,13 @@ export async function createPaymentPreference(
       if (bySlug) resolvedShopPolicy = bySlug;
     }
 
-    const accessToken = (resolvedShopPolicy?.mp_access_token as string | undefined) || process.env.MP_ACCESS_TOKEN;
-    if (!accessToken) {
-      return { success: false, error: "Mercado Pago no esta configurado para este local. Reconecta Mercado Pago en Mi Negocio." };
+    // La sena la cobra el LOCAL, con su propia cuenta de Mercado Pago. Sin
+    // fallback a MP_ACCESS_TOKEN: ese token es de Klip y la plata se perdia.
+    const shopMpToken = resolveShopMpToken(resolvedShopPolicy);
+    if (!shopMpToken.ok) {
+      return { success: false, error: shopMpToken.error };
     }
-
+    const accessToken = shopMpToken.accessToken;
     const paymentMethods = buildMpPaymentMethods(
       await fetchShopMpPaymentConfig(admin, appointmentData.shopId)
     );
@@ -1533,7 +1536,7 @@ export async function createPaymentPreference(
     const successUrl = `${baseUrl}/confirmacion?status=success&slug=${encodeURIComponent(appointmentData.shopSlug)}`;
     const pendingUrl = `${baseUrl}/confirmacion?status=pending&slug=${encodeURIComponent(appointmentData.shopSlug)}`;
     const failureUrl = `${baseUrl}/confirmacion?status=failure&slug=${encodeURIComponent(appointmentData.shopSlug)}`;
-    const notificationUrl = `${baseUrl}/api/payments/mercadopago-webhook`;
+    const notificationUrl = buildShopNotificationUrl(baseUrl, appointmentData.shopId);
     const canUseBackUrls = /^https?:\/\//.test(baseUrl) && !/localhost|127\.0\.0\.1/.test(baseUrl);
     const shouldSendWebhook = notificationUrl.startsWith("https://");
 
@@ -1772,12 +1775,14 @@ export async function createCombinedCheckout(
       .eq("id", input.shopId)
       .maybeSingle();
 
-    const accessToken = (shop?.mp_access_token as string | undefined) || process.env.MP_ACCESS_TOKEN;
-    if (!accessToken) {
+    // Cobro combinado (servicios + productos): tambien es plata del local.
+    const shopMpToken = resolveShopMpToken(shop);
+    if (!shopMpToken.ok) {
       await rollbackOrder();
       await rollbackAppointments();
-      return { success: false, error: "Mercado Pago no esta configurado para este local. Reconecta Mercado Pago en Mi Negocio." };
+      return { success: false, error: shopMpToken.error };
     }
+    const accessToken = shopMpToken.accessToken;
 
     const paymentMethods = buildMpPaymentMethods(
       await fetchShopMpPaymentConfig(admin, input.shopId)
@@ -1803,7 +1808,7 @@ export async function createCombinedCheckout(
     const successUrl = `${baseUrl}/confirmacion?status=success&slug=${encodeURIComponent(input.shopSlug)}`;
     const pendingUrl = `${baseUrl}/confirmacion?status=pending&slug=${encodeURIComponent(input.shopSlug)}`;
     const failureUrl = `${baseUrl}/confirmacion?status=failure&slug=${encodeURIComponent(input.shopSlug)}`;
-    const notificationUrl = `${baseUrl}/api/payments/mercadopago-webhook`;
+    const notificationUrl = buildShopNotificationUrl(baseUrl, input.shopId);
     const canUseBackUrls = /^https?:\/\//.test(baseUrl) && !/localhost|127\.0\.0\.1/.test(baseUrl);
     const shouldSendWebhook = notificationUrl.startsWith("https://");
 

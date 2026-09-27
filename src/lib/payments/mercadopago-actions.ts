@@ -4,6 +4,8 @@ import { createServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient, requireOwnerShopId } from "@/lib/dashboard/auth/server";
 import { MercadoPagoConfig, Preference, PaymentRefund } from "mercadopago";
 import { buildMpPaymentMethods, fetchShopMpPaymentConfig } from "@/lib/payments/mp-payment-config";
+import { buildShopNotificationUrl } from "@/lib/payments/shop-mp";
+import { resolveNotificationBaseUrl } from "@/lib/urls";
 import type { ActionResult } from "@/lib/types";
 import type { Json } from "@/lib/supabase/database.types";
 import "server-only";
@@ -146,7 +148,15 @@ export async function createPaymentLink(appointmentId: string): Promise<ActionRe
     const client = new MercadoPagoConfig({ accessToken });
     const preference = new Preference(client);
 
-    const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || "https://klip.com.ar").replace(/\/$/, "");
+    // Centralizado: antes caia a "https://klip.com.ar" hardcodeado si faltaba la
+    // variable, y en otro dominio las notificaciones iban a un sitio inexistente.
+    const siteUrl = resolveNotificationBaseUrl();
+
+    // Sin local no hay notification_url posible, y una vacia hace que el webhook
+    // consulte el pago con el token equivocado. Preferimos fallar aca.
+    if (!shopId) {
+      throw new Error("No se pudo determinar el local para notificar el pago");
+    }
 
     const result = await preference.create({
       body: {
@@ -159,7 +169,7 @@ export async function createPaymentLink(appointmentId: string): Promise<ActionRe
         },
         auto_return: "approved",
         external_reference: appointmentId,
-        notification_url: `${siteUrl}/api/payments/mercadopago-webhook?shop_id=${shopId}`,
+        notification_url: buildShopNotificationUrl(siteUrl, shopId),
         ...(paymentMethods ? { payment_methods: paymentMethods } : {}),
       },
     });

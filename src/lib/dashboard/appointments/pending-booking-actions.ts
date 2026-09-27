@@ -3,6 +3,7 @@
 import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import { MercadoPagoConfig, Preference } from "mercadopago";
 import { buildMpPaymentMethods, fetchShopMpPaymentConfig } from "@/lib/payments/mp-payment-config";
+import { buildShopNotificationUrl, resolveShopMpToken } from "@/lib/payments/shop-mp";
 import {
   getArgentinaDateKey,
   getArgentinaDateString,
@@ -261,7 +262,7 @@ export async function createPendingBooking(
 
     const { data: shopPolicy } = await admin
       .from("shops")
-      .select("booking_deposit_enabled, booking_deposit_amount")
+      .select("booking_deposit_enabled, booking_deposit_amount, mp_access_token")
       .eq("id", input.shopId)
       .maybeSingle();
 
@@ -343,12 +344,13 @@ export async function createPendingBooking(
       };
     }
 
-    // MP flow: create preference
-    const accessToken = process.env.MP_ACCESS_TOKEN || "";
-    if (!accessToken) {
+    // MP flow: create preference. La sena la cobra el LOCAL, nunca Klip.
+    const shopMpToken = resolveShopMpToken(shopPolicy);
+    if (!shopMpToken.ok) {
       await admin.from("pending_bookings").delete().eq("id", booking.id);
-      return { success: false, error: "Mercado Pago no esta configurado" };
+      return { success: false, error: shopMpToken.error };
     }
+    const accessToken = shopMpToken.accessToken;
 
     const paymentMethods = buildMpPaymentMethods(
       await fetchShopMpPaymentConfig(admin, input.shopId)
@@ -358,7 +360,7 @@ export async function createPendingBooking(
     const successUrl = `${baseUrl}/confirmacion?status=success&slug=${encodeURIComponent(input.shopSlug)}`;
     const pendingUrl = `${baseUrl}/confirmacion?status=pending&slug=${encodeURIComponent(input.shopSlug)}`;
     const failureUrl = `${baseUrl}/confirmacion?status=failure&slug=${encodeURIComponent(input.shopSlug)}`;
-    const notificationUrl = `${baseUrl}/api/payments/mercadopago-webhook`;
+    const notificationUrl = buildShopNotificationUrl(baseUrl, input.shopId);
     const canUseBackUrls = /^https?:\/\//.test(baseUrl) && !/localhost|127\.0\.0\.1/.test(baseUrl);
     const shouldSendWebhook = notificationUrl.startsWith("https://");
 

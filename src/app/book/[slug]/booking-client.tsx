@@ -80,6 +80,8 @@ interface BookingClientProps {
     slug: string;
     industry: Industry;
     mpPublicKey: string;
+  /** El local conecto su propia cuenta de MP. Viene como booleano, no el token. */
+  mpConnected: boolean;
     payAtShop: boolean;
     assignStaffLater: boolean;
     businessHours?: Record<string, { open: boolean }> | null;
@@ -1125,6 +1127,17 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     }
     return false;
   }, [hasStoreItems, shop.payAtShop, cart, selectedCombo]);
+
+  /**
+   * Si el local no conecto su cuenta de MP, la sena no se puede cobrar online.
+   *
+   * El server rechaza el cobro con un error claro, pero llegar hasta ahi
+   * significa que el cliente lleno el formulario entero y recien al confirmar se
+   * entera de que no puede pagar. Ademas el server NUNCA cae al token de la
+   * plataforma: esa plata es del local, no de Klip.
+   */
+  const mpUnavailable = !shop.mpConnected;
+  const onlinePaymentBlocked = needsPayment && mpUnavailable && !shop.bankTransferEnabled;
 
   const CART_STORAGE_KEY = `klip-book-cart:${shop.id}`;
 
@@ -3199,12 +3212,26 @@ className={`relative w-full max-w-sm max-h-[86dvh] overflow-y-auto ${templateSty
                             {/* Tarjetas de pago */}
                             <p className={`text-base font-semibold ${templateStyles.heading}`}>¿Cómo preferís pagar?</p>
 
+                            {onlinePaymentBlocked && (
+                              <p className={`text-[11px] ${templateStyles.checkoutKicker}`}>
+                                Este local todavía no acepta pagos online. Contactalo para reservar.
+                              </p>
+                            )}
+
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 overflow-hidden">
                               {/* MP */}
                               <motion.button
                                 type="button"
                                 onClick={async (e) => {
                                   triggerHaptic(20, e.currentTarget);
+                                  if (mpUnavailable) {
+                                    setError(
+                                      shop.bankTransferEnabled
+                                        ? "Este local todavia no acepta Mercado Pago. Podes pagar por transferencia."
+                                        : "Este local todavia no acepta pagos online.",
+                                    );
+                                    return;
+                                  }
                                   if (selectedPaymentMethod === "mp") return;
                                   if (selectedPaymentMethod === "bank_transfer" && pendingAppointmentIdsRef.current.length > 0) {
                                     const ids = pendingAppointmentIdsRef.current;
@@ -3224,18 +3251,22 @@ className={`relative w-full max-w-sm max-h-[86dvh] overflow-y-auto ${templateSty
                                 }}
                                 whileTap={{ scale: 0.97 }}
                                 className={`relative overflow-hidden rounded-2xl p-4 text-left border-2 transition-all duration-200 ${
-                                  selectedPaymentMethod === "mp"
-                                    ? "border-[#009EE3] shadow-lg shadow-[#009EE3]/15"
-                                    : `border-white/20 dark:border-white/10 hover:border-[#009EE3]/40`
+                                  mpUnavailable
+                                    ? "border-white/10 dark:border-white/5 opacity-50 cursor-not-allowed"
+                                    : selectedPaymentMethod === "mp"
+                                      ? "border-[#009EE3] shadow-lg shadow-[#009EE3]/15"
+                                      : `border-white/20 dark:border-white/10 hover:border-[#009EE3]/40`
                                 } ${templateStyles.checkout}`}
                               >
                                 <div className="flex items-center gap-3">
-                                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-200 ${selectedPaymentMethod === "mp" ? "bg-[#009EE3] shadow-lg shadow-[#009EE3]/25" : "bg-[#009EE3]/15"}`}>
-                                    <CreditCard className={`w-5 h-5 ${selectedPaymentMethod === "mp" ? "text-white" : "text-[#009EE3]"}`} />
+                                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-200 ${selectedPaymentMethod === "mp" && !mpUnavailable ? "bg-[#009EE3] shadow-lg shadow-[#009EE3]/25" : "bg-[#009EE3]/15"}`}>
+                                    <CreditCard className={`w-5 h-5 ${selectedPaymentMethod === "mp" && !mpUnavailable ? "text-white" : "text-[#009EE3]"}`} />
                                   </div>
                                   <div className="min-w-0">
                                     <p className={`text-sm font-bold ${templateStyles.checkoutTitle}`}>Mercado Pago</p>
-                                    <p className={`text-[11px] ${templateStyles.checkoutKicker}`}>Tarjeta, débito o cuenta MP</p>
+                                    <p className={`text-[11px] ${templateStyles.checkoutKicker}`}>
+                                      {mpUnavailable ? "No disponible por el momento" : "Tarjeta, débito o cuenta MP"}
+                                    </p>
                                   </div>
                                   {selectedPaymentMethod === "mp" && (
                                     <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="ml-auto shrink-0">

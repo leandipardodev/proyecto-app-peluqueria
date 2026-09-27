@@ -2,6 +2,7 @@
 
 import { MercadoPagoConfig, Preference } from "mercadopago";
 import { buildMpPaymentMethods, fetchShopMpPaymentConfig } from "@/lib/payments/mp-payment-config";
+import { buildShopNotificationUrl, resolveShopMpToken } from "@/lib/payments/shop-mp";
 import type { ActionResult } from "@/lib/types";
 import { createAdminClient } from "@/lib/dashboard/appointments/shared";
 import { createRateLimiter } from "@/lib/rate-limiter";
@@ -244,12 +245,16 @@ export async function createStoreOrder(input: StoreCheckoutInput): Promise<Actio
       .select("mp_access_token")
       .eq("id", input.shopId)
       .maybeSingle();
-    const accessToken = (shop?.mp_access_token as string | undefined) || process.env.MP_ACCESS_TOKEN;
-    if (!accessToken) {
+    // El pedido lo cobra el LOCAL con su propia cuenta. Sin fallback a la
+    // plataforma: el stock ya se descontó y la orden ya existe, así que el error
+    // tiene que devolver todo antes de cortar.
+    const shopMpToken = resolveShopMpToken(shop);
+    if (!shopMpToken.ok) {
       await restoreOrderStock(admin, input.shopId, orderId);
       await admin.from("orders").delete().eq("id", orderId).eq("shop_id", input.shopId);
-      return { success: false, error: "Mercado Pago no esta configurado para este local. Intenta mas tarde." };
+      return { success: false, error: shopMpToken.error };
     }
+    const accessToken = shopMpToken.accessToken;
 
     const paymentMethods = buildMpPaymentMethods(
       await fetchShopMpPaymentConfig(admin, input.shopId)
@@ -260,7 +265,7 @@ export async function createStoreOrder(input: StoreCheckoutInput): Promise<Actio
     const successUrl = `${storeBase}?status=success&order=${orderId}`;
     const pendingUrl = `${storeBase}?status=pending&order=${orderId}`;
     const failureUrl = `${storeBase}?status=failure&order=${orderId}`;
-    const notificationUrl = `${baseUrl}/api/payments/mercadopago-webhook`;
+    const notificationUrl = buildShopNotificationUrl(baseUrl, input.shopId);
     const canUseBackUrls = /^https?:\/\//.test(baseUrl) && !/localhost|127\.0\.0\.1/.test(baseUrl);
     const shouldSendWebhook = notificationUrl.startsWith("https://");
 
