@@ -133,6 +133,7 @@ export async function sendAppointmentConfirmationEmail(params: EmailParams) {
   await sendEmailWithResend({
     to: params.to,
     subject: `Confirmado! Tu turno el ${dateLabel} a las ${timeLabel}`,
+    fromName: `Turnos en ${params.shopName}`,
     html: buildAppointmentEmailHtml({
       customerName: params.customerName,
       shopName: params.shopName,
@@ -168,6 +169,7 @@ export async function scheduleAppointmentReminderEmail(params: EmailParams) {
     to: params.to,
     subject: `Recordatorio: Tu turno es el ${dateLabel} a las ${timeLabel}`,
     scheduledAt: reminderDate.toISOString(),
+    fromName: `Turnos en ${params.shopName}`,
     html: buildAppointmentEmailHtml({
       customerName: params.customerName,
       shopName: params.shopName,
