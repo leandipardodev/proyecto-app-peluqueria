@@ -4,19 +4,32 @@ import { POST } from "@/app/api/payments/mercadopago-webhook/route";
 import { createServiceRoleClient as mockCreateServiceRole } from "@/lib/dashboard/auth/server";
 import { requireShopId as mockRequireShopId } from "@/lib/dashboard/auth/server";
 import { supabaseStub, chainableQuery } from "@/__tests__/setup";
+import { logError } from "@/lib/api-logger";
+import { SHOP_MP_NOT_CONNECTED } from "@/lib/payments/shop-mp";
 
-const { mockPaymentGet, mockRateCheck } = vi.hoisted(() => {
+const { mockPaymentGet, mockRateCheck, mockResolveAutoCharge, mockPreApprovalGet } = vi.hoisted(() => {
   process.env.MP_WEBHOOK_SECRET = "test-secret-123";
   process.env.MP_ACCESS_TOKEN = "test-mp-access-token";
   return {
     mockPaymentGet: vi.fn(),
     mockRateCheck: vi.fn(),
+    mockResolveAutoCharge: vi.fn(),
+    mockPreApprovalGet: vi.fn(),
   };
 });
 
 vi.mock("mercadopago", () => ({
   MercadoPagoConfig: vi.fn(),
-  Payment: vi.fn(function () { return { get: mockPaymentGet }; }),
+  Payment: vi.fn(function () {
+    return { get: mockPaymentGet, search: vi.fn().mockResolvedValue({ results: [] }) };
+  }),
+  PreApproval: vi.fn(function () {
+    return { get: mockPreApprovalGet };
+  }),
+}));
+
+vi.mock("@/lib/payments/mp-auto-charge", () => ({
+  resolveAutoChargeAmounts: (...args: unknown[]) => mockResolveAutoCharge(...args),
 }));
 
 vi.mock("@/lib/rate-limiter", () => ({
@@ -75,6 +88,11 @@ beforeEach(() => {
   });
   vi.mocked(mockCreateServiceRole).mockResolvedValue(supabaseStub());
   vi.mocked(mockRequireShopId).mockResolvedValue({ success: true, data: "shop-123" });
+  mockResolveAutoCharge.mockResolvedValue({
+    paymentId: "pay-auto-1",
+    amounts: { gross_amount: 40000, mp_fee: 1400, net_amount: 38600, source: "mp_net_amount" },
+    liveMode: true,
+  });
 });
 
 describe("mercadopago-webhook POST — validation", () => {
@@ -704,5 +722,225 @@ describe("mercadopago-webhook POST — combined booking + store flow", () => {
     expect(res.status).toBe(200);
     expect(appointmentUpdates.length).toBe(1);
     expect(orderClaimAttempts).toBe(1);
+  });
+});
+
+describe("mercadopago-webhook POST - subscription_charged (auto-cargo)", () => {
+  function stubAutoCharge({
+    subStatus = "authorized",
+    insertError = null,
+    shopToken = null as string | null,
+  }: {
+    subStatus?: string;
+    insertError?: { code: string; message: string } | null;
+    shopToken?: string | null;
+  } = {}) {
+    const eventInserts: Array<Record<string, unknown>> = [];
+    const shopUpdates: Array<Record<string, unknown>> = [];
+
+    vi.mocked(mockCreateServiceRole).mockResolvedValue({
+      from: vi.fn((table: string) => {
+        if (table === "shop_subscriptions") {
+          return chainableQuery({
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: { id: "sub-1", shop_id: "shop-123", status: subStatus },
+              error: null,
+            }),
+          });
+        }
+        if (table === "shops" && shopToken !== null) {
+          return chainableQuery({
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: { id: "shop-123", plan_expiry: null, mp_access_token: shopToken },
+              error: null,
+            }),
+            update: vi.fn((values: Record<string, unknown>) => {
+              shopUpdates.push(values);
+              return chainableQuery();
+            }),
+          });
+        }
+        if (table === "shops") {
+          return chainableQuery({
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: { id: "shop-123", plan_expiry: null },
+              error: null,
+            }),
+            update: vi.fn((values: Record<string, unknown>) => {
+              shopUpdates.push(values);
+              return chainableQuery();
+            }),
+          });
+        }
+        if (table === "shop_billing_events") {
+          return chainableQuery({
+            insert: vi.fn((row: Record<string, unknown>) => {
+              eventInserts.push(row);
+              const cq = chainableQuery();
+              // chainableQuery resuelve data/error; sobreescribimos el then con el error pedido.
+              cq.then = ((onfulfilled?: (v: unknown) => unknown, onrejected?: (r: unknown) => unknown) =>
+                Promise.resolve({ data: null, error: insertError }).then(onfulfilled, onrejected)) as never;
+              return cq;
+            }),
+          });
+        }
+        return chainableQuery();
+      }),
+    } as never);
+
+    return { eventInserts, shopUpdates };
+  }
+
+  function stubAutoChargeWithShopToken(shopToken: string) {
+    return stubAutoCharge({ shopToken });
+  }
+
+  function chargeBody(preapprovalId = "pre-1") {
+    return { type: "subscription_charged", data: { id: preapprovalId } };
+  }
+
+  it("escribe el evento con los montos reales del pago", async () => {
+    const { eventInserts } = stubAutoCharge();
+
+    const res = await POST(createNextRequest(chargeBody()));
+
+    expect(res.status).toBe(200);
+    expect(eventInserts).toHaveLength(1);
+    const event = eventInserts[0] as Record<string, Record<string, unknown>>;
+    expect(event.event_type).toBe("subscription_auto_charge_applied");
+    expect(event.payload.payment_id).toBe("pay-auto-1");
+    expect(event.payload.gross_amount).toBe(40000);
+    expect(event.payload.mp_fee).toBe(1400);
+    expect(event.payload.net_amount).toBe(38600);
+    expect(event.payload.amount_source).toBe("mp_net_amount");
+  });
+
+  it("resuelve el external_reference de forma deterministica sin columna en la base", async () => {
+    // shop_subscriptions no guarda external_reference, pero siempre es
+    // `shop_sub_auto:<shopId>`. Si se rompe ese formato, la busqueda del pago
+    // devuelve cero resultados y todos los auto-cargos caen a needs_review.
+    const { eventInserts } = stubAutoCharge();
+
+    await POST(createNextRequest(chargeBody()));
+
+    expect(mockResolveAutoCharge).toHaveBeenCalledWith(
+      expect.objectContaining({ externalReference: "shop_sub_auto:shop-123", preapprovalId: "pre-1" }),
+    );
+    expect((eventInserts[0] as Record<string, Record<string, unknown>>).payload.external_reference).toBe(
+      "shop_sub_auto:shop-123",
+    );
+  });
+
+  it("escribe el evento SIN montos si no se pudo resolver el pago, y marca el pago de prueba", async () => {
+    // Es el caso que dispara needs_review. Lo importante es que el evento se
+    // escriba igual: si no, la secuencia del local no avanza y el mes siguiente
+    // se liquida como si fuera el primero.
+    mockResolveAutoCharge.mockResolvedValue({ paymentId: null, amounts: null, liveMode: false });
+    const { eventInserts } = stubAutoCharge();
+
+    const res = await POST(createNextRequest(chargeBody()));
+
+    expect(res.status).toBe(200);
+    const payload = (eventInserts[0] as Record<string, Record<string, unknown>>).payload;
+    expect(payload.payment_id).toBeUndefined();
+    expect(payload.net_amount).toBeUndefined();
+    expect(payload.mp_live_mode).toBe(false);
+    expect(eventInserts).toHaveLength(1);
+  });
+
+  it("tolera el reintento de MP sin romper el flujo", async () => {
+    // El indice unico parcial de la migracion 102 es el que evita el duplicado;
+    // aca se verifica que el webhook no se rompa cuando la base lo rechaza.
+    const { eventInserts } = stubAutoCharge({ insertError: { code: "23505", message: "duplicate key" } });
+
+    const res = await POST(createNextRequest(chargeBody()));
+
+    expect(res.status).toBe(200);
+    expect(eventInserts).toHaveLength(1);
+    // 23505 es la violacion del indice unico de la migracion 102: es el camino
+    // esperado de un reintento, no un fallo. Si se logueara, cada reintento de MP
+    // llenaria Sentry de falsos positivos.
+    expect(vi.mocked(logError)).not.toHaveBeenCalled();
+  });
+
+  it("loguea el error si la insert falla por una causa real", async () => {
+    stubAutoCharge({ insertError: { code: "PGRST", message: "connection failed" } });
+
+    const res = await POST(createNextRequest(chargeBody()));
+
+    expect(res.status).toBe(200);
+    expect(vi.mocked(logError)).toHaveBeenCalled();
+  });
+
+  it("no inserta nada si la suscripcion no esta autorizada", async () => {
+    const { eventInserts, shopUpdates } = stubAutoCharge({ subStatus: "paused" });
+
+    const res = await POST(createNextRequest(chargeBody()));
+
+    expect(res.status).toBe(200);
+    expect(eventInserts).toHaveLength(0);
+    expect(shopUpdates).toHaveLength(0);
+    expect(mockResolveAutoCharge).not.toHaveBeenCalled();
+  });
+
+  it("renueva el plan un mes", async () => {
+    const { shopUpdates } = stubAutoCharge();
+
+    await POST(createNextRequest(chargeBody()));
+
+    expect(shopUpdates).toHaveLength(1);
+    expect(shopUpdates[0].active).toBe(true);
+  });
+
+  it("consulta con el token de la plataforma aunque la URL traiga shop_id", async () => {
+    // El checkout y el activate crean el cobro con MP_ACCESS_TOKEN, asi que el
+    // pago vive en la cuenta de la plataforma. Si el webhook usara el token del
+    // local, la busqueda por external_reference no encontraria nada y el
+    // auto-cargo caeria en needs_review para siempre.
+    const otherToken = "APP_USR-token-de-otro-local-9999";
+    stubAutoChargeWithShopToken(otherToken);
+
+    await POST(
+      createNextRequest(chargeBody(), { url: "http://localhost/api/payments/mercadopago-webhook?shop_id=shop-123" }),
+    );
+
+    expect(mockResolveAutoCharge).toHaveBeenCalledWith(
+      expect.objectContaining({ accessToken: process.env.MP_ACCESS_TOKEN }),
+    );
+    expect(mockResolveAutoCharge.mock.calls[0][0].accessToken).not.toBe(otherToken);
+  });
+
+  it("no rechaza el evento si el local todavia no conecto su cuenta", async () => {
+    // 9 de 13 locales no tienen mp_access_token. Si un subscription_charged llega
+    // con shop_id, el chequeo de "token del local faltante" lo rechazaba con 400
+    // ANTES de llegar al override de plataforma, y la renovacion de la
+    // suscripcion se perdia en silencio: MP reintentaba y Klip nunca cobraba la
+    // comision del mes.
+    stubAutoCharge({ shopToken: null });
+
+    const res = await POST(
+      createNextRequest(chargeBody(), { url: "http://localhost/api/payments/mercadopago-webhook?shop_id=shop-123" }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockResolveAutoCharge).toHaveBeenCalledWith(
+      expect.objectContaining({ accessToken: process.env.MP_ACCESS_TOKEN }),
+    );
+  });
+
+  it("sigue rechazando un pago de local sin token cuando no es suscripcion", async () => {
+    // La garantia inversa: para señas y pedidos NO se puede caer al token de la
+    // plataforma, porque esa plata es del local y Klip no tiene ledger para
+    // devolverla. Tiene que fallar fuerte.
+    const res = await POST(
+      createNextRequest(
+        { type: "payment", data: { id: "pay-1" } },
+        { url: "http://localhost/api/payments/mercadopago-webhook?shop_id=shop-123" },
+      ),
+    );
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ error: SHOP_MP_NOT_CONNECTED });
+    expect(mockResolveAutoCharge).not.toHaveBeenCalled();
   });
 });

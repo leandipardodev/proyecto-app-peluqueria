@@ -19,12 +19,19 @@ const VARS: EnvVar[] = [
   { name: "RESEND_API_KEY", required: false, description: "Resend API key for transactional emails" },
   { name: "RESEND_FROM_EMAIL", required: false, description: "Sender email for transactional emails" },
   { name: "STAFF_INVITE_SECRET", required: false, description: "Secret for staff invite tokens" },
+  { name: "REFERRAL_PORTAL_SECRET", required: false, description: "Secret for referral partner sessions and attribution cookies" },
   { name: "CRON_SECRET", required: false, description: "Secret for cron job authentication" },
   { name: "NEXT_PUBLIC_SENTRY_DSN", required: false, description: "Sentry DSN for error tracking" },
   { name: "UPSTASH_REDIS_REST_URL", required: false, description: "Upstash Redis URL (rate limiting)" },
   { name: "UPSTASH_REDIS_REST_TOKEN", required: false, description: "Upstash Redis token" },
   { name: "RECAPTCHA_SECRET_KEY", required: false, description: "reCAPTCHA server-side key" },
   { name: "NEXT_PUBLIC_RECAPTCHA_SITE_KEY", required: false, description: "reCAPTCHA client-side key" },
+  // WhatsApp Business Platform (por local, Embedded Signup + Cloud API)
+  { name: "META_WA_APP_ID", required: false, description: "Meta App ID para Embedded Signup de WhatsApp" },
+  { name: "META_WA_APP_SECRET", required: false, description: "Meta App secret para intercambiar el token_code" },
+  { name: "NEXT_PUBLIC_META_WA_APP_ID", required: false, description: "Meta App ID publico (cliente Embedded Signup)" },
+  { name: "META_WA_STATE_SECRET", required: false, description: "Secret para firmar el state del Embedded Signup" },
+  { name: "WHATSAPP_WEBHOOK_VERIFY_TOKEN", required: false, description: "Token de verificacion del webhook de WhatsApp" },
 ];
 
 export function validateEnv(): void {

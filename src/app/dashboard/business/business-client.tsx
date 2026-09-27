@@ -50,6 +50,8 @@ import { useAuth } from "@/lib/auth-context";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { resolveIndustry } from "@/lib/industry/resolve";
 import { MP_EXCLUDABLE_PAYMENT_TYPES } from "@/lib/payments/mp-payment-config";
+import WhatsAppAutomationPanel from "@/components/dashboard/whatsapp/whatsapp-automation-panel";
+import type { WhatsAppAutomationOverview } from "@/lib/dashboard/whatsapp/wa-actions";
 
 type MessageType = { type: "success" | "error"; text: string } | null;
 type InitialServiceItem = { id: string; name: string; category?: string | null; price: number; duration_minutes: number | null; pay_at_shop: boolean };
@@ -358,6 +360,7 @@ export default function BusinessClient({
   initialBusinessHours,
   initialBookingTheme,
   initialVoucherWhatsappTemplate,
+  initialWhatsAppAutomation,
   initialStaff,
   userEmail,
   storeEnabled,
@@ -373,6 +376,7 @@ export default function BusinessClient({
   initialBusinessHours: BusinessHoursData | null;
   initialBookingTheme: BookingThemeData | null;
   initialVoucherWhatsappTemplate?: string | null;
+  initialWhatsAppAutomation?: WhatsAppAutomationOverview | null;
   initialStaff: { id: string; name: string }[];
   userEmail?: string;
   storeEnabled?: boolean;
@@ -2668,6 +2672,13 @@ export default function BusinessClient({
               className="overflow-hidden"
             >
               <div className="p-6 space-y-6">
+
+          {/* WhatsApp automatico por local */}
+          <WhatsAppAutomationPanel
+            initial={initialWhatsAppAutomation}
+            isOwnerOrAdmin={isOwnerOrAdmin}
+            shopName={data?.nombre}
+          />
 
           {/* Mensaje de confirmación de turno */}
           <div className="rounded-2xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/30 p-5">

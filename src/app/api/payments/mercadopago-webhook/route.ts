@@ -12,6 +12,9 @@ import crypto from "crypto";
 import { createAdminClient } from "@/lib/dashboard/appointments/shared";
 import { restoreOrderStock } from "@/lib/dashboard/store/stock";
 import { completedBookingCache } from "@/lib/booking-cache";
+import { extractMpAppliedAmounts } from "@/lib/payments/mp-amounts";
+import { resolveAutoChargeAmounts } from "@/lib/payments/mp-auto-charge";
+import { SHOP_MP_NOT_CONNECTED } from "@/lib/payments/shop-mp";
 
 const webhookLimiter = createRateLimiter({ intervalMs: 60_000, maxRequests: 30 });
 
@@ -125,7 +128,34 @@ export async function POST(request: NextRequest) {
     const scope = request.nextUrl.searchParams.get("scope");
     let accessToken = process.env.MP_ACCESS_TOKEN || "";
 
-    if (shopId && scope !== "billing") {
+    const queryType = request.nextUrl.searchParams.get("type") || request.nextUrl.searchParams.get("topic");
+    const queryDataId = request.nextUrl.searchParams.get("data.id") || request.nextUrl.searchParams.get("id");
+    const type = payload?.type || queryType;
+    const resourceId = payload?.data?.id || queryDataId;
+    const action = payload?.action || "";
+
+    // Los eventos de suscripcion se consultan SIEMPRE con el token de la
+    // plataforma, sin importar que la URL traiga shop_id.
+    //
+    // No es una preferencia: /billing/checkout y /billing/subscription/activate
+    // crean el cobro con MP_ACCESS_TOKEN a secas, asi que el pago vive en la
+    // cuenta de la plataforma. Si el webhook usara el token del local, buscar
+    // el pago por external_reference no devolveria nada y todos los auto-cargos
+    // caerian en needs_review. Klip es merchant of record de las suscripciones
+    // justamente porque necesita el dinero en su cuenta para pagar comisiones.
+    //
+    // Esto se decide ANTES de resolver el token del local: si un evento de
+    // suscripcion llegara con shop_id y el local todavia no conecto su cuenta,
+    // el early return de abajo lo rechazaba con 400 y la suscripcion nunca se
+    // actualizaba. El chequeo va primero justamente para que eso no importe.
+    const isSubscriptionEvent = type === "subscription_preapproval" || type === "subscription_charged";
+
+    if (isSubscriptionEvent) {
+      accessToken = process.env.MP_ACCESS_TOKEN || "";
+      if (!accessToken) {
+        return NextResponse.json({ ok: false, error: "MP_ACCESS_TOKEN no configurado" }, { status: 500 });
+      }
+    } else if (shopId && scope !== "billing") {
       const { data: shop } = await admin
         .from("shops")
         .select("id, mp_access_token")
@@ -133,7 +163,7 @@ export async function POST(request: NextRequest) {
         .maybeSingle();
 
       if (!shop?.mp_access_token) {
-        return NextResponse.json({ ok: false, error: "Shop Mercado Pago token missing" }, { status: 400 });
+        return NextResponse.json({ ok: false, error: SHOP_MP_NOT_CONNECTED }, { status: 400 });
       }
 
       accessToken = shop.mp_access_token as string;
@@ -142,12 +172,6 @@ export async function POST(request: NextRequest) {
     if (!accessToken) {
       return NextResponse.json({ ok: false, error: "Mercado Pago token missing" }, { status: 500 });
     }
-
-    const queryType = request.nextUrl.searchParams.get("type") || request.nextUrl.searchParams.get("topic");
-    const queryDataId = request.nextUrl.searchParams.get("data.id") || request.nextUrl.searchParams.get("id");
-    const type = payload?.type || queryType;
-    const resourceId = payload?.data?.id || queryDataId;
-    const action = payload?.action || "";
 
     // --- Subscription preapproval events (authorized / cancelled) ---
     if (type === "subscription_preapproval" && resourceId) {
@@ -250,12 +274,53 @@ export async function POST(request: NextRequest) {
             .eq("id", sub.shop_id);
         }
 
-        await admin.from("shop_billing_events").insert({
+        // A diferencia del pago inicial, el webhook de subscription_charged NO
+        // trae el pago: trae el id del preapproval. Y el PreApproval de MP no
+        // expone el id del ultimo cobro, solo el monto (summarized
+        // .last_charged_amount) que NO incluye la fee. Como la comision del
+        // referidos se calcula sobre el neto, sin el pago real no hay forma
+        // exacta de saber cuanto entro.
+        //
+        // Asi que se busca el pago por external_reference y se elige el que
+        // corresponde a ESTE cobro. Si no se puede resolver con confianza, el
+        // evento se escribe igual (para que la secuencia de pagos del local
+        // avance) pero SIN montos: el sync lo marca needs_review en vez de
+        // inventar un neto.
+        // shop_subscriptions no guarda el external_reference, pero es
+        // deterministico: subscription/activate siempre arma
+        // `shop_sub_auto:<shopId>`.
+        const autoExternalRef = `shop_sub_auto:${sub.shop_id}`;
+        const autoAmounts = await resolveAutoChargeAmounts({
+          accessToken,
+          preapprovalId: resourceId,
+          externalReference: autoExternalRef,
+        });
+
+        const { error: chargeError } = await admin.from("shop_billing_events").insert({
           shop_id: sub.shop_id,
           actor_user_id: null,
           event_type: "subscription_auto_charge_applied",
-          payload: { preapproval_id: resourceId },
+          payload: {
+            preapproval_id: resourceId,
+            external_reference: autoExternalRef,
+            ...(autoAmounts.paymentId ? { payment_id: autoAmounts.paymentId } : {}),
+            ...(autoAmounts.amounts
+              ? {
+                  gross_amount: autoAmounts.amounts.gross_amount,
+                  mp_fee: autoAmounts.amounts.mp_fee,
+                  net_amount: autoAmounts.amounts.net_amount,
+                  amount_source: autoAmounts.amounts.source,
+                }
+              : {}),
+            ...(autoAmounts.liveMode === false ? { mp_live_mode: false } : {}),
+          },
         });
+
+        if (chargeError && !isUniqueViolation(chargeError)) {
+          logError(log, "No se pudo guardar subscription_auto_charge_applied", {
+            error: chargeError.message,
+          });
+        }
       }
 
       return NextResponse.json({ ok: true });
@@ -300,6 +365,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
+      // Lo que entra de verdad a la cuenta. Lo lee el sync de comisiones del
+      // referidos, asi que no se toca la logica de suscripciones.
+      const appliedAmounts = extractMpAppliedAmounts(paymentResult);
+
       const { error: lockError } = await admin.from("shop_billing_events").insert({
         shop_id: extShopId,
         actor_user_id: null,
@@ -309,6 +378,14 @@ export async function POST(request: NextRequest) {
           status: paymentResult.status,
           cycle,
           external_reference: externalReference,
+          ...(appliedAmounts
+            ? {
+                gross_amount: appliedAmounts.gross_amount,
+                mp_fee: appliedAmounts.mp_fee,
+                net_amount: appliedAmounts.net_amount,
+                amount_source: appliedAmounts.source,
+              }
+            : {}),
         },
       });
 

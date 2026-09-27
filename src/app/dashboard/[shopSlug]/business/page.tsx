@@ -2,6 +2,7 @@ import { fetchBusinessData, fetchBusinessHours } from "@/lib/dashboard/shop/busi
 import { fetchServices } from "@/lib/dashboard/services/service-actions";
 import { fetchBookingTheme } from "@/lib/dashboard/shop/booking-theme-actions";
 import { fetchVoucherWhatsappTemplate } from "@/lib/dashboard/vouchers/voucher-actions";
+import { getWhatsAppAutomationOverviewForShop } from "@/lib/dashboard/whatsapp/wa-actions";
 import BusinessClient from "@/app/dashboard/business/business-client";
 import { createServerClient } from "@/lib/supabase/server";
 import { getCachedUser, getCachedShopIdBySlug, createServiceRoleClient } from "@/lib/dashboard/auth/server";
@@ -40,12 +41,13 @@ export default async function DashboardShopBusinessPage({ params }: { params: Pr
     .eq("shop_id", shopId)
     .eq("for_sale", true);
 
-  const [result, servicesResult, businessHoursResult, bookingThemeResult, voucherTemplateResult, staffResult, sellableResult, features] = await Promise.all([
+  const [result, servicesResult, businessHoursResult, bookingThemeResult, voucherTemplateResult, whatsAppOverviewResult, staffResult, sellableResult, features] = await Promise.all([
     fetchBusinessData(shopId),
     fetchServices(shopId),
     fetchBusinessHours(shopId),
     fetchBookingTheme(shopId),
     fetchVoucherWhatsappTemplate(shopId),
+    getWhatsAppAutomationOverviewForShop(shopId),
     staffPromise,
     sellablePromise,
     getShopFeatures(shopId),
@@ -76,6 +78,7 @@ export default async function DashboardShopBusinessPage({ params }: { params: Pr
       initialBusinessHours={businessHoursResult.success ? businessHoursResult.data ?? null : null}
       initialBookingTheme={bookingThemeResult.success ? bookingThemeResult.data ?? null : null}
       initialVoucherWhatsappTemplate={voucherTemplateResult.success ? voucherTemplateResult.data ?? null : null}
+      initialWhatsAppAutomation={whatsAppOverviewResult.success ? whatsAppOverviewResult.data ?? null : null}
       initialStaff={staffNames}
       userEmail={user.email}
       storeEnabled={features.store}

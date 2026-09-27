@@ -9,6 +9,10 @@
       "schedule": "30 6 * * *"
     },
     {
+      "path": "/api/cron/referral-ledger-sync",
+      "schedule": "0 7 * * *"
+    },
+    {
       "path": "/api/cron/bank-transfer-cleanup",
       "schedule": "0 12 * * *"
     }

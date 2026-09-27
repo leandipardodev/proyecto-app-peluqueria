@@ -132,6 +132,8 @@ export type Database = {
           start_time: string
           status: string | null
           updated_at: string | null
+          wa_feedback_sent_at: string | null
+          wa_reminder_sent_at: string | null
           was_pending_payment: boolean
         }
         Insert: {
@@ -158,6 +160,8 @@ export type Database = {
           start_time: string
           status?: string | null
           updated_at?: string | null
+          wa_feedback_sent_at?: string | null
+          wa_reminder_sent_at?: string | null
           was_pending_payment?: boolean
         }
         Update: {
@@ -184,6 +188,8 @@ export type Database = {
           start_time?: string
           status?: string | null
           updated_at?: string | null
+          wa_feedback_sent_at?: string | null
+          wa_reminder_sent_at?: string | null
           was_pending_payment?: boolean
         }
         Relationships: [
@@ -443,6 +449,8 @@ export type Database = {
           telefono: string | null
           updated_at: string | null
           user_id: string | null
+          wa_opt_in: boolean
+          wa_opt_out: boolean
         }
         Insert: {
           created_at?: string | null
@@ -463,6 +471,8 @@ export type Database = {
           telefono?: string | null
           updated_at?: string | null
           user_id?: string | null
+          wa_opt_in?: boolean
+          wa_opt_out?: boolean
         }
         Update: {
           created_at?: string | null
@@ -483,6 +493,8 @@ export type Database = {
           telefono?: string | null
           updated_at?: string | null
           user_id?: string | null
+          wa_opt_in?: boolean
+          wa_opt_out?: boolean
         }
         Relationships: [
           {
@@ -1061,12 +1073,15 @@ export type Database = {
       }
       referral_commission_ledger: {
         Row: {
+          amount_source: string | null
           base_amount: number
           billing_event_id: string
           commission_amount: number
           commission_percent: number
           created_at: string
           id: string
+          mp_fee: number
+          net_amount: number
           paid_at: string | null
           partner_id: string
           payment_applied_at: string
@@ -1079,12 +1094,15 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          amount_source?: string | null
           base_amount: number
           billing_event_id: string
           commission_amount: number
           commission_percent: number
           created_at?: string
           id?: string
+          mp_fee?: number
+          net_amount?: number
           paid_at?: string | null
           partner_id: string
           payment_applied_at: string
@@ -1097,12 +1115,15 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          amount_source?: string | null
           base_amount?: number
           billing_event_id?: string
           commission_amount?: number
           commission_percent?: number
           created_at?: string
           id?: string
+          mp_fee?: number
+          net_amount?: number
           paid_at?: string | null
           partner_id?: string
           payment_applied_at?: string
@@ -1192,6 +1213,69 @@ export type Database = {
           },
         ]
       }
+      referral_link_clicks: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          outcome: string
+          partner_id: string
+          shop_id: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          outcome: string
+          partner_id: string
+          shop_id?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          outcome?: string
+          partner_id?: string
+          shop_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_link_clicks_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "referral_partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_link_clicks_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referral_login_attempts: {
+        Row: {
+          attempts: number
+          ip: string
+          last_at: string
+          locked_until: string | null
+        }
+        Insert: {
+          attempts?: number
+          ip: string
+          last_at?: string
+          locked_until?: string | null
+        }
+        Update: {
+          attempts?: number
+          ip?: string
+          last_at?: string
+          locked_until?: string | null
+        }
+        Relationships: []
+      }
       referral_partners: {
         Row: {
           commission_months_override: number | null
@@ -1202,7 +1286,12 @@ export type Database = {
           is_active: boolean
           name: string
           notes: string | null
+          payout_alias: string | null
+          payout_cbu: string | null
           phone: string | null
+          pin_hash: string | null
+          pin_last4: string | null
+          pin_updated_at: string | null
           referral_code: string
           updated_at: string
         }
@@ -1215,7 +1304,12 @@ export type Database = {
           is_active?: boolean
           name: string
           notes?: string | null
+          payout_alias?: string | null
+          payout_cbu?: string | null
           phone?: string | null
+          pin_hash?: string | null
+          pin_last4?: string | null
+          pin_updated_at?: string | null
           referral_code: string
           updated_at?: string
         }
@@ -1228,7 +1322,12 @@ export type Database = {
           is_active?: boolean
           name?: string
           notes?: string | null
+          payout_alias?: string | null
+          payout_cbu?: string | null
           phone?: string | null
+          pin_hash?: string | null
+          pin_last4?: string | null
+          pin_updated_at?: string | null
           referral_code?: string
           updated_at?: string
         }
@@ -1239,6 +1338,7 @@ export type Database = {
           created_at: string
           default_commission_months: number
           default_commission_percent: number
+          fallback_mp_fee_percent: number
           id: string
           is_default: boolean
           updated_at: string
@@ -1247,6 +1347,7 @@ export type Database = {
           created_at?: string
           default_commission_months?: number
           default_commission_percent?: number
+          fallback_mp_fee_percent?: number
           id?: string
           is_default?: boolean
           updated_at?: string
@@ -1255,6 +1356,7 @@ export type Database = {
           created_at?: string
           default_commission_months?: number
           default_commission_percent?: number
+          fallback_mp_fee_percent?: number
           id?: string
           is_default?: boolean
           updated_at?: string
@@ -1578,6 +1680,14 @@ export type Database = {
           tiktok_url: string | null
           updated_at: string | null
           voucher_whatsapp_template: string | null
+          wa_birthday_enabled: boolean
+          wa_connected_at: string | null
+          wa_feedback_enabled: boolean
+          wa_phone_number_id: string | null
+          wa_remind_enabled: boolean
+          wa_remind_hours_before: number
+          wa_token: string | null
+          wa_waba_id: string | null
           whatsapp_template: string | null
         }
         Insert: {
@@ -1616,6 +1726,14 @@ export type Database = {
           tiktok_url?: string | null
           updated_at?: string | null
           voucher_whatsapp_template?: string | null
+          wa_birthday_enabled?: boolean
+          wa_connected_at?: string | null
+          wa_feedback_enabled?: boolean
+          wa_phone_number_id?: string | null
+          wa_remind_enabled?: boolean
+          wa_remind_hours_before?: number
+          wa_token?: string | null
+          wa_waba_id?: string | null
           whatsapp_template?: string | null
         }
         Update: {
@@ -1654,6 +1772,14 @@ export type Database = {
           tiktok_url?: string | null
           updated_at?: string | null
           voucher_whatsapp_template?: string | null
+          wa_birthday_enabled?: boolean
+          wa_connected_at?: string | null
+          wa_feedback_enabled?: boolean
+          wa_phone_number_id?: string | null
+          wa_remind_enabled?: boolean
+          wa_remind_hours_before?: number
+          wa_token?: string | null
+          wa_waba_id?: string | null
           whatsapp_template?: string | null
         }
         Relationships: []
@@ -2250,6 +2376,76 @@ export type Database = {
           },
         ]
       }
+      whatsapp_messages: {
+        Row: {
+          appointment_id: string | null
+          category: string
+          created_at: string
+          customer_id: string | null
+          error: string | null
+          id: string
+          message_type: string
+          meta_message_id: string | null
+          shop_id: string
+          status: string
+          template_name: string
+          to_phone: string
+          updated_at: string
+        }
+        Insert: {
+          appointment_id?: string | null
+          category: string
+          created_at?: string
+          customer_id?: string | null
+          error?: string | null
+          id?: string
+          message_type: string
+          meta_message_id?: string | null
+          shop_id: string
+          status?: string
+          template_name: string
+          to_phone: string
+          updated_at?: string
+        }
+        Update: {
+          appointment_id?: string | null
+          category?: string
+          created_at?: string
+          customer_id?: string | null
+          error?: string | null
+          id?: string
+          message_type?: string
+          meta_message_id?: string | null
+          shop_id?: string
+          status?: string
+          template_name?: string
+          to_phone?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_messages_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -2266,6 +2462,14 @@ export type Database = {
       admin_delete_shop: { Args: { p_shop_id: string }; Returns: undefined }
       admin_mark_partner_commissions_paid: {
         Args: { p_actor_user_id: string; p_partner_id: string }
+        Returns: {
+          payout_id: string
+          total_amount: number
+          updated_count: number
+        }[]
+      }
+      admin_mark_referral_ledger_paid: {
+        Args: { p_actor_user_id: string; p_ledger_ids: string[] }
         Returns: {
           payout_id: string
           total_amount: number
