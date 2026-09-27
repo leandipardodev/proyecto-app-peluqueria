@@ -56,22 +56,51 @@ vi.mock("@/lib/billing/plans", () => ({
   cycleMonths: vi.fn(() => 1),
 }));
 
-function validSignature(body: unknown): string {
-  const ts = "1717286400";
-  const rawBody = JSON.stringify(body);
-  const secret = process.env.MP_WEBHOOK_SECRET || "";
-  const hmac = crypto.createHmac("sha256", secret).update(`${rawBody}|${ts}`, "utf8").digest("hex");
-  return `ts=${ts}&v1=${hmac}`;
+const TEST_REQUEST_ID = "3f7c1e2a-1111-2222-3333-444455556666";
+const TEST_TS = "1717286400";
+
+/**
+ * Manifest que firma MP: id:[data.id];request-id:[x-request-id];ts:[ts]
+ *
+ * El data.id sale del QUERY STRING, no del cuerpo. Armarlo sobre el body firma
+ * otra cosa y el endpoint rechaza la notificacion con 401.
+ */
+function signingManifest(dataId: string, requestId: string, ts: string): string {
+  const parts: string[] = [];
+  if (dataId) parts.push(`id:${dataId}`);
+  if (requestId) parts.push(`request-id:${requestId}`);
+  parts.push(`ts:${ts}`);
+  return parts.join(";");
 }
 
-function createNextRequest(body: unknown, opts?: { url?: string }): Request {
+function signWith(secret: string, dataId: string, requestId: string, ts: string): string {
+  const hmac = crypto
+    .createHmac("sha256", secret)
+    .update(signingManifest(dataId, requestId, ts), "utf8")
+    .digest("hex");
+  return `ts=${ts},v1=${hmac}`;
+}
+
+function validSignature(dataId: string): string {
+  return signWith(process.env.MP_WEBHOOK_SECRET || "", dataId, TEST_REQUEST_ID, TEST_TS);
+}
+
+function createNextRequest(
+  body: unknown,
+  opts?: { url?: string; signature?: string; requestId?: string | null; omitSignature?: boolean },
+): Request {
   const url = opts?.url ?? "http://localhost/api/payments/mercadopago-webhook";
   const bodyStr = JSON.stringify(body);
-  const sig = validSignature(body);
-  const headers: Record<string, string> = {
-    "content-type": "application/json",
-    "x-signature": sig,
-  };
+  const dataId = new URL(url).searchParams.get("data.id") || "";
+  const headers: Record<string, string> = { "content-type": "application/json" };
+
+  if (!opts?.omitSignature) {
+    headers["x-signature"] = opts?.signature ?? validSignature(dataId);
+  }
+  if (opts?.requestId !== null) {
+    headers["x-request-id"] = opts?.requestId ?? TEST_REQUEST_ID;
+  }
+
   const req = new Request(url, { method: "POST", body: bodyStr, headers });
   Object.defineProperty(req, "nextUrl", { value: new URL(url), writable: false });
   return req;
@@ -114,11 +143,97 @@ describe("mercadopago-webhook POST — validation", () => {
   });
 
   it("returns 401 when signature is missing", async () => {
-    const url = "http://localhost/api/payments/mercadopago-webhook";
-    const bodyStr = JSON.stringify({ type: "payment", data: { id: "pay-1" } });
-    const req = new Request(url, { method: "POST", body: bodyStr, headers: { "content-type": "application/json" } });
-    const res = await POST(req);
+    const res = await POST(
+      createNextRequest({ type: "payment", data: { id: "pay-1" } }, { omitSignature: true }),
+    );
     expect(res.status).toBe(401);
+  });
+
+  describe("firma de la notificacion", () => {
+    // MP firma `id:[data.id];request-id:[x-request-id];ts:[ts]`, armado con el
+    // data.id del QUERY STRING. Klip firmaba `${rawBody}|${ts}`: con el secret
+    // correcto igual daba 401 en todas las notificaciones, MP reintentaba cada 15
+    // minutos para siempre y el score de calidad se quedaba en 0.
+    const url = "http://localhost/api/payments/mercadopago-webhook?data.id=999999999";
+
+    it("acepta la firma con el manifest documentado (vector fijo)", async () => {
+      // Vector calculado aparte sobre el manifest literal de la documentacion,
+      // con el secret del entorno de test. Si alguien cambia como se arma el
+      // manifest, este test falla.
+      const signature =
+        "ts=1704908010,v1=1e68e98b0896d1a9b87fce6c0dbf5fa0ff8295e4f1e0a4ff6d312f4a46007c0a";
+
+      const res = await POST(
+        createNextRequest({ type: "payment", data: { id: "999999999" } }, { url, signature, requestId: "3f7c1e2a-1111-2222-3333-444455556666" }),
+      );
+
+      expect(res.status).not.toBe(401);
+    });
+
+    it("rechaza una firma armada sobre el cuerpo de la notificacion", async () => {
+      const body = { type: "payment", data: { id: "999999999" } };
+      const wrong = crypto
+        .createHmac("sha256", process.env.MP_WEBHOOK_SECRET || "")
+        .update(`${JSON.stringify(body)}|${TEST_TS}`, "utf8")
+        .digest("hex");
+
+      const res = await POST(
+        createNextRequest(body, { url, signature: `ts=${TEST_TS},v1=${wrong}` }),
+      );
+
+      expect(res.status).toBe(401);
+    });
+
+    it("rechaza si el data.id del query no es el que se firmo", async () => {
+      // FirmaCalculada para 999999999, pero la URL anuncia otro data.id.
+      const res = await POST(
+        createNextRequest(
+          { type: "payment", data: { id: "999999999" } },
+          {
+            url: "http://localhost/api/payments/mercadopago-webhook?data.id=OTRO-ID",
+            signature: signWith(process.env.MP_WEBHOOK_SECRET || "", "999999999", TEST_REQUEST_ID, TEST_TS),
+          },
+        ),
+      );
+
+      expect(res.status).toBe(401);
+    });
+
+    it("rechaza con otro secret", async () => {
+      const res = await POST(
+        createNextRequest(
+          { type: "payment", data: { id: "999999999" } },
+          {
+            url,
+            signature: signWith("secret-del-atacante", "999999999", TEST_REQUEST_ID, TEST_TS),
+          },
+        ),
+      );
+
+      expect(res.status).toBe(401);
+    });
+
+    it("omite request-id del manifest cuando MP no lo manda", async () => {
+      const res = await POST(
+        createNextRequest(
+          { type: "payment", data: { id: "999999999" } },
+          { url, requestId: null, signature: signWith(process.env.MP_WEBHOOK_SECRET || "", "999999999", "", TEST_TS) },
+        ),
+      );
+
+      expect(res.status).not.toBe(401);
+    });
+
+    it("omite data.id del manifest cuando no viene en el query", async () => {
+      const res = await POST(
+        createNextRequest(
+          { type: "payment", data: { id: "pay-1" } },
+          { signature: signWith(process.env.MP_WEBHOOK_SECRET || "", "", TEST_REQUEST_ID, TEST_TS) },
+        ),
+      );
+
+      expect(res.status).not.toBe(401);
+    });
   });
 
   it("returns ok for non-payment type", async () => {

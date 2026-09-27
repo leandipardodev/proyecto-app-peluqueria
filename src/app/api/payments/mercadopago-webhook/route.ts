@@ -52,10 +52,29 @@ function isUniqueViolation(error: unknown): boolean {
   const maybeCode = (error as { code?: string }).code;
   return maybeCode === "23505";
 }
+/**
+ * Manifest que firma Mercado Pago en el header x-signature.
+ *
+ * Documentado como: id:[data.id];request-id:[x-request-id];ts:[ts]
+ * parts que quedan vacias se omiten, y ts siempre va. El separador es ";".
+ *
+ * OJO: esto NO es el cuerpo de la notificacion. La implementacion anterior
+ * firmaba `${rawBody}|${ts}`, que no es lo que hace MP: con el secret correcto
+ * igual rechazaba todas las notificaciones con 401, y como MP reintenta cada 15
+ * minutos para siempre, la tasa de entrega queda en 0 y el score de calidad en 0.
+ */
+function buildWebhookSigningManifest(dataId: string, xRequestId: string, ts: string): string {
+  const parts: string[] = [];
+  if (dataId) parts.push(`id:${dataId}`);
+  if (xRequestId) parts.push(`request-id:${xRequestId}`);
+  parts.push(`ts:${ts}`);
+  return parts.join(";");
+}
 
 function verifyMercadoPagoSignature(
-  rawBody: string,
   xSignature: string | null,
+  xRequestId: string | null,
+  dataId: string | null,
   secret: string
 ): boolean {
   if (!xSignature || !secret) {
@@ -72,12 +91,11 @@ function verifyMercadoPagoSignature(
 
   if (!tsMatch || !v1Match) return false;
 
-  const ts = tsMatch[1];
+  const manifest = buildWebhookSigningManifest(dataId ?? "", xRequestId ?? "", tsMatch[1]);
 
-  const signingString = `${rawBody}|${ts}`;
   const expected = crypto
     .createHmac("sha256", secret)
-    .update(signingString, "utf8")
+    .update(manifest, "utf8")
     .digest("hex");
 
   if (expected.length !== v1Match[1].length) return false;
@@ -119,7 +137,10 @@ export async function POST(request: NextRequest) {
 
     const webhookSecret = process.env.MP_WEBHOOK_SECRET || "";
     const xSignature = request.headers.get("x-signature");
-    if (!verifyMercadoPagoSignature(rawBody, xSignature, webhookSecret)) {
+    const xRequestId = request.headers.get("x-request-id");
+    // El manifest se arma con data.id del query string, no con el cuerpo.
+    const notificationDataId = request.nextUrl.searchParams.get("data.id");
+    if (!verifyMercadoPagoSignature(xSignature, xRequestId, notificationDataId, webhookSecret)) {
       return NextResponse.json({ ok: false, error: "invalid signature" }, { status: 401 });
     }
 
