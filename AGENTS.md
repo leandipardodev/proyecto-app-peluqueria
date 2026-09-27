@@ -58,6 +58,7 @@ Shop isolation via `shop_memberships` + RLS. Middleware resolves shop from URL �
 - `server-only` mocked in tests automatically
 - Middleware swallows errors (allows requests through) — check logs if auth seems broken
 - Argentina timezone hardcoded — all through `argentina-time.ts`
+- WhatsApp automation is parked: off unless `NEXT_PUBLIC_WHATSAPP_ENABLED=true`. Owner must regularize AFIP debt (Meta requires business verification for the multi-shop Tech Provider model). Wake = set env + deploy; flag gates panel, cron and embed-callback via `src/lib/dashboard/whatsapp/wa-feature.ts`. Cron job still runs every 30min (returns `paused:true`).
 
 ## Env vars
 

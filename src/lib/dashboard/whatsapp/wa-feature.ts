@@ -1,0 +1,1 @@
+export const whatsappEnabled = process.env.NEXT_PUBLIC_WHATSAPP_ENABLED === "true";
