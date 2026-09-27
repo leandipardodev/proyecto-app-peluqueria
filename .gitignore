@@ -39,3 +39,4 @@ yarn-error.log*
 .supabase/*.json
 .supabase/.temp/
 supabase/.temp/
+.env*
