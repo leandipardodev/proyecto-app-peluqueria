@@ -52,6 +52,24 @@ function isUniqueViolation(error: unknown): boolean {
   const maybeCode = (error as { code?: string }).code;
   return maybeCode === "23505";
 }
+
+/**
+ * True cuando Mercado Pago responde que el recurso no existe.
+ *
+ * El cliente tira objetos planos con `response.status` / `response.data`, no
+ * instancias de Error, asi que hay que mirar en los dos lugares.
+ */
+function isResourceNotFound(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+
+  const obj = error as { response?: { status?: unknown; data?: unknown }; status?: unknown; message?: unknown };
+  const responseStatus = obj.response?.status ?? obj.status;
+  if (responseStatus === 404) return true;
+
+  const data = obj.response?.data as { message?: unknown; error?: unknown } | undefined;
+  const message = `${String(obj.message ?? "")} ${String(data?.message ?? "")} ${String(data?.error ?? "")}`.toLowerCase();
+  return message.includes("not found") || message.includes("no encontrado");
+}
 /**
  * Manifest que firma Mercado Pago en el header x-signature.
  *
@@ -355,10 +373,32 @@ export async function POST(request: NextRequest) {
 
     const client = new MercadoPagoConfig({ accessToken });
     const payment = new Payment(client);
-    const paymentResult = await withRetry(
-      () => payment.get({ id: paymentId }),
-      { retries: 1, delayMs: 800, onRetry: (attempt) => logWarn(log, `MP API retry ${attempt}`) }
-    );
+    let paymentResult;
+    try {
+      paymentResult = await withRetry(
+        () => payment.get({ id: paymentId }),
+        { retries: 1, delayMs: 800, onRetry: (attempt) => logWarn(log, `MP API retry ${attempt}`) }
+      );
+    } catch (error) {
+      if (isResourceNotFound(error)) {
+        // MP dice que este pago no existe, y no va a empezar a existir: el
+        // evento ya se fired. MP reintenta la notificacion cada 15 minutos y,
+        // despues del tercero, con el intervalo cada vez mas largo, pero SIN
+        // limite. Cada reintento cuenta como entrega fallida en el panel de
+        // notificaciones, que es uno de los aspects que MP puntua para dar el
+        // score de calidad. Confirmar con 200 corta la insistencia.
+        //
+        // Un 500 real (bug nuestro, caida de red) sigue_PROPAGANDO el error
+        // para que MP reintente: eso si se puede resolver solo.
+        logWarn(log, "MP no encuentra el pago: se confirma la notificacion sin procesar", {
+          paymentId,
+          type,
+          action,
+        });
+        return NextResponse.json({ ok: true, skipped: "payment_not_found" });
+      }
+      throw error;
+    }
 
     const externalReference = (paymentResult.external_reference as string | undefined) || "";
     if (scope === "billing" || externalReference.startsWith("shop_sub:")) {

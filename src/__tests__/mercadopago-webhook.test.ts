@@ -149,6 +149,46 @@ describe("mercadopago-webhook POST — validation", () => {
     expect(res.status).toBe(401);
   });
 
+  describe("pago que MP no encuentra", () => {
+    // MP reintenta la notificacion cada 15 minutos y, despues del tercer
+    // intento, con intervalos cada vez mas largos pero sin limite. Cada
+    // reintento queda como entrega fallida en el panel de notificaciones, que
+    // MP usa para puntuar. Un 404 no se resuelve solo, asi que hay que
+    // confirmar con 200.
+    function mpNotFound() {
+      return { response: { status: 404, data: { message: "Payment not found", error: "not found" } } };
+    }
+
+    const url = "http://localhost/api/payments/mercadopago-webhook?data.id=999999999";
+
+    it("confirma con 200 en vez de devolver 500", async () => {
+      mockPaymentGet.mockRejectedValue(mpNotFound());
+
+      const res = await POST(createNextRequest({ type: "payment", data: { id: "999999999" } }, { url }));
+
+      expect(res.status).toBe(200);
+      await expect(res.json()).resolves.toMatchObject({ ok: true, skipped: "payment_not_found" });
+    });
+
+    it("sigue devolviendo 500 si la falla es otra cosa", async () => {
+      // Un 500 por bug nuestro o caida de red tiene que reintentarse: eso si
+      // se resuelve solo, y confirmar con 200 perderia el pago.
+      mockPaymentGet.mockRejectedValue({ response: { status: 500, data: { message: "internal" } } });
+
+      const res = await POST(createNextRequest({ type: "payment", data: { id: "999999999" } }, { url }));
+
+      expect(res.status).toBe(500);
+    });
+
+    it("detecta el 404 por mensaje aunque no venga el status", async () => {
+      mockPaymentGet.mockRejectedValue({ message: "Payment not found" });
+
+      const res = await POST(createNextRequest({ type: "payment", data: { id: "999999999" } }, { url }));
+
+      expect(res.status).toBe(200);
+    });
+  });
+
   describe("firma de la notificacion", () => {
     // MP firma `id:[data.id];request-id:[x-request-id];ts:[ts]`, armado con el
     // data.id del QUERY STRING. Klip firmaba `${rawBody}|${ts}`: con el secret
