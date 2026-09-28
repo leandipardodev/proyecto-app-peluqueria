@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     let shopId = rawShopId;
     let mpAccessToken = "";
     let shopSlug = "";
-    let mpItems: { id: string; title: string; quantity: number; unit_price: number; currency_id: string }[] = [];
+    let mpItems: { id: string; title: string; description: string; quantity: number; unit_price: number; currency_id: string }[] = [];
     let shopName = "";
     let paymentMethods: ReturnType<typeof buildMpPaymentMethods> = undefined;
 
@@ -68,12 +68,13 @@ export async function POST(request: NextRequest) {
           return {
             id: svc.id,
             title: `${shopName} - ${svc.name}`,
+            description: `Servicio: ${svc.name}`,
             quantity: 1,
             unit_price: Number(svc.price),
             currency_id: "ARS",
           };
         })
-        .filter((item): item is { id: string; title: string; quantity: number; unit_price: number; currency_id: string } => item !== null);
+        .filter((item): item is { id: string; title: string; description: string; quantity: number; unit_price: number; currency_id: string } => item !== null);
 
       if (mpItems.length === 0) {
         return NextResponse.json({ error: "No hay servicios válidos para pagar" }, { status: 400 });
@@ -114,6 +115,7 @@ export async function POST(request: NextRequest) {
       mpItems = [{
         id: service.id,
         title: `${shopName} - ${service.name}`,
+        description: `Servicio: ${service.name}`,
         quantity: 1,
         unit_price: Number(service.price),
         currency_id: "ARS",

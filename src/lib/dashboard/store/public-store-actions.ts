@@ -276,10 +276,12 @@ export async function createStoreOrder(input: StoreCheckoutInput): Promise<Actio
         items: lineItems.map((li) => ({
           id: li.productId,
           title: li.name,
+          description: li.name,
           quantity: li.quantity,
           unit_price: li.unitPrice,
           currency_id: "ARS",
         })),
+        payer: { email: input.customerEmail.trim() },
         back_urls: canUseBackUrls
           ? { success: successUrl, pending: pendingUrl, failure: failureUrl }
           : undefined,

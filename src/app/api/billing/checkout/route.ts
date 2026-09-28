@@ -66,11 +66,13 @@ export async function POST(request: NextRequest) {
           {
             id: `sub-${cycleRaw}`,
             title: `${shop.nombre} - Membresía ${label}`,
+            description: `Suscripción mensual de Klip para ${shop.nombre}`,
             quantity: 1,
             unit_price: amount,
             currency_id: "ARS",
           },
         ],
+        ...(user.email ? { payer: { email: user.email } } : {}),
         back_urls: { success: backUrl, pending: backUrl, failure: backUrl },
         auto_return: "approved",
         external_reference: externalReference,

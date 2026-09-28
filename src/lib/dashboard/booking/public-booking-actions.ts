@@ -1467,7 +1467,7 @@ export async function createPaymentPreference(
     const admin = await createAdminClient();
     const { data: appointment, error: appointmentError } = await admin
       .from("appointments")
-      .select("id, shop_id, service_id")
+      .select("id, shop_id, service_id, customers(email)")
       .eq("id", appointmentData.appointmentId)
       .eq("shop_id", appointmentData.shopId)
       .maybeSingle();
@@ -1487,6 +1487,8 @@ export async function createPaymentPreference(
     }
 
     const serviceName = service.name;
+    // MP pide payer.email en la preferencia para bajar rechazos por fraude.
+    const customerEmail = (appointment.customers as unknown as { email?: string | null } | null)?.email?.trim();
     const effectivePrice = appointmentData.overridePrice !== undefined ? appointmentData.overridePrice : (Number(service.price) || 0);
 
     const { data: shopPolicy, error: shopPolicyError } = await admin
@@ -1549,11 +1551,13 @@ export async function createPaymentPreference(
           {
             id: appointment.id,
             title: depositEnabled ? `Seña - ${serviceName}` : serviceName,
+            description: `${depositEnabled ? "Seña" : "Turno"} - ${serviceName}`,
             quantity: 1,
             unit_price: chargeAmount,
             currency_id: "ARS",
           },
         ],
+        ...(customerEmail ? { payer: { email: customerEmail } } : {}),
         back_urls: canUseBackUrls
           ? {
               success: successUrl,
@@ -1823,6 +1827,7 @@ export async function createCombinedCheckout(
             {
               id: mainAppointmentId,
               title: isDeposit ? `Seña - ${serviceTitle}` : serviceTitle,
+              description: `${isDeposit ? "Seña" : "Turno"} - ${serviceTitle}`,
               quantity: 1,
               unit_price: depositCharge,
               currency_id: "ARS",
@@ -1830,11 +1835,13 @@ export async function createCombinedCheckout(
             ...lineItems.map((li) => ({
               id: li.productId,
               title: li.name,
+              description: li.name,
               quantity: li.quantity,
               unit_price: li.unitPrice,
               currency_id: "ARS",
             })),
           ],
+          ...(input.customerEmail?.trim() ? { payer: { email: input.customerEmail.trim() } } : {}),
           back_urls: canUseBackUrls
             ? { success: successUrl, pending: pendingUrl, failure: failureUrl }
             : undefined,

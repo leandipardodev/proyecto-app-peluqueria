@@ -373,11 +373,13 @@ export async function createPendingBooking(
           {
             id: booking.id,
             title: input.serviceName,
+            description: `Seña - ${input.serviceName}`,
             quantity: 1,
             unit_price: chargeAmount,
             currency_id: "ARS",
           },
         ],
+        ...(input.customerEmail?.trim() ? { payer: { email: input.customerEmail.trim() } } : {}),
         back_urls: canUseBackUrls
           ? { success: successUrl, pending: pendingUrl, failure: failureUrl }
           : undefined,

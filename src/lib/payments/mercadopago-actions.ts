@@ -129,7 +129,9 @@ export async function createPaymentLink(appointmentId: string): Promise<ActionRe
       return { success: false, error: "Servicio no encontrado" };
     }
 
-    const customerName = (appointment.customers as unknown as { id: string; nombre: string; email?: string })?.nombre || "Cliente";
+    const customer = appointment.customers as unknown as { id: string; nombre: string; email?: string | null } | null;
+    const customerName = customer?.nombre || "Cliente";
+    const customerEmail = customer?.email?.trim() || undefined;
     const basePrice = Number(service.price);
     const discountPercent = Math.max(0, Math.min(100, Number(appointment.loyalty_discount_percent_applied || 0)));
     const price = Math.max(0, Number((basePrice * (1 - discountPercent / 100)).toFixed(2)));
@@ -160,8 +162,8 @@ export async function createPaymentLink(appointmentId: string): Promise<ActionRe
 
     const result = await preference.create({
       body: {
-        items: [{ id: appointmentId, title, quantity: 1, unit_price: price, currency_id: "ARS" }],
-        payer: { name: customerName },
+        items: [{ id: appointmentId, title, description: `Turno: ${service.name}`, quantity: 1, unit_price: price, currency_id: "ARS" }],
+        payer: { name: customerName, ...(customerEmail ? { email: customerEmail } : {}) },
         back_urls: {
           success: `${siteUrl}/dashboard/appointments`,
           failure: `${siteUrl}/dashboard/appointments`,
