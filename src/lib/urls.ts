@@ -69,7 +69,25 @@ function stripTrailingSlashes(value: string): string {
   return value.replace(/\/+$/, "");
 }
 
-function validateNotificationUrl(value: string): string | null {
+/**
+ * Hosts reservados por RFC 2606/6761 para documentacion y pruebas.
+ *
+ * `https://api.example.com` es el placeholder que aparece en los ejemplos de la
+ * documentacion de Mercado Pago. Es una URL perfectamente valida y por eso
+ * atraviesa el chequeo de https sin que nadie se entere: la app manda las
+ * notification_url y los back_urls a un host ajeno, el comprador vuelve de
+ * pagar a un sitio de ejemplo y Klip nunca recibe la notificacion. Falla
+ * aca, en el boot, en vez de en silencio.
+ */
+const RESERVED_HOSTS = ["example.com", "example.org", "example.net", "test", "invalid"] as const;
+
+/**
+ * Devuelve el problema de una URL publica, o null si sirve.
+ *
+ * Vive aca y no duplicado en `env.ts` porque el chequeo de https y el de los
+ * hosts reservados tienen que dar el mismo veredicto en los dos lugares.
+ */
+export function describePublicUrlProblem(value: string, requireHttps: boolean): string | null {
   let parsed: URL;
   try {
     parsed = new URL(value);
@@ -81,14 +99,25 @@ function validateNotificationUrl(value: string): string | null {
     return `protocolo no soportado (${parsed.protocol})`;
   }
 
-  if (parsed.protocol === "http:" && process.env.NODE_ENV === "production") {
+  if (parsed.protocol === "http:" && requireHttps) {
     // Mercado Pago exige https en produccion para notificar.
     return "en produccion tiene que ser https";
   }
 
   if (!parsed.hostname) return "sin hostname";
 
+  const host = parsed.hostname.toLowerCase();
+  for (const reserved of RESERVED_HOSTS) {
+    if (host === reserved || host.endsWith(`.${reserved}`)) {
+      return `es un host reservado de documentacion (${host}), no una URL real`;
+    }
+  }
+
   return null;
+}
+
+function validateNotificationUrl(value: string): string | null {
+  return describePublicUrlProblem(value, process.env.NODE_ENV === "production");
 }
 
 /**

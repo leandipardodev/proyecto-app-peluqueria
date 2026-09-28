@@ -4,6 +4,11 @@ type EnvVar = {
   description: string;
 };
 
+import { describePublicUrlProblem } from "@/lib/urls";
+
+/** Variables cuyo valor es la URL publica de la app y por lo tanto se validan. */
+const PUBLIC_URL_VARS = ["NEXT_PUBLIC_SITE_URL", "NEXT_PUBLIC_BASE_URL"] as const;
+
 const VARS: EnvVar[] = [
   { name: "NEXT_PUBLIC_SUPABASE_URL", required: true, description: "Supabase project URL" },
   { name: "NEXT_PUBLIC_SUPABASE_ANON_KEY", required: true, description: "Supabase anonymous key" },
@@ -34,6 +39,23 @@ const VARS: EnvVar[] = [
   { name: "WHATSAPP_WEBHOOK_VERIFY_TOKEN", required: false, description: "Token de verificacion del webhook de WhatsApp" },
 ];
 
+function invalidPublicUrls(): string[] {
+  const problems: string[] = [];
+
+  for (const name of PUBLIC_URL_VARS) {
+    const raw = process.env[name];
+    if (!raw) continue; // la ausencia ya la reporta el chequeo de required
+
+    const value = raw.trim().replace(/\/+$/, "");
+    if (!value) continue;
+
+    const problem = describePublicUrlProblem(value, process.env.NODE_ENV === "production");
+    if (problem) problems.push(`  - ${name}="${raw}": ${problem}`);
+  }
+
+  return problems;
+}
+
 export function validateEnv(): void {
   const missing: EnvVar[] = [];
 
@@ -53,6 +75,24 @@ export function validateEnv(): void {
     if (process.env.NODE_ENV === "production") {
       throw new Error(
         `Missing required environment variables: ${missing.map((v) => v.name).join(", ")}`,
+      );
+    }
+  }
+
+  const invalidUrls = invalidPublicUrls();
+  if (invalidUrls.length > 0) {
+    const msg = invalidUrls.join("\n");
+    console.error(`[env] invalid public URL variable(s):\n${msg}`);
+
+    // Un placeholder como https://api.example.com es una URL valida: si la app
+    // levanta igual, Mercado Pago manda las notificaciones del pago y los
+    // redirects del comprador a un host ajeno, sin error en ninguna parte.
+    // Prefiero que no levante.
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        `Invalid public URL environment variable(s) in production:\n${msg}\n\n` +
+          "Mercado Pago sends payment notifications and buyer redirects to this host. " +
+          "Set NEXT_PUBLIC_SITE_URL and NEXT_PUBLIC_BASE_URL to the real production domain.",
       );
     }
   }

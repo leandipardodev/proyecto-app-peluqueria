@@ -90,5 +90,54 @@ describe("resolveNotificationBaseUrl", () => {
 
     expect(resolveNotificationBaseUrl()).toBe("https://klip.com.ar");
   });
+
+  describe("hosts reservados de documentacion", () => {
+    // El que estaba configurado en produccion. Pasa el chequeo de https, asi
+    // que antes de este guard la app mandaba las notificaciones del pago y los
+    // back_urls a api.example.com sin decir nada.
+    const reserved: Array<[string, string]> = [
+      ["https://api.example.com", "api.example.com"],
+      ["https://example.com", "example.com"],
+      ["https://www.example.org", "www.example.org"],
+      ["https://klip.example.net", "klip.example.net"],
+    ];
+
+    for (const [value, host] of reserved) {
+      it(`rechaza ${value}`, () => {
+        process.env.NEXT_PUBLIC_SITE_URL = value;
+
+        expect(() => resolveNotificationBaseUrl()).toThrow(
+          new RegExp(`host reservado.*${host.replace(/\./g, "\\.")}`),
+        );
+      });
+    }
+
+    it("rechaza el placeholder aunque SITE_URL sea invalido y BASE_URL sirva", () => {
+      // No debe "ayudar" bajando al siguiente candidato: si SITE_URL esta
+      // corrupto el problema de configuracion tiene que verse.
+      process.env.NEXT_PUBLIC_SITE_URL = "https://api.example.com";
+      process.env.NEXT_PUBLIC_BASE_URL = "https://klip.com.ar";
+
+      expect(() => resolveNotificationBaseUrl()).toThrow(/host reservado/);
+    });
+
+    it("deja pasar un dominio real que lo contiene como substring", () => {
+      process.env.NEXT_PUBLIC_SITE_URL = "https://klip.com.ar";
+
+      expect(resolveNotificationBaseUrl()).toBe("https://klip.com.ar");
+    });
+
+    it("rechaza el placeholder tambien fuera de produccion", () => {
+      const prevNodeEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = "development";
+      process.env.NEXT_PUBLIC_SITE_URL = "https://api.example.com";
+
+      try {
+        expect(() => resolveNotificationBaseUrl()).toThrow(/host reservado/);
+      } finally {
+        process.env.NODE_ENV = prevNodeEnv;
+      }
+    });
+  });
 });
 
