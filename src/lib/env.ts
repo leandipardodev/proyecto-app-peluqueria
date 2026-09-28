@@ -17,7 +17,7 @@ const VARS: EnvVar[] = [
   { name: "NEXT_PUBLIC_BASE_URL", required: true, description: "Base URL for API calls" },
   { name: "MP_ACCESS_TOKEN", required: true, description: "Mercado Pago access token" },
   { name: "MP_WEBHOOK_SECRET", required: true, description: "Secret for webhook HMAC validation" },
-  { name: "NEXT_PUBLIC_MP_PUBLIC_KEY", required: true, description: "Mercado Pago public key" },
+  { name: "NEXT_PUBLIC_MP_PUBLIC_KEY", required: false, description: "Mercado Pago public key, solo como fallback para shops sin key en la base" },
   { name: "MP_OAUTH_CLIENT_ID", required: true, description: "Mercado Pago OAuth client ID" },
   { name: "MP_OAUTH_CLIENT_SECRET", required: true, description: "Mercado Pago OAuth client secret" },
   { name: "MP_OAUTH_STATE_SECRET", required: true, description: "Secret for OAuth state param" },
