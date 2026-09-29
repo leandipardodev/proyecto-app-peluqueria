@@ -16,6 +16,7 @@ import {
   registerLoyaltyCut,
 } from "./shared";
 import type { Json } from "@/lib/supabase/database.types";
+import { type AppointmentStatus, canTransitionStatus, isAppointmentStatus } from "./status";
 import "server-only";
 
 export async function createAppointment(formData: FormData, shopId: string): Promise<ActionResult> {
@@ -156,7 +157,7 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
           start_time: currentStart.toISOString(),
           end_time: currentEnd.toISOString(),
           date_key_ar: getArgentinaDateKey(currentStart.toISOString()),
-          status: "scheduled" as const,
+          status: "confirmed" as const,
           deposit_amount: depositAmount,
           is_paid: false,
           recurring_group_id: recurringGroupId,
@@ -219,6 +220,8 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
     } catch (mailError) {
       console.error("[createAppointment] email automation error:", mailError);
     }
+
+    await trackProductEvent(shopId, "first_booking_confirmed", { actorUserId: user.id });
 
     await revalidateDashboardSegments(shopId, ["/calendar", ""]);
     return { success: true };
@@ -380,7 +383,7 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
           start_time: currentStart.toISOString(),
           end_time: currentEnd.toISOString(),
           date_key_ar: getArgentinaDateKey(currentStart.toISOString()),
-          status: "scheduled" as const,
+          status: "confirmed" as const,
           deposit_amount: depositAmount,
           is_paid: false,
           recurring_group_id: recurringGroupId,
@@ -442,6 +445,8 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
       console.error("[createCustomerAndAppointment] email automation error:", mailError);
     }
 
+    await trackProductEvent(shopId, "first_booking_confirmed", { actorUserId: user.id });
+
     await revalidateDashboardSegments(shopId, ["/calendar", ""]);
     return { success: true };
   } catch (e) {
@@ -451,7 +456,7 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
 
 export async function updateAppointmentStatus(
   id: string,
-  status: string,
+  status: AppointmentStatus,
   isPaid?: boolean,
   shopId?: string,
   depositAmount?: number | null
@@ -468,6 +473,8 @@ export async function updateAppointmentStatus(
     const allowed = await canAccessShopId(user.id, shopId);
     if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
 
+    if (!isAppointmentStatus(status)) return { success: false, error: "Estado de turno inválido" };
+
     const supabase = await createServerClient();
 
     const { data: currentAppointment, error: currentAppointmentError } = await supabase
@@ -479,6 +486,11 @@ export async function updateAppointmentStatus(
 
     if (currentAppointmentError) return { success: false, error: currentAppointmentError.message };
     if (!currentAppointment) return { success: false, error: "Turno no encontrado" };
+
+    const currentStatus = currentAppointment.status as string;
+    if (currentStatus !== status && !canTransitionStatus(currentStatus, status)) {
+      return { success: false, error: `No se puede pasar de "${currentStatus}" a "${status}"` };
+    }
 
     const updates: Record<string, Json> = { status, updated_at: new Date().toISOString() };
     if (status === "completed" && isPaid === undefined) {
@@ -589,7 +601,14 @@ export async function updateAppointmentStaff(
 
 export async function patchAppointmentQuick(
   id: string,
-  patch: { status?: string; isPaid?: boolean; staffId?: string | null; serviceId?: string; startTime?: string },
+  patch: {
+    status?: AppointmentStatus;
+    isPaid?: boolean;
+    wasPendingPayment?: boolean;
+    staffId?: string | null;
+    serviceId?: string;
+    startTime?: string;
+  },
   shopId?: string,
 ): Promise<ActionResult> {
   try {
@@ -614,6 +633,15 @@ export async function patchAppointmentQuick(
 
     if (aptError) return { success: false, error: aptError.message };
     if (!appointment) return { success: false, error: "Turno no encontrado" };
+
+    if (patch.status !== undefined && !isAppointmentStatus(patch.status)) {
+      return { success: false, error: "Estado de turno inválido" };
+    }
+
+    const currentStatus = appointment.status as string;
+    if (patch.status !== undefined && patch.status !== currentStatus && !canTransitionStatus(currentStatus, patch.status)) {
+      return { success: false, error: `No se puede pasar de "${currentStatus}" a "${patch.status}"` };
+    }
 
     const normalizedStaffId = patch.staffId !== undefined
       ? (patch.staffId && patch.staffId.trim().length > 0 ? patch.staffId.trim() : null)
@@ -667,6 +695,7 @@ export async function patchAppointmentQuick(
     if (patch.status !== undefined) updates.status = patch.status;
     if (patch.status === "completed" && patch.isPaid === undefined) updates.is_paid = true;
     if (patch.isPaid !== undefined) updates.is_paid = patch.isPaid;
+    if (patch.wasPendingPayment !== undefined) updates.was_pending_payment = patch.wasPendingPayment;
     if (normalizedStaffId !== undefined) updates.staff_id = normalizedStaffId;
     if (normalizedServiceId !== undefined) {
       updates.service_id = normalizedServiceId;
@@ -695,13 +724,6 @@ export async function patchAppointmentQuick(
     if (shouldRegisterLoyaltyCut) {
       const loyaltyResult = await registerLoyaltyCut(shopId, appointment.customer_id as string);
       if (!loyaltyResult.success) return loyaltyResult;
-    }
-
-    if (nextStatus === "confirmed" && appointment.status !== "confirmed") {
-      await trackProductEvent(shopId, "first_booking_confirmed", {
-        actorUserId: user.id,
-        metadata: { appointment_id: id },
-      });
     }
 
     await revalidateDashboardSegments(shopId, ["/calendar", "/appointments", ""]);
@@ -1145,7 +1167,6 @@ export async function moveAppointmentGroup(
         .eq("date_key_ar", primary.date_key_ar ?? "")
         .neq("id", primaryId)
         .neq("status", "cancelled")
-        .neq("status", "no_show")
         .order("start_time", { ascending: true });
 
       if (siblings && siblings.length > 0) {
@@ -1192,7 +1213,6 @@ export async function moveAppointmentGroup(
         .eq("shop_id", shopId)
         .eq("staff_id", staffId)
         .neq("status", "cancelled")
-        .neq("status", "no_show")
         .or(conditions.join(","))
         .limit(1);
 
@@ -1230,7 +1250,7 @@ export async function moveAppointmentGroup(
   }
 }
 
-type AutoCompleteResult = ActionResult<{ completed: number; confirmed: number; flagged: number }>;
+type AutoCompleteResult = ActionResult<{ completed: number; flagged: number }>;
 
 // Máximo de turnos procesados por corrida: un local con mucho backlog no dispara
 // un batch gigante que agote el tiempo de la función; el resto se drena solo con
@@ -1262,25 +1282,11 @@ async function runAutoCompletePastAppointments(shopId: string): Promise<AutoComp
     const admin = await createAdminClient();
     const { data: shop } = await admin.from("shops").select("auto_complete_enabled").eq("id", shopId).maybeSingle();
     if (!shop?.auto_complete_enabled) {
-      return { success: true, data: { completed: 0, confirmed: 0, flagged: 0 } };
+      return { success: true, data: { completed: 0, flagged: 0 } };
     }
 
     const nowAr = getArgentinaNow();
     const nowIso = nowAr.toISOString();
-    const confirmCutoff = new Date(nowAr.getTime() - 15 * 60 * 1000).toISOString();
-
-    // Auto-confirmar turnos nuevos cuyo inicio ya pasó hace más de 15 min.
-    const { data: confirmData, error: confirmError } = await admin
-      .from("appointments")
-      .update({ status: "confirmed", updated_at: nowIso })
-      .eq("shop_id", shopId)
-      .in("status", ["scheduled"])
-      .eq("auto_completed", false)
-      .lt("start_time", confirmCutoff)
-      .select("id")
-      .limit(AUTO_COMPLETE_BATCH_SIZE);
-
-    if (confirmError) return { success: false, error: confirmError.message };
 
     // Auto-completar todos los turnos abiertos cuyo horario de fin ya pasó.
     // Se completan como pagados por default. Los que estaban en pending_payment
@@ -1291,7 +1297,7 @@ async function runAutoCompletePastAppointments(shopId: string): Promise<AutoComp
       .from("appointments")
       .update({ status: "completed", is_paid: true, was_pending_payment: false, auto_completed: true, updated_at: nowIso })
       .eq("shop_id", shopId)
-      .in("status", ["scheduled", "confirmed", "in_progress"])
+      .in("status", ["confirmed"])
       .eq("auto_completed", false)
       .lt("end_time", nowIso)
       .select("id, customer_id")
@@ -1324,7 +1330,7 @@ async function runAutoCompletePastAppointments(shopId: string): Promise<AutoComp
       }
     }
 
-    const changed = (confirmData?.length ?? 0) + completedData.length;
+    const changed = completedData.length;
     if (changed > 0) {
       await revalidateDashboardSegments(shopId, ["/calendar", "/appointments", "/customers", ""]);
     }
@@ -1333,7 +1339,6 @@ async function runAutoCompletePastAppointments(shopId: string): Promise<AutoComp
       success: true,
       data: {
         completed: completedData.length,
-        confirmed: confirmData?.length ?? 0,
         flagged: flaggedData?.length ?? 0,
       },
     };

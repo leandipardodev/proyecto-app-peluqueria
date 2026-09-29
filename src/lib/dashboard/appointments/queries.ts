@@ -24,7 +24,6 @@ export async function fetchAppointments(startDate: string, endDate: string, shop
       .gte("start_time", startDate)
       .lte("start_time", endDate)
       .neq("status", "cancelled")
-      .neq("status", "no_show")
       .order("start_time", { ascending: true });
 
     if (error) return { success: false, error: error.message };
@@ -242,7 +241,6 @@ export async function fetchAllAppointmentsForTable(
       .select("id, start_time, end_time, status, is_paid, was_pending_payment, deposit_amount, loyalty_reward_applied, loyalty_discount_percent_applied, recurring_group_id, customer_id, staff_id, service_id, custom_service_name")
       .eq("shop_id", shopId)
       .neq("status", "cancelled")
-      .neq("status", "no_show")
       .order("start_time", { ascending: true });
 
     if (upcomingOnly) {

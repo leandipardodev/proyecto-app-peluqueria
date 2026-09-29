@@ -822,7 +822,7 @@ export async function removeStaff(id: string, shopIdOverride?: string): Promise<
       .eq("shop_id", shopId)
       .eq("staff_id", id)
       .gte("start_time", nowIso)
-      .in("status", ["scheduled", "confirmed", "in_progress"]);
+      .in("status", ["confirmed", "pending_payment"]);
 
     if (appointmentsError) return { success: false, error: appointmentsError.message };
 

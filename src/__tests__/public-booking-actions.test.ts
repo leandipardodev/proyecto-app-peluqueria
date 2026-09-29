@@ -186,7 +186,7 @@ describe("fetchPublicAvailableSlots", () => {
       makeAdmin({
         ...defaultRoutes(),
         shop_memberships: memberships("s1"),
-        appointments: [{ start_time: isoAt(date, 12, 0), end_time: isoAt(date, 13, 0), staff_id: "s1", status: "scheduled", created_at: null }],
+        appointments: [{ start_time: isoAt(date, 12, 0), end_time: isoAt(date, 13, 0), staff_id: "s1", status: "confirmed", created_at: null }],
       })
     );
     const res = await fetchPublicAvailableSlots("shop-1", 60, date);

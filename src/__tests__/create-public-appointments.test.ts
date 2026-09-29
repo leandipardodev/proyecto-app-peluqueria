@@ -222,14 +222,14 @@ describe("createPublicAppointment - cliente atomico y cache", () => {
 
   it("no marca el booking como repetido para items intermedios del carrito (skipRepeatCache)", async () => {
     adminClientMock.mockResolvedValue(makeSuccessAdmin());
-    const res = await createPublicAppointment({ ...baseAppointment, staffId: "s1", customerEmail: undefined, status: "scheduled", skipRepeatCache: true });
+    const res = await createPublicAppointment({ ...baseAppointment, staffId: "s1", customerEmail: undefined, status: "confirmed", skipRepeatCache: true });
     expect(res.success).toBe(true);
     expect(cacheSetMock).not.toHaveBeenCalled();
   });
 
-  it("marca el booking como completado para un turno pagado en local (scheduled)", async () => {
+  it("marca el booking como completado para un turno pagado en local (confirmed)", async () => {
     adminClientMock.mockResolvedValue(makeSuccessAdmin());
-    const res = await createPublicAppointment({ ...baseAppointment, staffId: "s1", customerEmail: undefined, status: "scheduled" });
+    const res = await createPublicAppointment({ ...baseAppointment, staffId: "s1", customerEmail: undefined, status: "confirmed" });
     expect(res.success).toBe(true);
     expect(cacheSetMock).toHaveBeenCalledTimes(1);
   });

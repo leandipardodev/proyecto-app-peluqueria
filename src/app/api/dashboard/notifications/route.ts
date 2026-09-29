@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient, getShopId } from "@/lib/dashboard/auth/server";
 import { getArgentinaNow } from "@/lib/argentina-time";
-import { APPOINTMENT_STATUS_NEEDS_CONFIRMATION } from "@/lib/dashboard/appointments/status";
+import { APPOINTMENT_STATUS_OPEN } from "@/lib/dashboard/appointments/status";
 import { autoCompletePastAppointments } from "@/lib/dashboard/appointments/mutations";
 
 export const dynamic = "force-dynamic";
@@ -191,7 +191,7 @@ export async function GET() {
     const [notifsRes, readsRes, urgentRes, stockCountRes, bankTransfersRes, ordersRes] = await Promise.all([
       admin.from("notifications").select("id, type, category, title, description, href, created_at").eq("shop_id", shopId).order("created_at", { ascending: false }).limit(50),
       admin.from("notification_reads").select("notification_id").eq("user_id", authUser.id),
-      admin.from("appointments").select("id", { count: "exact", head: true }).eq("shop_id", shopId).in("status", APPOINTMENT_STATUS_NEEDS_CONFIRMATION as unknown as string[]).gte("start_time", nowAr.toISOString()).lte("start_time", oneHourFromNow),
+      admin.from("appointments").select("id", { count: "exact", head: true }).eq("shop_id", shopId).in("status", APPOINTMENT_STATUS_OPEN as unknown as string[]).gte("start_time", nowAr.toISOString()).lte("start_time", oneHourFromNow),
       admin.from("stock").select("id", { count: "exact", head: true }).eq("shop_id", shopId).lt("quantity", 5),
       admin.from("pending_bookings").select("id", { count: "exact", head: true }).eq("shop_id", shopId).eq("status", "pending").eq("payment_method", "bank_transfer").gt("expires_at", nowAr.toISOString()),
       admin.from("orders").select("id", { count: "exact", head: true }).eq("shop_id", shopId).eq("status", "pending_payment"),

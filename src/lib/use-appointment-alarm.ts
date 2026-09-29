@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { APPOINTMENT_STATUS_OPEN } from "@/lib/dashboard/appointments/status";
 import { playSound } from "./sound";
 
 const NOTIFIED_KEY = "klip_notified_appointments";
@@ -23,6 +24,7 @@ export function useAppointmentAlarm(
 ): void {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const appointmentsRef = useRef(appointments);
+  const openStatuses = useRef<Set<string>>(new Set(APPOINTMENT_STATUS_OPEN as unknown as string[]));
 
   useEffect(() => {
     appointmentsRef.current = appointments;
@@ -35,7 +37,7 @@ export function useAppointmentAlarm(
       let changed = false;
 
       for (const apt of appointmentsRef.current) {
-        if (apt.status !== "scheduled") continue;
+        if (!openStatuses.current.has(apt.status)) continue;
         if (notified.has(apt.id)) continue;
 
         const start = new Date(apt.start_time).getTime();

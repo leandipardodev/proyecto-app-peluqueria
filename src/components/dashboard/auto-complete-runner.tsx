@@ -29,7 +29,7 @@ export default function AutoCompleteRunner({ shopId }: { shopId: string | null }
         const result = await autoCompletePastAppointments(shopId);
         if (cancelled) return;
         const data = result && result.success ? result.data : null;
-        if (data && data.completed + data.confirmed + data.flagged > 0) {
+        if (data && data.completed + data.flagged > 0) {
           notifyChanged();
           router.refresh();
         }

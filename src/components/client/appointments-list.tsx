@@ -5,6 +5,7 @@ import { CalendarDays, DollarSign, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { StatePanel } from "@/components/ui/state-panel";
+import { getAppointmentStatusLabel } from "@/lib/dashboard/appointments/status";
 
 interface Appointment {
   id: string;
@@ -23,12 +24,10 @@ interface ClientAppointmentsListProps {
 }
 
 const statusColors: Record<string, string> = {
-  scheduled: "bg-yellow-100 text-yellow-800",
   confirmed: "bg-blue-100 text-blue-800",
-  in_progress: "bg-purple-100 text-purple-800",
+  pending_payment: "bg-orange-100 text-orange-800",
   completed: "bg-green-100 text-green-800",
   cancelled: "bg-red-100 text-red-800",
-  no_show: "bg-gray-100 text-gray-800",
 };
 
 export default function ClientAppointmentsList({
@@ -43,13 +42,12 @@ export default function ClientAppointmentsList({
     null
   );
 
-  function formatStatus(status: string, isPaid: boolean) {
-    if (status === "pending_payment") return "Pago pendiente";
-    if (status === "scheduled") return "Nuevo";
-    if (status === "confirmed" || status === "in_progress") return "Confirmado";
-    if (status === "completed") return "Completado";
-    if (status === "cancelled" || status === "no_show") return "Cancelado";
-    return status;
+  function formatStatus(status: string) {
+    return getAppointmentStatusLabel(status);
+  }
+
+  function statusColorClass(status: string) {
+    return statusColors[status] ?? "bg-gray-100 text-gray-800";
   }
 
   function formatDateTime(dateStr: string) {
@@ -123,10 +121,10 @@ export default function ClientAppointmentsList({
                     <div className="flex items-center gap-4">
                       <span
                         className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          statusColors[apt.status]
+                          statusColorClass(apt.status)
                         }`}
                       >
-                        {formatStatus(apt.status, apt.is_paid)}
+                        {formatStatus(apt.status)}
                       </span>
                       {apt.service && (
                         <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
@@ -202,10 +200,10 @@ export default function ClientAppointmentsList({
                     </div>
                     <span
                       className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        statusColors[apt.status]
+                        statusColorClass(apt.status)
                       }`}
                     >
-                      {formatStatus(apt.status, apt.is_paid)}
+                      {formatStatus(apt.status)}
                     </span>
                   </div>
                 </div>

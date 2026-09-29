@@ -247,7 +247,7 @@ export async function fetchShopDetail(
       customerName: a.customers?.nombre || "-",
       serviceName: a.services?.name || "-",
       startTime: a.start_time,
-      status: a.status ?? "scheduled",
+      status: a.status ?? "confirmed",
       price: a.service_price ?? 0,
     }),
   );

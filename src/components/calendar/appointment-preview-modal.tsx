@@ -8,6 +8,7 @@ import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { createPortal } from "react-dom";
 import { getUserFriendlyError } from "@/lib/dashboard/appointments/errors";
+import { APPOINTMENT_STATUS_BADGE_CLASS, getAppointmentStatusLabel, isAppointmentStatus } from "@/lib/dashboard/appointments/status";
 
 const SPRING = { stiffness: 460, damping: 34, mass: 0.65 };
 
@@ -30,35 +31,31 @@ type Appointment = {
 
 type StaffMember = { id: string; name: string | null; email: string | null };
 
-const statusFlow: Record<string, { label: string; nextStatus: string; setIsPaid?: boolean }[]> = {
-  scheduled: [{ label: "Confirmar", nextStatus: "confirmed" }],
-  confirmed: [{ label: "Completar", nextStatus: "completed" }],
-  in_progress: [{ label: "Completar", nextStatus: "completed" }],
-  completed: [
-    { label: "No se cobró", nextStatus: "pending_payment", setIsPaid: false },
+const statusFlow: Record<string, { label: string; nextStatus?: string; setIsPaid?: boolean; setWasPendingPayment?: boolean; primary?: boolean }[]> = {
+  confirmed: [
+    { label: "Completar", nextStatus: "completed", primary: true },
     { label: "No se atendió", nextStatus: "cancelled", setIsPaid: false },
-    { label: "Reabrir", nextStatus: "in_progress" },
   ],
-  cancelled: [],
-  no_show: [],
+  pending_payment: [
+    { label: "Marcar pagado", nextStatus: "confirmed", setIsPaid: true, primary: true },
+    { label: "Cancelar turno", nextStatus: "cancelled", setIsPaid: false },
+  ],
+  completed: [
+    { label: "No se cobró", setIsPaid: false, setWasPendingPayment: true },
+    { label: "No se atendió", nextStatus: "cancelled", setIsPaid: false },
+    { label: "Reabrir", nextStatus: "confirmed" },
+  ],
+  cancelled: [{ label: "Reabrir", nextStatus: "confirmed", primary: true }],
 };
 
 function getTurnoStatusLabel(status: string): string {
-  if (status === "pending_payment") return "Pago pendiente";
-  if (status === "scheduled") return "Nuevo";
-  if (status === "confirmed" || status === "in_progress") return "Confirmado";
-  if (status === "completed") return "Completado";
-  if (status === "cancelled" || status === "no_show") return "Cancelado";
-  return status;
+  return getAppointmentStatusLabel(status);
 }
 
 function statusColor(status: string): string {
-  const label = getTurnoStatusLabel(status);
-  if (label === "Completado") return "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200";
-  if (label === "Confirmado") return "bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200";
-  if (label === "Nuevo") return "bg-sky-100 dark:bg-sky-900/40 text-sky-800 dark:text-sky-200";
-  if (label === "Cancelado") return "bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200";
-  return "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300";
+  return isAppointmentStatus(status)
+    ? APPOINTMENT_STATUS_BADGE_CLASS[status]
+    : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300";
 }
 
 function capitalizeName(name: string): string {
@@ -139,15 +136,25 @@ export default function AppointmentPreviewModal({
     return () => document.removeEventListener("keydown", handleEscape);
   }, [appointment, requestClose]);
 
-  function handleStatusChange(newStatus: string, isPaid?: boolean) {
+  function handleStatusChange(newStatus: string | undefined, isPaid?: boolean, wasPendingPayment?: boolean) {
     if (!appointment) return;
     setError(null);
-    setLocalStatus(newStatus);
+    if (newStatus !== undefined) {
+      if (!isAppointmentStatus(newStatus)) {
+        setError("Estado de turno inválido");
+        return;
+      }
+      setLocalStatus(newStatus);
+    }
     if (isPaid !== undefined) setLocalPaid(isPaid);
     startTransition(async () => {
       const result = await patchAppointmentQuick(
         appointment.id,
-        { status: newStatus, ...(isPaid !== undefined ? { isPaid } : {}) },
+        {
+          ...(newStatus !== undefined ? { status: newStatus } : {}),
+          ...(isPaid !== undefined ? { isPaid } : {}),
+          ...(wasPendingPayment !== undefined ? { wasPendingPayment } : {}),
+        },
         shopId,
       );
       if (!result.success) {
@@ -323,23 +330,20 @@ export default function AppointmentPreviewModal({
           {/* Status action + Payment toggle row */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              {actions.map(({ label, nextStatus, setIsPaid }) => {
-                const isPrimary = nextStatus === "completed";
-                return (
-                  <button
-                    key={nextStatus}
-                    onClick={() => handleStatusChange(nextStatus, setIsPaid)}
-                    disabled={pending}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-all disabled:opacity-50 cursor-pointer select-none ${
-                      isPrimary
-                        ? "text-white bg-violet-600 hover:bg-violet-700 shadow-sm shadow-violet-600/25"
-                        : "text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
+              {actions.map(({ label, nextStatus, setIsPaid, setWasPendingPayment, primary }, actionIndex) => (
+                <button
+                  key={`${label}-${actionIndex}`}
+                  onClick={() => handleStatusChange(nextStatus, setIsPaid, setWasPendingPayment)}
+                  disabled={pending}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-all disabled:opacity-50 cursor-pointer select-none ${
+                    primary
+                      ? "text-white bg-violet-600 hover:bg-violet-700 shadow-sm shadow-violet-600/25"
+                      : "text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
 
             {/* Payment toggle */}

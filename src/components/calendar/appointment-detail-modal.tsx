@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/toast";
 import GlassSelect from "@/components/ui/glass-select";
 import { createPortal } from "react-dom";
 import { getUserFriendlyError } from "@/lib/dashboard/appointments/errors";
+import { type AppointmentStatus, APPOINTMENT_STATUS_BADGE_CLASS, getAppointmentStatusLabel, isAppointmentStatus } from "@/lib/dashboard/appointments/status";
 import { CUSTOMER_TAGS } from "@/lib/dashboard/clients/customer-tags";
 
 const IOS_MODAL_SPRING = { stiffness: 460, damping: 34, mass: 0.65 };
@@ -69,39 +70,40 @@ interface AppointmentDetailModalProps {
   assignStaffLater?: boolean;
 }
 
-const statusFlow: Record<string, { label: string; nextStatus: string; setIsPaid?: boolean }[]> = {
-  scheduled: [
-    { label: "Confirmar", nextStatus: "confirmed" },
-  ],
-  confirmed: [
-    { label: "Completar", nextStatus: "completed" },
-  ],
-  in_progress: [{ label: "Completar", nextStatus: "completed" }],
-  completed: [
-    { label: "No se cobró", nextStatus: "pending_payment", setIsPaid: false },
-    { label: "No se atendió", nextStatus: "cancelled", setIsPaid: false },
-    { label: "Reabrir", nextStatus: "in_progress" },
-  ],
-  cancelled: [],
-  "no_show": [],
+type StatusAction = {
+  label: string;
+  /** Omitirlo deja el estado intacto: la acción solo ajusta el cobro. */
+  nextStatus?: string;
+  setIsPaid?: boolean;
+  setWasPendingPayment?: boolean;
+  style?: "primary" | "danger" | "neutral";
 };
 
-function getTurnoStatusLabel(status: string, isPaid: boolean): string {
-  if (status === "pending_payment") return "Pago pendiente";
-  if (status === "scheduled") return "Nuevo";
-  if (status === "confirmed" || status === "in_progress") return "Confirmado";
-  if (status === "completed") return "Completado";
-  if (status === "cancelled" || status === "no_show") return "Cancelado";
-  return status;
+const statusFlow: Record<string, StatusAction[]> = {
+  confirmed: [
+    { label: "Completar", nextStatus: "completed", style: "primary" },
+    { label: "No se atendió", nextStatus: "cancelled", setIsPaid: false, style: "neutral" },
+  ],
+  pending_payment: [
+    { label: "Marcar pagado", nextStatus: "confirmed", setIsPaid: true, style: "primary" },
+    { label: "Cancelar turno", nextStatus: "cancelled", setIsPaid: false, style: "neutral" },
+  ],
+  completed: [
+    { label: "No se cobró", setIsPaid: false, setWasPendingPayment: true, style: "neutral" },
+    { label: "No se atendió", nextStatus: "cancelled", setIsPaid: false, style: "neutral" },
+    { label: "Reabrir", nextStatus: "confirmed", style: "neutral" },
+  ],
+  cancelled: [{ label: "Reabrir", nextStatus: "confirmed", style: "primary" }],
+};
+
+function getTurnoStatusLabel(status: string): string {
+  return getAppointmentStatusLabel(status);
 }
 
-function statusColor(status: string, isPaid: boolean): string {
-  const label = getTurnoStatusLabel(status, isPaid);
-  if (label === "Completado") return "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200";
-  if (label === "Confirmado") return "bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200";
-  if (label === "Nuevo") return "bg-sky-100 dark:bg-sky-900/40 text-sky-800 dark:text-sky-200";
-  if (label === "Cancelado") return "bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200";
-  return "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300";
+function statusColor(status: string): string {
+  return isAppointmentStatus(status)
+    ? APPOINTMENT_STATUS_BADGE_CLASS[status]
+    : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300";
 }
 
 function toDateTimeLocalValue(iso: string): string {
@@ -158,7 +160,7 @@ export default function AppointmentDetailModal({
   const saveStateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const servicesSavedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveVersionRef = useRef(0);
-  const pendingChangesRef = useRef<{ status?: string; isPaid?: boolean; staffId?: string | null }>({});
+  const pendingChangesRef = useRef<{ status?: AppointmentStatus; isPaid?: boolean; wasPendingPayment?: boolean; staffId?: string | null }>({});
   const flushSavePromiseRef = useRef<Promise<void> | null>(null);
 
   const serviceSearchRef = useRef<HTMLInputElement>(null);
@@ -323,7 +325,7 @@ export default function AppointmentDetailModal({
     flushSavePromiseRef.current = promise;
   }, [appointment, shopId, onSuccess]);
 
-  const queueChange = useCallback((next: { status?: string; isPaid?: boolean; staffId?: string | null; startTime?: string }) => {
+  const queueChange = useCallback((next: { status?: AppointmentStatus; isPaid?: boolean; wasPendingPayment?: boolean; staffId?: string | null; startTime?: string }) => {
     pendingChangesRef.current = { ...pendingChangesRef.current, ...next };
     setError(null);
 
@@ -402,12 +404,22 @@ export default function AppointmentDetailModal({
     setError(null);
   }
 
-  function handleStatusChange(newStatus: string, isPaid?: boolean) {
+  function handleStatusChange(newStatus: string | undefined, isPaid?: boolean, wasPendingPayment?: boolean) {
     if (!appointment) return;
     setError(null);
-    setLocalStatus(newStatus);
+    if (newStatus !== undefined) {
+      if (!isAppointmentStatus(newStatus)) {
+        setError("Estado de turno inválido");
+        return;
+      }
+      setLocalStatus(newStatus);
+    }
     if (isPaid !== undefined) setLocalPaid(isPaid);
-    queueChange({ status: newStatus, ...(isPaid !== undefined ? { isPaid } : {}) });
+    queueChange({
+      ...(newStatus !== undefined ? { status: newStatus } : {}),
+      ...(isPaid !== undefined ? { isPaid } : {}),
+      ...(wasPendingPayment !== undefined ? { wasPendingPayment } : {}),
+    });
   }
 
   function handleTogglePaid() {
@@ -611,8 +623,8 @@ export default function AppointmentDetailModal({
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
               Turno
             </h2>
-            <span className={`inline-flex items-center text-xs font-medium px-2.5 py-0.5 rounded-full ${statusColor(localStatus, localPaid)}`}>
-              {getTurnoStatusLabel(localStatus, localPaid)}
+            <span className={`inline-flex items-center text-xs font-medium px-2.5 py-0.5 rounded-full ${statusColor(localStatus)}`}>
+              {getTurnoStatusLabel(localStatus)}
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -1085,17 +1097,20 @@ export default function AppointmentDetailModal({
 
             {actions.length > 0 && (
               <div className="flex flex-wrap gap-2">
-                {actions.map(({ label, nextStatus, setIsPaid }) => {
-                  const isException = nextStatus !== "completed";
+                {actions.map(({ label, nextStatus, setIsPaid, setWasPendingPayment, style }, actionIndex) => {
+                  const isPrimary = style === "primary";
+                  const isDanger = style === "danger";
                   return (
                     <button
-                      key={nextStatus}
-                      onClick={() => handleStatusChange(nextStatus, setIsPaid)}
+                      key={`${label}-${actionIndex}`}
+                      onClick={() => handleStatusChange(nextStatus, setIsPaid, setWasPendingPayment)}
                       disabled={pending}
                       className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 cursor-pointer select-none ${
-                        isException
-                          ? "text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700"
-                          : "text-white bg-violet-600 hover:bg-violet-700"
+                        isPrimary
+                          ? "text-white bg-violet-600 hover:bg-violet-700"
+                          : isDanger
+                            ? "text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/40"
+                            : "text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700"
                       }`}
                     >
                       {label}
@@ -1154,7 +1169,7 @@ export default function AppointmentDetailModal({
       </motion.div>
 
       {(() => {
-        const needsNotify = localStatus === "scheduled" || localStatus === "confirmed";
+        const needsNotify = localStatus === "confirmed" || localStatus === "pending_payment";
         if (!needsNotify) return (
           <ConfirmDialog
             open={deleteConfirmOpen}
@@ -1172,7 +1187,7 @@ export default function AppointmentDetailModal({
               <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Eliminar turno</h3>
               <p className="text-sm text-gray-600 dark:text-gray-300">
                 El turno de <strong>{appointment.customers?.nombre || "—"}</strong> está{" "}
-                <strong>{localStatus === "scheduled" ? "a confirmar" : "confirmado"}</strong>.
+                <strong>{localStatus === "pending_payment" ? "pendiente de pago" : "agendado"}</strong>.
               </p>
               <p className="text-sm text-gray-600 dark:text-gray-300">¿Querés avisarle al cliente?</p>
               {appointment.customers?.telefono && (

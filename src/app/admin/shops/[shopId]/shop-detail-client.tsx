@@ -41,29 +41,17 @@ const STATUS_BADGES: Record<string, { label: string; className: string }> = {
     label: "Completado",
     className: "bg-emerald-100 text-emerald-700",
   },
-  scheduled: {
-    label: "Programado",
-    className: "bg-blue-100 text-blue-700",
-  },
   confirmed: {
-    label: "Confirmado",
-    className: "bg-violet-100 text-violet-700",
-  },
-  cancelled: {
-    label: "Cancelado",
-    className: "bg-red-100 text-red-700",
-  },
-  in_progress: {
-    label: "En curso",
-    className: "bg-amber-100 text-amber-700",
+    label: "Agendado",
+    className: "bg-sky-100 text-sky-700",
   },
   pending_payment: {
     label: "Pago pendiente",
     className: "bg-orange-100 text-orange-700",
   },
-  no_show: {
-    label: "No asistio",
-    className: "bg-zinc-100 text-zinc-600",
+  cancelled: {
+    label: "Cancelado",
+    className: "bg-red-100 text-red-700",
   },
 };
 

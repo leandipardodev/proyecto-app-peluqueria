@@ -238,16 +238,40 @@ describe("updateAppointmentStatus", () => {
       auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: "user-1" } }, error: null }) },
       from: vi.fn(() => chainableQuery({
         maybeSingle: vi.fn().mockResolvedValue({
-          data: { id: "apt-1", status: "scheduled", customer_id: "cust-1" },
+          data: { id: "apt-1", status: "confirmed", customer_id: "cust-1" },
           error: null,
         }),
       })),
     } as never);
 
-    const result = await updateAppointmentStatus("apt-1", "scheduled", undefined, "shop-123", -100);
+    const result = await updateAppointmentStatus("apt-1", "completed", undefined, "shop-123", -100);
     expect(result).toEqual({ success: false, error: "La seña debe ser un monto válido" });
   });
+
+  it("rejects a status outside the 4-state model", async () => {
+    const result = await updateAppointmentStatus("apt-1", "scheduled" as never, undefined, "shop-123");
+    expect(result).toEqual({ success: false, error: "Estado de turno inválido" });
+  });
+
+  it("rejects a jump from confirmed to pending_payment", async () => {
+    vi.mocked(mockCreateServerClient).mockResolvedValue({
+      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: "user-1" } }, error: null }) },
+      from: vi.fn(() => chainableQuery({
+        maybeSingle: vi.fn().mockResolvedValue({
+          data: { id: "apt-1", status: "confirmed", customer_id: "cust-1" },
+          error: null,
+        }),
+      })),
+    } as never);
+
+    const result = await updateAppointmentStatus("apt-1", "pending_payment", undefined, "shop-123");
+    expect(result).toEqual({
+      success: false,
+      error: 'No se puede pasar de "confirmed" a "pending_payment"',
+    });
+  });
 });
+
 
 // ---------------------------------------------------------------------------
 // redeemLoyaltyReward tests
@@ -374,7 +398,7 @@ describe("autoCompletePastAppointments", () => {
     vi.mocked(mockCreateServiceRole).mockResolvedValue({ from: vi.fn(() => shopsChain) } as never);
 
     const result = await autoCompletePastAppointments("shop-123");
-    expect(result).toEqual({ success: true, data: { completed: 0, confirmed: 0, flagged: 0 } });
+    expect(result).toEqual({ success: true, data: { completed: 0, flagged: 0 } });
     expect(shopsChain.update).not.toHaveBeenCalled();
   });
 
@@ -387,7 +411,7 @@ describe("autoCompletePastAppointments", () => {
     vi.mocked(mockCreateServiceRole).mockResolvedValue({ from: fromMock } as never);
 
     const result = await autoCompletePastAppointments("shop-123");
-    expect(result).toEqual({ success: true, data: { completed: 0, confirmed: 0, flagged: 0 } });
+    expect(result).toEqual({ success: true, data: { completed: 0, flagged: 0 } });
     expect(fromMock).toHaveBeenCalledWith("appointments");
     expect(appointmentsChain.update).toHaveBeenCalled();
   });

@@ -1635,7 +1635,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     setDone(true);
   }
 
-  async function createCartAppointments(status: "scheduled" | "pending_payment", phone: string, items?: Service[]): Promise<{ ids: string[] } | null> {
+  async function createCartAppointments(status: "confirmed" | "pending_payment", phone: string, items?: Service[]): Promise<{ ids: string[] } | null> {
     const list = items ?? cart;
     const createdIds: string[] = [];
     let prevEnd = selectedSlot!.start;
@@ -1818,14 +1818,14 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
             customerPhone: formattedPhone,
             authenticatedUserId: user?.id,
             startTime: selectedSlot!.start,
-            status: "scheduled",
+            status: "confirmed",
           });
           if (!result.success) {
             if (result.error === "login_required") { handleLoginRequired(); return; }
             throw new Error(result.error || "No se pudo reservar el turno");
           }
         } else {
-          const cartResult = await createCartAppointments("scheduled", formattedPhone);
+          const cartResult = await createCartAppointments("confirmed", formattedPhone);
           if (cartResult === null) { handleLoginRequired(); return; }
         }
       } catch (e) {
@@ -1889,7 +1889,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
           customerPhone: formattedPhone,
           authenticatedUserId: user?.id,
           startTime: selectedSlot.start,
-          status: "scheduled",
+          status: "confirmed",
         });
         if (!result.success && result.error === "login_required") { handleLoginRequired(); return; }
         if (!result.success) { setSubmitting(false); setError(result.error || "No se pudo reservar el turno"); return; }
@@ -1897,7 +1897,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
         return;
       }
 
-      const cartResult = await createCartAppointments("scheduled", formattedPhone);
+      const cartResult = await createCartAppointments("confirmed", formattedPhone);
       if (cartResult === null) { handleLoginRequired(); return; }
       await completeFlow();
       return;
@@ -1954,7 +1954,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     const payableItems = cart.filter((s) => !s.hide_price);
 
     if (atShopItems.length > 0) {
-      const atShopResult = await createCartAppointments("scheduled", formattedPhone, atShopItems);
+      const atShopResult = await createCartAppointments("confirmed", formattedPhone, atShopItems);
       if (atShopResult === null) { setCreatingPreference(false); handleLoginRequired(); return; }
     }
 

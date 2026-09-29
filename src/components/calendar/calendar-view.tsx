@@ -24,6 +24,7 @@ import {
 import { GRID_END_HOUR, GRID_START_HOUR, HOUR_HEIGHT } from "@/lib/calendar-constants";
 import ContextMenu from "@/components/ui/context-menu";
 import type { ContextMenuItem } from "@/components/ui/context-menu";
+import { getAppointmentStatusLabel } from "@/lib/dashboard/appointments/status";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp/whatsapp-constants";
 import {
   extractArgentinaTimeHHmm,
@@ -275,16 +276,15 @@ const AppointmentBlock = memo(function AppointmentBlock({
   const leftPct = col * widthPct;
 
   const isCancelled = appt.status === "cancelled";
-  const isNoShow = appt.status === "no_show";
   const isCompleted = appt.status === "completed";
-  const isConfirmed = appt.status === "confirmed" || appt.status === "in_progress";
+  const isPendingPayment = appt.status === "pending_payment";
   return (
     <div
       ref={setNodeRef}
       {...listeners}
       {...attributes}
       data-appt-id={appt.id}
-      className={`absolute no-native-callout pointer-events-auto min-w-0 cursor-hand-open bg-white dark:bg-zinc-800/90 border border-zinc-200/50 dark:border-zinc-700/50 group overflow-hidden ${isCancelled ? "opacity-0 pointer-events-none" : isCompleted ? "opacity-55" : isNoShow ? "opacity-40" : ""} ${isDragging ? "opacity-30 ring-2 ring-sky-400" : ""}`}
+      className={`absolute no-native-callout pointer-events-auto min-w-0 cursor-hand-open bg-white dark:bg-zinc-800/90 border border-zinc-200/50 dark:border-zinc-700/50 group overflow-hidden ${isCancelled ? "opacity-0 pointer-events-none" : ""} ${isDragging ? "opacity-30 ring-2 ring-sky-400" : ""}`}
       style={{
         top: `${topPx}px`,
         height: `${Math.max(heightPx - 2, 18)}px`,
@@ -311,16 +311,37 @@ const AppointmentBlock = memo(function AppointmentBlock({
       onMouseLeave={onLeave}
       onContextMenu={(e) => onContextMenu?.(appt, e)}
     >
-      <div className={`relative z-10 flex h-full ${isWeekMode ? "flex-col p-1 gap-0.5" : "flex-col justify-between p-1.5 gap-0.5"}`}>
+      <div className={`relative z-10 flex h-full ${isCompleted ? "opacity-55" : ""} ${isWeekMode ? "flex-col p-1 gap-0.5" : "flex-col justify-between p-1.5 gap-0.5"}`}>
         <div className="min-w-0 space-y-0.5">
           <div className="flex items-center justify-between gap-1">
             <div className="min-w-0 flex items-center gap-1">
-              <span className={`inline-flex h-1.5 w-1.5 shrink-0 rounded-full ${isCancelled ? "bg-transparent" : isCompleted ? "bg-emerald-500" : isConfirmed ? "bg-sky-500" : isNoShow ? "bg-zinc-300" : "bg-amber-400"}`} />
               <span className={`font-medium leading-tight truncate ${isWeekMode ? "text-[11px]" : isCompact ? "text-[12px]" : "text-[13px]"} ${isCancelled ? "line-through" : ""} text-gray-800 dark:text-gray-100`}>
                 {isWeekMode ? (appt.customers?.nombre?.split(/\s+/)[0] || "Sin") : (appt.customers?.nombre || "Sin cliente")}
               </span>
             </div>
             <div className="flex items-center gap-1 shrink-0">
+              {isPendingPayment && (
+                <span
+                  title="Pago pendiente"
+                  className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-orange-500 text-white shrink-0"
+                >
+                  <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                </span>
+              )}
+              {isCompleted && !appt.is_paid && (
+                <span
+                  title="Falta cobrar"
+                  className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-rose-500 text-white shrink-0"
+                >
+                  <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="6" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                </span>
+              )}
               {appt.start_hhmm && (
                 <span className={`tabular-nums leading-none ${isWeekMode ? "text-[10px] text-gray-400 dark:text-gray-500" : "text-[11px] text-gray-400 dark:text-gray-500"}`}>{appt.start_hhmm}</span>
               )}
@@ -352,7 +373,9 @@ function MonthAppointmentBlock({
   onAppointmentClick: (appt: Appointment | null) => void;
   onContextMenu?: (appt: NormalizedAppointment, e: React.MouseEvent) => void;
 }) {
-  const isCancelled = appt.status === "cancelled" || appt.status === "no_show";
+  const isCancelled = appt.status === "cancelled";
+  const isPendingPayment = appt.status === "pending_payment";
+  const owesCollection = (appt.status === "completed" && !appt.is_paid) || appt.was_pending_payment === true;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `m-appt-${appt.id}`,
     data: {
@@ -382,8 +405,11 @@ function MonthAppointmentBlock({
       onContextMenu={(e) => onContextMenu?.(appt, e)}
     >
       {appt.start_hhmm} {appt.customers?.nombre?.split(/\s+/)[0] || "Sin"}
-      {appt.was_pending_payment && (
-        <span className="ml-1 inline-block w-1.5 h-1.5 rounded-full bg-white/90 shadow-sm" title="Falta cobrar" />
+      {(isPendingPayment || owesCollection) && (
+        <span
+          className="ml-1 inline-block w-1.5 h-1.5 rounded-full bg-white/90 shadow-sm align-middle"
+          title={isPendingPayment ? "Pago pendiente" : "Falta cobrar"}
+        />
       )}
     </div>
   );
@@ -627,7 +653,7 @@ export default memo(function CalendarView({
     }
 
     return Array.from(byId.values())
-      .filter((a) => a.status !== "cancelled" && a.status !== "no_show")
+      .filter((a) => a.status !== "cancelled")
       .map((a) => {
         const startLocalIso = toArgentinaLocalIsoString(a.start_time);
         const endLocalIso = toArgentinaLocalIsoString(a.end_time);
@@ -974,7 +1000,8 @@ export default memo(function CalendarView({
     return map;
   }, [mergedAppointments]);
 
-  // Lightweight map for the popover — includes all statuses (cancelled, no_show, etc.)
+  // Lightweight map for the popover. Solo turnos no cancelados: la query del
+  // calendario ya excluye 'cancelled', asi que aca nunca llegan cancelados.
   const popoverAppointmentsByKey = useMemo(() => {
     const map = new Map<string, Appointment[]>();
     for (const appt of filteredAppointments) {
@@ -1767,37 +1794,62 @@ export default memo(function CalendarView({
                     <span className="font-medium text-zinc-600 dark:text-zinc-300 truncate">{tipAppt.staff?.name || "Sin asignar"}</span>
                   </div>
                 </div>
-                {(tipAppt.services?.price != null || (tipAppt.deposit_amount != null && tipAppt.deposit_amount > 0) || tipAppt.was_pending_payment) && (
-                  <div className="mt-3.5 flex flex-wrap items-center gap-1.5">
-                    {tipAppt.was_pending_payment && (
-                      <span className="inline-flex items-center gap-1 rounded-lg bg-rose-500 dark:bg-rose-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_2px_6px_rgba(244,63,94,0.25)]">
-                        Falta cobrar
-                        <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="12" cy="12" r="10" />
-                          <polyline points="12 6 12 12 16 14" />
-                        </svg>
+                {(() => {
+                  const price = tipAppt.services?.price ?? null;
+                  const deposit = tipAppt.deposit_amount ?? null;
+                  const isPendingPayment = tipAppt.status === "pending_payment";
+                  const owesCollection =
+                    !isPendingPayment &&
+                    !tipAppt.is_paid &&
+                    (tipAppt.status === "completed" || tipAppt.was_pending_payment === true);
+                  const showPrice = price != null;
+                  if (!showPrice && !isPendingPayment && !owesCollection && !(deposit != null && deposit > 0)) {
+                    return null;
+                  }
+                  return (
+                    <div className="mt-3.5 flex flex-wrap items-center gap-1.5">
+                      <span className="inline-flex items-center rounded-lg bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-[11px] font-semibold text-zinc-600 dark:text-zinc-300">
+                        {getAppointmentStatusLabel(tipAppt.status)}
                       </span>
-                    )}
-                    {tipAppt.services?.price != null && tipAppt.is_paid && (
-                      <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-500 dark:bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_2px_6px_rgba(16,185,129,0.25)]">
-                        ${tipAppt.services.price.toLocaleString("es-AR")}
-                        <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                      </span>
-                    )}
-                    {tipAppt.services?.price != null && !tipAppt.is_paid && (
-                      <span className="inline-flex items-center rounded-lg bg-zinc-100 dark:bg-zinc-800 px-2.5 py-1 text-[11px] font-semibold text-zinc-700 dark:text-zinc-300">
-                        ${tipAppt.services.price.toLocaleString("es-AR")}
-                      </span>
-                    )}
-                    {tipAppt.deposit_amount != null && tipAppt.deposit_amount > 0 && (
-                      <span className="inline-flex items-center rounded-lg bg-amber-500 dark:bg-amber-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_2px_6px_rgba(245,158,11,0.25)]">
-                        Seña ${tipAppt.deposit_amount.toFixed(2)}
-                      </span>
-                    )}
-                  </div>
-                )}
+                      {isPendingPayment && (
+                        <span className="inline-flex items-center gap-1 rounded-lg bg-orange-500 dark:bg-orange-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_2px_6px_rgba(249,115,22,0.25)]">
+                          Pago pendiente
+                          <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10" />
+                            <polyline points="12 6 12 12 16 14" />
+                          </svg>
+                        </span>
+                      )}
+                      {!isPendingPayment && owesCollection && (
+                        <span className="inline-flex items-center gap-1 rounded-lg bg-rose-500 dark:bg-rose-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_2px_6px_rgba(244,63,94,0.25)]">
+                          Falta cobrar
+                          <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10" />
+                            <polyline points="12 6 12 12 16 14" />
+                          </svg>
+                        </span>
+                      )}
+                      {!isPendingPayment && !owesCollection && tipAppt.is_paid && (
+                        <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-500 dark:bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_2px_6px_rgba(16,185,129,0.25)]">
+                          Cobrado
+                          <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        </span>
+                      )}
+                      {showPrice && (
+                        <span className="inline-flex items-center rounded-lg bg-zinc-100 dark:bg-zinc-800 px-2.5 py-1 text-[11px] font-semibold text-zinc-700 dark:text-zinc-300">
+                          ${price.toLocaleString("es-AR")}
+                        </span>
+                      )}
+                      {deposit != null && deposit > 0 && (
+                        <span className="inline-flex items-center rounded-lg bg-amber-500 dark:bg-amber-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_2px_6px_rgba(245,158,11,0.25)]">
+                          Seña ${deposit.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>
@@ -1853,21 +1905,21 @@ export default memo(function CalendarView({
                 </button>
               </div>
               <div className="overflow-y-auto" style={{ maxHeight: popHeight - 100 }}>
-                {dayAppts.map((appt) => (
+                {dayAppts.map((appt) => {
+                  const isPendingPayment = appt.status === "pending_payment";
+                  const owesCollection =
+                    !isPendingPayment &&
+                    !appt.is_paid &&
+                    (appt.status === "completed" || appt.was_pending_payment === true);
+                  return (
                   <div
                     key={appt.id}
                     className={`flex items-center gap-3 px-4 py-2.5 border-b border-zinc-50 dark:border-zinc-800/50 last:border-b-0 cursor-pointer transition-colors ${
-                      appt.status === "cancelled"
-                        ? "bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50"
-                        : appt.status === "no_show"
-                          ? "bg-amber-50 dark:bg-amber-950/30 hover:bg-amber-100 dark:hover:bg-amber-950/50"
-                          : appt.status === "completed"
-                            ? "bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-950/50"
-                            : appt.status === "in_progress"
-                              ? "bg-sky-50 dark:bg-sky-950/30 hover:bg-sky-100 dark:hover:bg-sky-950/50"
-                              : appt.status === "confirmed"
-                                ? "bg-indigo-50 dark:bg-indigo-950/30 hover:bg-indigo-100 dark:hover:bg-indigo-950/50"
-                                : "hover:bg-zinc-50 dark:hover:bg-zinc-800/30"
+                      isPendingPayment
+                        ? "bg-orange-50 dark:bg-orange-950/30 hover:bg-orange-100 dark:hover:bg-orange-950/50"
+                        : appt.status === "completed"
+                          ? "bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-950/50"
+                          : "hover:bg-zinc-50 dark:hover:bg-zinc-800/30"
                     }`}
                     onClick={() => {
                       closeDayPopover();
@@ -1878,9 +1930,19 @@ export default memo(function CalendarView({
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                         {appt.customers?.nombre || "Sin cliente"}
-                        {appt.was_pending_payment && (
+                        {isPendingPayment && (
+                          <span className="ml-1.5 inline-flex items-center rounded-md bg-orange-100 dark:bg-orange-950/60 px-1.5 py-0.5 text-[9px] font-semibold text-orange-700 dark:text-orange-300 align-middle">
+                            Pago pendiente
+                          </span>
+                        )}
+                        {!isPendingPayment && owesCollection && (
                           <span className="ml-1.5 inline-flex items-center rounded-md bg-rose-100 dark:bg-rose-950/60 px-1.5 py-0.5 text-[9px] font-semibold text-rose-700 dark:text-rose-300 align-middle">
                             Falta cobrar
+                          </span>
+                        )}
+                        {!isPendingPayment && !owesCollection && appt.is_paid && (
+                          <span className="ml-1.5 inline-flex items-center rounded-md bg-emerald-100 dark:bg-emerald-950/60 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-700 dark:text-emerald-300 align-middle">
+                            Cobrado
                           </span>
                         )}
                       </p>
@@ -1891,7 +1953,8 @@ export default memo(function CalendarView({
                       </p>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
               <div className="px-4 py-2.5 border-t border-zinc-100 dark:border-zinc-800">
                 <button

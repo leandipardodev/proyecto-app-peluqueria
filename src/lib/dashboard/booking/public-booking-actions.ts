@@ -22,6 +22,7 @@ import { restoreOrderStock } from "@/lib/dashboard/store/stock";
 import "server-only";
 import { createAdminClient } from "../appointments/shared";
 import { completedBookingCache } from "@/lib/booking-cache";
+import { trackProductEvent } from "@/lib/analytics/product-events";
 
 const slotsLimiter = createRateLimiter({ intervalMs: 60_000, maxRequests: 30 });
 
@@ -290,7 +291,7 @@ function resolveDayHours(
 const PENDING_PAYMENT_HOLD_MINUTES = 10;
 
 function shouldBlockSlot(status: string | null | undefined, createdAt: string | null | undefined): boolean {
-  if (status === "no_show") return false;
+  if (status === "cancelled") return false;
   if (status !== "pending_payment") return true;
   if (!createdAt) return false;
   const createdAtMs = new Date(createdAt).getTime();
@@ -419,9 +420,7 @@ export async function fetchPublicAvailableSlots(
       .select("start_time, end_time, staff_id, status, created_at")
       .eq("shop_id", shopId)
       .lt("start_time", dayEnd.toISOString())
-      .gt("end_time", dayStart.toISOString())
-      .neq("status", "cancelled")
-      .neq("status", "no_show");
+      .gt("end_time", dayStart.toISOString());
 
     const appointments = (appointmentsRaw || []).filter((apt) =>
       shouldBlockSlot(apt.status as string | null | undefined, apt.created_at as string | null | undefined)
@@ -482,7 +481,7 @@ export async function createPublicAppointment(data: {
   customerEmail?: string;
   customerPhone: string;
   authenticatedUserId?: string;
-  status?: "scheduled" | "pending_payment";
+  status?: "confirmed" | "pending_payment";
   skipRepeatCache?: boolean;
   startTime: string;
   endTime: string;
@@ -883,7 +882,7 @@ export async function createPublicAppointment(data: {
         start_time: data.startTime,
         end_time: data.endTime,
         date_key_ar: getArgentinaDateKey(data.startTime),
-        status: data.status ?? "scheduled",
+        status: data.status ?? "confirmed",
         is_paid: false,
       })
       .select("id")
@@ -940,6 +939,10 @@ export async function createPublicAppointment(data: {
       completedBookingCache.set(ipKey, true);
     }
 
+    await trackProductEvent(data.shopId, "first_booking_confirmed", {
+      actorUserId: data.authenticatedUserId ?? null,
+    });
+
     return { success: true, data: { customerId, appointmentId: createdAppointment.id } };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al crear turno" };
@@ -957,7 +960,7 @@ export async function createPublicComboAppointment(data: {
   customerEmail?: string;
   customerPhone: string;
   authenticatedUserId?: string;
-  status?: "scheduled" | "pending_payment";
+  status?: "confirmed" | "pending_payment";
   startTime: string;
 }): Promise<ActionResult<{ customerId: string; appointmentIds: string[] }>> {
   try {
@@ -1347,7 +1350,7 @@ export async function createPublicComboAppointment(data: {
           start_time: aptStart.toISOString(),
           end_time: aptEnd.toISOString(),
           date_key_ar: getArgentinaDateKey(data.startTime),
-          status: data.status ?? "scheduled",
+          status: data.status ?? "confirmed",
           is_paid: false,
         })
         .select("id")
@@ -1416,6 +1419,10 @@ export async function createPublicComboAppointment(data: {
     if (data.status !== "pending_payment") {
       completedBookingCache.set(ipKey, true);
     }
+
+    await trackProductEvent(data.shopId, "first_booking_confirmed", {
+      actorUserId: data.authenticatedUserId ?? null,
+    });
 
     return { success: true, data: { customerId, appointmentIds } };
   } catch (e) {

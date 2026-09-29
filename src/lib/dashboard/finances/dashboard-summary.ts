@@ -301,7 +301,7 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
         .select("id")
         .eq("shop_id", shopId)
         .gte("start_time", sixMonthsAgo.toISOString())
-        .in("status", ["scheduled", "confirmed", "pending_payment", "in_progress", "completed"])
+        .in("status", ["confirmed", "pending_payment", "completed"])
         .limit(2000),
       admin
         .from("finances")

@@ -738,6 +738,7 @@ export async function POST(request: NextRequest) {
               })
               .eq("id", aptId)
               .eq("shop_id", combinedOrder.shop_id)
+              .in("status", ["pending_payment", "confirmed"])
               .then((r) => r as { error: unknown }),
             { retries: 1, delayMs: 500 }
           );
@@ -771,6 +772,7 @@ export async function POST(request: NextRequest) {
               })
               .eq("id", aptId)
               .eq("shop_id", combinedOrder.shop_id)
+              .in("status", ["pending_payment", "confirmed"])
               .then((r) => r as { error: unknown }),
             { retries: 1, delayMs: 500 }
           );
@@ -930,6 +932,7 @@ export async function POST(request: NextRequest) {
           })
           .eq("id", aptId)
           .eq("shop_id", appointment.shop_id)
+          .in("status", ["pending_payment", "confirmed"])
           .then((r) => r as { error: unknown }),
         { retries: 1, delayMs: 500 }
       );

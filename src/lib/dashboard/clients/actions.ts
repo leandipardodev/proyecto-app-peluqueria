@@ -4,6 +4,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { getAuthSession, getShopId } from "@/lib/dashboard/auth/server";
 import { getArgentinaDateKey } from "@/lib/argentina-time";
+import { trackProductEvent } from "@/lib/analytics/product-events";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
 import { createAdminClient } from "../appointments/shared";
@@ -384,7 +385,7 @@ export async function createClientAppointment(formData: FormData): Promise<Actio
         start_time: currentStart.toISOString(),
         end_time: currentEnd.toISOString(),
         date_key_ar: getArgentinaDateKey(currentStart.toISOString()),
-        status: "scheduled",
+        status: "confirmed",
         is_paid: isPaid,
         notes: index === 0 ? notes || null : null,
       };
@@ -395,6 +396,8 @@ export async function createClientAppointment(formData: FormData): Promise<Actio
     const { error } = await supabase.from("appointments").insert(payload);
 
     if (error) return { success: false, error: error.message };
+
+    await trackProductEvent(shopId, "first_booking_confirmed", { actorUserId: session.user.id });
 
     revalidatePath("/client/appointments");
     return { success: true };

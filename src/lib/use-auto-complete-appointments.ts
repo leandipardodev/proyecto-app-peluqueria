@@ -24,7 +24,7 @@ export function useAutoCompleteAppointments(shopId: string | null): void {
         const result = await autoCompletePastAppointments(id);
         if (result && result.success === false) {
           console.error("[AUTO-COMPLETE] error:", result.error);
-        } else if (result?.data && result.data.completed + result.data.confirmed + result.data.flagged > 0) {
+        } else if (result?.data && result.data.completed + result.data.flagged > 0) {
           window.dispatchEvent(new Event("appointments-updated"));
         }
       } catch (e) {

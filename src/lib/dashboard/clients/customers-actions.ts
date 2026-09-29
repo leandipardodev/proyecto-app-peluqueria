@@ -49,7 +49,7 @@ export async function fetchCustomersOverview(): Promise<ActionResult<CustomerRow
           .select("customer_id, start_time, status, services:service_id(name, price)")
           .eq("shop_id", shopId!)
           .gte("start_time", twelveMonthsAgo.toISOString())
-          .in("status", ["completed", "confirmed", "scheduled"]),
+          .in("status", ["completed", "confirmed", "pending_payment"]),
       ]);
 
     if (customersError) return { success: false, error: customersError.message };
@@ -80,7 +80,7 @@ export async function fetchCustomersOverview(): Promise<ActionResult<CustomerRow
         const service = Array.isArray(apt.services) ? apt.services[0] : apt.services;
         if (service?.name) servicesSet.add(service.name);
 
-        if (apt.status === "completed" || apt.status === "confirmed") {
+        if (apt.status !== "cancelled") {
           accumulatedSpend += Number(service?.price || 0);
         }
       }

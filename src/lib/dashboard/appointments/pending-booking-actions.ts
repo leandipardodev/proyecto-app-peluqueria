@@ -210,8 +210,7 @@ export async function createPendingBooking(
       .eq("shop_id", input.shopId)
       .lt("start_time", input.endTime)
       .gt("end_time", input.startTime)
-      .neq("status", "cancelled")
-      .neq("status", "no_show");
+      .neq("status", "cancelled");
 
     if (input.staffId) {
       aptConflictQuery = aptConflictQuery.eq("staff_id", input.staffId);
@@ -241,7 +240,7 @@ export async function createPendingBooking(
         const holdMs = 10 * 60 * 1000;
         return Date.now() - new Date(apt.created_at).getTime() <= holdMs;
       }
-      return apt.status !== "no_show";
+      return apt.status !== "cancelled";
     });
 
     const pendingRows = existingPendingBookings.data || [];

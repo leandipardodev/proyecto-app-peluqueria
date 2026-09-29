@@ -185,7 +185,6 @@ export default function CalendarPageClient({
   const [editingAppointment, setEditingAppointment] =
     useState<Appointment | null>(null);
   const [staffFilter, setStaffFilter] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [appointments, setAppointments] = useState(initialAppointments);
   const appointmentsRef = useRef(appointments);
   const [hydrated, setHydrated] = useState(false);
@@ -210,7 +209,7 @@ export default function CalendarPageClient({
       if (next) {
         const result = await autoCompletePastAppointments(shopId);
         const data = result && result.success ? result.data : null;
-        if (data && data.completed + data.confirmed + data.flagged > 0) {
+        if (data && data.completed + data.flagged > 0) {
           window.dispatchEvent(new Event("appointments-updated"));
         }
       }
@@ -270,16 +269,6 @@ export default function CalendarPageClient({
     });
   }, [appointments, services]);
 
-  const filteredAppointments = useMemo(() => {
-    if (!statusFilter) return enrichedAppointments;
-    const statuses = statusFilter === "scheduled"
-      ? ["scheduled", "pending_payment"]
-      : statusFilter === "confirmed"
-        ? ["confirmed", "in_progress"]
-        : [statusFilter];
-    return enrichedAppointments.filter((a) => statuses.includes(a.status));
-  }, [enrichedAppointments, statusFilter]);
-
   useEffect(() => {
     setHydrated(true);
   }, []);
@@ -321,7 +310,6 @@ export default function CalendarPageClient({
           .gte("start_time", rangeStart.toISOString())
           .lte("start_time", fetchedRangeEndRef.current)
           .neq("status", "cancelled")
-          .neq("status", "no_show")
           .order("start_time", { ascending: true });
         if (!error && rows) {
           const customerIds = [...new Set(rows.map((r) => r.customer_id).filter((id): id is string => id !== null))];
@@ -447,7 +435,7 @@ export default function CalendarPageClient({
             a.customer_id === primaryCustomerId &&
             a.staff_id === primaryStaffId &&
             getArgentinaDateKey(a.start_time) === primaryDateKey &&
-            a.status !== "cancelled" && a.status !== "no_show"
+            a.status !== "cancelled"
         )
         .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
 
@@ -625,41 +613,12 @@ export default function CalendarPageClient({
               );
             })}
           </div>
-          <div className="border-t border-zinc-200 dark:border-zinc-700 w-full" />
-          <div className="flex items-center gap-1 flex-wrap">
-            {[
-              { key: null, label: "Todos" },
-              { key: "scheduled", label: "Nuevo" },
-              { key: "confirmed", label: "Confirmado" },
-              { key: "completed", label: "Completado" },
-            ].map((opt) => (
-              <button
-                key={opt.key ?? "all"}
-                type="button"
-                onClick={() => setStatusFilter(opt.key)}
-                className={`relative z-10 text-[11px] font-medium px-2 py-1 rounded-full transition-colors cursor-pointer select-none ${
-                  statusFilter === opt.key
-                    ? "text-[#0071E3] dark:text-[#5da8ff]"
-                    : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300"
-                }`}
-              >
-                {statusFilter === opt.key && (
-                  <motion.span
-                    layoutId="statusTab"
-                    className="absolute inset-0 rounded-full bg-[#0071E3]/10 dark:bg-[#0071E3]/15"
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                  />
-                )}
-                <span className="relative z-10">{opt.label}</span>
-              </button>
-            ))}
-          </div>
         </div>
       </div>
 
       <div className="flex-1 min-h-0">
         <CalendarView
-          appointments={filteredAppointments}
+          appointments={enrichedAppointments}
           currentDate={currentDate}
           onPrevWeek={handlePrevWeek}
           onNextWeek={handleNextWeek}

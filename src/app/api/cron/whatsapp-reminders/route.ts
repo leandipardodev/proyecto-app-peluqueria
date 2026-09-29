@@ -192,7 +192,7 @@ async function sendFeedbackForShop(
 
   let sent = 0;
   for (const appt of (appointments || []) as AppointmentRow[]) {
-    if (!["completed", "done", "confirmed"].includes((appt.status || "completed").toLowerCase())) continue;
+    if (!["completed", "confirmed"].includes((appt.status || "completed").toLowerCase())) continue;
 
     const phone = normalizePhoneToE164(appt.customers?.telefono);
     if (!phone || !appt.customers) continue;
