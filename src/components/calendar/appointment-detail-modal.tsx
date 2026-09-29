@@ -1008,12 +1008,12 @@ export default function AppointmentDetailModal({
                 <div className="mt-1.5">
                   <GlassSelect
                     options={[
-                      { value: "", label: "Sin peluquero asignado (disponible)" },
+                      { value: "", label: "Sin profesional asignado" },
                       ...staff.map((s) => ({ value: s.id, label: s.name || s.email || "Sin nombre" })),
                     ]}
                     value={selectedStaffId}
                     onChange={handleStaffChange}
-                    placeholder="Sin peluquero asignado"
+                    placeholder="Sin profesional asignado"
                     className="w-full"
                   />
                 </div>

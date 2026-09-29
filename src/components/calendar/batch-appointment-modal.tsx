@@ -874,7 +874,7 @@ function EntryForm({
               {entry.staffId === "" && (
                 <motion.span layoutId={`staff`} className="absolute inset-0 rounded-lg bg-violet-100 dark:bg-violet-900/30 border border-violet-200 dark:border-violet-700 shadow-sm" transition={{ type: "spring", stiffness: 500, damping: 30 }} />
               )}
-              <span className="relative z-10">Cualquiera</span>
+              <span className="relative z-10">Sin asignar</span>
             </button>
             {staff.map((s, i) => {
               const isActive = entry.staffId === s.id;

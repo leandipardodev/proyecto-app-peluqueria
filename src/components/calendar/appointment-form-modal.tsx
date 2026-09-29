@@ -917,7 +917,7 @@ export default function AppointmentFormModal({
                       transition={STAFF_SPRING}
                     />
                   )}
-                  <span className="relative z-10">Cualquiera</span>
+                  <span className="relative z-10">Sin asignar</span>
                 </button>
                 {staff.map((s, i) => {
                   const isActive = selectedStaffId === s.id;
