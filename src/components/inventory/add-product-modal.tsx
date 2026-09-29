@@ -159,7 +159,7 @@ export default function AddProductModal({ shopId, open, onClose, storeEnabled = 
                   </span>
                 </>
               ) : (
-                <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-zinc-400 dark:text-zinc-500 group-hover:text-violet-500 transition-colors">
+                <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-zinc-400 dark:text-zinc-400 group-hover:text-violet-500 transition-colors">
                   <ImagePlus className="w-6 h-6" />
                   <span className="text-sm font-medium">Subir imagen</span>
                 </span>

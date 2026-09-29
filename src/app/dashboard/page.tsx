@@ -501,7 +501,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
                 <div className={`absolute top-0 left-0 right-0 h-1 rounded-t-[2.5rem] ${accent} dark:hidden`} />
                 <div className={`absolute inset-0 bg-gradient-to-b ${gradient} rounded-[2.5rem] pointer-events-none`} />
                 <div className="relative z-10 flex flex-col h-full pt-3">
-                  <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-zinc-500">{label}</p>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-zinc-400">{label}</p>
                   <p className="mt-1 text-4xl font-black tracking-tight text-gray-900 dark:text-white">{value}</p>
                   {isHealthCard && (
                     <div className="mt-auto pt-3">
@@ -603,7 +603,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
                           timeZone: "America/Argentina/Buenos_Aires",
                         })}
                       </p>
-                      <p className="text-[11px] text-zinc-400 dark:text-zinc-500 tabular-nums">
+                      <p className="text-[11px] text-zinc-400 dark:text-zinc-400 tabular-nums">
                         {end.toLocaleTimeString("es-AR", {
                           hour: "2-digit",
                           minute: "2-digit",
@@ -611,7 +611,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
                         })}
                       </p>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-zinc-300 dark:text-zinc-600 group-hover:text-zinc-400 dark:group-hover:text-zinc-500 transition-colors -mr-1" />
+                    <ChevronRight className="w-4 h-4 text-zinc-300 dark:text-zinc-500 group-hover:text-zinc-400 dark:group-hover:text-zinc-500 transition-colors -mr-1" />
                   </div>
                 </div>
               );

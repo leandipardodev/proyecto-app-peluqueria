@@ -44,7 +44,7 @@ export default function BusinessStatsSection({
       <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Estadísticas del Negocio</h2>
-          <p className="text-xs text-zinc-400 dark:text-zinc-500">Indicadores acumulados desde el inicio del local</p>
+          <p className="text-xs text-zinc-400 dark:text-zinc-400">Indicadores acumulados desde el inicio del local</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -56,7 +56,7 @@ export default function BusinessStatsSection({
             {showStats ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
             {showStats ? "Visible" : "Oculto"}
           </button>
-          <span className="text-[11px] uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Histórico</span>
+          <span className="text-[11px] uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-400">Histórico</span>
         </div>
       </div>
 

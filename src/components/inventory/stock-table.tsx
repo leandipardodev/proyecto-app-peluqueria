@@ -270,7 +270,7 @@ const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = fa
               className={`inline-flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-transparent bg-transparent text-xs font-medium transition-colors cursor-pointer select-none ${
                 sortBy !== "name"
                   ? "text-violet-600 dark:text-violet-400"
-                  : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  : "text-zinc-400 dark:text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
               } ${sortOpen ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300" : ""}`}
             >
               <ArrowUpDown className="w-3.5 h-3.5" />
@@ -344,19 +344,19 @@ const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = fa
 
                   <div className="mt-3 flex flex-wrap items-start gap-x-6 gap-y-2">
                     <div>
-                      <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-400 dark:text-zinc-500">Stock</p>
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-400 dark:text-zinc-400">Stock</p>
                       <p className={`mt-1 text-lg font-bold leading-none tabular-nums whitespace-nowrap ${isLow ? "text-red-600 dark:text-red-400" : "text-gray-900 dark:text-white"}`}>
                         {item.quantity}
                         <span className="text-xs font-medium text-zinc-400 ml-0.5">u</span>
                       </p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-400 dark:text-zinc-500">Dinero en stock</p>
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-400 dark:text-zinc-400">Dinero en stock</p>
                       <p className="mt-1 text-sm font-semibold leading-none tabular-nums whitespace-nowrap text-zinc-700 dark:text-zinc-300 pt-1">${total.toFixed(2)}</p>
                     </div>
                     {storeEnabled && item.for_sale && (
                       <div>
-                        <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-400 dark:text-zinc-500">Precio de venta</p>
+                        <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-400 dark:text-zinc-400">Precio de venta</p>
                         <p className="mt-1 text-sm font-bold leading-none tabular-nums whitespace-nowrap text-emerald-600 dark:text-emerald-400 pt-1">${Number(item.price || 0).toFixed(2)}</p>
                       </div>
                     )}
@@ -375,7 +375,7 @@ const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = fa
                       className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer select-none ${
                         item.for_sale
                           ? "text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm shadow-emerald-600/30"
-                          : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                          : "text-zinc-400 dark:text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                       } disabled:opacity-40 disabled:cursor-not-allowed`}
                     >
                       En tienda
@@ -451,7 +451,7 @@ const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = fa
             <span className="font-semibold text-zinc-700 dark:text-zinc-300">{filtered.length}</span> producto{filtered.length !== 1 ? "s" : ""}
           </span>
           <span className="text-sm">
-            <span className="text-zinc-400 dark:text-zinc-500">Valor total: </span>
+            <span className="text-zinc-400 dark:text-zinc-400">Valor total: </span>
             <span className="font-semibold text-zinc-900 dark:text-white">${totalValue.toFixed(2)}</span>
           </span>
         </div>

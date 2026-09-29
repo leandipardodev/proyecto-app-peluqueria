@@ -384,10 +384,10 @@ export default function BookingFlow({ shopId, services, staffMembers, staffServi
                         {(staff.instagram || staff.whatsapp) && (
                           <div className="flex items-center gap-2 mt-1.5">
                             {staff.instagram && (
-                              <span className="text-[11px] text-gray-400 dark:text-gray-500">@{staff.instagram.replace(/^@/, "")}</span>
+                              <span className="text-[11px] text-gray-400 dark:text-gray-400">@{staff.instagram.replace(/^@/, "")}</span>
                             )}
                             {staff.whatsapp && (
-                              <span className="text-[11px] text-gray-400 dark:text-gray-500">{staff.whatsapp}</span>
+                              <span className="text-[11px] text-gray-400 dark:text-gray-400">{staff.whatsapp}</span>
                             )}
                           </div>
                         )}

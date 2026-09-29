@@ -247,7 +247,7 @@ export default function BatchAddProductModal({ shopId, open, onClose, storeEnabl
 
                 {history.length > 0 && (
                   <div className="pt-2 border-t border-zinc-100 dark:border-zinc-700/50">
-                    <p className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500 mb-1.5 uppercase tracking-wide">
+                    <p className="text-[11px] font-medium text-zinc-400 dark:text-zinc-400 mb-1.5 uppercase tracking-wide">
                       Productos recientes
                     </p>
                     <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-thin">
@@ -458,7 +458,7 @@ function EntryForm({
                 </span>
               </>
             ) : (
-              <span className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-zinc-400 dark:text-zinc-500 group-hover:text-violet-500 transition-colors">
+              <span className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-zinc-400 dark:text-zinc-400 group-hover:text-violet-500 transition-colors">
                 <ImagePlus className="w-5 h-5" />
                 <span className="text-xs font-medium">Subir imagen</span>
               </span>
@@ -499,7 +499,7 @@ function EntryForm({
         </div>
       )}
 
-      <div className="flex items-center gap-1.5 text-[11px] text-zinc-400 dark:text-zinc-500">
+      <div className="flex items-center gap-1.5 text-[11px] text-zinc-400 dark:text-zinc-400">
         <Plus className="w-3 h-3" />
         Al guardar, el formulario se limpia para cargar el próximo producto
       </div>

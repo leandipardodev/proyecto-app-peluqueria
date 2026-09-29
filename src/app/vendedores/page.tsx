@@ -164,7 +164,7 @@ export default async function PartnerDashboardPage() {
           </p>
         </section>
 
-        <p className="text-center text-xs text-gray-400 dark:text-zinc-600">
+        <p className="text-center text-xs text-gray-400 dark:text-zinc-400">
           Datos actualizados al {formatDate(dashboard.generatedAt)} (hora Argentina) · hoy es{" "}
           {getArgentinaDateKey(new Date())}
         </p>

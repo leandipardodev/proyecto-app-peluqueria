@@ -575,7 +575,7 @@ export default function CalendarPageClient({
               className={`relative z-10 px-2.5 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer select-none ${
                 staffFilter === null
                   ? "text-[#0071E3] dark:text-[#5da8ff]"
-                  : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300"
+                  : "text-zinc-400 dark:text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
               }`}
             >
               {staffFilter === null && (
@@ -597,7 +597,7 @@ export default function CalendarPageClient({
                   className={`relative z-10 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer select-none ${
                     isActive
                       ? "text-[#0071E3] dark:text-[#5da8ff]"
-                      : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300"
+                      : "text-zinc-400 dark:text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
                   }`}
                 >
                   {isActive && (

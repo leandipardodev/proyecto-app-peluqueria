@@ -197,7 +197,7 @@ const DashboardSidebar = memo(function DashboardSidebar({
                   )}
                   <Icon
                     className={`w-5 h-5 shrink-0 relative z-10 ${
-                      isActive ? "text-violet-600 dark:text-violet-400" : "text-zinc-400 dark:text-zinc-500"
+                      isActive ? "text-violet-600 dark:text-violet-400" : "text-zinc-400 dark:text-zinc-400"
                     }`}
                     strokeWidth={1.5}
                   />

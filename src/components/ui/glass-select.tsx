@@ -202,7 +202,7 @@ export default function GlassSelect({
         onClick={handleToggle}
         onKeyDown={handleTriggerKeyDown}
         className={`w-full flex items-center justify-between px-3 py-2 rounded-2xl text-sm border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:outline-none focus:ring-1 focus:ring-violet-500/20 transition-all cursor-pointer select-none ${
-          selected ? "text-gray-900 dark:text-gray-100" : "text-zinc-400 dark:text-zinc-500"
+          selected ? "text-gray-900 dark:text-gray-100" : "text-zinc-400 dark:text-zinc-400"
         }`}
       >
         <span className="flex items-center gap-2 min-w-0">

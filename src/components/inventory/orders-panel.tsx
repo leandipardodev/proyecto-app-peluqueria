@@ -101,7 +101,7 @@ export default function OrdersPanel({ shopId, orders, isOwnerOrAdmin = false, on
                     {statusLabel}
                   </span>
                 </div>
-                <p className="mt-0.5 text-xs text-zinc-400 dark:text-zinc-500 truncate">
+                <p className="mt-0.5 text-xs text-zinc-400 dark:text-zinc-400 truncate">
                   {new Date(order.created_at).toLocaleString("es-AR", {
                     day: "2-digit",
                     month: "2-digit",
@@ -116,7 +116,7 @@ export default function OrdersPanel({ shopId, orders, isOwnerOrAdmin = false, on
                 </p>
               </div>
               <div className="shrink-0 sm:text-right">
-                <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-400 dark:text-zinc-500">Total</p>
+                <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-400 dark:text-zinc-400">Total</p>
                 <p className="text-sm font-bold tabular-nums text-gray-900 dark:text-white pt-1">
                   {formatARS(order.total_amount)}
                 </p>

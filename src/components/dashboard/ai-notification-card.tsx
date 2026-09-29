@@ -204,13 +204,13 @@ export default function AINotificationCard({
           )}
 
           <div className="relative z-10 flex items-center justify-between">
-            <p className={`text-xs font-semibold uppercase tracking-[0.14em] inline-flex items-center gap-1.5 ${poweredOn ? "text-cyan-700 dark:text-cyan-200" : "text-zinc-400 dark:text-zinc-500"}`}>
+            <p className={`text-xs font-semibold uppercase tracking-[0.14em] inline-flex items-center gap-1.5 ${poweredOn ? "text-cyan-700 dark:text-cyan-200" : "text-zinc-400 dark:text-zinc-400"}`}>
               <Bot className={`h-3.5 w-3.5 ${poweredOn ? "ai-bot" : ""}`} />
               Klipo IA
             </p>
             <span
               onClick={handleTogglePower}
-              className={`inline-flex items-center gap-2 text-[11px] cursor-pointer select-none ${poweredOn ? "text-cyan-700 dark:text-cyan-200" : "text-zinc-400 dark:text-zinc-500"}`}
+              className={`inline-flex items-center gap-2 text-[11px] cursor-pointer select-none ${poweredOn ? "text-cyan-700 dark:text-cyan-200" : "text-zinc-400 dark:text-zinc-400"}`}
             >
               <span className={`h-2 w-2 rounded-full ${poweredOn ? "bg-emerald-300 ai-pulse" : "bg-red-400"}`} />
               {poweredOn ? "Activa" : "Apagada"}
@@ -267,7 +267,7 @@ export default function AINotificationCard({
                 )}
 
                 <div
-                  className={`absolute inset-0 h-full rounded-xl border px-3 py-2.5 ${poweredOn ? `${toneClass} ai-msg ai-panel-transition` : "bg-zinc-100 dark:bg-zinc-800 border-zinc-200/60 dark:border-zinc-700/40 text-zinc-400 dark:text-zinc-500"} ${
+                  className={`absolute inset-0 h-full rounded-xl border px-3 py-2.5 ${poweredOn ? `${toneClass} ai-msg ai-panel-transition` : "bg-zinc-100 dark:bg-zinc-800 border-zinc-200/60 dark:border-zinc-700/40 text-zinc-400 dark:text-zinc-400"} ${
                     poweredOn && thinking ? "opacity-0" : "opacity-100"
                   }`}
                   aria-hidden={poweredOn && thinking}
@@ -302,7 +302,7 @@ export default function AINotificationCard({
                     </>
                   ) : (
                     <div className="flex items-center justify-center h-full">
-                      <p className="text-[11px] text-zinc-400 dark:text-zinc-500">Klipo IA está detenida</p>
+                      <p className="text-[11px] text-zinc-400 dark:text-zinc-400">Klipo IA está detenida</p>
                     </div>
                   )}
                 </div>

@@ -374,7 +374,7 @@ export default function FidelizacionClient({
               </div>
             </div>
             <div className="md:col-span-2 flex items-end">
-              <p className="text-xs text-zinc-400 dark:text-zinc-500">El descuento se aplica automaticamente al agendar en el mes del cumpleanos. El mensaje de WhatsApp se configura en Comunicaciones.</p>
+              <p className="text-xs text-zinc-400 dark:text-zinc-400">El descuento se aplica automaticamente al agendar en el mes del cumpleanos. El mensaje de WhatsApp se configura en Comunicaciones.</p>
             </div>
           </div>
         </div>
@@ -387,7 +387,7 @@ export default function FidelizacionClient({
           </div>
           <div>
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Marketing</h2>
-            <p className="text-xs text-zinc-400 dark:text-zinc-500">Configura canjes por cantidad de cortes</p>
+            <p className="text-xs text-zinc-400 dark:text-zinc-400">Configura canjes por cantidad de cortes</p>
           </div>
         </div>
 

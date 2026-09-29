@@ -63,7 +63,7 @@ export default function DemandaCarousel({ topServices, topDias, topHorarios }: P
       {slide.items.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 text-center">
           <p className="text-sm text-zinc-500 dark:text-zinc-400">{slide.emptyTitle}</p>
-          <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">{slide.emptyDesc}</p>
+          <p className="text-xs text-zinc-400 dark:text-zinc-400 mt-1">{slide.emptyDesc}</p>
         </div>
       ) : (
         <AnimatePresence mode="popLayout" custom={direction}>
@@ -78,10 +78,10 @@ export default function DemandaCarousel({ topServices, topDias, topHorarios }: P
             className="space-y-3 will-change-transform"
           >
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+              <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-400">
                 {slide.label}
               </span>
-              <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500">Cant.</span>
+              <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-400">Cant.</span>
             </div>
             {slide.items.map((item, i) => {
               const pct = Math.round((item.count / maxCount) * 100);

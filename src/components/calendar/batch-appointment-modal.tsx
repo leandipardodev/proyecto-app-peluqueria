@@ -347,7 +347,7 @@ export default function BatchAppointmentModal({
 
                 {history.length > 0 && (
                   <div className="pt-2 border-t border-zinc-100 dark:border-zinc-700/50">
-                    <p className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500 mb-1.5 uppercase tracking-wide">
+                    <p className="text-[11px] font-medium text-zinc-400 dark:text-zinc-400 mb-1.5 uppercase tracking-wide">
                       Turnos recientes
                     </p>
                     <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-thin">

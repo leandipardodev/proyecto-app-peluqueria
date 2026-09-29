@@ -126,7 +126,7 @@ function NotificationRow({ item, onClose }: { item: NotificationItem; onClose: (
         <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 line-clamp-2">
           {item.description}
         </p>
-        <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5">
+        <p className="text-[10px] text-zinc-400 dark:text-zinc-400 mt-0.5">
           {timeLabel(item.timestamp, new Date())}
         </p>
       </div>

@@ -708,7 +708,7 @@ export default function StaffList({
                       {!isCurrentOwnerSelf ? (
                         <ActionButton icon={Trash2} label="Eliminar" onClick={() => handleRemove(member.id)} danger />
                       ) : (
-                        <span className="ml-auto text-xs text-gray-400 dark:text-gray-500 italic select-none">Tu usuario</span>
+                        <span className="ml-auto text-xs text-gray-400 dark:text-gray-400 italic select-none">Tu usuario</span>
                       )}
                     </div>
                   )}
@@ -927,7 +927,7 @@ export default function StaffList({
                     />
                     {(day.break_start || day.break_end) && (
                       <>
-                        <span className="text-xs text-zinc-300 dark:text-zinc-600 mx-1">|</span>
+                        <span className="text-xs text-zinc-300 dark:text-zinc-500 mx-1">|</span>
                         <input
                           type="time"
                           value={day.break_start ?? ""}
@@ -986,7 +986,7 @@ export default function StaffList({
           })}
         </div>
         <div className="px-5 pt-1">
-          <p className="text-xs text-zinc-400 dark:text-zinc-500">El corte es un descanso: durante ese horario no se aceptan turnos.</p>
+          <p className="text-xs text-zinc-400 dark:text-zinc-400">El corte es un descanso: durante ese horario no se aceptan turnos.</p>
         </div>
         <div className="px-5 pb-5 flex items-center justify-end gap-2">
           <button type="button" onClick={() => setScheduleEditor(null)} className="ui-btn-ghost rounded-lg px-3 py-1.5 text-sm">Cancelar</button>

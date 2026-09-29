@@ -612,7 +612,7 @@ export default function FinancesClient({
             {cashSession?.status === "open" ? "Abierta" : "Cerrada"}
           </span>
           {cashSession && (
-            <span className="text-[11px] text-slate-400 dark:text-zinc-500">
+            <span className="text-[11px] text-slate-400 dark:text-zinc-400">
               {new Date(cashSession.openedAt).toLocaleDateString("es-AR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
             </span>
           )}
@@ -626,7 +626,7 @@ export default function FinancesClient({
               <p className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-zinc-400">Esperado en caja</p>
               <p className="mt-1 text-3xl font-bold tracking-tight text-slate-900 dark:text-white">${kpiExpected.toFixed(2)}</p>
               {cashSession?.status === "open" && (
-                <div className="mt-1.5 flex justify-center gap-3 text-[11px] text-slate-400 dark:text-zinc-500">
+                <div className="mt-1.5 flex justify-center gap-3 text-[11px] text-slate-400 dark:text-zinc-400">
                   <span>Inicial: <strong className="text-slate-600 dark:text-zinc-300">${cashSession.openingAmount.toFixed(2)}</strong></span>
                   <span>Mov: <strong className="text-slate-600 dark:text-zinc-300">${cashSession.movementNet >= 0 ? "+" : ""}${cashSession.movementNet.toFixed(2)}</strong></span>
                   <span>Turnos: <strong className="text-slate-600 dark:text-zinc-300">+${cashSession.appointmentIncome.toFixed(2)}</strong></span>

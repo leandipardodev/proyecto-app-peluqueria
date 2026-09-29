@@ -368,7 +368,7 @@ const ServicesList = memo(function ServicesList({ shopId, shopSlug, industry, in
                       </div>
                           {serviceStaffMap[service.id]?.length > 0 && (
                             <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
-                              <span className="font-medium text-zinc-400 dark:text-zinc-500">Profesionales:</span>
+                              <span className="font-medium text-zinc-400 dark:text-zinc-400">Profesionales:</span>
                               {serviceStaffMap[service.id].map((sid) => {
                                 const s = staffMembers.find((m) => m.id === sid);
                                 return s ? (

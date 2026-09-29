@@ -85,7 +85,7 @@ export default function AlertsCarousel({ lowStockCount, ordersCount, stockHref, 
           <div className={`absolute top-0 left-0 right-0 h-1 rounded-t-[2.5rem] ${active.accent} dark:hidden`} />
           <div className={`absolute inset-0 bg-gradient-to-b ${active.gradient} rounded-[2.5rem] pointer-events-none`} />
           <div className="relative z-10 flex flex-col h-full pt-3">
-            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-zinc-500 flex items-center gap-1.5">
+            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-zinc-400 flex items-center gap-1.5">
               <Icon className="w-3.5 h-3.5" />
               {active.label}
             </p>

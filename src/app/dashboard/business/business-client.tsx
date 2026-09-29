@@ -160,7 +160,7 @@ function FlowStepChip({ step }: { step: { number: string; label: string; on: boo
         className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
           step.on
             ? "bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800"
-            : "bg-zinc-100 dark:bg-zinc-800/60 text-zinc-400 dark:text-zinc-500 border border-zinc-200 dark:border-zinc-700/60"
+            : "bg-zinc-100 dark:bg-zinc-800/60 text-zinc-400 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700/60"
         }`}
       >
         <span
@@ -314,7 +314,7 @@ function TaggedTextarea({
   const renderContent = () => {
     if (!value) {
       return placeholder ? (
-        <span className="text-zinc-400 dark:text-zinc-500">{placeholder}</span>
+        <span className="text-zinc-400 dark:text-zinc-400">{placeholder}</span>
       ) : null;
     }
     return value.split(/(@\w+)/g).map((part, i) => {
@@ -1391,7 +1391,7 @@ export default function BusinessClient({
       {/* Header */}
       <div>
         <h1 className="text-4xl sm:text-5xl text-gray-900 dark:text-white leading-none lowercase pt-2" style={{ fontFamily: "var(--font-borel), cursive", letterSpacing: "-0.07em" }}>Negocio</h1>
-        <p className="mt-1.5 text-[13px] text-zinc-400 dark:text-zinc-500">Información pública y configuración técnica de tu local</p>
+        <p className="mt-1.5 text-[13px] text-zinc-400 dark:text-zinc-400">Información pública y configuración técnica de tu local</p>
         <div className="mt-8 flex flex-col sm:flex-row sm:items-start gap-3">
           <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2 min-w-0">
             <Link
@@ -1476,7 +1476,7 @@ export default function BusinessClient({
           >
             <div className="flex-1 min-w-0">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Información Pública</h2>
-              <p className="text-xs text-zinc-400 dark:text-zinc-500">Estos datos se muestran en tu página de reservas</p>
+              <p className="text-xs text-zinc-400 dark:text-zinc-400">Estos datos se muestran en tu página de reservas</p>
             </div>
           </button>
           <AnimatePresence initial={false}>
@@ -1613,7 +1613,7 @@ export default function BusinessClient({
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Personalizar mi tienda</h2>
                 {showThemeCard && <InfoTooltip text="Elegí un diseño visual y personalizá los textos que se muestran en tu tienda online. Hacé clic sobre cualquier texto para editarlo directamente." />}
               </div>
-              <p className="text-xs text-zinc-400 dark:text-zinc-500">Selecciona template y textos principales</p>
+              <p className="text-xs text-zinc-400 dark:text-zinc-400">Selecciona template y textos principales</p>
             </div>
         </button>
 
@@ -1754,13 +1754,13 @@ export default function BusinessClient({
                       {buildFlowSteps(initialServices.length, staffCount, assignStaffLater, storeEnabledState, hasStoreProducts, payAtShop).map((step, idx) => (
                         <span key={step.label} className="inline-flex items-center">
                           {idx > 0 && (
-                            <ArrowRight className="w-4 h-4 mx-1.5 text-zinc-300 dark:text-zinc-600 shrink-0" strokeWidth={2.5} />
+                            <ArrowRight className="w-4 h-4 mx-1.5 text-zinc-300 dark:text-zinc-500 shrink-0" strokeWidth={2.5} />
                           )}
                           <FlowStepChip step={step} />
                         </span>
                       ))}
                     </div>
-                    <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-2">
+                    <p className="text-[11px] text-zinc-400 dark:text-zinc-400 mt-2">
                       Los pasos en gris se ocultan automáticamente del flujo según tu configuración.
                     </p>
                   </div>
@@ -1789,7 +1789,7 @@ export default function BusinessClient({
         >
           <div className="flex-1 min-w-0">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">Forma de cobro</h2>
-            <p className="text-xs text-zinc-400 dark:text-zinc-500">Mercado Pago, seña online y mensaje automático</p>
+            <p className="text-xs text-zinc-400 dark:text-zinc-400">Mercado Pago, seña online y mensaje automático</p>
           </div>
         </button>
         <AnimatePresence initial={false}>
@@ -1896,7 +1896,7 @@ export default function BusinessClient({
                     {payAtShop ? (
                       <>
                         <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Desactivado por cobro en el local</p>
-                        <p className="text-[10px] text-zinc-400 dark:text-zinc-500">Click para cambiar el metodo de cobro</p>
+                        <p className="text-[10px] text-zinc-400 dark:text-zinc-400">Click para cambiar el metodo de cobro</p>
                       </>
                     ) : (
                       <>
@@ -1958,7 +1958,7 @@ export default function BusinessClient({
                     {payAtShop ? (
                       <>
                         <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Desactivado por cobro en el local</p>
-                        <p className="text-[10px] text-zinc-400 dark:text-zinc-500">Click para cambiar el metodo de cobro</p>
+                        <p className="text-[10px] text-zinc-400 dark:text-zinc-400">Click para cambiar el metodo de cobro</p>
                       </>
                     ) : (
                       <>
@@ -2138,7 +2138,7 @@ export default function BusinessClient({
           >
             <div className="flex-1 min-w-0">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Horarios de Atención</h2>
-              <p className="text-xs text-zinc-400 dark:text-zinc-500">Días y horarios de apertura del local</p>
+              <p className="text-xs text-zinc-400 dark:text-zinc-400">Días y horarios de apertura del local</p>
             </div>
           </button>
           <AnimatePresence initial={false}>
@@ -2166,7 +2166,7 @@ export default function BusinessClient({
                       onClick={() => isOwnerOrAdmin && setBusinessHours({ ...businessHours, [day.key]: { ...h, open: !h.open } })}
                       className="flex flex-wrap items-center gap-3 py-3 px-3 rounded-2xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                     >
-                      <p className={`text-sm font-medium min-w-[64px] ${h.open ? "text-gray-900 dark:text-white" : "text-zinc-400 dark:text-zinc-500"}`}>
+                      <p className={`text-sm font-medium min-w-[64px] ${h.open ? "text-gray-900 dark:text-white" : "text-zinc-400 dark:text-zinc-400"}`}>
                         {day.label}
                       </p>
                       <div className={`flex flex-wrap items-center gap-2 transition-all duration-200 pointer-events-none ${h.open ? "opacity-100" : "opacity-25"}`}>
@@ -2245,7 +2245,7 @@ export default function BusinessClient({
                   );
                 })}
                 </div>
-                <p className="mt-2 px-1 text-xs text-zinc-400 dark:text-zinc-500">El corte es un descanso: durante ese horario no se aceptan turnos.</p>
+                <p className="mt-2 px-1 text-xs text-zinc-400 dark:text-zinc-400">El corte es un descanso: durante ese horario no se aceptan turnos.</p>
               </>
             ) : (
               <div className="py-8 text-center text-sm text-red-500">Error al cargar horarios</div>
@@ -2269,7 +2269,7 @@ export default function BusinessClient({
               </div>
               <div className="flex-1 min-w-0">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Feriados y Excepciones</h2>
-                <p className="text-xs text-zinc-400 dark:text-zinc-500">Cierres totales o horarios reducidos para dias puntuales</p>
+                <p className="text-xs text-zinc-400 dark:text-zinc-400">Cierres totales o horarios reducidos para dias puntuales</p>
               </div>
             </button>
             {isOwnerOrAdmin && (
@@ -2537,12 +2537,12 @@ export default function BusinessClient({
                       className="rounded border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-white focus:ring-zinc-500/30 disabled:opacity-50"
                     />
                     <span className="text-sm text-gray-900 dark:text-white">{t.label}</span>
-                    <span className="ml-auto text-xs text-zinc-400 dark:text-zinc-500">{t.hint}</span>
+                    <span className="ml-auto text-xs text-zinc-400 dark:text-zinc-400">{t.hint}</span>
                   </label>
                 );
               })}
             </div>
-            <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1">Comisiones aproximadas; dependen del plan de cobro de tu cuenta de Mercado Pago.</p>
+            <p className="text-[10px] text-zinc-400 dark:text-zinc-400 mt-1">Comisiones aproximadas; dependen del plan de cobro de tu cuenta de Mercado Pago.</p>
           </div>
         </div>
         <div className="flex justify-end gap-3 px-5 pb-5">
@@ -2658,7 +2658,7 @@ export default function BusinessClient({
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Comunicaciones con los clientes</h2>
               {showCommsCard && <InfoTooltip text="Al editar las plantillas, los nuevos mensajes de WhatsApp que se envíen automáticamente usarán el texto personalizado. Las etiquetas (@Nombre, @Servicio, etc.) se reemplazarán con los datos reales de cada turno o voucher." />}
             </div>
-            <p className="text-xs text-zinc-400 dark:text-zinc-500">Personalizá los mensajes que reciben tus clientes</p>
+            <p className="text-xs text-zinc-400 dark:text-zinc-400">Personalizá los mensajes que reciben tus clientes</p>
           </div>
         </button>
         <AnimatePresence initial={false}>
@@ -2688,7 +2688,7 @@ export default function BusinessClient({
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Confirmación de turno</h3>
-                <p className="text-[11px] text-zinc-400 dark:text-zinc-500">Se envía al agendar o confirmar un turno</p>
+                <p className="text-[11px] text-zinc-400 dark:text-zinc-400">Se envía al agendar o confirmar un turno</p>
               </div>
             </div>
             <TagChips tags={["Nombre", "Servicio", "Fecha", "Hora", "Lugar", "Negocio"]} onInsert={insertWhatsappTag} />
@@ -2717,7 +2717,7 @@ export default function BusinessClient({
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Voucher de regalo</h3>
-                <p className="text-[11px] text-zinc-400 dark:text-zinc-500">Se envía al regalar un voucher a un cliente</p>
+                <p className="text-[11px] text-zinc-400 dark:text-zinc-400">Se envía al regalar un voucher a un cliente</p>
               </div>
             </div>
             <TagChips tags={["Nombre", "Servicio", "Regala"]} onInsert={insertVoucherTag} />
@@ -2746,7 +2746,7 @@ export default function BusinessClient({
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Mensaje de cumpleaños</h3>
-                <p className="text-[11px] text-zinc-400 dark:text-zinc-500">Se envía automáticamente en el cumpleaños del cliente</p>
+                <p className="text-[11px] text-zinc-400 dark:text-zinc-400">Se envía automáticamente en el cumpleaños del cliente</p>
               </div>
             </div>
             <TagChips tags={["Nombre"]} onInsert={insertBirthdayTag} />
@@ -2867,7 +2867,7 @@ export default function BusinessClient({
         pending={isDeleting}
       />
 
-      <p className="text-xs text-center text-zinc-400 dark:text-zinc-600 pt-2">
+      <p className="text-xs text-center text-zinc-400 dark:text-zinc-400 pt-2">
         Los tokens de Mercado Pago se almacenan de forma segura en la base de datos.
       </p>
     </motion.div>

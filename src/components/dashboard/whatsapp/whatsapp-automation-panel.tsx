@@ -480,7 +480,7 @@ export default function WhatsAppAutomationPanel({
               <span>Estimado del periodo</span>
               <span>$ {totalArs.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
             </div>
-            <p className="text-[11px] text-zinc-400 dark:text-zinc-600">
+            <p className="text-[11px] text-zinc-400 dark:text-zinc-400">
               Meta factura por mensaje a la tarjeta del local; estos valores son estimativos (tarifa 2026, sin IVA).
             </p>
           </div>

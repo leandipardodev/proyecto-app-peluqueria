@@ -127,7 +127,7 @@ export default function SaleConfigModal({ shopId, item, open, onClose, onSaved }
               </span>
             </>
           ) : (
-            <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-zinc-400 dark:text-zinc-500 group-hover:text-violet-500 transition-colors">
+            <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-zinc-400 dark:text-zinc-400 group-hover:text-violet-500 transition-colors">
               <ImagePlus className="w-7 h-7" />
               <span className="text-sm font-medium">Subir imagen</span>
               <span className="text-xs">PNG o JPG hasta 2MB · se optimiza automáticamente</span>

@@ -266,10 +266,10 @@ export default function AppointmentPreviewModal({
             {/* Service */}
             {appointment.services?.name && (
               <div className="flex items-center justify-between px-4 py-3.5">
-                <span className="text-[15px] text-zinc-400 dark:text-zinc-500 w-20 shrink-0 lowercase" style={{ fontFamily: "var(--font-borel), cursive" }}>Servicio</span>
+                <span className="text-[15px] text-zinc-400 dark:text-zinc-400 w-20 shrink-0 lowercase" style={{ fontFamily: "var(--font-borel), cursive" }}>Servicio</span>
                 <div className="flex items-center gap-2 min-w-0 text-right">
                   {appointment.services.duration_minutes && (
-                    <span className="text-[11px] text-zinc-300 dark:text-zinc-600 tabular-nums shrink-0">
+                    <span className="text-[11px] text-zinc-300 dark:text-zinc-400 tabular-nums shrink-0">
                       {appointment.services.duration_minutes}&apos;
                     </span>
                   )}
@@ -282,7 +282,7 @@ export default function AppointmentPreviewModal({
 
             {/* Staff */}
             <div className="flex items-center justify-between px-4 py-3.5">
-                <span className="text-[15px] text-zinc-400 dark:text-zinc-500 w-20 shrink-0 lowercase" style={{ fontFamily: "var(--font-borel), cursive" }}>Profesional</span>
+                <span className="text-[15px] text-zinc-400 dark:text-zinc-400 w-20 shrink-0 lowercase" style={{ fontFamily: "var(--font-borel), cursive" }}>Profesional</span>
               <span className="text-[15px] font-medium text-gray-900 dark:text-white capitalize text-right">
                 {staffMember?.name ? capitalizeName(staffMember.name) : "Sin asignar"}
               </span>
@@ -291,7 +291,7 @@ export default function AppointmentPreviewModal({
             {/* Price */}
             {appointment.services?.price != null && (
               <div className="flex items-center justify-between px-4 py-3.5">
-                <span className="text-[15px] text-zinc-400 dark:text-zinc-500 w-20 shrink-0 lowercase" style={{ fontFamily: "var(--font-borel), cursive" }}>Precio</span>
+                <span className="text-[15px] text-zinc-400 dark:text-zinc-400 w-20 shrink-0 lowercase" style={{ fontFamily: "var(--font-borel), cursive" }}>Precio</span>
                 <span className="text-[15px] font-medium text-gray-900 dark:text-white tabular-nums text-right">
                   ${appointment.services.price.toLocaleString("es-AR")}
                 </span>
@@ -301,7 +301,7 @@ export default function AppointmentPreviewModal({
             {/* Deposit */}
             {appointment.deposit_amount != null && appointment.deposit_amount > 0 && (
               <div className="flex items-center justify-between px-4 py-3.5">
-                <span className="text-[15px] text-zinc-400 dark:text-zinc-500 w-20 shrink-0 lowercase" style={{ fontFamily: "var(--font-borel), cursive" }}>Seña</span>
+                <span className="text-[15px] text-zinc-400 dark:text-zinc-400 w-20 shrink-0 lowercase" style={{ fontFamily: "var(--font-borel), cursive" }}>Seña</span>
                 <span className="text-[15px] font-medium text-amber-600 dark:text-amber-400 tabular-nums text-right">
                   ${appointment.deposit_amount.toLocaleString("es-AR")}
                 </span>
@@ -311,7 +311,7 @@ export default function AppointmentPreviewModal({
             {/* Notes */}
             {appointment.notes && (
               <div className="flex items-start justify-between gap-4 px-4 py-3.5">
-                <span className="text-[15px] text-zinc-400 dark:text-zinc-500 w-20 shrink-0 pt-0.5 lowercase" style={{ fontFamily: "var(--font-borel), cursive" }}>Notas</span>
+                <span className="text-[15px] text-zinc-400 dark:text-zinc-400 w-20 shrink-0 pt-0.5 lowercase" style={{ fontFamily: "var(--font-borel), cursive" }}>Notas</span>
                 <p className="text-[15px] text-gray-600 dark:text-gray-400 text-right leading-relaxed">{appointment.notes}</p>
               </div>
             )}
@@ -352,7 +352,7 @@ export default function AppointmentPreviewModal({
               disabled={pending}
               className="flex items-center gap-2.5 cursor-pointer select-none disabled:opacity-50"
             >
-              <span className={`text-sm font-medium transition-colors ${localPaid ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-300 dark:text-zinc-600"}`}>
+              <span className={`text-sm font-medium transition-colors ${localPaid ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-300 dark:text-zinc-400"}`}>
                 Pagado
               </span>
               <div

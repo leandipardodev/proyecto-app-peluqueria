@@ -343,7 +343,7 @@ const AppointmentBlock = memo(function AppointmentBlock({
                 </span>
               )}
               {appt.start_hhmm && (
-                <span className={`tabular-nums leading-none ${isWeekMode ? "text-[10px] text-gray-400 dark:text-gray-500" : "text-[11px] text-gray-400 dark:text-gray-500"}`}>{appt.start_hhmm}</span>
+                <span className={`tabular-nums leading-none ${isWeekMode ? "text-[10px] text-gray-400 dark:text-gray-400" : "text-[11px] text-gray-400 dark:text-gray-400"}`}>{appt.start_hhmm}</span>
               )}
 
             </div>
@@ -463,7 +463,7 @@ function MonthCell({
             {cell.day}
           </span>
         ) : (
-          <span className={`${!isCurrentMonth ? "text-zinc-300 dark:text-zinc-600" : "text-gray-700 dark:text-gray-300"}`}>
+          <span className={`${!isCurrentMonth ? "text-zinc-300 dark:text-zinc-500" : "text-gray-700 dark:text-gray-300"}`}>
             {cell.day}
           </span>
         )}
@@ -1616,7 +1616,7 @@ export default memo(function CalendarView({
                       {format(day, "d")}
                     </span>
                     {dayFullyClosed && (
-                      <span className="relative z-10 text-[9px] text-zinc-400 dark:text-zinc-600 uppercase tracking-wider mt-0.5">Cerrado</span>
+                      <span className="relative z-10 text-[9px] text-zinc-400 dark:text-zinc-400 uppercase tracking-wider mt-0.5">Cerrado</span>
                     )}
                     <AnimatePresence>
                       {viewMode === "week" && showViewHint && isToday(day) && (
@@ -1625,7 +1625,7 @@ export default memo(function CalendarView({
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -2 }}
                           transition={{ duration: 0.35, ease: "easeOut" }}
-                          className="absolute bottom-1 left-1/2 -translate-x-1/2 z-20 whitespace-nowrap rounded-full border border-zinc-200/70 dark:border-zinc-700/70 bg-white/85 dark:bg-zinc-800/85 px-2 py-0.5 text-[8px] font-medium text-zinc-400 dark:text-zinc-500 shadow-xs backdrop-blur-sm flex items-center gap-1"
+                          className="absolute bottom-1 left-1/2 -translate-x-1/2 z-20 whitespace-nowrap rounded-full border border-zinc-200/70 dark:border-zinc-700/70 bg-white/85 dark:bg-zinc-800/85 px-2 py-0.5 text-[8px] font-medium text-zinc-400 dark:text-zinc-400 shadow-xs backdrop-blur-sm flex items-center gap-1"
                         >
                           <Pointer className="w-2.5 h-2.5" />
                           {isMobileViewport ? "Tocá aquí" : "Click"} para cambiar vista
@@ -1764,7 +1764,7 @@ export default memo(function CalendarView({
                 >
                   {tipAppt.customers?.nombre || "Sin cliente"}
                 </div>
-                <div className="mt-1.5 flex items-center gap-2 text-[11px] text-zinc-400 dark:text-zinc-500">
+                <div className="mt-1.5 flex items-center gap-2 text-[11px] text-zinc-400 dark:text-zinc-400">
                   <span className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 font-medium text-zinc-500 dark:text-zinc-400">
                     {dayName} {dayNum} {monthName}
                   </span>
@@ -1773,7 +1773,7 @@ export default memo(function CalendarView({
                 <div className="mt-3.5 mb-3.5 h-px bg-gradient-to-r from-zinc-200/80 via-zinc-200/30 to-transparent dark:from-zinc-700/50 dark:via-zinc-700/20" />
                 {(tipAppt.services?.name || tipAppt.custom_service_name) && (
                   <div className="flex items-baseline gap-2">
-                    <span className="text-[11px] text-zinc-400 dark:text-zinc-500 shrink-0">Servicio</span>
+                    <span className="text-[11px] text-zinc-400 dark:text-zinc-400 shrink-0">Servicio</span>
                     <div className="flex items-center gap-2 min-w-0">
                       <div className="w-[5px] h-[5px] rounded-full shrink-0" style={{ backgroundColor: solidStaffColor }} />
                       <span className="text-sm font-medium text-gray-800 dark:text-gray-200 leading-tight truncate">
@@ -1783,9 +1783,9 @@ export default memo(function CalendarView({
                   </div>
                 )}
                 <div className="mt-2.5 flex items-baseline gap-2 text-xs">
-                  <span className="text-zinc-400 dark:text-zinc-500 shrink-0">Se encarga</span>
+                  <span className="text-zinc-400 dark:text-zinc-400 shrink-0">Se encarga</span>
                   <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="flex items-center justify-center w-[18px] h-[18px] rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 shrink-0">
+                    <span className="flex items-center justify-center w-[18px] h-[18px] rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-400 shrink-0">
                       <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                         <circle cx="12" cy="7" r="4" />
@@ -1898,7 +1898,7 @@ export default memo(function CalendarView({
                       return `${wd} ${day} de ${mo}`;
                     })()}
                   </p>
-                  <p className="text-[11px] text-zinc-400 dark:text-zinc-500">{dayAppts.length} turno{dayAppts.length !== 1 ? "s" : ""}</p>
+                  <p className="text-[11px] text-zinc-400 dark:text-zinc-400">{dayAppts.length} turno{dayAppts.length !== 1 ? "s" : ""}</p>
                 </div>
                 <button onClick={closeDayPopover} className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer">
                   <X className="w-4 h-4 text-zinc-400" />
@@ -1946,7 +1946,7 @@ export default memo(function CalendarView({
                           </span>
                         )}
                       </p>
-                      <p className="text-[11px] text-zinc-400 dark:text-zinc-500 truncate">
+                      <p className="text-[11px] text-zinc-400 dark:text-zinc-400 truncate">
                         {appt.services?.name || appt.custom_service_name || "Sin servicio"}
                         <span className="mx-1">·</span>
                         {appt.staff?.name || "Sin asignar"}
@@ -1975,7 +1975,7 @@ export default memo(function CalendarView({
       })(), document.body)}
 
       {businessHours && (
-        <div className="mt-3 flex items-center gap-3 text-xs text-zinc-400 dark:text-zinc-500 select-none">
+        <div className="mt-3 flex items-center gap-3 text-xs text-zinc-400 dark:text-zinc-400 select-none">
           <hr className="flex-1 border-t border-zinc-300/60 dark:border-zinc-700/60" />
           <span className="tracking-wider uppercase">Cerrado</span>
           <hr className="flex-1 border-t border-zinc-300/60 dark:border-zinc-700/60" />

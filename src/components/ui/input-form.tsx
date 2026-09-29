@@ -53,7 +53,7 @@ export const InputForm = forwardRef<HTMLInputElement, InputFormProps>(
           </p>
         )}
         {helperText && !error && (
-          <p className="text-xs text-gray-400 dark:text-zinc-500 mt-0.5">{helperText}</p>
+          <p className="text-xs text-gray-400 dark:text-zinc-400 mt-0.5">{helperText}</p>
         )}
       </div>
     );

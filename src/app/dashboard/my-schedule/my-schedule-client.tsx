@@ -170,7 +170,7 @@ export default function MyScheduleClient(_props: MyScheduleClientProps) {
           </div>
           <div className="flex-1 min-w-0">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Horarios Semanales</h2>
-            <p className="text-xs text-zinc-400 dark:text-zinc-500">Define tus dias y horas de trabajo</p>
+            <p className="text-xs text-zinc-400 dark:text-zinc-400">Define tus dias y horas de trabajo</p>
           </div>
         </div>
         <div className="px-6 pb-6 space-y-2">
@@ -218,7 +218,7 @@ export default function MyScheduleClient(_props: MyScheduleClientProps) {
                     />
                     {(day.break_start || day.break_end) && (
                       <>
-                        <span className="text-xs text-zinc-300 dark:text-zinc-600 mx-1">|</span>
+                        <span className="text-xs text-zinc-300 dark:text-zinc-500 mx-1">|</span>
                         <input
                           type="time"
                           value={day.break_start ?? ""}
@@ -266,7 +266,7 @@ export default function MyScheduleClient(_props: MyScheduleClientProps) {
               </div>
             ))
           )}
-          <p className="text-xs text-zinc-400 dark:text-zinc-500">El corte es un descanso: durante ese horario no se aceptan turnos.</p>
+          <p className="text-xs text-zinc-400 dark:text-zinc-400">El corte es un descanso: durante ese horario no se aceptan turnos.</p>
           {!scheduleLoading && (
             <div className="flex justify-end pt-2">
               <button
@@ -290,7 +290,7 @@ export default function MyScheduleClient(_props: MyScheduleClientProps) {
           </div>
           <div className="flex-1 min-w-0">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Mis Excepciones</h2>
-            <p className="text-xs text-zinc-400 dark:text-zinc-500">Cierres o horarios reducidos para dias puntuales</p>
+            <p className="text-xs text-zinc-400 dark:text-zinc-400">Cierres o horarios reducidos para dias puntuales</p>
           </div>
           <button
             type="button"
