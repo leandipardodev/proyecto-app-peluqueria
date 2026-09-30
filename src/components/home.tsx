@@ -402,9 +402,6 @@ export default function Home({ monthlyPrice, trialDays }: { monthlyPrice: number
             <div className={`${playfair.className} pointer-events-none absolute right-6 top-4 hidden lg:block text-[10rem] leading-none font-black tracking-[-0.07em] text-[#0b172f]/5`}>
               KLIP
             </div>
-            <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/80 bg-white px-2.5 py-1.5 text-[9px] uppercase tracking-[0.2em] text-[#68707d] shadow-[0_10px_24px_rgba(2,6,23,0.08)] sm:mb-5 sm:px-3 sm:text-[10px] sm:tracking-[0.24em]">
-              Turnos · Gestión · Cobros
-            </p>
 
             <motion.div
               className={`${playfair.className} mb-2 pb-1 text-5xl sm:mb-3 sm:text-7xl md:text-8xl font-black tracking-[-0.06em] leading-[1.06]`}
@@ -542,18 +539,15 @@ export default function Home({ monthlyPrice, trialDays }: { monthlyPrice: number
 
           <div className="grid gap-5 md:grid-cols-3">
             <Card className="p-8 bg-gradient-to-br from-white via-white to-blue-50/60 shadow-[0_18px_38px_rgba(15,23,42,0.06)] hover:shadow-[0_24px_48px_rgba(15,23,42,0.1)] transition-shadow">
-              <p className="text-xs font-semibold tracking-[0.16em] text-[#0071E3]">PASO 1</p>
-              <h3 className="mt-3 text-2xl font-bold tracking-tight text-[#1D1D1F]">Configuras tu negocio</h3>
+              <h3 className="text-2xl font-bold tracking-tight text-[#1D1D1F]">Configuras tu negocio</h3>
               <p className="mt-3 leading-relaxed text-[#86868B]">Cargas tus servicios con sus duraciones, precios y asignas que empleados realizan cada tarea.</p>
             </Card>
             <Card className="p-8 bg-gradient-to-br from-white via-white to-violet-50/50 shadow-[0_18px_38px_rgba(15,23,42,0.06)] hover:shadow-[0_24px_48px_rgba(15,23,42,0.1)] transition-shadow">
-              <p className="text-xs font-semibold tracking-[0.16em] text-[#0071E3]">PASO 2</p>
-              <h3 className="mt-3 text-2xl font-bold tracking-tight text-[#1D1D1F]">Compartis tu link</h3>
+              <h3 className="text-2xl font-bold tracking-tight text-[#1D1D1F]">Compartis tu link</h3>
               <p className="mt-3 leading-relaxed text-[#86868B]">Tus clientes entran a tu pagina personalizada, reservan en segundos y ese link ayuda a posicionarte mejor en Google para captar mas clientes.</p>
             </Card>
             <Card className="p-8 bg-gradient-to-br from-white via-white to-cyan-50/50 shadow-[0_18px_38px_rgba(15,23,42,0.06)] hover:shadow-[0_24px_48px_rgba(15,23,42,0.1)] transition-shadow">
-              <p className="text-xs font-semibold tracking-[0.16em] text-[#0071E3]">PASO 3</p>
-              <h3 className="mt-3 text-2xl font-bold tracking-tight text-[#1D1D1F]">El sistema trabaja solo</h3>
+              <h3 className="text-2xl font-bold tracking-tight text-[#1D1D1F]">El sistema trabaja solo</h3>
               <p className="mt-3 leading-relaxed text-[#86868B]">Klip se encarga de gestionar el turno, cobrar, organizarlo en tu agenda y enviarle un mensaje al usuario horas antes para terminar con los ausentismos.</p>
             </Card>
           </div>
@@ -574,24 +568,25 @@ export default function Home({ monthlyPrice, trialDays }: { monthlyPrice: number
                 <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f172a] via-[#111c34] to-[#0b1324] p-5 sm:p-8 md:p-10">
                   <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_80%_at_10%_0%,rgba(56,189,248,0.24),transparent_65%)]" />
                   <div className="relative z-10">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-300">Comparativa real</p>
-                    <h3 className={`${playfair.className} mt-3 text-3xl sm:text-5xl font-bold tracking-[-0.03em] text-white`}>Antes vs Con Klip</h3>
+                    <h3 className={`${playfair.className} text-3xl sm:text-5xl font-bold tracking-[-0.03em] text-white`}>Antes y después de Klip</h3>
                     <p className="mt-4 max-w-2xl leading-relaxed text-slate-300">Resultados concretos en menos tareas administrativas y mas recurrencia de clientes.</p>
 
                     <div className="mt-8 grid gap-3 text-sm font-semibold uppercase tracking-[0.14em] text-slate-400 md:grid-cols-3">
-                      <p>Indicador</p><p>Antes</p><p>Con Klip</p>
+                      {/* La primera celda queda vacía (aria-hidden) para no romper
+                          la alineación con las filas de datos de abajo. */}
+                      <p aria-hidden="true" /><p>Antes</p><p>Con Klip</p>
                     </div>
                     <div className="mt-4 grid items-center gap-3 rounded-2xl border border-slate-700 bg-slate-800/70 p-4 md:grid-cols-3">
-                      <p className="font-semibold text-slate-200">Inasistencias mensuales</p><p className="text-2xl font-black text-rose-400">18%</p><p className="text-2xl font-black text-emerald-400"><CountUp to={6} suffix="%" /></p>
+                      <p className="font-semibold text-slate-200">Inasistencias</p><p className="text-2xl font-black text-rose-400">18%</p><p className="text-2xl font-black text-emerald-400"><CountUp to={6} suffix="%" /></p>
                     </div>
                     <div className="mt-3 grid items-center gap-3 rounded-2xl border border-slate-700 bg-slate-800/70 p-4 md:grid-cols-3">
-                      <p className="font-semibold text-slate-200">Horas admin por semana</p><p className="text-2xl font-black text-rose-400">12h</p><p className="text-2xl font-black text-emerald-400"><CountUp to={4} suffix="h" /></p>
+                      <p className="font-semibold text-slate-200">Horas gestionando</p><p className="text-2xl font-black text-rose-400">12h</p><p className="text-2xl font-black text-emerald-400"><CountUp to={4} suffix="h" /></p>
                     </div>
                     <div className="mt-3 grid items-center gap-3 rounded-2xl border border-slate-700 bg-slate-800/70 p-4 md:grid-cols-3">
                       <p className="font-semibold text-slate-200">Clientes que regresan</p><p className="text-2xl font-black text-rose-400">31%</p><p className="text-2xl font-black text-emerald-400"><CountUp to={64} suffix="%" /></p>
                     </div>
                     <div className="mt-3 grid items-center gap-3 rounded-2xl border border-slate-700 bg-slate-800/70 p-4 md:grid-cols-3">
-                      <p className="font-semibold text-slate-200">Disponibilidad online</p><p className="text-2xl font-black text-rose-400">Limitada</p><p className="text-2xl font-black text-emerald-400">99.9%</p>
+                      <p className="font-semibold text-slate-200">Disponibilidad online</p><p className="text-2xl font-black text-rose-400">Limitada</p><p className="text-2xl font-black text-emerald-400">100%</p>
                     </div>
                   </div>
                 </div>
@@ -684,7 +679,7 @@ export default function Home({ monthlyPrice, trialDays }: { monthlyPrice: number
                     Domina Klip con tutoriales cortos
                   </h3>
                   <p className="mt-3 max-w-xl leading-relaxed text-[#5f6673]">
-                    Videos paso a paso para configurar tu local, cargar servicios, cobrar y aprovechar cada funcion. Aprendelo a tu ritmo, en 2 o 3 minutos.
+                    Videos paso a paso para configurar tu local, cargar servicios, cobrar y aprovechar cada funcion. Aprendelo en 2 minutos.
                   </p>
                   <div className="mt-7 inline-flex items-center gap-2 rounded-full bg-[linear-gradient(140deg,#080d18_0%,#0b1222_48%,#0d172d_100%)] px-6 py-3 text-sm font-bold text-white shadow-[0_18px_40px_rgba(2,6,23,0.28)] transition group-hover:bg-[linear-gradient(140deg,#0c1830_0%,#11203a_48%,#142743_100%)] group-hover:shadow-[0_22px_48px_rgba(2,6,23,0.4)]">
                     Ver tutoriales
@@ -696,7 +691,7 @@ export default function Home({ monthlyPrice, trialDays }: { monthlyPrice: number
                     {[
                       { title: "Primeros pasos en Klip", time: "2 min", grad: "from-sky-200 to-blue-300" },
                       { title: "Cargar servicios y precios", time: "3 min", grad: "from-cyan-200 to-sky-300" },
-                      { title: "Atender turnos sin apuro", time: "2 min", grad: "from-indigo-200 to-blue-300" },
+                      { title: "Agenda", time: "2 min", grad: "from-indigo-200 to-blue-300" },
                     ].map((v) => (
                       <div key={v.title} className="flex items-center gap-3 rounded-xl p-2.5 transition hover:bg-sky-50">
                         <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${v.grad} text-white shadow-inner`}>
