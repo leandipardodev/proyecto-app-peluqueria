@@ -32,17 +32,17 @@ export default function PartnerCard({ partner, shops, baseUrl, editAction, phone
 
  return (
  <>
- <div className="flex flex-col rounded-3xl border border-zinc-200/80 bg-white p-5">
+ <div className="flex flex-col rounded-3xl border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
  <div className="flex items-start justify-between gap-3">
  <div className="min-w-0">
- <p className="truncate text-base font-semibold text-zinc-900">{partner.partnerName}</p>
- <p className="mt-0.5 font-mono text-sm text-zinc-500">{partner.referralCode}</p>
+ <p className="truncate text-base font-semibold text-zinc-900 dark:text-zinc-100">{partner.partnerName}</p>
+ <p className="mt-0.5 font-mono text-sm text-zinc-500 dark:text-zinc-400">{partner.referralCode}</p>
  </div>
  <button
  type="button"
  onClick={() => setEditing(true)}
  aria-label={`Editar ${partner.partnerName}`}
- className="shrink-0 rounded-full p-2 text-zinc-300 transition hover:bg-zinc-100 hover:text-zinc-600"
+ className="shrink-0 rounded-full p-2 text-zinc-300 dark:text-zinc-600 transition hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-600 dark:hover:text-zinc-300"
  >
  <Pencil className="h-4 w-4" />
  </button>
@@ -51,19 +51,19 @@ export default function PartnerCard({ partner, shops, baseUrl, editAction, phone
  <div className="mt-4 flex items-end gap-4">
  <div>
  <p className="text-[11px] uppercase tracking-wider text-zinc-400">Te debe</p>
- <p className="text-xl font-semibold text-amber-600 tabular-nums">
+ <p className="text-xl font-semibold text-amber-600 dark:text-amber-400 tabular-nums">
  {money(partner.pendingCommission)}
  </p>
  </div>
  <div>
  <p className="text-[11px] uppercase tracking-wider text-zinc-400">Pagado</p>
- <p className="text-xl font-semibold text-emerald-600 tabular-nums">
+ <p className="text-xl font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
  {money(partner.paidCommission)}
  </p>
  </div>
  <div>
  <p className="text-[11px] uppercase tracking-wider text-zinc-400">Locales</p>
- <p className="text-xl font-semibold text-zinc-900 tabular-nums">
+ <p className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">
  {partner.referredShops}
  </p>
  </div>
@@ -82,7 +82,7 @@ export default function PartnerCard({ partner, shops, baseUrl, editAction, phone
  {partner.rulePercent}% × {partner.ruleMonths} meses
  </span>
  {!partner.isActive ? (
- <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] text-zinc-500">
+ <span className="rounded-full bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">
  Inactivo
  </span>
  ) : null}
@@ -106,26 +106,26 @@ export default function PartnerCard({ partner, shops, baseUrl, editAction, phone
  name="name"
  defaultValue={partner.partnerName}
  placeholder="Nombre"
- className="w-full rounded-xl border border-zinc-300 bg-transparent px-3 py-2 text-sm"
+ className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-transparent px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500"
  />
  <input
  name="email"
  type="email"
  defaultValue={partner.partnerEmail || ""}
  placeholder="Email"
- className="w-full rounded-xl border border-zinc-300 bg-transparent px-3 py-2 text-sm"
+ className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-transparent px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500"
  />
  <input
  name="phone"
  defaultValue={phone || ""}
  placeholder="Teléfono"
- className="w-full rounded-xl border border-zinc-300 bg-transparent px-3 py-2 text-sm"
+ className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-transparent px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500"
  />
  <input
  name="referralCode"
  defaultValue={partner.referralCode}
  placeholder="Código"
- className="w-full rounded-xl border border-zinc-300 bg-transparent px-3 py-2 font-mono text-sm"
+ className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-transparent px-3 py-2 font-mono text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500"
  />
 
  <h3 className="pt-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">Regla</h3>
@@ -138,7 +138,7 @@ export default function PartnerCard({ partner, shops, baseUrl, editAction, phone
  step="0.1"
  defaultValue={partner.rulePercent}
  aria-label="Porcentaje"
- className="w-full rounded-xl border border-zinc-300 bg-transparent px-3 py-2 text-sm"
+ className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-transparent px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500"
  />
  <input
  name="commissionMonthsOverride"
@@ -147,10 +147,10 @@ export default function PartnerCard({ partner, shops, baseUrl, editAction, phone
  max="24"
  defaultValue={partner.ruleMonths}
  aria-label="Meses"
- className="w-full rounded-xl border border-zinc-300 bg-transparent px-3 py-2 text-sm"
+ className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-transparent px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500"
  />
  </div>
- <label className="inline-flex items-center gap-2 text-sm text-zinc-600">
+ <label className="inline-flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
  <input type="checkbox" name="isActive" defaultChecked={partner.isActive} />
  Activo
  </label>
@@ -183,8 +183,8 @@ export default function PartnerCard({ partner, shops, baseUrl, editAction, phone
  <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Sus locales</h3>
  <ul className="mt-2 space-y-1.5">
  {shops.map((shop) => (
- <li key={shop.shopId} className="flex items-center gap-2 text-sm text-zinc-600">
- <Store className="h-3.5 w-3.5 shrink-0 text-zinc-300" />
+ <li key={shop.shopId} className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
+ <Store className="h-3.5 w-3.5 shrink-0 text-zinc-300 dark:text-zinc-600" />
  <span className="truncate">{shop.shopName}</span>
  <span className="ml-auto shrink-0 text-xs tabular-nums text-zinc-400">
  {shop.paymentsTracked}/{shop.commissionMonths}

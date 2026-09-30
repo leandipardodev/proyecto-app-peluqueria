@@ -69,7 +69,7 @@ export default function TransferList({
  value={filter}
  onChange={(event) => applyFilter(event.target.value)}
  aria-label="Filtrar por vendedor"
- className="rounded-full border border-zinc-200 bg-transparent px-3 py-1.5 text-sm"
+ className="rounded-full border border-zinc-200 dark:border-zinc-800 bg-transparent px-3 py-1.5 text-sm"
  >
  <option value="all">Todos los vendedores</option>
  {partnerOptions.map((partner) => (
@@ -79,7 +79,7 @@ export default function TransferList({
  ))}
  </select>
 
- <span className="text-sm text-zinc-500">
+ <span className="text-sm text-zinc-500 dark:text-zinc-400">
  {chosen.length > 0
  ? `${chosen.length} ${chosen.length === 1 ? "seleccionada" : "seleccionadas"} · ${money(chosenTotal)}`
  : `${visible.length} ${visible.length === 1 ? "transferencia" : "transferencias"}`}
@@ -98,11 +98,11 @@ export default function TransferList({
  value={transfer.ledgerId}
  checked={isSelected}
  onChange={() => toggle(transfer.ledgerId)}
- className="h-4 w-4 shrink-0 rounded border-zinc-300 accent-amber-500"
+ className="h-4 w-4 shrink-0 rounded border-zinc-300 dark:border-zinc-700 accent-amber-500"
  />
  <span className="min-w-0 flex-1">
  <span className="flex flex-wrap items-baseline gap-x-2">
- <span className="truncate text-sm font-medium text-zinc-900">
+ <span className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
  {transfer.shopName}
  </span>
  <span className="truncate text-xs text-zinc-400">
@@ -128,7 +128,7 @@ export default function TransferList({
  })}
  </ul>
 
- <form action={formAction} className="flex items-center gap-3 border-t border-zinc-200 pt-4">
+ <form action={formAction} className="flex items-center gap-3 border-t border-zinc-200 dark:border-zinc-800 pt-4">
  <button
  type="submit"
  disabled={pending || chosen.length === 0}

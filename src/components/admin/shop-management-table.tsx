@@ -113,10 +113,10 @@ export default function ShopManagementTable({
         </button>
       </form>
 
-      <div className="mt-4 overflow-x-auto rounded-2xl border border-zinc-200 bg-white">
+      <div className="mt-4 overflow-x-auto rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
         <table className="w-full min-w-[1000px] text-sm">
           <thead>
-            <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500">
+            <tr className="border-b border-zinc-200 dark:border-zinc-800 text-left text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
               <th className="px-3 py-2">Local</th>
               <th className="px-3 py-2">Rubro</th>
               <th className="px-3 py-2">Owner</th>
@@ -129,7 +129,7 @@ export default function ShopManagementTable({
           <tbody>
             {shops.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-3 py-8 text-center text-zinc-500">
+                <td colSpan={7} className="px-3 py-8 text-center text-zinc-500 dark:text-zinc-400">
                   No se encontraron tiendas.
                 </td>
               </tr>
@@ -139,29 +139,29 @@ export default function ShopManagementTable({
                   ? new Date(shop.planExpiry) < new Date()
                   : false;
                 return (
-                  <tr key={shop.shopId} className="border-b border-zinc-100 last:border-0">
+                  <tr key={shop.shopId} className="border-b border-zinc-100 dark:border-zinc-800/60 last:border-0">
                     <td className="px-3 py-2">
                       <Link
                         href={`/admin/shops/${shop.shopId}`}
-                        className="font-medium text-violet-600 hover:underline"
+                        className="font-medium text-violet-600 dark:text-violet-400 hover:underline"
                       >
                         {shop.nombre}
                       </Link>
-                      <p className="text-xs text-zinc-500">/{shop.slug}</p>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">/{shop.slug}</p>
                     </td>
                     <td className="px-3 py-2">{shop.industryLabel}</td>
                     <td className="px-3 py-2">
                       <p className="text-sm">{shop.ownerName || "-"}</p>
-                      <p className="text-xs text-zinc-500">{shop.ownerEmail || ""}</p>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">{shop.ownerEmail || ""}</p>
                     </td>
                     <td className="px-3 py-2 text-center">{shop.memberCount}</td>
                     <td className="px-3 py-2">
                       {shop.active ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
                           Activa
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:text-zinc-300">
                           Inactiva
                         </span>
                       )}
@@ -254,12 +254,12 @@ export default function ShopManagementTable({
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white shadow-xl p-5">
+          <div className="w-full max-w-sm rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xl p-5">
             <div className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-red-500" />
-              <h3 className="text-base font-semibold text-gray-900">Borrar tienda</h3>
+              <h3 className="text-base font-semibold text-gray-900 dark:text-zinc-100">Borrar tienda</h3>
             </div>
-            <p className="mt-2 text-sm text-gray-600">
+            <p className="mt-2 text-sm text-gray-600 dark:text-zinc-300">
               Esta accion es <strong>permanente</strong>. Se eliminaran todos los datos de{" "}
               <strong>{confirmDelete.nombre}</strong> incluyendo turnos, clientes, servicios,
               finanzas y membresias. Escribi <strong>CONFIRMAR</strong> para continuar.
@@ -268,7 +268,7 @@ export default function ShopManagementTable({
               value={deleteText}
               onChange={(e) => setDeleteText(e.target.value)}
               placeholder='Escribi "CONFIRMAR"'
-              className="mt-3 w-full rounded-xl border border-red-200 bg-white px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
+              className="mt-3 w-full rounded-xl border border-red-200 dark:border-red-800 bg-white dark:bg-zinc-950 px-3 py-2 text-sm text-gray-900 dark:text-zinc-100 placeholder-zinc-400 outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900"
               autoFocus
             />
             <div className="mt-4 flex items-center justify-end gap-2">

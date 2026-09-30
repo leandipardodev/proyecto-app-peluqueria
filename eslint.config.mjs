@@ -18,6 +18,9 @@ const config = [
     plugins: { "dark-contrast": darkContrast },
     rules: {
       "dark-contrast/inverted-muted-text": "error",
+      // Warn, no error: todavia quedan superficies sin dark: y pasarla a error
+      // traba el pre-commit hasta terminar el barrido.
+      "dark-contrast/missing-dark-variant": "warn",
     },
   },
 ];

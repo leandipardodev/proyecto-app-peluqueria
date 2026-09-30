@@ -16,11 +16,11 @@ const variantClasses = {
   primary:
     "bg-violet-600 text-white shadow-sm hover:bg-violet-700 focus-visible:ring-violet-500",
   secondary:
-    "bg-white text-gray-900 border border-gray-300 shadow-sm hover:bg-gray-50 focus-visible:ring-gray-400",
+    "bg-white text-gray-900 border border-gray-300 shadow-sm hover:bg-gray-50 focus-visible:ring-gray-400 dark:bg-zinc-800 dark:text-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-700",
   danger:
     "bg-red-600 text-white shadow-sm hover:bg-red-700 focus-visible:ring-red-500",
   ghost:
-    "bg-transparent text-gray-600 hover:text-gray-700 hover:bg-gray-100 focus-visible:ring-gray-400",
+    "bg-transparent text-gray-600 hover:text-gray-700 hover:bg-gray-100 focus-visible:ring-gray-400 dark:text-zinc-300 dark:hover:text-zinc-100 dark:hover:bg-zinc-800",
 };
 
 const sizeClasses = {

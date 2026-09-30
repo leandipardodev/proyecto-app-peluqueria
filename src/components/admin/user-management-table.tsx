@@ -89,20 +89,20 @@ export default function UserManagementTable({
     <>
       <form className="flex flex-col gap-3 md:flex-row md:items-end">
         <div className="flex-1">
-          <label className="text-xs text-zinc-500">Buscar</label>
+          <label className="text-xs text-zinc-500 dark:text-zinc-400">Buscar</label>
           <div className="mt-1 relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
             <input
               name="q"
               defaultValue={q}
               placeholder="email, nombre..."
-              className="w-full rounded-xl border border-zinc-300 pl-9 pr-3 py-2 text-sm"
+              className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 pl-9 pr-3 py-2 text-sm"
             />
           </div>
         </div>
         <div>
-          <label className="text-xs text-zinc-500">Filtrar</label>
-          <select name="filter" defaultValue={filter} className="mt-1 min-w-[180px] rounded-xl border border-zinc-300 px-3 py-2 text-sm">
+          <label className="text-xs text-zinc-500 dark:text-zinc-400">Filtrar</label>
+          <select name="filter" defaultValue={filter} className="mt-1 min-w-[180px] rounded-xl border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-sm">
             <option value="all">Todos</option>
             <option value="active">Activos</option>
             <option value="banned">Banneados</option>
@@ -113,10 +113,10 @@ export default function UserManagementTable({
         </button>
       </form>
 
-      <div className="mt-4 overflow-x-auto rounded-2xl border border-zinc-200 bg-white">
+      <div className="mt-4 overflow-x-auto rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
         <table className="w-full min-w-[900px] text-sm">
           <thead>
-            <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500">
+            <tr className="border-b border-zinc-200 dark:border-zinc-800 text-left text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
               <th className="px-3 py-2">Usuario</th>
               <th className="px-3 py-2">Tienda</th>
               <th className="px-3 py-2">Rol</th>
@@ -128,7 +128,7 @@ export default function UserManagementTable({
           <tbody>
             {users.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-3 py-8 text-center text-zinc-500">
+                <td colSpan={6} className="px-3 py-8 text-center text-zinc-500 dark:text-zinc-400">
                   No se encontraron usuarios.
                 </td>
               </tr>
@@ -137,13 +137,13 @@ export default function UserManagementTable({
                 <tr key={user.userId} className="border-b border-zinc-100 last:border-0">
                   <td className="px-3 py-2">
                     <p className="font-medium">{user.name || user.nombre || "Sin nombre"}</p>
-                    <p className="text-xs text-zinc-500">{user.email || "sin email"}</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">{user.email || "sin email"}</p>
                   </td>
                   <td className="px-3 py-2">
                     {user.shopName ? (
                       <div>
                         <p className="text-sm">{user.shopName}</p>
-                        <p className="text-xs text-zinc-500">/{user.shopSlug}</p>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">/{user.shopSlug}</p>
                       </div>
                     ) : (
                       <span className="text-xs text-zinc-400">-</span>
@@ -155,7 +155,7 @@ export default function UserManagementTable({
                         ? "bg-purple-100 text-purple-700"
                         : user.role === "owner"
                           ? "bg-blue-100 text-blue-700"
-                          : "bg-zinc-100 text-zinc-600"
+                          : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300"
                     }`}>
                       {user.platformRole === "super_admin" && <ShieldCheck className="h-3 w-3" />}
                       {user.platformRole === "super_admin" ? "Super Admin" : user.role || "user"}
@@ -173,7 +173,7 @@ export default function UserManagementTable({
                       </span>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-xs text-zinc-500">
+                  <td className="px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">
                     {user.createdAt ? new Date(user.createdAt).toLocaleDateString("es-AR") : "-"}
                   </td>
                   <td className="px-3 py-2 text-right">
@@ -211,13 +211,13 @@ export default function UserManagementTable({
         </table>
       </div>
 
-      <div className="mt-3 flex items-center justify-between text-xs text-zinc-500">
+      <div className="mt-3 flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
         <span>{total} usuario{total !== 1 ? "s" : ""} total · Pagina {page} de {totalPages}</span>
         <div className="flex items-center gap-2">
           {page > 1 ? (
             <a
               href={buildUrl({ page: String(page - 1) })}
-              className="rounded-full border border-zinc-300 px-3 py-1 hover:bg-zinc-50"
+              className="rounded-full border border-zinc-300 dark:border-zinc-700 px-3 py-1 hover:bg-zinc-50 dark:hover:bg-zinc-800"
             >
               Anterior
             </a>
@@ -225,7 +225,7 @@ export default function UserManagementTable({
           {page < totalPages ? (
             <a
               href={buildUrl({ page: String(page + 1) })}
-              className="rounded-full border border-zinc-300 px-3 py-1 hover:bg-zinc-50"
+              className="rounded-full border border-zinc-300 dark:border-zinc-700 px-3 py-1 hover:bg-zinc-50 dark:hover:bg-zinc-800"
             >
               Siguiente
             </a>

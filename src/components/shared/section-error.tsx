@@ -12,10 +12,10 @@ export default function SectionError({
 }) {
   return (
     <div className="flex h-full min-h-[300px] flex-col items-center justify-center gap-4 p-4 text-center">
-      <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
+      <h2 className="text-2xl font-semibold text-gray-900 dark:text-zinc-100 dark:text-white">
         Algo sali&oacute; mal
       </h2>
-      <p className="max-w-sm text-gray-600 dark:text-zinc-400">
+      <p className="max-w-sm text-gray-600 dark:text-zinc-300">
         No se pudo cargar esta secci&oacute;n. Intent&aacute; de nuevo.
       </p>
       {error.digest && (
@@ -28,7 +28,7 @@ export default function SectionError({
         Reintentar
       </button>
       <div className="flex gap-3">
-        <Link href="/dashboard" className="inline-flex h-10 items-center justify-center rounded-2xl border border-zinc-300 px-6 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors">
+        <Link href="/dashboard" className="inline-flex h-10 items-center justify-center rounded-2xl border border-zinc-300 dark:border-zinc-700 px-6 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
           Volver al inicio
         </Link>
         <button

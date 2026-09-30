@@ -122,6 +122,23 @@ body {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-primary) 20%, transparent);
 }
 
+/*
+ * La lista desplegable de un <select> nativo la dibuja el navegador con su propia
+ * paleta, no con las clases del <select>: ninguna variante `dark:` de Tailwind
+ * llega a los <option>. Sin esto, abrir un select en dark mode pinta una lista
+ * blanca con texto negro. Se resuelve ahi, con las variables que ya respetan el
+ * modo, para que todos los selects del proyecto hereden el fix.
+ */
+select option,
+select optgroup {
+  background-color: var(--ui-surface);
+  color: var(--ui-text);
+}
+
+select option:disabled {
+  color: var(--ui-text-muted);
+}
+
 .ui-card {
   border: 1px solid color-mix(in srgb, var(--ui-border) 92%, transparent);
   background: color-mix(in srgb, var(--ui-surface) 88%, transparent);

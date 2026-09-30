@@ -35,10 +35,10 @@ export default function ShopTile({ shop, partnerOptions, assignAction, unassignA
  <button
  type="button"
  onClick={() => setOpen(true)}
- className="flex aspect-square flex-col rounded-3xl border border-zinc-200/80 bg-white p-5 text-left transition hover:border-zinc-300 hover:shadow-sm"
+ className="flex aspect-square flex-col rounded-3xl border border-zinc-200/80 bg-white dark:bg-zinc-900 p-5 text-left transition hover:border-zinc-300 dark:hover:border-zinc-700 hover:shadow-sm"
  >
- <Store className="h-4 w-4 shrink-0 text-zinc-300" />
- <span className="mt-auto line-clamp-2 text-sm font-semibold leading-snug text-zinc-900">
+ <Store className="h-4 w-4 shrink-0 text-zinc-300 dark:text-zinc-600" />
+ <span className="mt-auto line-clamp-2 text-sm font-semibold leading-snug text-zinc-900 dark:text-zinc-100">
  {shop.shopName}
  </span>
  <span className="mt-1 truncate text-xs text-zinc-400">{shop.partnerName}</span>
@@ -47,7 +47,7 @@ export default function ShopTile({ shop, partnerOptions, assignAction, unassignA
  </span>
  <span
  className={`mt-1 text-sm font-semibold tabular-nums ${
- hasPayout ? "text-amber-600" : "text-zinc-300"
+ hasPayout ? "text-amber-600" : "text-zinc-300 dark:text-zinc-600"
  }`}
  >
  {hasPayout ? money(shop.pendingCommission) : "—"}
@@ -66,25 +66,25 @@ export default function ShopTile({ shop, partnerOptions, assignAction, unassignA
  <dl className="grid grid-cols-2 gap-4 text-sm">
  <div>
  <dt className="text-[11px] uppercase tracking-wider text-zinc-400">Vendedor</dt>
- <dd className="text-zinc-700">{shop.partnerName}</dd>
+ <dd className="text-zinc-700 dark:text-zinc-300">{shop.partnerName}</dd>
  </div>
  <div>
  <dt className="text-[11px] uppercase tracking-wider text-zinc-400">Regla al atribuir</dt>
- <dd className="text-zinc-700 tabular-nums">
+ <dd className="text-zinc-700 dark:text-zinc-300 tabular-nums">
  {shop.commissionPercent}% × {shop.commissionMonths} meses
  </dd>
  </div>
  <div>
  <dt className="text-[11px] uppercase tracking-wider text-zinc-400">Pagos contados</dt>
- <dd className="text-zinc-700 tabular-nums">{shop.paymentsTracked}</dd>
+ <dd className="text-zinc-700 dark:text-zinc-300 tabular-nums">{shop.paymentsTracked}</dd>
  </div>
  <div>
  <dt className="text-[11px] uppercase tracking-wider text-zinc-400">Pendiente</dt>
- <dd className="text-zinc-700 tabular-nums">{money(shop.pendingCommission)}</dd>
+ <dd className="text-zinc-700 dark:text-zinc-300 tabular-nums">{money(shop.pendingCommission)}</dd>
  </div>
  <div className="col-span-2">
  <dt className="text-[11px] uppercase tracking-wider text-zinc-400">Atribuido</dt>
- <dd className="text-zinc-700">{formatDate(shop.attributedAt)}</dd>
+ <dd className="text-zinc-700 dark:text-zinc-300">{formatDate(shop.attributedAt)}</dd>
  </div>
  </dl>
 
@@ -93,13 +93,13 @@ export default function ShopTile({ shop, partnerOptions, assignAction, unassignA
  server corta con un no-op si el partner no cambio. El select viene
  con el actual justamente para que guardar sin tocar nada sea seguro.
  */}
- <form action={assignAction} className="space-y-2 border-t border-zinc-200 pt-5">
+ <form action={assignAction} className="space-y-2 border-t border-zinc-200 dark:border-zinc-800 pt-5">
  <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Cambiar vendedor</p>
  <input type="hidden" name="shopId" value={shop.shopId} />
  <select
  name="partnerId"
  defaultValue={shop.partnerId}
- className="w-full rounded-xl border border-zinc-300 bg-transparent px-3 py-2 text-sm"
+ className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-transparent px-3 py-2 text-sm"
  >
  {partnerOptions.map((partner) => (
  <option key={partner.id} value={partner.id}>
@@ -115,7 +115,7 @@ export default function ShopTile({ shop, partnerOptions, assignAction, unassignA
  </button>
  </form>
 
- <form action={unassignAction} className="border-t border-zinc-200 pt-5">
+ <form action={unassignAction} className="border-t border-zinc-200 dark:border-zinc-800 pt-5">
  <input type="hidden" name="shopId" value={shop.shopId} />
  <button
  type="submit"

@@ -48,43 +48,43 @@ export default function PartnerForm({
     return (
       <form action={action} className="flex items-center gap-1">
         <input type="hidden" name="partnerId" value={partnerId || ""} />
-        <input name="name" defaultValue={defaultName} className="w-28 rounded-lg border border-zinc-300 px-2 py-1 text-xs" />
-        <input name="email" defaultValue={defaultEmail} className="w-36 rounded-lg border border-zinc-300 px-2 py-1 text-xs" />
-        <input name="phone" defaultValue={defaultPhone} className="w-24 rounded-lg border border-zinc-300 px-2 py-1 text-xs" />
+        <input name="name" defaultValue={defaultName} className="w-28 rounded-lg border border-zinc-300 dark:border-zinc-700 px-2 py-1 text-xs" />
+        <input name="email" defaultValue={defaultEmail} className="w-36 rounded-lg border border-zinc-300 dark:border-zinc-700 px-2 py-1 text-xs" />
+        <input name="phone" defaultValue={defaultPhone} className="w-24 rounded-lg border border-zinc-300 dark:border-zinc-700 px-2 py-1 text-xs" />
         <input
           name="referralCode"
           value={referralCode}
           onChange={(event) => setReferralCode(event.target.value)}
-          className={`w-24 rounded-lg border px-2 py-1 text-xs ${duplicate ? "border-rose-400 bg-rose-50" : "border-zinc-300"}`}
+          className={`w-24 rounded-lg border px-2 py-1 text-xs ${duplicate ? "border-rose-400 bg-rose-50" : "border-zinc-300 dark:border-zinc-700"}`}
         />
         <input type="hidden" name="commissionPercentOverride" value={defaultCommissionPercentOverride ?? ""} />
         <input type="hidden" name="commissionMonthsOverride" value={defaultCommissionMonthsOverride ?? ""} />
-        <label className="inline-flex items-center gap-1 text-[11px] text-zinc-600"><input type="checkbox" name="isActive" defaultChecked={defaultIsActive} /> activo</label>
+        <label className="inline-flex items-center gap-1 text-[11px] text-zinc-600 dark:text-zinc-300"><input type="checkbox" name="isActive" defaultChecked={defaultIsActive} /> activo</label>
         <button type="submit" disabled={duplicate} className="rounded-full bg-blue-600 px-2 py-1 text-[11px] font-semibold text-white disabled:opacity-40">{submitLabel}</button>
       </form>
     );
   }
 
   return (
-    <form action={action} className="rounded-2xl border border-zinc-200 bg-white p-4 space-y-3">
+    <form action={action} className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 space-y-3">
       <h3 className="text-base font-semibold">Crear partner</h3>
       <input type="hidden" name="partnerId" value={partnerId || ""} />
-      <input name="name" placeholder="Nombre" defaultValue={defaultName} className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm" required />
-      <input name="email" placeholder="Email" type="email" defaultValue={defaultEmail} className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm" />
-      <input name="phone" placeholder="Telefono" defaultValue={defaultPhone} className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm" />
+      <input name="name" placeholder="Nombre" defaultValue={defaultName} className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-sm" required />
+      <input name="email" placeholder="Email" type="email" defaultValue={defaultEmail} className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-sm" />
+      <input name="phone" placeholder="Telefono" defaultValue={defaultPhone} className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-sm" />
       <div>
         <input
           name="referralCode"
           placeholder="Codigo referido"
           value={referralCode}
           onChange={(event) => setReferralCode(event.target.value)}
-          className={`w-full rounded-xl border px-3 py-2 text-sm ${duplicate ? "border-rose-400 bg-rose-50" : "border-zinc-300"}`}
+          className={`w-full rounded-xl border px-3 py-2 text-sm ${duplicate ? "border-rose-400 bg-rose-50" : "border-zinc-300 dark:border-zinc-700"}`}
           required
         />
         {duplicate ? <p className="mt-1 text-xs text-rose-600">Ese codigo ya existe. Usa uno diferente.</p> : null}
       </div>
-      <input name="commissionPercentOverride" placeholder="Override % (opcional)" defaultValue={defaultCommissionPercentOverride ?? ""} type="number" min="0" max="100" step="0.1" className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm" />
-      <input name="commissionMonthsOverride" placeholder="Override meses (opcional)" defaultValue={defaultCommissionMonthsOverride ?? ""} type="number" min="1" max="24" className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm" />
+      <input name="commissionPercentOverride" placeholder="Override % (opcional)" defaultValue={defaultCommissionPercentOverride ?? ""} type="number" min="0" max="100" step="0.1" className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-sm" />
+      <input name="commissionMonthsOverride" placeholder="Override meses (opcional)" defaultValue={defaultCommissionMonthsOverride ?? ""} type="number" min="1" max="24" className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-sm" />
       <button type="submit" disabled={duplicate} className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">{submitLabel}</button>
     </form>
   );

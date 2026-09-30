@@ -52,14 +52,14 @@ function ResolveRow({ item }: { item: PendingTransferItem }) {
     <form action={formAction} className="space-y-2">
       <input type="hidden" name="ledgerId" value={item.ledgerId} />
       <div className="flex flex-wrap items-baseline gap-x-2">
-        <span className="text-sm font-medium text-zinc-900">{item.shopName}</span>
+        <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{item.shopName}</span>
         <span className="text-xs text-zinc-400">
           {item.partnerName} · {item.periodYm} · pago {item.paymentSequence}
         </span>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <label className="text-xs text-zinc-500">
+        <label className="text-xs text-zinc-500 dark:text-zinc-400">
           Neto que entró a Klip
           <input
             name="netAmount"
@@ -67,7 +67,7 @@ function ResolveRow({ item }: { item: PendingTransferItem }) {
             onChange={(event) => setNet(event.target.value)}
             inputMode="decimal"
             placeholder="0"
-            className="ml-2 w-32 rounded-lg border border-zinc-300 bg-transparent px-2.5 py-1.5 text-sm tabular-nums"
+            className="ml-2 w-32 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent px-2.5 py-1.5 text-sm tabular-nums"
           />
         </label>
         <button

@@ -81,7 +81,7 @@ const ServiceForm = memo(function ServiceForm({ shopId, service, onSuccess, staf
   return (
     <FormWithKeyboardNav onSubmit={handleSubmit} className="space-y-5">
       {error && (
-        <div className="bg-red-50 text-red-700 text-sm px-4 py-2 rounded-lg">
+        <div className="bg-red-50 dark:bg-red-900/30 border border-red-200/50 dark:border-red-700/50 text-red-700 dark:text-red-300 text-sm px-4 py-2 rounded-lg">
           {error}
         </div>
       )}
@@ -149,11 +149,11 @@ const ServiceForm = memo(function ServiceForm({ shopId, service, onSuccess, staf
 
       {staffMembers.length > 0 && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-2">
             ¿Quiénes realizan este servicio?
           </label>
           {loadingStaff ? (
-            <div className="text-sm text-zinc-400">Cargando personal...</div>
+            <div className="text-sm text-zinc-400 dark:text-zinc-400">Cargando personal...</div>
           ) : (
             <div className="flex flex-wrap gap-2">
               {staffMembers.map((s) => {
@@ -165,11 +165,11 @@ const ServiceForm = memo(function ServiceForm({ shopId, service, onSuccess, staf
                     onClick={() => toggleStaff(s.id)}
                     className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border transition-all cursor-pointer select-none ${
                       isOn
-                        ? "bg-violet-100 border-violet-300 text-violet-800"
-                        : "bg-white border-zinc-300 text-zinc-500 hover:border-zinc-400"
+                        ? "bg-violet-100 dark:bg-violet-900/40 border-violet-300 dark:border-violet-700 text-violet-800 dark:text-violet-300"
+                        : "bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:border-zinc-400 dark:hover:border-zinc-600"
                     }`}
                   >
-                    <span className={`w-2 h-2 rounded-full ${isOn ? "bg-violet-500" : "bg-zinc-300"}`} />
+                    <span className={`w-2 h-2 rounded-full ${isOn ? "bg-violet-500" : "bg-zinc-300 dark:bg-zinc-600"}`} />
                     {s.name || "Sin nombre"}
                   </button>
                 );

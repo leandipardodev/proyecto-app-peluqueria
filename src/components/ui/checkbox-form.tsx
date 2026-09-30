@@ -19,7 +19,9 @@ export const CheckboxForm = forwardRef<HTMLInputElement, CheckboxFormProps>(
           htmlFor={checkboxId}
           className={cn(
             "flex items-start gap-2.5 cursor-pointer rounded-xl border px-3 py-2.5 transition-colors",
-            error ? "border-red-300 bg-red-50/20" : "border-gray-200 bg-white/60"
+            error
+              ? "border-red-300 dark:border-red-700 bg-red-50/20 dark:bg-red-900/20"
+              : "border-gray-200 dark:border-zinc-700 bg-white/60 dark:bg-zinc-800/60"
           )}
         >
           <input
@@ -27,21 +29,21 @@ export const CheckboxForm = forwardRef<HTMLInputElement, CheckboxFormProps>(
             type="checkbox"
             id={checkboxId}
             className={cn(
-              "mt-0.5 h-4 w-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500",
+              "mt-0.5 h-4 w-4 rounded border-gray-300 dark:border-zinc-600 text-violet-600 dark:text-violet-400 focus:ring-violet-500",
               className
             )}
             aria-invalid={!!error}
             {...props}
           />
-          <span className="text-sm text-gray-700 leading-5">{label}</span>
+          <span className="text-sm text-gray-700 dark:text-zinc-200 leading-5">{label}</span>
         </label>
         {error && (
-          <p id={`${props.name}-error`} className="text-xs text-red-500 mt-0.5" role="alert">
+          <p id={`${props.name}-error`} className="text-xs text-red-500 dark:text-red-400 mt-0.5" role="alert">
             {error}
           </p>
         )}
         {helperText && !error && (
-          <p className="text-xs text-gray-400 mt-0.5">{helperText}</p>
+          <p className="text-xs text-gray-400 dark:text-zinc-400 mt-0.5">{helperText}</p>
         )}
       </div>
     );

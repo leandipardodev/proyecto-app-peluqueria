@@ -33,13 +33,13 @@ function CopyRow({ label, value, mono = true }: { label: string; value: string; 
     <div className="flex items-center gap-2">
       <div className="min-w-0 flex-1">
         <p className="text-[11px] uppercase tracking-wider text-zinc-400">{label}</p>
-        <p className={`truncate text-sm text-zinc-800 ${mono ? "font-mono" : ""}`}>{value}</p>
+        <p className={`truncate text-sm text-zinc-800 dark:text-zinc-200 ${mono ? "font-mono" : ""}`}>{value}</p>
       </div>
       <button
         type="button"
         onClick={copy}
         aria-label={`Copiar ${label.toLowerCase()}`}
-        className="shrink-0 rounded-full border border-zinc-200 p-2 text-zinc-500 transition hover:bg-zinc-50"
+        className="shrink-0 rounded-full border border-zinc-200 dark:border-zinc-800 p-2 text-zinc-500 dark:text-zinc-400 transition hover:bg-zinc-50 dark:hover:bg-zinc-800"
       >
         {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
       </button>
@@ -74,7 +74,7 @@ export default function PartnerLinkModal({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+        className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 transition hover:bg-zinc-50 dark:hover:bg-zinc-800"
       >
         <Link2 className="h-3.5 w-3.5" />
         Link
@@ -96,13 +96,13 @@ export default function PartnerLinkModal({
           <CopyRow label="Código" value={referralCode} />
           <CopyRow label="Panel del vendedor" value={portal} />
 
-          <div className="rounded-2xl border border-zinc-200 p-4">
+          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 p-4">
             <p className="text-[11px] uppercase tracking-wider text-zinc-400">PIN de acceso</p>
             {pin ? (
               <PinReveal partnerName={partnerName} pin={pin} />
             ) : hasPin ? (
               <div className="mt-1 flex items-center justify-between gap-3">
-                <p className="font-mono text-sm text-zinc-600">
+                <p className="font-mono text-sm text-zinc-600 dark:text-zinc-300">
                   Activo, termina en {pinLast4 || "????"}
                 </p>
                 <PinButton
@@ -115,7 +115,7 @@ export default function PartnerLinkModal({
               </div>
             ) : (
               <div className="mt-1 flex items-center justify-between gap-3">
-                <p className="text-sm text-zinc-500">Todavía no tiene PIN</p>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">Todavía no tiene PIN</p>
                 <PinButton
                   partnerId={partnerId}
                   partnerName={partnerName}
@@ -133,7 +133,7 @@ export default function PartnerLinkModal({
           <button
             type="button"
             onClick={() => setQrOpen(true)}
-            className="rounded-lg border border-zinc-300 text-zinc-700 hover:bg-zinc-50 inline-flex w-full items-center justify-center gap-2  px-5 py-2.5 text-sm font-medium"
+            className="rounded-lg border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 inline-flex w-full items-center justify-center gap-2 px-5 py-2.5 text-sm font-medium"
           >
             <QrCode className="h-4 w-4" />
             Ver QR del link

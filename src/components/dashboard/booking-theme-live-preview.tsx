@@ -946,9 +946,14 @@ export default function BookingThemeLivePreview({
       {/* Confirm remove section */}
       {confirmRemove && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setConfirmRemove(null)}>
-          <div className="rounded-2xl bg-white p-5 shadow-xl max-w-xs w-full mx-4" onClick={(e) => e.stopPropagation()}>
-            <p className="text-sm font-semibold text-zinc-900">Eliminar seccion</p>
-            <p className="mt-2 text-xs text-zinc-600">
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-5 shadow-xl max-w-xs w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-sm font-semibold text-gray-900 dark:text-zinc-100">Eliminar seccion</p>
+            <p className="mt-2 text-xs text-gray-600 dark:text-zinc-300">
               Los servicios de <strong>{confirmRemove}</strong> se moveran a General.
             </p>
             <div className="mt-4 flex gap-3 justify-end">

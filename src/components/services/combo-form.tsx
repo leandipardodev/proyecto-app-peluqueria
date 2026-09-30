@@ -98,7 +98,9 @@ const ComboForm = memo(function ComboForm({ shopId, services, combo, onSuccess }
   return (
     <FormWithKeyboardNav onSubmit={handleSubmit} className="space-y-5">
       {error && (
-        <div className="bg-red-50 text-red-700 text-sm px-4 py-2 rounded-lg">{error}</div>
+        <div className="bg-red-50 dark:bg-red-900/30 border border-red-200/50 dark:border-red-700/50 text-red-700 dark:text-red-300 text-sm px-4 py-2 rounded-lg">
+          {error}
+        </div>
       )}
 
       <InputForm
@@ -131,17 +133,17 @@ const ComboForm = memo(function ComboForm({ shopId, services, combo, onSuccess }
           placeholder="0.00"
         />
         {!hasHiddenPrice && totalOriginalPrice > 0 && (
-          <p className="mt-1 text-xs text-gray-400">
+          <p className="mt-1 text-xs text-gray-400 dark:text-zinc-400">
             Precio original sin combo: ${totalOriginalPrice.toFixed(2)}
           </p>
         )}
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2 cursor-pointer">Servicios incluidos</label>
-        <div className="max-h-48 overflow-y-auto space-y-1.5 border border-gray-200 rounded-lg p-2">
+        <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-2 cursor-pointer">Servicios incluidos</label>
+        <div className="max-h-48 overflow-y-auto space-y-1.5 border border-gray-200 dark:border-zinc-700 rounded-lg p-2">
           {services.length === 0 ? (
-            <p className="text-xs text-gray-400 text-center py-3">Creá servicios primero</p>
+            <p className="text-xs text-gray-400 dark:text-zinc-400 text-center py-3">Creá servicios primero</p>
           ) : (
             services.map((svc) => {
               const checked = selectedIds.includes(svc.id);
@@ -149,18 +151,20 @@ const ComboForm = memo(function ComboForm({ shopId, services, combo, onSuccess }
                 <label
                   key={svc.id}
                   className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                    checked ? "bg-violet-50 border border-violet-200" : "hover:bg-gray-50 border border-transparent"
+                    checked
+                      ? "bg-violet-50 dark:bg-violet-900/40 border border-violet-200 dark:border-violet-700"
+                      : "hover:bg-gray-50 dark:hover:bg-zinc-800 border border-transparent"
                   }`}
                 >
                   <input
                     type="checkbox"
                     checked={checked}
                     onChange={() => toggleService(svc.id)}
-                    className="w-4 h-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                    className="w-4 h-4 rounded border-gray-300 dark:border-zinc-600 text-violet-600 dark:text-violet-400 focus:ring-violet-500"
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900">{svc.name}</p>
-                    <p className="text-xs text-gray-400">{svc.duration_minutes} min{svc.hide_price ? "" : ` · $${svc.price.toFixed(2)}`}</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-zinc-100">{svc.name}</p>
+                    <p className="text-xs text-gray-400 dark:text-zinc-400">{svc.duration_minutes} min{svc.hide_price ? "" : ` · $${svc.price.toFixed(2)}`}</p>
                   </div>
                 </label>
               );
@@ -171,7 +175,7 @@ const ComboForm = memo(function ComboForm({ shopId, services, combo, onSuccess }
 
       {selectedIds.length > 0 && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1 cursor-pointer">Duración del combo (minutos)</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1 cursor-pointer">Duración del combo (minutos)</label>
           <input
             type="number"
             name="duration_minutes"
@@ -182,10 +186,10 @@ const ComboForm = memo(function ComboForm({ shopId, services, combo, onSuccess }
               const val = e.target.value;
               setDurationMinutes(val === "" ? "" : parseInt(val, 10));
             }}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg text-sm text-gray-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
             placeholder={`${totalDuration} min (suma de servicios)`}
           />
-          <p className="mt-1 text-xs text-gray-400">
+          <p className="mt-1 text-xs text-gray-400 dark:text-zinc-400">
             Suma de servicios: {totalDuration} min · {selectedIds.length} servicio{selectedIds.length > 1 ? "s" : ""}
           </p>
         </div>

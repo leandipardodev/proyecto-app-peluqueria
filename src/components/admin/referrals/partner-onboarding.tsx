@@ -110,7 +110,7 @@ export default function PartnerOnboarding({
       >
         {generated && welcomeMessage ? (
           <div className="space-y-4 px-6 py-6">
-            <p className="text-sm text-zinc-600">
+            <p className="text-sm text-zinc-600 dark:text-zinc-300">
               Mandale esto por WhatsApp. El PIN se muestra una sola vez: si lo pierde, regeneralo desde la tarjeta
               del vendedor.
             </p>
@@ -120,7 +120,7 @@ export default function PartnerOnboarding({
               value={welcomeMessage}
               rows={11}
               onChange={(event) => setMessage(event.target.value)}
-              className="w-full resize-y rounded-xl border border-zinc-200 bg-zinc-50 p-3 font-mono text-xs text-zinc-700"
+              className="w-full resize-y rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 p-3 font-mono text-xs text-zinc-700 dark:text-zinc-300"
             />
             <p className="text-xs text-zinc-400">Podés retocarlo antes de mandarlo.</p>
 
@@ -137,7 +137,7 @@ export default function PartnerOnboarding({
                 href={buildWhatsAppShareLink(welcomeMessage)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-lg border border-zinc-300 text-zinc-700 hover:bg-zinc-50 inline-flex items-center gap-1.5  px-4 py-2 text-sm font-medium"
+                className="rounded-lg border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium"
               >
                 <MessageCircle className="h-4 w-4" />
                 Mandar por WhatsApp
@@ -146,7 +146,7 @@ export default function PartnerOnboarding({
                 href={buildPartnerReferralLink(baseUrl, generated.referralCode)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-mono text-xs text-zinc-500 underline underline-offset-2"
+                className="font-mono text-xs text-zinc-500 dark:text-zinc-400 underline underline-offset-2"
               >
                 {buildPartnerReferralLink(baseUrl, generated.referralCode)}
               </a>
@@ -159,7 +159,7 @@ export default function PartnerOnboarding({
               placeholder="Nombre y apellido"
               value={name}
               onChange={(event) => setName(event.target.value)}
-              className="w-full rounded-xl border border-zinc-300 bg-transparent px-3 py-2.5 text-sm text-gray-900"
+              className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-transparent px-3 py-2.5 text-sm text-gray-900 dark:text-zinc-100"
               required
             />
 
@@ -172,8 +172,8 @@ export default function PartnerOnboarding({
                   setCodeTouched(true);
                   setReferralCode(event.target.value);
                 }}
-                className={`w-full rounded-xl border bg-transparent px-3 py-2.5 font-mono text-sm text-zinc-900 ${
-                  duplicate ? "border-rose-400 bg-rose-50/60" : "border-zinc-300"
+                className={`w-full rounded-xl border bg-transparent px-3 py-2.5 font-mono text-sm text-zinc-900 dark:text-zinc-100 ${
+                  duplicate ? "border-rose-400 bg-rose-50/60" : "border-zinc-300 dark:border-zinc-700"
                 }`}
                 required
               />
@@ -183,7 +183,7 @@ export default function PartnerOnboarding({
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <label className="text-xs text-zinc-500">
+              <label className="text-xs text-zinc-500 dark:text-zinc-400">
                 Comisión %
                 <input
                   name="commissionPercentOverride"
@@ -192,10 +192,10 @@ export default function PartnerOnboarding({
                   max="100"
                   step="0.1"
                   defaultValue={defaultCommissionPercent}
-                  className="mt-1 w-full rounded-xl border border-zinc-300 bg-transparent px-3 py-2 text-sm text-gray-900"
+                  className="mt-1 w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-transparent px-3 py-2 text-sm text-gray-900 dark:text-zinc-100"
                 />
               </label>
-              <label className="text-xs text-zinc-500">
+              <label className="text-xs text-zinc-500 dark:text-zinc-400">
                 Meses
                 <input
                   name="commissionMonthsOverride"
@@ -203,7 +203,7 @@ export default function PartnerOnboarding({
                   min="1"
                   max="24"
                   defaultValue={defaultCommissionMonths}
-                  className="mt-1 w-full rounded-xl border border-zinc-300 bg-transparent px-3 py-2 text-sm text-gray-900"
+                  className="mt-1 w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-transparent px-3 py-2 text-sm text-gray-900 dark:text-zinc-100"
                 />
               </label>
             </div>
