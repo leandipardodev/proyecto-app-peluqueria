@@ -489,7 +489,7 @@ function SelectionPill({ serviceCount, productCount, staff, noPreference, templa
   );
 }
 
-function SelectionSummary({ cart, selectedCombo, staff, noPreference, totalDuration, totalPrice, products, storeCart, onUpdateProductQty, onRemoveProduct, templateStyles, onClose }: {
+function SelectionSummary({ cart, selectedCombo, staff, noPreference, totalDuration, totalPrice, products, storeCart, appointmentLabel, onUpdateProductQty, onRemoveProduct, templateStyles, onClose }: {
   cart: Service[];
   selectedCombo: Combo | null;
   staff: StaffMember[];
@@ -498,6 +498,7 @@ function SelectionSummary({ cart, selectedCombo, staff, noPreference, totalDurat
   totalPrice: number;
   products: PublicStoreProduct[];
   storeCart: Record<string, number>;
+  appointmentLabel: string | null;
   onUpdateProductQty: (productId: string, qty: number) => void;
   onRemoveProduct: (productId: string) => void;
   templateStyles: BookingTheme;
@@ -532,12 +533,26 @@ function SelectionSummary({ cart, selectedCombo, staff, noPreference, totalDurat
         className={`relative w-full max-w-sm overflow-hidden ${templateStyles.shell}`}
       >
         <div className="p-5 space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <span className={`text-sm font-semibold ${templateStyles.heading}`}>Resumen</span>
-            <button type="button" onClick={onClose} className={`text-[10px] font-medium ${templateStyles.tiny} hover:opacity-70 transition-opacity`}>
-              Cerrar
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Cerrar"
+              className="-mr-1 -mt-1 inline-flex items-center justify-center w-6 h-6 opacity-40 hover:opacity-70 active:opacity-90 transition-opacity cursor-pointer"
+            >
+              <X className={`w-4 h-4 ${templateStyles.tiny}`} />
             </button>
           </div>
+
+          {appointmentLabel && (
+            <p
+              className={`text-lg leading-tight lowercase -mt-1 ${templateStyles.heading}`}
+              style={{ fontFamily: "var(--font-borel), cursive", letterSpacing: "-0.02em" }}
+            >
+              {appointmentLabel}
+            </p>
+          )}
 
           {items.length > 0 || storeItems.length > 0 ? (
             <div className="space-y-2 max-h-56 overflow-y-auto delicate-scroll -mx-1 px-1">
@@ -619,7 +634,7 @@ function SelectionSummary({ cart, selectedCombo, staff, noPreference, totalDurat
 
           {noPreference ? (
             <div className="space-y-2">
-              <span className={`text-[10px] uppercase tracking-wider font-semibold ${templateStyles.tiny}`}>Profesional</span>
+              <span className={`text-[10px] uppercase tracking-wider font-semibold ${templateStyles.tiny}`}>Atiende</span>
               <div className="flex flex-wrap gap-2">
                 <div className={`flex items-center gap-2 rounded-full px-3 py-1.5 ${templateStyles.plate}`}>
                   <span className={`text-xs font-medium ${templateStyles.heading}`}>Sin preferencia</span>
@@ -628,7 +643,7 @@ function SelectionSummary({ cart, selectedCombo, staff, noPreference, totalDurat
             </div>
           ) : staff.length > 0 && (
             <div className="space-y-2">
-              <span className={`text-[10px] uppercase tracking-wider font-semibold ${templateStyles.tiny}`}>Profesional{staff.length > 1 ? "es" : ""}</span>
+              <span className={`text-[10px] uppercase tracking-wider font-semibold ${templateStyles.tiny}`}>Atiende</span>
               <div className="flex flex-wrap gap-2">
                 {staff.map(s => (
                   <div key={s.id} className={`flex items-center gap-2 rounded-full px-3 py-1.5 ${templateStyles.plate}`}>
@@ -909,48 +924,10 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const isStorePreview = initialStep === "tienda" && storeEnabled;
   const [step, setStep] = useState(() => (isStorePreview ? 4 : 0));
   const [showSummary, setShowSummary] = useState(false);
-  const [expandedContact, setExpandedContact] = useState<"address" | "whatsapp" | "instagram" | null>(null);
-  const contactRowRef = useRef<HTMLDivElement>(null);
-  const pendingContactRef = useRef<"address" | "whatsapp" | "instagram" | null>(null);
   const [storeCart, setStoreCart] = useState<Record<string, number>>({});
   const [storeLightbox, setStoreLightbox] = useState<PublicStoreProduct | null>(null);
   const [storeArrivedViaButton, setStoreArrivedViaButton] = useState(false);
   const storeJumpOriginRef = useRef(0);
-
-  const handleExpandContact = useCallback(
-    (e: React.MouseEvent<HTMLAnchorElement>, contact: "address" | "whatsapp" | "instagram") => {
-      if (expandedContact === contact) {
-        pendingContactRef.current = null;
-        return;
-      }
-      e.preventDefault();
-      triggerHaptic(8);
-      if (expandedContact) {
-        pendingContactRef.current = contact;
-        setExpandedContact(null);
-      } else {
-        pendingContactRef.current = null;
-        setExpandedContact(contact);
-      }
-    },
-    [expandedContact]
-  );
-
-  useEffect(() => {
-    if (!expandedContact) return;
-    const handler = (event: MouseEvent | TouchEvent) => {
-      if (contactRowRef.current && !contactRowRef.current.contains(event.target as Node)) {
-        pendingContactRef.current = null;
-        setExpandedContact(null);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    document.addEventListener("touchstart", handler);
-    return () => {
-      document.removeEventListener("mousedown", handler);
-      document.removeEventListener("touchstart", handler);
-    };
-  }, [expandedContact]);
 
   useEffect(() => {
     for (const s of staffMembers) {
@@ -1119,14 +1096,22 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     [storeProducts, storeCart]
   );
 
+  /**
+   * El local configured "cobrar en el local": no hay pago online para nada,
+   * tampoco para los productos de la tienda. El turno se confirma al toque y el
+   * pedido queda como "a cobrar" para que el local lo levante en persona.
+   */
+  const payAtShopCheckout = shop.payAtShop === true;
+
   const needsPayment = useMemo(() => {
+    if (payAtShopCheckout) return false;
     if (hasStoreItems) return true;
     if (!shop.payAtShop) {
       if (selectedCombo) return selectedCombo.services.some((s) => !s.pay_at_shop);
       return cart.some((s) => !s.pay_at_shop);
     }
     return false;
-  }, [hasStoreItems, shop.payAtShop, cart, selectedCombo]);
+  }, [payAtShopCheckout, hasStoreItems, shop.payAtShop, cart, selectedCombo]);
 
   /**
    * Si el local no conecto su cuenta de MP, la sena no se puede cobrar online.
@@ -1583,6 +1568,49 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     }
   })();
 
+  const continueBusy = step === 3 && (submitting || creatingPreference || !!paymentPreferenceId);
+  const continueDisabled = !canGoNext || continueBusy;
+
+  function handleContinue(e: React.MouseEvent<HTMLButtonElement>) {
+    if (!canGoNext || continueBusy) return;
+    triggerHaptic(12, e.currentTarget);
+    if (step === 3) {
+      // "Tus datos" tiene que estar completo antes de dejar pasar a cualquier
+      // paso. canGoNext solo mira que el telefono tenga caracteres, no que sea
+      // un telefono valido: con 9 digitos el boton se habilita y el mensaje de
+      // error (que se arma en el onBlur) quedaba sin efecto. El cliente
+      // avanzaba a Tienda, el error desaparecia al desmontar el paso, y desde
+      // ahi tenia que volver atras para entender que faltaba completar.
+      //
+      // El email no se valida aca a proposito: canGoNext ya lo exige para quien
+      // no esta logueado, y el input de email no limpia `error` al escribir, asi
+      // que un setError por email se quedaria pegado en pantalla.
+      const nameErr = validateName(customerName);
+      if (nameErr) { setNameError(nameErr); return; }
+      const stepPhoneErr = validatePhone(customerPhone);
+      if (stepPhoneErr) { setPhoneError(stepPhoneErr); return; }
+
+      if (storeEnabled && !isStoreOnly) {
+        setStoreArrivedViaButton(false);
+        if (hasStoreItems) {
+          handleConfirm();
+        } else {
+          setStep(storeStep);
+        }
+        return;
+      }
+      if (shop.bankTransferEnabled && !hasHiddenPriceService) {
+        setStep(pagoStep);
+        return;
+      }
+      handleConfirm();
+      return;
+    }
+    if (!hasServices && hasStoreItems) { setStep(3); return; }
+    if (assignStaffLater && step === 0) { setStep(2); return; }
+    setStep((s) => s + 1);
+  }
+
   function validatePhone(phone: string): string {
     if (!phone.trim()) return "El teléfono es obligatorio";
     const digits = phone.replace(/\D/g, "");
@@ -1707,6 +1735,76 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     const formattedPhone = formatArgentinePhone(customerPhone);
     const paymentMethod = selectedPaymentMethodRef.current ?? "mp";
     const storeItems = Object.entries(storeCart).map(([productId, quantity]) => ({ productId, quantity }));
+
+    // El local cobra en el local: nada se cobra online. El turno se confirma
+    // como tal y el pedido queda pendiente para que el local lo cobre cuando el
+    // cliente llega. Sin paso de pago, sin turno en pending_payment.
+    if (payAtShopCheckout && hasStoreItems) {
+      if (!customerEmail.trim()) {
+        setSubmitting(false);
+        setError("Ingresa tu email para confirmar el pedido");
+        return;
+      }
+      setCreatingPreference(true);
+      const createdIds: string[] = [];
+      try {
+        if (hasServices) {
+          if (selectedCombo) {
+            const result = await createPublicComboAppointment({
+              shopId: shop.id,
+              comboId: selectedCombo.id,
+              comboName: selectedCombo.name,
+              comboPrice: selectedCombo.price,
+              services: selectedCombo.services,
+              staffId: staffForAppointment?.id,
+              customerName: customerName.trim(),
+              customerEmail: customerEmail.trim() || undefined,
+              customerPhone: formattedPhone,
+              authenticatedUserId: user?.id,
+              startTime: selectedSlot!.start,
+              status: "confirmed",
+            });
+            if (!result.success) {
+              if (result.error === "login_required") { handleLoginRequired(); return; }
+              throw new Error(result.error || "No se pudo reservar el turno");
+            }
+            createdIds.push(...(result.data?.appointmentIds ?? []));
+          } else {
+            const cartResult = await createCartAppointments("confirmed", formattedPhone);
+            if (cartResult === null) { handleLoginRequired(); return; }
+            createdIds.push(...cartResult.ids);
+          }
+        }
+
+        const { createStoreOrder } = await import("@/lib/dashboard/store/public-store-actions");
+        const orderResult = await createStoreOrder({
+          shopId: shop.id,
+          shopSlug: shop.slug,
+          items: storeItems,
+          customerName: customerName.trim(),
+          customerEmail: customerEmail.trim(),
+          customerPhone: formattedPhone,
+          paymentMethod: "cash",
+        });
+        if (!orderResult.success) {
+          // El turno ya estaba reservado: se devuelve para no dejar un turno
+          // confirmado sin pedido.
+          await rollbackAppointments(createdIds);
+          setSubmitting(false);
+          setCreatingPreference(false);
+          setError(orderResult.error || "No se pudo crear el pedido");
+          return;
+        }
+        await completeFlow();
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "No se pudo registrar el pedido";
+        if (await maybeRetrySlotTaken(msg)) return;
+        setSubmitting(false);
+        setCreatingPreference(false);
+        setError(msg);
+      }
+      return;
+    }
 
     // Products-only checkout (no appointment): store order with its own payment
     if (hasStoreItems && !hasServices) {
@@ -1933,7 +2031,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
         appointmentId: comboResult.data.appointmentIds[0],
         shopId: shop.id,
         shopSlug: shop.slug,
-        overridePrice: selectedCombo.price,
+        comboId: selectedCombo.id,
         comboAppointmentIds: comboResult.data.appointmentIds,
       });
       setSubmitting(false); setCreatingPreference(false);
@@ -1961,13 +2059,11 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     const cartResult = await createCartAppointments("pending_payment", formattedPhone, payableItems);
     if (cartResult === null) { setCreatingPreference(false); handleLoginRequired(); return; }
 
-    const totalPrice = payableItems.reduce((sum, s) => sum + s.price, 0);
     const { createPaymentPreference } = await import("@/lib/dashboard/booking/public-booking-actions");
     const prefResult = await createPaymentPreference({
       appointmentId: cartResult.ids[0],
       shopId: shop.id,
       shopSlug: shop.slug,
-      overridePrice: totalPrice,
       comboAppointmentIds: cartResult.ids,
     });
     setSubmitting(false); setCreatingPreference(false);
@@ -2045,6 +2141,9 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     || "Sin servicio";
   const summaryDate = selectedDate ? formatDisplayDate(selectedDate).replace(/^\w/, (c) => c.toUpperCase()) : "Sin fecha";
   const summaryTime = selectedSlot ? formatTimeFromIso(selectedSlot.start) || to24HourTimeLabel(selectedSlot.time) : "Sin hora";
+  const summaryDateTime = selectedDate
+    ? `${formatDisplayDate(selectedDate)} ${summaryTime}`
+    : "Elegí día y horario";
 
   const servicePrice = selectedCombo?.price ?? cart.reduce((sum, s) => sum + s.price, 0);
   const publicServicePrice = hasHiddenPriceService ? 0 : servicePrice;
@@ -2093,22 +2192,6 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   }, [templateStyles.accent]);
 
   const tactileClass = "transition-transform duration-150 hover:scale-[1.01] active:scale-[0.98]";
-
-  const btnEffects = templateStyles.isDark
-    ? {
-        shimmerGradient: "linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.12) 25%, rgba(0,0,0,0.25) 50%, rgba(0,0,0,0.12) 75%, transparent 100%)",
-        innerGlow: "from-black/[0.08]",
-        pulseRing: ["0 0 0 0 rgba(0,0,0,0.2)", "0 0 0 8px rgba(0,0,0,0)", "0 0 0 0 rgba(0,0,0,0.2)"],
-        orbClass: "bg-black/10",
-        nextRing: ["inset 0 0 0 0 rgba(0,0,0,0)", "inset 0 0 0 3px rgba(0,0,0,0.12)", "inset 0 0 0 0 rgba(0,0,0,0)"],
-      }
-    : {
-        shimmerGradient: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.25) 25%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0.25) 75%, transparent 100%)",
-        innerGlow: "from-white/[0.15]",
-        pulseRing: ["0 0 0 0 rgba(255,255,255,0.3)", "0 0 0 8px rgba(255,255,255,0)", "0 0 0 0 rgba(255,255,255,0.3)"],
-        orbClass: "bg-white/15",
-        nextRing: ["inset 0 0 0 0 rgba(255,255,255,0)", "inset 0 0 0 3px rgba(255,255,255,0.2)", "inset 0 0 0 0 rgba(255,255,255,0)"],
-      };
 
   return (
     <>
@@ -2188,12 +2271,6 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                 <div className="relative flex items-center justify-center pt-3 pb-1">
                   <div className={`absolute inset-x-4 h-[2px] rounded-full ${templateStyles.progressTrack}`} />
                   <div className="absolute inset-x-4 h-[2px]">
-                    <motion.div
-                      className="absolute inset-0 rounded-full origin-left"
-                      style={{ boxShadow: "0 0 18px 2px rgba(168,85,247,0.55), 0 0 40px 6px rgba(168,85,247,0.25)" }}
-                      animate={{ scaleX: barProgress, opacity: step >= 3 ? 1 : 0 }}
-                      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                    />
                     <motion.div
                       className="absolute inset-0 origin-left"
                       animate={{ scaleX: barProgress }}
@@ -2299,15 +2376,32 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                                         transition={{ type: "spring", stiffness: 350, damping: 14, mass: 0.7 }}
                                       />
                                     )}
-                                    <span className="relative z-10">
-                                      {isCombos ? (
-                                        <span className={`bg-gradient-to-r ${templateStyles.titleGradient} bg-clip-text text-transparent bg-[length:200%_100%] font-bold ${templateStyles.headingFx}`}>
-                                          {category}
-                                        </span>
-                                      ) : (
-                                        category
-                                      )}
-                                    </span>
+                                    {active ? (
+                                      <motion.span
+                                        className="relative z-10 inline-block origin-center will-change-transform"
+                                        initial={{ scale: 1.28, opacity: 0.55 }}
+                                        animate={{ scale: 1, opacity: 1 }}
+                                        transition={{ type: "spring", stiffness: 260, damping: 14, mass: 0.7 }}
+                                      >
+                                        {isCombos ? (
+                                          <span className={`bg-gradient-to-r ${templateStyles.titleGradient} bg-clip-text text-transparent bg-[length:200%_100%] font-bold ${templateStyles.headingFx}`}>
+                                            {category}
+                                          </span>
+                                        ) : (
+                                          category
+                                        )}
+                                      </motion.span>
+                                    ) : (
+                                      <span className="relative z-10">
+                                        {isCombos ? (
+                                          <span className={`bg-gradient-to-r ${templateStyles.titleGradient} bg-clip-text text-transparent bg-[length:200%_100%] font-bold ${templateStyles.headingFx}`}>
+                                            {category}
+                                          </span>
+                                        ) : (
+                                          category
+                                        )}
+                                      </span>
+                                    )}
                                   </button>
                                 );
                               })}
@@ -2447,32 +2541,6 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
                               );
                             }))}
                         </motion.div>
-                        {cart.length > 0 && (
-                          <motion.div
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="mt-3 p-3 rounded-2xl bg-zinc-100 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700"
-                          >
-                            <div className="flex items-center justify-between text-sm">
-                              <span className={`font-medium ${templateStyles.heading}`}>
-                                {cart.length} servicio{cart.length > 1 ? "s" : ""}
-                              </span>
-                              <span className={`font-semibold tabular-nums ${templateStyles.priceText}`}>
-                                {cart.some((svc) => svc.hide_price) ? "A convenir" : `$ ${cart.reduce((s, svc) => s + svc.price, 0).toLocaleString("es-AR")}`}
-                              </span>
-                            </div>
-                            <div className="mt-1 flex flex-wrap gap-1">
-                              {cart.map((svc) => (
-                                <span key={svc.id} className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-medium ${templateStyles.pricePill}`}>
-                                  {svc.name} · {svc.duration_minutes}min
-                                </span>
-                              ))}
-                            </div>
-                            <p className={`mt-1 text-xs ${templateStyles.tiny}`}>
-                              Total: {cart.reduce((s, svc) => s + svc.duration_minutes, 0)} min
-                            </p>
-                          </motion.div>
-                        )}
                         </div>
                         </div>
                       </div>
@@ -2813,7 +2881,7 @@ className={`relative w-full max-w-sm max-h-[86dvh] overflow-y-auto ${templateSty
 
                     {step === 3 && (
                       <div className="flex flex-col h-full min-h-0">
-                      <div className="flex-1 overflow-y-auto delicate-scroll pb-32">
+                      <div className="flex-1 overflow-y-auto delicate-scroll pb-4">
                       <div className="space-y-4">
 
                         {error === "slot_taken" ? (
@@ -2847,60 +2915,69 @@ className={`relative w-full max-w-sm max-h-[86dvh] overflow-y-auto ${templateSty
                             </div>
                         ) : isLoggedIn ? (
                           <>
-                            <div className={`flex items-center gap-3 rounded-[20px] border px-4 py-3 ${templateStyles.successChip}`}>
-                              <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${templateStyles.plate}`}>
-                                <UserRound className={`w-4 h-4 ${templateStyles.accent}`} />
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-full overflow-hidden shrink-0 flex items-center justify-center">
+                                {user?.avatarUrl ? (
+                                  <Image src={user.avatarUrl} alt="" width={36} height={36} className="object-cover w-full h-full" />
+                                ) : (
+                                  <span className={`text-xs font-semibold ${templateStyles.accent}`}>
+                                    {(user?.name || user?.email || "C").charAt(0).toUpperCase()}
+                                  </span>
+                                )}
                               </div>
                               <div className="min-w-0 flex-1">
-                                <p className={`text-xs uppercase tracking-wide ${templateStyles.accent}`}>Sesion activa</p>
-                                <p className={`text-sm font-medium truncate ${templateStyles.heading}`}>{user?.name || user?.email || "Cliente"}</p>
-                                {user?.email && <p className={`text-xs ${templateStyles.tiny} truncate`}>{user.email}</p>}
+                                <p className={`text-[10px] uppercase tracking-[0.14em] ${templateStyles.tiny}`}>Sesion activa</p>
+                                <p className={`text-sm font-medium truncate leading-tight ${templateStyles.heading}`}>{user?.name || user?.email || "Cliente"}</p>
                               </div>
                               <button
                                 onClick={handleLogout}
-                                className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl transition-colors cursor-pointer select-none ${templateStyles.back}`}
+                                className={`shrink-0 inline-flex items-center gap-1.5 px-2 py-1.5 rounded-full text-xs font-medium transition-opacity cursor-pointer select-none opacity-60 hover:opacity-100 ${templateStyles.back}`}
                                 title="Cerrar sesión"
                               >
-                                <LogOut className="w-4 h-4" />
-                                <span className="text-xs font-medium hidden sm:inline">Salir</span>
+                                <LogOut className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Salir</span>
                               </button>
                             </div>
 
                             <div>
                               <label htmlFor="customer-name-auth" className={`block text-sm font-medium mb-1.5 ${templateStyles.label}`}>Nombre</label>
-                              <motion.div whileTap={{ scale: 0.99 }} className="relative">
-                                <UserRound className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${templateStyles.tiny}`} />
-                                <input
-                                  id="customer-name-auth"
-                                  autoComplete="off"
-                                  value={customerName}
-                                  onChange={(e) => handleNameChange(e.target.value)}
-                                  onBlur={() => setNameError(validateName(customerName))}
-                                  className={`${templateStyles.input} ${nameError ? "ring-2 ring-red-500" : ""}`}
-                                  placeholder="Nombre y apellido"
-                                  autoFocus
-                                />
-                                {nameError && <p className="text-xs text-red-500 mt-1">{nameError}</p>}
+                              <motion.div whileTap={{ scale: 0.99 }}>
+                                <div className="relative">
+                                  <UserRound className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${templateStyles.tiny}`} />
+                                  <input
+                                    id="customer-name-auth"
+                                    autoComplete="off"
+                                    value={customerName}
+                                    onChange={(e) => handleNameChange(e.target.value)}
+                                    onBlur={() => setNameError(validateName(customerName))}
+                                    className={`${templateStyles.input} ${nameError ? "ring-2 ring-black/10 dark:ring-white/20" : ""}`}
+                                    placeholder="Nombre y apellido"
+                                    autoFocus
+                                  />
+                                </div>
+                                {nameError && <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{nameError}</p>}
                               </motion.div>
                             </div>
 
                             {requiresManualPhone && (
                               <div>
-                                 <label htmlFor="customer-phone-auth" className={`block text-sm font-medium mb-1.5 ${templateStyles.label}`}>WhatsApp / Telefono</label>
-                                <motion.div whileTap={{ scale: 0.99 }} className="relative">
-                                  <Phone className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${templateStyles.tiny}`} />
-                                  <input
-                                    id="customer-phone-auth"
-                                    type="tel"
-                                    inputMode="numeric"
-                                    autoComplete="tel"
-                                    value={customerPhone}
-                                    onChange={(e) => handlePhoneChange(e.target.value)}
-                                    onBlur={() => setPhoneError(validatePhone(customerPhone))}
-                                    className={`${templateStyles.input} ${phoneError ? "ring-2 ring-red-500" : ""}`}
-                                    placeholder="11 1234-5678"
-                                  />
-                                  {phoneError && <p className="text-xs text-red-500 mt-1">{phoneError}</p>}
+                                 <label htmlFor="customer-phone-auth" className={`block text-sm font-medium mb-1.5 ${templateStyles.label}`}>Telefono</label>
+                                <motion.div whileTap={{ scale: 0.99 }}>
+                                  <div className="relative">
+                                    <Phone className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${templateStyles.tiny}`} />
+                                    <input
+                                      id="customer-phone-auth"
+                                      type="tel"
+                                      inputMode="numeric"
+                                      autoComplete="tel"
+                                      value={customerPhone}
+                                      onChange={(e) => handlePhoneChange(e.target.value)}
+                                      onBlur={() => setPhoneError(validatePhone(customerPhone))}
+                                      className={`${templateStyles.input} ${phoneError ? "ring-2 ring-black/10 dark:ring-white/20" : ""}`}
+                                      placeholder="11 1234-5678"
+                                    />
+                                  </div>
+                                  {phoneError && <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{phoneError}</p>}
                                 </motion.div>
                               </div>
                             )}
@@ -2989,19 +3066,21 @@ className={`relative w-full max-w-sm max-h-[86dvh] overflow-y-auto ${templateSty
 
                             <div>
                               <label htmlFor="customer-name" className={`block text-sm font-medium mb-1.5 ${templateStyles.label}`}>Nombre</label>
-                              <motion.div whileTap={{ scale: 0.99 }} className="relative">
-                                <UserRound className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-                                <input
-                                  id="customer-name"
-                                  autoComplete="off"
-                                  value={customerName}
-                                  onChange={(e) => handleNameChange(e.target.value)}
-                                  onBlur={() => setNameError(validateName(customerName))}
-                                  className={`${templateStyles.input} ${nameError ? "ring-2 ring-red-500" : ""}`}
-                                  placeholder="Nombre y apellido"
-                                  autoFocus
-                                />
-                                {nameError && <p className="text-xs text-red-500 mt-1">{nameError}</p>}
+                              <motion.div whileTap={{ scale: 0.99 }}>
+                                <div className="relative">
+                                  <UserRound className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${templateStyles.tiny}`} />
+                                  <input
+                                    id="customer-name"
+                                    autoComplete="off"
+                                    value={customerName}
+                                    onChange={(e) => handleNameChange(e.target.value)}
+                                    onBlur={() => setNameError(validateName(customerName))}
+                                    className={`${templateStyles.input} ${nameError ? "ring-2 ring-black/10 dark:ring-white/20" : ""}`}
+                                    placeholder="Nombre y apellido"
+                                    autoFocus
+                                  />
+                                </div>
+                                {nameError && <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{nameError}</p>}
                               </motion.div>
                             </div>
 
@@ -3021,21 +3100,23 @@ className={`relative w-full max-w-sm max-h-[86dvh] overflow-y-auto ${templateSty
                             </div>
 
                             <div>
-                              <label htmlFor="customer-phone" className={`block text-sm font-medium mb-1.5 ${templateStyles.label}`}>WhatsApp / Telefono</label>
-                              <motion.div whileTap={{ scale: 0.99 }} className="relative">
-                                <Phone className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${templateStyles.tiny}`} />
-                                <input
-                                  id="customer-phone"
-                                  type="tel"
-                                  inputMode="numeric"
-                                  autoComplete="tel"
-                                  value={customerPhone}
-                                  onChange={(e) => handlePhoneChange(e.target.value)}
-                                  onBlur={() => setPhoneError(validatePhone(customerPhone))}
-                                  className={`${templateStyles.input} ${phoneError ? "ring-2 ring-red-500" : ""}`}
-                                  placeholder="11 1234-5678"
-                                />
-                                {phoneError && <p className="text-xs text-red-500 mt-1">{phoneError}</p>}
+                              <label htmlFor="customer-phone" className={`block text-sm font-medium mb-1.5 ${templateStyles.label}`}>Telefono</label>
+                              <motion.div whileTap={{ scale: 0.99 }}>
+                                <div className="relative">
+                                  <Phone className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${templateStyles.tiny}`} />
+                                  <input
+                                    id="customer-phone"
+                                    type="tel"
+                                    inputMode="numeric"
+                                    autoComplete="tel"
+                                    value={customerPhone}
+                                    onChange={(e) => handlePhoneChange(e.target.value)}
+                                    onBlur={() => setPhoneError(validatePhone(customerPhone))}
+                                    className={`${templateStyles.input} ${phoneError ? "ring-2 ring-black/10 dark:ring-white/20" : ""}`}
+                                    placeholder="11 1234-5678"
+                                  />
+                                </div>
+                                {phoneError && <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{phoneError}</p>}
                               </motion.div>
                             </div>
                           </>
@@ -3495,25 +3576,19 @@ className={`relative w-full max-w-sm max-h-[86dvh] overflow-y-auto ${templateSty
                   )}
                 </motion.div>
 
-                {step < 3 && (
+                {step < pagoStep && step !== storeStep && (
                   <motion.button
                     key="continue"
                     layout
                     transition={{ type: "spring", stiffness: 500, damping: 26, mass: 0.9 }}
-                    onClick={(e) => {
-                      if (!canGoNext) return;
-                      triggerHaptic(12, e.currentTarget);
-                      if (!hasServices && hasStoreItems) { setStep(3); return; }
-                      if (assignStaffLater && step === 0) { setStep(2); return; }
-                      setStep((s) => s + 1);
-                    }}
-                    disabled={!canGoNext}
-                    whileHover={canGoNext ? { scale: 1.06 } : {}}
-                    whileTap={canGoNext ? { scale: 0.9 } : {}}
+                    onClick={handleContinue}
+                    disabled={continueDisabled}
+                    whileHover={continueDisabled ? {} : { scale: 1.06 }}
+                    whileTap={continueDisabled ? {} : { scale: 0.9 }}
                     className={`relative overflow-hidden px-6 py-2.5 rounded-full text-sm font-medium ${
-                      canGoNext
-                        ? templateStyles.next
-                        : `${templateStyles.nextDisabled} cursor-not-allowed`
+                      continueDisabled
+                        ? `${templateStyles.nextDisabled} cursor-not-allowed`
+                        : templateStyles.next
                     } ${step === 0 ? 'flex-1 sm:flex-none' : ''}`}
                   >
                     {/* Sweeping shimmer line */}
@@ -3529,7 +3604,7 @@ className={`relative w-full max-w-sm max-h-[86dvh] overflow-y-auto ${templateSty
                     {/* Content */}
                     <span className="relative z-10 flex items-center gap-1.5">
                       <span>Continuar</span>
-                      {canGoNext && (
+                      {!continueDisabled && (
                         <motion.span
                           animate={{ x: [0, 5, 0] }}
                           transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut", repeatDelay: 0.3 }}
@@ -3566,7 +3641,7 @@ className={`relative w-full max-w-sm max-h-[86dvh] overflow-y-auto ${templateSty
                       ) : storeCartCount > 0 ? (
                         <>
                           <Sparkles className="w-4 h-4" />
-                          Confirmar y pagar
+                          {payAtShopCheckout ? "Confirmar pedido" : "Confirmar y pagar"}
                         </>
                       ) : (
                         <>
@@ -3584,148 +3659,58 @@ className={`relative w-full max-w-sm max-h-[86dvh] overflow-y-auto ${templateSty
                 )}
               </motion.div>
 
-              <div ref={contactRowRef} className={`mt-5 ${step === pagoStep ? "hidden" : ""} relative flex flex-wrap items-center justify-center gap-2 sm:gap-2.5`}>
+              <div className={`mt-5 ${step === pagoStep ? "hidden" : ""} relative flex flex-wrap items-center justify-center gap-3 sm:gap-4`}>
                 {storeEnabled && step < storeStep && (
                   <button
                     type="button"
                     onClick={(e) => { triggerHaptic(10, e.currentTarget); if (step === storeStep) { setStep(storeJumpOriginRef.current); return; } setStoreArrivedViaButton(true); storeJumpOriginRef.current = step; setStep(storeStep); }}
-                    className={`shrink-0 inline-flex items-center gap-1.5 h-8 rounded-full border px-2.5 transition-colors sm:absolute sm:left-0 ${templateStyles.plate} ${templateStyles.hoverBorder} ${templateStyles.sectionFocus}`}
+                    className={`shrink-0 text-xs font-medium transition-opacity opacity-70 hover:opacity-100 cursor-pointer select-none sm:absolute sm:left-0 ${templateStyles.heading} ${templateStyles.sectionFocus}`}
                     aria-label="Ir a la tienda"
                   >
-                    <ShoppingBag className={`w-3.5 h-3.5 shrink-0 ${templateStyles.meta} ${templateStyles.metaHover}`} />
-                    <span className={`text-xs font-medium ${templateStyles.heading}`}>Tienda</span>
-                    {storeCartCount > 0 && (
-                      <span className={`inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold ${templateStyles.stepPill}`}>
-                        {storeCartCount}
-                      </span>
-                    )}
+                    Tienda
                   </button>
                 )}
                 {shop.address && (
-                    <a
-                      href={`https://www.google.com/maps/search/${encodeURIComponent(shop.city ? `${shop.address}, ${shop.city}` : shop.address)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => handleExpandContact(e, "address")}
-                      className={`group inline-flex h-8 items-center rounded-full border px-2 transition-colors ${templateStyles.plate} ${templateStyles.hoverBorder}`}
-                      aria-label={shop.address}
-                    >
-                      <MapPin className={`w-3.5 h-3.5 shrink-0 transition-colors ${templateStyles.meta} ${templateStyles.metaHover}`} />
-                      <AnimatePresence
-                        onExitComplete={() => {
-                          if (pendingContactRef.current) {
-                            setExpandedContact(pendingContactRef.current);
-                            pendingContactRef.current = null;
-                          }
-                        }}
-                      >
-                        {expandedContact === "address" && (
-                          <motion.span
-                            initial={{ opacity: 0, width: 0 }}
-                            animate={{ opacity: 1, width: "auto" }}
-                            exit={{ opacity: 0, width: 0 }}
-                            transition={{ type: "spring", stiffness: 1520, damping: 52, mass: 0.8 }}
-                            className="overflow-hidden whitespace-nowrap"
-                          >
-                            <motion.span
-                              initial={{ scale: 0.5, y: 4, opacity: 0 }}
-                              animate={{ scale: 1, y: 0, opacity: 1 }}
-                              exit={{ scale: 0.5, y: 4, opacity: 0 }}
-                              transition={{ type: "spring", stiffness: 2200, damping: 40, mass: 0.6, delay: 0.015 }}
-                              className={`inline-block max-w-[140px] truncate pl-2 text-xs font-medium ${templateStyles.heading}`}
-                            >
-                              {shop.address}
-                            </motion.span>
-                          </motion.span>
-                        )}
-                      </AnimatePresence>
-                    </a>
-                  )}
-                  {shop.phone && (
-                    <a
-                      href={`https://wa.me/${shop.phone.replace(/\D/g, "")}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => handleExpandContact(e, "whatsapp")}
-                      className={`group inline-flex h-8 items-center rounded-full border px-2 transition-colors ${templateStyles.plate} ${templateStyles.hoverBorder}`}
-                      aria-label={shop.phone}
-                    >
-                      <WhatsappIcon className={`w-3.5 h-3.5 shrink-0 transition-colors ${templateStyles.meta} ${templateStyles.metaHover}`} />
-                      <AnimatePresence
-                        onExitComplete={() => {
-                          if (pendingContactRef.current) {
-                            setExpandedContact(pendingContactRef.current);
-                            pendingContactRef.current = null;
-                          }
-                        }}
-                      >
-                        {expandedContact === "whatsapp" && (
-                          <motion.span
-                            initial={{ opacity: 0, width: 0 }}
-                            animate={{ opacity: 1, width: "auto" }}
-                            exit={{ opacity: 0, width: 0 }}
-                            transition={{ type: "spring", stiffness: 1520, damping: 52, mass: 0.8 }}
-                            className="overflow-hidden whitespace-nowrap"
-                          >
-                            <motion.span
-                              initial={{ scale: 0.5, y: 4, opacity: 0 }}
-                              animate={{ scale: 1, y: 0, opacity: 1 }}
-                              exit={{ scale: 0.5, y: 4, opacity: 0 }}
-                              transition={{ type: "spring", stiffness: 2200, damping: 40, mass: 0.6, delay: 0.015 }}
-                              className={`inline-block max-w-[140px] truncate pl-2 text-xs font-medium ${templateStyles.heading}`}
-                            >
-                              {shop.phone}
-                            </motion.span>
-                          </motion.span>
-                        )}
-                      </AnimatePresence>
-                    </a>
-                  )}
-                  {shop.instagramUrl && (
-                    <a
-                      href={shop.instagramUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => handleExpandContact(e, "instagram")}
-                      className={`group inline-flex h-8 items-center rounded-full border px-2 transition-colors ${templateStyles.plate} ${templateStyles.hoverBorder}`}
-                      aria-label="Instagram"
-                    >
-                      <InstagramIcon className={`w-3.5 h-3.5 shrink-0 transition-colors ${templateStyles.meta} ${templateStyles.metaHover}`} />
-                      <AnimatePresence
-                        onExitComplete={() => {
-                          if (pendingContactRef.current) {
-                            setExpandedContact(pendingContactRef.current);
-                            pendingContactRef.current = null;
-                          }
-                        }}
-                      >
-                        {expandedContact === "instagram" && (
-                          <motion.span
-                            initial={{ opacity: 0, width: 0 }}
-                            animate={{ opacity: 1, width: "auto" }}
-                            exit={{ opacity: 0, width: 0 }}
-                            transition={{ type: "spring", stiffness: 1520, damping: 52, mass: 0.8 }}
-                            className="overflow-hidden whitespace-nowrap"
-                          >
-                            <motion.span
-                              initial={{ scale: 0.5, y: 4, opacity: 0 }}
-                              animate={{ scale: 1, y: 0, opacity: 1 }}
-                              exit={{ scale: 0.5, y: 4, opacity: 0 }}
-                              transition={{ type: "spring", stiffness: 2200, damping: 40, mass: 0.6, delay: 0.015 }}
-                              className={`inline-block max-w-[140px] truncate pl-2 text-xs font-medium ${templateStyles.heading}`}
-                            >
-                              Instagram
-                            </motion.span>
-                          </motion.span>
-                        )}
-                      </AnimatePresence>
-                    </a>
-                  )}
+                  <a
+                    href={`https://www.google.com/maps/search/${encodeURIComponent(shop.city ? `${shop.address}, ${shop.city}` : shop.address)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={shop.address}
+                    aria-label={shop.address}
+                    className={`inline-flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity ${templateStyles.sectionFocus}`}
+                  >
+                    <MapPin className={`w-4 h-4 ${templateStyles.meta}`} />
+                  </a>
+                )}
+                {shop.phone && (
+                  <a
+                    href={`https://wa.me/${shop.phone.replace(/\D/g, "")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={shop.phone}
+                    aria-label="WhatsApp"
+                    className={`inline-flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity ${templateStyles.sectionFocus}`}
+                  >
+                    <WhatsappIcon className={`w-4 h-4 ${templateStyles.meta}`} />
+                  </a>
+                )}
+                {shop.instagramUrl && (
+                  <a
+                    href={shop.instagramUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Instagram"
+                    aria-label="Instagram"
+                    className={`inline-flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity ${templateStyles.sectionFocus}`}
+                  >
+                    <InstagramIcon className={`w-4 h-4 ${templateStyles.meta}`} />
+                  </a>
+                )}
                 <a
                   href="https://klip.com.ar"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`shrink-0 inline-flex items-center gap-1 text-[10px] transition-colors ${templateStyles.meta} ${templateStyles.metaHover} sm:absolute sm:right-0`}
+                  className={`shrink-0 inline-flex items-center gap-1 text-[10px] transition-opacity opacity-60 hover:opacity-100 sm:absolute sm:right-0 ${templateStyles.meta}`}
                 >
                   <span>powered by</span>
                   <span className="font-bold tracking-wide">KLIP</span>
@@ -3743,6 +3728,7 @@ className={`relative w-full max-w-sm max-h-[86dvh] overflow-y-auto ${templateSty
                     totalPrice={totalPrice}
                     products={storeProducts}
                     storeCart={storeCart}
+                    appointmentLabel={hasServices ? summaryDateTime : null}
                     onUpdateProductQty={updateProductQty}
                     onRemoveProduct={removeProduct}
                     templateStyles={templateStyles}
@@ -3812,13 +3798,19 @@ className={`relative w-full max-w-sm max-h-[86dvh] overflow-y-auto ${templateSty
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
                   className={`text-xl font-semibold mb-1 ${templateStyles.doneTitle}`}
-                >Turno reservado</motion.h2>
+                >{hasServices ? "Turno reservado" : "Pedido confirmado"}</motion.h2>
                 <motion.p
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.3 }}
                   className={`text-sm mb-8 ${templateStyles.doneText}`}
-                >Ya quedo todo listo.</motion.p>
+                >
+                  {hasServices
+                    ? "Ya quedo todo listo."
+                    : needsPayment
+                      ? "Ya quedo todo listo."
+                      : "Ya quedo todo listo. Pagas en el local."}
+                </motion.p>
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -3868,113 +3860,6 @@ className={`relative w-full max-w-sm max-h-[86dvh] overflow-y-auto ${templateSty
       </div>
       </div>
       </div>
-
-      <AnimatePresence>
-        {!done && step === 3 && (
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 40 }}
-          transition={{ type: "spring", stiffness: 400, damping: 30, mass: 0.8 }}
-          className="fixed bottom-0 left-0 right-0 z-40"
-        >
-          <div className={`mx-2 mb-2 rounded-2xl border px-4 py-3 ${templateStyles.footer}`}>
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                <div className={`text-xs sm:text-sm min-w-0 flex-1 ${templateStyles.footerText}`}>
-                  {hasServices && (
-                    <>
-                      <p className="truncate"><span className={templateStyles.tiny}>{`${serviceWord}:`}</span> {summaryService}</p>
-                      <p className="truncate"><span className={templateStyles.tiny}>Fecha:</span> {summaryDate}</p>
-                      <p className="truncate"><span className={templateStyles.tiny}>Hora:</span> {summaryTime}</p>
-                    </>
-                  )}
-                  {hasStoreItems && (
-                    <p className="truncate"><span className={templateStyles.tiny}>Productos:</span> {storeCartCount} · {formatARSAmount(productsTotal)}</p>
-                  )}
-                  {hasHiddenPriceService && !needsPayment ? (
-                    <p className="truncate">
-                      <span className={templateStyles.tiny}>Pago:</span> En el local
-                    </p>
-                  ) : (
-                    <p className="truncate">
-                      <span className={templateStyles.tiny}>
-                        {effectiveIsDeposit && hasServices && effectiveChargedAmount < totalPrice ? "Seña online:" : "Pago online:"}
-                      </span> {formatARSAmount(effectiveChargedAmount)}
-                    </p>
-                  )}
-                </div>
-
-                <div className="relative w-full sm:w-auto flex-shrink-0">
-                  {!submitting && !creatingPreference && (
-                    <>
-                      <motion.span
-                        className="absolute -inset-0.5 rounded-full pointer-events-none z-0 block"
-                        animate={{ boxShadow: btnEffects.pulseRing }}
-                        transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-                      />
-                      <motion.span
-                        className={`absolute -top-2 -right-1.5 w-3 h-3 rounded-full pointer-events-none z-0 ${btnEffects.orbClass} blur-[2px]`}
-                        animate={{ scale: [0.8, 1.6, 0.8], opacity: [0.3, 0.8, 0.3] }}
-                        transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-                      />
-                      <motion.span
-                        className={`absolute -bottom-1.5 -left-1.5 w-2.5 h-2.5 rounded-full pointer-events-none z-0 ${btnEffects.orbClass} blur-[2px]`}
-                        animate={{ scale: [1, 1.8, 1], opacity: [0.2, 0.6, 0.2] }}
-                        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                      />
-                    </>
-                  )}
-                  <motion.button
-                    onClick={(e) => {
-                      triggerHaptic(20, e.currentTarget);
-                      if (storeEnabled && !isStoreOnly) {
-                        setStoreArrivedViaButton(false);
-                        if (hasStoreItems) {
-                          handleConfirm();
-                        } else {
-                          setStep(storeStep);
-                        }
-                        return;
-                      }
-                      if (shop.bankTransferEnabled && !hasHiddenPriceService) {
-                        setStep(pagoStep);
-                        return;
-                      }
-                      handleConfirm();
-                    }}
-                    disabled={submitting || creatingPreference || !canGoNext || !!paymentPreferenceId}
-                    draggable={false}
-                    whileHover={{ scale: 1.04 }}
-                    whileTap={{ scale: 0.96 }}
-                    initial={{ opacity: 0, scale: 0.92 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 20, delay: 0.25, mass: 0.8 }}
-                    className={`relative overflow-hidden inline-flex justify-center items-center gap-2 px-5 py-3 rounded-full text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto ${templateStyles.ctaMain} ${templateStyles.ctaDepth} ${tactileClass}`}
-                  >
-                    <span className="absolute inset-0 -translate-x-full animate-[confirmShimmer_1.5s_infinite] pointer-events-none" style={{ background: btnEffects.shimmerGradient }} />
-                    <span className={`absolute inset-0 rounded-full bg-gradient-to-b ${btnEffects.innerGlow} to-transparent pointer-events-none`} />
-                    {submitting || creatingPreference ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin relative z-10" />
-                        <span className="relative z-10">Procesando...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-4 h-4 relative z-10" />
-                        <span className="relative z-10">
-                          {storeEnabled && !isStoreOnly ? "Continuar" : hasServices && hasStoreItems ? "Confirmar y pagar" : hasStoreItems ? "Confirmar pedido" : "Confirmar turno"}
-                        </span>
-                      </>
-                    )}
-                  </motion.button>
-                </div>
-              </div>
-          </div>
-        </motion.div>
-        )}
-      </AnimatePresence>
-
-
 
       <style jsx global>{`
         @keyframes shimmer {

@@ -1,7 +1,7 @@
 "use server";
 
 import "server-only";
-import { requireOwnerShopId, requireShopId, createServiceRoleClient } from "@/lib/dashboard/auth/server";
+import { requireOwnerShopId, requireShopId, createServiceRoleClient, resolveAuthorizedShopId } from "@/lib/dashboard/auth/server";
 import crypto from "crypto";
 import type { ActionResult } from "@/lib/types";
 import { revalidateDashboardSegments } from "@/lib/dashboard/shared/revalidate-dashboard";
@@ -50,7 +50,11 @@ export async function getWhatsAppAutomationOverview(): Promise<ActionResult<What
 
 export async function getWhatsAppAutomationOverviewForShop(shopId: string): Promise<ActionResult<WhatsAppAutomationOverview>> {
   if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-  return buildWhatsAppAutomationOverview(shopId);
+  // Verifica membresia: sin esto, este action (expuesto por "use server")
+  // devolvia los ids de WhatsApp de cualquier local a cualquiera.
+  const access = await resolveAuthorizedShopId(shopId, "member");
+  if (!access.success) return { success: false, error: access.error };
+  return buildWhatsAppAutomationOverview(access.data);
 }
 
 async function buildWhatsAppAutomationOverview(shopId: string): Promise<ActionResult<WhatsAppAutomationOverview>> {

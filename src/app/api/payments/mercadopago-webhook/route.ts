@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
+import { isOverlapViolation } from "@/lib/db/overlap-violation";
 import { trackProductEvent } from "@/lib/analytics/product-events";
 import { MercadoPagoConfig, Payment, PreApproval } from "mercadopago";
 import { cycleMonths, type BillingCycle } from "@/lib/billing/plans";
@@ -109,6 +110,12 @@ function verifyMercadoPagoSignature(
 
   if (!tsMatch || !v1Match) return false;
 
+  // Ventana de frescura. MP documenta 5 minutos. Sin esto, un tuple capturado
+  // (x-signature, x-request-id, ts) es valido para siempre.
+  const tsSeconds = Number(tsMatch[1]);
+  if (!Number.isFinite(tsSeconds)) return false;
+  if (Math.abs(Date.now() / 1000 - tsSeconds) > 5 * 60) return false;
+
   const manifest = buildWebhookSigningManifest(dataId ?? "", xRequestId ?? "", tsMatch[1]);
 
   const expected = crypto
@@ -121,8 +128,26 @@ function verifyMercadoPagoSignature(
   return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(v1Match[1]));
 }
 
-function formatDateInArgentina(value: Date | string): string {
-  const parts = new Intl.DateTimeFormat("en-CA", {
+/**
+ * Lee una lista de ids del metadata de Mercado Pago.
+ *
+ * MP devuelve el metadata tal cual lo mando el emisor: si fue un array puede
+ * volver como array, y si fue un string JSON puede volver con doble encoding.
+ * Por eso se aceptan las tres formas.
+ */
+function parseIdList(raw: string[] | string | undefined): string[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw.filter((v): v is string => typeof v === "string" && v.length > 0);
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed.filter((v): v is string => typeof v === "string" && v.length > 0);
+  } catch {
+    // No es JSON: se cae al split por comas.
+  }
+  return raw.split(",").map((s: string) => s.trim()).filter(Boolean);
+}
+
+function formatDateInArgentina(value: Date | string): string {  const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Argentina/Buenos_Aires",
     year: "numeric",
     month: "2-digit",
@@ -160,6 +185,23 @@ export async function POST(request: NextRequest) {
     const notificationDataId = request.nextUrl.searchParams.get("data.id");
     if (!verifyMercadoPagoSignature(xSignature, xRequestId, notificationDataId, webhookSecret)) {
       return NextResponse.json({ ok: false, error: "invalid signature" }, { status: 401 });
+    }
+
+    // La firma cubre el data.id del QUERY STRING, pero abajo se actua sobre el
+    // data.id del CUERPO. Si no coinciden, la firma no dice nada sobre lo que
+    // vamos a procesar: cualquiera con un par (x-request-id, ts) capturado
+    // podria colar un cuerpo con otro payment_id.
+    //
+    // Cuando la URL de notificacion no lleva ?data.id= (las suscripciones se
+    // registran sin query string), no hay contra que comparar; en ese caso la
+    // ventana de frescura de 5 minutos es lo que acota el replay.
+    const bodyDataId = payload?.data?.id ?? null;
+    if (notificationDataId && bodyDataId && bodyDataId !== notificationDataId) {
+      logWarn(log, "Signature data.id does not match body data.id", {
+        notificationDataId,
+        bodyDataId,
+      });
+      return NextResponse.json({ ok: false, error: "data.id mismatch" }, { status: 401 });
     }
 
     const admin = await createAdminClient();
@@ -214,6 +256,22 @@ export async function POST(request: NextRequest) {
 
     // --- Subscription preapproval events (authorized / cancelled) ---
     if (type === "subscription_preapproval" && resourceId) {
+      // Solo estas dos acciones cambian algo. Se filtran ANTES de pegarle
+      // a la API de MP: `preapproval.created` llega al crear la suscripcion
+      // (antes de cualquier cobro) y `preapproval.authorized` es la unica
+      // accion real de una suscripcion cobrada. `preapproval.approved` no
+      // existe en MP; aceptarla era inventarse un evento.
+      //
+      // Aparte de corregir el regalamo de meses, filtrar aca evita una llamada
+      // a la API por cada evento que no hacemos nada.
+      if (action !== "preapproval.authorized" && action !== "preapproval.cancelled") {
+        logInfo(log, "subscription_preapproval con accion no manejada; ignorada", {
+          action,
+          preapproval_id: resourceId,
+        });
+        return NextResponse.json({ ok: true });
+      }
+
       const client = new MercadoPagoConfig({ accessToken });
       const preapprovalClient = new PreApproval(client);
       const preapprovalResult = await preapprovalClient.get({ id: resourceId });
@@ -225,7 +283,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
-      if (action === "preapproval.approved" || action === "preapproval.created") {
+      if (action === "preapproval.authorized") {
         await admin.from("shop_subscriptions").upsert(
           {
             shop_id: shopId,
@@ -287,6 +345,80 @@ export async function POST(request: NextRequest) {
         .maybeSingle();
 
       if (sub && sub.status === "authorized") {
+        // CLAIM PRIMERO. Antes se extendia plan_expiry y recien despues se
+        // insertaba el evento del ledger, asi que cada reintento de MP (cada 15
+        // min, para siempre) regalaba un mes. El indice unico de la migracion
+        // 102 (por payment_id) solo cubre el caso en que se resuelve el pago;
+        // la migracion 108 agrega charge_key para el resto.
+        //
+        // A diferencia del pago inicial, el webhook de subscription_charged NO
+        // trae el pago: trae el id del preapproval. Y el PreApproval de MP no
+        // expone el id del ultimo cobro, solo el monto (summarized
+        // .last_charged_amount) que NO incluye la fee. Como la comision del
+        // referidos se calcula sobre el neto, sin el pago real no hay forma
+        // exacta de saber cuanto entro.
+        //
+        // Asi que se busca el pago por external_reference y se elige el que
+        // corresponde a ESTE cobro. Si no se puede resolver con confianza, el
+        // evento se escribe igual (para que la secuencia de pagos del local
+        // avance) pero SIN montos: el sync lo marca needs_review en vez de
+        // inventar un neto.
+        // shop_subscriptions no guarda el external_reference, pero es
+        // deterministico: subscription/activate siempre arma
+        // `shop_sub_auto:<shopId>`.
+        const autoExternalRef = `shop_sub_auto:${sub.shop_id}`;
+        const autoAmounts = await resolveAutoChargeAmounts({
+          accessToken,
+          preapprovalId: resourceId,
+          externalReference: autoExternalRef,
+        });
+
+        // Un auto-cargo por ciclo mensual: dos eventos con la misma clave son la
+        // misma notificacion reintentada.
+        const chargeKey = `${resourceId}:${formatDateInArgentina(new Date()).slice(0, 7)}`;
+
+        const { error: chargeError } = await admin.from("shop_billing_events").insert({
+          shop_id: sub.shop_id,
+          actor_user_id: null,
+          event_type: "subscription_auto_charge_applied",
+          payload: {
+            preapproval_id: resourceId,
+            charge_key: chargeKey,
+            external_reference: autoExternalRef,
+            ...(autoAmounts.paymentId ? { payment_id: autoAmounts.paymentId } : {}),
+            ...(autoAmounts.amounts
+              ? {
+                  gross_amount: autoAmounts.amounts.gross_amount,
+                  mp_fee: autoAmounts.amounts.mp_fee,
+                  net_amount: autoAmounts.amounts.net_amount,
+                  amount_source: autoAmounts.amounts.source,
+                }
+              : {}),
+            ...(autoAmounts.liveMode === false ? { mp_live_mode: false } : {}),
+          },
+        });
+
+        if (chargeError && isUniqueViolation(chargeError)) {
+          // Ya se aplico este cobro (indice de 102 o de 108). Es el camino
+          // normal de un reintento de MP, no un fallo.
+          logInfo(log, "subscription_auto_charge ya aplicado; reintento ignorado", {
+            preapproval_id: resourceId,
+            charge_key: chargeKey,
+          });
+          return NextResponse.json({ ok: true });
+        }
+
+        if (chargeError) {
+          // No se pudo escribir el ledger. Extender plan_expiry sin ledger
+          // seria dar un mes sin registro que lo respalde, asi que se corta.
+          logError(log, "No se pudo guardar subscription_auto_charge_applied", {
+            error: chargeError.message,
+            preapproval_id: resourceId,
+          });
+          return NextResponse.json({ ok: false, error: "charge_event_failed" }, { status: 500 });
+        }
+
+        // Claim exitoso: recien ahora se extiende el plan.
         const { data: shop } = await admin
           .from("shops")
           .select("id, plan_expiry")
@@ -311,54 +443,6 @@ export async function POST(request: NextRequest) {
               updated_at: new Date().toISOString(),
             })
             .eq("id", sub.shop_id);
-        }
-
-        // A diferencia del pago inicial, el webhook de subscription_charged NO
-        // trae el pago: trae el id del preapproval. Y el PreApproval de MP no
-        // expone el id del ultimo cobro, solo el monto (summarized
-        // .last_charged_amount) que NO incluye la fee. Como la comision del
-        // referidos se calcula sobre el neto, sin el pago real no hay forma
-        // exacta de saber cuanto entro.
-        //
-        // Asi que se busca el pago por external_reference y se elige el que
-        // corresponde a ESTE cobro. Si no se puede resolver con confianza, el
-        // evento se escribe igual (para que la secuencia de pagos del local
-        // avance) pero SIN montos: el sync lo marca needs_review en vez de
-        // inventar un neto.
-        // shop_subscriptions no guarda el external_reference, pero es
-        // deterministico: subscription/activate siempre arma
-        // `shop_sub_auto:<shopId>`.
-        const autoExternalRef = `shop_sub_auto:${sub.shop_id}`;
-        const autoAmounts = await resolveAutoChargeAmounts({
-          accessToken,
-          preapprovalId: resourceId,
-          externalReference: autoExternalRef,
-        });
-
-        const { error: chargeError } = await admin.from("shop_billing_events").insert({
-          shop_id: sub.shop_id,
-          actor_user_id: null,
-          event_type: "subscription_auto_charge_applied",
-          payload: {
-            preapproval_id: resourceId,
-            external_reference: autoExternalRef,
-            ...(autoAmounts.paymentId ? { payment_id: autoAmounts.paymentId } : {}),
-            ...(autoAmounts.amounts
-              ? {
-                  gross_amount: autoAmounts.amounts.gross_amount,
-                  mp_fee: autoAmounts.amounts.mp_fee,
-                  net_amount: autoAmounts.amounts.net_amount,
-                  amount_source: autoAmounts.amounts.source,
-                }
-              : {}),
-            ...(autoAmounts.liveMode === false ? { mp_live_mode: false } : {}),
-          },
-        });
-
-        if (chargeError && !isUniqueViolation(chargeError)) {
-          logError(log, "No se pudo guardar subscription_auto_charge_applied", {
-            error: chargeError.message,
-          });
         }
       }
 
@@ -712,22 +796,16 @@ export async function POST(request: NextRequest) {
       const { data: combinedOrder } = await combinedOrderQuery.maybeSingle();
       if (!combinedOrder || combinedOrder.status !== "pending_payment") return NextResponse.json({ ok: true });
 
-      const comboRaw = paymentResult.metadata?.combo_appointment_ids as string[] | string | undefined;
-      const extraIds = comboRaw
-        ? (Array.isArray(comboRaw)
-            ? comboRaw
-            : (() => {
-                try { return JSON.parse(comboRaw as string); } catch { return (comboRaw as string).split(",").map((s: string) => s.trim()).filter(Boolean); }
-              })())
-        : [];
-      const allCombinedIds: string[] = [combinedAppointmentId, ...extraIds.filter((id: string) => id !== combinedAppointmentId)];
+      const extraIds = parseIdList(paymentResult.metadata?.combo_appointment_ids as string[] | string | undefined);
+      const combinedPaidIds = parseIdList(paymentResult.metadata?.paid_appointment_ids as string[] | string | undefined);
+      const allCombinedIds: string[] = [combinedAppointmentId, ...(combinedPaidIds.length > 0 ? combinedPaidIds : extraIds).filter((id: string) => id !== combinedAppointmentId)];
 
       const preferenceId = (paymentResult.order?.id as string | undefined) || (paymentResult.metadata?.preference_id as string | undefined) || undefined;
       const normalizedPaymentId = String(paymentId);
 
       if (paymentResult.status === "approved") {
         for (const aptId of allCombinedIds) {
-          await withRetry(
+          const { error: confirmError } = await withRetry(
             () => admin
               .from("appointments")
               .update({
@@ -742,6 +820,16 @@ export async function POST(request: NextRequest) {
               .then((r) => r as { error: unknown }),
             { retries: 1, delayMs: 500 }
           );
+
+          // 23P01 = constraint de la migracion 109. El turno ya esta tomado por
+          // otro que se confirmo antes. El pago se registra igual y el turno
+          // queda para que lo resuelva el local; no se aborta el checkout.
+          if (confirmError && isOverlapViolation(confirmError)) {
+            logWarn(log, "Turno combinado no se pudo confirmar por solape", {
+              appointment_id: aptId,
+              order_id: combinedOrderId,
+            });
+          }
         }
 
         // Claim the order — only one request succeeds (idempotency)
@@ -906,18 +994,19 @@ export async function POST(request: NextRequest) {
     const preferenceId = (paymentResult.order?.id as string | undefined) || (paymentResult.metadata?.preference_id as string | undefined) || undefined;
 
     // Determine which appointment IDs to update (main + any combo-linked appointments)
-    const allAppointmentIds: string[] = [appointment.id];
-    const comboAppointmentIdsRaw = paymentResult.metadata?.combo_appointment_ids as string[] | string | undefined;
-    if (comboAppointmentIdsRaw) {
-      const extraIds = Array.isArray(comboAppointmentIdsRaw)
-        ? comboAppointmentIdsRaw
-        : typeof comboAppointmentIdsRaw === "string"
-          ? (() => {
-              try { return JSON.parse(comboAppointmentIdsRaw); } catch { return comboAppointmentIdsRaw.split(",").map((s: string) => s.trim()).filter(Boolean); }
-            })()
-          : [];
-      allAppointmentIds.push(...extraIds.filter((id: string) => id !== appointment.id));
-    }
+    //
+    // `paid_appointment_ids` lo calcula el servidor al crear la preferencia y es
+    // la unica lista confiable: dice que turnos se pagaron de verdad. La lista
+    // que mandaba el cliente (`combo_appointment_ids`) se usa solo como fallback
+    // para preferencias creadas antes de que existiera la del servidor.
+    //
+    // Sin esto, un cliente podia colar en el pago un servicio con hide_price
+    // ("a convenir") y el webhook lo confirmaba igual, sin haberlo pagado.
+    const paidIds = parseIdList(paymentResult.metadata?.paid_appointment_ids as string[] | string | undefined);
+    const source = paidIds.length > 0 ? paidIds : parseIdList(paymentResult.metadata?.combo_appointment_ids as string[] | string | undefined);
+
+    // El turno principal siempre se procesa: es el external_reference del pago.
+    const allAppointmentIds: string[] = Array.from(new Set([appointment.id, ...source]));
 
     // Update all linked appointments
     for (const aptId of allAppointmentIds) {
@@ -937,7 +1026,21 @@ export async function POST(request: NextRequest) {
         { retries: 1, delayMs: 500 }
       );
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        // 23P01 = la constraint de la migracion 109. Pasa cuando dos carritos
+        //-conviven sobre el mismo horario (pending_payment queda fuera del
+        // predicado a proposito, por la retencion de 10 minutos) y este ya fue
+        // tomado. El cliente ya pago: no se tira el pago, se deja el turno para
+        // que lo resuelva el local y se sigue con el resto.
+        if (isOverlapViolation(updateError)) {
+          logWarn(log, "Turno no se pudo confirmar por solape; el pago quedo registrado", {
+            appointment_id: aptId,
+            shop_id: appointment.shop_id,
+          });
+          continue;
+        }
+        throw updateError;
+      }
     }
 
     // Insert billing event after successful appointment update

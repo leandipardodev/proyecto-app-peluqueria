@@ -1,6 +1,6 @@
 "use server";
 
-import { createServiceRoleClient, getCurrentUserRole, requireOwnerShopId, requireShopId } from "@/lib/dashboard/auth/server";
+import { createServiceRoleClient, getCurrentUserRole, requireOwnerShopId, requireShopId, resolveAuthorizedShopId } from "@/lib/dashboard/auth/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { revalidateDashboardSegments } from "@/lib/dashboard/shared/revalidate-dashboard";
 import { getArgentinaDateString, getArgentinaDayBounds, getArgentinaNow } from "@/lib/argentina-time";
@@ -199,13 +199,9 @@ async function fetchShopStaff(admin: Awaited<ReturnType<typeof createAdminClient
 
 export async function fetchStaffProduction(fromDate?: string, toDate?: string, shopIdOverride?: string): Promise<ActionResult<StaffProduction[]>> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     // Staff cannot see economic data of any staff member
     const roleResult = await getCurrentUserRole(shopId);
@@ -289,13 +285,9 @@ export async function fetchStaffProduction(fromDate?: string, toDate?: string, s
 
 export async function upsertStaffCompensationRule(formData: FormData, shopIdOverride?: string): Promise<ActionResult> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireOwnerShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "owner");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const staffUserId = String(formData.get("staff_user_id") || "").trim();
     const startsOn = String(formData.get("starts_on") || "").trim();
@@ -341,13 +333,9 @@ export async function upsertStaffCompensationRule(formData: FormData, shopIdOver
 
 export async function createStaffPreLiquidation(formData: FormData, shopIdOverride?: string): Promise<ActionResult<StaffLiquidationPreview>> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireOwnerShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "owner");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const staffUserId = String(formData.get("staff_user_id") || "").trim();
     const periodStart = String(formData.get("period_start") || "").trim();
@@ -488,13 +476,9 @@ export async function createStaffPreLiquidation(formData: FormData, shopIdOverri
 
 export async function fetchStaffLiquidations(fromDate?: string, toDate?: string, shopIdOverride?: string): Promise<ActionResult<StaffLiquidationListItem[]>> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     // Staff cannot see liquidation data (economic data of other staff)
     const roleResult = await getCurrentUserRole(shopId);
@@ -540,13 +524,9 @@ export async function fetchStaffLiquidations(fromDate?: string, toDate?: string,
 
 export async function markStaffLiquidationPaid(liquidationId: string, paidAmount: number, shopIdOverride?: string): Promise<ActionResult> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireOwnerShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "owner");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const admin = await createAdminClient();
     const { error } = await admin
@@ -565,13 +545,9 @@ export async function markStaffLiquidationPaid(liquidationId: string, paidAmount
 
 export async function fetchCashSession(shopIdOverride?: string): Promise<ActionResult<CashSessionSummary | null>> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const admin = await createAdminClient();
     const { data, error } = await admin
@@ -639,13 +615,9 @@ export async function fetchCashSession(shopIdOverride?: string): Promise<ActionR
 
 export async function openCashSession(formData: FormData, shopIdOverride?: string): Promise<ActionResult> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireOwnerShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "owner");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
     const openingAmount = Number(formData.get("opening_amount") || 0);
     const actorResult = await requireActorUserId();
     if (!actorResult.success || !actorResult.data) {
@@ -668,13 +640,9 @@ export async function openCashSession(formData: FormData, shopIdOverride?: strin
 
 export async function closeCashSession(formData: FormData, shopIdOverride?: string): Promise<ActionResult> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireOwnerShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "owner");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const sessionId = String(formData.get("session_id") || "").trim();
     const countedAmount = Number(formData.get("counted_amount") || 0);
@@ -748,13 +716,9 @@ export async function closeCashSession(formData: FormData, shopIdOverride?: stri
 
 export async function createCashMovement(formData: FormData, shopIdOverride?: string): Promise<ActionResult> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireOwnerShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "owner");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const rawAmount = formData.get("amount");
     const amount = Number(rawAmount || 0);
@@ -801,13 +765,9 @@ export async function createCashMovement(formData: FormData, shopIdOverride?: st
 
 export async function fetchCashMovements(fromDate?: string, toDate?: string, shopIdOverride?: string): Promise<ActionResult<CashMovementItem[]>> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
     const today = getArgentinaDateString();
     const from = (fromDate || today).trim();
     const to = (toDate || today).trim();
@@ -844,13 +804,9 @@ export async function fetchCashMovements(fromDate?: string, toDate?: string, sho
 
 export async function fetchFinanceData(fromDate?: string, toDate?: string, shopIdOverride?: string): Promise<ActionResult<FinanceData>> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const admin = await createAdminClient();
 
@@ -979,13 +935,9 @@ export async function fetchFinanceData(fromDate?: string, toDate?: string, shopI
 
 export async function fetchStaffLiquidationItems(liquidationId: string, shopIdOverride?: string): Promise<ActionResult<StaffLiquidationDetailItem[]>> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     // Staff cannot see liquidation detail (economic data)
     const roleResult = await getCurrentUserRole(shopId);
@@ -1020,13 +972,9 @@ export async function fetchStaffLiquidationItems(liquidationId: string, shopIdOv
 
 export async function fetchCashSessionsHistory(fromDate?: string, toDate?: string, shopIdOverride?: string): Promise<ActionResult<CashSessionSummary[]>> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
     const today = getArgentinaDateString();
     const from = (fromDate || today).trim();
     const to = (toDate || today).trim();
@@ -1111,13 +1059,9 @@ export async function fetchCashSessionsHistory(fromDate?: string, toDate?: strin
 
 export async function createExpense(formData: FormData, shopIdOverride?: string): Promise<ActionResult> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireOwnerShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "owner");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const amount = parseFloat(formData.get("amount") as string);
     const category = formData.get("category") as string;
@@ -1158,13 +1102,9 @@ export async function createExpense(formData: FormData, shopIdOverride?: string)
 
 export async function deleteExpense(id: string, shopIdOverride?: string): Promise<ActionResult> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireOwnerShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "owner");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const admin = await createAdminClient();
 

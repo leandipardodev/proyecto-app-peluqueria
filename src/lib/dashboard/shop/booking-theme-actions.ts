@@ -1,11 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createServiceRoleClient, getAuthSession, getShopIdBySlug, getCurrentUserRole, requireShopId } from "@/lib/dashboard/auth/server";
+import { createServiceRoleClient, getAuthSession, getCurrentUserRole, getShopIdBySlug, requireShopId, resolveAuthorizedShopId } from "@/lib/dashboard/auth/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { DEFAULT_BOOKING_TEMPLATE, BOOKING_TEMPLATE_PRESETS, type BookingTemplateId } from "@/lib/booking/theme-presets";
 import type { ActionResult } from "@/lib/types";
 import { createAdminClient } from "../appointments/shared";
+import { withImageVersion } from "@/lib/dashboard/store/image-upload";
 
 export type BookingThemeData = {
   shop_id: string;
@@ -38,8 +39,14 @@ function normalizeTemplateId(value: string | null | undefined): BookingTemplateI
 
 export async function fetchBookingTheme(shopIdOverride?: string, shopSlugOverride?: string): Promise<ActionResult<BookingThemeData | null>> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
+    // Esta funcion es distinta a las demas: sin shopId explicito resuelve por
+    // slug (que ya verifica membresia via getShopIdBySlug), no por sesion.
+    let shopId: string | undefined;
+    if (shopIdOverride) {
+      const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+      if (!shopIdResult.success) return shopIdResult;
+      shopId = shopIdResult.data;
+    } else {
       const shopIdResult = await resolveShopIdFromOptionalSlug(shopSlugOverride);
       if (!shopIdResult.success) return shopIdResult;
       shopId = shopIdResult.data;
@@ -187,8 +194,10 @@ export async function uploadBookingLogo(formData: FormData): Promise<ActionResul
     const uploadRes = await admin.storage.from("booking-assets").upload(storagePath, new Blob([Uint8Array.from(processedBuffer)], { type: finalContentType }), { upsert: true, contentType: finalContentType });
     if (uploadRes.error) return { success: false, error: uploadRes.error.message };
 
+    // La ruta es fija (upsert), asi que sin version la URL no cambia y el
+    // navegador/next-image sigue mostrando el logo anterior.
     const { data: publicData } = admin.storage.from("booking-assets").getPublicUrl(storagePath);
-    const logoUrl = publicData.publicUrl;
+    const logoUrl = withImageVersion(publicData.publicUrl);
 
     const { error } = await admin.from("shop_booking_theme").upsert(
       {

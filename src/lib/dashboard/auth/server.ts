@@ -213,6 +213,53 @@ export async function requireOwnerShopId(): Promise<ActionResult<string>> {
   return { success: false, error: "Solo el owner del local puede realizar esta accion" };
 }
 
+/**
+ * Igual que ActionResult pero con `data` garantizado como string, para no tener
+ * que re-chequear en los ~60 call sites.
+ */
+export type AuthorizedShopResult =
+  | { success: true; data: string }
+  | { success: false; error: string };
+
+/**
+ * Resuelve el local de una accion autenticando SIEMPRE, incluso cuando el
+ * caller pasa un shopId explicito.
+ *
+ * El patron que reemplaza:
+ *
+ *   let shopId = shopIdOverride;
+ *   if (!shopId) { await requireOwnerShopId(); }   // <-- solo corre si NO viene arg
+ *   const admin = await createAdminClient();       // service role, RLS bypasseado
+ *
+ * Como la UI siempre pasa el shopId, el chequeo nunca corria y cualquier
+ * miembro de cualquier salon podia escribir (o leer) datos de otro local.
+ * `mode` decide si alcanza con ser miembro o hace falta ser owner.
+ */
+export async function resolveAuthorizedShopId(
+  shopIdOverride: string | undefined,
+  mode: "owner" | "member" = "owner",
+): Promise<AuthorizedShopResult> {
+  // Sin override: el shopId sale de la sesion, ya viene autorizado.
+  if (!shopIdOverride) {
+    const resolved = mode === "owner" ? await requireOwnerShopId() : await requireShopId();
+    if (!resolved.success) return { success: false, error: resolved.error };
+    if (!resolved.data) return { success: false, error: "LOCAL_INVALIDO" };
+    return { success: true, data: resolved.data };
+  }
+
+  const session = await getAuthSession();
+  if (!session) return { success: false, error: "SESION_EXPIRADA" };
+
+  const roleResult = await getCurrentUserRole(shopIdOverride);
+  if (!roleResult.success || !roleResult.data) return { success: false, error: "SIN_ACCESO_LOCAL" };
+
+  if (mode === "owner" && roleResult.data.role !== "owner") {
+    return { success: false, error: "Solo el owner del local puede realizar esta accion" };
+  }
+
+  return { success: true, data: shopIdOverride };
+}
+
 export async function getCurrentUserRole(shopId: string): Promise<ActionResult<{ role: string; userId: string }>> {
   const session = await getAuthSession();
   if (!session) return { success: false, error: "SESION_EXPIRADA" };

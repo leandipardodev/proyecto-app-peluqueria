@@ -6,6 +6,7 @@ import { getAuthSession, getShopId } from "@/lib/dashboard/auth/server";
 import { getArgentinaDateKey } from "@/lib/argentina-time";
 import { trackProductEvent } from "@/lib/analytics/product-events";
 import type { ActionResult } from "@/lib/types";
+import { isOverlapViolation } from "@/lib/db/overlap-violation";
 import "server-only";
 import { createAdminClient } from "../appointments/shared";
 
@@ -257,7 +258,12 @@ export async function fetchClientProfile(): Promise<ActionResult<ClientProfile>>
         .eq("id", customerRow.id)
         .maybeSingle();
 
-      if (error) return { success: false, error: error.message };
+    if (error) {
+      // 23P01 = constraint de la migracion 109: el horario ya esta tomado por
+      // otro turno confirmed del mismo profesional.
+      if (isOverlapViolation(error)) return { success: false, error: "slot_taken" };
+      return { success: false, error: error.message };
+    }
 
       if (data) return { success: true, data };
     }

@@ -204,7 +204,9 @@ describe("uploadBookingLogo", () => {
     const result = await uploadBookingLogo(makeForm(pngFile));
     expect(result.success).toBe(true);
     if (!result.success) return;
-    expect(result.data?.logoUrl).toBe("https://cdn.example.com/logo.png");
+    // La ruta de storage es fija (upsert), asi que la URL lleva un parametro de
+    // version: sin el, next/image y el CDN siguen sirviendo el logo anterior.
+    expect(result.data?.logoUrl).toMatch(/^https:\/\/cdn\.example\.com\/logo\.png\?v=\d+$/);
     expect(result.data?.storagePath).toBe("shops/shop-123/branding/logo.png");
     expect(mockRevalidatePath).toHaveBeenCalled();
   });

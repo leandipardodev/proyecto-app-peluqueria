@@ -108,6 +108,12 @@ function createNextRequest(
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // El endpoint rechaza firmas con ts fuera de la ventana de 5 minutos de MP.
+  // Las firmas de este archivo usan ts fijos, asi que el reloj se congela en
+  // TEST_TS. Solo se falsea Date: los timers reales siguen corriendo, que es lo
+  // que necesitan los mocks de supabase para resolver sus promesas.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(Number(TEST_TS) * 1000);
   mockRateCheck.mockResolvedValue({ allowed: true });
   mockPaymentGet.mockResolvedValue({
     status: "approved",
@@ -122,6 +128,10 @@ beforeEach(() => {
     amounts: { gross_amount: 40000, mp_fee: 1400, net_amount: 38600, source: "mp_net_amount" },
     liveMode: true,
   });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe("mercadopago-webhook POST — validation", () => {
@@ -202,12 +212,50 @@ describe("mercadopago-webhook POST — validation", () => {
       // manifest, este test falla.
       const signature =
         "ts=1704908010,v1=1e68e98b0896d1a9b87fce6c0dbf5fa0ff8295e4f1e0a4ff6d312f4a46007c0a";
+      vi.setSystemTime(1704908010 * 1000);
 
       const res = await POST(
         createNextRequest({ type: "payment", data: { id: "999999999" } }, { url, signature, requestId: "3f7c1e2a-1111-2222-3333-444455556666" }),
       );
 
       expect(res.status).not.toBe(401);
+    });
+
+    it("rechaza una firma con ts fuera de la ventana de 5 minutos", async () => {
+      // Sin este chequeo, un par (x-signature, x-request-id, ts) capturado
+      // valia para siempre y se podia reusar contra cualquier cuerpo.
+      // El reloj avanza una hora: la firma es correcta pero los 5 minutos vencieron.
+      vi.setSystemTime((Number(TEST_TS) + 3600) * 1000);
+
+      const res = await POST(
+        createNextRequest(
+          { type: "payment", data: { id: "999999999" } },
+          { url, signature: signWith(process.env.MP_WEBHOOK_SECRET || "", "999999999", TEST_REQUEST_ID, TEST_TS) },
+        ),
+      );
+
+      expect(res.status).toBe(401);
+    });
+
+    it("rechaza si el data.id del cuerpo no es el que se firmo", async () => {
+      // La firma es valida y la URL trae ?data.id=999999999, pero el cuerpo
+      // apunta a otro pago. Sin el vinculo entre ambos, cualquiera con un par
+      // (x-request-id, ts) capturado firmaba el cuerpo que quisiera.
+      const res = await POST(
+        createNextRequest(
+          { type: "payment", data: { id: "999999999" } },
+          { url, signature: signWith(process.env.MP_WEBHOOK_SECRET || "", "999999999", TEST_REQUEST_ID, TEST_TS) },
+        ),
+      );
+      expect(res.status).not.toBe(401);
+
+      const swapped = await POST(
+        createNextRequest(
+          { type: "payment", data: { id: "OTRO-PAYMENT" } },
+          { url, signature: signWith(process.env.MP_WEBHOOK_SECRET || "", "999999999", TEST_REQUEST_ID, TEST_TS) },
+        ),
+      );
+      expect(swapped.status).toBe(401);
     });
 
     it("rechaza una firma armada sobre el cuerpo de la notificacion", async () => {
@@ -731,7 +779,82 @@ describe("mercadopago-webhook POST — regular appointment flow", () => {
 });
 
 describe("mercadopago-webhook POST — combined booking + store flow", () => {
-  it("confirms appointment(s) and marks the order paid when approved", async () => {
+  function stubCombinedUpdates() {
+    const appointmentUpdates: Array<Record<string, unknown>> = [];
+    vi.mocked(mockCreateServiceRole).mockResolvedValue({
+      from: vi.fn((table: string) => {
+        if (table === "orders") {
+          return chainableQuery({
+            maybeSingle: vi.fn().mockResolvedValue({ data: { id: "order-comb-1", shop_id: "shop-123", status: "pending_payment" }, error: null }),
+            update: vi.fn(() => chainableQuery()),
+          });
+        }
+        if (table === "appointments") {
+          return chainableQuery({
+            update: vi.fn((updates: Record<string, unknown>) => {
+              appointmentUpdates.push(updates);
+              return chainableQuery();
+            }),
+          });
+        }
+        if (table === "mercadopago_logs") return chainableQuery({ insert: vi.fn(() => ({ data: null, error: null })) });
+        return chainableQuery();
+      }),
+    } as never);
+    return appointmentUpdates;
+  }
+
+  it("confirma solo los turnos que el servidor marco como pagados", async () => {
+    // El cliente mando tres ids, pero el servidor solo calculo dos pagados: el
+    // tercero es un servicio "a convenir" (hide_price) que se paga en el local.
+    // Confirmarlo sin pago era un service gratis.
+    mockPaymentGet.mockResolvedValue({
+      status: "approved",
+      external_reference: "apt-1",
+      metadata: {
+        type: "combined",
+        appointment_id: "apt-1",
+        order_id: "order-comb-1",
+        shop_id: "shop-123",
+        paid_appointment_ids: JSON.stringify(["apt-1", "apt-2"]),
+        combo_appointment_ids: JSON.stringify(["apt-1", "apt-2", "apt-3"]),
+      },
+      order: null,
+    });
+    const appointmentUpdates = stubCombinedUpdates();
+
+    const res = await POST(createNextRequest({ type: "payment", data: { id: "pay-x" } }));
+
+    expect(res.status).toBe(200);
+    // El update corre una vez por turno confirmado; capturamos el id por el
+    // status, asi que basta con que sean exactamente 2.
+    expect(appointmentUpdates).toHaveLength(2);
+  });
+
+  it("cae a combo_appointment_ids si la preferencia no trae paid_appointment_ids", async () => {
+    // Preferencias creadas antes del deploy no tienen el set del servidor.
+    // Si no caiéramos al fallback, esos pagos no confirmarían nada.
+    mockPaymentGet.mockResolvedValue({
+      status: "approved",
+      external_reference: "apt-comb-1",
+      metadata: {
+        type: "combined",
+        appointment_id: "apt-comb-1",
+        order_id: "order-comb-1",
+        shop_id: "shop-123",
+        combo_appointment_ids: JSON.stringify(["apt-comb-1", "apt-comb-2"]),
+      },
+      order: null,
+    });
+    const appointmentUpdates = stubCombinedUpdates();
+
+    const res = await POST(createNextRequest({ type: "payment", data: { id: "pay-x" } }));
+
+    expect(res.status).toBe(200);
+    expect(appointmentUpdates).toHaveLength(2);
+  });
+
+  it("confirma appointment(s) and marks the order paid when approved", async () => {
     mockPaymentGet.mockResolvedValue({
       status: "approved",
       external_reference: "apt-comb-1",
@@ -1018,13 +1141,107 @@ describe("mercadopago-webhook POST - subscription_charged (auto-cargo)", () => {
     expect(vi.mocked(logError)).not.toHaveBeenCalled();
   });
 
-  it("loguea el error si la insert falla por una causa real", async () => {
-    stubAutoCharge({ insertError: { code: "PGRST", message: "connection failed" } });
+  it("loguea el error y NO renueva si la insert falla por una causa real", async () => {
+    // Si el ledger no se puede escribir, extender plan_expiry seria dar un mes
+    // sin respaldo. Se devuelve 500 para que MP reintente.
+    const { shopUpdates } = stubAutoCharge({ insertError: { code: "PGRST", message: "connection failed" } });
+
+    const res = await POST(createNextRequest(chargeBody()));
+
+    expect(res.status).toBe(500);
+    expect(vi.mocked(logError)).toHaveBeenCalled();
+    expect(shopUpdates).toHaveLength(0);
+  });
+
+  it("no extiende el plan cuando el auto-cargo ya fue aplicado", async () => {
+    // Regresion del bug que regalaba un mes por cada reintento de MP: se
+    // clavaba 23505 y se reconocia que ya estaba aplicado.
+    const { eventInserts, shopUpdates } = stubAutoCharge({
+      insertError: { code: "23505", message: "duplicate key" },
+    });
 
     const res = await POST(createNextRequest(chargeBody()));
 
     expect(res.status).toBe(200);
-    expect(vi.mocked(logError)).toHaveBeenCalled();
+    expect(eventInserts).toHaveLength(1);
+    expect(shopUpdates).toHaveLength(0);
+  });
+
+  it("escribe charge_key por ciclo mensual para poder deduplicar sin payment_id", async () => {
+    // El indice de 102 solo cubre cuando se resuelve el pago. needs_review no
+    // tiene payment_id, asi que necesita su propia clave.
+    mockResolveAutoCharge.mockResolvedValue({ paymentId: null, amounts: null, liveMode: true });
+    const { eventInserts } = stubAutoCharge();
+
+    await POST(createNextRequest(chargeBody()));
+
+    const payload = (eventInserts[0] as Record<string, Record<string, unknown>>).payload;
+    expect(payload.charge_key).toMatch(/^pre-1:\d{4}-\d{2}$/);
+  });
+
+  it("deroga el mes cuando la suscripcion se crea sin cobrar", async () => {
+    // MP manda preapproval.created al CREAR la suscripcion, antes de cualquier
+    // cobro. Aceptarlo activaba el auto-suscripcion y regalaba un mes.
+    const upsert = vi.fn();
+    const update = vi.fn();
+    vi.mocked(mockCreateServiceRole).mockResolvedValue({
+      from: vi.fn((table: string) => {
+        if (table === "shop_subscriptions") return chainableQuery({ upsert });
+        if (table === "shops") return chainableQuery({ update });
+        return chainableQuery();
+      }),
+    } as never);
+    mockPreApprovalGet.mockReset();
+
+    const res = await POST(
+      createNextRequest({
+        type: "subscription_preapproval",
+        action: "preapproval.created",
+        data: { id: "pre-9" },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    // Ni consulta a MP, ni upsert de la suscripcion, ni un mes de plan.
+    expect(mockPreApprovalGet).not.toHaveBeenCalled();
+    expect(upsert).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("activa el mes con preapproval.authorized", async () => {
+    const upsert = vi.fn();
+    const update = vi.fn(() => chainableQuery());
+    vi.mocked(mockCreateServiceRole).mockResolvedValue({
+      from: vi.fn((table: string) => {
+        if (table === "shop_subscriptions") return chainableQuery({ upsert });
+        if (table === "shops") {
+          return chainableQuery({
+            maybeSingle: vi.fn().mockResolvedValue({ data: { id: "shop-123", plan_expiry: null }, error: null }),
+            update,
+          });
+        }
+        return chainableQuery();
+      }),
+    } as never);
+    mockPreApprovalGet.mockReset();
+    mockPreApprovalGet.mockResolvedValue({
+      external_reference: "shop_sub_auto:shop-123",
+      payer_id: "payer-1",
+    });
+
+    const res = await POST(
+      createNextRequest({
+        type: "subscription_preapproval",
+        action: "preapproval.authorized",
+        data: { id: "pre-9" },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockPreApprovalGet).toHaveBeenCalledWith({ id: "pre-9" });
+    expect(upsert).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(update.mock.calls[0][0].active).toBe(true);
   });
 
   it("no inserta nada si la suscripcion no esta autorizada", async () => {

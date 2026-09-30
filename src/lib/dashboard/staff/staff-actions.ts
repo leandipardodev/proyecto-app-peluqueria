@@ -2,7 +2,7 @@
 
 import crypto from "crypto";
 import { createServerClient } from "@/lib/supabase/server";
-import { createServiceRoleClient, getCurrentUserRole, requireShopId } from "@/lib/dashboard/auth/server";
+import { createServiceRoleClient, getCurrentUserRole, requireShopId, resolveAuthorizedShopId } from "@/lib/dashboard/auth/server";
 import { trackProductEvent } from "@/lib/analytics/product-events";
 import { revalidateDashboardSegments } from "@/lib/dashboard/shared/revalidate-dashboard";
 import { createStaffInviteToken } from "@/lib/dashboard/staff/staff-invite";
@@ -95,13 +95,9 @@ type StaffRpcRow = {
 
 export async function fetchStaffMembers(shopIdOverride?: string): Promise<ActionResult<StaffMember[]>> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     // Check if caller is staff — if so, return members without economic data
     const callerRole = await getCurrentUserRole(shopId);
@@ -243,13 +239,9 @@ export async function fetchStaffMembers(shopIdOverride?: string): Promise<Action
 
 export async function addStaffMember(formData: FormData, shopIdOverride?: string): Promise<ActionResult<{ password?: string; login_url: string }>> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const ownerAccess = await requireOwnerAccessForShop(shopId);
     if (!ownerAccess.success) return ownerAccess;
@@ -612,13 +604,9 @@ export async function updateStaffPayMode(
   shopIdOverride?: string,
 ): Promise<ActionResult> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const ownerAccess = await requireOwnerAccessForShop(shopId);
     if (!ownerAccess.success) return ownerAccess;
@@ -676,13 +664,9 @@ export async function updateStaffPayMode(
 
 export async function updateStaffRole(id: string, role: "staff" | "owner", shopIdOverride?: string): Promise<ActionResult> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const ownerAccess = await requireOwnerAccessForShop(shopId);
     if (!ownerAccess.success) return ownerAccess;
@@ -754,13 +738,9 @@ export async function updateStaffRole(id: string, role: "staff" | "owner", shopI
 
 export async function updateStaffName(id: string, name: string, shopIdOverride?: string): Promise<ActionResult> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const ownerAccess = await requireOwnerAccessForShop(shopId);
     if (!ownerAccess.success) return ownerAccess;
@@ -786,13 +766,9 @@ export async function updateStaffName(id: string, name: string, shopIdOverride?:
 
 export async function removeStaff(id: string, shopIdOverride?: string): Promise<ActionResult> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const ownerAccess = await requireOwnerAccessForShop(shopId);
     if (!ownerAccess.success) return ownerAccess;
@@ -851,13 +827,9 @@ export async function fetchStaffCommissionOverrides(
   shopIdOverride?: string,
 ): Promise<ActionResult<{ service_id: string; percentage_rate: number }[]>> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
     const admin = await createAdminClient();
     const { data } = await admin
       .from("staff_commission_overrides")
@@ -875,13 +847,9 @@ export async function upsertStaffCommissionOverrides(
   shopIdOverride?: string,
 ): Promise<ActionResult> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const ownerAccess = await requireOwnerAccessForShop(shopId);
     if (!ownerAccess.success) return ownerAccess;
@@ -957,13 +925,9 @@ export async function updateStaffSchedule(
   shopIdOverride?: string,
 ): Promise<ActionResult> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const ownerAccess = await requireOwnerAccessForShop(shopId);
     if (!ownerAccess.success) return ownerAccess;
@@ -1044,13 +1008,9 @@ export async function updateStaffProfile(
   shopIdOverride?: string,
 ): Promise<ActionResult> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const ownerAccess = await requireOwnerAccessForShop(shopId);
     if (!ownerAccess.success) return ownerAccess;

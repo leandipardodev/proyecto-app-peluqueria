@@ -2,7 +2,7 @@
 
 import { randomUUID } from "crypto";
 import { createServerClient } from "@/lib/supabase/server";
-import { canAccessShopId, requireShopId } from "@/lib/dashboard/auth/server";
+import { canAccessShopId, requireShopId, resolveAuthorizedShopId } from "@/lib/dashboard/auth/server";
 import { trackProductEvent } from "@/lib/analytics/product-events";
 import { revalidateDashboardSegments } from "@/lib/dashboard/shared/revalidate-dashboard";
 import { createArgentinaDate, getArgentinaDateKey, getArgentinaNow } from "@/lib/argentina-time";
@@ -16,6 +16,7 @@ import {
   registerLoyaltyCut,
 } from "./shared";
 import type { Json } from "@/lib/supabase/database.types";
+import { isOverlapViolation } from "@/lib/db/overlap-violation";
 import { type AppointmentStatus, canTransitionStatus, isAppointmentStatus } from "./status";
 import "server-only";
 
@@ -184,7 +185,10 @@ export async function createAppointment(formData: FormData, shopId: string): Pro
     }
 
     const { error } = await supabase.from("appointments").insert(rowsToInsert);
-    if (error) return { success: false, error: error.message };
+    if (error) {
+      if (isOverlapViolation(error)) return { success: false, error: "slot_taken" };
+      return { success: false, error: error.message };
+    }
 
     try {
       const admin = await createAdminClient();
@@ -410,7 +414,10 @@ export async function createCustomerAndAppointment(formData: FormData, shopId: s
     }
 
     const { error: insertError } = await supabase.from("appointments").insert(rowsToInsert);
-    if (insertError) return { success: false, error: insertError.message };
+    if (insertError) {
+      if (isOverlapViolation(insertError)) return { success: false, error: "slot_taken" };
+      return { success: false, error: insertError.message };
+    }
 
     try {
       const admin = await createAdminClient();
@@ -980,13 +987,9 @@ export async function updateCustomerQuick(
 
 export async function deleteAppointment(id: string, shopIdOverride?: string): Promise<ActionResult> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const auth = await createServerClient();
     const { data: { user } } = await auth.auth.getUser();
@@ -1046,13 +1049,9 @@ export async function cancelRecurringSeries(groupId: string, shopId: string): Pr
 
 export async function redeemLoyaltyReward(appointmentId: string, shopIdOverride?: string): Promise<ActionResult<{ discountPercent: number }>> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const auth = await createServerClient();
     const {
@@ -1235,6 +1234,17 @@ export async function moveAppointmentGroup(
           .eq("shop_id", shopId)
       )
     );
+
+    // Cada turno se escribe por separado, asi que un grupo puede quedar partido:
+    // el primero se mueve y el segundo choca. Cuando eso pasa por la constraint
+    // de la migracion 109, se devuelve el horario ya ocupado en vez del error
+    // generico, y el calendario revierte el arrastre.
+    const overlapped = results.some(
+      r => r.status === "fulfilled" && r.value.error && isOverlapViolation(r.value.error)
+    );
+    if (overlapped) {
+      return { success: false, error: "slot_taken" };
+    }
 
     const errors = results.filter(r => r.status === "rejected" || (r.status === "fulfilled" && r.value.error));
     if (errors.length > 0) {

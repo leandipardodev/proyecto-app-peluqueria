@@ -1,6 +1,6 @@
 "use server";
 
-import { createServiceRoleClient, requireOwnerShopId, requireShopId, getCachedUser, canAccessShopId } from "@/lib/dashboard/auth/server";
+import { canAccessShopId, createServiceRoleClient, getCachedUser, requireOwnerShopId, requireShopId, resolveAuthorizedShopId } from "@/lib/dashboard/auth/server";
 import { trackProductEvent } from "@/lib/analytics/product-events";
 import { revalidateDashboardSegments } from "@/lib/dashboard/shared/revalidate-dashboard";
 import type { ActionResult } from "@/lib/types";
@@ -55,13 +55,9 @@ async function resolveCanonicalCategory(admin: Awaited<ReturnType<typeof createA
 
 export async function fetchServices(shopIdOverride?: string): Promise<ActionResult<ServiceRow[]>> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const admin = await createAdminClient();
 
@@ -109,13 +105,9 @@ function normalizePriceValue(raw: FormDataEntryValue | null): number {
 
 export async function createService(formData: FormData, shopIdOverride?: string): Promise<ActionResult> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireOwnerShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "owner");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const name = formData.get("name") as string;
     const rawCategory = String(formData.get("category") || "General");
@@ -175,13 +167,9 @@ export async function createService(formData: FormData, shopIdOverride?: string)
 
 export async function updateService(id: string, formData: FormData, shopIdOverride?: string): Promise<ActionResult> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireOwnerShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "owner");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const name = formData.get("name") as string;
     const rawCategory = String(formData.get("category") || "General");
@@ -234,13 +222,9 @@ export async function bulkUpdateServiceCategories(
   shopIdOverride?: string,
 ): Promise<ActionResult> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireOwnerShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "owner");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const admin = await createAdminClient();
     for (const item of updates) {
@@ -263,13 +247,9 @@ export async function bulkUpdateServiceCategories(
 
 export async function deleteService(id: string, shopIdOverride?: string): Promise<ActionResult> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireOwnerShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "owner");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const admin = await createAdminClient();
 

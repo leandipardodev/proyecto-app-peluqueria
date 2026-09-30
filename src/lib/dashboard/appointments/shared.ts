@@ -1,8 +1,12 @@
-"use server";
-
-import { createServerClient } from "@/lib/supabase/server";
+// SIN "use server" a proposito.
+// Con la directiva a nivel de modulo, TODO export de este archivo se convierte
+// en un Server Action publico: createAdminClient devolvia un cliente Supabase
+// con service role (RLS bypasseado) a cualquiera que llamara el action, sin
+// sesion ni verificacion. Los consumidores reales (mutations.ts, queries.ts y
+// los actions de servicios/staff/finanzas) son todos server-side, asi que
+// quitar la directiva no cambia ningun call site.
 import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
-import { createArgentinaDate, getArgentinaDateKey, getArgentinaNow } from "@/lib/argentina-time";
+import { createArgentinaDate } from "@/lib/argentina-time";
 import { sendEmailWithResend } from "@/lib/email/resend";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
@@ -35,13 +39,6 @@ function toGoogleCalendarUrl(title: string, startIso: string, endIso: string, lo
   });
   if (location) params.set("location", location);
   return `https://www.google.com/calendar/render?${params.toString()}`;
-}
-
-function toWhatsAppUrl(phone: string | undefined, text: string) {
-  if (!phone) return null;
-  const clean = phone.replace(/^\+/, "").replace(/\D/g, "");
-  if (clean.length < 7) return null;
-  return `https://wa.me/${clean}?text=${encodeURIComponent(text)}`;
 }
 
 function buildAppointmentEmailHtml(params: {

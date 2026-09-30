@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { GraduationCap } from "lucide-react";
+import { GraduationCap, X } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
 import { TUTORIALES_GUIDE } from "@/components/tutoriales/tutoriales-data";
@@ -11,6 +11,17 @@ import { TUTORIALES_GUIDE } from "@/components/tutoriales/tutoriales-data";
 type GuideState = { count: number; checkedAt: number };
 
 const STATE_TTL = 60_000;
+const DISMISS_PREFIX = "klip-tutorials-guide-dismissed:";
+
+/**
+ * El cierre vive en sessionStorage a proposito: se limpia al cerrar la pestania
+ * o la PWA, asi que la guia vuelve a la proxima vez que se entra al dashboard,
+ * sin quedar hidden para siempre ni reaparecer en cada cambio de pagina.
+ */
+function dismissKey(shopId: string | null): string {
+  return `${DISMISS_PREFIX}${shopId || "default"}`;
+}
+
 const cachedByShop = new Map<string, GuideState>();
 const subscribers = new Set<(shopId: string, state: GuideState) => void>();
 
@@ -102,6 +113,24 @@ export default function TutorialsGuideFab() {
   const state = useTutorialsGuide(shopId);
   const shouldReduceMotion = useReducedMotion();
   const [atTop, setAtTop] = useState(true);
+  const [dismissed, setDismissed] = useState(false);
+
+  // Se lee en un efecto (y no en el useState inicial) para no tocar
+  // sessionStorage durante el render del servidor.
+  useEffect(() => {
+    try {
+      setDismissed(window.sessionStorage.getItem(dismissKey(shopId)) === "1");
+    } catch {
+      setDismissed(false);
+    }
+  }, [shopId]);
+
+  const handleDismiss = useCallback(() => {
+    try {
+      window.sessionStorage.setItem(dismissKey(shopId), "1");
+    } catch {}
+    setDismissed(true);
+  }, [shopId]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -124,25 +153,24 @@ export default function TutorialsGuideFab() {
   }, []);
 
   const remaining = state ? Math.max(0, TUTORIALES_GUIDE.threshold - state.count) : null;
-  const show = remaining !== null && remaining > 0 && atTop;
+  const show = remaining !== null && remaining > 0 && atTop && !dismissed;
 
   return (
     <AnimatePresence>
       {show && (
         <motion.div
           key="tutorials-guide-fab"
-          className="fixed bottom-5 right-5 z-[60] sm:bottom-6 sm:right-6"
+          // stacked sobre el boton "Guardar todo" de /business, que esta en
+          // bottom-4 right-4: comparten esquina y el FAB lo tapaba, dejando el
+          // guardado imposible de clickear.
+          className="fixed bottom-16 right-5 z-[60] sm:bottom-20 sm:right-6"
           style={{ marginBottom: "env(safe-area-inset-bottom)" }}
           initial={{ opacity: 0, y: 28, scale: 0.85 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 44, scale: 0.82, filter: "blur(4px)" }}
           transition={{ type: "spring", stiffness: 260, damping: 24 }}
         >
-          <Link
-            href={TUTORIALES_GUIDE.href}
-            aria-label={`${TUTORIALES_GUIDE.label} (web de tutoriales)`}
-            className="group relative block"
-          >
+          <div className="group relative block">
             {!shouldReduceMotion && (
               <motion.span
                 aria-hidden
@@ -151,12 +179,25 @@ export default function TutorialsGuideFab() {
                 transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
               />
             )}
-            <span className="relative flex items-center gap-2 rounded-full bg-gradient-to-r from-[#0071E3] via-[#2563eb] to-[#7c3aed] px-4 py-3 text-white shadow-[0_14px_34px_rgba(0,113,227,0.45)] transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:shadow-[0_18px_44px_rgba(124,58,237,0.5)] group-active:scale-95">
+            <Link
+              href={TUTORIALES_GUIDE.href}
+              aria-label={`${TUTORIALES_GUIDE.label} (web de tutoriales)`}
+              className="relative flex items-center gap-2 rounded-full bg-gradient-to-r from-[#0071E3] via-[#2563eb] to-[#7c3aed] px-4 py-3 text-white shadow-[0_14px_34px_rgba(0,113,227,0.45)] transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_44px_rgba(124,58,237,0.5)] active:scale-95"
+            >
               <span className="pointer-events-none absolute inset-0 rounded-full bg-[radial-gradient(120%_120%_at_20%_0%,rgba(255,255,255,0.28),transparent_55%)]" />
               <GraduationCap className="relative h-4.5 w-4.5" strokeWidth={2.2} />
               <span className="relative text-sm font-bold tracking-tight">{TUTORIALES_GUIDE.label}</span>
-            </span>
-          </Link>
+            </Link>
+            <button
+              type="button"
+              onClick={handleDismiss}
+              aria-label="Cerrar la guia de tutoriales"
+              title="Cerrar hasta la proxima sesion"
+              className="absolute -right-1.5 -top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-white/60 bg-white/25 text-white opacity-55 backdrop-blur-sm transition hover:bg-white/45 hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 active:scale-90"
+            >
+              <X className="h-3 w-3" strokeWidth={3} />
+            </button>
+          </div>
         </motion.div>
       )}
     </AnimatePresence>

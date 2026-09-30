@@ -718,6 +718,10 @@ export default function Home({ monthlyPrice, trialDays }: { monthlyPrice: number
 
         <Section className="pb-12">
           <div className="flex items-center justify-center gap-4 flex-wrap">
+            <Link href="/vendedores/afiliarse" className="text-xs text-[#86868B] underline-offset-2 hover:underline">
+              Quiero ser vendedor
+            </Link>
+            <span className="text-xs text-[#a1a1aa]">-</span>
             <Link href="/terminos" className="text-xs text-[#86868B] underline-offset-2 hover:underline">
               Términos y Condiciones
             </Link>
@@ -734,10 +738,15 @@ export default function Home({ monthlyPrice, trialDays }: { monthlyPrice: number
               Tutoriales
             </Link>
             <span className="text-xs text-[#a1a1aa]">-</span>
-            <span className="inline-flex items-center gap-2 rounded-full bg-white/80 px-2 py-1 text-xs text-[#4b5563] ring-1 ring-slate-200">
+            <a
+              href="https://di-x.vercel.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-full bg-white/80 px-2 py-1 text-xs text-[#4b5563] underline-offset-2 ring-1 ring-slate-200 transition hover:bg-white hover:underline"
+            >
               <Image src="/dix-logo.svg" alt="di.X" width={64} height={20} sizes="64px" className="h-5 w-auto object-contain" />
               Powered by di.X
-            </span>
+            </a>
           </div>
         </Section>
       </div>

@@ -8,6 +8,7 @@ import { clientLogout } from "@/lib/dashboard/auth/client-logout";
 import { InputForm } from "@/components/ui/input-form";
 import { SubmitBtn } from "@/components/ui/submit-btn";
 import { FormWithKeyboardNav } from "@/lib/use-form-keyboard-nav";
+import { safeInternalPath } from "@/lib/auth-redirect";
 
 const RESET_COOLDOWN_MS = 60_000;
 const RESET_COOLDOWN_KEY = "klip_reset_cooldown_until";
@@ -104,8 +105,11 @@ export default function LoginPage() {
     const err = params.get("error");
     if (err) setError(decodeURIComponent(err));
     const redirectQuery = params.get("redirect");
-    if (redirectQuery && redirectQuery.startsWith("/")) {
-      setRedirectPath(redirectQuery);
+    if (redirectQuery) {
+      // `//evil.com` pasa el `startsWith("/")` y igual es un destino externo:
+      // new URL() lo resuelve como protocolo-relativo.
+      const safe = safeInternalPath(redirectQuery, "");
+      if (safe) setRedirectPath(safe);
     }
     if (params.get("registered") === "true") {
       addToast("Cuenta creada con éxito. Revisá tu email para confirmar.", "success");

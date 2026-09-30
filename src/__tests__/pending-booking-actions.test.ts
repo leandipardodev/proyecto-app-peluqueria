@@ -4,7 +4,11 @@ import {
   confirmBankTransferBooking,
   rejectBankTransferBooking,
 } from "@/lib/dashboard/appointments/pending-booking-actions";
-import { createServiceRoleClient as mockCreateServiceRole } from "@/lib/dashboard/auth/server";
+import {
+  createServiceRoleClient as mockCreateServiceRole,
+  getAuthSession as mockGetAuthSession,
+  canAccessShopId as mockCanAccessShopId,
+} from "@/lib/dashboard/auth/server";
 import { mockQueryResult, supabaseStub } from "@/__tests__/setup";
 
 let stub: ReturnType<typeof supabaseStub>;
@@ -13,6 +17,55 @@ beforeEach(() => {
   vi.clearAllMocks();
   stub = supabaseStub();
   vi.mocked(mockCreateServiceRole).mockResolvedValue(stub);
+  // El archivo tiene "use server" a nivel de modulo: sus exports son endpoints
+  // RPC publicos. Estos mocks simulan al owner del local para que los tests de
+  // comportamiento sigan exercising la logica de negocio.
+  vi.mocked(mockGetAuthSession).mockResolvedValue({ user: { id: "user-1" } } as never);
+  vi.mocked(mockCanAccessShopId).mockResolvedValue(true);
+});
+
+// ---------------------------------------------------------------------------
+// Aislamiento de tenant (regresion: estas actions eran publicas y sin auth)
+// ---------------------------------------------------------------------------
+describe("bank transfer actions — tenant isolation", () => {
+  it("getPendingBankTransfers rechaza a un usuario sin sesion", async () => {
+    vi.mocked(mockGetAuthSession).mockResolvedValue(null as never);
+
+    const result = await getPendingBankTransfers("shop-ajeno");
+    expect(result).toEqual({ success: false, error: "SESION_EXPIRADA" });
+    expect(stub.from).not.toHaveBeenCalled();
+  });
+
+  it("getPendingBankTransfers rechaza a un usuario que no es miembro", async () => {
+    vi.mocked(mockCanAccessShopId).mockResolvedValue(false);
+
+    const result = await getPendingBankTransfers("shop-ajeno");
+    expect(result).toEqual({ success: false, error: "SIN_ACCESO_LOCAL" });
+    expect(stub.from).not.toHaveBeenCalled();
+  });
+
+  it("confirmBankTransferBooking no crea el turno de otro local", async () => {
+    vi.mocked(mockCanAccessShopId).mockResolvedValue(false);
+    stub.from.mockReturnValue(mockQueryResult(null));
+
+    const result = await confirmBankTransferBooking("bk-ajeno", "shop-ajeno");
+    expect(result).toEqual({ success: false, error: "SIN_ACCESO_LOCAL" });
+    expect(stub.from).not.toHaveBeenCalled();
+  });
+
+  it("rejectBankTransferBooking no borra la reserva de otro local", async () => {
+    vi.mocked(mockCanAccessShopId).mockResolvedValue(false);
+    stub.from.mockReturnValue(mockQueryResult(null));
+
+    const result = await rejectBankTransferBooking("bk-ajeno", "shop-ajeno");
+    expect(result).toEqual({ success: false, error: "SIN_ACCESO_LOCAL" });
+    expect(stub.from).not.toHaveBeenCalled();
+  });
+
+  it("verifica la pertenencia al local solicitado, no al local resuelto por cookie", async () => {
+    await getPendingBankTransfers("shop-123");
+    expect(mockCanAccessShopId).toHaveBeenCalledWith("user-1", "shop-123");
+  });
 });
 
 // ---------------------------------------------------------------------------

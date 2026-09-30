@@ -50,6 +50,18 @@ export function productImageStoragePath(shopId: string, productId: string) {
   return `shops/${shopId}/stock/${productId}.webp`;
 }
 
+/**
+ * Los uploads sobrescriben siempre la MISMA ruta de storage (upsert), asi que la
+ * URL publica no cambia nunca entre versiones. Sin esto, `next/image` y el CDN
+ * siguen sirviendo el archivo viejo y el cliente ve que "cambiar la imagen no
+ * reacciona". Anadir un parametro de version fuerza una URL nueva.
+ */
+export function withImageVersion(url: string, version: number | string = Date.now()): string {
+  if (!url) return url;
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}v=${version}`;
+}
+
 // Dimensiones sin decodificar la imagen (headers PNG/JPEG/WebP).
 // Devuelve null si el formato es desconocido.
 export function getImageDimensions(buffer: Buffer): { width: number; height: number } | null {

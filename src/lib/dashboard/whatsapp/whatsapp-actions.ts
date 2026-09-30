@@ -1,6 +1,6 @@
 "use server";
 
-import { createServiceRoleClient, requireShopId } from "@/lib/dashboard/auth/server";
+import { createServiceRoleClient, requireShopId, resolveAuthorizedShopId } from "@/lib/dashboard/auth/server";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "./whatsapp-constants";
@@ -8,13 +8,9 @@ import { createAdminClient } from "../appointments/shared";
 
 export async function fetchWhatsappTemplate(shopIdOverride?: string): Promise<ActionResult<string>> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: true, data: DEFAULT_WHATSAPP_TEMPLATE };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
     const admin = await createAdminClient();
 
     const { data, error } = await admin

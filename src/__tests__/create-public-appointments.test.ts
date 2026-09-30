@@ -101,6 +101,26 @@ function makeSuccessAdmin(): never {
   } as never;
 }
 
+/**
+ * Stub que ademas resuelve el combo contra la base.
+ *
+ * createPublicComboAppointment no confía en comboPrice ni en los precios que
+ * manda el cliente: los relee de `combos` + `combo_services` + `services`. Sin
+ * estas tres rutas, la funcion cortaria antes de la validacion que cada test
+ * quiere verificar.
+ */
+function makeComboAdmin(routes: Record<string, unknown> = {}): never {
+  return makeAdmin({
+    combos: { id: "combo-1", name: "Corte + Barba", price: 100, active: true, shop_id: "shop-1" },
+    combo_services: [{ combo_id: "combo-1", service_id: "svc-1" }, { combo_id: "combo-1", service_id: "svc-2" }],
+    services: [
+      { id: "svc-1", name: "Corte", duration_minutes: 30, price: 50, pay_at_shop: false, shop_id: "shop-1" },
+      { id: "svc-2", name: "Barba", duration_minutes: 30, price: 50, pay_at_shop: false, shop_id: "shop-1" },
+    ],
+    ...routes,
+  });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   cacheHasMock.mockReturnValue(false);
@@ -235,7 +255,94 @@ describe("createPublicAppointment - cliente atomico y cache", () => {
   });
 });
 
+describe("doble booking — exclusion constraint (migracion 109)", () => {
+  // Los chequeos de conflicto son check-then-insert en dos viajes: dos requests
+  // concurrentes para el mismo horario pasan los dos chequeos. La constraint
+  // no_overlap_appointments_confirmed cierra esa ventana y Postgres devuelve
+  // 23P01, que hay que traducir a slot_taken para no cambiar la UI.
+
+  function makeOverlapAdmin(): never {
+    const base = makeSuccessAdmin();
+    const innerFrom = (base as unknown as { from: (t: string) => unknown }).from;
+    return {
+      from: vi.fn((table: string) => {
+        if (table !== "appointments") return innerFrom(table);
+        const cq = mockQueryResult([] as unknown[], null);
+        cq.insert = vi.fn(() =>
+          mockQueryResult(null, { code: "23P01", message: "conflicting key value violates exclusion constraint \"no_overlap_appointments_confirmed\"" })
+        );
+        cq.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+        return cq;
+      }),
+    } as never;
+  }
+
+  it("createPublicAppointment devuelve slot_taken cuando choca la constraint", async () => {
+    adminClientMock.mockResolvedValue(makeOverlapAdmin());
+    const res = await createPublicAppointment({ ...baseAppointment, staffId: "s1", customerEmail: undefined });
+    expect(res).toEqual({ success: false, error: "slot_taken" });
+  });
+
+  it("createPublicComboAppointment devuelve slot_taken cuando choca la constraint", async () => {
+    // En el combo el error sale del insert del segundo servicio; el primero ya
+    // fue creado y tiene que hacer rollback.
+    const created: string[] = [];
+    const comboBase = makeComboAdmin();
+    const innerFrom = (comboBase as unknown as { from: (t: string) => unknown }).from;
+    const from = vi.fn((table: string) => {
+      if (table === "customers") {
+        const cq = mockQueryResult(null, null);
+        cq.single = vi.fn().mockResolvedValue({ data: { id: "cust-1" }, error: null });
+        cq.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+        return cq;
+      }
+      if (table === "appointments") {
+        const cq = mockQueryResult([] as unknown[], null);
+        cq.insert = vi.fn(() => {
+          created.push("apt");
+          return mockQueryResult(
+            null,
+            { code: "23P01", message: "conflicting key value violates exclusion constraint \"no_overlap_appointments_confirmed\"" }
+          );
+        });
+        cq.delete = vi.fn(() => mockQueryResult(null, null));
+        cq.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+        return cq;
+      }
+      return innerFrom(table);
+    });
+    adminClientMock.mockResolvedValue({ from } as never);
+
+    const res = await createPublicComboAppointment({ ...baseCombo, staffId: "s1" });
+    expect(res).toEqual({ success: false, error: "slot_taken" });
+  });
+
+  it("no traduce otros errores de Postgres a slot_taken", async () => {
+    // Si se tradujera cualquier error, un problema real (columna inexistente,
+    // conexion caida) se leeria como "horario ocupado" y el usuario no sabria
+    // que algo esta roto.
+    const base = makeSuccessAdmin();
+    const innerFrom = (base as unknown as { from: (t: string) => unknown }).from;
+    adminClientMock.mockResolvedValue({
+      from: vi.fn((table: string) => {
+        if (table !== "appointments") return innerFrom(table);
+        const cq = mockQueryResult([] as unknown[], null);
+        cq.insert = vi.fn(() => mockQueryResult(null, { code: "42703", message: 'column "foo" does not exist' }));
+        cq.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+        return cq;
+      }),
+    } as never);
+
+    const res = await createPublicAppointment({ ...baseAppointment, staffId: "s1", customerEmail: undefined });
+    expect(res).toEqual({ success: false, error: 'column "foo" does not exist' });
+  });
+});
+
 describe("createPublicComboAppointment - validacion", () => {
+  beforeEach(() => {
+    adminClientMock.mockResolvedValue(makeComboAdmin());
+  });
+
   it("devuelve login_required cuando hay booking repetido sin sesion", async () => {
     cacheHasMock.mockReturnValue(true);
     const res = await createPublicComboAppointment(baseCombo);
@@ -262,9 +369,28 @@ describe("createPublicComboAppointment - validacion", () => {
     expect(res).toEqual({ success: false, error: "Nombre inválido" });
   });
 
-  it("rechaza duracion total invalida (bug #2, defensa en profundidad)", async () => {
+  it("rechaza un set de servicios vacio", async () => {
+    // Antes caia en el guard de "Duracion invalida". Ahora la lista vacia se
+    // rechaza antes: el set de servicios se contrasta contra combo_services, y
+    // vacio no coincide con los servicios que el combo tiene de verdad.
     const res = await createPublicComboAppointment({ ...baseCombo, services: [] });
-    expect(res).toEqual({ success: false, error: "Duracion invalida" });
+    expect(res).toEqual({ success: false, error: "El combo no esta disponible" });
+  });
+
+  it("rechaza un combo con duracion cero en la base", async () => {
+    // El guard de "Duracion invalida" sigue existiendo como defensa en
+    // profundidad, pero hoy es inalcanzable desde el cliente: un servicio de
+    // duracion 0 o null hace fallar resolveComboFromDb antes.
+    adminClientMock.mockResolvedValue(
+      makeComboAdmin({
+        services: [
+          { id: "svc-1", name: "Corte", duration_minutes: 0, price: 50, pay_at_shop: false, shop_id: "shop-1" },
+          { id: "svc-2", name: "Barba", duration_minutes: 30, price: 50, pay_at_shop: false, shop_id: "shop-1" },
+        ],
+      })
+    );
+    const res = await createPublicComboAppointment(baseCombo);
+    expect(res).toEqual({ success: false, error: "El combo no esta disponible" });
   });
 
   it("rechaza reservar en una fecha pasada", async () => {
@@ -281,7 +407,7 @@ describe("createPublicComboAppointment - validacion", () => {
 
   it("rechaza staff inactivo para el dia", async () => {
     adminClientMock.mockResolvedValue(
-      makeAdmin({
+      makeComboAdmin({
         staff_schedules: { is_active: false, start_time: "09:00:00", end_time: "18:00:00", break_start: null, break_end: null },
       })
     );
@@ -291,9 +417,136 @@ describe("createPublicComboAppointment - validacion", () => {
 
   it("rechaza cuando el local esta cerrado ese dia", async () => {
     adminClientMock.mockResolvedValue(
-      makeAdmin({ shops: { business_hours: { saturday: { open: false, start: "09:00", end: "20:00" } } } })
+      makeComboAdmin({ shops: { business_hours: { saturday: { open: false, start: "09:00", end: "20:00" } } } })
     );
     const res = await createPublicComboAppointment(baseCombo);
     expect(res).toEqual({ success: false, error: "El local esta cerrado en ese horario" });
+  });
+});
+
+describe("createPublicComboAppointment - precio controlado por el cliente", () => {
+  // El Server Action es publico: sin sesion ni firma. Antes tomaba comboPrice y
+  // services[].price del cliente, y esos valores se prorrateaban a cada turno
+  // (service_price) y de ahi salia el monto cobrado. Mandar comboPrice: 1
+  // compraba un combo de 100 por 1 peso.
+
+  /**
+   * Admin que llega hasta el insert y captura los service_price prorrateados.
+   *
+   * `appointments` aparece en dos roles distintos dentro de la misma funcion: los
+   * SELECT de chequeo de conflictos tienen que devolver un array, y el INSERT
+   * tiene que devolver la fila creada. Un unico mock no sirve para los dos.
+   */
+  function makeInsertingAdmin(): { inserted: Array<Record<string, unknown>> } {
+    const inserted: Array<Record<string, unknown>> = [];
+    const base = makeComboAdmin();
+    const innerFrom = (base as unknown as { from: (t: string) => unknown }).from;
+    adminClientMock.mockResolvedValue({
+      from: vi.fn((table: string) => {
+        if (table === "customers") {
+          // resolveCustomer inserta y hace .select("id").single().
+          const cq = mockQueryResult(null, null);
+          cq.single = vi.fn().mockResolvedValue({ data: { id: "cust-1" }, error: null });
+          cq.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+          return cq;
+        }
+        if (table !== "appointments") return innerFrom(table);
+        const cq = mockQueryResult([] as unknown[], null);
+        cq.insert = vi.fn((row: Record<string, unknown>) => {
+          inserted.push(row);
+          return mockQueryResult({ id: `apt-${inserted.length}` }, null);
+        });
+        cq.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+        return cq;
+      }),
+    } as never);
+    return { inserted };
+  }
+
+  beforeEach(() => {
+    // El flujo llega hasta el insert: hay profesional, horario abierto y sin conflictos.
+    vi.mocked(getArgentinaMinutesSinceMidnight).mockReturnValue(600);
+  });
+
+  it("ignora comboPrice y usa el precio del combo en la base", async () => {
+    const { inserted } = makeInsertingAdmin();
+
+    const res = await createPublicComboAppointment({ ...baseCombo, comboPrice: 1, staffId: "s1" });
+
+    expect(res.success).toBe(true);
+    // Combo de la base: 100. Prorrateado 50/50 entre los dos servicios.
+    expect(inserted).toHaveLength(2);
+    for (const row of inserted) {
+      expect(row.service_price).toBe(50);
+    }
+  });
+
+  it("ignora los precios por servicio que manda el cliente", async () => {
+    const { inserted } = makeInsertingAdmin();
+
+    const res = await createPublicComboAppointment({
+      ...baseCombo,
+      staffId: "s1",
+      services: [
+        { id: "svc-1", name: "Corte", duration_minutes: 30, price: 1 },
+        { id: "svc-2", name: "Barba", duration_minutes: 30, price: 1 },
+      ],
+    });
+
+    expect(res.success).toBe(true);
+    for (const row of inserted) {
+      expect(row.service_price).toBe(50);
+    }
+  });
+
+  it("rechaza un combo inactivo", async () => {
+    adminClientMock.mockResolvedValue(
+      makeComboAdmin({ combos: { id: "combo-1", name: "Corte + Barba", price: 100, active: false, shop_id: "shop-1" } })
+    );
+    const res = await createPublicComboAppointment({ ...baseCombo, staffId: "s1" });
+    expect(res).toEqual({ success: false, error: "El combo no esta disponible" });
+  });
+
+  it("rechaza un combo de otro local", async () => {
+    // comboId de otro local: la consulta filtra por shop_id, asi que no existe.
+    adminClientMock.mockResolvedValue(makeComboAdmin({ combos: null }));
+    const res = await createPublicComboAppointment({ ...baseCombo, staffId: "s1" });
+    expect(res).toEqual({ success: false, error: "El combo no esta disponible" });
+  });
+
+  it("rechaza agregar un servicio que el combo no incluye", async () => {
+    // El cliente no puede meter un servicio barato/superlujo fuera del combo.
+    const res = await createPublicComboAppointment({
+      ...baseCombo,
+      staffId: "s1",
+      services: [
+        { id: "svc-1", name: "Corte", duration_minutes: 30, price: 50 },
+        { id: "svc-2", name: "Barba", duration_minutes: 30, price: 50 },
+        { id: "svc-3", name: "Coloracion", duration_minutes: 90, price: 5000 },
+      ],
+    });
+    expect(res).toEqual({ success: false, error: "El combo no esta disponible" });
+  });
+
+  it("rechaza quitar un servicio que el combo si incluye", async () => {
+    const res = await createPublicComboAppointment({
+      ...baseCombo,
+      staffId: "s1",
+      services: [{ id: "svc-1", name: "Corte", duration_minutes: 30, price: 50 }],
+    });
+    expect(res).toEqual({ success: false, error: "El combo no esta disponible" });
+  });
+
+  it("rechaza un servicio del combo que pertenece a otro local", async () => {
+    adminClientMock.mockResolvedValue(
+      makeComboAdmin({
+        services: [
+          { id: "svc-1", name: "Corte", duration_minutes: 30, price: 50, pay_at_shop: false, shop_id: "shop-1" },
+          { id: "svc-2", name: "Barba", duration_minutes: 30, price: 50, pay_at_shop: false, shop_id: "OTRO-LOCAL" },
+        ],
+      })
+    );
+    const res = await createPublicComboAppointment({ ...baseCombo, staffId: "s1" });
+    expect(res).toEqual({ success: false, error: "El combo no esta disponible" });
   });
 });

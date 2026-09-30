@@ -51,13 +51,60 @@ import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { resolveIndustry } from "@/lib/industry/resolve";
 import { MP_EXCLUDABLE_PAYMENT_TYPES } from "@/lib/payments/mp-payment-config";
 import WhatsAppAutomationPanel from "@/components/dashboard/whatsapp/whatsapp-automation-panel";
+import { useToast } from "@/components/ui/toast";
+import { Spinner } from "@/components/ui/spinner";
 import type { WhatsAppAutomationOverview } from "@/lib/dashboard/whatsapp/wa-actions";
 
-type MessageType = { type: "success" | "error"; text: string } | null;
 type InitialServiceItem = { id: string; name: string; category?: string | null; price: number; duration_minutes: number | null; pay_at_shop: boolean };
 
 function getMpReturnScrollKey(shopSlug: string | null): string {
   return `klip-mp-return-scroll:${shopSlug || "default"}`;
+}
+
+/**
+ * Comparaciones de igualdad para el diff de "cambios sin guardar".
+ *
+ * Antes se usaba JSON.stringify para todo. Eso marca como sucio en falso cuando
+ * el contenido es identico pero cambia el orden de las claves (React reconstruye
+ * los objetos al fusionar un draft), dejando el boton "Guardar todo" prendido
+ * para siempre y obligando a guardar en loop.
+ */
+const BUSINESS_DAY_KEYS = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+] as const;
+
+function sameStringList(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((item, i) => item === b[i]);
+}
+
+function sameCategoryMap(a: Record<string, string>, b: Record<string, string>): boolean {
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) return false;
+  return aKeys.every((key) => a[key] === b[key]);
+}
+
+function sameBusinessHours(a: BusinessHoursData | null, b: BusinessHoursData | null): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return BUSINESS_DAY_KEYS.every((day) => {
+    const x = a[day];
+    const y = b[day];
+    if (!x || !y) return x === y;
+    return (
+      x.open === y.open &&
+      x.start === y.start &&
+      x.end === y.end &&
+      (x.break_start ?? null) === (y.break_start ?? null) &&
+      (x.break_end ?? null) === (y.break_end ?? null)
+    );
+  });
 }
 
 function getTourSteps(staffPlural: string, servicePlural: string) {
@@ -73,7 +120,7 @@ function getTourSteps(staffPlural: string, servicePlural: string) {
 function buildFlowSteps(
   servicesCount: number,
   staffCount: number,
-  assignStaffLater: boolean,
+  showStaffStep: boolean,
   storeEnabled: boolean,
   hasStoreProducts: boolean,
   payAtShop: boolean,
@@ -85,8 +132,12 @@ function buildFlowSteps(
     {
       number: "2",
       label: "Profesional",
-      on: !assignStaffLater && staffCount > 1,
-      reason: assignStaffLater ? "Activaste elegir profesional después" : staffCount <= 1 ? "Solo hay un profesional" : undefined,
+      on: showStaffStep && staffCount > 1,
+      reason: !showStaffStep
+        ? "Desactivaste la elección de profesional"
+        : staffCount <= 1
+          ? "Solo hay un profesional"
+          : undefined,
       hint: "Se skipea si hay solo 1 profesional o si está desactivada la selección de profesional",
     },
     { number: "3", label: "Fecha y hora", on: true, hint: "No se puede desactivar" },
@@ -389,15 +440,28 @@ export default function BusinessClient({
   const staffPlural = industryLabels.staffPlural;
   const serviceWord = industryLabels.serviceSingular;
   const servicePlural = industryLabels.servicePlural;
-  const isOwnerOrAdmin = role !== "staff";
+  // Todos los actions de esta pagina exigen rol owner en el server
+  // (requireOwnerShopId). Con la guarda anterior ("cualquiera que no sea
+  // staff") un admin podia editar y cada guardado fallaba con "Solo el owner
+  // puede realizar esta accion", sin un aviso visible.
+  const canEditShop = role === "owner";
   const tourSteps = useMemo(() => getTourSteps(staffPlural, servicePlural), [staffPlural, servicePlural]);
   const { playSuccess, playError, playClick } = useKlipSounds();
   const router = useRouter();
   const [data, setData] = useState(initialData);
-  const [error] = useState(initialError);
   const [isSaving, setIsSaving] = useState(false);
   const [creatingShop, startCreateShopTransition] = useTransition();
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const { addToast } = useToast();
+  const showSuccess = useCallback((text: string) => addToast(text, "success"), [addToast]);
+  const showError = useCallback((text: string) => addToast(text, "error"), [addToast]);
+
+  // El error de carga del servidor antes se pintaba arriba de todo el scroll y
+  // no se iba nunca. Ahora es un aviso flotante con auto-ocultado.
+  useEffect(() => {
+    if (initialError) addToast(initialError, "error");
+  }, [initialError, addToast]);
 
   const [name, setName] = useState(data?.nombre || "");
   const [address, setAddress] = useState(data?.address || "");
@@ -406,7 +470,11 @@ export default function BusinessClient({
   const [instagramUrl, setInstagramUrl] = useState(data?.instagram_url || "");
   const [facebookUrl, setFacebookUrl] = useState(data?.facebook_url || "");
   const [tiktokUrl, setTiktokUrl] = useState(data?.tiktok_url || "");
-  const initialPublicInfo = useMemo(() => ({
+  // Snapshot de la informacion publica YA persistida. Antes se comparaba contra
+  // `data`, que tambien muta desde acciones sueltas (desconectar Mercado Pago,
+  // refresh posterior al OAuth): al moverse esa base, isPublicInfoDirty volvia a
+  // false con cambios sin guardar y el boton "Guardar todo" quedaba inactivo.
+  const [savedPublicInfo, setSavedPublicInfo] = useState(() => ({
     name: data?.nombre || "",
     address: data?.address || "",
     localidad: data?.localidad || "",
@@ -414,16 +482,16 @@ export default function BusinessClient({
     instagramUrl: data?.instagram_url || "",
     facebookUrl: data?.facebook_url || "",
     tiktokUrl: data?.tiktok_url || "",
-  }), [data?.nombre, data?.address, data?.localidad, data?.phone, data?.instagram_url, data?.facebook_url, data?.tiktok_url]);
+  }));
   const isPublicInfoDirty = useMemo(() =>
-    name !== initialPublicInfo.name ||
-    address !== initialPublicInfo.address ||
-    localidad !== initialPublicInfo.localidad ||
-    phone !== initialPublicInfo.phone ||
-    instagramUrl !== initialPublicInfo.instagramUrl ||
-    facebookUrl !== initialPublicInfo.facebookUrl ||
-    tiktokUrl !== initialPublicInfo.tiktokUrl,
-  [name, address, localidad, phone, instagramUrl, facebookUrl, tiktokUrl, initialPublicInfo]);
+    name !== savedPublicInfo.name ||
+    address !== savedPublicInfo.address ||
+    localidad !== savedPublicInfo.localidad ||
+    phone !== savedPublicInfo.phone ||
+    instagramUrl !== savedPublicInfo.instagramUrl ||
+    facebookUrl !== savedPublicInfo.facebookUrl ||
+    tiktokUrl !== savedPublicInfo.tiktokUrl,
+  [name, address, localidad, phone, instagramUrl, facebookUrl, tiktokUrl, savedPublicInfo]);
   const [whatsappTemplate, setWhatsappTemplate] = useState(data?.whatsapp_template || "");
   const whatsappRef = useRef<HTMLTextAreaElement>(null);
   const insertWhatsappTag = useTagInsert(whatsappRef, whatsappTemplate, setWhatsappTemplate);
@@ -442,6 +510,10 @@ export default function BusinessClient({
   const [bookingDepositEnabled, setBookingDepositEnabled] = useState(data?.booking_deposit_enabled ?? true);
   const [assignStaffLater, setAssignStaffLater] = useState(data?.assign_staff_later ?? false);
   const [assignStaffLaterSaving, setAssignStaffLaterSaving] = useState(false);
+  // El toggle de la UI es positivo (ON = el paso Profesional se muestra), pero la
+  // columna assign_staff_later es inversa. Esta linea es la unica que traduce
+  // entre las dos, para que ningun switch quede con semantica opuesta al otro.
+  const showStaffStep = !assignStaffLater;
   const [storeEnabledState, setStoreEnabledState] = useState(storeEnabled ?? false);
   const [storeSaving, setStoreSaving] = useState(false);
   const [storeConfirmOpen, setStoreConfirmOpen] = useState(false);
@@ -466,7 +538,6 @@ export default function BusinessClient({
   const [showMpConfigModal, setShowMpConfigModal] = useState(false);
   const [draftMaxInstallments, setDraftMaxInstallments] = useState<number | null>(null);
   const [draftAcceptedTypes, setDraftAcceptedTypes] = useState<string[]>([]);
-  const [message, setMessage] = useState<MessageType>(null);
   const [businessHours, setBusinessHours] = useState<BusinessHoursData | null>(initialBusinessHours);
   const [tourAdvancing, setTourAdvancing] = useState(false);
 
@@ -538,7 +609,7 @@ export default function BusinessClient({
       hasBreak ? overrideBreakStart : null,
       hasBreak ? overrideBreakEnd : null
     );
-    if (!res.success) { alert(res.error); return; }
+    if (!res.success) { showError(res.error); return; }
     setShowOverrideModal(false);
     await loadOverrides();
   }
@@ -546,7 +617,7 @@ export default function BusinessClient({
   async function handleDeleteOverride(o: DateOverride) {
     if (!confirm(`¿Eliminar excepción del ${o.date}?`)) return;
     const res = await deleteShopDateOverride(o.id);
-    if (!res.success) { alert(res.error); return; }
+    if (!res.success) { showError(res.error); return; }
     await loadOverrides();
   }
   const [hoursLoading, setHoursLoading] = useState(false);
@@ -562,11 +633,9 @@ export default function BusinessClient({
   const [mpConnectUnlockAt, setMpConnectUnlockAt] = useState(0);
   const [, setIsConnectingMp] = useState(false);
   const [isDisconnectingMp, setIsDisconnectingMp] = useState(false);
-  const [bookingTheme, setBookingTheme] = useState<BookingThemeData | null>(initialBookingTheme);
   const [selectedTemplateId, setSelectedTemplateId] = useState<BookingTemplateId>(
     initialBookingTheme?.template_id || DEFAULT_BOOKING_TEMPLATE
   );
-  const messageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [logoUrl, setLogoUrl] = useState<string>(initialBookingTheme?.logo_url || "");
   const [heroTitle, setHeroTitle] = useState(initialBookingTheme?.hero_title || "");
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -600,9 +669,6 @@ export default function BusinessClient({
     if (!unique.includes("General")) unique.unshift("General");
     return unique;
   });
-  const initialSectionCatalogRef = useRef(sectionCatalog);
-  const initialCategoryDraftRef = useRef(serviceCategoryDraft);
-
   const [serviceOrderIds, setServiceOrderIds] = useState<string[]>(() => {
     if (initialBookingTheme?.section_service_order?.length) {
       const ranked = new Map(initialBookingTheme.section_service_order.map((id, index) => [id, index]));
@@ -618,67 +684,116 @@ export default function BusinessClient({
     }
     return initialServices.map((service) => service.id);
   });
-  const initialServiceOrderRef = useRef(serviceOrderIds);
 
-  useEffect(() => {
-    setServiceCategoryDraft((prev) => {
-      const next = { ...prev };
-      let changed = false;
-      for (const service of initialServices) {
-        if (!(service.id in prev)) {
-          next[service.id] = (service.category || "General").trim() || "General";
-          changed = true;
-        }
-      }
-      return changed ? next : prev;
-    });
-
-    setServiceOrderIds((prev) => {
-      const existing = new Set(prev);
-      const newIds = initialServices.map((s) => s.id).filter((id) => !existing.has(id));
-      return newIds.length > 0 ? [...prev, ...newIds] : prev;
-    });
-
-    setSectionCatalog((prev) => {
-      const fromServices = Array.from(new Set(initialServices.map((s) => (s.category || "General").trim() || "General")));
-      const merged = [...prev, ...fromServices].filter((item, index, arr) => Boolean(item) && arr.indexOf(item) === index);
-      if (!merged.includes("General")) merged.unshift("General");
-      return merged;
-    });
-  }, [initialServices]);
-
+  // Snapshots de "ya guardado". Antes eran refs mutables: al actualizarlos en
+  // saveAllSections no se dispara ningun re-render, asi que isGlobalDirty se
+  // quedaba pegado en true (o en false) y el boton Guardar todo no reaccionaba.
+  const [savedTheme, setSavedTheme] = useState(() => ({
+    heroTitle: initialBookingTheme?.hero_title ?? "",
+    templateId: (initialBookingTheme?.template_id ?? DEFAULT_BOOKING_TEMPLATE) as BookingTemplateId,
+    sectionCatalog,
+    serviceCategoryDraft,
+    serviceOrderIds,
+  }));
+  // El logo no entra en el diff porque handleLogoUpload lo persiste en el momento
+  // de subirlo (no hay un "pendiente" que collective el boton).
   const isThemeDirty = useMemo(() =>
-    heroTitle !== (initialBookingTheme?.hero_title ?? "") ||
-    selectedTemplateId !== (initialBookingTheme?.template_id ?? DEFAULT_BOOKING_TEMPLATE) ||
-    JSON.stringify(sectionCatalog) !== JSON.stringify(initialSectionCatalogRef.current) ||
-    JSON.stringify(serviceCategoryDraft) !== JSON.stringify(initialCategoryDraftRef.current) ||
-    JSON.stringify(serviceOrderIds) !== JSON.stringify(initialServiceOrderRef.current),
-  [heroTitle, selectedTemplateId, initialBookingTheme, sectionCatalog, serviceCategoryDraft, serviceOrderIds]);
-  const cleanSnapshotRef = useRef({
-    whatsapp: data?.whatsapp_template ?? "",
+    heroTitle !== savedTheme.heroTitle ||
+    selectedTemplateId !== savedTheme.templateId ||
+    !sameStringList(sectionCatalog, savedTheme.sectionCatalog) ||
+    !sameCategoryMap(serviceCategoryDraft, savedTheme.serviceCategoryDraft) ||
+    !sameStringList(serviceOrderIds, savedTheme.serviceOrderIds),
+  [heroTitle, selectedTemplateId, sectionCatalog, serviceCategoryDraft, serviceOrderIds, savedTheme]);
+
+  const [savedGeneral, setSavedGeneral] = useState(() => ({
+    whatsapp: data?.whatsapp_template || "",
     depositEnabled: data?.booking_deposit_enabled ?? true,
     depositAmount: String(data?.booking_deposit_amount ?? 3000),
     payAtShop: data?.pay_at_shop ?? false,
     voucher: initialVoucherWhatsappTemplate ?? DEFAULT_VOUCHER_WHATSAPP_TEMPLATE,
     businessHours: initialBusinessHours,
     bankTransferEnabled: data?.bank_transfer_enabled ?? false,
-    bankCvuCb: data?.bank_cvu_cbu ?? "",
-    bankAlias: data?.bank_alias ?? "",
-    bankName: data?.bank_name ?? "",
-  });
+    bankCvuCb: data?.bank_cvu_cbu || "",
+    bankAlias: data?.bank_alias || "",
+    bankName: data?.bank_name || "",
+  }));
   const isGeneralDirty = useMemo(() =>
-    whatsappTemplate !== cleanSnapshotRef.current.whatsapp ||
-    bookingDepositEnabled !== cleanSnapshotRef.current.depositEnabled ||
-    bookingDepositAmount !== cleanSnapshotRef.current.depositAmount ||
-    payAtShop !== cleanSnapshotRef.current.payAtShop ||
-    voucherWhatsappTemplate !== cleanSnapshotRef.current.voucher ||
-    JSON.stringify(businessHours) !== JSON.stringify(cleanSnapshotRef.current.businessHours) ||
-    bankTransferEnabled !== cleanSnapshotRef.current.bankTransferEnabled ||
-    bankCvuCb !== cleanSnapshotRef.current.bankCvuCb ||
-    bankAlias !== cleanSnapshotRef.current.bankAlias ||
-    bankName !== cleanSnapshotRef.current.bankName,
-  [whatsappTemplate, bookingDepositEnabled, bookingDepositAmount, payAtShop, voucherWhatsappTemplate, businessHours, bankTransferEnabled, bankCvuCb, bankAlias, bankName]);
+    whatsappTemplate !== savedGeneral.whatsapp ||
+    bookingDepositEnabled !== savedGeneral.depositEnabled ||
+    bookingDepositAmount !== savedGeneral.depositAmount ||
+    payAtShop !== savedGeneral.payAtShop ||
+    voucherWhatsappTemplate !== savedGeneral.voucher ||
+    !sameBusinessHours(businessHours, savedGeneral.businessHours) ||
+    bankTransferEnabled !== savedGeneral.bankTransferEnabled ||
+    bankCvuCb !== savedGeneral.bankCvuCb ||
+    bankAlias !== savedGeneral.bankAlias ||
+    bankName !== savedGeneral.bankName,
+  [whatsappTemplate, bookingDepositEnabled, bookingDepositAmount, payAtShop, voucherWhatsappTemplate, businessHours, bankTransferEnabled, bankCvuCb, bankAlias, bankName, savedGeneral]);
   const isGlobalDirty = isPublicInfoDirty || isThemeDirty || isGeneralDirty;
+
+  // Aviso al cerrar o recargar con cambios sin confirmar. Antes, cerrar la pestania
+  // en medio de una edicion los perdia en silencio.
+  useEffect(() => {
+    if (!isGlobalDirty) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [isGlobalDirty]);
+
+  // Reconcilia el catalogo local con los servicios que llegan del servidor.
+  //
+  // Solo debe reaccionar a servicios NUEVOS. Antes tambien_DEPENDIA de
+  // serviceCategoryDraft / serviceOrderIds / sectionCatalog y recomputaba el
+  // catalogo entero desde initialServices, que sigue teniendo las categorias
+  // viejas del servidor: al renombrar o borrar una section en el preview, el
+  // efecto la re-agregaba y ademas llamaba a setSavedTheme, con lo cual el
+  // rename se perdi a la vez que el boton "Guardar todo" se apagaba. Ese era el
+  // "cambio algo y no se guarda".
+  //
+  // reconciledServiceIdsRef es el unico que decide si hay algo que incorporar.
+  const reconciledServiceIdsRef = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    const known = reconciledServiceIdsRef.current ?? new Set<string>();
+
+    const incoming = initialServices.filter((service) => !known.has(service.id));
+    incoming.forEach((service) => known.add(service.id));
+    reconciledServiceIdsRef.current = known;
+
+    if (incoming.length === 0) return;
+
+    const nextCategories = { ...serviceCategoryDraft };
+    for (const service of incoming) {
+      nextCategories[service.id] = (service.category || "General").trim() || "General";
+    }
+
+    setServiceCategoryDraft(nextCategories);
+    const nextOrder = [...serviceOrderIds, ...incoming.map((service) => service.id)];
+    setServiceOrderIds(nextOrder);
+
+    // Las categorias de los servicios entrantes si son secciones validas; las
+    // que el usuario borro de sectionCatalog no se tocan.
+    const incomingSections = Array.from(
+      new Set(incoming.map((service) => (service.category || "General").trim() || "General")),
+    );
+    let merged = [...sectionCatalog, ...incomingSections].filter(
+      (item, index, arr) => Boolean(item) && arr.indexOf(item) === index,
+    );
+    if (!merged.includes("General")) merged = ["General", ...merged.filter((item) => item !== "General")];
+
+    const catalogChanged = !sameStringList(merged, sectionCatalog);
+    if (catalogChanged) setSectionCatalog(merged);
+
+    // Lo recien llegado viene del servidor, o sea ya esta persistido.
+    setSavedTheme((prev) => ({
+      ...prev,
+      sectionCatalog: catalogChanged ? merged : prev.sectionCatalog,
+      serviceCategoryDraft: nextCategories,
+      serviceOrderIds: nextOrder,
+    }));
+  }, [initialServices, serviceCategoryDraft, serviceOrderIds, sectionCatalog]);
 
   const orderedServices = useMemo(() => {
     const rank = new Map(serviceOrderIds.map((id, index) => [id, index]));
@@ -765,14 +880,9 @@ export default function BusinessClient({
 
     if (mpStatus === "connected") {
       window.localStorage.removeItem(mpDraftKey);
-      setMessage({ type: "success", text: "Mercado Pago conectado correctamente" });
-      clearTimeout(messageTimerRef.current ?? undefined);
-      messageTimerRef.current = setTimeout(() => { messageTimerRef.current = null; setMessage(null); }, 3000);
+      addToast("Mercado Pago conectado correctamente", "success");
     } else {
-      setMessage({
-        type: "error",
-        text: mpErrorMap[mpStatus] || `No se pudo conectar Mercado Pago (${mpStatus}). Intenta de nuevo.`,
-      });
+      addToast(mpErrorMap[mpStatus] || `No se pudo conectar Mercado Pago (${mpStatus}). Intenta de nuevo.`, "error");
     }
 
     params.delete("mp");
@@ -795,7 +905,7 @@ export default function BusinessClient({
     return () => {
       scrollTimers.forEach(clearTimeout);
     };
-  }, [mpDraftKey, mpReturnScrollKey]);
+  }, [mpDraftKey, mpReturnScrollKey, addToast]);
 
   useEffect(() => {
     setPortalReady(true);
@@ -954,6 +1064,12 @@ export default function BusinessClient({
   }
 
   async function saveAllSections(): Promise<boolean> {
+    const failures: string[] = [];
+
+    // Cada bloque corre siempre y reporta su propio fallo. Antes se cortaba en el
+    // primer error: como updateWhatsappTemplateAction exige @Hora y @Lugar, una
+    // plantilla incompleta impedia que se guardaran los datos bancarios, la policy
+    // de seña o el tema, que quedan como "sin guardar" sin explicacion.
     const formData = new FormData();
     formData.set("nombre", name);
     formData.set("address", address);
@@ -964,31 +1080,69 @@ export default function BusinessClient({
     formData.set("tiktok_url", tiktokUrl);
 
     const info = await updateBusinessInfo(formData);
-    if (!info.success) return showError(info.error), false;
-
-    if (businessHours) {
-      const hours = await updateBusinessHours(businessHours);
-      if (!hours.success) return showError(hours.error), false;
+    if (info.success) {
+      setSavedPublicInfo({ name, address, localidad, phone, instagramUrl, facebookUrl, tiktokUrl });
+    } else {
+      failures.push(info.error);
     }
 
-    const freshHours = await fetchBusinessHours();
-    if (freshHours.success) {
-      setBusinessHours(freshHours.data ?? null);
+    let savedHours = businessHours;
+    if (businessHours) {
+      const hours = await updateBusinessHours(businessHours);
+      if (hours.success) {
+        const freshHours = await fetchBusinessHours();
+        if (freshHours.success) {
+          savedHours = freshHours.data ?? null;
+          setBusinessHours(savedHours);
+        }
+      } else {
+        failures.push(hours.error);
+      }
     }
 
     const amount = Math.max(0, Number(bookingDepositAmount) || 0);
     const policy = await updateBookingDepositPolicyAction(bookingDepositEnabled, amount, payAtShop);
-    if (!policy.success) return showError(policy.error), false;
+    if (policy.success) {
+      // Se congela el valor ya normalizado, no el string crudo del input: si no,
+      // "3000,50" o un campo vacio dejaban el boton prendido para siempre.
+      setBookingDepositAmount(String(amount));
+      setSavedGeneral((prev) => ({
+        ...prev,
+        depositEnabled: bookingDepositEnabled,
+        depositAmount: String(amount),
+        payAtShop,
+      }));
+    } else {
+      failures.push(policy.error);
+    }
 
     const bankResult = await updateBankTransferSettings(bankTransferEnabled, bankCvuCb, bankAlias, bankName);
-    if (!bankResult.success) return showError(bankResult.error), false;
+    if (bankResult.success) {
+      setSavedGeneral((prev) => ({
+        ...prev,
+        bankTransferEnabled,
+        bankCvuCb,
+        bankAlias,
+        bankName,
+      }));
+    } else {
+      failures.push(bankResult.error);
+    }
 
     const wa = await updateWhatsappTemplateAction(whatsappTemplate);
-    if (!wa.success) return showError(wa.error), false;
+    if (wa.success) {
+      setSavedGeneral((prev) => ({ ...prev, whatsapp: whatsappTemplate }));
+    } else {
+      failures.push(wa.error);
+    }
 
     if (shop?.id) {
       const vwa = await updateVoucherWhatsappTemplate(shop.id, voucherWhatsappTemplate);
-      if (!vwa.success) return showError(vwa.error), false;
+      if (vwa.success) {
+        setSavedGeneral((prev) => ({ ...prev, voucher: voucherWhatsappTemplate }));
+      } else {
+        failures.push(vwa.error);
+      }
     }
 
     if (initialServices.length > 0) {
@@ -997,7 +1151,11 @@ export default function BusinessClient({
         category: (serviceCategoryDraft[service.id] || "General").trim() || "General",
       }));
       const categoryResult = await bulkUpdateServiceCategories(categoryUpdates);
-      if (!categoryResult.success) return showError(categoryResult.error), false;
+      if (categoryResult.success) {
+        setSavedTheme((prev) => ({ ...prev, serviceCategoryDraft }));
+      } else {
+        failures.push(categoryResult.error);
+      }
     }
 
     const theme = await upsertBookingTheme({
@@ -1007,66 +1165,75 @@ export default function BusinessClient({
       sectionServiceOrder: buildSectionServiceOrder(),
       heroTitle,
     });
-    if (!theme.success) return showError(theme.error), false;
-
-    setBookingTheme(prev => prev ? {
-      ...prev,
-      template_id: selectedTemplateId,
-      hero_title: heroTitle,
-    } : prev);
-
-    const fresh = await fetchBusinessData();
-    if (fresh.success && fresh.data) {
-      setData(fresh.data);
-      setBookingDepositEnabled(fresh.data.booking_deposit_enabled);
-      setBookingDepositAmount(String(fresh.data.booking_deposit_amount ?? 3000));
-      setPayAtShop(fresh.data.pay_at_shop);
-      setWhatsappTemplate(fresh.data.whatsapp_template);
-      setBankTransferEnabled(fresh.data.bank_transfer_enabled);
-      setBankCvuCb(fresh.data.bank_cvu_cbu ?? "");
-      setBankAlias(fresh.data.bank_alias ?? "");
-      setBankName(fresh.data.bank_name ?? "");
+    if (theme.success) {
+      setSavedTheme((prev) => ({
+        ...prev,
+        heroTitle,
+        templateId: selectedTemplateId,
+        sectionCatalog,
+        serviceOrderIds,
+      }));
+    } else {
+      failures.push(theme.error);
     }
 
-    initialSectionCatalogRef.current = sectionCatalog;
-    initialCategoryDraftRef.current = serviceCategoryDraft;
-    initialServiceOrderRef.current = serviceOrderIds;
-    cleanSnapshotRef.current = {
-      whatsapp: whatsappTemplate,
-      depositEnabled: bookingDepositEnabled,
-      depositAmount: bookingDepositAmount,
-      payAtShop: payAtShop,
-      voucher: voucherWhatsappTemplate,
-      businessHours: businessHours ?? null,
-      bankTransferEnabled,
-      bankCvuCb,
-      bankAlias,
-      bankName,
-    };
+    // Los horarios se congelan contra lo que devolvio el servidor (normaliza
+    // claves y completa defaults); con el objeto previo el diff podia quedar
+    // prendido para siempre.
+    if (savedHours !== businessHours) {
+      setSavedGeneral((prev) => ({ ...prev, businessHours: savedHours }));
+    }
+
+    const fresh = await fetchBusinessData();
+    const freshShop = fresh.success ? fresh.data : null;
+    if (freshShop) {
+      // Solo se refresca lo que de verdad quedo persistido. Si un bloque fallo,
+      // su estado local se conserva para que el usuario no pierda lo que escribio
+      // y el boton siga marcando ese cambio como pendiente.
+      if (info.success) setData(freshShop);
+      if (policy.success) {
+        setPayAtShop(freshShop.pay_at_shop);
+      }
+      if (bankResult.success) {
+        setBankTransferEnabled(freshShop.bank_transfer_enabled);
+        setBankCvuCb(freshShop.bank_cvu_cbu || "");
+        setBankAlias(freshShop.bank_alias || "");
+        setBankName(freshShop.bank_name || "");
+      }
+    }
 
     try { window.localStorage.removeItem(mpDraftKey); } catch {}
+
+    if (failures.length > 0) {
+      playError();
+      showError(failures.length === 1 ? failures[0] : `No se pudo guardar: ${failures.join(" · ")}`);
+      return false;
+    }
+
     playSuccess();
     showSuccess("Todo guardado correctamente");
     return true;
   }
 
-  async function handleAssignStaffLaterChange(enabled: boolean) {
-    if (!isOwnerOrAdmin || assignStaffLaterSaving) return;
+  /** `showStep` va en positivo: true = el cliente elige profesional durante la reserva. */
+  async function handleAssignStaffLaterChange(showStep: boolean) {
+    if (!canEditShop || assignStaffLaterSaving) return;
+    const next = !showStep;
     const prev = assignStaffLater;
-    setAssignStaffLater(enabled);
+    setAssignStaffLater(next);
     setAssignStaffLaterSaving(true);
-    const result = await updateAssignStaffLater(enabled);
+    const result = await updateAssignStaffLater(next);
     setAssignStaffLaterSaving(false);
     if (!result.success) {
       setAssignStaffLater(prev);
       showError(result.error);
       return;
     }
-    showSuccess(enabled ? "Asignación de profesional activada" : "Asignación de profesional desactivada");
+    showSuccess(showStep ? "El cliente va a elegir profesional" : "El cliente ya no elige profesional");
   }
 
   async function handleStoreToggle(enabled: boolean) {
-    if (!isOwnerOrAdmin || storeSaving) return;
+    if (!canEditShop || storeSaving) return;
     if (!enabled) {
       setStoreConfirmOpen(true);
       return;
@@ -1102,16 +1269,6 @@ export default function BusinessClient({
     router.refresh();
   }
 
-  function showSuccess(text: string) {
-    setMessage({ type: "success", text });
-    clearTimeout(messageTimerRef.current ?? undefined);
-    messageTimerRef.current = setTimeout(() => { messageTimerRef.current = null; setMessage(null); }, 3000);
-  }
-
-  function showError(text: string) {
-    setMessage({ type: "error", text });
-  }
-
   async function handleSavePublicInfo(e: React.FormEvent) {
     e.preventDefault();
     if (isSaving) return;
@@ -1133,9 +1290,12 @@ export default function BusinessClient({
       } else {
         playSuccess();
         showSuccess("Información pública guardada");
+        // Antes se seteaba `name`, clave que no existe en BusinessData (es
+        // `nombre`), y no se movia savedPublicInfo: el diff comparaba contra la
+        // linea base vieja y "Guardar todo" quedaba prendido sin motivo.
         setData(prev => prev ? {
           ...prev,
-          name,
+          nombre: name,
           address,
           localidad,
           phone,
@@ -1143,6 +1303,7 @@ export default function BusinessClient({
           facebook_url: facebookUrl,
           tiktok_url: tiktokUrl,
         } : prev);
+        setSavedPublicInfo({ name, address, localidad, phone, instagramUrl, facebookUrl, tiktokUrl });
       }
     } catch (e) {
       playError();
@@ -1252,8 +1413,25 @@ export default function BusinessClient({
   }
 
   async function handleLogoUpload(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
+    const input = event.currentTarget;
+    const file = input.files?.[0];
     if (!file) return;
+
+    // Validacion en cliente para no gastar el round-trip y para que el motivo
+    // del rechazo quede a la vista (antes solo se enteraba al final, y el
+    // error aparecia arriba de todo el scroll).
+    if (!file.type.startsWith("image/")) {
+      playError();
+      showError("Ese archivo no es una imagen.");
+      input.value = "";
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      playError();
+      showError("El logo supera 2MB. Reducilo e intentá de nuevo.");
+      input.value = "";
+      return;
+    }
 
     setUploadingLogo(true);
     try {
@@ -1276,7 +1454,7 @@ export default function BusinessClient({
       showError(error instanceof Error ? error.message : "No se pudo subir el logo");
     } finally {
       setUploadingLogo(false);
-      event.target.value = "";
+      input.value = "";
     }
   }
 
@@ -1308,7 +1486,7 @@ export default function BusinessClient({
   }
 
   async function handleSaveMpPaymentConfig(maxInstallments: number | null, acceptedTypes: string[]) {
-    if (!isOwnerOrAdmin || isSavingMpConfig) return;
+    if (!canEditShop || isSavingMpConfig) return;
     if (acceptedTypes.length === 0) {
       playError();
       showError("Debes aceptar al menos un medio de pago.");
@@ -1425,7 +1603,7 @@ export default function BusinessClient({
             <button
               type="button"
               onClick={() => setShowCreateShopModal(true)}
-              disabled={!isOwnerOrAdmin || creatingShop}
+              disabled={!canEditShop || creatingShop}
               className="group flex items-center gap-3 py-3 px-2 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors w-full text-left disabled:opacity-40"
             >
               <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 shrink-0">
@@ -1441,29 +1619,6 @@ export default function BusinessClient({
           </div>
         </div>
       </div>
-
-      {error && (
-        <div className="bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 text-sm px-5 py-3 rounded-full border border-red-200/30 dark:border-red-500/20">
-          {error}
-        </div>
-      )}
-
-      <AnimatePresence>
-        {message && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            className={`text-sm px-5 py-3 rounded-full border ${
-              message.type === "success"
-                ? "bg-green-50 dark:bg-green-950 text-green-700 border-green-200/30"
-                : "bg-red-50 dark:bg-red-950 text-red-700 border-red-200/30"
-            }`}
-          >
-            {message.text}
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <div className="flex flex-col gap-8">
       {/* Card: Información Pública */}
@@ -1495,7 +1650,7 @@ export default function BusinessClient({
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                disabled={!isOwnerOrAdmin}
+                disabled={!canEditShop}
                 className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
                 placeholder="Ej: Klip Barbería"
                 required
@@ -1513,7 +1668,7 @@ export default function BusinessClient({
                     setAddress(e.target.value);
                     if (e.target.value.trim()) setLocationError(null);
                   }}
-                  disabled={!isOwnerOrAdmin}
+                  disabled={!canEditShop}
                   className={`w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 transition-all ${locationError ? "border-red-400 focus:ring-red-400/50" : "border-red-400/0 dark:border-red-400/0 focus:ring-violet-500/50"}`}
                   placeholder="Av. Siempre Viva 123"
                 />
@@ -1527,7 +1682,7 @@ export default function BusinessClient({
                 <input
                   value={localidad}
                   onChange={(e) => setLocalidad(e.target.value)}
-                  disabled={!isOwnerOrAdmin}
+                  disabled={!canEditShop}
                   className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
                   placeholder="Ej: Palermo, CABA"
                 />
@@ -1540,7 +1695,7 @@ export default function BusinessClient({
                 <input
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  disabled={!isOwnerOrAdmin}
+                  disabled={!canEditShop}
                   className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
                   placeholder="11 1234-5678"
                 />
@@ -1562,7 +1717,7 @@ export default function BusinessClient({
                   <input
                     value={instagramUrl}
                     onChange={(e) => setInstagramUrl(e.target.value)}
-                    disabled={!isOwnerOrAdmin}
+                    disabled={!canEditShop}
                     className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
                     placeholder="https://instagram.com/tu-local"
                   />
@@ -1575,7 +1730,7 @@ export default function BusinessClient({
                   <input
                     value={facebookUrl}
                     onChange={(e) => setFacebookUrl(e.target.value)}
-                    disabled={!isOwnerOrAdmin}
+                    disabled={!canEditShop}
                     className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
                     placeholder="https://facebook.com/tu-local"
                   />
@@ -1588,7 +1743,7 @@ export default function BusinessClient({
                   <input
                     value={tiktokUrl}
                     onChange={(e) => setTiktokUrl(e.target.value)}
-                    disabled={!isOwnerOrAdmin}
+                    disabled={!canEditShop}
                     className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
                     placeholder="https://tiktok.com/@tu-local"
                   />
@@ -1669,8 +1824,9 @@ export default function BusinessClient({
                   onSectionRename={handleRenameSection}
                   onSectionReorder={handleSectionReorder}
                   onLogoUpload={handleLogoUpload}
+                  logoUploading={uploadingLogo}
                   industry={industry}
-                  disabled={!isOwnerOrAdmin}
+                  disabled={!canEditShop}
                 />
                 </ErrorBoundary>
 
@@ -1686,31 +1842,33 @@ export default function BusinessClient({
                     Estos son los pasos que verá tu cliente al reservar. Encendé o apagá los que quieras mostrar.
                   </p>
 
-                  {/* Switch 1: asignar profesional después */}
+                  {/* Switch 1: el cliente elige profesional durante la reserva */}
                   <div
                     id="assign-staff-later"
                     className="rounded-2xl border bg-white dark:bg-zinc-900 p-5 space-y-3 transition-all duration-300 border-white/20 dark:border-white/10"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <p className="text-sm font-semibold text-gray-900 dark:text-white">Elegir profesional después de la reserva</p>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">El cliente elige profesional</p>
                         <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                          Al activarlo, el cliente reserva sin elegir profesional y el turno queda &quot;sin asignar&quot;. Después lo asignás vos desde el calendario.
+                          {showStaffStep
+                            ? "El cliente elige con quién quiere su turno y este queda asignado al reservar."
+                            : "El cliente reserva sin elegir profesional y el turno queda \"sin asignar\". Después lo asignás vos desde el calendario."}
                         </p>
                       </div>
                       <button
                         type="button"
                         role="switch"
-                        aria-checked={assignStaffLater}
-                        onClick={() => { if (isOwnerOrAdmin) void handleAssignStaffLaterChange(!assignStaffLater); }}
-                        disabled={!isOwnerOrAdmin || assignStaffLaterSaving}
+                        aria-checked={showStaffStep}
+                        onClick={() => { if (canEditShop) void handleAssignStaffLaterChange(!showStaffStep); }}
+                        disabled={!canEditShop || assignStaffLaterSaving}
                         className={`relative w-12 h-7 rounded-full transition-colors duration-200 shrink-0 ${
-                          assignStaffLater ? "bg-violet-600" : "bg-zinc-300 dark:bg-zinc-700"
-                        } ${!isOwnerOrAdmin ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+                          showStaffStep ? "bg-violet-600" : "bg-zinc-300 dark:bg-zinc-700"
+                        } ${!canEditShop ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
                       >
                         <span
                           className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-all duration-200 ${
-                            assignStaffLater ? "left-6" : "left-1"
+                            showStaffStep ? "left-6" : "left-1"
                           }`}
                         />
                       </button>
@@ -1732,11 +1890,11 @@ export default function BusinessClient({
                         type="button"
                         role="switch"
                         aria-checked={storeEnabledState}
-                        onClick={() => { if (isOwnerOrAdmin && hasStoreProducts) void handleStoreToggle(!storeEnabledState); }}
-                        disabled={!isOwnerOrAdmin || storeSaving || !hasStoreProducts}
+                        onClick={() => { if (canEditShop && hasStoreProducts) void handleStoreToggle(!storeEnabledState); }}
+                        disabled={!canEditShop || storeSaving || !hasStoreProducts}
                         className={`relative w-12 h-7 rounded-full transition-colors duration-200 shrink-0 ${
                           storeEnabledState ? "bg-violet-600" : "bg-zinc-300 dark:bg-zinc-700"
-                        } ${!isOwnerOrAdmin || !hasStoreProducts ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+                        } ${!canEditShop || !hasStoreProducts ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
                       >
                         <span
                           className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-all duration-200 ${
@@ -1751,7 +1909,7 @@ export default function BusinessClient({
                   <div className="mt-5">
                     <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2 uppercase tracking-wide">Pasos de la reserva</p>
                     <div className="flex flex-wrap items-center gap-y-2">
-                      {buildFlowSteps(initialServices.length, staffCount, assignStaffLater, storeEnabledState, hasStoreProducts, payAtShop).map((step, idx) => (
+                      {buildFlowSteps(initialServices.length, staffCount, showStaffStep, storeEnabledState, hasStoreProducts, payAtShop).map((step, idx) => (
                         <span key={step.label} className="inline-flex items-center">
                           {idx > 0 && (
                             <ArrowRight className="w-4 h-4 mx-1.5 text-zinc-300 dark:text-zinc-500 shrink-0" strokeWidth={2.5} />
@@ -1812,17 +1970,17 @@ export default function BusinessClient({
 
               {/* Mercado Pago card */}
               <div
-                role={isOwnerOrAdmin && !payAtShop && !data?.mp_oauth_connected ? "button" : undefined}
-                tabIndex={isOwnerOrAdmin && !payAtShop && !data?.mp_oauth_connected ? 0 : -1}
-                aria-disabled={!isOwnerOrAdmin || payAtShop || !!data?.mp_oauth_connected}
+                role={canEditShop && !payAtShop && !data?.mp_oauth_connected ? "button" : undefined}
+                tabIndex={canEditShop && !payAtShop && !data?.mp_oauth_connected ? 0 : -1}
+                aria-disabled={!canEditShop || payAtShop || !!data?.mp_oauth_connected}
                 onClick={() => {
-                  if (!isOwnerOrAdmin) return;
+                  if (!canEditShop) return;
                   if (payAtShop) { goToTimingSelector(); return; }
                   if (!data?.mp_oauth_connected) handleConnectMercadoPago();
                 }}
                 onKeyDown={(e) => {
                   if (e.key !== "Enter" && e.key !== " ") return;
-                  if (!isOwnerOrAdmin) return;
+                  if (!canEditShop) return;
                   e.preventDefault();
                   if (payAtShop) { goToTimingSelector(); return; }
                   if (!data?.mp_oauth_connected) handleConnectMercadoPago();
@@ -1832,7 +1990,7 @@ export default function BusinessClient({
                     ? "opacity-40 cursor-default"
                     : data?.mp_oauth_connected
                       ? "opacity-100"
-                      : isOwnerOrAdmin
+                      : canEditShop
                         ? "opacity-60 cursor-pointer hover:opacity-80"
                         : "opacity-40 cursor-default"
                 }`}
@@ -1841,7 +1999,7 @@ export default function BusinessClient({
                   <button
                     type="button"
                     onClick={openMpConfigModal}
-                    disabled={!isOwnerOrAdmin}
+                    disabled={!canEditShop}
                     title="Configurar cobros"
                     className="absolute top-4 right-4 p-2 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
                   >
@@ -1871,7 +2029,7 @@ export default function BusinessClient({
                             type="button"
                             onMouseDown={playClick}
                             onClick={(e) => { e.stopPropagation(); handleDisconnectMercadoPago(); }}
-                            disabled={!isOwnerOrAdmin || isDisconnectingMp}
+                            disabled={!canEditShop || isDisconnectingMp}
                             className="text-xs text-zinc-500 hover:text-red-500 dark:text-zinc-400 dark:hover:text-red-400 transition-colors"
                           >
                             {isDisconnectingMp ? "Desconectando..." : "Desconectar cuenta"}
@@ -1888,7 +2046,7 @@ export default function BusinessClient({
                 {(!data?.mp_oauth_connected || payAtShop) && (
                   <div
                     className={`absolute inset-0 z-10 flex flex-col items-center justify-center gap-1 rounded-2xl px-4 text-center transition-colors ${
-                      payAtShop || !isOwnerOrAdmin || data?.mp_oauth_connected
+                      payAtShop || !canEditShop || data?.mp_oauth_connected
                         ? "bg-white/70 dark:bg-zinc-900/70"
                         : "bg-white/60 dark:bg-zinc-900/60 hover:bg-white/40 dark:hover:bg-zinc-900/40"
                     }`}
@@ -1923,10 +2081,10 @@ export default function BusinessClient({
               {/* Transferencia card */}
               <div
                 role="button"
-                tabIndex={isOwnerOrAdmin ? 0 : -1}
-                aria-disabled={!isOwnerOrAdmin}
+                tabIndex={canEditShop ? 0 : -1}
+                aria-disabled={!canEditShop}
                 onClick={() => {
-                  if (!isOwnerOrAdmin) return;
+                  if (!canEditShop) return;
                   if (payAtShop) { goToTimingSelector(); return; }
                   setBankTransferEnabled(!bankTransferEnabled);
                   if (!bankTransferEnabled) { setPayAtShop(false); setBookingDepositEnabled(true); }
@@ -1937,7 +2095,7 @@ export default function BusinessClient({
                     ? "opacity-40 cursor-default"
                     : bankTransferEnabled
                       ? "opacity-100 cursor-pointer"
-                      : isOwnerOrAdmin
+                      : canEditShop
                         ? "opacity-60 cursor-pointer hover:opacity-80"
                         : "opacity-40 cursor-default"
                 }`}
@@ -1950,7 +2108,7 @@ export default function BusinessClient({
                 {!bankTransferEnabled && (
                   <div
                     className={`absolute inset-0 z-10 flex flex-col items-center justify-center gap-1 rounded-2xl px-4 text-center transition-colors ${
-                      payAtShop || !isOwnerOrAdmin
+                      payAtShop || !canEditShop
                         ? "bg-white/70 dark:bg-zinc-900/70"
                         : "bg-white/60 dark:bg-zinc-900/60 hover:bg-white/40 dark:hover:bg-zinc-900/40"
                     }`}
@@ -1986,7 +2144,7 @@ export default function BusinessClient({
                         type="text"
                         value={bankCvuCb}
                         onChange={(e) => setBankCvuCb(e.target.value)}
-                        disabled={!isOwnerOrAdmin || !bankTransferEnabled}
+                        disabled={!canEditShop || !bankTransferEnabled}
                         placeholder="Ej: mi.negocio.mp"
                         className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-gray-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-500/30 transition-all disabled:opacity-50 cursor-text"
                       />
@@ -1998,7 +2156,7 @@ export default function BusinessClient({
                           type="text"
                           value={bankAlias}
                           onChange={(e) => setBankAlias(e.target.value)}
-                          disabled={!isOwnerOrAdmin || !bankTransferEnabled}
+                          disabled={!canEditShop || !bankTransferEnabled}
                           placeholder="Ej: María López"
                           className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-gray-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-500/30 transition-all disabled:opacity-50 cursor-text"
                         />
@@ -2009,7 +2167,7 @@ export default function BusinessClient({
                           type="text"
                           value={bankName}
                           onChange={(e) => setBankName(e.target.value)}
-                          disabled={!isOwnerOrAdmin || !bankTransferEnabled}
+                          disabled={!canEditShop || !bankTransferEnabled}
                           placeholder="Ej: Mercado Pago"
                           className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-gray-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-500/30 transition-all disabled:opacity-50 cursor-text"
                         />
@@ -2048,13 +2206,13 @@ export default function BusinessClient({
                 {/* Seña online */}
                 <button
                   type="button"
-                  onClick={() => { if (isOwnerOrAdmin) { setPayAtShop(false); setBookingDepositEnabled(true); } }}
-                  disabled={!isOwnerOrAdmin}
+                  onClick={() => { if (canEditShop) { setPayAtShop(false); setBookingDepositEnabled(true); } }}
+                  disabled={!canEditShop}
                   className={`group relative overflow-hidden rounded-xl border p-4 text-left transition-all duration-200 active:scale-[0.97] ${
                     !payAtShop && bookingDepositEnabled
                       ? "border-zinc-900 dark:border-white bg-zinc-50 dark:bg-zinc-800 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06),0_4px_12px_rgba(0,0,0,0.08)] dark:shadow-[inset_0_2px_4px_rgba(255,255,255,0.05),0_4px_12px_rgba(0,0,0,0.3)]"
                       : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-zinc-300 dark:hover:border-zinc-600 hover:shadow-md"
-                  } ${!isOwnerOrAdmin ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+                  } ${!canEditShop ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
                 >
                   {!payAtShop && bookingDepositEnabled && (
                     <CheckCircle2 className="absolute top-3 right-3 w-4 h-4 text-zinc-900 dark:text-white" />
@@ -2069,7 +2227,7 @@ export default function BusinessClient({
                         min={0}
                         value={bookingDepositAmount}
                         onChange={(e) => setBookingDepositAmount(e.target.value)}
-                        disabled={!isOwnerOrAdmin}
+                        disabled={!canEditShop}
                         className="w-24 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 px-2 py-1 text-sm text-center text-gray-900 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none focus:ring-2 focus:ring-zinc-500/30"
                         placeholder="3000"
                       />
@@ -2080,13 +2238,13 @@ export default function BusinessClient({
                 {/* Total online */}
                 <button
                   type="button"
-                  onClick={() => { if (isOwnerOrAdmin) { setPayAtShop(false); setBookingDepositEnabled(false); } }}
-                  disabled={!isOwnerOrAdmin}
+                  onClick={() => { if (canEditShop) { setPayAtShop(false); setBookingDepositEnabled(false); } }}
+                  disabled={!canEditShop}
                   className={`group relative overflow-hidden rounded-xl border p-4 text-left transition-all duration-200 active:scale-[0.97] ${
                     !payAtShop && !bookingDepositEnabled
                       ? "border-zinc-900 dark:border-white bg-zinc-50 dark:bg-zinc-800 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06),0_4px_12px_rgba(0,0,0,0.08)] dark:shadow-[inset_0_2px_4px_rgba(255,255,255,0.05),0_4px_12px_rgba(0,0,0,0.3)]"
                       : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-zinc-300 dark:hover:border-zinc-600 hover:shadow-md"
-                  } ${!isOwnerOrAdmin ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+                  } ${!canEditShop ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
                 >
                   {!payAtShop && !bookingDepositEnabled && (
                     <CheckCircle2 className="absolute top-3 right-3 w-4 h-4 text-zinc-900 dark:text-white" />
@@ -2098,13 +2256,13 @@ export default function BusinessClient({
                 {/* En local */}
                 <button
                   type="button"
-                  onClick={() => { if (isOwnerOrAdmin) { setPayAtShop(true); setBookingDepositEnabled(false); setBankTransferEnabled(false); } }}
-                  disabled={!isOwnerOrAdmin}
+                  onClick={() => { if (canEditShop) { setPayAtShop(true); setBookingDepositEnabled(false); setBankTransferEnabled(false); } }}
+                  disabled={!canEditShop}
                   className={`group relative overflow-hidden rounded-xl border p-4 text-left transition-all duration-200 active:scale-[0.97] ${
                     payAtShop
                       ? "border-zinc-900 dark:border-white bg-zinc-50 dark:bg-zinc-800 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06),0_4px_12px_rgba(0,0,0,0.08)] dark:shadow-[inset_0_2px_4px_rgba(255,255,255,0.05),0_4px_12px_rgba(0,0,0,0.3)]"
                       : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-zinc-300 dark:hover:border-zinc-600 hover:shadow-md"
-                  } ${!isOwnerOrAdmin ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+                  } ${!canEditShop ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
                 >
                   {payAtShop && (
                     <CheckCircle2 className="absolute top-3 right-3 w-4 h-4 text-zinc-900 dark:text-white" />
@@ -2163,7 +2321,7 @@ export default function BusinessClient({
                   return (
                     <div
                       key={day.key}
-                      onClick={() => isOwnerOrAdmin && setBusinessHours({ ...businessHours, [day.key]: { ...h, open: !h.open } })}
+                      onClick={() => canEditShop && setBusinessHours({ ...businessHours, [day.key]: { ...h, open: !h.open } })}
                       className="flex flex-wrap items-center gap-3 py-3 px-3 rounded-2xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                     >
                       <p className={`text-sm font-medium min-w-[64px] ${h.open ? "text-gray-900 dark:text-white" : "text-zinc-400 dark:text-zinc-400"}`}>
@@ -2174,7 +2332,7 @@ export default function BusinessClient({
                           <input
                             type="time"
                             value={h.start}
-                            disabled={!isOwnerOrAdmin || !h.open}
+                            disabled={!canEditShop || !h.open}
                             onClick={(e) => e.stopPropagation()}
                             onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, start: e.target.value } })}
                             className="rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
@@ -2185,7 +2343,7 @@ export default function BusinessClient({
                           <input
                             type="time"
                             value={h.end}
-                            disabled={!isOwnerOrAdmin || !h.open}
+                            disabled={!canEditShop || !h.open}
                             onClick={(e) => e.stopPropagation()}
                             onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, end: e.target.value } })}
                             className="rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
@@ -2195,7 +2353,7 @@ export default function BusinessClient({
                         <div className="pointer-events-auto">
                           <button
                             type="button"
-                            disabled={!isOwnerOrAdmin || !h.open}
+                            disabled={!canEditShop || !h.open}
                             onClick={(e) => {
                               e.stopPropagation();
                               const hasBreak = Boolean(h.break_start && h.break_end);
@@ -2221,7 +2379,7 @@ export default function BusinessClient({
                               <input
                                 type="time"
                                 value={h.break_start}
-                                disabled={!isOwnerOrAdmin || !h.open}
+                                disabled={!canEditShop || !h.open}
                                 onClick={(e) => e.stopPropagation()}
                                 onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, break_start: e.target.value } })}
                                 className="rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
@@ -2232,7 +2390,7 @@ export default function BusinessClient({
                               <input
                                 type="time"
                                 value={h.break_end}
-                                disabled={!isOwnerOrAdmin || !h.open}
+                                disabled={!canEditShop || !h.open}
                                 onClick={(e) => e.stopPropagation()}
                                 onChange={(e) => setBusinessHours({ ...businessHours, [day.key]: { ...h, break_end: e.target.value } })}
                                 className="rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm text-gray-900 dark:text-white [&::-webkit-calendar-picker-indicator]:opacity-40 [color-scheme:light] dark:[color-scheme:dark] w-[102px] disabled:cursor-not-allowed cursor-pointer"
@@ -2272,7 +2430,7 @@ export default function BusinessClient({
                 <p className="text-xs text-zinc-400 dark:text-zinc-400">Cierres totales o horarios reducidos para dias puntuales</p>
               </div>
             </button>
-            {isOwnerOrAdmin && (
+            {canEditShop && (
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); openNewOverride(); }}
@@ -2314,7 +2472,7 @@ export default function BusinessClient({
                         {o.reason ? ` (${o.reason})` : ""}
                       </p>
                     </div>
-                    {isOwnerOrAdmin && (
+                    {canEditShop && (
                       <div className="flex items-center gap-1 shrink-0">
                         <button
                           type="button"
@@ -2507,7 +2665,7 @@ export default function BusinessClient({
             <select
               value={draftMaxInstallments ?? ""}
               onChange={(e) => setDraftMaxInstallments(e.target.value === "" ? null : Number(e.target.value))}
-              disabled={!isOwnerOrAdmin}
+              disabled={!canEditShop}
               className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-500/30 disabled:opacity-50"
             >
               <option value="">Sin limite (recomendado)</option>
@@ -2533,7 +2691,7 @@ export default function BusinessClient({
                           e.target.checked ? [...prev, t.id] : prev.filter((id) => id !== t.id)
                         )
                       }
-                      disabled={!isOwnerOrAdmin}
+                      disabled={!canEditShop}
                       className="rounded border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-white focus:ring-zinc-500/30 disabled:opacity-50"
                     />
                     <span className="text-sm text-gray-900 dark:text-white">{t.label}</span>
@@ -2550,7 +2708,7 @@ export default function BusinessClient({
           <button
             type="button"
             onClick={() => handleSaveMpPaymentConfig(draftMaxInstallments, draftAcceptedTypes)}
-            disabled={!isOwnerOrAdmin || isSavingMpConfig}
+            disabled={!canEditShop || isSavingMpConfig}
             className="ui-btn-primary rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
           >
             {isSavingMpConfig ? "Guardando..." : "Guardar"}
@@ -2676,7 +2834,7 @@ export default function BusinessClient({
           {/* WhatsApp automatico por local */}
           <WhatsAppAutomationPanel
             initial={initialWhatsAppAutomation}
-            isOwnerOrAdmin={isOwnerOrAdmin}
+            isOwnerOrAdmin={canEditShop}
             shopName={data?.nombre}
           />
 
@@ -2697,7 +2855,7 @@ export default function BusinessClient({
               value={whatsappTemplate}
               onChange={(e) => setWhatsappTemplate(e.target.value)}
               placeholder="Escribí el mensaje de confirmación..."
-              disabled={!isOwnerOrAdmin}
+              disabled={!canEditShop}
             />
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500">
               <span className={whatsappTemplate.match(/\@Hora/) ? "text-green-600 dark:text-green-400" : "text-rose-600 dark:text-rose-400"}>
@@ -2726,7 +2884,7 @@ export default function BusinessClient({
               value={voucherWhatsappTemplate}
               onChange={(e) => setVoucherWhatsappTemplate(e.target.value)}
               placeholder="Escribí el mensaje de voucher..."
-              disabled={!isOwnerOrAdmin}
+              disabled={!canEditShop}
             />
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500">
               <span className={voucherWhatsappTemplate.match(/\@Servicio/) ? "text-green-600 dark:text-green-400" : "text-rose-600 dark:text-rose-400"}>
@@ -2755,7 +2913,7 @@ export default function BusinessClient({
               value={birthdayWhatsappTemplate}
               onChange={(e) => setBirthdayWhatsappTemplate(e.target.value)}
               placeholder="Escribí el mensaje de cumpleaños..."
-              disabled={!isOwnerOrAdmin}
+              disabled={!canEditShop}
             />
           </div>
 
@@ -2767,53 +2925,47 @@ export default function BusinessClient({
 
       {/* Guardar todo flotante */}
       {portalReady && typeof document !== "undefined" && createPortal(
-        isGlobalDirty ? (
-          <button
-            type="button"
-            onClick={async () => {
-              if (isSaving) return;
-              setIsSaving(true);
-              try {
-                await saveAllSections();
-              } catch (e) {
-                showError(e instanceof Error ? e.message : "Error al guardar todo");
-              } finally {
-                setIsSaving(false);
-              }
-            }}
-            disabled={isSaving}
-            className="fixed bottom-4 right-4 z-50 inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium shadow-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 cursor-pointer select-none transition-opacity duration-200"
-          >
-            {isSaving ? (
-              <>
-                <svg className="force-spin animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                Guardando...
-              </>
-            ) : (
-              <>
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
-                Guardar todo
-              </>
-            )}
-          </button>
-        ) : (
-          <button
-            type="button"
-            disabled
-            className="fixed bottom-4 right-4 z-50 inline-flex items-center justify-center w-9 h-9 rounded-full bg-zinc-300 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed shadow-sm transition-all duration-300"
-            title="No hay cambios pendientes"
-          >
+        <button
+          type="button"
+          onClick={async () => {
+            if (isSaving || !isGlobalDirty) return;
+            setIsSaving(true);
+            try {
+              await saveAllSections();
+            } catch (e) {
+              showError(e instanceof Error ? e.message : "Error al guardar todo");
+            } finally {
+              setIsSaving(false);
+            }
+          }}
+          disabled={isSaving || !canEditShop || !isGlobalDirty}
+          aria-label={isGlobalDirty ? "Guardar todos los cambios" : "No hay cambios pendientes"}
+          title={!canEditShop ? "Solo el owner puede editar" : isGlobalDirty ? "Tenés cambios sin guardar" : "Todo guardado"}
+          className={`fixed bottom-4 right-4 z-50 inline-flex items-center gap-2 rounded-full pl-5 pr-5 py-2.5 text-sm font-medium shadow-lg transition-all duration-200 select-none ${
+            isGlobalDirty
+              ? "bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 cursor-pointer hover:opacity-90"
+              : "w-9 justify-center pl-0 pr-0 bg-zinc-300 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed"
+          }`}
+        >
+          {isSaving ? (
+            <>
+              <Spinner />
+              Guardando...
+            </>
+          ) : isGlobalDirty ? (
+            <>
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+              Guardar todo
+            </>
+          ) : (
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="20 6 9 17 4 12" />
             </svg>
-          </button>
-        ),
+          )}
+        </button>,
         document.body
       )}
 
@@ -2831,7 +2983,7 @@ export default function BusinessClient({
             <input
               value={closeConfirm}
               onChange={(e) => setCloseConfirm(e.target.value)}
-              disabled={!isOwnerOrAdmin}
+              disabled={!canEditShop}
               placeholder='Escribí "CONFIRMAR"'
               className="w-full sm:max-w-xs rounded-full border border-red-200 dark:border-red-700 bg-white dark:bg-zinc-900 px-4 py-2 text-sm text-red-800 dark:text-red-200 outline-none"
             />

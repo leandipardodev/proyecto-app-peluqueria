@@ -1,5 +1,5 @@
 import { createServerClient } from "@/lib/supabase/server";
-import { requireShopId } from "@/lib/dashboard/auth/server";
+import { requireShopId, resolveAuthorizedShopId } from "@/lib/dashboard/auth/server";
 import { getArgentinaNow } from "@/lib/argentina-time";
 import type { ActionResult } from "@/lib/types";
 import { type AppointmentEnriched, type ServiceInfo, type StaffMemberInfo, type AppointmentTableRow, type StaffRpcRow, createAdminClient, fetchOperationalStaffByShopId, buildStaffMapFromRpc } from "./shared";
@@ -7,13 +7,9 @@ import "server-only";
 
 export async function fetchAppointments(startDate: string, endDate: string, shopIdOverride?: string): Promise<ActionResult<AppointmentEnriched[]>> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const supabase = await createServerClient();
 
@@ -64,13 +60,9 @@ export async function fetchAppointmentGroup(
   shopIdOverride?: string
 ): Promise<ActionResult<AppointmentEnriched[]>> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const supabase = await createServerClient();
 
@@ -174,13 +166,9 @@ export async function fetchAppointmentGroup(
 
 export async function fetchActiveServices(shopIdOverride?: string): Promise<ActionResult<ServiceInfo[]>> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const supabase = await createServerClient();
 
@@ -199,13 +187,9 @@ export async function fetchActiveServices(shopIdOverride?: string): Promise<Acti
 
 export async function fetchStaffMembers(shopIdOverride?: string): Promise<ActionResult<StaffMemberInfo[]>> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
     const rows = await fetchOperationalStaffByShopId(shopId);
 
     return {
@@ -224,13 +208,9 @@ export async function fetchAllAppointmentsForTable(
   options?: { limit?: number; upcomingOnly?: boolean }
 ): Promise<ActionResult<AppointmentTableRow[]>> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const admin = await createAdminClient();
 

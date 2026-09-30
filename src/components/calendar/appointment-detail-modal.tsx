@@ -85,7 +85,6 @@ const statusFlow: Record<string, StatusAction[]> = {
     { label: "No se atendió", nextStatus: "cancelled", setIsPaid: false, style: "neutral" },
   ],
   pending_payment: [
-    { label: "Marcar pagado", nextStatus: "confirmed", setIsPaid: true, style: "primary" },
     { label: "Cancelar turno", nextStatus: "cancelled", setIsPaid: false, style: "neutral" },
   ],
   completed: [
@@ -427,6 +426,12 @@ export default function AppointmentDetailModal({
     const newPaid = !localPaid;
     setError(null);
     setLocalPaid(newPaid);
+    // El switch de pago reemplaza al botón "Marcar pagado": confirmar es parte de cobrar.
+    if (newPaid && localStatus === "pending_payment") {
+      setLocalStatus("confirmed");
+      queueChange({ isPaid: true, status: "confirmed" });
+      return;
+    }
     queueChange({ isPaid: newPaid });
   }
 
@@ -623,9 +628,11 @@ export default function AppointmentDetailModal({
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
               Turno
             </h2>
-            <span className={`inline-flex items-center text-xs font-medium px-2.5 py-0.5 rounded-full ${statusColor(localStatus)}`}>
-              {getTurnoStatusLabel(localStatus)}
-            </span>
+            {localStatus !== "pending_payment" && (
+              <span className={`inline-flex items-center text-xs font-medium px-2.5 py-0.5 rounded-full ${statusColor(localStatus)}`}>
+                {getTurnoStatusLabel(localStatus)}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {saveIndicator && (

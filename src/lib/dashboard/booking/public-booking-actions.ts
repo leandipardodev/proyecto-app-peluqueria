@@ -18,7 +18,10 @@ import { createRateLimiter } from "@/lib/rate-limiter";
 import { headers } from "next/headers";
 import type { DateOverride } from "@/lib/dashboard/shop/business-actions";
 import { createStoreOrderRecord, type StoreCheckoutItem } from "@/lib/dashboard/store/public-store-actions";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/database.types";
 import { restoreOrderStock } from "@/lib/dashboard/store/stock";
+import { isOverlapViolation } from "@/lib/db/overlap-violation";
 import "server-only";
 import { createAdminClient } from "../appointments/shared";
 import { completedBookingCache } from "@/lib/booking-cache";
@@ -286,6 +289,86 @@ function resolveDayHours(
     };
   }
   return null;
+}
+
+type ResolvedCombo = { name: string; price: number; services: ComboService[] };
+
+/**
+ * Resuelve un combo contra la base y devuelve sus valores reales.
+ *
+ * `createPublicComboAppointment` es un Server Action publico: sin sesion, sin
+ * firma. Si el precio del combo o el de cada servicio vinieran del cliente,
+ * cualquiera podria mandar comboPrice: 1, que es lo que se prorrateaba a cada
+ * turno y terminaba siendo el `service_price` guardado y el monto cobrado.
+ *
+ * El ORDEN de los servicios se conserva del cliente a proposito: es el orden
+ * que el cliente vio en pantalla y el que define los bloques de tiempo. Lo que
+ * cambia es de donde salen nombre, duracion y precio.
+ */
+async function resolveComboFromDb(
+  admin: SupabaseClient<Database>,
+  shopId: string,
+  comboId: string,
+  clientServiceIds: string[]
+): Promise<ResolvedCombo | null> {
+  const { data: combo } = await admin
+    .from("combos")
+    .select("id, name, price, active, shop_id")
+    .eq("id", comboId)
+    .eq("shop_id", shopId)
+    .maybeSingle();
+
+  // Un combo inactivo o de otro local no se puede agendar. Sin este chequeo, el
+  // comboId tambien seria controlados por el cliente.
+  if (!combo || !combo.active) return null;
+
+  const { data: links } = await admin
+    .from("combo_services")
+    .select("service_id")
+    .eq("combo_id", comboId);
+
+  const comboServiceIds = (links || []).map((l) => l.service_id);
+
+  // El set de servicios tambien se valida: sin esto se podrian agregar
+  // servicios sueltos al combo, o quitar los que el combo no incluye.
+  const requested = new Set(clientServiceIds);
+  if (
+    comboServiceIds.length === 0 ||
+    comboServiceIds.length !== requested.size ||
+    comboServiceIds.some((id) => !requested.has(id))
+  ) {
+    return null;
+  }
+
+  const { data: services } = await admin
+    .from("services")
+    .select("id, name, duration_minutes, price, pay_at_shop, shop_id")
+    .in("id", comboServiceIds);
+
+  const byId = new Map((services || []).map((s) => [s.id, s]));
+
+  // Todos tienen que existir, ser del mismo local y durar algo.
+  if (byId.size !== comboServiceIds.length) return null;
+  for (const s of byId.values()) {
+    if (s.shop_id !== shopId) return null;
+    if (!s.duration_minutes || s.duration_minutes <= 0) return null;
+  }
+
+  return {
+    name: combo.name,
+    price: Number(combo.price) || 0,
+    services: clientServiceIds.map((id) => {
+      const s = byId.get(id)!;
+      return {
+        id: s.id,
+        name: s.name,
+        // El guard de arriba ya salio con null si es null o <= 0.
+        duration_minutes: s.duration_minutes ?? 0,
+        price: Number(s.price) || 0,
+        pay_at_shop: s.pay_at_shop,
+      };
+    }),
+  };
 }
 
 const PENDING_PAYMENT_HOLD_MINUTES = 10;
@@ -888,7 +971,13 @@ export async function createPublicAppointment(data: {
       .select("id")
       .single();
 
-    if (aptError) return { success: false, error: aptError.message };
+    if (aptError) {
+      // La constraint de la migracion 109 rejects esto cuando otro request
+      // gano la carrera entre el ultimo chequeo y este insert. Se traduce al
+      // mismo error que usan los chequeos para que la UI no cambie.
+      if (isOverlapViolation(aptError)) return { success: false, error: "slot_taken" };
+      return { success: false, error: aptError.message };
+    }
 
     if (data.customerEmail) {
       try {
@@ -993,7 +1082,23 @@ export async function createPublicComboAppointment(data: {
       return { success: false, error: "Nombre inválido" };
     }
 
-    const totalDuration = data.services.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+    const combo = await resolveComboFromDb(
+      admin,
+      data.shopId,
+      data.comboId,
+      data.services.map((s) => s.id)
+    );
+    if (!combo) {
+      return { success: false, error: "El combo no esta disponible" };
+    }
+
+    // A partir de aca el precio y las duraciones son los de la base. Todo lo
+    // que sigue (prorrateo, service_price, monto de la seña) sale de `combo`.
+    const comboPrice = combo.price;
+    const comboName = combo.name;
+    const comboServices = combo.services;
+
+    const totalDuration = comboServices.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
     if (totalDuration <= 0) {
       return { success: false, error: "Duracion invalida" };
     }
@@ -1148,7 +1253,7 @@ export async function createPublicComboAppointment(data: {
         .select("service_id")
         .eq("staff_id", resolvedStaffId);
       if (staffServiceRows && staffServiceRows.length > 0) {
-        const assigned = data.services.every((svc) => staffServiceRows.some((r) => r.service_id === svc.id));
+        const assigned = comboServices.every((svc) => staffServiceRows.some((r) => r.service_id === svc.id));
         if (!assigned) {
           return { success: false, error: "El profesional no realiza uno de los servicios del combo" };
         }
@@ -1225,7 +1330,7 @@ export async function createPublicComboAppointment(data: {
 
         const assignedServices = servicesByStaff.get(sid);
         if (assignedServices && assignedServices.size > 0) {
-          const canDoAllComboServices = data.services.every((svc) => assignedServices!.has(svc.id));
+          const canDoAllComboServices = comboServices.every((svc) => assignedServices!.has(svc.id));
           if (!canDoAllComboServices) continue;
         }
 
@@ -1312,30 +1417,30 @@ export async function createPublicComboAppointment(data: {
     }
 
     // Prorate combo price across services
-    const totalOriginalPrice = data.services.reduce((sum, s) => sum + s.price, 0);
+    const totalOriginalPrice = comboServices.reduce((sum, s) => sum + s.price, 0);
     const proratedPrices: number[] = [];
 
-    for (const svc of data.services) {
+    for (const svc of comboServices) {
       const rawPrice = totalOriginalPrice > 0
-        ? (data.comboPrice * svc.price) / totalOriginalPrice
-        : data.comboPrice / data.services.length;
+        ? (comboPrice * svc.price) / totalOriginalPrice
+        : comboPrice / comboServices.length;
       proratedPrices.push(Math.round(rawPrice * 100) / 100);
     }
 
     // Adjust last service to absorb rounding remainder so sum matches comboPrice exactly
     const priceSum = proratedPrices.reduce((a, b) => a + b, 0);
-    const diff = Math.round((data.comboPrice - priceSum) * 100) / 100;
+    const diff = Math.round((comboPrice - priceSum) * 100) / 100;
     if (proratedPrices.length > 0 && Math.abs(diff) > 0) {
       proratedPrices[proratedPrices.length - 1] = Math.round((proratedPrices[proratedPrices.length - 1] + diff) * 100) / 100;
     }
 
     let runningMinutes = 0;
     const appointmentIds: string[] = [];
-    const combTotalDuration = data.services.reduce((sum, s) => sum + s.duration_minutes, 0);
+    const combTotalDuration = comboServices.reduce((sum, s) => sum + s.duration_minutes, 0);
     const combEndTime = new Date(startDate.getTime() + combTotalDuration * 60000).toISOString();
 
-    for (let i = 0; i < data.services.length; i++) {
-      const svc = data.services[i];
+    for (let i = 0; i < comboServices.length; i++) {
+      const svc = comboServices[i];
       const aptStart = new Date(startDate.getTime() + runningMinutes * 60000);
       const aptEnd = new Date(aptStart.getTime() + svc.duration_minutes * 60000);
 
@@ -1364,6 +1469,7 @@ export async function createPublicComboAppointment(data: {
             console.error("[createPublicComboAppointment] CRITICAL: rollback delete failed:", rollbackError);
           }
         }
+        if (isOverlapViolation(aptError)) return { success: false, error: "slot_taken" };
         return { success: false, error: aptError.message };
       }
 
@@ -1376,10 +1482,10 @@ export async function createPublicComboAppointment(data: {
       try {
         const [{ data: shop }, firstSvc] = await Promise.all([
           admin.from("shops").select("nombre, address, localidad, google_maps_url, phone, instagram_url, whatsapp_template").eq("id", data.shopId).maybeSingle(),
-          Promise.resolve(data.services[0]),
+          Promise.resolve(comboServices[0]),
         ]);
         const shopData = (shop as { nombre?: string | null; address?: string | null; localidad?: string | null; google_maps_url?: string | null; phone?: string | null; instagram_url?: string | null; whatsapp_template?: string | null } | null) || null;
-        const serviceName = data.comboName || firstSvc?.name || "Combo";
+        const serviceName = comboName || firstSvc?.name || "Combo";
         const locationParts = [shopData?.address?.trim(), shopData?.localidad?.trim()].filter(Boolean);
         const shopAddress = locationParts.length > 0 ? locationParts.join(", ") : undefined;
         const mapsUrl = shopData?.google_maps_url?.trim() || undefined;
@@ -1434,7 +1540,7 @@ type CreatePaymentPreferenceInput = {
   appointmentId: string;
   shopId: string;
   shopSlug: string;
-  overridePrice?: number;
+  comboId?: string;
   comboAppointmentIds?: string[];
 };
 
@@ -1496,7 +1602,84 @@ export async function createPaymentPreference(
     const serviceName = service.name;
     // MP pide payer.email en la preferencia para bajar rechazos por fraude.
     const customerEmail = (appointment.customers as unknown as { email?: string | null } | null)?.email?.trim();
-    const effectivePrice = appointmentData.overridePrice !== undefined ? appointmentData.overridePrice : (Number(service.price) || 0);
+
+    // El monto sale de la base, nunca del cliente.
+    //
+    // Antes se aceptaba `overridePrice`, que el cliente mandaba desde el Server
+    // Action: llamar a createPaymentPreference con overridePrice: 1 cobraba 1
+    // peso por un servicio de 40000. Es un Server Action publico, asi que eso
+    // era un descuento arbitrario a pedido.
+    //
+    // Para combos y carritos el total sale de la base. Antes se sumaba
+    // services.price, y eso estaba mal para los combos: un combo ES un
+    // descuento, asi que su precio es menor que la suma de sus partes. En los
+    // 11 combos de la base, por ejemplo, "color y keratina" cuesta 25.000 pero
+    // sus dos servicios suman 60.000, y se cobraba el doble.
+    //
+    // Se usa appointments.service_price, que ya es confiable: para combos
+    // createPublicComboAppointment prorratea desde el precio verificado en la
+    // base y ajusta el ultimo servicio para que la suma de EXACTAMENTE el
+    // precio del combo; para el carrito, createPublicAppointment guarda el
+    // precio del servicio que leyo de la base. services.price queda solo como
+    // fallback para turnos con service_price null.
+    const appointmentIds = Array.from(
+      new Set([appointment.id, ...(appointmentData.comboAppointmentIds || [])])
+    );
+
+    const { data: chargeRows } = await admin
+      .from("appointments")
+      .select("id, service_id, service_price")
+      .in("id", appointmentIds)
+      .eq("shop_id", appointmentData.shopId);
+
+    // Solo los turnos que realmente existen y son de este local entran al total.
+    const existingIds = new Set((chargeRows || []).map((r) => r.id));
+    if (!existingIds.has(appointment.id)) {
+      return { success: false, error: "Turno no encontrado para generar preferencia" };
+    }
+
+    const serviceIds = Array.from(
+      new Set((chargeRows || []).map((r) => r.service_id).filter((id): id is string => Boolean(id)))
+    );
+    const { data: chargeServices } = await admin
+      .from("services")
+      .select("id, name, price, hide_price")
+      .in("id", serviceIds);
+
+    const serviceById = new Map((chargeServices || []).map((s) => [s.id, s]));
+
+    // Un combo tiene precio propio: se cobra entero, sin filtro de hide_price.
+    // Si uno de sus servicios esta marcado "a convenir", el precio del combo
+    // sigue siendo el que se cobrar, y todos sus turnos entran como pagados.
+    //
+    // comboId lo manda el cliente pero se verifica contra la base: tiene que
+    // ser de este local, estar activo, y sus servicios tienen que ser
+    // exactamente los de estos turnos. Si no verifica, cae al camino del
+    // carrito, que igual cobra el precio de la base (service_price).
+    let effectivePrice = 0;
+    let paidAppointmentIds: string[] = [];
+
+    const resolvedCombo = appointmentData.comboId
+      ? await resolveComboFromDb(admin, appointmentData.shopId, appointmentData.comboId, serviceIds)
+      : null;
+
+    if (resolvedCombo) {
+      effectivePrice = resolvedCombo.price;
+      // Orden de appointmentIds: es el orden de los bloques de tiempo.
+      paidAppointmentIds = appointmentIds.filter((id) => existingIds.has(id));
+    } else {
+      for (const row of chargeRows || []) {
+        const svc = row.service_id ? serviceById.get(row.service_id) : null;
+        if (!svc || svc.hide_price) continue;
+        const stored = Number(row.service_price);
+        effectivePrice += stored > 0 ? stored : Number(svc.price) || 0;
+        paidAppointmentIds.push(row.id);
+      }
+    }
+
+    if (effectivePrice <= 0) {
+      return { success: false, error: "No hay nada para cobrar" };
+    }
 
     const { data: shopPolicy, error: shopPolicyError } = await admin
       .from("shops")
@@ -1579,6 +1762,10 @@ export async function createPaymentPreference(
         metadata: {
           appointment_id: appointment.id,
           shop_id: appointmentData.shopId,
+          // Set que calcula el servidor. El webhook confirma estos turnos y
+          // ningun otro: mandarle la lista desde el cliente permitia meter en
+          // el pago un servicio "a convenir" y que quedara confirmado sin pago.
+          paid_appointment_ids: JSON.stringify(paidAppointmentIds),
           ...(appointmentData.comboAppointmentIds ? { combo_appointment_ids: JSON.stringify(appointmentData.comboAppointmentIds) } : {}),
         },
       },
@@ -1722,9 +1909,61 @@ export async function createCombinedCheckout(
       return { success: false, error: "No se pudo crear el turno" };
     }
 
-    const serviceAmount = input.combo
-      ? input.combo.comboPrice
-      : (input.cartServices || []).reduce((sum, svc) => sum + svc.price, 0);
+    // El monto sale de los turnos recien creados, no del input. createPublicComboAppointment
+    // ya verifica el combo contra la base, asi que su service_price prorrateado
+    // es confiable; createPublicAppointment guarda el precio del servicio que leyo.
+    // Releerlos evita depender de lo que mandaba el cliente.
+    const { data: createdRows } = await admin
+      .from("appointments")
+      .select("id, service_id, service_price")
+      .in("id", appointmentIds)
+      .eq("shop_id", input.shopId);
+
+    const createdServiceIds = Array.from(
+      new Set((createdRows || []).map((r) => r.service_id).filter((id): id is string => Boolean(id)))
+    );
+
+    // Mismo criterio que createPaymentPreference: si es un combo verificado se
+    // cobra combos.price entero, sin filtro de hide_price. Si no, los servicios
+    // "a convenir" quedan fuera: se pagan en el local, y cobrarlos aqui los
+    // confirmaba sin pago.
+    const verifiedCombo = input.combo?.comboId
+      ? await resolveComboFromDb(admin, input.shopId, input.combo.comboId, createdServiceIds)
+      : null;
+
+    let serviceAmount: number;
+    let paidAppointmentIds: string[];
+
+    if (verifiedCombo) {
+      serviceAmount = verifiedCombo.price;
+      paidAppointmentIds = appointmentIds.slice();
+    } else {
+      const { data: createdServices } = await admin
+        .from("services")
+        .select("id, hide_price")
+        .in("id", createdServiceIds);
+      const hidePriceIds = new Set(
+        (createdServices || []).filter((s) => s.hide_price).map((s) => s.id)
+      );
+
+      const payableRows = (createdRows || []).filter(
+        (r) => !(r.service_id && hidePriceIds.has(r.service_id))
+      );
+
+      serviceAmount = payableRows.reduce(
+        (sum, row) => sum + (Number(row.service_price) || 0),
+        0
+      );
+
+      // En el orden en que se crearon: es el orden de los bloques de tiempo.
+      const payableIdSet = new Set(payableRows.map((r) => r.id));
+      paidAppointmentIds = appointmentIds.filter((id) => payableIdSet.has(id));
+    }
+
+    if (serviceAmount <= 0) {
+      await rollbackAppointments();
+      return { success: false, error: "No hay nada para cobrar" };
+    }
 
     // 2. Create the store order (stock already decremented)
     const orderResult = await createStoreOrderRecord({
@@ -1750,7 +1989,11 @@ export async function createCombinedCheckout(
     };
 
     const totalAmount = serviceAmount + productsAmount;
-    const mainAppointmentId = appointmentIds[0];
+    // El turno principal es el external_reference del pago y el primero que
+    // procesa el webhook, asi que tiene que ser uno de los que se cobran. El
+    // cliente manda el carrito completo, que puede arrancar con un servicio "a
+    // convenir"; si ese fuera el principal, quedaria confirmado sin pago.
+    const mainAppointmentId = paidAppointmentIds[0];
 
     // 3. Bank transfer — return the details so the client can show them
     if (input.paymentMethod === "bank_transfer") {
@@ -1861,6 +2104,9 @@ export async function createCombinedCheckout(
             appointment_id: mainAppointmentId,
             shop_id: input.shopId,
             order_id: orderId,
+            // Set que calcula el servidor; el webhook confirma estos turnos y
+            // ninguno mas. Ver createPaymentPreference para el detalle.
+            paid_appointment_ids: JSON.stringify(paidAppointmentIds),
             ...(input.combo ? { combo_appointment_ids: JSON.stringify(appointmentIds) } : {}),
           },
         },

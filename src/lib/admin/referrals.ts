@@ -6,6 +6,7 @@ import { generatePin, hashPin, pinLast4 } from "@/lib/referrals/partner-auth";
 import type { Database, Json } from "@/lib/supabase/database.types";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { resolveIndustry } from "@/lib/industry/resolve";
+import { toArgentinaLocalIsoString } from "@/lib/argentina-time";
 
 type ServiceClient = Awaited<ReturnType<typeof createServiceRoleClient>>;
 type LedgerInsert = Database["public"]["Tables"]["referral_commission_ledger"]["Insert"];
@@ -138,6 +139,7 @@ export type PartnerSummary = {
 
 export type ReferredShopItem = {
   shopId: string;
+  partnerId: string;
   shopName: string;
   shopSlug: string;
   industryName: string;
@@ -217,10 +219,13 @@ export type ReferralsAdminOverview = {
   }>;
 };
 
+/**
+ * Periodo contable en hora Argentina, no UTC. Con getUTC* un pago aprobado a las
+ * 21:00 ART del dia 31 caia en el mes siguiente, y `period_ym` es justamente la
+ * columna por la que el admin agrupa las transferencias del mes.
+ */
 function toYm(date: Date): string {
-  const y = date.getUTCFullYear();
-  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
-  return `${y}-${m}`;
+  return toArgentinaLocalIsoString(date).slice(0, 7);
 }
 
 function round2(value: number): number {
@@ -587,6 +592,10 @@ export async function fetchReferralsAdminOverview(): Promise<ReferralsAdminOverv
       .reduce((acc, item) => acc + Number(item.commission_amount || 0), 0);
     return {
       shopId: attr.shop_id,
+      // El id va explicito porque la UI lo necesita para reasignar sin
+      // depender del nombre: dos vendedores con el mismo nombre o uno
+      // renombrado hacian que el select cayera en el partner equivocado.
+      partnerId: attr.partner_id,
       shopName: shop?.nombre || "Local",
       shopSlug: shop?.slug || "-",
       industryName: shop ? INDUSTRY_CONFIG[resolveIndustry(shop.industry)].displayName : "-",
@@ -751,6 +760,69 @@ export async function syncReferralLedgerNow(options?: {
   }
 }
 
+/**
+ * Corre una fila que quedo en `needs_review` con el neto real.
+ *
+ * El sync crea la fila con comision 0 cuando no puede determinar cuanto entro a
+ * Klip (tipicamente un auto-cargo de MP que no se pudo resolver contra la API).
+ * Antes no habia ninguna forma de cerrarla desde la app: la fila quedaba
+ * terminal y para siempre consumiendo un slot de la ventana de comision del
+ * local. Ahora el admin carga el neto que verifico en el panel de MP y la fila
+ * pasa a pagable.
+ *
+ * El recalculo usa el mismo criterio que el sync —comision sobre el neto— para
+ * que una fila resuelta a mano sea indistinguible de una calculada sola.
+ */
+export async function resolveNeedsReviewLedgerRow(input: {
+  ledgerId: string;
+  netAmount: number;
+}): Promise<{ success: boolean; error?: string; commissionAmount?: number }> {
+  try {
+    await requireSuperAdmin();
+    const admin = await createServiceRoleClient();
+    const ledgerId = input.ledgerId.trim();
+    if (!ledgerId) return { success: false, error: "Falta la comision" };
+
+    const net = Number(input.netAmount);
+    if (!Number.isFinite(net) || net <= 0) {
+      return { success: false, error: "El neto tiene que ser mayor a 0" };
+    }
+
+    const { data: row } = await admin
+      .from("referral_commission_ledger")
+      .select("id, status, commission_percent, amount_source")
+      .eq("id", ledgerId)
+      .maybeSingle();
+
+    if (!row) return { success: false, error: "La comision no existe" };
+    if (row.status !== "needs_review") {
+      return { success: false, error: "Esa comision ya no esta para revisar" };
+    }
+
+    const commissionAmount = round2((net * Number(row.commission_percent || 0)) / 100);
+    const { error } = await admin
+      .from("referral_commission_ledger")
+      .update({
+        net_amount: round2(net),
+        commission_amount: commissionAmount,
+        amount_source: "manual_review",
+        status: "pending",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", ledgerId);
+
+    if (error) return { success: false, error: error.message };
+
+    await appendAdminAudit("referrals.resolve_needs_review", { ledgerId, netAmount: round2(net), commissionAmount });
+    return { success: true, commissionAmount };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "No se pudo resolver la comision",
+    };
+  }
+}
+
 export async function updateReferralProgramSettings(input: {
   defaultCommissionPercent: number;
   defaultCommissionMonths: number;
@@ -874,14 +946,27 @@ export async function upsertReferralPartner(input: {
       referral_code: referralCode,
       commission_percent_override: commissionPercentOverride,
       commission_months_override: commissionMonthsOverride,
-      payout_alias: input.payoutAlias?.trim() || null,
-      payout_cbu: input.payoutCbu?.trim() || null,
       is_active: input.isActive,
       updated_at: new Date().toISOString(),
     };
 
+    // Los datos de cobro se tocan SOLO si vienen explicitamente. Un update que no
+    // los manda (el form de editar nombre o telefono) tiene que dejarlos como
+    // estaban: antes se escribian siempre con `|| null` y por eso guardar el
+    // nombre de un vendedor borraba el alias y el CBU que Klip ya tenia cargados.
+    const payoutPatch =
+      input.payoutAlias !== undefined || input.payoutCbu !== undefined
+        ? {
+            payout_alias: input.payoutAlias?.trim() || null,
+            payout_cbu: input.payoutCbu?.trim() || null,
+          }
+        : null;
+
     if (input.partnerId) {
-      const { error } = await admin.from("referral_partners").update(payload).eq("id", input.partnerId);
+      const { error } = await admin
+        .from("referral_partners")
+        .update(payoutPatch ? { ...payload, ...payoutPatch } : payload)
+        .eq("id", input.partnerId);
       if (error) return { success: false, error: error.message };
       await appendAdminAudit("referrals.update_partner", { partnerId: input.partnerId, referralCode });
       return { success: true, partnerId: input.partnerId };
@@ -893,6 +978,7 @@ export async function upsertReferralPartner(input: {
       .from("referral_partners")
       .insert({
         ...payload,
+        ...(payoutPatch ?? { payout_alias: null, payout_cbu: null }),
         pin_hash: pinHash,
         pin_last4: pinLast4(pin),
         pin_updated_at: new Date().toISOString(),
@@ -1005,8 +1091,14 @@ export async function updateReferralPartnerOverrides(input: {
       .update({
         commission_percent_override: commissionPercentOverride,
         commission_months_override: commissionMonthsOverride,
-        payout_alias: input.payoutAlias?.trim() || null,
-        payout_cbu: input.payoutCbu?.trim() || null,
+        // Igual que en upsertReferralPartner: si el caller no manda los datos de
+        // cobro, no se tocan. El form de overrides solo se ocupa de la regla.
+        ...(input.payoutAlias !== undefined || input.payoutCbu !== undefined
+          ? {
+              payout_alias: input.payoutAlias?.trim() || null,
+              payout_cbu: input.payoutCbu?.trim() || null,
+            }
+          : {}),
         is_active: input.isActive,
         updated_at: new Date().toISOString(),
       })
@@ -1078,8 +1170,28 @@ export async function deleteReferralAttribution(shopId: string): Promise<{ succe
     const normalizedShopId = shopId.trim();
     if (!normalizedShopId) return { success: false, error: "Local invalido" };
 
-    await admin.from("referral_attributions").delete().eq("shop_id", normalizedShopId);
-    await appendAdminAudit("referrals.unassign_shop", { shopId: normalizedShopId });
+    const { error: deleteError } = await admin
+      .from("referral_attributions")
+      .delete()
+      .eq("shop_id", normalizedShopId);
+    if (deleteError) return { success: false, error: deleteError.message };
+
+    // Las comisiones todavia no transferidas de este local dejan de ser pagables.
+    // Antes quedaban en 'pending' y el admin podia pagarle a un vendedor por un
+    // local que ya no era suyo. Las 'paid' se conservan: son historia contable.
+    const { data: cancelled, error: cancelError } = await admin
+      .from("referral_commission_ledger")
+      .update({ status: "cancelled", updated_at: new Date().toISOString() })
+      .eq("shop_id", normalizedShopId)
+      .in("status", ["pending", "needs_review"])
+      .select("id");
+
+    if (cancelError) return { success: false, error: cancelError.message };
+
+    await appendAdminAudit("referrals.unassign_shop", {
+      shopId: normalizedShopId,
+      cancelledLedgerRows: cancelled?.length ?? 0,
+    });
     return { success: true };
   } catch (error) {
     return {
@@ -1126,9 +1238,19 @@ export async function assignReferralToShop(input: {
 
     const { data: existing } = await admin
       .from("referral_attributions")
-      .select("id")
+      .select("id, partner_id")
       .eq("shop_id", shopId)
       .maybeSingle();
+
+    // Reasignarle el MISMO vendedor no es una reasignacion: es el select del
+    // form reenviado. `attributed_at` es el reloj de la comision — buildLedgerDrafts
+    // cuenta solo los pagos posteriores a el y reinicia payment_sequence desde 1.
+    // Si lo moviamos aca, guardar el formulario sin cambiar nada regalaba N meses
+    // extra de comision encima de las filas que ya estaban en el ledger.
+    if (existing?.id && existing.partner_id === partnerId) {
+      await appendAdminAudit("referrals.assign_shop_noop", { shopId, partnerId });
+      return { success: true };
+    }
 
     const payload = {
       shop_id: shopId,

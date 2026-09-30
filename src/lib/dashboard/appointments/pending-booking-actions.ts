@@ -1,475 +1,29 @@
 "use server";
 
-import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
-import { MercadoPagoConfig, Preference } from "mercadopago";
-import { buildMpPaymentMethods, fetchShopMpPaymentConfig } from "@/lib/payments/mp-payment-config";
-import { buildShopNotificationUrl, resolveShopMpToken } from "@/lib/payments/shop-mp";
-import {
-  getArgentinaDateKey,
-  getArgentinaDateString,
-  getArgentinaMinutesSinceMidnight,
-} from "@/lib/argentina-time";
+import { canAccessShopId, createServiceRoleClient, getAuthSession } from "@/lib/dashboard/auth/server";
+import { getArgentinaDateKey } from "@/lib/argentina-time";
 import type { ActionResult } from "@/lib/types";
-import { createRateLimiter } from "@/lib/rate-limiter";
-import { headers } from "next/headers";
-import { fetchPublicShopDateOverrides } from "@/lib/dashboard/booking/public-booking-actions";
 import { sendAppointmentConfirmationEmail } from "@/lib/email/booking-emails";
 import { completedBookingCache } from "@/lib/booking-cache";
+import { isOverlapViolation } from "@/lib/db/overlap-violation";
 import "server-only";
 
-const createBookingLimiter = createRateLimiter({ intervalMs: 60_000, maxRequests: 10 });
-
-type PendingBookingInput = {
-  shopId: string;
-  shopSlug: string;
-  serviceId: string;
-  serviceName: string;
-  servicePrice: number;
-  staffId?: string;
-  customerName: string;
-  customerEmail?: string;
-  customerPhone: string;
-  authenticatedUserId?: string;
-  startTime: string;
-  endTime: string;
-  paymentMethod?: "mp" | "bank_transfer";
-};
-
-type CreatePendingBookingOutput = {
-  bookingId: string;
-  initPoint: string;
-  preferenceId: string;
-  chargedAmount: number;
-  isDeposit: boolean;
-  paymentMethod: "mp" | "bank_transfer";
-  bankDetails?: {
-    cvuCb: string;
-    alias: string;
-    bankName: string;
-  };
-  whatsappMessage?: string;
-};
-
-export async function createPendingBooking(
-  input: PendingBookingInput
-): Promise<ActionResult<CreatePendingBookingOutput>> {
-  try {
-    const headersList = await headers();
-    const ip = headersList.get("x-forwarded-for")?.split(",")[0]?.trim() || headersList.get("x-real-ip") || "unknown";
-    const rateCheck = await createBookingLimiter.check(`create-pending-booking:${ip}`);
-    if (!rateCheck.allowed) {
-      return { success: false, error: "Demasiadas solicitudes. Intenta de nuevo en unos segundos." };
-    }
-
-    const ipKey = `completed-booking:${ip}:${input.shopId}`;
-    if (completedBookingCache.has(ipKey) && !input.authenticatedUserId) {
-      return { success: false, error: "login_required" };
-    }
-
-    const admin = await createServiceRoleClient();
-
-    // Validate email
-    if (input.customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.customerEmail)) {
-      return { success: false, error: "Email inválido" };
-    }
-    const cleanPhone = input.customerPhone.replace(/\D/g, "");
-    if (cleanPhone.length < 7 || cleanPhone.length > 15) {
-      return { success: false, error: "Teléfono inválido" };
-    }
-
-    // Validate times
-    const startDate = new Date(input.startTime);
-    const endDate = new Date(input.endTime);
-    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || endDate <= startDate) {
-      return { success: false, error: "Horario invalido" };
-    }
-
-    // Validate hours
-    const bookingDate = getArgentinaDateKey(input.startTime);
-    const todayAr = getArgentinaDateString();
-    if (bookingDate < todayAr) {
-      return { success: false, error: "No se puede reservar en una fecha pasada" };
-    }
-    if (bookingDate === todayAr) {
-      const nowMinutes = getArgentinaMinutesSinceMidnight(new Date());
-      const bookingMinutes = getArgentinaMinutesSinceMidnight(input.startTime);
-      if (bookingMinutes < nowMinutes) {
-        return { success: false, error: "No se puede reservar en un horario pasado" };
-      }
-    }
-
-    const startMinutes = getArgentinaMinutesSinceMidnight(input.startTime);
-    const endMinutes = getArgentinaMinutesSinceMidnight(input.endTime);
-    const dayIndex = new Date(`${bookingDate}T12:00:00-03:00`).getDay();
-
-    // Validate against shop hours
-    const { data: shopHoursData } = await admin
-      .from("shops")
-      .select("business_hours")
-      .eq("id", input.shopId)
-      .maybeSingle();
-
-    let shopHoursRaw: Record<string, unknown> | null = null;
-    if (typeof shopHoursData?.business_hours === "string") {
-      try { shopHoursRaw = JSON.parse(shopHoursData.business_hours); } catch { shopHoursRaw = null; }
-    } else if (shopHoursData?.business_hours && typeof shopHoursData.business_hours === "object") {
-      shopHoursRaw = shopHoursData.business_hours as Record<string, unknown>;
-    }
-
-    const dayKey = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"][dayIndex];
-    const rawDay = shopHoursRaw?.[dayKey] as Record<string, unknown> | undefined;
-    const shopOpen = rawDay?.open === true;
-    const shopStartRaw = typeof rawDay?.start === "string" ? rawDay.start : "09:00";
-    const shopEndRaw = typeof rawDay?.end === "string" ? rawDay.end : "20:00";
-    const [shopSh, shopSm] = shopStartRaw.split(":").map(Number);
-    const [shopEh, shopEm] = shopEndRaw.split(":").map(Number);
-    const shopOpenMinutes = shopSh * 60 + shopSm;
-    const shopCloseMinutes = shopEh * 60 + shopEm;
-    const shopBreakStart = rawDay?.break_start ? String(rawDay.break_start) : null;
-    const shopBreakEnd = rawDay?.break_end ? String(rawDay.break_end) : null;
-
-    if (!shopOpen) {
-      return { success: false, error: "El local esta cerrado en ese horario" };
-    }
-    if (shopOpenMinutes >= shopCloseMinutes || startMinutes < shopOpenMinutes || endMinutes > shopCloseMinutes) {
-      return { success: false, error: "El horario seleccionado esta fuera del horario de atencion" };
-    }
-    if (shopBreakStart && shopBreakEnd) {
-      const [bsh, bsm] = shopBreakStart.split(":").map(Number);
-      const [beh, bem] = shopBreakEnd.split(":").map(Number);
-      const breakStart = bsh * 60 + bsm;
-      const breakEnd = beh * 60 + bem;
-      if (startMinutes < breakEnd && endMinutes > breakStart) {
-        return { success: false, error: "El horario seleccionado coincide con el descanso" };
-      }
-    }
-
-    // Check date overrides (defense in depth)
-    const pbOverrideResult = await fetchPublicShopDateOverrides(input.shopId, bookingDate, bookingDate);
-    if (pbOverrideResult.success && pbOverrideResult.data) {
-      const pbShopOverride = pbOverrideResult.data.find(o => o.staff_id === null);
-      if (pbShopOverride) {
-        if (pbShopOverride.is_closed) {
-          return { success: false, error: "El local esta cerrado este dia" };
-        }
-        if (pbShopOverride.start_time && pbShopOverride.end_time) {
-          const [ovSh, ovSm] = pbShopOverride.start_time.split(":").map(Number);
-          const [ovEh, ovEm] = pbShopOverride.end_time.split(":").map(Number);
-          const ovOpen = ovSh * 60 + ovSm;
-          const ovClose = ovEh * 60 + ovEm;
-          if (startMinutes < ovOpen || endMinutes > ovClose) {
-            return { success: false, error: "El horario seleccionado esta fuera del horario de atencion" };
-          }
-        }
-        if (pbShopOverride.break_start && pbShopOverride.break_end) {
-          const [bsh, bsm] = pbShopOverride.break_start.split(":").map(Number);
-          const [beh, bem] = pbShopOverride.break_end.split(":").map(Number);
-          const breakStart = bsh * 60 + bsm;
-          const breakEnd = beh * 60 + bem;
-          if (startMinutes < breakEnd && endMinutes > breakStart) {
-            return { success: false, error: "El horario seleccionado coincide con el descanso" };
-          }
-        }
-      }
-      if (input.staffId) {
-        const pbStaffOverride = pbOverrideResult.data.find(o => o.staff_id === input.staffId);
-        if (pbStaffOverride) {
-          if (pbStaffOverride.is_closed) {
-            return { success: false, error: "El profesional no trabaja este dia" };
-          }
-          if (pbStaffOverride.start_time && pbStaffOverride.end_time) {
-            const [ovSh, ovSm] = pbStaffOverride.start_time.split(":").map(Number);
-            const [ovEh, ovEm] = pbStaffOverride.end_time.split(":").map(Number);
-            const ovOpen = ovSh * 60 + ovSm;
-            const ovClose = ovEh * 60 + ovEm;
-            if (startMinutes < ovOpen || endMinutes > ovClose) {
-              return { success: false, error: "El horario seleccionado esta fuera del horario de atencion" };
-            }
-          }
-          if (pbStaffOverride.break_start && pbStaffOverride.break_end) {
-            const [bsh, bsm] = pbStaffOverride.break_start.split(":").map(Number);
-            const [beh, bem] = pbStaffOverride.break_end.split(":").map(Number);
-            const breakStart = bsh * 60 + bsm;
-            const breakEnd = beh * 60 + bem;
-            if (startMinutes < breakEnd && endMinutes > breakStart) {
-              return { success: false, error: "El horario seleccionado coincide con el descanso" };
-            }
-          }
-        }
-      }
-    }
-
-    // Clean up expired pending bookings
-    admin.from("pending_bookings").delete().lt("expires_at", new Date().toISOString()).then(() => {}, () => {});
-
-    // Check for conflicts with existing appointments (including old pending_payment within hold window)
-    // and other pending bookings
-    let aptConflictQuery = admin
-      .from("appointments")
-      .select("id, status, created_at")
-      .eq("shop_id", input.shopId)
-      .lt("start_time", input.endTime)
-      .gt("end_time", input.startTime)
-      .neq("status", "cancelled");
-
-    if (input.staffId) {
-      aptConflictQuery = aptConflictQuery.eq("staff_id", input.staffId);
-    }
-
-    let pendingConflictQuery = admin
-      .from("pending_bookings")
-      .select("id, ip_address")
-      .eq("shop_id", input.shopId)
-      .eq("status", "pending")
-      .gt("expires_at", new Date().toISOString())
-      .lt("start_time", input.endTime)
-      .gt("end_time", input.startTime);
-
-    if (input.staffId) {
-      pendingConflictQuery = pendingConflictQuery.eq("staff_id", input.staffId);
-    }
-
-    const [existingAppointments, existingPendingBookings] = await Promise.all([
-      aptConflictQuery,
-      pendingConflictQuery,
-    ]);
-
-    const hasConflict = (existingAppointments.data || []).some((apt) => {
-      if (apt.status === "pending_payment") {
-        if (!apt.created_at) return false;
-        const holdMs = 10 * 60 * 1000;
-        return Date.now() - new Date(apt.created_at).getTime() <= holdMs;
-      }
-      return apt.status !== "cancelled";
-    });
-
-    const pendingRows = existingPendingBookings.data || [];
-    // Let the same client re-take its own slot: a pending booking from the same IP
-    // (e.g. an abandoned or stale checkout) is released instead of blocking.
-    const ownPendingIds = pendingRows
-      .filter((pb) => pb.ip_address && pb.ip_address === ip)
-      .map((pb) => pb.id);
-    const hasOtherPending = pendingRows.some((pb) => !pb.ip_address || pb.ip_address !== ip);
-
-    if (hasConflict || hasOtherPending) {
-      return { success: false, error: "slot_taken" };
-    }
-
-    if (ownPendingIds.length > 0) {
-      await admin.from("pending_bookings").delete().in("id", ownPendingIds);
-    }
-
-    const { data: shopPolicy } = await admin
-      .from("shops")
-      .select("booking_deposit_enabled, booking_deposit_amount, mp_access_token")
-      .eq("id", input.shopId)
-      .maybeSingle();
-
-    const depositEnabled = shopPolicy?.booking_deposit_enabled !== false;
-    const configuredDeposit = Math.max(0, Number(shopPolicy?.booking_deposit_amount ?? 0));
-    const chargeAmount = depositEnabled
-      ? Math.max(1, Math.min(input.servicePrice, configuredDeposit > 0 ? configuredDeposit : input.servicePrice))
-      : Math.max(1, input.servicePrice);
-
-    const isBankTransfer = input.paymentMethod === "bank_transfer";
-
-    // Insert pending booking (atomic with unique constraint as safety net against race condition)
-    const { data: booking, error: insertError } = await admin
-      .from("pending_bookings")
-      .insert({
-        shop_id: input.shopId,
-        service_id: input.serviceId,
-        staff_id: input.staffId || null,
-        customer_name: input.customerName,
-        customer_email: input.customerEmail || null,
-        customer_phone: input.customerPhone,
-        authenticated_user_id: input.authenticatedUserId || null,
-        ip_address: ip,
-        start_time: input.startTime,
-        end_time: input.endTime,
-        status: "pending",
-        payment_method: isBankTransfer ? "bank_transfer" : "mp",
-        payment_amount: chargeAmount,
-        expires_at: new Date(Date.now() + (isBankTransfer ? 12 * 60 * 60 * 1000 : 15 * 60 * 1000)).toISOString(),
-      })
-      .select("id")
-      .single();
-
-    if (insertError) {
-      if (insertError.code === "23505") {
-        return { success: false, error: "slot_taken" };
-      }
-      return { success: false, error: insertError.message || "Error al crear reserva pendiente" };
-    }
-
-    if (!booking) {
-      return { success: false, error: "Error al crear reserva pendiente" };
-    }
-
-    // Bank transfer: return bank details + WhatsApp message, skip MP preference
-    if (isBankTransfer) {
-      const { data: shopBank } = await admin
-        .from("shops")
-        .select("bank_cvu_cbu, bank_alias, bank_name")
-        .eq("id", input.shopId)
-        .maybeSingle();
-
-      const bankDetails = {
-        cvuCb: shopBank?.bank_cvu_cbu || "",
-        alias: shopBank?.bank_alias || "",
-        bankName: shopBank?.bank_name || "",
-      };
-
-      const whatsappMessage = buildBankTransferWhatsAppMessage({
-        customerName: input.customerName,
-        serviceName: input.serviceName,
-        startTime: input.startTime,
-        chargedAmount: chargeAmount,
-        bankDetails,
-      });
-
-      return {
-        success: true,
-        data: {
-          bookingId: booking.id,
-          initPoint: "",
-          preferenceId: "",
-          chargedAmount: chargeAmount,
-          isDeposit: depositEnabled,
-          paymentMethod: "bank_transfer",
-          bankDetails,
-          whatsappMessage,
-        },
-      };
-    }
-
-    // MP flow: create preference. La sena la cobra el LOCAL, nunca Klip.
-    const shopMpToken = resolveShopMpToken(shopPolicy);
-    if (!shopMpToken.ok) {
-      await admin.from("pending_bookings").delete().eq("id", booking.id);
-      return { success: false, error: shopMpToken.error };
-    }
-    const accessToken = shopMpToken.accessToken;
-
-    const paymentMethods = buildMpPaymentMethods(
-      await fetchShopMpPaymentConfig(admin, input.shopId)
-    );
-
-    const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || "https://klip.com.ar").replace(/\/+$/, "");
-    const successUrl = `${baseUrl}/confirmacion?status=success&slug=${encodeURIComponent(input.shopSlug)}`;
-    const pendingUrl = `${baseUrl}/confirmacion?status=pending&slug=${encodeURIComponent(input.shopSlug)}`;
-    const failureUrl = `${baseUrl}/confirmacion?status=failure&slug=${encodeURIComponent(input.shopSlug)}`;
-    const notificationUrl = buildShopNotificationUrl(baseUrl, input.shopId);
-    const canUseBackUrls = /^https?:\/\//.test(baseUrl) && !/localhost|127\.0\.0\.1/.test(baseUrl);
-    const shouldSendWebhook = notificationUrl.startsWith("https://");
-
-    const client = new MercadoPagoConfig({ accessToken });
-    const preferenceApi = new Preference(client);
-
-    const preferenceResult = await preferenceApi.create({
-      body: {
-        items: [
-          {
-            id: booking.id,
-            title: input.serviceName,
-            description: `Seña - ${input.serviceName}`,
-            quantity: 1,
-            unit_price: chargeAmount,
-            currency_id: "ARS",
-          },
-        ],
-        ...(input.customerEmail?.trim() ? { payer: { email: input.customerEmail.trim() } } : {}),
-        back_urls: canUseBackUrls
-          ? { success: successUrl, pending: pendingUrl, failure: failureUrl }
-          : undefined,
-        auto_return: canUseBackUrls ? "approved" : undefined,
-        external_reference: `pending_booking:${booking.id}`,
-        notification_url: shouldSendWebhook ? notificationUrl : undefined,
-        ...(paymentMethods ? { payment_methods: paymentMethods } : {}),
-        metadata: {
-          pending_booking_id: booking.id,
-          shop_id: input.shopId,
-        },
-      },
-    });
-
-    if (!preferenceResult.id || !preferenceResult.init_point) {
-      await admin.from("pending_bookings").delete().eq("id", booking.id);
-      return { success: false, error: "No se pudo crear la preferencia de pago" };
-    }
-
-    await admin
-      .from("pending_bookings")
-      .update({ mp_preference_id: preferenceResult.id })
-      .eq("id", booking.id);
-
-    return {
-      success: true,
-      data: {
-        bookingId: booking.id,
-        initPoint: preferenceResult.init_point,
-        preferenceId: preferenceResult.id,
-        chargedAmount: chargeAmount,
-        isDeposit: depositEnabled,
-        paymentMethod: "mp",
-      },
-    };
-  } catch (e) {
-    return { success: false, error: e instanceof Error ? e.message : "Error al crear reserva pendiente" };
-  }
-}
-
-export async function deletePendingBooking(
-  bookingId: string,
-  shopId: string
-): Promise<ActionResult> {
-  try {
-    const admin = await createServiceRoleClient();
-    const { error } = await admin
-      .from("pending_bookings")
-      .delete()
-      .eq("id", bookingId)
-      .eq("shop_id", shopId)
-      .eq("status", "pending");
-
-    if (error) return { success: false, error: error.message };
-    return { success: true };
-  } catch (e) {
-    return { success: false, error: e instanceof Error ? e.message : "Error al cancelar reserva" };
-  }
-}
-
-function buildBankTransferWhatsAppMessage(params: {
-  customerName: string;
-  serviceName: string;
-  startTime: string;
-  chargedAmount: number;
-  bankDetails: { cvuCb: string; alias: string; bankName: string };
-}): string {
-  const date = new Date(params.startTime);
-  const day = date.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
-  const time = date.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false });
-
-  const lines = [
-    `Hola! Quiero confirmar mi pago por transferencia.`,
-    ``,
-    `Servicio: ${params.serviceName}`,
-    `Fecha: ${day} a las ${time}`,
-    `Monto: $${params.chargedAmount.toLocaleString("es-AR")}`,
-    `Nombre: ${params.customerName}`,
-  ];
-
-  if (params.bankDetails.alias) {
-    lines.push(`Alias: ${params.bankDetails.alias}`);
-  }
-  if (params.bankDetails.cvuCb) {
-    lines.push(`CVU/CBU: ${params.bankDetails.cvuCb}`);
-  }
-  if (params.bankDetails.bankName) {
-    lines.push(`Banco: ${params.bankDetails.bankName}`);
-  }
-
-  return lines.join("\n");
+/**
+ * Verifica que el caller sea miembro activo del local indicado.
+ *
+ * Este archivo tiene "use server" a nivel de modulo, asi que TODOS sus exports
+ * son endpoints RPC publicos aunque solo se llamen desde el servidor. Sin este
+ * guard, `getPendingBankTransfers` devolvia nombres y telefonos de los clientes
+ * de cualquier salon, y `confirmBankTransferBooking` creaba un turno confirmado
+ * y pagado en un local ajeno disparando los emails de confirmacion.
+ */
+async function requireShopAccess(shopId: string): Promise<ActionResult<string>> {
+  if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+  const session = await getAuthSession();
+  if (!session) return { success: false, error: "SESION_EXPIRADA" };
+  const allowed = await canAccessShopId(session.user.id, shopId);
+  if (!allowed) return { success: false, error: "SIN_ACCESO_LOCAL" };
+  return { success: true, data: shopId };
 }
 
 export type PendingBankTransfer = {
@@ -486,6 +40,9 @@ export type PendingBankTransfer = {
 
 export async function getPendingBankTransfers(shopId: string): Promise<ActionResult<PendingBankTransfer[]>> {
   try {
+    const access = await requireShopAccess(shopId);
+    if (!access.success) return { success: false, error: access.error };
+
     const admin = await createServiceRoleClient();
     const { data, error } = await admin
       .from("pending_bookings")
@@ -531,6 +88,9 @@ export async function confirmBankTransferBooking(
   shopId: string
 ): Promise<ActionResult> {
   try {
+    const access = await requireShopAccess(shopId);
+    if (!access.success) return { success: false, error: access.error };
+
     const admin = await createServiceRoleClient();
 
     // Fetch the pending booking
@@ -657,7 +217,13 @@ export async function confirmBankTransferBooking(
         payment_method: "bank_transfer",
       });
 
-    if (aptError) throw aptError;
+    if (aptError) {
+      // 23P01 = la constraint de la migracion 109: el horario ya tiene un turno
+      // confirmed de ese profesional. El local necesita verlo como "horario
+      // ocupado" para reubicar la reserva, no como una excepcion.
+      if (isOverlapViolation(aptError)) return { success: false, error: "slot_taken" };
+      throw aptError;
+    }
 
     // Cache the IP so repeat bookings from this IP trigger login_required
     if (booking.ip_address) {
@@ -706,6 +272,9 @@ export async function rejectBankTransferBooking(
   shopId: string
 ): Promise<ActionResult> {
   try {
+    const access = await requireShopAccess(shopId);
+    if (!access.success) return { success: false, error: access.error };
+
     const admin = await createServiceRoleClient();
     const { error } = await admin
       .from("pending_bookings")

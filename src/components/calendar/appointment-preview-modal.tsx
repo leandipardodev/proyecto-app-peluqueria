@@ -37,7 +37,6 @@ const statusFlow: Record<string, { label: string; nextStatus?: string; setIsPaid
     { label: "No se atendió", nextStatus: "cancelled", setIsPaid: false },
   ],
   pending_payment: [
-    { label: "Marcar pagado", nextStatus: "confirmed", setIsPaid: true, primary: true },
     { label: "Cancelar turno", nextStatus: "cancelled", setIsPaid: false },
   ],
   completed: [
@@ -171,15 +170,19 @@ export default function AppointmentPreviewModal({
     const newPaid = !localPaid;
     setError(null);
     setLocalPaid(newPaid);
+    // El switch de pago reemplaza al botón "Marcar pagado": confirmar es parte de cobrar.
+    const confirmsTurno = newPaid && localStatus === "pending_payment";
+    if (confirmsTurno) setLocalStatus("confirmed");
     startTransition(async () => {
       const result = await patchAppointmentQuick(
         appointment.id,
-        { isPaid: newPaid },
+        confirmsTurno ? { isPaid: true, status: "confirmed" } : { isPaid: newPaid },
         shopId,
       );
       if (!result.success) {
         setError(result.error);
         setLocalPaid(localPaid);
+        setLocalStatus(localStatus);
         return;
       }
       addToast(newPaid ? "Marcado como pagado" : "Marcado como no pagado", "success");
@@ -236,9 +239,11 @@ export default function AppointmentPreviewModal({
             <h2 className="text-2xl font-semibold text-gray-900 dark:text-white truncate tracking-tight leading-tight">
               {capitalizeName(appointment.customers?.nombre || "Sin cliente")}
             </h2>
-            <span className={`inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 uppercase tracking-wider ${statusColor(localStatus)}`}>
-              {getTurnoStatusLabel(localStatus)}
-            </span>
+            {localStatus !== "pending_payment" && (
+              <span className={`inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 uppercase tracking-wider ${statusColor(localStatus)}`}>
+                {getTurnoStatusLabel(localStatus)}
+              </span>
+            )}
           </div>
           <button
             onClick={requestClose}
@@ -302,7 +307,7 @@ export default function AppointmentPreviewModal({
             {appointment.deposit_amount != null && appointment.deposit_amount > 0 && (
               <div className="flex items-center justify-between px-4 py-3.5">
                 <span className="text-[15px] text-zinc-400 dark:text-zinc-400 w-20 shrink-0 lowercase" style={{ fontFamily: "var(--font-borel), cursive" }}>Seña</span>
-                <span className="text-[15px] font-medium text-amber-600 dark:text-amber-400 tabular-nums text-right">
+                <span className="text-[15px] font-medium text-gray-900 dark:text-white tabular-nums text-right">
                   ${appointment.deposit_amount.toLocaleString("es-AR")}
                 </span>
               </div>
@@ -316,13 +321,6 @@ export default function AppointmentPreviewModal({
               </div>
             )}
           </div>
-
-          {/* Pending payment warning */}
-          {appointment.was_pending_payment && (
-            <p className="text-xs text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200/50 dark:border-rose-800/30 rounded-2xl px-4 py-2.5">
-              Este turno quedaba con pago pendiente cuando se auto-completó.
-            </p>
-          )}
         </div>
 
         {/* Actions footer */}

@@ -1,6 +1,6 @@
 "use server";
 
-import { createServiceRoleClient, getCachedUser, canAccessShopId, requireOwnerShopId, requireShopId } from "@/lib/dashboard/auth/server";
+import { canAccessShopId, createServiceRoleClient, getCachedUser, requireOwnerShopId, requireShopId, resolveAuthorizedShopId } from "@/lib/dashboard/auth/server";
 import { createServerClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/database.types";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp/whatsapp-constants";
@@ -41,13 +41,9 @@ export type BusinessData = {
 
 export async function fetchBusinessData(shopIdOverride?: string): Promise<ActionResult<BusinessData>> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const { data, error } = await withRetry(async () => {
       const admin = await createAdminClient();
@@ -203,13 +199,9 @@ export type { BusinessHoursData } from "./business-hours-defaults";
 
 export async function fetchBusinessHours(shopIdOverride?: string): Promise<ActionResult<BusinessHoursData>> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const { data, error } = await withRetry(async () => {
       const admin = await createAdminClient();

@@ -209,17 +209,54 @@ export function makeOwnerCheckClient(userId = "test-owner") {
   } as never;
 }
 
-vi.mock("@/lib/dashboard/auth/server", () => ({
-  requireShopId: vi.fn(),
-  requireOwnerShopId: vi.fn(),
-  canAccessShopId: vi.fn(),
-  createServiceRoleClient: vi.fn(),
-  getAuthSession: vi.fn(),
-  getCachedUser: vi.fn(),
-  getShopId: vi.fn(),
-  getShopIdBySlug: vi.fn(),
-  getCurrentUserRole: vi.fn(),
-}));
+vi.mock("@/lib/dashboard/auth/server", () => {
+  // Declarados fuera del factory para que resolveAuthorizedShopId pueda delegar
+  // en ellos: los tests que controlan el error de requireShopId /
+  // requireOwnerShopId tienen que seguir propagandolo.
+  const requireShopId = vi.fn();
+  const requireOwnerShopId = vi.fn();
+  const getCurrentUserRole = vi.fn();
+  // Default: sesion autenticada. Casi todos los tests del repo asumen un
+  // usuario logueado; los que necesitan "sin sesion" lo mockean a null.
+  const getAuthSession = vi.fn(async () => ({ user: { id: "user-1" } }));
+
+  return {
+    requireShopId,
+    requireOwnerShopId,
+    canAccessShopId: vi.fn(),
+    createServiceRoleClient: vi.fn(),
+    getAuthSession,
+    getCachedUser: vi.fn(),
+    getShopId: vi.fn(),
+    getShopIdBySlug: vi.fn(),
+    getCurrentUserRole,
+    // Reproduce la semantica real: sin override delega en el resolver de la
+    // sesion; con override exige sesion + membresia activa (y owner si
+    // mode="owner"). Mantenerlo fiel importa porque es lo que verifican los
+    // tests de aislamiento de tenant.
+    resolveAuthorizedShopId: vi.fn(async (shopIdOverride?: string, mode: "owner" | "member" = "owner") => {
+      if (!shopIdOverride) {
+        const resolved = mode === "owner" ? await requireOwnerShopId() : await requireShopId();
+        if (!resolved || !resolved.success) {
+          return { success: false, error: resolved?.error ?? "SESION_EXPIRADA" };
+        }
+        const data = (resolved as { data?: string }).data;
+        if (!data) return { success: false, error: "LOCAL_INVALIDO" };
+        return { success: true, data };
+      }
+
+      const session = await getAuthSession();
+      if (!session) return { success: false, error: "SESION_EXPIRADA" };
+
+      const role = await getCurrentUserRole(shopIdOverride);
+      if (!role || !role.success || !role.data) return { success: false, error: "SIN_ACCESO_LOCAL" };
+      if (mode === "owner" && role.data.role !== "owner") {
+        return { success: false, error: "Solo el owner del local puede realizar esta accion" };
+      }
+      return { success: true, data: shopIdOverride };
+    }),
+  };
+});
 
 vi.mock("@/lib/retry", () => ({
   withRetry: vi.fn((fn: () => unknown) => fn()),

@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState, useEffect, useCallback, memo } from "react";
 import Image from "next/image";
+import { Spinner } from "@/components/ui/spinner";
 import type { Industry } from "@/lib/industry/types";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import type { BookingTemplateId } from "@/lib/booking/theme-presets";
@@ -73,6 +74,7 @@ type Props = {
   onSectionRename?: (oldName: string, newName: string) => void;
   onSectionReorder?: (reordered: string[]) => void;
   onLogoUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  logoUploading?: boolean;
   industry?: Industry;
   disabled?: boolean;
   address?: string;
@@ -360,6 +362,7 @@ export default function BookingThemeLivePreview({
   onSectionRename,
   onSectionReorder,
   onLogoUpload,
+  logoUploading = false,
   industry = "peluqueria",
   disabled = false,
   address,
@@ -670,20 +673,24 @@ export default function BookingThemeLivePreview({
                   {/* Header */}
                   <div className="pb-3">
                     <div className="flex items-center gap-3">
-                      <label className="group relative h-12 w-12 flex items-center justify-center shrink-0 rounded-full focus-visible:ring-2 focus-visible:ring-[#7AB8FF]/50 outline-none cursor-pointer ring-[#0071E3]/0 hover:ring-2 hover:ring-[#0071E3]/30 transition-all duration-200">
-                        <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={onLogoUpload} disabled={disabled} className="sr-only" />
+                      <label className={`group relative h-12 w-12 flex items-center justify-center shrink-0 rounded-full focus-visible:ring-2 focus-visible:ring-[#7AB8FF]/50 outline-none ring-[#0071E3]/0 hover:ring-2 hover:ring-[#0071E3]/30 transition-all duration-200 ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
+                        <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={onLogoUpload} disabled={disabled || logoUploading} className="sr-only" />
                         {logoUrl ? (
                           <Image src={logoUrl} alt="Logo" width={96} height={96} sizes="48px" className="h-full w-full object-contain" />
                         ) : (
                           <span className={`text-lg font-semibold tracking-tight ${s.accent}`}>K</span>
                         )}
                         <span className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-all duration-200 rounded-full pointer-events-none">
-                          <svg className="w-4 h-4 text-white opacity-0 group-hover:opacity-80 transition-all duration-200 drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                          </svg>
+                          {logoUploading ? (
+                            <Spinner className="h-4 w-4 text-white" />
+                          ) : (
+                            <svg className="w-4 h-4 text-white opacity-0 group-hover:opacity-80 transition-all duration-200 drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                          )}
                         </span>
-                        {!disabled && <span className="absolute -top-0.5 -right-0.5"><EditDot /></span>}
+                        {!disabled && !logoUploading && <span className="absolute -top-0.5 -right-0.5"><EditDot /></span>}
                       </label>
                       <div className="min-w-0">
                         <span className="[&>span]:!w-auto flex items-center gap-1.5">

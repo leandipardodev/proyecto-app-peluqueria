@@ -13,19 +13,21 @@ import {
   updateBookingDepositPolicyAction,
 } from "@/lib/dashboard/shop/business-actions";
 import {
-  requireShopId as mockRequireShopId,
-  requireOwnerShopId as mockRequireOwnerShopId,
-  createServiceRoleClient as mockCreateServiceRole,
-} from "@/lib/dashboard/auth/server";
+    requireShopId as mockRequireShopId,
+    requireOwnerShopId as mockRequireOwnerShopId,
+    getCurrentUserRole as mockGetCurrentUserRole,
+    createServiceRoleClient as mockCreateServiceRole,
+  } from "@/lib/dashboard/auth/server";
 import { revalidateDashboardSegments as mockRevalidate } from "@/lib/dashboard/shared/revalidate-dashboard";
 import { supabaseStub, chainableQuery } from "@/__tests__/setup";
 
 beforeEach(() => {
   vi.clearAllMocks();
   vi.unstubAllEnvs();
-  vi.mocked(mockRequireShopId).mockResolvedValue({ success: true, data: "shop-123" });
-  vi.mocked(mockRequireOwnerShopId).mockResolvedValue({ success: true, data: "shop-123" });
-  vi.mocked(mockCreateServiceRole).mockResolvedValue(supabaseStub());
+    vi.mocked(mockRequireShopId).mockResolvedValue({ success: true, data: "shop-123" });
+    vi.mocked(mockRequireOwnerShopId).mockResolvedValue({ success: true, data: "shop-123" });
+    vi.mocked(mockGetCurrentUserRole).mockResolvedValue({ success: true, data: { role: "owner", userId: "u1" } } as never);
+    vi.mocked(mockCreateServiceRole).mockResolvedValue(supabaseStub());
 });
 
 // ---------------------------------------------------------------------------
@@ -93,21 +95,38 @@ describe("fetchBusinessData", () => {
     expect(result.data.booking_deposit_enabled).toBe(false);
   });
 
-  it("uses shopIdOverride instead of requireShopId", async () => {
-    vi.mocked(mockCreateServiceRole).mockResolvedValue({
-      from: vi.fn(() => chainableQuery({
-        maybeSingle: vi.fn().mockResolvedValue({
-          data: { id: "override-shop", nombre: "Override", mp_public_key: "", mp_access_token: "" },
-          error: null,
-        }),
-      })),
-    } as never);
+    it("autoriza el shopIdOverride explicito contra la membresia", async () => {
+      vi.mocked(mockCreateServiceRole).mockResolvedValue({
+        from: vi.fn(() => chainableQuery({
+          maybeSingle: vi.fn().mockResolvedValue({
+            data: { id: "override-shop", nombre: "Override", mp_public_key: "", mp_access_token: "" },
+            error: null,
+          }),
+        })),
+      } as never);
+      vi.mocked(mockGetCurrentUserRole).mockResolvedValue({
+        success: true,
+        data: { role: "owner", userId: "u1" },
+      } as never);
 
-    const result = await fetchBusinessData("override-shop");
-    expect(result.success).toBe(true);
-    expect(mockRequireShopId).not.toHaveBeenCalled();
+      const result = await fetchBusinessData("override-shop");
+      expect(result.success).toBe(true);
+      // El shopId explicito NO puede saltarse la verificacion de membresia:
+      // antes solo se usaba requireShopId cuando NO venia argumento.
+      expect(mockGetCurrentUserRole).toHaveBeenCalledWith("override-shop");
+    });
+
+    it("rechaza un shopIdOverride de un local del que no es miembro", async () => {
+      vi.mocked(mockGetCurrentUserRole).mockResolvedValue({
+        success: false,
+        error: "SIN_ACCESO",
+      } as never);
+
+      const result = await fetchBusinessData("shop-ajeno");
+      expect(result).toEqual({ success: false, error: "SIN_ACCESO_LOCAL" });
+    });
   });
-});
+
 
 // ---------------------------------------------------------------------------
 // updateBusinessInfo

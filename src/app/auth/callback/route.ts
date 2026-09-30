@@ -5,6 +5,7 @@ import type { Database } from "@/lib/supabase/database.types";
 import { resolveIndustry } from "@/lib/industry/resolve";
 import { DEFAULT_ASSIGN_STAFF_LATER } from "@/lib/industry/types";
 import { DASHBOARD_LEGACY_SEGMENTS_SET } from "@/lib/dashboard/shared/legacy-segments";
+import { safeInternalPath } from "@/lib/auth-redirect";
 import { trackProductEvent } from "@/lib/analytics/product-events";
 import { attributeShopToPartner, recordReferralLinkClick } from "@/lib/admin/referrals";
 import { REFERRAL_CODE_COOKIE, verifyReferralCookieToken } from "@/lib/referrals/partner-auth";
@@ -75,21 +76,22 @@ async function attributeNewShopFromReferralLink(shopId: string, request: NextReq
 }
 
 function buildDashboardRedirectPath(nextPath: string | null, slug: string | null): string {
-  if (!slug) return nextPath && nextPath.startsWith("/") ? nextPath : "/dashboard";
+  const safeNext = safeInternalPath(nextPath, "");
+  if (!slug) return safeNext || "/dashboard";
 
-  if (!nextPath || !nextPath.startsWith("/")) {
+  if (!safeNext) {
     return `/dashboard/${slug}`;
   }
 
-  if (!nextPath.startsWith("/dashboard")) {
-    return nextPath;
+  if (!safeNext.startsWith("/dashboard")) {
+    return safeNext;
   }
 
-  const queryIndex = nextPath.indexOf("?");
-  const hashIndex = nextPath.indexOf("#");
-  const cutIndex = [queryIndex, hashIndex].filter((v) => v >= 0).sort((a, b) => a - b)[0] ?? nextPath.length;
-  const pathname = nextPath.slice(0, cutIndex);
-  const suffix = nextPath.slice(cutIndex);
+  const queryIndex = safeNext.indexOf("?");
+  const hashIndex = safeNext.indexOf("#");
+  const cutIndex = [queryIndex, hashIndex].filter((v) => v >= 0).sort((a, b) => a - b)[0] ?? safeNext.length;
+  const pathname = safeNext.slice(0, cutIndex);
+  const suffix = safeNext.slice(cutIndex);
 
   const parts = pathname.split("/").filter(Boolean);
   const dashboardTail = parts.slice(1);
@@ -590,11 +592,12 @@ export async function GET(request: NextRequest) {
     }
     }
 
+    const safeNext = safeInternalPath(nextPath, "");
     const redirectUrl =
       isDashboardRole
         ? new URL(buildDashboardRedirectPath(nextPath, dashboardSlug), request.url)
-        : nextPath && nextPath.startsWith("/")
-          ? new URL(nextPath, request.url)
+        : safeNext
+          ? new URL(safeNext, request.url)
           : serviceId
             ? new URL(`/client/book?serviceId=${serviceId}${staffId ? `&staffId=${staffId}` : ""}`, request.url)
             : shopSlug

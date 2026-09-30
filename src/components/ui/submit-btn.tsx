@@ -2,6 +2,7 @@
 
 import { forwardRef, type ButtonHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
+import { Spinner } from "@/components/ui/spinner";
 
 interface SubmitBtnProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   isPending?: boolean;
@@ -58,7 +59,7 @@ export const SubmitBtn = forwardRef<HTMLButtonElement, SubmitBtnProps>(
       >
         {isPending ? (
           <span className="inline-flex items-center gap-2">
-            <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            <Spinner />
             {pendingText}
           </span>
         ) : (

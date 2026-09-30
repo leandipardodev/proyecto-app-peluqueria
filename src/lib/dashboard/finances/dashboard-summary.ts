@@ -1,7 +1,7 @@
 "use server";
 
 import { createServerClient } from "@/lib/supabase/server";
-import { requireShopId } from "@/lib/dashboard/auth/server";
+import { requireShopId, resolveAuthorizedShopId } from "@/lib/dashboard/auth/server";
 import {
   getArgentinaDateString,
   getArgentinaDayBounds,
@@ -42,13 +42,9 @@ type DashboardSummary = {
 
 export async function fetchDashboardSummary(shopIdOverride?: string): Promise<ActionResult<DashboardSummary>> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const supabase = await createServerClient();
 
@@ -263,13 +259,9 @@ async function fetchFlowRange(
 
 export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<ActionResult<DashboardMetrics>> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const admin = await createAdminClient();
 

@@ -55,6 +55,12 @@ export async function fetchPublicStoreProducts(shopId: string): Promise<ActionRe
 
 export type StoreCheckoutItem = { productId: string; quantity: number };
 
+/**
+ * "cash" = el local cobra en el local (shops.pay_at_shop). El pedido se registra
+ * como pendiente para que el local lo cobre en persona, sin preference de MP.
+ */
+export type StorePaymentMethod = "mp" | "bank_transfer" | "cash";
+
 export type StoreCheckoutInput = {
   shopId: string;
   shopSlug: string;
@@ -62,7 +68,7 @@ export type StoreCheckoutInput = {
   customerName: string;
   customerEmail: string;
   customerPhone?: string;
-  paymentMethod: "mp" | "bank_transfer";
+  paymentMethod: StorePaymentMethod;
 };
 
 export type StoreCheckoutOutput = {
@@ -98,6 +104,7 @@ export async function createStoreOrderRecord(input: {
   customerName: string;
   customerEmail: string;
   customerPhone?: string;
+  paymentMethod?: StorePaymentMethod;
 }): Promise<ActionResult<StoreOrderRecord>> {
   try {
     const items = input.items.filter((i) => i.productId && Number.isInteger(i.quantity) && i.quantity > 0);
@@ -151,7 +158,7 @@ export async function createStoreOrderRecord(input: {
         customer_name: customerName,
         customer_email: customerEmail,
         customer_phone: input.customerPhone?.trim() || null,
-        payment_method: "mp",
+        payment_method: input.paymentMethod ?? "mp",
         total_amount: totalAmount,
         status: "pending_payment",
       })
@@ -212,12 +219,20 @@ export async function createStoreOrder(input: StoreCheckoutInput): Promise<Actio
       customerName: input.customerName,
       customerEmail: input.customerEmail,
       customerPhone: input.customerPhone,
+      paymentMethod: input.paymentMethod,
     });
     if (!record.success || !record.data) return record;
 
     const { orderId, lineItems, totalAmount } = record.data;
 
     const admin = await createAdminClient();
+
+    // El local cobra en el local: el pedido queda pendiente para cobrarlo en
+    // persona. No hay preference, no hay CBU, no hay webhook. El stock ya esta
+    // descontado y el local lo descuenta al confirmar el cobro.
+    if (input.paymentMethod === "cash") {
+      return { success: true, data: { orderId, totalAmount } };
+    }
 
     if (input.paymentMethod === "bank_transfer") {
       const { data: shop } = await admin

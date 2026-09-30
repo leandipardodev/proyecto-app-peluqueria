@@ -1,6 +1,6 @@
 "use server";
 
-import { createServiceRoleClient, requireOwnerShopId, requireShopId } from "@/lib/dashboard/auth/server";
+import { createServiceRoleClient, requireOwnerShopId, requireShopId, resolveAuthorizedShopId } from "@/lib/dashboard/auth/server";
 import { revalidateDashboardSegments } from "@/lib/dashboard/shared/revalidate-dashboard";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
@@ -29,13 +29,9 @@ type ComboRow = {
 
 export async function fetchCombos(shopIdOverride?: string): Promise<ActionResult<ComboRow[]>> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const admin = await createAdminClient();
 
@@ -104,13 +100,9 @@ export async function createCombo(
   shopIdOverride?: string
 ): Promise<ActionResult> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireOwnerShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "owner");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const name = formData.get("name") as string;
     const description = formData.get("description") as string;
@@ -157,13 +149,9 @@ export async function updateCombo(
   shopIdOverride?: string
 ): Promise<ActionResult> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireOwnerShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "owner");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const name = formData.get("name") as string;
     const description = formData.get("description") as string;
@@ -212,13 +200,9 @@ export async function updateCombo(
 
 export async function deleteCombo(id: string, shopIdOverride?: string): Promise<ActionResult> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireOwnerShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "owner");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const admin = await createAdminClient();
     const { error } = await admin.from("combos").delete().eq("id", id).eq("shop_id", shopId);
@@ -233,13 +217,9 @@ export async function deleteCombo(id: string, shopIdOverride?: string): Promise<
 
 export async function toggleComboActive(id: string, shopIdOverride?: string): Promise<ActionResult> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireOwnerShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "owner");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const admin = await createAdminClient();
 

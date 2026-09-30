@@ -1,10 +1,10 @@
 "use server";
 
 import { createServerClient } from "@/lib/supabase/server";
-import { getCurrentUserRole, requireOwnerShopId, requireShopId } from "@/lib/dashboard/auth/server";
+import { getCurrentUserRole, requireOwnerShopId, requireShopId, resolveAuthorizedShopId } from "@/lib/dashboard/auth/server";
 import { createAdminClient } from "@/lib/dashboard/appointments/shared";
 import { revalidateDashboardSegments } from "@/lib/dashboard/shared/revalidate-dashboard";
-import { processProductImage, productImageStoragePath } from "@/lib/dashboard/store/image-upload";
+import { processProductImage, productImageStoragePath, withImageVersion } from "@/lib/dashboard/store/image-upload";
 import type { ActionResult } from "@/lib/types";
 import "server-only";
 
@@ -26,13 +26,9 @@ export type StockItem = {
 
 export async function fetchStockItems(shopIdOverride?: string): Promise<ActionResult<StockItem[]>> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const supabase = await createServerClient();
 
@@ -60,13 +56,9 @@ export async function fetchStockItems(shopIdOverride?: string): Promise<ActionRe
 
 export async function addProduct(formData: FormData, shopIdOverride?: string): Promise<ActionResult<{ id: string }>> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireOwnerShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "owner");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const nombreProducto = (formData.get("nombre_producto") as string) || (formData.get("name") as string);
     const quantity = parseInt(formData.get("quantity") as string);
@@ -117,7 +109,7 @@ export async function addProduct(formData: FormData, shopIdOverride?: string): P
       });
       if (uploadRes.error) return { success: false, error: uploadRes.error.message };
       const { data: publicData } = admin.storage.from("booking-assets").getPublicUrl(storagePath);
-      imageUrl = publicData.publicUrl;
+      imageUrl = withImageVersion(publicData.publicUrl);
       const { error: imageError } = await admin
         .from("stock")
         .update({ image_url: imageUrl })
@@ -146,13 +138,9 @@ export async function addProducts(
   shopIdOverride?: string,
 ): Promise<ActionResult> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireOwnerShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "owner");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const validProducts = products.filter((p) => p.nombre_producto?.trim());
     if (validProducts.length === 0) {
@@ -214,7 +202,7 @@ export async function addProducts(
         const { data: publicData } = admin.storage.from("booking-assets").getPublicUrl(storagePath);
         await admin
           .from("stock")
-          .update({ image_url: publicData.publicUrl })
+          .update({ image_url: withImageVersion(publicData.publicUrl) })
           .eq("id", row.id)
           .eq("shop_id", shopId);
       }
@@ -229,13 +217,9 @@ export async function addProducts(
 
 export async function setShopStoreEnabled(enabled: boolean, shopIdOverride?: string): Promise<ActionResult> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireOwnerShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "owner");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const roleResult = await getCurrentUserRole(shopId);
     if (!roleResult.success) return { success: false, error: roleResult.error || "SIN_ACCESO" };
@@ -271,13 +255,9 @@ export async function setShopStoreEnabled(enabled: boolean, shopIdOverride?: str
 
 export async function toggleForSale(id: string, enabled: boolean, shopIdOverride?: string): Promise<ActionResult> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireOwnerShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "owner");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const admin = await createAdminClient();
     const { error } = await admin
@@ -297,13 +277,9 @@ export async function toggleForSale(id: string, enabled: boolean, shopIdOverride
 
 export async function updateSaleDetails(id: string, formData: FormData, shopIdOverride?: string): Promise<ActionResult> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireOwnerShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "owner");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const price = parseFloat(formData.get("price") as string);
     const description = ((formData.get("description") as string) || "").trim() || null;
@@ -339,7 +315,7 @@ export async function updateSaleDetails(id: string, formData: FormData, shopIdOv
       });
       if (uploadRes.error) return { success: false, error: uploadRes.error.message };
       const { data: publicData } = admin.storage.from("booking-assets").getPublicUrl(storagePath);
-      updates.image_url = publicData.publicUrl;
+      updates.image_url = withImageVersion(publicData.publicUrl);
     }
 
     const { error } = await admin.from("stock").update(updates).eq("id", id).eq("shop_id", shopId);
@@ -355,13 +331,9 @@ export async function updateSaleDetails(id: string, formData: FormData, shopIdOv
 
 export async function updateStock(id: string, delta: number, shopIdOverride?: string): Promise<ActionResult> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireOwnerShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "owner");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const supabase = await createServerClient();
 
@@ -401,13 +373,9 @@ export async function applyStockBatchAdjustments(
   shopIdOverride?: string,
 ): Promise<ActionResult> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireOwnerShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "owner");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const normalized = adjustments
       .filter((a) => a.id && Number.isFinite(a.delta) && a.delta !== 0)
@@ -457,13 +425,9 @@ export async function applyStockBatchAdjustments(
 
 export async function deleteProduct(id: string, shopIdOverride?: string): Promise<ActionResult> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireOwnerShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "owner");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const supabase = await createServerClient();
     const { data: existing } = await supabase

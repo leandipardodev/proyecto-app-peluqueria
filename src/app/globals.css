@@ -352,6 +352,12 @@ input[type="number"]::-webkit-inner-spin-button {
   animation: slide-up 0.25s ease-out;
 }
 
+/* Barra de auto-ocultado de los avisos flotantes */
+@keyframes toast-progress {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
 @keyframes glass-sheen-sweep {
   0% { transform: translateX(-170%) skewX(-16deg); opacity: 0; }
   3% { opacity: 0.1; }
@@ -543,13 +549,6 @@ select,
   -webkit-user-select: text;
   user-select: text;
   -webkit-touch-callout: default;
-}
-
-.force-spin,
-.force-spin * {
-  animation: spin 1s linear infinite !important;
-  animation-duration: 1s !important;
-  animation-iteration-count: infinite !important;
 }
 
 /* Cursores de mano personalizados para drag & drop del calendario */

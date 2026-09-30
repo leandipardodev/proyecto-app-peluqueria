@@ -506,4 +506,38 @@ describe("sync del ledger de comisiones", () => {
     expect(upserted).toHaveLength(1);
     expect(upsertOptions[0]).toMatchObject({ onConflict: "billing_event_id", ignoreDuplicates: true });
   });
+
+  it("el periodo se cuenta en hora Argentina, no en UTC", async () => {
+    // El mock global de argentina-time devuelve ISO en UTC, asi que para probar
+    // el fix hay que restaurar el calculo real de la zona.
+    const time = await import("@/lib/argentina-time");
+    const previous = vi.mocked(time.toArgentinaLocalIsoString).getMockImplementation();
+    const art = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Argentina/Buenos_Aires" });
+    vi.mocked(time.toArgentinaLocalIsoString).mockImplementation(
+      (value) => `${art.format(typeof value === "string" ? new Date(value) : value)}T00:00:00` as never,
+    );
+
+    try {
+      const result = await runSync({
+        referral_program_settings: [SETTINGS],
+        referral_partners: [partner()],
+        referral_attributions: [attribution()],
+        shop_billing_events: [
+          // 01:00 UTC del 1 de febrero son las 22:00 del 31 de enero en Argentina.
+          // Con getUTC* la fila caia en el mes siguiente y el admin la buscaba
+          // en el lugar equivocado al pagar.
+          appliedEvent("e1", "2030-02-01T01:00:00.000Z", {
+            gross_amount: 40000,
+            mp_fee: 1400,
+            net_amount: 38600,
+          }),
+        ],
+        referral_commission_ledger: [],
+      });
+
+      expect(result.drafts[0].period_ym).toBe("2030-01");
+    } finally {
+      if (previous) vi.mocked(time.toArgentinaLocalIsoString).mockImplementation(previous);
+    }
+  });
 });

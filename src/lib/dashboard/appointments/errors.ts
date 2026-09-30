@@ -27,6 +27,10 @@ const ERROR_MAP: Record<string, string> = {
   "La reserva expiró": "La reserva expiró.",
   "La reserva ya fue procesada": "La reserva ya fue procesada.",
   "El turno ya no está disponible": "Ese turno ya no está disponible.",
+  // Errores nuevos: la exclusion constraint de la migracion 109 traduce 23P01
+  // a slot_taken, y el combo ahora se valida contra la base.
+  "El combo no esta disponible": "El combo ya no está disponible. Actualizá la página.",
+  "No hay nada para cobrar": "No hay nada para cobrar por este turno.",
 };
 
 export function getUserFriendlyError(error: string | null | undefined): string {

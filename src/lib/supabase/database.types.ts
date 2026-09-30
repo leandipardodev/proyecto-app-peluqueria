@@ -508,6 +508,7 @@ export type Database = {
       }
       email_verifications: {
         Row: {
+          attempts: number
           code: string
           created_at: string
           email: string
@@ -516,6 +517,7 @@ export type Database = {
           verified_at: string | null
         }
         Insert: {
+          attempts?: number
           code: string
           created_at?: string
           email: string
@@ -524,6 +526,7 @@ export type Database = {
           verified_at?: string | null
         }
         Update: {
+          attempts?: number
           code?: string
           created_at?: string
           email?: string

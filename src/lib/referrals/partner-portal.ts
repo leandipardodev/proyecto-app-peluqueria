@@ -33,6 +33,13 @@ export type PartnerLostShop = {
   visitedAt: string;
 };
 
+export type PartnerPayoutRow = {
+  id: string;
+  paidAt: string | null;
+  amount: number;
+  status: string;
+};
+
 export type PartnerDashboard = {
   partnerId: string;
   partnerName: string;
@@ -43,6 +50,7 @@ export type PartnerDashboard = {
   payoutCbu: string | null;
   shops: PartnerPortalShop[];
   lostShops: PartnerLostShop[];
+  payouts: PartnerPayoutRow[];
   totals: {
     shops: number;
     monthsPaid: number;
@@ -77,29 +85,36 @@ export async function getPartnerDashboard(partnerId: string): Promise<PartnerDas
 
   if (!partner) return null;
 
-  const [settingsResult, attributionsResult, ledgerResult, clicksResult, shopsResult] = await Promise.all([
-    admin
-      .from("referral_program_settings")
-      .select("default_commission_percent, default_commission_months")
-      .eq("is_default", true)
-      .maybeSingle(),
-    admin
-      .from("referral_attributions")
-      .select("shop_id, attributed_at, commission_percent_snapshot, commission_months_snapshot")
-      .eq("partner_id", partnerId),
-    admin
-      .from("referral_commission_ledger")
-      .select("id, shop_id, commission_amount, payment_sequence, status")
-      .eq("partner_id", partnerId),
-    admin
-      .from("referral_link_clicks")
-      .select("shop_id, outcome, created_at")
-      .eq("partner_id", partnerId)
-      .eq("outcome", "already_taken")
-      .order("created_at", { ascending: false })
-      .limit(100),
-    admin.from("shops").select("id, nombre"),
-  ]);
+  const [settingsResult, attributionsResult, ledgerResult, clicksResult, shopsResult, payoutsResult] =
+    await Promise.all([
+      admin
+        .from("referral_program_settings")
+        .select("default_commission_percent, default_commission_months")
+        .eq("is_default", true)
+        .maybeSingle(),
+      admin
+        .from("referral_attributions")
+        .select("shop_id, attributed_at, commission_percent_snapshot, commission_months_snapshot")
+        .eq("partner_id", partnerId),
+      admin
+        .from("referral_commission_ledger")
+        .select("id, shop_id, commission_amount, payment_sequence, status")
+        .eq("partner_id", partnerId),
+      admin
+        .from("referral_link_clicks")
+        .select("shop_id, outcome, created_at")
+        .eq("partner_id", partnerId)
+        .eq("outcome", "already_taken")
+        .order("created_at", { ascending: false })
+        .limit(100),
+      admin.from("shops").select("id, nombre"),
+      admin
+        .from("referral_commission_payouts")
+        .select("id, paid_at, amount, status")
+        .eq("partner_id", partnerId)
+        .order("paid_at", { ascending: false, nullsFirst: false })
+        .limit(20),
+    ]);
 
   const settings = (settingsResult.data as
     | { default_commission_percent?: number; default_commission_months?: number }
@@ -217,6 +232,18 @@ export async function getPartnerDashboard(partnerId: string): Promise<PartnerDas
     ledger.filter((l) => l.status === "paid").reduce((acc, l) => acc + Number(l.commission_amount || 0), 0),
   );
 
+  const payouts: PartnerPayoutRow[] = ((payoutsResult.data || []) as Array<{
+    id: string;
+    paid_at: string | null;
+    amount: number;
+    status: string;
+  }>).map((row) => ({
+    id: row.id,
+    paidAt: row.paid_at,
+    amount: round2(Number(row.amount || 0)),
+    status: row.status,
+  }));
+
   return {
     partnerId: partner.id,
     partnerName: partner.name,
@@ -231,6 +258,7 @@ export async function getPartnerDashboard(partnerId: string): Promise<PartnerDas
     payoutCbu: partner.payout_cbu,
     shops,
     lostShops: dedupedLost,
+    payouts,
     totals: {
       shops: shops.length,
       monthsPaid: ledger.length,
@@ -301,4 +329,48 @@ export async function authenticatePartner(
     partnerName: partner.name,
     referralCode: partner.referral_code,
   };
+}
+
+export type SaveOwnPayoutResult = { success: boolean; error?: string };
+
+/**
+ * El vendedor carga su propio alias y CBU.
+ *
+ * Antes estos datos los guarda solo Klip y el panel del decia "Cargalo con
+ * Klip", lo que convertia cada pago en un telefono. Ahora los carga el
+ * propietario, con la misma validacion que usa el admin (CBU de 22 digitos).
+ *
+ * El partnerId lo resuelve la sesion, no el formulario: la accion de server
+ * descarta el id que venga del cliente, asi un vendedor no puede escribir los
+ * datos de cobro de otro.
+ */
+export async function saveOwnPayoutDetails(
+  partnerId: string,
+  input: { payoutAlias: string | null; payoutCbu: string | null },
+): Promise<SaveOwnPayoutResult> {
+  const id = partnerId.trim();
+  if (!id) return { success: false, error: "Sesion vencida" };
+
+  const alias = input.payoutAlias?.trim() || null;
+  const cbu = input.payoutCbu?.replace(/\s+/g, "") || null;
+
+  if (!alias && !cbu) {
+    return { success: false, error: "Cargá al menos el alias o el CBU" };
+  }
+  if (cbu && !/^\d{22}$/.test(cbu)) {
+    return { success: false, error: "El CBU tiene que tener 22 dígitos" };
+  }
+
+  try {
+    const admin = await createServiceRoleClient();
+    const { error } = await admin
+      .from("referral_partners")
+      .update({ payout_alias: alias, payout_cbu: cbu, updated_at: new Date().toISOString() })
+      .eq("id", id);
+
+    if (error) return { success: false, error: "No se pudieron guardar los datos de cobro" };
+    return { success: true };
+  } catch {
+    return { success: false, error: "No se pudieron guardar los datos de cobro" };
+  }
 }

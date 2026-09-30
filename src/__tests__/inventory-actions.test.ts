@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { addProduct, updateStock, applyStockBatchAdjustments, deleteProduct } from "@/lib/dashboard/inventory/inventory-actions";
 import { createServerClient as mockCreateServerClient } from "@/lib/supabase/server";
-import { requireOwnerShopId as mockRequireOwnerShopId, requireShopId as mockRequireShopId } from "@/lib/dashboard/auth/server";
+import {
+  requireOwnerShopId as mockRequireOwnerShopId,
+  requireShopId as mockRequireShopId,
+  getCurrentUserRole as mockGetCurrentUserRole,
+} from "@/lib/dashboard/auth/server";
 import { supabaseStub, chainableQuery } from "@/__tests__/setup";
 
 function createFormData(overrides: Record<string, string> = {}): FormData {
@@ -14,9 +18,10 @@ function createFormData(overrides: Record<string, string> = {}): FormData {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(mockRequireShopId).mockResolvedValue({ success: true, data: "shop-123" });
-  vi.mocked(mockRequireOwnerShopId).mockResolvedValue({ success: true, data: "shop-123" });
-});
+    vi.mocked(mockRequireShopId).mockResolvedValue({ success: true, data: "shop-123" });
+    vi.mocked(mockRequireOwnerShopId).mockResolvedValue({ success: true, data: "shop-123" });
+    vi.mocked(mockGetCurrentUserRole).mockResolvedValue({ success: true, data: { role: "owner", userId: "u1" } } as never);
+  });
 
 describe("addProduct", () => {
   it("returns error when nombre_producto is empty", async () => {
@@ -78,13 +83,30 @@ describe("addProduct", () => {
     expect(result.success).toBe(true);
   });
 
-  it("uses shopIdOverride when provided", async () => {
-    vi.mocked(mockCreateServerClient).mockResolvedValue(supabaseStub());
-    const fd = createFormData();
-    const result = await addProduct(fd, "override-shop");
-    expect(result.success).toBe(true);
+    it("autoriza el shopIdOverride explicito contra la membresia", async () => {
+      vi.mocked(mockCreateServerClient).mockResolvedValue(supabaseStub());
+      vi.mocked(mockGetCurrentUserRole).mockResolvedValue({
+        success: true,
+        data: { role: "owner", userId: "u1" },
+      } as never);
+      const fd = createFormData();
+      const result = await addProduct(fd, "override-shop");
+      expect(result.success).toBe(true);
+      // Antes el shopId explicito saltaba la verificacion por completo.
+      expect(mockGetCurrentUserRole).toHaveBeenCalledWith("override-shop");
+    });
+
+    it("rechaza un shopIdOverride de un local del que no es miembro", async () => {
+      vi.mocked(mockGetCurrentUserRole).mockResolvedValue({
+        success: false,
+        error: "SIN_ACCESO",
+      } as never);
+      const fd = createFormData();
+      const result = await addProduct(fd, "shop-ajeno");
+      expect(result).toEqual({ success: false, error: "SIN_ACCESO_LOCAL" });
+    });
   });
-});
+
 
 describe("updateStock", () => {
   it("returns error when product not found", async () => {

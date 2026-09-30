@@ -1,7 +1,7 @@
 "use server";
 
 import { createServerClient } from "@/lib/supabase/server";
-import { canAccessShopId, createServiceRoleClient, getCachedUser, getCurrentUserRole, requireShopId } from "@/lib/dashboard/auth/server";
+import { canAccessShopId, createServiceRoleClient, getCachedUser, getCurrentUserRole, requireShopId, resolveAuthorizedShopId } from "@/lib/dashboard/auth/server";
 import { revalidateDashboardSegments } from "@/lib/dashboard/shared/revalidate-dashboard";
 import { getArgentinaDateString } from "@/lib/argentina-time";
 import { DEFAULT_VOUCHER_WHATSAPP_TEMPLATE } from "@/lib/dashboard/vouchers/voucher-constants";
@@ -31,13 +31,9 @@ export type TodayVoucherAlert = {
 
 export async function fetchVouchers(shopIdOverride?: string): Promise<ActionResult<VoucherRow[]>> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const supabase = await createServerClient();
     const { data, error } = await supabase
@@ -55,13 +51,9 @@ export async function fetchVouchers(shopIdOverride?: string): Promise<ActionResu
 
 export async function fetchTodayVoucherAlerts(shopIdOverride?: string): Promise<ActionResult<TodayVoucherAlert[]>> {
   try {
-    let shopId: string | undefined = shopIdOverride;
-    if (!shopId) {
-      const shopIdResult = await requireShopId();
-      if (!shopIdResult.success) return shopIdResult;
-      shopId = shopIdResult.data;
-      if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
-    }
+        const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
 
     const supabase = await createServerClient();
     const { data, error } = await supabase

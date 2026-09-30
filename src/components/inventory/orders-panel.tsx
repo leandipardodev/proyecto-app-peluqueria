@@ -33,6 +33,12 @@ const STATUS_LABELS: Record<string, string> = {
   expired: "Expirado",
 };
 
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  mp: "Mercado Pago",
+  bank_transfer: "Transferencia",
+  cash: "En el local",
+};
+
 export default function OrdersPanel({ shopId, orders, isOwnerOrAdmin = false, onChanged }: OrdersPanelProps) {
   const [pending, startTransition] = useTransition();
   const { addToast } = useToast();
@@ -112,7 +118,7 @@ export default function OrdersPanel({ shopId, orders, isOwnerOrAdmin = false, on
                   {" · "}
                   {order.customer_email}
                   {" · "}
-                  {order.payment_method === "bank_transfer" ? "Transferencia" : "Mercado Pago"}
+                  {PAYMENT_METHOD_LABELS[order.payment_method] || "Mercado Pago"}
                 </p>
               </div>
               <div className="shrink-0 sm:text-right">
