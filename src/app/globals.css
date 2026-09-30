@@ -358,6 +358,41 @@ input[type="number"]::-webkit-inner-spin-button {
   to { transform: scaleX(0); }
 }
 
+/*
+ * Avisos flotantes: entran comprimidos desde abajo, se extienden y la barra de
+ * auto-ocultado se va achicando; al cerrarse se comprimen y se van para abajo.
+ * Antes solo habia entrada (animate-slide-up) y ninguna salida, asi que el aviso
+ * desaparecia de golpe.
+ */
+@keyframes toast-enter {
+  0%   { opacity: 0; transform: translateY(14px) scaleY(0.72); }
+  55%  { opacity: 1; }
+  100% { opacity: 1; transform: translateY(0) scaleY(1); }
+}
+
+@keyframes toast-exit {
+  0%   { opacity: 1; transform: translateY(0) scaleY(1); }
+  100% { opacity: 0; transform: translateY(18px) scaleY(0.78); }
+}
+
+.animate-toast-enter {
+  transform-origin: bottom center;
+  animation: toast-enter 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-toast-exit {
+  transform-origin: bottom center;
+  animation: toast-exit 0.22s cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-toast-enter,
+  .animate-toast-exit,
+  .animate-slide-up {
+    animation: none;
+  }
+}
+
 @keyframes glass-sheen-sweep {
   0% { transform: translateX(-170%) skewX(-16deg); opacity: 0; }
   3% { opacity: 0.1; }

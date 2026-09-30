@@ -694,16 +694,20 @@ export default function BusinessClient({
     sectionCatalog,
     serviceCategoryDraft,
     serviceOrderIds,
+    logoUrl: initialBookingTheme?.logo_url || "",
   }));
-  // El logo no entra en el diff porque handleLogoUpload lo persiste en el momento
-  // de subirlo (no hay un "pendiente" que collective el boton).
+  // El logo entra en el diff. uploadBookingLogo ya lo persiste al subirlo, asi que
+  // no hay nada pendiente que mandar, pero sin esto el boton Guardar todo no se
+  // encendia al cambiar la foto y parecia roto. Se marca el snapshot al terminar
+  // la subida para que "Guardar todo" confirme el resto y vuelva a limpiar.
   const isThemeDirty = useMemo(() =>
     heroTitle !== savedTheme.heroTitle ||
     selectedTemplateId !== savedTheme.templateId ||
+    logoUrl !== savedTheme.logoUrl ||
     !sameStringList(sectionCatalog, savedTheme.sectionCatalog) ||
     !sameCategoryMap(serviceCategoryDraft, savedTheme.serviceCategoryDraft) ||
     !sameStringList(serviceOrderIds, savedTheme.serviceOrderIds),
-  [heroTitle, selectedTemplateId, sectionCatalog, serviceCategoryDraft, serviceOrderIds, savedTheme]);
+  [heroTitle, selectedTemplateId, logoUrl, sectionCatalog, serviceCategoryDraft, serviceOrderIds, savedTheme]);
 
   const [savedGeneral, setSavedGeneral] = useState(() => ({
     whatsapp: data?.whatsapp_template || "",
@@ -1447,6 +1451,10 @@ export default function BusinessClient({
       }
 
       setLogoUrl(result.data.logoUrl);
+      // La foto ya quedo persistida por uploadBookingLogo. Se actualiza el
+      // snapshot recien aca (no antes) para que, si la subida falla, el boton
+      // Guardar todo siga marcando el cambio como pendiente y no se pierda.
+      setSavedTheme((prev) => ({ ...prev, logoUrl: result.data?.logoUrl ?? prev.logoUrl }));
       playSuccess();
       showSuccess("Logo actualizado");
     } catch (error) {

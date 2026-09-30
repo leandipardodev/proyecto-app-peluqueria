@@ -16,6 +16,8 @@ type Toast = {
   type: ToastType;
   action?: ToastAction;
   duration: number;
+  /** Marcado para irse: sigue montado mientras corre la animacion de salida. */
+  exiting?: boolean;
 };
 
 type ToastContextType = {
@@ -39,6 +41,9 @@ const DURATIONS: Record<ToastType, number> = {
   info: 4500,
   error: 6000,
 };
+
+const ENTER_MS = 320;
+const EXIT_MS = 220;
 
 const ICONS: Record<ToastType, ReactNode> = {
   success: <CheckCircle className="w-5 h-5 shrink-0 text-green-500" />,
@@ -70,20 +75,40 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const removeToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+  const trackTimer = useCallback((timer: ReturnType<typeof setTimeout>) => {
+    toastTimersRef.current.add(timer);
+    return timer;
   }, []);
 
-  const addToast = useCallback((message: string, type: ToastType = "success", action?: ToastAction) => {
-    const id = crypto.randomUUID();
-    const duration = DURATIONS[type];
-    setToasts((prev) => [...prev, { id, message, type, action, duration }]);
-    const timer = setTimeout(() => {
-      toastTimersRef.current.delete(timer);
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, duration);
-    toastTimersRef.current.add(timer);
-  }, []);
+  // Marca el aviso como exiting (corre la animacion de salida) y recien ahi, al
+  // terminar, se desmonta. Antes se borraba del estado en el acto y React lo
+  // desmontaba sin transicion: aparecia de golpe y se desaparecia de golpe.
+  const startExit = useCallback(
+    (id: string) => {
+      setToasts((prev) => {
+        if (!prev.some((t) => t.id === id && !t.exiting)) return prev;
+        return prev.map((t) => (t.id === id ? { ...t, exiting: true } : t));
+      });
+      trackTimer(
+        setTimeout(() => {
+          setToasts((prev) => prev.filter((t) => t.id !== id));
+        }, EXIT_MS),
+      );
+    },
+    [trackTimer],
+  );
+
+  const addToast = useCallback(
+    (message: string, type: ToastType = "success", action?: ToastAction) => {
+      const id = crypto.randomUUID();
+      const duration = DURATIONS[type];
+      setToasts((prev) => [...prev, { id, message, type, action, duration }]);
+      // El auto-ocultado pasa por startExit y no por un borrado directo: si no, al
+      // cumplirse el tiempo el aviso se evapora sin comprimirse.
+      trackTimer(setTimeout(() => startExit(id), duration));
+    },
+    [startExit, trackTimer],
+  );
 
   return (
     <ToastContext.Provider value={useMemo(() => ({ addToast }), [addToast])}>
@@ -98,7 +123,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             key={toast.id}
             role={toast.type === "error" ? "alert" : "status"}
             aria-live={toast.type === "error" ? "assertive" : "polite"}
-            className={`pointer-events-auto relative w-full max-w-md overflow-hidden rounded-2xl border px-4 py-3 shadow-xl backdrop-blur-sm dark:shadow-2xl animate-slide-up ${BG_CLASSES[toast.type]}`}
+            className={`pointer-events-auto relative w-full max-w-md overflow-hidden rounded-2xl border px-4 py-3 shadow-xl backdrop-blur-sm dark:shadow-2xl ${toast.exiting ? "animate-toast-exit" : "animate-toast-enter"} ${BG_CLASSES[toast.type]}`}
           >
             <div className="flex items-start gap-3">
               {ICONS[toast.type]}
@@ -108,7 +133,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                   <button
                     onClick={() => {
                       toast.action?.onClick();
-                      removeToast(toast.id);
+                      startExit(toast.id);
                     }}
                     className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-semibold text-violet-700 dark:text-violet-300 hover:text-violet-800 dark:hover:text-violet-200 transition-colors cursor-pointer select-none"
                   >
@@ -118,7 +143,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 )}
               </div>
               <button
-                onClick={() => removeToast(toast.id)}
+                onClick={() => startExit(toast.id)}
                 aria-label="Cerrar aviso"
                 className="p-0.5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors cursor-pointer select-none shrink-0"
               >
@@ -127,11 +152,20 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             </div>
             <div
               aria-hidden
-              className={`absolute bottom-0 left-0 h-1 ${BAR_CLASSES[toast.type]}`}
-              style={{
-                animation: `toast-progress ${toast.duration}ms linear forwards`,
-                width: "100%",
-              }}
+              className={`absolute bottom-0 left-0 h-1 origin-left ${BAR_CLASSES[toast.type]}`}
+              style={
+                // Al salir la barra se desvanece en vez de reiniciarse: si se
+                // reprobara la animacion, Saltaria de vuelta al ancho completo
+                // mientras el aviso se comprime.
+                toast.exiting
+                  ? { width: "100%", opacity: 0, transition: `opacity ${EXIT_MS}ms linear` }
+                  : {
+                      width: "100%",
+                      // Espera a que la ventanita se termine de extender para arrancar
+                      // a achicarse: asi la barra aparece entera y despues se consume.
+                      animation: `toast-progress ${toast.duration}ms linear ${ENTER_MS}ms forwards`,
+                    }
+              }
             />
           </div>
         ))}
