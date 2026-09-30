@@ -19,6 +19,11 @@ type Props = {
   topHorarios: Item[];
 };
 
+const AUTOPLAY_MS = 5000;
+const SWIPE_DISTANCE = 44;
+const SWIPE_VELOCITY = 460;
+const DRAG_ELASTIC = 0.16;
+
 export default function DemandaCarousel({ topServices, topDias, topHorarios }: Props) {
   const slides: Slide[] = [
     { key: "servicios", label: "Servicios", items: topServices, emptyTitle: "Sin servicios", emptyDesc: "Todavía no hay servicios registrados." },
@@ -29,17 +34,33 @@ export default function DemandaCarousel({ topServices, topDias, topHorarios }: P
   const [current, setCurrent] = useState(0);
   const [direction, setDirection] = useState(1);
   const [paused, setPaused] = useState(false);
+  const [cycle, setCycle] = useState(0);
 
   const goNext = useCallback(() => {
     setDirection(1);
     setCurrent((p) => (p + 1) % slides.length);
   }, [slides.length]);
 
+  const goPrev = useCallback(() => {
+    setDirection(-1);
+    setCurrent((p) => (p - 1 + slides.length) % slides.length);
+  }, [slides.length]);
+
+  const goTo = useCallback((index: number, dir: number) => {
+    setDirection(dir);
+    setCurrent(index);
+  }, []);
+
+  const bounceAutoplay = useCallback(() => {
+    setPaused(false);
+    setCycle((c) => c + 1);
+  }, []);
+
   useEffect(() => {
     if (paused) return;
-    const timer = setInterval(goNext, 5000);
+    const timer = setInterval(goNext, AUTOPLAY_MS);
     return () => clearInterval(timer);
-  }, [goNext, paused]);
+  }, [goNext, paused, cycle]);
 
   const slide = slides[current];
 
@@ -60,68 +81,89 @@ export default function DemandaCarousel({ topServices, topDias, topHorarios }: P
         Los más pedidos
       </p>
 
-      {slide.items.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-8 text-center">
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">{slide.emptyTitle}</p>
-          <p className="text-xs text-zinc-400 dark:text-zinc-400 mt-1">{slide.emptyDesc}</p>
-        </div>
-      ) : (
-        <AnimatePresence mode="popLayout" custom={direction}>
-          <motion.div
-            key={slide.key}
-            custom={direction}
-            variants={variants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
-            className="space-y-3 will-change-transform"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-400">
-                {slide.label}
-              </span>
-              <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-400">Cant.</span>
-            </div>
-            {slide.items.map((item, i) => {
-              const pct = Math.round((item.count / maxCount) * 100);
-              return (
-                <div key={item.name}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm text-zinc-700 dark:text-zinc-300 truncate mr-2">
-                      {item.name}
-                    </span>
-                    <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 shrink-0">
-                      {item.count}
-                    </span>
+      <motion.div
+        drag="x"
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={DRAG_ELASTIC}
+        dragMomentum={false}
+        style={{ touchAction: "pan-y" }}
+        className="relative cursor-grab active:cursor-grabbing"
+        onDragEnd={(_, info) => {
+          const offset = info.offset.x;
+          const velocity = info.velocity.x;
+          let delta = 0;
+          if (Math.abs(velocity) >= SWIPE_VELOCITY) delta = velocity > 0 ? -1 : 1;
+          else if (Math.abs(offset) >= SWIPE_DISTANCE) delta = offset > 0 ? -1 : 1;
+          if (delta === 0) return;
+          if (delta > 0) goNext();
+          else goPrev();
+          bounceAutoplay();
+        }}
+      >
+        {slide.items.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">{slide.emptyTitle}</p>
+            <p className="text-xs text-zinc-400 dark:text-zinc-400 mt-1">{slide.emptyDesc}</p>
+          </div>
+        ) : (
+          <AnimatePresence mode="popLayout" custom={direction}>
+            <motion.div
+              key={slide.key}
+              custom={direction}
+              variants={variants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
+              className="space-y-3 will-change-transform"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-400">
+                  {slide.label}
+                </span>
+                <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-400">Cant.</span>
+              </div>
+              {slide.items.map((item, i) => {
+                const pct = Math.round((item.count / maxCount) * 100);
+                return (
+                  <div key={item.name}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm text-zinc-700 dark:text-zinc-300 truncate mr-2">
+                        {item.name}
+                      </span>
+                      <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 shrink-0">
+                        {item.count}
+                      </span>
+                    </div>
+                    <div className="w-full h-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                      <motion.div
+                        className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${pct}%` }}
+                        transition={{ duration: 0.5, delay: i * 0.04, ease: "easeOut" }}
+                      />
+                    </div>
                   </div>
-                  <div className="w-full h-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-                    <motion.div
-                      className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${pct}%` }}
-                      transition={{ duration: 0.5, delay: i * 0.04, ease: "easeOut" }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </motion.div>
-        </AnimatePresence>
-      )}
+                );
+              })}
+            </motion.div>
+          </AnimatePresence>
+        )}
+      </motion.div>
 
       <div className="flex items-center justify-center gap-1.5 mt-4">
         {slides.map((s, idx) => (
           <button
             key={s.key}
             type="button"
-            onClick={() => { setDirection(idx > current ? 1 : -1); setCurrent(idx); setPaused(true); }}
+            onClick={() => { goTo(idx, idx > current ? 1 : -1); setPaused(true); }}
             className={`h-1.5 rounded-full transition-all duration-300 ${
               idx === current
                 ? "w-5 bg-violet-500 dark:bg-violet-400"
                 : "w-1.5 bg-zinc-300 dark:bg-zinc-600 hover:bg-zinc-400 dark:hover:bg-zinc-500"
             }`}
             aria-label={`Ver ${s.label}`}
+            aria-current={idx === current}
           />
         ))}
       </div>

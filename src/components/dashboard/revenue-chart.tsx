@@ -48,10 +48,30 @@ function formatWeekLabel(value: string): string {
   return `${d.getUTCDate()}/${d.getUTCMonth() + 1}`;
 }
 
+const PERIODS = ["today", "week", "month"] as const;
+type Period = (typeof PERIODS)[number];
+
+const PERIOD_LABELS: Record<Period, string> = {
+  today: "Hoy",
+  week: "Semana",
+  month: "Mes",
+};
+
+const SWIPE_DISTANCE = 48;
+const SWIPE_VELOCITY = 480;
+const DRAG_ELASTIC = 0.12;
+const DRAG_CLICK_GUARD_MS = 250;
+
+function wrapIndex(index: number, length: number): number {
+  return ((index % length) + length) % length;
+}
+
 export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, weeklyBreakdown, flowByPeriod, isStaff }: RevenueChartProps) {
   const [hoveredBar, setHoveredBar] = useState<string | null>(null);
-  const [period, setPeriod] = useState<"today" | "week" | "month">("today");
+  const [period, setPeriod] = useState<Period>("today");
+  const [chartDir, setChartDir] = useState(1);
   const chartHostRef = useRef<HTMLDivElement | null>(null);
+  const blockClickRef = useRef(false);
   const [dims, setDims] = useState({ width: 0, height: 0 });
   const [chartReady, setChartReady] = useState(false);
   const [tooltip, setTooltip] = useState<{
@@ -112,6 +132,23 @@ export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, we
   }, [data, flowByPeriod, period]);
 
   const netResult = totals.income - totals.expenses;
+
+  const isEmpty = !hasData && period === "month" && data.length === 0;
+
+  function applyPeriod(next: Period, dir: number) {
+    setChartDir(dir);
+    setPeriod(next);
+  }
+
+  function stepPeriod(delta: number) {
+    const next = PERIODS[wrapIndex(PERIODS.indexOf(period) + delta, PERIODS.length)];
+    applyPeriod(next, delta > 0 ? 1 : -1);
+  }
+
+  function handlePeriodButton(next: Period) {
+    if (blockClickRef.current) return;
+    applyPeriod(next, PERIODS.indexOf(next) > PERIODS.indexOf(period) ? 1 : -1);
+  }
 
   type ChartEntry = (typeof chartData)[number];
 
@@ -276,78 +313,117 @@ export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, we
     );
   }
 
-  if (!hasData && period === "month" && data.length === 0) {
-    return (
-    <div className="flex flex-col h-full rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-        <StatePanel title="Sin datos de ingresos" description="Todavía no hay datos de ingresos para mostrar." />
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col h-full rounded-xl rounded-tr-none border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-      <h3 className="mb-1 text-sm font-semibold text-zinc-800 dark:text-zinc-100">Balance</h3>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs text-zinc-500">Resultado neto por periodo</p>
-        <div className="inline-flex rounded-lg border border-zinc-200 bg-zinc-50 p-0.5 dark:border-zinc-700 dark:bg-zinc-800">
-          {([
-            ["today", "Hoy"],
-            ["week", "Semana"],
-            ["month", "Mes"],
-          ] as const).map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setPeriod(key)}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${
-                period === key
-                  ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-100"
-                  : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {!isStaff && (
-      <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-3 shrink-0">
-        <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-800">
-          <p className="text-[10px] font-semibold tracking-widest text-zinc-500 dark:text-zinc-400">INGRESOS</p>
-          <p className="mt-0.5 text-2xl font-bold text-blue-600 dark:text-blue-400" style={{ fontVariantNumeric: "tabular-nums" }}>
-            {formatMoney(totals.income).replace("ARS", "").trim()}
-          </p>
-        </div>
-        <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-800">
-          <p className="text-[10px] font-semibold tracking-widest text-zinc-500 dark:text-zinc-400">GASTOS</p>
-          <p className="mt-0.5 text-2xl font-bold text-slate-600 dark:text-slate-400" style={{ fontVariantNumeric: "tabular-nums" }}>
-            {formatMoney(totals.expenses).replace("ARS", "").trim()}
-          </p>
-        </div>
-        <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-800">
-          <p className="text-[10px] font-semibold tracking-widest text-zinc-500 dark:text-zinc-400">RESULTADO</p>
-          <p className={`mt-0.5 text-2xl font-bold ${netResult >= 0 ? "text-blue-600 dark:text-blue-400" : "text-slate-600 dark:text-slate-400"}`} style={{ fontVariantNumeric: "tabular-nums" }}>
-            {formatMoney(Math.abs(netResult)).replace("ARS", "").trim()}
-          </p>
-          <p className="text-[11px] text-zinc-500">{netResult >= 0 ? "Superavit" : "Deficit"}</p>
-        </div>
-      </div>
-      )}
-
-      <div
-        ref={chartHostRef}
-        className="analytics-bg relative flex-1 min-h-0 min-w-0 w-full overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-800"
+      <motion.div
+        drag="x"
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={DRAG_ELASTIC}
+        dragMomentum={false}
+        style={{ touchAction: "pan-y" }}
+        className="flex min-h-0 flex-1 cursor-grab flex-col active:cursor-grabbing"
+        onDragStart={() => {
+          setHoveredBar(null);
+          setTooltip(null);
+        }}
+        onDragEnd={(_, info) => {
+          const offset = info.offset.x;
+          const velocity = info.velocity.x;
+          let delta = 0;
+          if (Math.abs(velocity) >= SWIPE_VELOCITY) delta = velocity > 0 ? -1 : 1;
+          else if (Math.abs(offset) >= SWIPE_DISTANCE) delta = offset > 0 ? -1 : 1;
+          if (delta === 0) return;
+          blockClickRef.current = true;
+          window.setTimeout(() => {
+            blockClickRef.current = false;
+          }, DRAG_CLICK_GUARD_MS);
+          stepPeriod(-delta);
+        }}
       >
-        <div className="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
-          <div className="analytics-grid size-full" />
-          <div className="analytics-scan size-full" />
+        <h3 className="mb-1 text-sm font-semibold text-zinc-800 dark:text-zinc-100">Balance</h3>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs text-zinc-500">Resultado neto por periodo</p>
+          <div className="inline-flex rounded-lg border border-zinc-200 bg-zinc-50 p-0.5 dark:border-zinc-700 dark:bg-zinc-800">
+            {PERIODS.map((key) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => handlePeriodButton(key)}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${
+                  period === key
+                    ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-100"
+                    : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+                }`}
+                aria-current={period === key}
+              >
+                {PERIOD_LABELS[key]}
+              </button>
+            ))}
+          </div>
         </div>
-        {!chartReady && (
-          <div className="absolute inset-0 rounded-xl bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+
+        {!isStaff && (
+        <motion.div
+          key={`tiles-${period}`}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.25 }}
+          className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-3 shrink-0"
+        >
+          <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-800">
+            <p className="text-[10px] font-semibold tracking-widest text-zinc-500 dark:text-zinc-400">INGRESOS</p>
+            <p className="mt-0.5 text-2xl font-bold text-blue-600 dark:text-blue-400" style={{ fontVariantNumeric: "tabular-nums" }}>
+              {formatMoney(totals.income).replace("ARS", "").trim()}
+            </p>
+          </div>
+          <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-800">
+            <p className="text-[10px] font-semibold tracking-widest text-zinc-500 dark:text-zinc-400">GASTOS</p>
+            <p className="mt-0.5 text-2xl font-bold text-slate-600 dark:text-slate-400" style={{ fontVariantNumeric: "tabular-nums" }}>
+              {formatMoney(totals.expenses).replace("ARS", "").trim()}
+            </p>
+          </div>
+          <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-800">
+            <p className="text-[10px] font-semibold tracking-widest text-zinc-500 dark:text-zinc-400">RESULTADO</p>
+            <p className={`mt-0.5 text-2xl font-bold ${netResult >= 0 ? "text-blue-600 dark:text-blue-400" : "text-slate-600 dark:text-slate-400"}`} style={{ fontVariantNumeric: "tabular-nums" }}>
+              {formatMoney(Math.abs(netResult)).replace("ARS", "").trim()}
+            </p>
+            <p className="text-[11px] text-zinc-500">{netResult >= 0 ? "Superavit" : "Deficit"}</p>
+          </div>
+        </motion.div>
         )}
-        {chartReady && renderChart()}
-      </div>
+
+        <div
+          ref={chartHostRef}
+          className="analytics-bg relative flex-1 min-h-[200px] min-w-0 w-full overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-800"
+        >
+          <div className="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
+            <div className="analytics-grid size-full" />
+            <div className="analytics-scan size-full" />
+          </div>
+          {isEmpty ? (
+            <div className="relative z-10 flex size-full items-center justify-center p-4">
+              <StatePanel title="Sin datos de ingresos" description="Todavía no hay datos de ingresos para mostrar." />
+            </div>
+          ) : (
+            <>
+              {!chartReady && (
+                <div className="absolute inset-0 rounded-xl bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+              )}
+              {chartReady && (
+                <motion.div
+                  key={`chart-${period}`}
+                  initial={{ opacity: 0, x: chartDir * 36 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
+                  className="relative z-10 size-full"
+                >
+                  {renderChart()}
+                </motion.div>
+              )}
+            </>
+          )}
+        </div>
+      </motion.div>
       <style>{`
         .analytics-bg {
           isolation: isolate;
