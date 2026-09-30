@@ -242,6 +242,7 @@ const AppointmentBlock = memo(function AppointmentBlock({
   onLeave,
   onAppointmentClick,
   onContextMenu,
+  highlight,
 }: {
   appt: NormalizedAppointment;
   startMin: number;
@@ -257,6 +258,7 @@ const AppointmentBlock = memo(function AppointmentBlock({
   onLeave: () => void;
   onAppointmentClick: (appt: Appointment | null) => void;
   onContextMenu?: (appt: NormalizedAppointment, e: React.MouseEvent) => void;
+  highlight?: "fresh" | "moved" | null;
 }) {
   const staffColor = appt.staff
     ? staffColorMap[appt.staff_id || ""] || STAFF_COLORS[0]
@@ -291,7 +293,7 @@ const AppointmentBlock = memo(function AppointmentBlock({
       {...listeners}
       {...attributes}
       data-appt-id={appt.id}
-      className={`absolute no-native-callout pointer-events-auto min-w-0 cursor-hand-open bg-white dark:bg-zinc-800/90 border border-zinc-200/50 dark:border-zinc-700/50 group overflow-hidden ${isCancelled ? "opacity-0 pointer-events-none" : ""} ${isDragging ? "opacity-30 ring-2 ring-sky-400" : ""}`}
+      className={`absolute no-native-callout pointer-events-auto min-w-0 cursor-hand-open bg-white dark:bg-zinc-800/90 border border-zinc-200/50 dark:border-zinc-700/50 group overflow-hidden ${isCancelled ? "opacity-0 pointer-events-none" : ""} ${isDragging ? "opacity-30 ring-2 ring-sky-400" : ""} ${highlight === "fresh" ? "animate-cal-appt-in" : highlight === "moved" ? "animate-cal-appt-moved" : ""}`}
       style={{
         top: `${topPx}px`,
         height: `${Math.max(heightPx - 2, 18)}px`,
@@ -349,11 +351,13 @@ function MonthAppointmentBlock({
   staffColorMap,
   onAppointmentClick,
   onContextMenu,
+  highlight,
 }: {
   appt: NormalizedAppointment;
   staffColorMap: Record<string, (typeof STAFF_COLORS)[0]>;
   onAppointmentClick: (appt: Appointment | null) => void;
   onContextMenu?: (appt: NormalizedAppointment, e: React.MouseEvent) => void;
+  highlight?: "fresh" | "moved" | null;
 }) {
   const isCancelled = appt.status === "cancelled";
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -374,7 +378,7 @@ function MonthAppointmentBlock({
       ref={setNodeRef}
       {...listeners}
       {...attributes}
-      className={`text-[11px] font-medium leading-tight truncate rounded px-1.5 py-[3px] cursor-hand-open select-none text-white ${isCancelled ? "opacity-0 pointer-events-none" : ""} ${isDragging ? "opacity-30" : "hover:opacity-80"}`}
+      className={`text-[11px] font-medium leading-tight truncate rounded px-1.5 py-[3px] cursor-hand-open select-none text-white ${isCancelled ? "opacity-0 pointer-events-none" : ""} ${isDragging ? "opacity-30" : "hover:opacity-80"} ${highlight === "fresh" ? "animate-cal-appt-in" : highlight === "moved" ? "animate-cal-appt-moved" : ""}`}
       style={{
         backgroundColor: staffColor?.accent || "#8B5CF6",
       }}
@@ -401,6 +405,7 @@ function MonthCell({
   onAppointmentClick,
   onContextMenu,
   onCellClick,
+  highlights,
 }: {
   cell: { dateKey: string; day: number; date: Date; isCurrentMonth: boolean };
   count: number;
@@ -413,6 +418,7 @@ function MonthCell({
   onAppointmentClick: (appt: Appointment | null) => void;
   onContextMenu: (appt: NormalizedAppointment, e: React.MouseEvent) => void;
   onCellClick: (dateKey: string, el: HTMLElement) => void;
+  highlights?: Map<string, "fresh" | "moved"> | null;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: `month-cell-${cell.dateKey}`,
@@ -450,6 +456,7 @@ function MonthCell({
             staffColorMap={staffColorMap}
             onAppointmentClick={onAppointmentClick}
             onContextMenu={onContextMenu}
+            highlight={highlights?.get(appt.id) || null}
           />
         ))}
         {remaining > 0 && (
@@ -566,6 +573,99 @@ export default memo(function CalendarView({
     if (!staffFilter) return appointments;
     return appointments.filter((a) => a.staff_id === staffFilter);
   }, [appointments, staffFilter]);
+
+  /*
+   * Animaciones de la grilla. Todas por CSS y Web Animations API: solo
+   * `transform` y `opacity`, asi que van por el compositor y no disparan layout.
+   * Nada de `AnimatePresence` por turno — con 60 bloques en pantalla, montar un
+   * motion por bloque se nota; con una clase CSS que entra y sale, no.
+   */
+  const [highlights, setHighlights] = useState<Map<string, "fresh" | "moved">>(() => new Map());
+  const highlightsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const knownAppointmentsRef = useRef<Map<string, string> | null>(null);
+
+  useEffect(() => {
+    const signature = (a: Appointment) =>
+      `${a.start_time}|${a.end_time}|${a.staff_id || ""}`;
+    const next = new Map<string, string>();
+    // Diff sobre `appointments`, NO sobre `filteredAppointments`: si diffeara la
+    // lista filtrada, cambiar de profesional marcala como "nuevos" a todos los
+    // turnos que quedaban a la vista y todos entraban con opacity 0 juntos. Eso
+    // era el fogonazo al filtrar.
+    for (const a of appointments) next.set(a.id, signature(a));
+
+    const prev = knownAppointmentsRef.current;
+    knownAppointmentsRef.current = next;
+    // La primera pasada es la carga de la pagina, no un alta: no hay nada que
+    // destacar.
+    if (!prev) return;
+
+    const added: string[] = [];
+    const moved: string[] = [];
+    for (const [id, sig] of next) {
+      const before = prev.get(id);
+      if (before === undefined) added.push(id);
+      else if (before !== sig) moved.push(id);
+    }
+
+    if (added.length > 0 || moved.length > 0) {
+      setHighlights((current) => {
+        const merged = new Map(current);
+        for (const id of added) merged.set(id, "fresh");
+        for (const id of moved) merged.set(id, "moved");
+        return merged;
+      });
+      if (highlightsTimerRef.current) clearTimeout(highlightsTimerRef.current);
+      highlightsTimerRef.current = setTimeout(() => setHighlights(new Map()), 700);
+    }
+
+    // Un turno que desaparece no deja nada que animar: el bloque se desmonta. En
+    // su lugar la grilla se asienta, para que el borrado se registre sin tener
+    // que conservar el turno un rato montado. El rebote es corto a proposito: en
+    // una grilla densa, bajar de opacidad mucho se lee como parpadeo.
+    let removed = false;
+    for (const id of prev.keys()) {
+      if (!next.has(id)) {
+        removed = true;
+        break;
+      }
+    }
+    if (removed) {
+      playGridSettle(0.82, 180);
+    }
+  }, [appointments]);
+
+  // El asentar de la grilla y el barrido de periodo comparten el mismo
+  // contenedor, asi que animan el mismo `transform` y `opacity`. Sin cancelar el
+  // anterior, dos navegaciones seguidas superponen dos animaciones y el
+  // resultado salta.
+  const gridAnimRef = useRef<Animation | null>(null);
+  const playGridAnim = useCallback(
+    (keyframes: Keyframe[], duration: number) => {
+      const grid = scrollContainerRef.current;
+      if (!grid) return;
+      gridAnimRef.current?.cancel();
+      gridAnimRef.current = grid.animate(keyframes, {
+        duration,
+        easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+        fill: "backwards",
+      });
+    },
+    [],
+  );
+  const playGridSettle = useCallback(
+    (from: number, duration: number) =>
+      playGridAnim([{ opacity: from }, { opacity: 1 }], duration),
+    [playGridAnim],
+  );
+
+  useEffect(
+    () => () => {
+      if (highlightsTimerRef.current) clearTimeout(highlightsTimerRef.current);
+      gridAnimRef.current?.cancel();
+    },
+    [],
+  );
 
   const { gridStartHour, gridEndHour, hours } = useMemo(() => {
     if (!businessHours) {
@@ -895,6 +995,38 @@ export default memo(function CalendarView({
 
   const [monthOffset, setMonthOffset] = useState(0);
 
+  // Un unico disparador para cambiar de periodo, de vista o de profesional: la
+  // grilla entera se desplaza un poco y se acomoda. Sin tocar `opacity`: en una
+  // grilla densa, arrancar en 0 la hace desaparecer y eso se lee como
+  // parpadeo, no como entrada. Es solo `transform`, asi que va por el
+  // compositor. Se anima el contenedor con scroll porque es el unico nodo comun
+  // a las tres ramas (dia/semana/mes).
+  const gridRevealDirRef = useRef(0);
+  const gridRevealSeenRef = useRef(false);
+  const gridRevealKey = `${viewMode}|${
+    viewMode === "month" ? monthOffset : viewMode === "day" ? focusedDayKey : getArgentinaDateKey(weekStart)
+  }|${staffFilter || "all"}`;
+
+  useEffect(() => {
+    // La primera pasada es el montaje: no hay periodo anterior que barrer. Se
+    // marca acá y no despues de mirar la grilla, porque en el primer render la
+    // referencia todavia puede estar vacia y la primera navegacion se comia la
+    // animacion.
+    if (!gridRevealSeenRef.current) {
+      gridRevealSeenRef.current = true;
+      return;
+    }
+    const dir = gridRevealDirRef.current;
+    gridRevealDirRef.current = 0;
+    playGridAnim(
+      [
+        { transform: `translate3d(${dir * 14}px, ${dir === 0 ? 7 : 0}px, 0)` },
+        { transform: "translate3d(0, 0, 0)" },
+      ],
+      230,
+    );
+  }, [gridRevealKey, playGridAnim]);
+
   const monthDate = useMemo(() => {
     const d = new Date(currentDate);
     d.setMonth(d.getMonth() + monthOffset);
@@ -1109,6 +1241,7 @@ export default memo(function CalendarView({
   }
 
   function handlePrevPeriod() {
+    gridRevealDirRef.current = -1;
     if (viewMode === "month") {
       setMonthOffset((o) => o - 1);
       return;
@@ -1128,6 +1261,7 @@ export default memo(function CalendarView({
   }
 
   function handleNextPeriod() {
+    gridRevealDirRef.current = 1;
     if (viewMode === "month") {
       setMonthOffset((o) => o + 1);
       return;
@@ -1496,6 +1630,7 @@ export default memo(function CalendarView({
                     isTodayCell={isTodayCell}
                     appointments={dayAppts}
                     staffColorMap={staffColorMap}
+                    highlights={highlights}
                     onAppointmentClick={onAppointmentClick}
                     onContextMenu={handleContextMenu}
                     onCellClick={handleDayCellClick}
@@ -1650,6 +1785,7 @@ export default memo(function CalendarView({
                             onLeave={handleAppointmentLeave}
                             onAppointmentClick={onAppointmentClick}
                             onContextMenu={handleContextMenu}
+                            highlight={highlights.get(event.appt.id) || null}
                           />
                         ))}
 

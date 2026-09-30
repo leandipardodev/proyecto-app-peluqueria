@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
+import MorphCard from "@/components/ui/morph-card";
+import { AnimatePresence, motion } from "framer-motion";
 import { Trash2, Power, Search, AlertTriangle } from "lucide-react";
 
 type ShopItem = {
@@ -248,13 +250,18 @@ export default function ShopManagementTable({
       />
 
       {/* Delete modal with type-to-confirm */}
-      {confirmDelete && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 px-4"
-          role="dialog"
-          aria-modal="true"
-        >
-          <div className="w-full max-w-sm rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xl p-5">
+      <AnimatePresence>
+        {confirmDelete && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 px-4"
+            role="dialog"
+            aria-modal="true"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+          <MorphCard className="w-full max-w-sm rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xl p-5">
             <div className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-red-500" />
               <h3 className="text-base font-semibold text-gray-900 dark:text-zinc-100">Borrar tienda</h3>
@@ -291,9 +298,10 @@ export default function ShopManagementTable({
                 Borrar tienda
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </MorphCard>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

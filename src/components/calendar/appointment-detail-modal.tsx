@@ -7,6 +7,7 @@ import { getArgentinaDateKey, toArgentinaLocalIsoString } from "@/lib/argentina-
 import { refundMpPayment } from "@/lib/payments/mercadopago-actions";
 import { AnimatePresence, motion } from "framer-motion";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
+import MorphCard from "@/components/ui/morph-card";
 import { useToast } from "@/components/ui/toast";
 import GlassSelect from "@/components/ui/glass-select";
 import { createPortal } from "react-dom";
@@ -1188,9 +1189,19 @@ export default function AppointmentDetailModal({
             onConfirm={confirmDeleteAppointment}
           />
         );
-        return deleteConfirmOpen ? createPortal(
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 px-4" role="dialog" aria-modal="true">
-            <div className="w-full max-w-sm rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-lg p-5 space-y-4">
+        return createPortal(
+          <AnimatePresence>
+            {deleteConfirmOpen && (
+            <motion.div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 px-4"
+              role="dialog"
+              aria-modal="true"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+            <MorphCard className="w-full max-w-sm rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-lg p-5 space-y-4">
               <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Eliminar turno</h3>
               <p className="text-sm text-gray-600 dark:text-gray-300">
                 El turno de <strong>{appointment.customers?.nombre || "—"}</strong> está{" "}
@@ -1224,10 +1235,12 @@ export default function AppointmentDetailModal({
                   Eliminar de todos modos
                 </button>
               </div>
-            </div>
-          </div>,
+            </MorphCard>
+            </motion.div>
+            )}
+          </AnimatePresence>,
           document.body
-        ) : null;
+        );
       })()}
 
       <ConfirmDialog

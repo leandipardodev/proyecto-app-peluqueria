@@ -42,8 +42,9 @@ const DURATIONS: Record<ToastType, number> = {
   error: 6000,
 };
 
-const ENTER_MS = 320;
-const EXIT_MS = 220;
+const ENTER_MS = 420;
+const EXIT_MS = 420;
+const MAX_VISIBLE = 3;
 
 const ICONS: Record<ToastType, ReactNode> = {
   success: <CheckCircle className="w-5 h-5 shrink-0 text-green-500" />,
@@ -102,10 +103,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     (message: string, type: ToastType = "success", action?: ToastAction) => {
       const id = crypto.randomUUID();
       const duration = DURATIONS[type];
-      setToasts((prev) => [...prev, { id, message, type, action, duration }]);
+      // Tope de avisos en pantalla: cada uno anima el clip-path al entrar y al
+      // salir, y un guardado con muchos fallos los encolaba a todos juntos.
+      setToasts((prev) => [...prev, { id, message, type, action, duration }].slice(-MAX_VISIBLE));
       // El auto-ocultado pasa por startExit y no por un borrado directo: si no, al
       // cumplirse el tiempo el aviso se evapora sin comprimirse.
-      trackTimer(setTimeout(() => startExit(id), duration));
+      trackTimer(setTimeout(() => startExit(id), ENTER_MS + duration));
     },
     [startExit, trackTimer],
   );
@@ -123,9 +126,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             key={toast.id}
             role={toast.type === "error" ? "alert" : "status"}
             aria-live={toast.type === "error" ? "assertive" : "polite"}
-            className={`pointer-events-auto relative w-full max-w-md overflow-hidden rounded-2xl border px-4 py-3 shadow-xl backdrop-blur-sm dark:shadow-2xl ${toast.exiting ? "animate-toast-exit" : "animate-toast-enter"} ${BG_CLASSES[toast.type]}`}
+            className={`relative w-full max-w-md overflow-hidden rounded-2xl border px-4 py-3 shadow-xl dark:shadow-2xl ${toast.exiting ? "pointer-events-none animate-morph-out" : "pointer-events-auto animate-morph"} ${BG_CLASSES[toast.type]}`}
           >
-            <div className="flex items-start gap-3">
+            <div
+              className={`flex items-start gap-3 ${toast.exiting ? "animate-morph-content-out" : "animate-morph-content"}`}
+            >
               {ICONS[toast.type]}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 dark:text-gray-100 break-words">{toast.message}</p>
@@ -150,23 +155,29 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div
-              aria-hidden
-              className={`absolute bottom-0 left-0 h-1 origin-left ${BAR_CLASSES[toast.type]}`}
-              style={
-                // Al salir la barra se desvanece en vez de reiniciarse: si se
-                // reprobara la animacion, Saltaria de vuelta al ancho completo
-                // mientras el aviso se comprime.
-                toast.exiting
-                  ? { width: "100%", opacity: 0, transition: `opacity ${EXIT_MS}ms linear` }
-                  : {
-                      width: "100%",
-                      // Espera a que la ventanita se termine de extender para arrancar
-                      // a achicarse: asi la barra aparece entera y despues se consume.
-                      animation: `toast-progress ${toast.duration}ms linear ${ENTER_MS}ms forwards`,
-                    }
-              }
-            />
+            <div aria-hidden className="absolute inset-x-0 bottom-0 h-1">
+              {(["left", "right"] as const).map((side) => (
+                <div
+                  key={side}
+                  className={`toast-progress-bar absolute inset-y-0 w-1/2 ${BAR_CLASSES[toast.type]} ${side === "left" ? "left-0" : "right-0"}`}
+                  style={
+                    // Cada mitad se achica desde su borde hacia el centro: juntas
+                    // arrancan al tope y se van juntando hasta desaparecer. Al
+                    // cerrar antes de tiempo solo se desvanecen, porque si se
+                    // reprobara el conteo la linea saltaria de vuelta al tope.
+                    toast.exiting
+                      ? {
+                          transformOrigin: "center",
+                          animation: `morph-bar-out ${Math.round(EXIT_MS * 0.6)}ms linear forwards`,
+                        }
+                      : {
+                          transformOrigin: side === "left" ? "right center" : "left center",
+                          animation: `morph-progress ${toast.duration}ms linear ${ENTER_MS}ms both`,
+                        }
+                  }
+                />
+              ))}
+            </div>
           </div>
         ))}
       </div>

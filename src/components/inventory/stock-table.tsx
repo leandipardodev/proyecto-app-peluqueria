@@ -331,7 +331,10 @@ const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = fa
             const canSell = storeEnabled && isOwnerOrAdmin;
 
             return (
-              <div key={item.id} className={`group relative overflow-hidden bg-white dark:bg-zinc-900 rounded-2xl border shadow-sm hover:shadow-md transition-all duration-200 ${isLow ? "border-red-300 dark:border-red-700 bg-red-50/40 dark:bg-red-950/20 hover:border-red-400 dark:hover:border-red-600" : "border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700"}`}>
+              <div
+                key={item.id}
+                className={`group relative flex flex-col overflow-hidden bg-white dark:bg-zinc-900 rounded-2xl border shadow-sm hover:shadow-md transition-all duration-200 ${isLow ? "border-red-300 dark:border-red-700 bg-red-50/40 dark:bg-red-950/20 hover:border-red-400 dark:hover:border-red-600" : "border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700"}`}
+              >
                 <div className="p-4 pb-3 origin-bottom transition-transform duration-300 ease-in-out group-hover:scale-[0.97] group-focus-within:scale-[0.97]">
                   <div className="flex items-start justify-between gap-2">
                     <h3 title={item.nombre_producto} className="text-lg font-semibold text-gray-900 dark:text-white truncate leading-tight">{item.nombre_producto}</h3>
@@ -393,7 +396,12 @@ const StockTable = memo(function StockTable({ shopId, items, isOwnerOrAdmin = fa
                   </div>
                 )}
 
-                <div className="keep-motion h-9 overflow-hidden rounded-b-2xl border-t border-transparent bg-transparent transition-colors duration-300 ease-in-out group-hover:border-zinc-100 group-hover:bg-zinc-50 dark:group-hover:border-zinc-800 dark:group-hover:bg-zinc-800/60 pointer-coarse:border-zinc-100 pointer-coarse:bg-zinc-50 dark:pointer-coarse:border-zinc-800 dark:pointer-coarse:bg-zinc-800/60">
+                {/* El mt-auto mantiene la franja pegada al borde inferior aunque el grid estire
+                    la tarjeta (una hermana mas alta). Sin esto el sobrante queda
+                    debajo de la franja, la barra "En tienda" —que es bottom-0—
+                    cae por debajo de ella y al hacer hover sube encima de los
+                    numeros. */}
+                <div className="keep-motion mt-auto h-9 overflow-hidden rounded-b-2xl border-t border-transparent bg-transparent transition-colors duration-300 ease-in-out group-hover:border-zinc-100 group-hover:bg-zinc-50 dark:group-hover:border-zinc-800 dark:group-hover:bg-zinc-800/60 pointer-coarse:mt-0 pointer-coarse:border-zinc-100 pointer-coarse:bg-zinc-50 dark:pointer-coarse:border-zinc-800 dark:pointer-coarse:bg-zinc-800/60">
                   <div className="keep-motion h-full flex items-center gap-1.5 px-4 opacity-0 translate-y-5 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto pointer-coarse:opacity-100 pointer-coarse:translate-y-0 pointer-coarse:pointer-events-auto">
                     <input
                       type="number"

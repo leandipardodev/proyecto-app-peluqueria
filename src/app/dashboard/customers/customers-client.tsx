@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Gift, MessageCircle, Search, Trash2 } from "lucide-react";
 import Sheet from "@/components/ui/sheet";
+import PageTitle from "@/components/ui/page-title";
 import { useKlipSounds } from "@/lib/use-klip-sounds";
 import { supabase } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -335,7 +336,7 @@ export default function CustomersPage({
   return (
     <div className="space-y-6 relative">
       <div>
-        <h1 className="text-3xl sm:text-5xl leading-none text-slate-900 dark:text-zinc-100 lowercase pt-2" style={{ fontFamily: "var(--font-borel), cursive", letterSpacing: "-0.07em" }}>{customerPlural}</h1>
+        <PageTitle className="text-3xl sm:text-5xl leading-none text-slate-900 dark:text-zinc-100">{customerPlural}</PageTitle>
         <p className="mt-1 text-sm text-slate-500 dark:text-zinc-400">Gestión de fichas técnicas y datos de contacto.</p>
       </div>
 

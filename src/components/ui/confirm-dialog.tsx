@@ -3,8 +3,7 @@
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect } from "react";
-
-const SPRING = { type: "spring" as const, stiffness: 460, damping: 34, mass: 0.65 };
+import MorphCard from "./morph-card";
 
 type ConfirmDialogProps = {
   open: boolean;
@@ -50,13 +49,7 @@ export default function ConfirmDialog({
           role="dialog"
           aria-modal="true"
         >
-          <motion.div
-            initial={{ opacity: 0, y: 24, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 16, scale: 0.98 }}
-            transition={SPRING}
-            className="w-full max-w-sm rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xl p-5"
-          >
+          <MorphCard className="w-full max-w-sm rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xl p-5">
             <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
             <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{message}</p>
             <div className="mt-5 flex items-center justify-end gap-2">
@@ -79,7 +72,7 @@ export default function ConfirmDialog({
                 {confirmLabel}
               </button>
             </div>
-          </motion.div>
+          </MorphCard>
         </motion.div>
       )}
     </AnimatePresence>,

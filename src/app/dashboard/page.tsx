@@ -3,6 +3,7 @@ import { Clock, ChevronRight } from "lucide-react";
 import ShareLinkCard from "@/components/dashboard/share-link-card";
 import PwaInstallButton from "@/components/dashboard/pwa-install-button";
 import HoverScale from "@/components/ui/hover-scale";
+import PageTitle from "@/components/ui/page-title";
 import { fetchWhatsappTemplate } from "@/lib/dashboard/whatsapp/whatsapp-actions";
 import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp/whatsapp-constants";
 import { buildWhatsAppContactUrl } from "@/lib/dashboard/whatsapp/whatsapp-utils";
@@ -430,9 +431,7 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
       )}
       <div className="flex min-w-0 items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-            <h1 className="text-3xl sm:text-4xl text-gray-900 dark:text-white leading-tight lowercase pt-2" style={{ fontFamily: "var(--font-borel), cursive", letterSpacing: "-0.07em" }}>
-              {today}
-            </h1>
+            <PageTitle className="text-3xl sm:text-4xl text-gray-900 dark:text-white leading-tight">{today}</PageTitle>
           <div className="mt-4 flex min-w-0 items-center gap-2">
             <a
               href={whatsappHref}

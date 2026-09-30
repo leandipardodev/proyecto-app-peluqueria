@@ -9,6 +9,7 @@ import { moveAppointmentGroup } from "@/lib/dashboard/appointments/actions";
 import { autoCompletePastAppointments } from "@/lib/dashboard/appointments/mutations";
 import { toggleAutoComplete } from "@/lib/dashboard/shop/shop-actions";
 import { useToast } from "@/components/ui/toast";
+import PageTitle from "@/components/ui/page-title";
 import { getUserFriendlyError } from "@/lib/dashboard/appointments/errors";
 
 let realtimeChannelCounter = 0;
@@ -57,31 +58,7 @@ import { useAutoCompleteAppointments } from "@/lib/use-auto-complete-appointment
 import { getArgentinaDateKey, getArgentinaWeekStart } from "@/lib/argentina-time";
 import { supabase } from "@/lib/supabase";
 import { fetchAppointments } from "@/lib/dashboard/appointments/query-actions";
-
-function CalendarSkeleton() {
-  return (
-    <div className="space-y-4 animate-pulse">
-      <div className="flex items-center justify-between">
-        <div className="h-7 w-36 bg-white/20 dark:bg-white/10 rounded-full" />
-        <div className="flex items-center gap-3">
-          <div className="h-5 w-24 bg-white/20 dark:bg-white/10 rounded-full" />
-          <div className="h-8 w-40 bg-white/20 dark:bg-white/10 rounded-full" />
-        </div>
-      </div>
-      <div className="bg-white/20 dark:bg-black/20 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 dark:border-white/5 overflow-hidden p-4 sm:p-6">
-        <div className="grid grid-cols-7 gap-px mb-4">
-          {Array.from({ length: 7 }).map((_, i) => (
-            <div key={i} className="flex flex-col items-center gap-2 py-3">
-              <div className="h-3 w-10 bg-white/20 dark:bg-white/10 rounded-full" />
-              <div className="h-7 w-7 bg-white/20 dark:bg-white/10 rounded-full" />
-            </div>
-          ))}
-        </div>
-        <div className="h-[500px] lg:h-[600px] bg-white/10 dark:bg-white/[0.03] rounded-2xl" />
-      </div>
-    </div>
-  );
-}
+import CalendarSkeleton from "./calendar-skeleton";
 
 type Appointment = {
   id: string;
@@ -536,7 +513,7 @@ export default function CalendarPageClient({
   }, [refreshAppointments]);
 
   if (!hydrated) {
-    return <CalendarSkeleton />;
+    return <CalendarSkeleton withTable={false} />;
   }
 
   return (
@@ -566,7 +543,7 @@ export default function CalendarPageClient({
         <StatePanel title="Sin personal" description="No hay personal registrado. Agregá personal en la sección Personal." />
       )}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-        <h1 className="text-3xl sm:text-5xl lg:text-6xl text-gray-900 dark:text-white leading-none lowercase pt-2" style={{ fontFamily: "var(--font-borel), cursive", letterSpacing: "-0.07em" }}>Calendario</h1>
+        <PageTitle className="text-3xl sm:text-5xl lg:text-6xl text-gray-900 dark:text-white leading-none">Calendario</PageTitle>
         <div className="flex flex-col gap-2 p-1.5 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm">
           <div className="flex flex-wrap items-center gap-1">
             <button

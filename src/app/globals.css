@@ -369,42 +369,193 @@ input[type="number"]::-webkit-inner-spin-button {
   animation: slide-up 0.25s ease-out;
 }
 
-/* Barra de auto-ocultado de los avisos flotantes */
-@keyframes toast-progress {
-  from { transform: scaleX(1); }
-  to { transform: scaleX(0); }
+/*
+ * Titulo de categoria del dashboard: se escribe letra por letra de izquierda a
+ * derecha. El `from` con blur y una leve rotacion le dan el toque premium; el
+ * retardo por letra lo pasa el componente (components/ui/page-title.tsx).
+ * En perf-mode se degrada a un fade.
+ */
+@keyframes page-title-char {
+  from {
+    opacity: 0;
+    transform: translateY(0.22em) rotate(-2deg);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(0deg);
+    filter: blur(0);
+  }
+}
+
+@keyframes page-title-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.page-title {
+  text-transform: lowercase;
+  /* La Borel es manuscrita: sin este padding la primera letra choca con el
+     borde de arriba de la caja. */
+  padding-top: 0.5rem;
+  font-family: var(--font-borel), cursive;
+  letter-spacing: -0.07em;
+}
+
+.page-title-char {
+  animation: page-title-char 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+html.perf-mode .page-title-char {
+  animation: page-title-fade 0.2s ease-out both;
+}
+
+/* Turnos del calendario: los que se acaban de crear entran con un pop y los que
+   se movieron destellan. Solo transform, opacity y box-shadow: sin reflow. Los
+   highlight duran 700ms, es lo que calendar-view.tsx los mantiene. */
+@keyframes cal-appt-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes cal-appt-moved {
+  0%   { box-shadow: 0 0 0 0 rgb(56 189 248 / 0.55); }
+  55%  { box-shadow: 0 0 0 6px rgb(56 189 248 / 0); }
+  100% { box-shadow: 0 0 0 0 rgb(56 189 248 / 0); }
+}
+
+.animate-cal-appt-in {
+  animation: cal-appt-in 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-cal-appt-moved {
+  animation: cal-appt-moved 0.7s ease-out both;
 }
 
 /*
- * Avisos flotantes: entran comprimidos desde abajo, se extienden y la barra de
- * auto-ocultado se va achicando; al cerrarse se comprimen y se van para abajo.
- * Antes solo habia entrada (animate-slide-up) y ninguna salida, asi que el aviso
- * desaparecia de golpe.
+ * Morph "bola -> capsula", compartido por los avisos flotantes (toast.tsx) y
+ * por las ventanas de confirmacion (components/ui/morph-card.tsx): la superficie
+ * aparece como una bola circular que sube desde abajo y se abre hasta ser la
+ * capsula. El contenido entra recien cuando la capsula esta abierta, asi no se
+ * ven letras sueltas dentro de la bola. Al cerrarse vuelve a contraerse en bola
+ * y baja por debajo.
+ * No se frenan con prefers-reduced-motion: la app entera ya lo ignora por
+ * MotionConfig reducedMotion="never" (providers.tsx), y sin esto el SO con
+ * "Efectos de animacion" apagados dejaba el aviso pegado, sin movimiento.
  */
-@keyframes toast-enter {
-  0%   { opacity: 0; transform: translateY(14px) scaleY(0.72); }
-  55%  { opacity: 1; }
-  100% { opacity: 1; transform: translateY(0) scaleY(1); }
+@keyframes morph-in {
+  0% {
+    opacity: 0;
+    transform: translateY(14px);
+    clip-path: circle(20px at 50% 50%);
+  }
+  12% {
+    opacity: 1;
+    transform: translateY(12px);
+    clip-path: circle(22px at 50% 50%);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    clip-path: circle(150% at 50% 50%);
+  }
 }
 
-@keyframes toast-exit {
-  0%   { opacity: 1; transform: translateY(0) scaleY(1); }
-  100% { opacity: 0; transform: translateY(18px) scaleY(0.78); }
+@keyframes morph-out {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+    clip-path: circle(150% at 50% 50%);
+  }
+  60% {
+    opacity: 1;
+    clip-path: circle(20px at 50% 50%);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(22px);
+    clip-path: circle(20px at 50% 50%);
+  }
 }
 
-.animate-toast-enter {
-  transform-origin: bottom center;
-  animation: toast-enter 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+@keyframes morph-content-in {
+  0%, 55% { opacity: 0; }
+  90%, 100% { opacity: 1; }
 }
 
-.animate-toast-exit {
-  transform-origin: bottom center;
-  animation: toast-exit 0.22s cubic-bezier(0.4, 0, 1, 1) both;
+@keyframes morph-content-out {
+  0% { opacity: 1; }
+  40%, 100% { opacity: 0; }
+}
+
+/* Linea de cuenta regresiva del aviso: dos mitades que se achican al centro. */
+@keyframes morph-progress {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+
+@keyframes morph-bar-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+/* En equipos con poca potencia el clip-path por frame no compila: se degrada a
+   un fade. El flag lo prende solo use-performance-mode.ts si no hay 8 cores. */
+@keyframes morph-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes morph-fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+.animate-morph {
+  animation: morph-in 0.42s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.animate-morph-out {
+  animation: morph-out 0.42s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.animate-morph-fade {
+  animation: morph-fade-in 0.2s ease-out both;
+}
+
+.animate-morph-content {
+  animation: morph-content-in 0.42s linear both;
+}
+
+.animate-morph-content-out {
+  animation: morph-content-out 0.42s linear both;
+}
+
+/* El contenido de una ventana que se abre con morph entra con el, sin tocar el
+   JSX: si no, se leen fragments de texto dentro de la bola. */
+.morph-card > * {
+  animation: morph-content-in 0.42s linear both;
+}
+
+.toast-progress-bar {
+  transform: scaleX(0);
+}
+
+html.perf-mode .animate-morph {
+  animation: morph-fade-in 0.2s ease-out both;
+}
+
+html.perf-mode .animate-morph-out {
+  animation: morph-fade-out 0.15s ease-in both;
+}
+
+html.perf-mode .animate-morph-content,
+html.perf-mode .animate-morph-content-out,
+html.perf-mode .morph-card > * {
+  animation: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-toast-enter,
-  .animate-toast-exit,
   .animate-slide-up {
     animation: none;
   }

@@ -61,3 +61,14 @@ export function getPerformanceModeStorageKey() {
 export function getPerformanceModeEventName() {
   return PERF_EVENT;
 }
+
+/**
+ * Lee el flag `html.perf-mode` en el momento del render, sin estado.
+ * Deliberadamente no es un hook: si el valor se actualizara despues del primer
+ * render, las superficies con morph (components/ui/morph-card.tsx) cambiarian de
+ * variante a mitad de animacion y el clip-path quedaria congelado en el frame
+ * donde estaba. Leyendolo en cada render nunca hay sorpresas.
+ */
+export function isPerfModeOn(): boolean {
+  return typeof document !== "undefined" && document.documentElement.classList.contains("perf-mode");
+}

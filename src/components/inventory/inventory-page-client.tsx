@@ -10,6 +10,7 @@ import BatchAddProductModal from "./batch-add-product-modal";
 import OrdersPanel from "./orders-panel";
 import InventoryTabs, { type InventoryTab } from "./inventory-tabs";
 import { StatePanel } from "@/components/ui/state-panel";
+import PageTitle from "@/components/ui/page-title";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { setShopStoreEnabled } from "@/lib/dashboard/inventory/inventory-actions";
@@ -129,7 +130,7 @@ export default function InventoryPageClient({
     <div>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
-          <h1 className="text-3xl sm:text-5xl text-gray-900 dark:text-white leading-none lowercase pt-2" style={{ fontFamily: "var(--font-borel), cursive", letterSpacing: "-0.07em" }}>Productos</h1>
+          <PageTitle className="text-3xl sm:text-5xl text-gray-900 dark:text-white leading-none">Productos</PageTitle>
           <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">Control de stock y venta online</p>
         </div>
         {isOwnerOrAdmin && (

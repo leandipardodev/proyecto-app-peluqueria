@@ -32,6 +32,8 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { X } from "lucide-react";
 import InlineEdit from "@/components/ui/inline-edit";
+import MorphCard from "@/components/ui/morph-card";
+import { AnimatePresence, motion } from "framer-motion";
 
 const DRAG_CURSOR_BODY_CLASS = "calendar-grabbing";
 
@@ -944,9 +946,17 @@ export default function BookingThemeLivePreview({
       </div>
 
       {/* Confirm remove section */}
-      {confirmRemove && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setConfirmRemove(null)}>
-          <div
+      <AnimatePresence>
+        {confirmRemove && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+            onClick={() => setConfirmRemove(null)}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+          <MorphCard
             role="dialog"
             aria-modal="true"
             className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-5 shadow-xl max-w-xs w-full mx-4"
@@ -975,9 +985,10 @@ export default function BookingThemeLivePreview({
                 Eliminar
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </MorphCard>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }

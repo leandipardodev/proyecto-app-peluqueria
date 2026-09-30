@@ -2931,12 +2931,12 @@ export default function BusinessClient({
           </AnimatePresence>
       </div>
 
-      {/* Guardar todo flotante */}
-      {portalReady && typeof document !== "undefined" && createPortal(
+{/* Guardar todo flotante */}
+      {isGlobalDirty && portalReady && typeof document !== "undefined" && createPortal(
         <button
           type="button"
           onClick={async () => {
-            if (isSaving || !isGlobalDirty) return;
+            if (isSaving || !canEditShop || !isGlobalDirty) return;
             setIsSaving(true);
             try {
               await saveAllSections();
@@ -2948,19 +2948,15 @@ export default function BusinessClient({
           }}
           disabled={isSaving || !canEditShop || !isGlobalDirty}
           aria-label={isGlobalDirty ? "Guardar todos los cambios" : "No hay cambios pendientes"}
-          title={!canEditShop ? "Solo el owner puede editar" : isGlobalDirty ? "Tenés cambios sin guardar" : "Todo guardado"}
-          className={`fixed bottom-4 right-4 z-50 inline-flex items-center gap-2 rounded-full pl-5 pr-5 py-2.5 text-sm font-medium shadow-lg transition-all duration-200 select-none ${
-            isGlobalDirty
-              ? "bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 cursor-pointer hover:opacity-90"
-              : "w-9 justify-center pl-0 pr-0 bg-zinc-300 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed"
-          }`}
+          title={!canEditShop ? "Solo el owner puede editar" : "Tenés cambios sin guardar"}
+          className="animate-morph-fade fixed bottom-4 right-4 z-50 inline-flex items-center gap-2 rounded-full pl-5 pr-5 py-2.5 text-sm font-medium shadow-lg transition-all duration-200 select-none bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 cursor-pointer hover:opacity-90"
         >
           {isSaving ? (
             <>
               <Spinner />
               Guardando...
             </>
-          ) : isGlobalDirty ? (
+          ) : (
             <>
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -2968,12 +2964,8 @@ export default function BusinessClient({
               </svg>
               Guardar todo
             </>
-          ) : (
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
           )}
-        </button>,
+</button>,
         document.body
       )}
 
