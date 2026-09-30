@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState, memo } from "react";
+import { useEffect, useMemo, useRef, useState, memo } from "react";
 import { LayoutGroup, animate, motion, useMotionValue, useSpring } from "framer-motion";
 import {
   Home,
@@ -73,10 +73,19 @@ const DashboardSidebar = memo(function DashboardSidebar({
   const { shop, user } = useAuth();
   const industry = resolveIndustry(shop?.industry);
   const customerPlural = INDUSTRY_CONFIG[industry].labels.customerPlural;
-  const resolvedNavItems = [
-    ...navItems.filter((item) => item.href !== "/dashboard/bank-transfers" || shop?.bankTransferEnabled),
-    ...(user?.role === "staff" ? staffOnlyItems : []),
-  ].map((item) => (item.label === "__CUSTOMERS_LABEL__" ? { ...item, label: customerPlural } : item));
+  const isStaff = user?.role === "staff";
+  const bankTransferEnabled = Boolean(shop?.bankTransferEnabled);
+  // Sin memo, el array cambia de identidad en cada render y el efecto de
+  // prefetch de abajo se vuelve a disparar: 8 renders RSC de paginas
+  // force-dynamic por cada render del sidebar.
+  const resolvedNavItems = useMemo(
+    () =>
+      [
+        ...navItems.filter((item) => item.href !== "/dashboard/bank-transfers" || bankTransferEnabled),
+        ...(isStaff ? staffOnlyItems : []),
+      ].map((item) => (item.label === "__CUSTOMERS_LABEL__" ? { ...item, label: customerPlural } : item)),
+    [bankTransferEnabled, isStaff, customerPlural]
+  );
   const pathname = usePathname();
   const router = useRouter();
   const dashboardBasePath = getDashboardBasePath(pathname);
@@ -102,13 +111,21 @@ const DashboardSidebar = memo(function DashboardSidebar({
     } catch { setNeedsSetup(true); }
   }, [shop?.slug, pathname]);
 
-  useEffect(() => {
-    const targets = resolvedNavItems
-      .map(({ href }) => (href === "/dashboard" ? dashboardBasePath : `${dashboardBasePath}${href.replace("/dashboard", "")}`))
-      .filter((href) => href !== pathname);
+  // Los targets no dependen de la ruta actual: antes se re-prefetcheaban las 8
+  // paginas en cada navegacion (y antes de eso, en cada render del sidebar).
+  // Cada prefetch de una pagina force-dynamic es un render RSC completo, o sea
+  // ~10 queries contra Supabase por destino.
+  const prefetchTargets = useMemo(
+    () =>
+      resolvedNavItems.map(({ href }) =>
+        href === "/dashboard" ? dashboardBasePath : `${dashboardBasePath}${href.replace("/dashboard", "")}`
+      ),
+    [resolvedNavItems, dashboardBasePath]
+  );
 
+  useEffect(() => {
     const runPrefetch = () => {
-      for (const href of targets) router.prefetch(href);
+      for (const href of prefetchTargets) router.prefetch(href);
     };
 
     const idle = (window as Window & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback;
@@ -119,7 +136,7 @@ const DashboardSidebar = memo(function DashboardSidebar({
 
     const timeoutId = window.setTimeout(runPrefetch, 250);
     return () => window.clearTimeout(timeoutId);
-  }, [dashboardBasePath, pathname, resolvedNavItems, router]);
+  }, [prefetchTargets, router]);
 
   const navContainerVariants = performanceMode
     ? { hidden: {}, show: {} }

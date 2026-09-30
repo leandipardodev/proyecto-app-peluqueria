@@ -26,11 +26,11 @@ async function fetchUser() {
 
 export const getCachedUser = cache(fetchUser);
 
-export async function getAuthSession(): Promise<{ user: { id: string } } | null> {
+export const getAuthSession = cache(async function getAuthSession(): Promise<{ user: { id: string } } | null> {
   const user = await getCachedUser();
   if (!user) return null;
   return { user };
-}
+});
 
 export const getCachedShopIdBySlug = cache(async function (slug: string, userId: string) {
   try {
@@ -61,7 +61,12 @@ export const getCachedShopIdBySlug = cache(async function (slug: string, userId:
   }
 });
 
-export async function getShopId(session: { user: { id: string } }): Promise<string | null> {
+/**
+ * El cache() de React deduplica por identidad de los argumentos, y casi todos
+ * los callers arman el session object a mano (`{ user: { id } }`), asi que se
+ * memoiza la resolucion por `userId` (string) y no por el objeto.
+ */
+const resolveShopIdForUser = cache(async function resolveShopIdForUser(userId: string): Promise<string | null> {
   const supabase = await createServerClient();
   const requestHeaders = await headers();
   const shopIdFromHeader = requestHeaders.get("x-shop-id");
@@ -69,7 +74,7 @@ export async function getShopId(session: { user: { id: string } }): Promise<stri
     const { data: headerMembership } = await supabase
       .from("shop_memberships")
       .select("shop_id")
-      .eq("user_id", session.user.id)
+      .eq("user_id", userId)
       .eq("shop_id", shopIdFromHeader)
       .eq("is_active", true)
       .in("role", ["owner", "admin", "staff"])
@@ -92,7 +97,7 @@ export async function getShopId(session: { user: { id: string } }): Promise<stri
         const { data: membership } = await admin
           .from("shop_memberships")
           .select("shop_id")
-          .eq("user_id", session.user.id)
+          .eq("user_id", userId)
           .eq("shop_id", shop.id)
           .eq("is_active", true)
           .in("role", ["owner", "admin", "staff"])
@@ -109,7 +114,7 @@ export async function getShopId(session: { user: { id: string } }): Promise<stri
     const { data: cookieMembership } = await supabase
       .from("shop_memberships")
       .select("shop_id")
-      .eq("user_id", session.user.id)
+      .eq("user_id", userId)
       .eq("shop_id", shopIdFromCookie)
       .eq("is_active", true)
       .in("role", ["owner", "admin", "staff"])
@@ -121,7 +126,7 @@ export async function getShopId(session: { user: { id: string } }): Promise<stri
   const { data: membership } = await supabase
     .from("shop_memberships")
     .select("shop_id")
-    .eq("user_id", session.user.id)
+    .eq("user_id", userId)
     .eq("is_active", true)
     .in("role", ["owner", "admin", "staff"])
     .limit(1)
@@ -129,6 +134,10 @@ export async function getShopId(session: { user: { id: string } }): Promise<stri
 
   if (membership?.shop_id) return membership.shop_id;
   return null;
+});
+
+export async function getShopId(session: { user: { id: string } }): Promise<string | null> {
+  return resolveShopIdForUser(session.user.id);
 }
 
 export async function getShopIdBySlug(slug: string, userId: string): Promise<string | null> {
@@ -171,13 +180,13 @@ export async function canAccessShopId(userId: string, shopId: string): Promise<b
   return Boolean(membership?.shop_id);
 }
 
-export async function requireShopId(): Promise<ActionResult<string>> {
+export const requireShopId = cache(async function requireShopId(): Promise<ActionResult<string>> {
   const session = await getAuthSession();
   if (!session) return { success: false, error: "SESION_EXPIRADA" };
   const shopId = await getShopId(session);
   if (!shopId) return { success: false, error: "SESION_EXPIRADA" };
   return { success: true, data: shopId };
-}
+});
 
 export async function requireShopContext(): Promise<{ userId: string; shopId: string }> {
   const session = await getAuthSession();
@@ -191,27 +200,20 @@ export async function requireShopContext(): Promise<{ userId: string; shopId: st
   return { userId: session.user.id, shopId };
 }
 
-export async function requireOwnerShopId(): Promise<ActionResult<string>> {
+export const requireOwnerShopId = cache(async function requireOwnerShopId(): Promise<ActionResult<string>> {
   const session = await getAuthSession();
   if (!session) return { success: false, error: "SESION_EXPIRADA" };
 
   const shopId = await getShopId(session);
   if (!shopId) return { success: false, error: "SESION_EXPIRADA" };
 
-  const supabase = await createServerClient();
-  const { data: membership } = await supabase
-    .from("shop_memberships")
-    .select("role, is_active")
-    .eq("user_id", session.user.id)
-    .eq("shop_id", shopId)
-    .maybeSingle();
-
-  if (membership?.is_active && membership.role === "owner") {
+  const roleResult = await getCurrentUserRole(shopId);
+  if (roleResult.success && roleResult.data?.role === "owner") {
     return { success: true, data: shopId };
   }
 
   return { success: false, error: "Solo el owner del local puede realizar esta accion" };
-}
+});
 
 /**
  * Igual que ActionResult pero con `data` garantizado como string, para no tener
@@ -260,7 +262,7 @@ export async function resolveAuthorizedShopId(
   return { success: true, data: shopIdOverride };
 }
 
-export async function getCurrentUserRole(shopId: string): Promise<ActionResult<{ role: string; userId: string }>> {
+export const getCurrentUserRole = cache(async function getCurrentUserRole(shopId: string): Promise<ActionResult<{ role: string; userId: string }>> {
   const session = await getAuthSession();
   if (!session) return { success: false, error: "SESION_EXPIRADA" };
   const supabase = await createServerClient();
@@ -273,7 +275,7 @@ export async function getCurrentUserRole(shopId: string): Promise<ActionResult<{
     .maybeSingle();
   if (!membership) return { success: false, error: "SIN_ACCESO" };
   return { success: true, data: { role: membership.role, userId: session.user.id } };
-}
+});
 
 export async function checkShopExpired(shopId: string): Promise<{ expired: boolean; active: boolean }> {
   const admin = await createServiceRoleClient();
@@ -296,7 +298,12 @@ export async function checkShopExpired(shopId: string): Promise<{ expired: boole
   return { expired: false, active: true };
 }
 
-export async function createServiceRoleClient() {
+/**
+ * Client con service role. Va memoizado por request: `persistSession` y
+ * `autoRefreshToken` estan apagados, asi que el cliente no guarda estado entre
+ * consultas y compartirlo dentro de la misma request es identico a crear otro.
+ */
+export const createServiceRoleClient = cache(async function createServiceRoleClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -317,4 +324,4 @@ export async function createServiceRoleClient() {
       },
     }
   );
-}
+});

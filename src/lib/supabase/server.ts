@@ -1,8 +1,16 @@
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { createServerClient as createSupabaseServerClient } from "@supabase/ssr";
 import type { Database } from "./database.types";
 
-export async function createServerClient() {
+/**
+ * Memoizado por request con `cache()` de React: el cliente queda atado al cookie
+ * store del request en curso, asi que compartirlo dentro de la misma request es
+ * identico a crearlo de nuevo, pero evita reconstruir el cliente (y su estado
+ * auth/postgrest) en cada llamada. En Route Handlers, donde no hay scope de
+ * render, `cache()` degrada a una llamada directa: mismo comportamiento.
+ */
+export const createServerClient = cache(async function createServerClient() {
   const cookieStore = await cookies();
   
   return createSupabaseServerClient<Database>(
@@ -28,4 +36,4 @@ export async function createServerClient() {
       },
     }
   );
-}
+});

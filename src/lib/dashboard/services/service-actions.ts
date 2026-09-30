@@ -40,17 +40,29 @@ function toDisplayCategory(value: string): string {
     .join(" ");
 }
 
-async function resolveCanonicalCategory(admin: Awaited<ReturnType<typeof createAdminClient>>, shopId: string, rawCategory: string): Promise<string> {
+/**
+ * Resuelve la categoria contra el listado de categorias ya usado por el local.
+ * Antes cada servicio consultaba `select("category")` por separado (un round trip
+ * por servicio, en serie); ahora el listado se lee una sola vez por llamada y
+ * esta funcion es pura sobre ese snapshot.
+ */
+function toCanonicalCategory(existingCategories: string[], rawCategory: string): string {
   const candidate = toDisplayCategory(rawCategory || "General") || "General";
   const candidateKey = normalizeCategoryKey(candidate);
-  const { data } = await admin.from("services").select("category").eq("shop_id", shopId).limit(500);
-  const existing = Array.from(new Set((data || []).map((row) => String(row.category || "General").trim()).filter(Boolean)));
 
-  for (const current of existing) {
+  for (const current of existingCategories) {
     if (normalizeCategoryKey(current) === candidateKey) return current;
   }
 
   return candidate;
+}
+
+async function fetchExistingCategories(
+  admin: Awaited<ReturnType<typeof createAdminClient>>,
+  shopId: string
+): Promise<string[]> {
+  const { data } = await admin.from("services").select("category").eq("shop_id", shopId).limit(500);
+  return Array.from(new Set((data || []).map((row) => String(row.category || "General").trim()).filter(Boolean)));
 }
 
 export async function fetchServices(shopIdOverride?: string): Promise<ActionResult<ServiceRow[]>> {
@@ -126,7 +138,7 @@ export async function createService(formData: FormData, shopIdOverride?: string)
 
     const admin = await createAdminClient();
 
-    const category = await resolveCanonicalCategory(admin, shopId, rawCategory);
+    const category = toCanonicalCategory(await fetchExistingCategories(admin, shopId), rawCategory);
 
     const description = String(formData.get("description") ?? "");
 
@@ -184,7 +196,7 @@ export async function updateService(id: string, formData: FormData, shopIdOverri
 
     const admin = await createAdminClient();
 
-    const category = await resolveCanonicalCategory(admin, shopId, rawCategory);
+    const category = toCanonicalCategory(await fetchExistingCategories(admin, shopId), rawCategory);
 
     const description = String(formData.get("description") ?? "");
 
@@ -226,17 +238,29 @@ export async function bulkUpdateServiceCategories(
     if (!shopIdResult.success) return shopIdResult;
     const shopId = shopIdResult.data;
 
-    const admin = await createAdminClient();
-    for (const item of updates) {
-      const category = await resolveCanonicalCategory(admin, shopId, item.category);
-      const { error } = await admin
-        .from("services")
-        .update({ category, updated_at: new Date().toISOString() })
-        .eq("id", item.id)
-        .eq("shop_id", shopId);
-
-      if (error) return { success: false, error: error.message };
+    if (updates.length === 0) {
+      await revalidateDashboardSegments(shopId, ["/business", "/services"]);
+      return { success: true };
     }
+
+    const admin = await createAdminClient();
+    const existingCategories = await fetchExistingCategories(admin, shopId);
+
+    // Filas distintas, mismo local: se pueden escribir en paralelo sin perder
+    // datos (antes cada update esperaba al anterior).
+    const results = await Promise.all(
+      updates.map((item) => {
+        const category = toCanonicalCategory(existingCategories, item.category);
+        return admin
+          .from("services")
+          .update({ category, updated_at: new Date().toISOString() })
+          .eq("id", item.id)
+          .eq("shop_id", shopId);
+      })
+    );
+
+    const firstError = results.find((result) => result.error)?.error;
+    if (firstError) return { success: false, error: firstError.message };
 
     await revalidateDashboardSegments(shopId, ["/business", "/services"]);
     return { success: true };
@@ -247,6 +271,7 @@ export async function bulkUpdateServiceCategories(
 
 export async function deleteService(id: string, shopIdOverride?: string): Promise<ActionResult> {
   try {
+
         const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "owner");
     if (!shopIdResult.success) return shopIdResult;
     const shopId = shopIdResult.data;

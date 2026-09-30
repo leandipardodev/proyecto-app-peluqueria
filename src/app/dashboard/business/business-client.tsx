@@ -1090,22 +1090,68 @@ export default function BusinessClient({
       failures.push(info.error);
     }
 
-    let savedHours = businessHours;
-    if (businessHours) {
+    // A partir de acá los bloques son independientes entre sí (cada uno escribe
+    // columnas o tablas distintas), así que corren en paralelo en vez de uno por
+    // uno. `updateBusinessInfo` sigue yendo primero porque
+    // `updateWhatsappTemplateAction` valida contra el address/nombre recién
+    // guardado: en paralelo vería el valor viejo y fallaría con "La ubicación es
+    // indispensable".
+    const amount = Math.max(0, Number(bookingDepositAmount) || 0);
+
+    const hoursPromise = (async (): Promise<{ ok: boolean; error?: string; data: typeof businessHours }> => {
+      if (!businessHours) return { ok: true, data: businessHours };
       const hours = await updateBusinessHours(businessHours);
-      if (hours.success) {
-        const freshHours = await fetchBusinessHours();
-        if (freshHours.success) {
-          savedHours = freshHours.data ?? null;
-          setBusinessHours(savedHours);
-        }
-      } else {
-        failures.push(hours.error);
-      }
+      if (!hours.success) return { ok: false, error: hours.error, data: businessHours };
+      const freshHours = await fetchBusinessHours();
+      if (!freshHours.success) return { ok: true, data: businessHours };
+      return { ok: true, data: freshHours.data ?? null };
+    })();
+
+    const voucherPromise = (async () => {
+      if (!shop?.id) return { success: true as const, skipped: true as const };
+      const vwa = await updateVoucherWhatsappTemplate(shop.id, voucherWhatsappTemplate);
+      return { success: vwa.success, error: vwa.success ? undefined : vwa.error, skipped: false as const };
+    })();
+
+    const categoriesPromise = (async () => {
+      if (initialServices.length === 0) return { success: true as const, skipped: true as const };
+      const categoryUpdates = initialServices.map((service) => ({
+        id: service.id,
+        category: (serviceCategoryDraft[service.id] || "General").trim() || "General",
+      }));
+      const categoryResult = await bulkUpdateServiceCategories(categoryUpdates);
+      return { success: categoryResult.success, error: categoryResult.success ? undefined : categoryResult.error, skipped: false as const };
+    })();
+
+    const [
+      hoursOutcome,
+      policy,
+      bankResult,
+      wa,
+      voucherOutcome,
+      categoryOutcome,
+      theme,
+    ] = await Promise.all([
+      hoursPromise,
+      updateBookingDepositPolicyAction(bookingDepositEnabled, amount, payAtShop),
+      updateBankTransferSettings(bankTransferEnabled, bankCvuCb, bankAlias, bankName),
+      updateWhatsappTemplateAction(whatsappTemplate),
+      voucherPromise,
+      categoriesPromise,
+      upsertBookingTheme({
+        templateId: selectedTemplateId,
+        shopSlug: shopSlug ?? undefined,
+        sectionOrder: sectionCatalog,
+        sectionServiceOrder: buildSectionServiceOrder(),
+        heroTitle,
+      }),
+    ]);
+
+    const savedHours = hoursOutcome.data;
+    if (!hoursOutcome.ok) {
+      failures.push(hoursOutcome.error ?? "Error al guardar horarios");
     }
 
-    const amount = Math.max(0, Number(bookingDepositAmount) || 0);
-    const policy = await updateBookingDepositPolicyAction(bookingDepositEnabled, amount, payAtShop);
     if (policy.success) {
       // Se congela el valor ya normalizado, no el string crudo del input: si no,
       // "3000,50" o un campo vacio dejaban el boton prendido para siempre.
@@ -1120,7 +1166,6 @@ export default function BusinessClient({
       failures.push(policy.error);
     }
 
-    const bankResult = await updateBankTransferSettings(bankTransferEnabled, bankCvuCb, bankAlias, bankName);
     if (bankResult.success) {
       setSavedGeneral((prev) => ({
         ...prev,
@@ -1133,42 +1178,24 @@ export default function BusinessClient({
       failures.push(bankResult.error);
     }
 
-    const wa = await updateWhatsappTemplateAction(whatsappTemplate);
     if (wa.success) {
       setSavedGeneral((prev) => ({ ...prev, whatsapp: whatsappTemplate }));
     } else {
       failures.push(wa.error);
     }
 
-    if (shop?.id) {
-      const vwa = await updateVoucherWhatsappTemplate(shop.id, voucherWhatsappTemplate);
-      if (vwa.success) {
-        setSavedGeneral((prev) => ({ ...prev, voucher: voucherWhatsappTemplate }));
-      } else {
-        failures.push(vwa.error);
-      }
+    if (!voucherOutcome.success) {
+      failures.push(voucherOutcome.error ?? "Error al guardar plantilla");
+    } else if (!voucherOutcome.skipped) {
+      setSavedGeneral((prev) => ({ ...prev, voucher: voucherWhatsappTemplate }));
     }
 
-    if (initialServices.length > 0) {
-      const categoryUpdates = initialServices.map((service) => ({
-        id: service.id,
-        category: (serviceCategoryDraft[service.id] || "General").trim() || "General",
-      }));
-      const categoryResult = await bulkUpdateServiceCategories(categoryUpdates);
-      if (categoryResult.success) {
-        setSavedTheme((prev) => ({ ...prev, serviceCategoryDraft }));
-      } else {
-        failures.push(categoryResult.error);
-      }
+    if (!categoryOutcome.success) {
+      failures.push(categoryOutcome.error ?? "Error al actualizar categorias");
+    } else if (!categoryOutcome.skipped) {
+      setSavedTheme((prev) => ({ ...prev, serviceCategoryDraft }));
     }
 
-    const theme = await upsertBookingTheme({
-      templateId: selectedTemplateId,
-      shopSlug: shopSlug ?? undefined,
-      sectionOrder: sectionCatalog,
-      sectionServiceOrder: buildSectionServiceOrder(),
-      heroTitle,
-    });
     if (theme.success) {
       setSavedTheme((prev) => ({
         ...prev,
@@ -1185,6 +1212,7 @@ export default function BusinessClient({
     // claves y completa defaults); con el objeto previo el diff podia quedar
     // prendido para siempre.
     if (savedHours !== businessHours) {
+      setBusinessHours(savedHours);
       setSavedGeneral((prev) => ({ ...prev, businessHours: savedHours }));
     }
 

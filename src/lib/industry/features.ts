@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createServiceRoleClient } from "@/lib/dashboard/auth/server";
 import { DEFAULT_FEATURES } from "@/lib/industry/types";
 import type { Industry, IndustryFeatures } from "@/lib/industry/types";
@@ -15,7 +16,7 @@ function parseFeatures(raw: Record<string, boolean> | undefined, industry: Indus
 
 const FEATURE_KEYS: (keyof IndustryFeatures)[] = ["inventory", "marketing", "staff", "vouchers", "store"];
 
-export async function getFeatures(industry: Industry): Promise<IndustryFeatures> {
+export const getFeatures = cache(async function getFeatures(industry: Industry): Promise<IndustryFeatures> {
   try {
     const admin = await createServiceRoleClient();
     const { data, error } = await admin
@@ -32,9 +33,9 @@ export async function getFeatures(industry: Industry): Promise<IndustryFeatures>
   } catch {
     return DEFAULT_FEATURES[industry];
   }
-}
+});
 
-export async function getShopFeatures(shopId: string): Promise<IndustryFeatures> {
+export const getShopFeatures = cache(async function getShopFeatures(shopId: string): Promise<IndustryFeatures> {
   try {
     const admin = await createServiceRoleClient();
 
@@ -63,7 +64,7 @@ export async function getShopFeatures(shopId: string): Promise<IndustryFeatures>
   } catch {
     return DEFAULT_FEATURES.peluqueria;
   }
-}
+});
 
 export async function updateShopFeatureOverride(
   shopId: string,

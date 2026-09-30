@@ -1,9 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import dynamicImport from "next/dynamic";
 import { AnimatePresence, motion } from "framer-motion";
 import { Link, Copy, Check, ExternalLink, QrCode } from "lucide-react";
-import QRModal from "./qr-modal";
+
+// jspdf + qrcode (~110 KB gzip) solo hacen falta cuando se abre el modal, asi
+// que no entran en el chunk de Inicio.
+const QRModal = dynamicImport(() => import("./qr-modal"));
 
 interface ShareLinkCardProps {
   slug: string;

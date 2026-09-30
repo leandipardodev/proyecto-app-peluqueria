@@ -281,5 +281,10 @@ async function middlewareHandler(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.).*)"],
+  // Las rutas `/api/*` quedan fuera: el middleware solo hace trabajo util para
+  // /dashboard, /admin y /client (todo lo demas sale por `isProtectedPath` con un
+  // `NextResponse.next()`). Antes cada poll de notificaciones, cada beacon de
+  // web-vitals y cada fetch de header-context pagaba una invocacion de edge sin
+  // ganar nada. Las APIs se autorizan con su propio `getShopId()`/service role.
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|.*\\.).*)"],
 };

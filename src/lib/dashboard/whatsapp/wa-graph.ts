@@ -17,12 +17,26 @@ function graphUrl(path: string): string {
   return `https://graph.facebook.com/${WA_GRAPH_VERSION}/${path}`;
 }
 
+/**
+ * La API de Meta entra, para algunos flujos (listar plantillas al abrir Mi
+ * Negocio, por ejemplo), dentro del render de una pagina. Sin timeout, un
+ * graph.facebook.com colgado se come la funcion entera. 8s es holgado para una
+ * llamada normal y, si se dispara, cae en el mismo camino de error que ya
+ * manejan los callers.
+ */
+const GRAPH_TIMEOUT_MS = 8000;
+
+function graphSignal(): AbortSignal {
+  return AbortSignal.timeout(GRAPH_TIMEOUT_MS);
+}
+
 async function graphGet<T>(path: string, token: string, params: Record<string, string> = {}): Promise<T> {
   const url = new URL(graphUrl(path));
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
+    signal: graphSignal(),
   });
   const body = (await res.json().catch(() => ({}))) as { error?: { code?: number; message?: string } };
   if (!res.ok || body.error) {
@@ -41,6 +55,7 @@ async function graphPost<T>(path: string, token: string, body: unknown): Promise
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify(body),
     cache: "no-store",
+    signal: graphSignal(),
   });
   const parsed = (await res.json().catch(() => ({}))) as T & {
     error?: { code?: number; message?: string };
@@ -78,7 +93,7 @@ export async function exchangeEmbeddedTokenCode(code: string): Promise<ExchangeT
   url.searchParams.set("code", code);
   url.searchParams.set("grant_type", "authorization_code");
 
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await fetch(url, { cache: "no-store", signal: graphSignal() });
   const data = (await res.json().catch(() => ({}))) as ExchangeTokenResult & {
     error?: { code?: number; message?: string };
   };
@@ -96,7 +111,7 @@ export async function exchangeEmbeddedTokenCode(code: string): Promise<ExchangeT
   longUrl.searchParams.set("client_secret", appSecret);
   longUrl.searchParams.set("fb_exchange_token", data.access_token);
 
-  const longRes = await fetch(longUrl, { cache: "no-store" });
+  const longRes = await fetch(longUrl, { cache: "no-store", signal: graphSignal() });
   const longData = (await longRes.json().catch(() => ({}))) as ExchangeTokenResult & {
     error?: { code?: number; message?: string };
   };

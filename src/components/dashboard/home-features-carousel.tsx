@@ -208,16 +208,17 @@ export default function HomeFeaturesCarousel() {
                 animate={bg.ambient}
                 transition={{ duration: bg.ambientMs, ease: "easeInOut", repeat: Infinity, repeatType: "reverse" }}
               >
-                <Image
-                  src={bg.src}
-                  alt=""
-                  aria-hidden
-                  fill
-                  sizes="100vw"
-                  loading="eager"
-                  className="object-cover opacity-70"
-                  draggable={false}
-                />
+            <Image
+              src={bg.src}
+              alt=""
+              aria-hidden
+              fill
+              sizes="100vw"
+              priority={isActive}
+              className="object-cover opacity-70"
+              draggable={false}
+            />
+
               </motion.div>
               <div className="absolute inset-0 bg-[radial-gradient(140%_120%_at_60%_50%,rgba(8,13,24,0)_42%,rgba(8,13,24,0.78)_100%)]" />
             </motion.div>
@@ -322,7 +323,8 @@ export default function HomeFeaturesCarousel() {
                             : { duration: 0.4, ease: "easeOut" }
                         }
                       >
-                        <Image src={s.image} alt={s.alt} fill sizes="(max-width: 768px) 100vw, 60vw" loading="eager" className="object-contain" />
+                          <Image src={s.image} alt={s.alt} fill sizes="(max-width: 768px) 100vw, 60vw" priority={idx === active} className="object-contain" />
+
                       </motion.div>
                     </motion.div>
                   );
