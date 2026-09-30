@@ -16,6 +16,7 @@ import type { ActionResult } from "@/lib/types";
 import "server-only";
 import { createAdminClient } from "../appointments/shared";
 import { findLargestGap, resolveGapHours, type AgendaGap, type AgendaInterval } from "./agenda-gaps";
+import { buildDemandaBuckets } from "./demanda-buckets";
 
 type NextAppointment = {
   id: string;
@@ -283,10 +284,13 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
     const [apptsRevenueRes, apptsCountRes, financesRes, cashMovesRes, clientsRes, flowToday, flowWeek, flowMonth] = await Promise.all([
       admin
         .from("appointments")
-        .select("date_key_ar, start_time, service_id, is_paid, service_price, services!appointments_service_id_fkey(price)")
+        .select("date_key_ar, start_time, service_id, is_paid, service_price, services!appointments_service_id_fkey(name, price)")
         .eq("shop_id", shopId)
         .gte("start_time", sixMonthsAgo.toISOString())
         .eq("status", "completed")
+        // El limit sin order trunca en forma arbitraria: el top 5 era distinto en
+        // cada carga. Se ordena para que el corte sea siempre el mismo.
+        .order("start_time", { ascending: false })
         .limit(2000),
       admin
         .from("appointments")
@@ -524,59 +528,15 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
       expenses: expensesByWeek.get(wk) ?? 0,
     }));
 
-    const dayNames = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
-    const dayCounts = new Map<string, number>();
-    const hourCounts = new Map<string, number>();
-    for (const apt of apptsRevenueRes.data ?? []) {
-      if (!apt.start_time) continue;
-      const d = new Date(apt.start_time);
-      const dayName = dayNames[d.getUTCDay()];
-      dayCounts.set(dayName, (dayCounts.get(dayName) ?? 0) + 1);
-      const hour = String(d.getUTCHours()).padStart(2, "0");
-      hourCounts.set(hour, (hourCounts.get(hour) ?? 0) + 1);
-    }
-    let busiestDay: { day: string; count: number } | null = null;
-    let busiestHour: { hour: string; count: number } | null = null;
-    for (const [day, count] of dayCounts) {
-      if (!busiestDay || count > busiestDay.count) busiestDay = { day, count };
-    }
-    for (const [hour, count] of hourCounts) {
-      if (!busiestHour || count > busiestHour.count) busiestHour = { hour: `${hour}:00`, count };
-    }
-
-    const topDias = [...dayCounts.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([day, count]) => ({ name: day, count }));
-    const topHorarios = [...hourCounts.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([hour, count]) => ({ name: `${hour}:00`, count }));
-
-    const { data: topRaw, error: topErr } = await admin
-      .from("appointments")
-      .select("service_id, is_paid, services!appointments_service_id_fkey(name)")
-      .eq("shop_id", shopId)
-      .gte("start_time", sixMonthsAgo.toISOString())
-      .eq("status", "completed")
-      .eq("is_paid", true)
-      .limit(2000);
-
-    if (topErr) return { success: false, error: topErr.message };
-
-    const serviceCount = new Map<string, { name: string; count: number }>();
-    for (const apt of topRaw ?? []) {
-      const svc = Array.isArray(apt.services) ? apt.services[0] : apt.services;
-      const name = svc?.name;
-      if (!name) continue;
-      const entry = serviceCount.get(apt.service_id ?? "") ?? { name, count: 0 };
-      entry.count++;
-      serviceCount.set(apt.service_id ?? "", entry);
-    }
-
-    const topServices = [...serviceCount.values()]
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
+    // La agrupacion vive en demanda-buckets: antes se hacia acá con
+    // getUTCHours()/getUTCDay() sobre el timestamptz crudo, que mostraba todos los
+    // horarios corridos +3 h y empujaba al dia siguiente los turnos de 21 a 23:59.
+    const demanda = buildDemandaBuckets(apptsRevenueRes.data);
+    const topDias = demanda.topDias;
+    const topHorarios = demanda.topHorarios;
+    const topServices = demanda.topServicios;
+    const busiestDay = demanda.busiestDay;
+    const busiestHour = demanda.busiestHour;
 
     const totalClients = clientsRes.data?.length ?? 0;
     const totalAppointments = apptsCountRes.data?.length ?? 0;
@@ -663,8 +623,8 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
         dailyBreakdown,
         hourlyBreakdown,
         weeklyBreakdown,
-        busiestDay,
-        busiestHour,
+        busiestDay: busiestDay ? { day: busiestDay.name, count: busiestDay.count } : null,
+        busiestHour: busiestHour ? { hour: busiestHour.name, count: busiestHour.count } : null,
         monthlyGrowth,
         healthScore,
         healthBreakdown: { revenue: revScore, clients: cliScore, appointments: apptScore },
