@@ -186,7 +186,7 @@ const DashboardSidebar = memo(function DashboardSidebar({
                 key={href}
                 variants={navItemVariants}
                 whileHover={performanceMode ? undefined : { x: 5 }}
-                whileTap={performanceMode ? undefined : { scale: 0.97 }}
+                whileTap={{ scale: 0.96 }}
               >
                   <Link
                     href={targetHref}
@@ -198,23 +198,39 @@ const DashboardSidebar = memo(function DashboardSidebar({
                       startNavTransition();
                       requestAnimationFrame(() => onNavigate?.());
                     }}
-                    className={`relative flex items-center gap-3 px-3 py-3 rounded-2xl text-sm font-medium transition-colors cursor-pointer select-none ${
+                    // `active:` es el feedback real en touch. Va por CSS, no por
+                    // JS: dispara en touchstart, sin pasar por React ni framer,
+                    // que es justo lo que hace falta cuando el dispositivo
+                    // entra en performanceMode. Antes ese estado estaba
+                    // apagado ahi y el menu no confirmaba nada el toque (y en
+                    // iOS no hay navigator.vibrate, asi que el silencio era
+                    // total). `group` para que el icono reaccione tambien:
+                    // `:active` matchea al elemento y sus ancestros, no a los
+                    // descendientes.
+                    className={`group relative flex items-center gap-3 px-3 py-3 rounded-2xl text-sm font-medium transition-colors duration-75 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/70 ${
                     isActive
                       ? "text-violet-700 dark:text-white"
-                      : "text-zinc-500 dark:text-zinc-400 hover:bg-white/50 dark:hover:bg-white/5 hover:text-zinc-700 dark:hover:text-white"
+                      : "text-zinc-500 dark:text-zinc-400 hover:bg-white/50 dark:hover:bg-white/5 hover:text-zinc-700 dark:hover:text-white active:bg-violet-500/15 dark:active:bg-violet-400/15 active:text-violet-700 dark:active:text-violet-200"
                   }`}
                     aria-current={isActive ? "page" : undefined}
                   >
                   {isActive && (
                     <motion.div
                       layoutId="active-pill"
-                      className="absolute inset-0 rounded-2xl bg-white/30 dark:bg-white/10 border border-white/20 dark:border-white/10 shadow-sm"
+                      // El pill va encima del fondo del link, asi que para la
+                      // seccion activa el flash del pressed tiene que ser el
+                      // suyo. Sin esto, tocar la seccion en la que ya estas -
+                      // que es el unico caso donde no navega nada - era
+                      // justamente el que no daba ninguna señal.
+                      className="absolute inset-0 rounded-2xl bg-white/30 dark:bg-white/10 border border-white/20 dark:border-white/10 shadow-sm group-active:bg-violet-500/20 dark:group-active:bg-violet-400/20"
                       transition={performanceMode ? { duration: 0.1 } : { type: "spring", stiffness: 380, damping: 30 }}
                     />
                   )}
                   <Icon
-                    className={`w-5 h-5 shrink-0 relative z-10 ${
-                      isActive ? "text-violet-600 dark:text-violet-400" : "text-zinc-400 dark:text-zinc-400"
+                    className={`w-5 h-5 shrink-0 relative z-10 transition-transform duration-75 group-active:scale-110 ${
+                      isActive
+                        ? "text-violet-600 dark:text-violet-400"
+                        : "text-zinc-400 dark:text-zinc-400 group-active:text-violet-600 dark:group-active:text-violet-300"
                     }`}
                     strokeWidth={1.5}
                   />
