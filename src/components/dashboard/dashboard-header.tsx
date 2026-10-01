@@ -143,9 +143,10 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
       fb.style.opacity = String(p);
       fb.style.transform = `scale(${0.55 + 0.45 * p})`;
       fb.style.borderRadius = `${14 + 10 * p}px`;
-      // Siempre clickeable, incluso a mitad de la animacion: su utilidad
-      // (abrir el menu) es identica a la del hamburguesa del header.
-      fb.style.pointerEvents = "auto";
+      // El boton del header se desvanece con `1 - 2p`, o sea ya es invisible en
+      // p = 0.5. Con `auto` desde p = 0 este boton invisible (opacity 0, mismo
+      // lugar que el hamburguesa del header) se comia los toques de ahi abajo.
+      fb.style.pointerEvents = p >= 0.5 ? "auto" : "none";
     }
 
     const inHeaderBtn = inHeaderMenuRef.current;
@@ -1264,7 +1265,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
           opacity: 0,
           transform: "scale(0.55)",
           borderRadius: "14px",
-          pointerEvents: "auto",
+          pointerEvents: "none",
         }}
         className="fixed left-4 top-[calc(env(safe-area-inset-top)+0.65rem)] z-[60] min-[1367px]:hidden flex items-center justify-center w-11 h-11 text-gray-500 dark:text-zinc-200 bg-white/75 dark:bg-zinc-900/70 backdrop-blur-xl border border-white/50 dark:border-white/10 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.25)] hover:bg-white dark:hover:bg-zinc-800/90 hover:shadow-[0_10px_28px_-6px_rgba(124,58,237,0.35)] hover:text-violet-600 dark:hover:text-violet-300 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
       >

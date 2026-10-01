@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import DashboardSidebar from "./dashboard-sidebar";
 
@@ -12,9 +13,13 @@ type Props = {
 
 export default function DashboardMobileSidebar({ open, onClose, userName }: Props) {
   const [playKey, setPlayKey] = useState(0);
+  const [mounted, setMounted] = useState(false);
   const backdropRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef(0);
   const blurRef = useRef(0);
+  const waapiRef = useRef<Animation | null>(null);
+
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     cancelAnimationFrame(rafRef.current);
@@ -44,7 +49,10 @@ export default function DashboardMobileSidebar({ open, onClose, userName }: Prop
 
     rafRef.current = requestAnimationFrame(step);
 
-    el.animate(
+    // Sin cancelar la anterior se acumulan (fill: "forwards") y cada apertura
+    // deja otra animacion viva sobre el mismo elemento.
+    waapiRef.current?.cancel();
+    waapiRef.current = el.animate(
       [
         { backgroundColor: open ? "rgba(0,0,0,0)" : "rgba(0,0,0,0.15)" },
         { backgroundColor: open ? "rgba(0,0,0,0.15)" : "rgba(0,0,0,0)" },
@@ -61,7 +69,14 @@ export default function DashboardMobileSidebar({ open, onClose, userName }: Prop
     document.body.style.overflow = "";
   }, [open]);
 
-  return (
+  // El drawer tiene que vivir en el contexto de apilamiento de la raiz. Renderizado
+  // dentro del header queda atrapado en el `relative z-10` de `dashboard/layout.tsx`,
+  // asi que sus z-[65]/z-[70] valian 10 contra la raiz: cualquier overlay portéado a
+  // `document.body` (BaseModal, ConfirmDialog, Sheet, tutoriales) se paints encima y
+  // se queda con los toques del menu, que queda abierto y muerto.
+  if (!mounted) return null;
+
+  return createPortal(
     <>
       <div
         ref={backdropRef}
@@ -90,7 +105,7 @@ export default function DashboardMobileSidebar({ open, onClose, userName }: Prop
                 type="button"
                 onClick={() => setPlayKey((k) => k + 1)}
                 whileTap={{ scale: 0.94 }}
-                className="relative z-10 ml-3 mb-3 inline-flex cursor-pointer select-none"
+                className="pointer-events-auto relative z-10 ml-3 mb-3 inline-flex cursor-pointer select-none"
                 aria-label="Klip"
               >
                 {["K", "l", "i", "p"].map((ch, i) => (
@@ -122,6 +137,7 @@ export default function DashboardMobileSidebar({ open, onClose, userName }: Prop
                 userName={userName}
                 showBrand={false}
                 showUser={false}
+                onNavigate={onClose}
               />
             </div>
           </motion.div>
@@ -129,6 +145,7 @@ export default function DashboardMobileSidebar({ open, onClose, userName }: Prop
         </motion.div>
         )}
       </AnimatePresence>
-    </>
+    </>,
+    document.body,
   );
 }
