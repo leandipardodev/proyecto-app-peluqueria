@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import dynamicImport from "next/dynamic";
 import DashboardSidebar from "@/components/dashboard/dashboard-sidebar";
 import DashboardHeaderLoader from "@/components/dashboard/dashboard-header-loader";
-import IosTopEdgeRefresh from "@/components/dashboard/ios-top-edge-refresh";
 import { logout } from "@/lib/dashboard/auth/logout-action";
 import { getCachedUser } from "@/lib/dashboard/auth/server";
 
@@ -49,7 +48,6 @@ export default async function DashboardLayout({
         <GuideModal />
         <DashboardHeaderLoader userEmail={user.email ?? ""} onLogout={logout} />
         <TutorialsGuideFab />
-        <IosTopEdgeRefresh />
 
         <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-contain px-3 pb-3 pt-[calc(env(safe-area-inset-top)+4.5rem)] sm:px-6 sm:pb-6 sm:pt-[5.1rem] lg:px-8 lg:pb-8 lg:pt-[5.5rem]">
           <PullToRefresh>

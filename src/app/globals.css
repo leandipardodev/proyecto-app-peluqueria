@@ -266,6 +266,10 @@ body.ios-standalone {
   padding-left: env(safe-area-inset-left);
 }
 
+body.ios-standalone .dashboard-mobile-header {
+  padding-top: calc(env(safe-area-inset-top) + 0.5rem);
+}
+
 body.android-standalone .dashboard-mobile-header {
   padding-top: calc(env(safe-area-inset-top) + 0.85rem);
   min-height: 4.2rem;
@@ -714,52 +718,6 @@ html.perf-mode .carousel-image-zoom {
 }
 .dark .dashboard-mobile-header {
   background-color: rgb(24 24 27 / calc(0.30 * (1 - var(--hp, 0))));
-}
-
-/* ---------------------------------------------------------------------------
- * Franja que saca el blur de iOS 27 en la barra de estado
- *
- * Desde iOS 27 las web apps instaladas dibujan un blur sobre el borde superior
- * y difuminan lo que la pagina pinta ahi. Solo en la PWA instalada y solo en
- * vertical; en Safari hay un blur chico, del alto de la barra.
- *
- * No hay forma de apagarlo: `theme-color` no se soporta desde iOS 26 y
- * `apple-mobile-web-app-status-bar-style` esta deprecado y iOS 27 lo ignora
- * (probado: cambiarlo a `default` no saca el blur y ademas descuadra el layout,
- * porque el padding del safe-area se recalcula al cambiar el modo de la barra).
- *
- * Lo que si funciona, y es lo unico documentado, es un elemento `fixed` con
- * color de fondo arriba del que iOS toma ese color para pintar la barra de
- * estado, dejandola solida y sin blur. Requisitos: al menos 6px de alto, al
- * menos 80% de ancho y a menos de 4px del borde superior.
- *
- * Va con 8px y no con el alto del safe area a proposito: iOS usa el color, no la
- * geometria, asi que la barra entera (~54pt) sale solida igual y el empalme con
- * el header es de 8px en vez de 54. El color es el fondo de la app, que es lo
- * que menos se nota contra el header translucido.
- *
- * `pointer-events: none` para no tocar nada, y `z-index: 55` queda arriba del
- * header (z-50) pero abajo de los modales (z-65 en adelante) y del splash
- * (z-200).
- *
- * Fuera de `@layer base` a proposito: las utilities de Tailwind ganan por orden
- * de capa, no por especificidad.
- * ------------------------------------------------------------------------- */
-.ios-statusbar-strip {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 8px;
-  background: transparent;
-  pointer-events: none;
-  z-index: 55;
-}
-body.ios-standalone .ios-statusbar-strip {
-  background: #f5f7fb;
-}
-.dark body.ios-standalone .ios-statusbar-strip {
-  background: #111111;
 }
 
 /* Buscador del header: se comprime y desvanece al ocultarse el header */
