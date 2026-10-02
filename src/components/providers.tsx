@@ -54,6 +54,11 @@ export function Providers({ children }: { children: ReactNode }) {
     const isAndroid = /Android/i.test(ua);
     const isStandalone = window.matchMedia("(display-mode: standalone)").matches || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
 
+    // `ios-standalone` ya la pone el script inline de `app/layout.tsx`, que corre
+    // antes del primer paint: la franja que saca el blur de iOS 27 necesita su
+    // color de fondo presente cuando iOS muestrea, y eso pasa al lanzar. Este
+    // toggle queda como red de seguridad si el script no corrio; los dos son
+    // idempotentes y se complementan.
     document.body.classList.toggle("ios-standalone", isIOS && isStandalone);
     document.body.classList.toggle("android-standalone", isAndroid && isStandalone);
   }, []);

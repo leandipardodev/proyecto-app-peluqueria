@@ -137,7 +137,21 @@ export default function RootLayout({
       <link rel="icon" href="/favicon/favicon_dark_mode_64x64.png" media="(prefers-color-scheme: dark)" sizes="64x64" type="image/png" />
       <body className="antialiased bg-gradient-to-br from-slate-50 via-white to-zinc-100 dark:bg-gradient-to-br dark:from-zinc-950 dark:via-zinc-900 dark:to-black text-gray-900 dark:text-zinc-400">
 
-        <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem("klip_dark_mode");if(t==="true")document.documentElement.classList.add("dark")}catch(e){}})();` }} />
+        <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem("klip_dark_mode");if(t==="true")document.documentElement.classList.add("dark")}catch(e){}try{var u=navigator.userAgent;var i=/iPad|iPhone|iPod/.test(u)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);var s=window.matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;if(i&&s)document.body.classList.add("ios-standalone")}catch(e){}})();` }} />
+        {/* iOS 27 dibuja un blur sobre el borde superior de las web apps instaladas
+            y difumina lo que la pagina pinta ahi. El meta
+            `apple-mobile-web-app-status-bar-style` esta deprecado y iOS 27 lo
+            ignora, y `theme-color` no existe desde iOS 26: no hay forma de
+            apagarlo. Lo unico documentado que lo saca es un elemento `fixed` con
+            color de fondo arriba del que iOS toma ese color para pintar la barra
+            de estado. Es un elemento real y no un pseudo: los pseudo-elementos no
+            los ve el muestreador de iOS.
+
+            Tiene que ser un elemento de verdad y estar en el DOM al primer paint,
+            por eso la clase la pone el script de arriba y no el efecto de
+            `providers.tsx`, que corre recien con la hidratacion. Si iOS muestrea
+            una vez al launching, con la clase tardia tomaria `transparent`. */}
+        <div aria-hidden="true" className="ios-statusbar-strip" />
         <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-white focus:text-slate-900 focus:rounded-lg focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-sky-500">
           Saltar al contenido principal
         </a>
