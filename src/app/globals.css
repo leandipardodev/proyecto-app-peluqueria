@@ -742,6 +742,59 @@ body.ios-standalone .dashboard-mobile-header {
   opacity: calc(1 - var(--hp, 0) * 0.55);
 }
 
+/* ---------------------------------------------------------------------------
+ * Splash de arranque (components/brand/klip-splash.tsx)
+ *
+ * El logo se dibuja animando `fill` de transparente al azul de Klip. Va con un
+ * unico @keyframes: el export de SVG Artista traia cinco identicos (mas otros
+ * cinco con prefijo -webkit-) y los delays se reparten por posicion.
+ *
+ * Los delays originales arrancaban en 0.8s. Eso esta calibrado para el preview
+ * de SVG Artista, donde el SVG ya esta en pantalla; montado en t=0 como splash
+ * dejaba 800ms de pantalla vacia y el logo se iba antes de que el primer trazo
+ * se viera. Aqui arrancan casi en 0 y el trazo completo dura ~1.15s.
+ *
+ * El color no va hardcodeado en el SVG: el `fill` del atributoeria ganar sobre
+ * la animacion en cada frame. Lo maneja `currentColor` para que dark mode no
+ * quede con el logo en negro sobre negro.
+ *
+ * Fuera de `@layer base`: las utilities de Tailwind ganan por orden de capa.
+ * ------------------------------------------------------------------------- */
+@keyframes klip-splash-fill {
+  from {
+    fill: transparent;
+  }
+  to {
+    fill: currentColor;
+  }
+}
+
+.klip-splash-elem {
+  fill: currentColor;
+  animation: klip-splash-fill 0.7s cubic-bezier(0.6, 0.04, 0.98, 0.335) both;
+}
+.klip-splash-elem:nth-of-type(1) { animation-delay: 0.05s; }
+.klip-splash-elem:nth-of-type(2) { animation-delay: 0.15s; }
+.klip-splash-elem:nth-of-type(3) { animation-delay: 0.25s; }
+.klip-splash-elem:nth-of-type(4) { animation-delay: 0.35s; }
+.klip-splash-elem:nth-of-type(5) { animation-delay: 0.45s; }
+
+/* Dispositivos sin potencia: el logo aparece ya dibujado. Animar cinco paths
+   paint-only durante el arranque es lo ultimo que necesita un telefono viejo. */
+html.perf-mode .klip-splash-elem {
+  animation: none;
+}
+
+/* A diferencia del resto de la app, aca si se respeta: es CSS puro con
+   `both`, asi que no tiene estado en el que quedar pegado (que era el motivo
+   de ignorarlo en providers.tsx con MotionConfig). Con la animacion apagada el
+   logo se ve igual, solo que de golpe. */
+@media (prefers-reduced-motion: reduce) {
+  .klip-splash-elem {
+    animation: none;
+  }
+}
+
 /* Evita el menu nativo de seleccion/callout en long-press durante drags */
 .no-native-callout {
   -webkit-touch-callout: none;

@@ -4,6 +4,7 @@ import "./globals.css";
 import { Providers } from "@/components/providers";
 import WebVitalsReporter from "@/components/perf/web-vitals-reporter";
 import { GoogleAnalytics } from "@/components/google-analytics";
+import KlipSplash from "@/components/brand/klip-splash";
 import { absoluteUrl, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE } from "@/lib/seo";
 
 const borel = Borel({ weight: "400", subsets: ["latin"], display: "swap", variable: "--font-borel" });
@@ -150,6 +151,7 @@ export default function RootLayout({
           <Providers>
             <GoogleAnalytics />
             <WebVitalsReporter />
+            <KlipSplash />
             {children}
           </Providers>
         </div>
