@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import DashboardHeader from "@/components/dashboard/dashboard-header";
 import DashboardHeaderLite from "@/components/dashboard/dashboard-header-lite";
-import { markAppReady } from "@/lib/app-boot";
 
 type ManagedShop = { id: string; slug: string; nombre: string; active: boolean | null; plan_expiry: string | null };
 type BillingStatus = { daysRemaining: number | null; graceDaysRemaining: number | null; isExpired: boolean; inGrace: boolean };
@@ -78,14 +77,6 @@ export default function DashboardHeaderLoader({
       mounted = false;
     };
   }, [userEmail, pathname, state.loading]);
-
-  // Unica senal de que la app arranco: el momento en que el header real esta en
-  // pantalla y el skeleton sin boton de menu desaparece. La escucha el splash
-  // del root layout para dejar de tapar. Antes del return temprano por la regla
-  // de hooks.
-  useEffect(() => {
-    if (!state.loading) markAppReady();
-  }, [state.loading]);
 
   if (state.loading) return <DashboardHeaderLite />;
 
