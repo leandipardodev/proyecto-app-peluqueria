@@ -95,7 +95,15 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    // `black-translucent` pone la web debajo de la barra de estado, y desde
+    // iOS 27 el sistema dibuja un blur progresivo sobre el borde superior de las
+    // web apps standalone. No lo hace la pagina: difumina lo que la web pinta
+    // en esa franja y despues dibuja el reloj encima, asi que el header entero
+    // (menu, nombre del local, campana, avatar) salia lavado. No hay CSS ni
+    // meta que lo apague; `default` lo saca de raiz. Ojo: el meta se congela en
+    // la instalacion, asi que hay que volver a agregar la PWA a la pantalla de
+    // inicio para que tome efecto.
+    statusBarStyle: "default",
     title: "Klip",
   },
   icons: {

@@ -716,46 +716,6 @@ html.perf-mode .carousel-image-zoom {
   background-color: rgb(24 24 27 / calc(0.30 * (1 - var(--hp, 0))));
 }
 
-/* Header del dashboard en la PWA de iOS.
- *
- * Dos correcciones distintas, ambas en una sola regla porque las dos son
- * "el header de iOS standalone no se ve bien":
- *
- * 1. El header arrancaba en `top: 0` con el safe-area como padding
- *    (`pt-[calc(env(safe-area-inset-top)+0.5rem)]`), con lo cual su
- *    `backdrop-blur-xl` cubria tambien la franja donde iOS dibuja el reloj y la
- *    bateria: con `black-translucent` + `viewport-fit=cover` la web queda debajo
- *    de la barra y esa franja se veia borrosa. Solo en la PWA, porque en Safari
- *    el inset vale 0 (la barra de direcciones ocupa ese lugar). Bajar el borde
- *    superior hasta el inset saca el blur de ahi. El contenido no se mueve:
- *    antes arrancaba en inset + 0.5rem y ahora tambien.
- *
- * 2. El `backdrop-filter` del cuerpo del header dejaba los iconos y el texto
- *    (el menu, "Klip", la campana, el avatar) renderizados suaves en iOS:
- *    el elemento cae en su propia capa de composicion y ahi el contenido se
- *    rasteriza aparte. No hay ningun otro `filter` o `blur` en los ancestros
- *    (`layout.tsx` -> `#main-content` -> shell -> columna -> header), asi que
- *    sacar el backdrop-filter es lo que elimina la capa. Sin el, el fondo sube
- *    de 0.30 a 0.9 porque 30% de blanco sobre el gradiente no alcanza para
- *    que el texto se lea. El desvanecido por `--hp` sigue igual: opaco arriba,
- *    transparente al scrollear.
- *
- * Cubre tambien a `dashboard-header-lite.tsx`, que usa la misma clase.
- *
- * Fuera de `@layer base` a proposito: las utilities de Tailwind (`top-0`,
- * `pt-[...]`, `backdrop-blur-xl`) ganan por orden de capa, no por
- * especificidad, asi que una regla equivalente dentro de `@layer base` no
- * tendria efecto. */
-body.ios-standalone .dashboard-mobile-header {
-  top: env(safe-area-inset-top);
-  padding-top: 0.5rem;
-  backdrop-filter: none;
-  background-color: rgb(255 255 255 / calc(0.9 * (1 - var(--hp, 0))));
-}
-.dark body.ios-standalone .dashboard-mobile-header {
-  background-color: rgb(24 24 27 / calc(0.9 * (1 - var(--hp, 0))));
-}
-
 /* Buscador del header: se comprime y desvanece al ocultarse el header */
 .header-search-shrink {
   transform-origin: center;
@@ -766,52 +726,83 @@ body.ios-standalone .dashboard-mobile-header {
 /* ---------------------------------------------------------------------------
  * Splash de arranque (components/brand/klip-splash.tsx)
  *
- * El logo se dibuja animando `fill` de transparente al azul de Klip. Va con un
- * unico @keyframes: el export de SVG Artista traia cinco identicos (mas otros
+ * El logo aparece letra por letra animando `opacity`, no `fill`.
+ *
+ * `fill` es paint-only: necesita frames del hilo principal para repintar cada
+ * valor, y durante el arranque ese hilo esta saturado (parseo del bundle,
+ * hidratacion de React, init de Supabase). El reloj de la animacion sigue
+ * corriendo igual, asi que el resultado es que se salta derecho al estado final
+ * y el usuario ve "Klip" de golpe, sin animacion. `opacity` se compone en GPU
+ * y corre aunque el hilo principal este bloqueado, que es lo unico que importa
+ * en un splash.
+ *
+ * Un unico @keyframes: el export de SVG Artista traia cinco identicos (mas otros
  * cinco con prefijo -webkit-) y los delays se reparten por posicion.
  *
  * Los delays originales arrancaban en 0.8s. Eso esta calibrado para el preview
  * de SVG Artista, donde el SVG ya esta en pantalla; montado en t=0 como splash
- * dejaba 800ms de pantalla vacia y el logo se iba antes de que el primer trazo
- * se viera. Ademas el piso de MIN_VISIBLE_MS del componente son 900ms, asi que
- * el trazo tiene que caber adentro: con 0.5s de duracion y el ultimo delay en
- * 0.31s termina en 0.81s y el logo siempre se ve completo.
+ * dejaba 800ms de pantalla vacia. Ademas el piso de MIN_VISIBLE_MS del
+ * componente son 900ms, asi que la secuencia tiene que caber adentro: con
+ * 0.34s de duracion y el ultimo delay en 0.46s termina en 0.80s y el logo
+ * siempre se ve completo.
  *
- * El color no va hardcodeado en el SVG: el `fill` del atributoeria ganar sobre
- * la animacion en cada frame. Lo maneja `currentColor` para que dark mode no
- * quede con el logo en negro sobre negro.
+ * El color no va hardcodeado en el SVG: lo maneja `currentColor` para que dark
+ * mode no quede con el logo en negro sobre negro.
  *
  * Fuera de `@layer base`: las utilities de Tailwind ganan por orden de capa.
  * ------------------------------------------------------------------------- */
-@keyframes klip-splash-fill {
+@keyframes klip-splash-appear {
   from {
-    fill: transparent;
+    opacity: 0;
   }
   to {
-    fill: currentColor;
+    opacity: 1;
   }
 }
 
 .klip-splash-elem {
   fill: currentColor;
-  animation: klip-splash-fill 0.5s cubic-bezier(0.6, 0.04, 0.98, 0.335) both;
+  animation: klip-splash-appear 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-.klip-splash-elem:nth-of-type(1) { animation-delay: 0.03s; }
-.klip-splash-elem:nth-of-type(2) { animation-delay: 0.1s; }
-.klip-splash-elem:nth-of-type(3) { animation-delay: 0.17s; }
-.klip-splash-elem:nth-of-type(4) { animation-delay: 0.24s; }
-.klip-splash-elem:nth-of-type(5) { animation-delay: 0.31s; }
+.klip-splash-elem:nth-of-type(1) { animation-delay: 0.06s; }
+.klip-splash-elem:nth-of-type(2) { animation-delay: 0.16s; }
+.klip-splash-elem:nth-of-type(3) { animation-delay: 0.26s; }
+.klip-splash-elem:nth-of-type(4) { animation-delay: 0.36s; }
+.klip-splash-elem:nth-of-type(5) { animation-delay: 0.46s; }
+
+/* Brillo de marca detrás del logo. Es un div HTML, no un path del SVG: en un
+ * elemento HTML `opacity` y `transform` se componen igual de bien, y el
+ * radial-gradient cae suave solo, asi que no hace falta `filter: blur()`, que
+ * si seria caro. */
+@keyframes klip-splash-glow {
+  from {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+  45% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+}
+
+.klip-splash-glow {
+  animation: klip-splash-glow 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
 
 /* A diferencia del resto de la app, aca no se respeta `html.perf-mode` ni se
- * frena por potencia: son cinco paths paint-only interpolando `fill` durante
- * 0.81s, y es la unica animacion que existe para cubrir la espera del arranque,
- * o sea justo la que menos se puede permitir que no corra. Ademas `perf-mode`
- * esta activo por defecto en iOS: `use-performance-mode.ts` decide con
+ * frena por potencia: son cinco opacity y un brillo durante 0.80s, y es la
+ * unica animacion que existe para cubrir la espera del arranque, o sea justo
+ * la que menos se puede permitir que no corra. Ademas `perf-mode` esta activo
+ * por defecto en iOS: `use-performance-mode.ts` decide con
  * `navigator.deviceMemory`, que es API de Chromium y Safari no implementa, asi
  * que cae a 4 y nunca pasa el `>= 8`. Gating aca apagaba el logo justamente en
  * el dispositivo que mas lo necesita. */
 @media (prefers-reduced-motion: reduce) {
-  .klip-splash-elem {
+  .klip-splash-elem,
+  .klip-splash-glow {
     animation: none;
   }
 }
