@@ -133,9 +133,6 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
     if (!el || h <= 0) return;
     const p = o / h;
     el.style.setProperty("--hp", p.toFixed(3));
-    // Al desvanecerse el fondo, el blur deja de aportar: apagarlo ahorra GPU
-    if (p > 0.35) { el.style.backdropFilter = "none"; el.style.setProperty("-webkit-backdrop-filter", "none"); }
-    else { el.style.backdropFilter = ""; el.style.setProperty("-webkit-backdrop-filter", ""); }
     el.style.transform = `translateY(${-o}px)`;
 
     const fb = floatBtnRef.current;
@@ -649,7 +646,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
     <>
       <header
         ref={headerElRef}
-        className="dashboard-mobile-header absolute inset-x-0 top-0 z-50 flex items-center gap-4 backdrop-blur-xl shadow-sm border-b border-white/10 dark:border-white/5 px-4 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.5rem)] touch-pan-x [overscroll-behavior-y:none] lg:px-6 lg:pt-2.5"
+        className="dashboard-mobile-header absolute inset-x-0 top-0 z-50 flex items-center gap-4 shadow-sm border-b border-white/10 dark:border-white/5 px-4 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.5rem)] touch-pan-x [overscroll-behavior-y:none] lg:px-6 lg:pt-2.5"
       >
         <button
           ref={inHeaderMenuRef}
@@ -1267,7 +1264,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
           borderRadius: "14px",
           pointerEvents: "none",
         }}
-        className="fixed left-4 top-[calc(env(safe-area-inset-top)+0.65rem)] z-[60] min-[1367px]:hidden flex items-center justify-center w-11 h-11 text-gray-500 dark:text-zinc-200 bg-white/75 dark:bg-zinc-900/70 backdrop-blur-xl border border-white/50 dark:border-white/10 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.25)] hover:bg-white dark:hover:bg-zinc-800/90 hover:shadow-[0_10px_28px_-6px_rgba(124,58,237,0.35)] hover:text-violet-600 dark:hover:text-violet-300 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
+        className="fixed left-4 top-[calc(env(safe-area-inset-top)+0.65rem)] z-[60] min-[1367px]:hidden flex items-center justify-center w-11 h-11 text-gray-500 dark:text-zinc-200 bg-white/85 dark:bg-zinc-900/80 border border-white/50 dark:border-white/10 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.25)] hover:bg-white dark:hover:bg-zinc-800/90 hover:shadow-[0_10px_28px_-6px_rgba(124,58,237,0.35)] hover:text-violet-600 dark:hover:text-violet-300 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
       >
         <Menu className="w-5 h-5" strokeWidth={1.5} />
       </button>
