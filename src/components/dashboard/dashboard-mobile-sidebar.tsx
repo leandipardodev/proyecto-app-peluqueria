@@ -75,7 +75,13 @@ export default function DashboardMobileSidebar({ open, onClose, userName }: Prop
       cancelAnimationFrame(rafRef.current);
       rafRef.current = 0;
     };
-  }, [open]);
+    // `backdropAlive` va en las deps y no solo `open`: el nodo del backdrop no
+    // esta en el documento hasta que el efecto de abajo lo monta, asi que con
+    // solo `open` este efecto corria una vez con `backdropRef.current` en null
+    // y no volvia a correr. La primera vez que se abria el menu el backdrop
+    // salia sin dim y sin rampa de blur, y recien del segundo abrir en adelante
+    // se veia bien.
+  }, [open, backdropAlive]);
 
   // El backdrop tiene que sobrevivir al desvanecido de salida, pero con el menu
   // cerrado no puede quedar una capa `backdrop-filter` de pantalla completa en
