@@ -62,6 +62,19 @@ interface DashboardSidebarProps {
   onNavigate?: () => void;
 }
 
+/**
+ * `router.prefetch` acepta `onInvalidate` en runtime, pero el tipo de Next lo
+ * declara con `kind` obligatorio y `PrefetchKind` no se exporta desde
+ * `next/navigation`, asi que se tipa el metodo por su cuenta en vez de importar
+ * tipos internos del paquete. El runtime resuelve `kind` por su cuenta
+ * (`options?.kind ?? PrefetchKind.AUTO`).
+ */
+type PrefetchWithInvalidate = (href: string, options?: { onInvalidate?: () => void }) => void;
+
+function makePrefetcher(router: ReturnType<typeof useRouter>): PrefetchWithInvalidate {
+  return (href, options) => (router.prefetch as PrefetchWithInvalidate)(href, options);
+}
+
 const DashboardSidebar = memo(function DashboardSidebar({
   userName,
   className = "",
@@ -124,8 +137,21 @@ const DashboardSidebar = memo(function DashboardSidebar({
   );
 
   useEffect(() => {
+    // `onInvalidate` es el mecanismo de Next para esto: se dispara cuando la
+    // entrada prefetchada de esta URL queda obsoleta y hay que volver a pedirla.
+    // Hace falta porque `router.refresh()` (y cualquier otra invalidacion) sube
+    // la version GLOBAL del Client Cache, sin mirar la ruta: borra el prefetch de
+    // las 8 secciones y de todas las tiendas de la pestana. Antes solo se
+    // re-prefetcheaba con `pingVisibleLinks`, que solo cubre links visibles, y en
+    // mobile el sidebar esta desmontado con el menu cerrado, asi que no habia
+    // quien los recuperara.
+    const prefetchWithInvalidate = makePrefetcher(router);
+
     const runPrefetch = () => {
-      for (const href of prefetchTargets) router.prefetch(href);
+      for (const href of prefetchTargets) {
+        const rePrefetch = () => prefetchWithInvalidate(href, { onInvalidate: rePrefetch });
+        prefetchWithInvalidate(href, { onInvalidate: rePrefetch });
+      }
     };
 
     const idle = (window as Window & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback;

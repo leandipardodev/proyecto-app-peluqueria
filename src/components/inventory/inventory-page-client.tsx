@@ -42,7 +42,7 @@ export default function InventoryPageClient({
 }: InventoryPageClientProps) {
   const router = useRouter();
   const { addToast } = useToast();
-  const liveNotifications = useNotifications();
+  const liveNotifications = useNotifications(shopId);
   const pendingOrdersCount = liveNotifications.pendingOrders;
   const [tab, setTabState] = useState<InventoryTab>(initialTab);
   const [tabDir, setTabDir] = useState(1);

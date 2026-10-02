@@ -61,6 +61,39 @@ function getMpReturnScrollKey(shopSlug: string | null): string {
   return `klip-mp-return-scroll:${shopSlug || "default"}`;
 }
 
+function getStoreOverrideKey(shopSlug: string | null): string {
+  return `klip-store-override:${shopSlug || "default"}`;
+}
+
+/**
+ * El toggle de Tienda online guarda su valor en localStorage por tienda.
+ *
+ * Antes se llamaba a `router.refresh()` despues de cada toggle, lo que ademas de
+ * refrescar la pagina borraba por el camino el Client Cache entero del cliente
+ * (ver `invalidateBfCache` de Next): todas las secciones del dashboard, de todas
+ * las tiendas abiertas en la pestana, quedaban sin prefetch y sin re-prefetch.
+ * Ese era el motivo de que Mi Negocio "ralentizara" al resto.
+ *
+ * Sin el refresh, el payload RSC de esta pagina puede venir del Client Cache con
+ * hasta 5 min de antiguedad (`staleTimes.static`), asi que al volver a entrar el
+ * switch se sembraba con un `storeEnabled` anterior al toggle. Este override
+ * local tapa esa ventana sin volver a pedir nada.
+ */
+function readStoreOverride(shopSlug: string | null): boolean | null {
+  try {
+    const raw = localStorage.getItem(getStoreOverrideKey(shopSlug));
+    return raw === null ? null : raw === "1";
+  } catch {
+    return null;
+  }
+}
+
+function writeStoreOverride(shopSlug: string | null, enabled: boolean) {
+  try {
+    localStorage.setItem(getStoreOverrideKey(shopSlug), enabled ? "1" : "0");
+  } catch { /* modo privado / cuota llena: el switch igual queda en memoria */ }
+}
+
 /**
  * Comparaciones de igualdad para el diff de "cambios sin guardar".
  *
@@ -514,7 +547,11 @@ export default function BusinessClient({
   // columna assign_staff_later es inversa. Esta linea es la unica que traduce
   // entre las dos, para que ningun switch quede con semantica opuesta al otro.
   const showStaffStep = !assignStaffLater;
-  const [storeEnabledState, setStoreEnabledState] = useState(storeEnabled ?? false);
+  // El override local (toggle de Tienda online de esta sesion) tiene prioridad
+  // sobre la prop: la prop viene del payload RSC, que puede estar cacheado.
+  const [storeEnabledState, setStoreEnabledState] = useState(
+    () => readStoreOverride(shopSlug) ?? storeEnabled ?? false
+  );
   const [storeSaving, setStoreSaving] = useState(false);
   const [storeConfirmOpen, setStoreConfirmOpen] = useState(false);
   const [bookingDepositAmount, setBookingDepositAmount] = useState(String(data?.booking_deposit_amount ?? 3000));
@@ -1280,8 +1317,8 @@ export default function BusinessClient({
       showError(result.error);
       return;
     }
+    writeStoreOverride(shopSlug, true);
     showSuccess("Tienda online activada");
-    router.refresh();
   }
 
   async function handleStoreTurnOffConfirmed() {
@@ -1297,8 +1334,8 @@ export default function BusinessClient({
       showError(result.error);
       return;
     }
+    writeStoreOverride(shopSlug, false);
     showSuccess("Tienda online apagada");
-    router.refresh();
   }
 
   async function handleSavePublicInfo(e: React.FormEvent) {

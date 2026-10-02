@@ -101,13 +101,13 @@ function typeStyle(type: string): { Icon: typeof Bell; className: string } {
   }
 }
 
-function NotificationRow({ item, onClose }: { item: NotificationItem; onClose: () => void }) {
+function NotificationRow({ item, shopId, onClose }: { item: NotificationItem; shopId: string | null; onClose: () => void }) {
   const { Icon, className } = typeStyle(item.type);
   return (
     <a
       href={item.href}
       onClick={() => {
-        if (!item.isRead) void markNotificationsRead([item.id]);
+        if (!item.isRead && shopId) void markNotificationsRead(shopId, [item.id]);
         onClose();
       }}
       className={`flex items-start gap-3 px-3 py-2.5 rounded-xl transition-colors ${
@@ -153,8 +153,8 @@ export default function NotificationsPanel({ onClose, shopId }: { onClose: () =>
   useEffect(() => () => {
     const ids = Array.from(seenUnreadRef.current);
     seenUnreadRef.current = new Set();
-    if (ids.length > 0) void markNotificationsRead(ids);
-  }, []);
+    if (ids.length > 0 && shopId) void markNotificationsRead(shopId, ids);
+  }, [shopId]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -225,7 +225,7 @@ export default function NotificationsPanel({ onClose, shopId }: { onClose: () =>
                 </div>
                 <div className="space-y-1">
                   {unreadItems.map((item) => (
-                    <NotificationRow key={item.id} item={item} onClose={onClose} />
+                    <NotificationRow key={item.id} item={item} shopId={shopId ?? null} onClose={onClose} />
                   ))}
                 </div>
               </div>
@@ -246,7 +246,7 @@ export default function NotificationsPanel({ onClose, shopId }: { onClose: () =>
                 </div>
                 <div className="space-y-1">
                   {day.entries.map((item) => (
-                    <NotificationRow key={item.id} item={item} onClose={onClose} />
+                    <NotificationRow key={item.id} item={item} shopId={shopId ?? null} onClose={onClose} />
                   ))}
                 </div>
               </div>

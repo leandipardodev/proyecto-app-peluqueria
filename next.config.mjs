@@ -58,6 +58,13 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: "6mb",
     },
+    // TTL del Client Cache para segmentos dinamicos prefetchados con estrategia
+    // `auto` (no aplica al sidebar, que usa `prefetch={true}` y ya toma el
+    // `static` de 5min por defecto). Sobre todo hace reutilizables los
+    // `loading.tsx` boundaries durante la navegacion.
+    staleTimes: {
+      dynamic: 30,
+    },
   },
   images: {
     remotePatterns: [
