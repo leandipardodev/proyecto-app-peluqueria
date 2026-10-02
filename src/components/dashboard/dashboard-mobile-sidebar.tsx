@@ -11,9 +11,14 @@ type Props = {
   userName: string;
 };
 
+// Duracion del desvanecido del backdrop (mismo `duration` de la animacion
+// WAAPI de abajo). El nodo se saca del documento recien despues.
+const BACKDROP_EXIT_MS = 300;
+
 export default function DashboardMobileSidebar({ open, onClose, userName }: Props) {
   const [playKey, setPlayKey] = useState(0);
   const [mounted, setMounted] = useState(false);
+  const [backdropAlive, setBackdropAlive] = useState(false);
   const backdropRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef(0);
   const blurRef = useRef(0);
@@ -35,6 +40,9 @@ export default function DashboardMobileSidebar({ open, onClose, userName }: Prop
     const current = el;
 
     function step(now: number) {
+      // El backdrop se desmonta al terminar su desvanecido de salida; el rAF
+      // puede sobrevivirlo y escribiria el estilo sobre un nodo huérfano.
+      if (!current.isConnected) { rafRef.current = 0; return; }
       const elapsed = now - startTime;
       const t = Math.min(elapsed / duration, 1);
       const ease = t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
@@ -59,6 +67,24 @@ export default function DashboardMobileSidebar({ open, onClose, userName }: Prop
       ],
       { duration: 300, easing: "ease", fill: "forwards" },
     );
+
+    // Sin este cleanup el rAF de apertura (1400ms) sigue corriendo contra un
+    // nodo que ya no pertenece al documento si el header se desmonta con el
+    // menu abierto.
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
+    };
+  }, [open]);
+
+  // El backdrop tiene que sobrevivir al desvanecido de salida, pero con el menu
+  // cerrado no puede quedar una capa `backdrop-filter` de pantalla completa en
+  // el documento: es una compositing layer del tamano del viewport, y `blur(0px)`
+  // sigue creando backdrop root. Se la saca del documento, no se la oculta.
+  useEffect(() => {
+    if (open) { setBackdropAlive(true); return; }
+    const id = window.setTimeout(() => setBackdropAlive(false), BACKDROP_EXIT_MS);
+    return () => window.clearTimeout(id);
   }, [open]);
 
   useEffect(() => {
@@ -69,6 +95,17 @@ export default function DashboardMobileSidebar({ open, onClose, userName }: Prop
     document.body.style.overflow = "";
   }, [open]);
 
+  // Escape cierra. Sin esto el menu abierto solo se cerraba tocando el backdrop
+  // o navegando: dos acciones que no son obvias con teclado.
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
+
   // El drawer tiene que vivir en el contexto de apilamiento de la raiz. Renderizado
   // dentro del header queda atrapado en el `relative z-10` de `dashboard/layout.tsx`,
   // asi que sus z-[65]/z-[70] valian 10 contra la raiz: cualquier overlay portéado a
@@ -78,17 +115,19 @@ export default function DashboardMobileSidebar({ open, onClose, userName }: Prop
 
   return createPortal(
     <>
-      <div
-        ref={backdropRef}
-        className="fixed inset-0 z-[65] min-[1367px]:hidden"
-        style={{
-          backdropFilter: "blur(0px)",
-          WebkitBackdropFilter: "blur(0px)",
-          backgroundColor: "rgba(0,0,0,0)",
-          pointerEvents: open ? "auto" : "none",
-        }}
-        onClick={onClose}
-      />
+      {backdropAlive && (
+        <div
+          ref={backdropRef}
+          className="fixed inset-0 z-[65] min-[1367px]:hidden"
+          style={{
+            backdropFilter: "blur(0px)",
+            WebkitBackdropFilter: "blur(0px)",
+            backgroundColor: "rgba(0,0,0,0)",
+            pointerEvents: open ? "auto" : "none",
+          }}
+          onClick={onClose}
+        />
+      )}
       <AnimatePresence>
         {open && (
           <motion.div

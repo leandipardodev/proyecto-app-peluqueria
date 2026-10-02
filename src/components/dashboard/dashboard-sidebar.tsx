@@ -24,6 +24,7 @@ import { useAuth } from "@/lib/auth-context";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { resolveIndustry } from "@/lib/industry/resolve";
 import { getDashboardBasePath } from "@/lib/dashboard/shared/dashboard-base";
+import { shouldCloseNavDrawer } from "@/lib/dashboard/shared/nav-link-intent";
 import { useNotifications } from "@/lib/dashboard/use-notifications";
 
 const navItems = [
@@ -218,11 +219,19 @@ const DashboardSidebar = memo(function DashboardSidebar({
                     href={targetHref}
                     prefetch={true}
                     draggable={false}
+                    // `onMouseDown` es solo feedback: sonido, vibracion y el
+                    // evento de transicion. El cierre va en `onClick`, porque
+                    // cerrarlo aca hacia que el panel se moviera antes del
+                    // mouseup de un click normal de 60-150ms, el click se perdia
+                    // sobre un ancestro, `Link.onClick` de Next no corria y no
+                    // se navegaba con el menu ya cerrado. Ver `nav-link-intent.ts`.
                     onMouseDown={() => {
                       playClick();
                       haptic(6);
                       startNavTransition();
-                      requestAnimationFrame(() => onNavigate?.());
+                    }}
+                    onClick={(e) => {
+                      if (shouldCloseNavDrawer(e)) onNavigate?.();
                     }}
                     // `active:` es el feedback real en touch. Va por CSS, no por
                     // JS: dispara en touchstart, sin pasar por React ni framer,
@@ -232,8 +241,10 @@ const DashboardSidebar = memo(function DashboardSidebar({
                     // iOS no hay navigator.vibrate, asi que el silencio era
                     // total). `group` para que el icono reaccione tambien:
                     // `:active` matchea al elemento y sus ancestros, no a los
-                    // descendientes.
-                    className={`group relative flex items-center gap-3 px-3 py-3 rounded-2xl text-sm font-medium transition-colors duration-75 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/70 ${
+                    // descendientes. `touch-manipulation` saca el delay de 300ms
+                    // del click que Chrome/iOS meten cuando no hay nada
+                    // scrolleable debajo, que es el caso del menu.
+                    className={`group relative flex items-center gap-3 px-3 py-3 rounded-2xl text-sm font-medium transition-colors duration-75 cursor-pointer select-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/70 ${
                     isActive
                       ? "text-violet-700 dark:text-white"
                       : "text-zinc-500 dark:text-zinc-400 hover:bg-white/50 dark:hover:bg-white/5 hover:text-zinc-700 dark:hover:text-white active:bg-violet-500/15 dark:active:bg-violet-400/15 active:text-violet-700 dark:active:text-violet-200"
