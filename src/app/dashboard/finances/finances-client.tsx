@@ -1,11 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import {
-  Users2,
-  CheckCircle2,
-  Vault,
-} from "lucide-react";
+import { Users2, CheckCircle2, ArrowLeftRight, ChevronRight } from "lucide-react";
 import {
   fetchFinanceData,
   fetchStaffProduction,
@@ -17,7 +13,6 @@ import {
   closeCashSession,
   createCashMovement,
   fetchCashMovements,
-  fetchStaffLiquidationItems,
   fetchCashSessionsHistory,
   type StaffProduction,
   type StaffLiquidationPreview,
@@ -25,8 +20,9 @@ import {
   type CashSessionSummary,
   type CashMovementItem,
 } from "@/lib/dashboard/finances/finances-actions";
-import { supabase } from "@/lib/supabase";
+import { normalizeRange } from "@/lib/dashboard/finances/date-range";
 import CustomSelect from "@/components/ui/custom-select";
+import BaseModal from "@/components/ui/modal";
 import PageTitle from "@/components/ui/page-title";
 
 type Movement = {
@@ -94,21 +90,13 @@ function getWeekBounds(dateStr: string) {
   return { from, to };
 }
 
-const CARD_ICON_COLORS = {
-  blue: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
-  emerald: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-  violet: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
-  amber: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-  slate: "bg-slate-500/15 text-slate-600 dark:text-slate-400",
-} as const;
-
-function Card({ title, icon, color = "slate", right, children }: { title: string; icon: React.ReactNode; color?: keyof typeof CARD_ICON_COLORS; right?: React.ReactNode; children: React.ReactNode }) {
+function Card({ title, icon, right, children }: { title: string; icon?: React.ReactNode; right?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="ui-card rounded-3xl border border-slate-200/80 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className={`p-2 rounded-full ${CARD_ICON_COLORS[color]}`}>{icon}</span>
-          <h2 className="text-base font-semibold text-slate-900 dark:text-white">{title}</h2>
+        <div className="flex items-center gap-2.5">
+          {icon && <span className="p-2 rounded-full bg-slate-500/15 text-slate-600 dark:text-slate-400">{icon}</span>}
+          <h2 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-white">{title}</h2>
         </div>
         {right}
       </div>
@@ -116,6 +104,14 @@ function Card({ title, icon, color = "slate", right, children }: { title: string
     </section>
   );
 }
+
+/** El estado crudo de la base no le dice nada a nadie: `draft` no es una palabra de salon. */
+const LIQUIDATION_STATUS_LABEL: Record<string, string> = {
+  draft: "Pendiente",
+  pending: "Pendiente",
+  paid: "Pagada",
+  cancelled: "Cancelada",
+};
 
 export default function FinancesClient({
   shopId,
@@ -149,16 +145,17 @@ export default function FinancesClient({
   const monthBounds = getMonthBounds(today);
   const weekBounds = getWeekBounds(today);
 
-  const [from, setFrom] = useState(initialFrom);
-  const [to, setTo] = useState(initialTo);
+  const [range, setRange] = useState(() => normalizeRange(initialFrom, initialTo));
+  const { from, to } = range;
   const [data, setData] = useState(initialData);
   const [error, setError] = useState<string | null>(initialError);
   const [, startTransition] = useTransition();
 
   const [staffProduction, setStaffProduction] = useState<StaffProduction[]>(initialStaffProduction);
-  const [liquidationResult, setLiquidationResult] = useState<StaffLiquidationPreview | null>(null);
+  const [liquidationResults, setLiquidationResults] = useState<StaffLiquidationPreview[]>([]);
   const [liquidations, setLiquidations] = useState<StaffLiquidationListItem[]>(initialStaffLiquidations);
-  const [selectedStaffForLiquidation, setSelectedStaffForLiquidation] = useState("");
+  const [selectedStaff, setSelectedStaff] = useState<string[]>([]);
+  const [movementsOpen, setMovementsOpen] = useState(false);
   const [cashMovementType, setCashMovementType] = useState("income");
 
   const [cashSession, setCashSession] = useState<CashSessionSummary | null>(initialCashSession);
@@ -170,26 +167,11 @@ export default function FinancesClient({
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const shopRef = useRef(shopId);
   const isFirstRender = useRef(true);
-  const skipNextRealtimeRefresh = useRef(false);
-  const realtimeCooldown = useRef(false);
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     shopRef.current = shopId;
   }, [shopId]);
-
-  async function refreshFinanceData(nextFrom: string, nextTo: string) {
-    const sid = shopRef.current || undefined;
-    startTransition(async () => {
-      const result = await fetchFinanceData(nextFrom, nextTo, sid);
-      if (result.success && result.data) {
-        setData(result.data);
-        setError(null);
-      } else {
-        setError(actionError(result, "Error al cargar"));
-      }
-    });
-  }
 
   async function refreshCashData(nextFrom: string, nextTo: string) {
     const sid = shopRef.current || undefined;
@@ -207,118 +189,6 @@ export default function FinancesClient({
       /* ignore */
     } finally {
       setCashLoading(false);
-    }
-  }
-
-  async function refreshFinanceDataFast(nextFrom: string, nextTo: string) {
-    const sid = shopRef.current || "";
-    const [incomeRes, expensesRes] = await Promise.all([
-      supabase
-        .from("appointments")
-        .select("service_price, services:service_id(price)")
-        .eq("shop_id", sid)
-        .eq("status", "completed")
-        .eq("is_paid", true)
-        .gte("start_time", nextFrom)
-        .lte("start_time", nextTo)
-        .limit(500),
-      supabase
-        .from("finances")
-        .select("id, amount, category, description, created_at, happened_at")
-        .eq("shop_id", sid)
-        .eq("type", "expense")
-        .gte("happened_at", nextFrom)
-        .lte("happened_at", nextTo)
-        .order("happened_at", { ascending: true }),
-    ]);
-    if (!incomeRes.error && !expensesRes.error) {
-      const totalIncome = (incomeRes.data || []).reduce((sum: number, apt: { service_price: number | null; services: { price: number } | null }) => {
-        return sum + Number(apt.service_price ?? apt.services?.price ?? 0);
-      }, 0);
-      const totalExpenses = (expensesRes.data || []).reduce((sum: number, e: { amount: number }) => sum + Number(e.amount), 0);
-      setData({
-        totalIncome,
-        totalExpenses,
-        netBalance: totalIncome - totalExpenses,
-        appointmentsCount: (incomeRes.data || []).length,
-        recentMovements: [],
-        expenses: (expensesRes.data || []).map((e: { id: string; amount: number; category: string; description: string | null; created_at: string | null }) => ({
-          id: e.id,
-          amount: Number(e.amount),
-          category: e.category,
-          description: e.description,
-          created_at: e.created_at ?? "",
-        })),
-      });
-    }
-  }
-
-  async function refreshCashDataFast(nextFrom: string, nextTo: string) {
-    const sid = shopRef.current || "";
-    try {
-      const [sessionRes, movesRes, historyRes] = await Promise.all([
-        supabase
-          .from("cash_sessions")
-          .select("id, status, opened_at, opening_amount, expected_amount, counted_amount, difference_amount")
-          .eq("shop_id", sid)
-          .eq("status", "open")
-          .maybeSingle(),
-        supabase
-          .from("cash_movements")
-          .select("id, movement_type, payment_method, amount, category, description, happened_at")
-          .eq("shop_id", sid)
-          .gte("happened_at", nextFrom)
-          .lte("happened_at", nextTo)
-          .order("happened_at", { ascending: false })
-          .limit(50),
-        supabase
-          .from("cash_sessions")
-          .select("id, status, opened_at, opening_amount, expected_amount, counted_amount, difference_amount")
-          .eq("shop_id", sid)
-          .gte("opened_at", nextFrom)
-          .lte("opened_at", nextTo)
-          .order("opened_at", { ascending: false })
-          .limit(30),
-      ]);
-      if (!sessionRes.error && sessionRes.data) {
-        setCashSession({
-          id: sessionRes.data.id,
-          status: sessionRes.data.status as "open" | "closed" | "cancelled",
-          openedAt: sessionRes.data.opened_at,
-          openingAmount: Number(sessionRes.data.opening_amount),
-          expectedAmount: Number(sessionRes.data.expected_amount),
-          countedAmount: sessionRes.data.counted_amount ? Number(sessionRes.data.counted_amount) : null,
-          differenceAmount: sessionRes.data.difference_amount ? Number(sessionRes.data.difference_amount) : null,
-          movementNet: 0,
-          appointmentIncome: 0,
-        });
-      }
-      if (!movesRes.error && movesRes.data) {
-        setCashMovements(movesRes.data.map((m: { id: string; movement_type: string; payment_method: string; amount: number; category: string; description: string | null; happened_at: string }) => ({
-          id: m.id,
-          movementType: m.movement_type,
-          paymentMethod: m.payment_method,
-          amount: Number(m.amount),
-          category: m.category,
-          description: m.description,
-          happenedAt: m.happened_at,
-        })));
-      }
-      if (!historyRes.error && historyRes.data) {
-        setCashSessionsHistory(historyRes.data.map((h: { id: string; status: string; opened_at: string; opening_amount: number; expected_amount: number | null; counted_amount: number | null; difference_amount: number | null }) => ({
-          id: h.id,
-          status: h.status as "open" | "closed" | "cancelled",
-          openedAt: h.opened_at,
-          openingAmount: Number(h.opening_amount),
-          expectedAmount: Number(h.expected_amount),
-          countedAmount: h.counted_amount ? Number(h.counted_amount) : null,
-          differenceAmount: h.difference_amount ? Number(h.difference_amount) : null,
-          movementNet: 0,
-          appointmentIncome: 0,
-        })));
-      }
-    } catch {
-      /* ignore */
     }
   }
 
@@ -374,36 +244,14 @@ export default function FinancesClient({
     triggerLoads(from, to);
   }, [from, to, triggerLoads]);
 
-  useEffect(() => {
-    const channel = supabase
-      .channel(`finances-${shopId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "finances", filter: `shop_id=eq.${shopId}` }, () => {
-        if (skipNextRealtimeRefresh.current) { skipNextRealtimeRefresh.current = false; return; }
-        if (realtimeCooldown.current) return;
-        realtimeCooldown.current = true;
-        setTimeout(() => { realtimeCooldown.current = false; }, 5000);
-        refreshFinanceDataFast(from, to);
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "cash_movements", filter: `shop_id=eq.${shopId}` }, () => {
-        if (skipNextRealtimeRefresh.current) { skipNextRealtimeRefresh.current = false; return; }
-        if (realtimeCooldown.current) return;
-        realtimeCooldown.current = true;
-        setTimeout(() => { realtimeCooldown.current = false; }, 5000);
-        refreshCashDataFast(from, to);
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "cash_sessions", filter: `shop_id=eq.${shopId}` }, () => {
-        if (skipNextRealtimeRefresh.current) { skipNextRealtimeRefresh.current = false; return; }
-        if (realtimeCooldown.current) return;
-        realtimeCooldown.current = true;
-        setTimeout(() => { realtimeCooldown.current = false; }, 5000);
-        refreshCashDataFast(from, to);
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [shopId, from, to]);
+  // Sin canal de realtime a proposito. Las tablas que mira esta pagina
+  // (`cash_movements`, `cash_sessions`, `staff_liquidations`, `finances`) las
+  // escribe solo `finances-actions.ts`, que a su vez se llama solo desde aca, y
+  // cada handler de mutacion ya refresca con `triggerLoads` por su cuenta. O
+  // sea que el canal re-traia lo que el usuario acababa de recargar, y ademas
+  // refrescaba por una via distinta a la del render, con otros limites y con
+  // los KPI de caja en cero. Si algun dia otro dispositivo o proceso escribe
+  // esas tablas, el canal vuelve a hacer falta.
 
   function setQuickFeedback(msg: string) {
     setUiMessage(msg);
@@ -414,23 +262,42 @@ export default function FinancesClient({
     }, 1600);
   }
 
-  function applyRangeAndRefresh(nextFrom: string, nextTo: string) {
-    setFrom(nextFrom);
-    setTo(nextTo);
+  function applyRange(nextFrom: string, nextTo: string) {
+    setRange(normalizeRange(nextFrom, nextTo));
   }
 
-  async function handleCreatePreLiquidation(e: React.FormEvent<HTMLFormElement>) {
+  function toggleStaffSelection(staffId: string) {
+    setSelectedStaff((prev) => (prev.includes(staffId) ? prev.filter((x) => x !== staffId) : [...prev, staffId]));
+  }
+
+  async function handleCreatePreLiquidations(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (selectedStaff.length === 0) return;
     setBusyKey("liq-create");
-    const formData = new FormData(e.currentTarget);
-    formData.set("period_start", from);
-    formData.set("period_end", to);
-    const res = await createStaffPreLiquidation(formData, shopId || undefined);
+    setError(null);
+
+    // La action liquida de a una persona por vez, asi que se llama una por cada
+    // chequeado. Va en serie y no en paralelo: cada llamada pega un insert en
+    // `staff_liquidations` y varias en paralelo sobre el mismo local y periodo
+    // abren la puerta a liquidaciones cruzadas.
+    const targets = [...selectedStaff];
+    const ok: StaffLiquidationPreview[] = [];
+    for (const staffUserId of targets) {
+      const fd = new FormData();
+      fd.set("staff_user_id", staffUserId);
+      fd.set("period_start", from);
+      fd.set("period_end", to);
+      const res = await createStaffPreLiquidation(fd, shopId || undefined);
+      if (res.success && res.data) ok.push(res.data);
+      else setError(actionError(res, "No se pudo generar"));
+    }
+
     setBusyKey(null);
-    if (!res.success || !res.data) return setError(actionError(res, "No se pudo generar"));
-    setLiquidationResult(res.data);
-    setQuickFeedback("Pre-liquidacion creada");
-    skipNextRealtimeRefresh.current = true;
+    setLiquidationResults(ok);
+    setSelectedStaff([]);
+    setQuickFeedback(
+      ok.length === 1 ? "Pre-liquidacion creada" : ok.length > 1 ? `${ok.length} liquidaciones creadas` : "No se creo ninguna"
+    );
     void triggerLoads(from, to);
   }
 
@@ -440,13 +307,7 @@ export default function FinancesClient({
     setBusyKey(null);
     if (!res.success) return setError(actionError(res, "No se pudo actualizar"));
     setQuickFeedback("Liquidacion pagada");
-    skipNextRealtimeRefresh.current = true;
     void triggerLoads(from, to);
-  }
-
-  async function handleOpenLiquidationDetail(liqId: string) {
-    const res = await fetchStaffLiquidationItems(liqId, shopId || undefined);
-    if (!res.success || !res.data) return setError(actionError(res, "No se pudo cargar detalle"));
   }
 
   async function handleOpenCashSession(e: React.FormEvent<HTMLFormElement>) {
@@ -456,7 +317,6 @@ export default function FinancesClient({
     setBusyKey(null);
     if (!res.success) return setError(actionError(res, "No se pudo abrir caja"));
     setQuickFeedback("Caja abierta");
-    skipNextRealtimeRefresh.current = true;
     void triggerLoads(from, to);
   }
 
@@ -470,7 +330,6 @@ export default function FinancesClient({
     setBusyKey(null);
     if (!res.success) return setError(actionError(res, "No se pudo cerrar caja"));
     setQuickFeedback("Caja cerrada");
-    skipNextRealtimeRefresh.current = true;
     void triggerLoads(from, to);
   }
 
@@ -483,13 +342,19 @@ export default function FinancesClient({
     if (!res.success) return setError(actionError(res, "No se pudo guardar movimiento"));
     form.reset();
     setQuickFeedback("Movimiento guardado");
-    skipNextRealtimeRefresh.current = true;
     void triggerLoads(from, to);
   }
 
   const kpiExpected = cashSession?.expectedAmount ?? 0;
-  const kpiCounted = cashSession?.countedAmount ?? 0;
   const kpiDiff = cashSession?.differenceAmount ?? 0;
+  // El empleado solo ve su fila. El filtro va en el cliente porque el server ya
+  // devuelve todas las filas con los importes en cero para staff
+  // `fetchStaffProduction` incluye owner y admin, pero a un dueño no se lo liquida:
+// al listarlos offering check para marcarlo, "Calcular" le daba $0 y no se
+// entendia por que. Para el empleado, solo su fila; el server ya devuelve todas
+// con los importes en cero para staff, asi que no hay dato ajeno que ver.
+const liquidables = staffProduction.filter((s) => s.role === "staff");
+const staffRows = isOwnerOrAdmin ? liquidables : liquidables.filter((s) => s.staffId === userId);
 
   return (
     <div className="space-y-5">
@@ -502,12 +367,11 @@ export default function FinancesClient({
       </header>
 
       <div className="ui-card inline-flex max-w-full flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-2.5 dark:border-zinc-700 dark:bg-zinc-900">
-        <button onClick={() => applyRangeAndRefresh(today, today)} className="ui-btn-ghost rounded-lg px-2.5 py-1.5 text-xs">DIA</button>
-        <button onClick={() => applyRangeAndRefresh(weekBounds.from, weekBounds.to)} className="ui-btn-ghost rounded-lg px-2.5 py-1.5 text-xs">SEMANA</button>
-        <button onClick={() => applyRangeAndRefresh(monthBounds.from, monthBounds.to)} className="ui-btn-ghost rounded-lg px-2.5 py-1.5 text-xs">MES</button>
-        <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
-        <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
-        <button onClick={() => applyRangeAndRefresh(from <= to ? from : to, from <= to ? to : from)} className="ui-btn-primary rounded-lg px-2.5 py-1.5 text-xs">Filtrar</button>
+        <button onClick={() => applyRange(today, today)} className="ui-btn-ghost rounded-lg px-2.5 py-1.5 text-xs">DIA</button>
+        <button onClick={() => applyRange(weekBounds.from, weekBounds.to)} className="ui-btn-ghost rounded-lg px-2.5 py-1.5 text-xs">SEMANA</button>
+        <button onClick={() => applyRange(monthBounds.from, monthBounds.to)} className="ui-btn-ghost rounded-lg px-2.5 py-1.5 text-xs">MES</button>
+        <input type="date" value={from} onChange={(e) => applyRange(e.target.value, to)} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
+        <input type="date" value={to} onChange={(e) => applyRange(from, e.target.value)} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
       </div>
 
       <div className="ui-card rounded-3xl border border-slate-200/80 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
@@ -529,80 +393,203 @@ export default function FinancesClient({
         </>
       )}
 
-      <Card title={isOwnerOrAdmin ? "Equipo" : "Mi Produccion"} icon={<Users2 className="h-4 w-4" />} color="blue" right={undefined}>
-        {isOwnerOrAdmin ? (
-        <>
-        {staffProduction.length === 0 ? (
+      {/* En desktop las dos cards van en columnas: a lo ancho de la pantalla
+          quedaban estiradas y la de Caja, con el numero centrado y los forms
+          de ancho completo, se veía muy vacía. `items-start` para que la más
+          corta no se estire hasta la altura de la otra. */}
+      <div className="grid items-start gap-5 lg:grid-cols-2">
+      <Card title={isOwnerOrAdmin ? "Equipo" : "Mi Produccion"}>
+        {isOwnerOrAdmin && staffProduction.length === 0 && (
           <div className="flex min-h-[120px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
             <Users2 className="h-7 w-7 text-slate-400" />
             <button onClick={() => { setBusyKey("load-team"); triggerLoads(from, to).finally(() => setBusyKey(null)); }} className="ui-btn-primary rounded-lg px-4 py-2 text-sm">{busyKey === "load-team" ? "Cargando..." : "+ Cargar equipo"}</button>
           </div>
-        ) : (
-          <div>
-            {/* Liquidar empleado */}
-            <form onSubmit={handleCreatePreLiquidation} className="flex flex-wrap items-end gap-2 mb-4">
-              <div className="min-w-0 flex-1">
-                <CustomSelect
-                  name="staff_user_id"
-                  value={selectedStaffForLiquidation}
-                  onChange={setSelectedStaffForLiquidation}
-                  placeholder="Liquidar empleado..."
-                  options={staffProduction.map((s) => ({ value: s.staffId, label: s.staffName }))}
-                />
-              </div>
-              <button disabled={busyKey === "liq-create" || !selectedStaffForLiquidation} className="ui-btn-primary rounded-lg px-4 py-2.5 text-sm h-[42px]">{busyKey === "liq-create" ? "Calculando..." : "Calcular"}</button>
-            </form>
-            {liquidationResult && (
-              <div className="mb-4 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-900/40 dark:bg-emerald-950/20">
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                <span className="text-sm text-emerald-800 dark:text-emerald-200"><strong>{liquidationResult.staffName}</strong>: ${liquidationResult.finalPayable.toFixed(2)}</span>
-              </div>
-            )}
+        )}
 
-            {/* Tabla de produccion */}
-            <div className="overflow-x-auto mb-4">
-              <table className="w-full text-sm">
-                <thead><tr className="text-left text-slate-500"><th className="py-2 font-medium">Empleado</th><th className="font-medium">Turnos</th><th className="font-medium">Cobrado</th><th className="font-medium">Ticket</th></tr></thead>
-                <tbody>{staffProduction.map((s) => <tr key={s.staffId} className="border-t border-slate-100 dark:border-zinc-800"><td className="py-2 font-medium text-slate-900 dark:text-white">{s.staffName}</td><td className="text-slate-700 dark:text-zinc-300">{s.appointmentsCount}</td><td className="text-emerald-600 font-semibold">${s.paidRevenue.toFixed(2)}</td><td className="text-slate-700 dark:text-zinc-300">${s.avgTicketPaid.toFixed(2)}</td></tr>)}</tbody>
-              </table>
+        {/* El desplegable "Liquidar empleado" se sustituyo por un check por fila:
+            se puede liquidar varias personas en una sola tanda. */}
+        {isOwnerOrAdmin && liquidables.length > 0 && (
+          <form onSubmit={handleCreatePreLiquidations} className="mb-3 flex items-center justify-between gap-3">
+            <p className="text-xs text-slate-500 dark:text-zinc-400">
+              {selectedStaff.length === 0
+                ? "Tocá a quien quieras liquidar."
+                : selectedStaff.length === 1
+                  ? "1 empleado marcado"
+                  : `${selectedStaff.length} empleados marcados`}
+            </p>
+            <button
+              type="submit"
+              disabled={busyKey === "liq-create" || selectedStaff.length === 0}
+              className="ui-btn-primary rounded-lg px-4 py-2 text-sm disabled:opacity-40"
+            >
+              {busyKey === "liq-create"
+                ? `Calculando ${selectedStaff.length}...`
+                : selectedStaff.length > 1
+                  ? `Calcular ${selectedStaff.length}`
+                  : "Calcular"}
+            </button>
+          </form>
+        )}
+
+        {staffRows.length > 0 && (
+          <div className={`overflow-x-auto ${isOwnerOrAdmin ? "mb-4" : ""}`}>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-slate-500 dark:text-zinc-400">
+                  {isOwnerOrAdmin && (
+                    <th className="w-8 py-2">
+                      <span className="sr-only">Liquidar</span>
+                    </th>
+                  )}
+                  <th className="py-2 font-medium">Empleado</th>
+                  <th className="font-medium">Turnos</th>
+                  <th className="font-medium">Cobrado</th>
+                  <th className="font-medium">Ticket</th>
+                </tr>
+              </thead>
+              <tbody>
+                {staffRows.map((s) => {
+                  const marcado = selectedStaff.includes(s.staffId);
+                  return (
+                    <tr
+                      key={s.staffId}
+                      // La fila entera es la zona clicable: marcar no obliga a
+                      // apuntar al check de 20px.
+                      onClick={isOwnerOrAdmin ? () => toggleStaffSelection(s.staffId) : undefined}
+                      className={`border-t transition-colors ${isOwnerOrAdmin ? "cursor-pointer" : ""} ${
+                        marcado ? "border-[#0071E3]/25 bg-[#0071E3]/[0.06] dark:border-[#5da8ff]/25 dark:bg-[#5da8ff]/[0.08]" : "border-slate-100 hover:bg-slate-50/70 dark:border-zinc-800 dark:hover:bg-white/[0.03]"
+                      }`}
+                    >
+                      {isOwnerOrAdmin && (
+                        <td className="py-2 pr-1">
+                          <input
+                            type="checkbox"
+                            checked={marcado}
+                            onChange={() => toggleStaffSelection(s.staffId)}
+                            // Sin esto el click del check marca dos veces (una por
+                            // el input y otra por la fila) y termina sin hacer nada.
+                            onClick={(e) => e.stopPropagation()}
+                            aria-label={`Liquidar a ${s.staffName}`}
+                            className="peer sr-only"
+                          />
+                          <span
+                            data-checked={marcado || undefined}
+                            className="group pointer-events-none grid h-5 w-5 place-items-center rounded-md border-2 border-zinc-300 bg-white transition-all duration-150 ease-out data-[checked]:border-[#0071E3] data-[checked]:bg-[#0071E3] peer-focus-visible:ring-2 peer-focus-visible:ring-[#0071E3]/40 peer-focus-visible:ring-offset-2 dark:border-zinc-600 dark:bg-zinc-900 dark:data-[checked]:border-[#5da8ff] dark:data-[checked]:bg-[#5da8ff]"
+                          >
+                            <svg
+                              viewBox="0 0 24 24"
+                              className="h-3.5 w-3.5 scale-0 stroke-white stroke-[3] transition-transform duration-150 ease-out group-data-[checked]:scale-100"
+                              fill="none"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M20 6L9 17l-5-5" />
+                            </svg>
+                          </span>
+                        </td>
+                      )}
+                      <td className="py-2 font-medium text-slate-900 dark:text-white">{s.staffName}</td>
+                      <td className="text-slate-700 dark:text-zinc-300">{s.appointmentsCount}</td>
+                      <td className="text-emerald-600 font-semibold">${s.paidRevenue.toFixed(2)}</td>
+                      <td className="text-slate-700 dark:text-zinc-300">${s.avgTicketPaid.toFixed(2)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Lo que se acaba de calcular va DEBAJO de la tabla, cerca de las
+            personas a las que corresponde. */}
+        {isOwnerOrAdmin && liquidationResults.length > 0 && (
+          <div className="mb-4 overflow-hidden rounded-2xl border border-emerald-200/80 bg-emerald-50/70 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+            <div className="flex items-center gap-2 border-b border-emerald-200/70 px-4 py-2.5 dark:border-emerald-900/50">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <span className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">
+                {liquidationResults.length === 1 ? "Liquidación creada" : `${liquidationResults.length} liquidaciones creadas`}
+              </span>
             </div>
-
-            {/* Historial de liquidaciones */}
-            {liquidations.length > 0 && (
-              <div>
-                <p className="mb-2 text-xs font-semibold text-slate-500 dark:text-zinc-400">Liquidaciones anteriores</p>
-                <div className="space-y-1">
-                  {liquidations.map((l) => (
-                    <div key={l.id} className="flex items-center justify-between rounded-xl border border-slate-200/70 px-3.5 py-2.5 text-sm dark:border-zinc-800">
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-700 dark:text-zinc-300">{l.staffName}</span>
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600 dark:bg-zinc-800 dark:text-zinc-400">{l.status}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-emerald-600">${l.finalPayable.toFixed(2)}</span>
-                        <button onClick={() => void handleOpenLiquidationDetail(l.id)} className="rounded-lg border border-slate-300 px-2 py-1 text-xs text-slate-600 dark:border-zinc-700 dark:text-zinc-400">Detalle</button>
-                        {l.status !== "paid" && <button onClick={() => void handleMarkLiquidationPaid(l)} disabled={busyKey === `liq-paid-${l.id}`} className="ui-btn-primary rounded-lg px-2.5 py-1 text-xs">{busyKey === `liq-paid-${l.id}` ? "..." : "Pagar"}</button>}
-                      </div>
+            <ul className="divide-y divide-emerald-200/60 dark:divide-emerald-900/40">
+              {liquidationResults.map((r) => {
+                // Bruto > 0 pero Final 0 significa que la regla de compensación
+                // del empleado está en 0%. Sin esto el $0 parece un error de la app.
+                const enCero = r.grossRevenue > 0 && Number(r.finalPayable) === 0;
+                return (
+                  <li key={r.staffId} className="px-4 py-3">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="font-medium text-emerald-900 dark:text-emerald-100">{r.staffName}</span>
+                      <span className="text-lg font-semibold tabular-nums text-emerald-900 dark:text-emerald-100">
+                        ${r.finalPayable.toFixed(2)}
+                      </span>
                     </div>
-                  ))}
-                </div>
+                    <p className="mt-0.5 text-xs text-emerald-700/80 dark:text-emerald-300/70">
+                      Bruto ${r.grossRevenue.toFixed(2)} · comisión ${r.commissionAmount.toFixed(2)} ·{" "}
+                      {r.itemsCount} turno{r.itemsCount === 1 ? "" : "s"}
+                    </p>
+                    {enCero && (
+                      <p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-400">
+                        Dio $0 porque la regla de compensación de este empleado está en 0%.
+                      </p>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+            {liquidationResults.length > 1 && (
+              <div className="flex items-baseline justify-between gap-3 border-t border-emerald-200/70 bg-emerald-100/60 px-4 py-2.5 dark:border-emerald-900/50 dark:bg-emerald-900/25">
+                <span className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">Total</span>
+                <span className="text-lg font-bold tabular-nums text-emerald-900 dark:text-emerald-100">
+                  ${liquidationResults.reduce((s, r) => s + Number(r.finalPayable), 0).toFixed(2)}
+                </span>
               </div>
             )}
           </div>
         )}
-        </>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead><tr className="text-left text-slate-500"><th className="py-2 font-medium">Empleado</th><th className="font-medium">Turnos</th><th className="font-medium">Cobrado</th><th className="font-medium">Ticket</th></tr></thead>
-              <tbody>{staffProduction.filter(s => s.staffId === userId).map((s) => <tr key={s.staffId} className="border-t border-slate-100 dark:border-zinc-800"><td className="py-2 font-medium text-slate-900 dark:text-white">{s.staffName}</td><td className="text-slate-700 dark:text-zinc-300">{s.appointmentsCount}</td><td className="text-emerald-600 font-semibold">${s.paidRevenue.toFixed(2)}</td><td className="text-slate-700 dark:text-zinc-300">${s.avgTicketPaid.toFixed(2)}</td></tr>)}</tbody>
-            </table>
+
+        {/* Historial de liquidaciones */}
+        {isOwnerOrAdmin && liquidations.length > 0 && (
+          <div>
+            <p className="mb-2 text-xs font-semibold text-slate-500 dark:text-zinc-400">Liquidaciones anteriores</p>
+            <div className="space-y-1">
+              {liquidations.map((l) => {
+                const pagado = l.status === "paid";
+                return (
+                  <div key={l.id} className="flex items-center justify-between rounded-xl border border-slate-200/70 px-3.5 py-2.5 text-sm dark:border-zinc-800">
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-700 dark:text-zinc-300">{l.staffName}</span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[11px] ${
+                          pagado
+                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                            : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                        }`}
+                      >
+                        {LIQUIDATION_STATUS_LABEL[l.status] ?? l.status}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-emerald-600">${l.finalPayable.toFixed(2)}</span>
+                      {!pagado && (
+                        <button
+                          onClick={() => void handleMarkLiquidationPaid(l)}
+                          disabled={busyKey === `liq-paid-${l.id}`}
+                          className="ui-btn-primary rounded-lg px-2.5 py-1 text-xs"
+                        >
+                          {busyKey === `liq-paid-${l.id}` ? "..." : "Pagar"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </Card>
 
       {isOwnerOrAdmin && (
-      <Card title="Caja" icon={<Vault className="h-4 w-4" />} color="emerald">
+      <Card title="Caja">
         <div className="flex items-center gap-2 mb-4">
           <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
             cashSession?.status === "open"
@@ -623,9 +610,13 @@ export default function FinancesClient({
           <div className="h-32 animate-pulse rounded-xl bg-slate-100 dark:bg-zinc-800" />
         ) : (
           <div>
-            <div className="text-center mb-5">
-              <p className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-zinc-400">Esperado en caja</p>
-              <p className="mt-1 text-3xl font-bold tracking-tight text-slate-900 dark:text-white">${kpiExpected.toFixed(2)}</p>
+            <div className="mb-5 text-center">
+              {/* Monto a la izquierda de la palabra y el bloque centrado: asi el
+                  numero, que es lo que se mira, queda a la vista primero. */}
+              <p className="inline-flex flex-wrap items-baseline justify-center gap-x-2">
+                <span className="text-3xl font-bold tracking-tight tabular-nums text-slate-900 dark:text-white">${kpiExpected.toFixed(2)}</span>
+                <span className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-zinc-400">esperado</span>
+              </p>
               {cashSession?.status === "open" && (
                 <div className="mt-1.5 flex justify-center gap-3 text-[11px] text-slate-400 dark:text-zinc-400">
                   <span>Inicial: <strong className="text-slate-600 dark:text-zinc-300">${cashSession.openingAmount.toFixed(2)}</strong></span>
@@ -661,7 +652,9 @@ export default function FinancesClient({
               <button disabled={busyKey === "cash-move-create"} className="ui-btn-primary rounded-lg px-3 py-2 text-sm min-h-[38px]">{busyKey === "cash-move-create" ? "..." : "Agregar"}</button>
             </form>
 
-            {kpiCounted > 0 && (
+            {/* `!= null` y no `> 0`: una caja cerrada con $0 contado tiene diferencia igual,
+                y con el `> 0` no se mostraba justo cuando mas importa. */}
+            {cashSession?.countedAmount != null && (
               <div className={`mt-4 flex items-center justify-between rounded-xl border px-4 py-3 ${
                 kpiDiff >= 0
                   ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900/40 dark:bg-emerald-950/20"
@@ -674,26 +667,34 @@ export default function FinancesClient({
               </div>
             )}
 
-            {/* Movimientos recientes */}
+            {/* Las dos listas van en columnas desde `sm`: apiladas hacian que la card de
+                Caja fuera ~300px mas alta que la de Equipo y quedaba un hueco
+                enorme al lado. En mobile siguen apiladas con el mismo gap. */}
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            {/* Los movimientos viven en el modal. La lista inline mostraba 5 de
+                hasta 50 y repetia la lista que ya estas por abrir. */}
             {cashMovements.length > 0 && (
-              <div className="mt-4">
-                <p className="mb-1.5 text-xs font-semibold text-slate-500 dark:text-zinc-400">Movimientos recientes</p>
-                <div className="space-y-1">
-                  {cashMovements.slice(0, 5).map((m) => (
-                    <div key={m.id} className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-zinc-800 dark:bg-zinc-900">
-                      <span className="text-slate-600 dark:text-zinc-400">{m.category}</span>
-                      <span className={`font-semibold ${m.movementType === "income" ? "text-emerald-600" : "text-red-600"}`}>
-                        {m.movementType === "income" ? "+" : "-"}${m.amount.toFixed(2)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setMovementsOpen(true)}
+                  className="flex w-full items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-white px-3.5 py-3 text-sm transition-colors hover:border-[#0071E3]/40 hover:bg-[#0071E3]/[0.04] dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-[#5da8ff]/40 dark:hover:bg-[#5da8ff]/[0.06]"
+                >
+                  <span className="text-left">
+                    <span className="block font-semibold text-slate-700 dark:text-zinc-300">Movimientos</span>
+                    <span className="text-xs text-slate-500 dark:text-zinc-400">Ver todos los del periodo</span>
+                  </span>
+                  <span className="inline-flex shrink-0 items-center gap-1.5">
+                    <span className="tabular-nums text-slate-500 dark:text-zinc-400">{cashMovements.length}</span>
+                    <ChevronRight className="h-4 w-4 text-slate-400" strokeWidth={2} />
+                  </span>
+                </button>
               </div>
             )}
 
             {/* Cierres recientes */}
             {cashSessionsHistory.filter((s) => s.status === "closed").length > 0 && (
-              <div className="mt-4">
+              <div>
                 <p className="mb-1.5 text-xs font-semibold text-slate-500 dark:text-zinc-400">Cierres recientes</p>
                 <div className="space-y-1">
                   {cashSessionsHistory.filter((s) => s.status === "closed").slice(0, 5).map((s) => (
@@ -709,10 +710,61 @@ export default function FinancesClient({
                 </div>
               </div>
             )}
+            </div>
           </div>
         )}
       </Card>
       )}
+      </div>
+
+      <BaseModal
+        open={movementsOpen}
+        onClose={() => setMovementsOpen(false)}
+        title="Movimientos de caja"
+        subtitle={`${cashMovements.length} movimiento${cashMovements.length === 1 ? "" : "s"} en el periodo`}
+        maxWidth="md"
+        icon={<ArrowLeftRight className="h-5 w-5 text-[#0071E3]" />}
+      >
+        <div className="max-h-[60vh] overflow-y-auto px-5 pb-5">
+          {cashMovements.length === 0 ? (
+            <p className="py-6 text-center text-sm text-slate-500 dark:text-zinc-400">No hay movimientos en este periodo.</p>
+          ) : (
+            <ul className="space-y-1.5">
+              {cashMovements.map((m) => (
+                <li
+                  key={m.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm dark:border-zinc-800 dark:bg-zinc-900"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-slate-800 dark:text-zinc-100">{m.category || "General"}</span>
+                      <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-slate-500 dark:bg-zinc-800 dark:text-zinc-400">
+                        {m.movementType === "income" ? "Ingreso" : m.movementType === "withdrawal" ? "Retiro" : "Gasto"}
+                      </span>
+                    </div>
+                    <div className="mt-0.5 truncate text-xs text-slate-500 dark:text-zinc-400">
+                      {m.description || "Sin detalle"} ·{" "}
+                      {new Date(m.happenedAt).toLocaleString("es-AR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </div>
+                  </div>
+                  <span
+                    className={`shrink-0 text-base font-semibold tabular-nums ${
+                      m.movementType === "income" ? "text-emerald-600" : "text-red-600"
+                    }`}
+                  >
+                    {m.movementType === "income" ? "+" : "-"}${m.amount.toFixed(2)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </BaseModal>
 
     </div>
   );
