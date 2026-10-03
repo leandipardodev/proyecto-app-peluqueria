@@ -18,7 +18,10 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "supabase:gen-types": "supabase gen types typescript --linked > src/lib/supabase/database.types.ts",
-    "prepare": "husky"
+    "prepare": "husky",
+    "seed:demo": "node scripts/seed-klip-demo.mjs",
+    "seed:demo:reset": "node scripts/seed-klip-demo.mjs --reset",
+    "seed:demo:check": "node scripts/verify-seed-klip.mjs"
   },
   "keywords": [],
   "author": "",
