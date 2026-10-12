@@ -34,11 +34,15 @@ async function main() {
   console.log(`\n=== servicios (${servicios?.length}) ===`);
   for (const s of servicios || []) console.log(`  ${String(s.name).padEnd(28)} $${s.price}  ${s.duration_minutes}min  pay_at_shop=${s.pay_at_shop} hide_price=${s.hide_price}`);
 
-  const { data: staff } = await admin.from("shop_memberships").select("user_id, role, user_profiles:user_id(nombre,email)").eq("shop_id", shopId);
+  // El nombre del perfil esta en `user_profiles.name`; `nombre` tambien existe
+  // en el schema pero no en todas las filas, y el select anidado por la FK
+  // `user_id` no resuelve con service role (devolvia `undefined`).
+  const { data: staff } = await db.from("shop_memberships").select("user_id, role, is_active").eq("shop_id", shopId);
+  const { data: perfiles } = await db.from("user_profiles").select("user_id, name, email").eq("shop_id", shopId);
   console.log(`\n=== equipo (${staff?.length}) ===`);
   for (const m of staff || []) {
-    const p = Array.isArray(m.user_profiles) ? m.user_profiles[0] : m.user_profiles;
-    console.log(`  ${m.role.padEnd(8)} ${m.user_id}  ${p?.nombre || p?.email || "(sin perfil)"}`);
+    const p = perfiles?.find((x) => x.user_id === m.user_id);
+    console.log(`  ${m.role.padEnd(8)} active=${m.is_active}  ${p?.name || p?.email || "(sin perfil)"}`);
   }
 
   const { data: clientes } = await admin.from("customers").select("id, nombre, telefono").eq("shop_id", shopId).limit(8);

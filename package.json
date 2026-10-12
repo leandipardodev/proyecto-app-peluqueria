@@ -21,7 +21,9 @@
     "prepare": "husky",
     "seed:demo": "node scripts/seed-klip-demo.mjs",
     "seed:demo:reset": "node scripts/seed-klip-demo.mjs --reset",
-    "seed:demo:check": "node scripts/verify-seed-klip.mjs"
+    "seed:demo:check": "node scripts/verify-seed-klip.mjs",
+    "seed:demo:purge": "node scripts/purge-legacy-liquidations.mjs",
+    "seed:demo:purge:yes": "node scripts/purge-legacy-liquidations.mjs --yes"
   },
   "keywords": [],
   "author": "",
