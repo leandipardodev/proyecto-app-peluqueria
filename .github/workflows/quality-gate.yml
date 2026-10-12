@@ -29,6 +29,12 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # Sin esto los 654 tests no corren nunca: el gate solo hacia lint, build,
+      # perf y e2e. Un PR podia romper la firma HMAC del webhook de Mercado Pago
+      # y entrar a main en verde.
+      - name: Unit tests
+        run: npm run test
+
       - name: Build
         run: npm run build
 
@@ -72,12 +78,26 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: E2E Smoke
+        env:
+          E2E_LOGIN_EMAIL: ${{ secrets.E2E_LOGIN_EMAIL }}
+          E2E_LOGIN_PASSWORD: ${{ secrets.E2E_LOGIN_PASSWORD }}
         run: npm run test:e2e
+
+      # Playwright sale con codigo 0 cuando todos los tests estan salteados, que
+      # es lo que pasa sin credenciales. Sin este paso, el gate queda en verde
+      # sin haber verificado nada.
+      - name: Verify E2E actually ran
+        env:
+          E2E_LOGIN_EMAIL: ${{ secrets.E2E_LOGIN_EMAIL }}
+          E2E_LOGIN_PASSWORD: ${{ secrets.E2E_LOGIN_PASSWORD }}
+        run: node scripts/check-e2e-report.mjs
 
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
-          path: playwright-report/
+          path: |
+            playwright-report/
+            .playwright-report.json
           if-no-files-found: ignore

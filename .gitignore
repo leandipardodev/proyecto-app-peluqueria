@@ -40,3 +40,10 @@ yarn-error.log*
 .supabase/.temp/
 supabase/.temp/
 .env*
+
+# Playwright / quality gate
+playwright-report/
+test-results/
+.playwright-report.json
+.perf-reports/
+.perf-reports-auth/
