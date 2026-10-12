@@ -9,14 +9,10 @@ export default function ShopFinancesLoading() {
         <PageTitleSkeleton />
         <div className={`h-5 w-16 ${BAR}`} />
       </div>
-      {/* Los botones reales son text-xs con px-2.5 py-1.5: 28px, no 32. */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className={`h-7 w-14 ${BAR}`} />
-        <div className={`h-7 w-16 ${BAR}`} />
-        <div className={`h-7 w-14 ${BAR}`} />
-        <div className={`h-7 w-28 ${BAR}`} />
-        <div className={`h-7 w-28 ${BAR}`} />
-        <div className={`h-7 w-20 ${BAR}`} />
+      {/* El filtro real va plegado en un chip: `Filtrar` + el rango en texto
+          chico, todo en ~34px de alto. Antes eran cinco controles en fila. */}
+      <div className="flex items-center gap-2">
+        <div className={`h-8 w-40 ${BAR}`} />
       </div>
       {/* La tarjeta real es rounded-3xl con p-4, no rounded-[2.5rem] con p-6. */}
       <div className="rounded-3xl bg-white/20 dark:bg-black/20 backdrop-blur-2xl border border-white/10 dark:border-white/5 p-4">

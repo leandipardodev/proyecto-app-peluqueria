@@ -4,8 +4,6 @@ import ShareLinkCard from "@/components/dashboard/share-link-card";
 import PwaInstallButton from "@/components/dashboard/pwa-install-button";
 import HoverScale from "@/components/ui/hover-scale";
 import PageTitle from "@/components/ui/page-title";
-import { fetchWhatsappTemplate } from "@/lib/dashboard/whatsapp/whatsapp-actions";
-import { DEFAULT_WHATSAPP_TEMPLATE } from "@/lib/dashboard/whatsapp/whatsapp-constants";
 import { buildWhatsAppContactUrl } from "@/lib/dashboard/whatsapp/whatsapp-utils";
 import { createServiceRoleClient, getAuthSession, getShopId, getCurrentUserRole } from "@/lib/dashboard/auth/server";
 import { INDUSTRY_CONFIG } from "@/lib/industry/config";
@@ -16,6 +14,7 @@ import Link from "next/link";
 import dynamicImport from "next/dynamic";
 import { redirect } from "next/navigation";
 import { fetchTodayVoucherAlerts } from "@/lib/dashboard/vouchers/voucher-actions";
+import { getArgentinaDateString } from "@/lib/argentina-time";
 import { countPendingStoreOrders } from "@/lib/dashboard/store/store-actions";
 import type { CSSProperties } from "react";
 import AINotificationCard from "@/components/dashboard/ai-notification-card";
@@ -60,42 +59,54 @@ function formatHealth(value: number | null): string {
   return `${value}/100`;
 }
 
-function sameMonthDay(date: Date, monthIndex: number, day: number): boolean {
-  return date.getMonth() === monthIndex && date.getDate() === day;
+/**
+ * Estas tres cosas comparaban contra `new Date()` del servidor, que en Vercel
+ * corre en UTC: entre las 21:00 y las 24:00 de Argentina la pagina mostraba
+ * el dia siguiente, y el "tutorial del dia" cambiaba a una hora ARG. Se pasa a
+ * la fecha ART, que es la del negocio.
+ */
+function sameMonthDay(dateKey: string, monthIndex: number, day: number): boolean {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  return y > 0 && m - 1 === monthIndex && d === day;
 }
 
-function thirdSundayOfOctober(year: number): Date {
+function thirdSundayOfOctober(year: number): number {
   const firstDay = new Date(year, 9, 1);
   const firstSundayOffset = (7 - firstDay.getDay()) % 7;
-  const day = 1 + firstSundayOffset + 14;
-  return new Date(year, 9, day);
+  return 1 + firstSundayOffset + 14;
 }
 
-function seasonalMomentLabel(now: Date, customerPlural: string): string | null {
-  if (sameMonthDay(now, 1, 14)) return "14 de febrero - San Valentín. Buen momento para promociones.";
-  if (sameMonthDay(now, 2, 8)) return "8 de marzo - Día de la Mujer. Oportunidad para campañas especiales.";
-  if (sameMonthDay(now, 2, 21)) return "21 de marzo - Inicio de temporada. Ideal para renovar tu oferta.";
-  if (sameMonthDay(now, 5, 21)) return "21 de junio - Día del Padre. Momento clave para promocionar.";
-  if (sameMonthDay(now, 7, 25)) return "25 de agosto - Fecha especial del rubro. Aprovechá para campañas.";
-  if (sameMonthDay(now, 8, 21)) return "21 de septiembre - Inicio de temporada. Prepará tus servicios.";
-  const thirdSunday = thirdSundayOfOctober(now.getFullYear());
-  if (now.getMonth() === 9 && now.getDate() === thirdSunday.getDate()) return "Día de la Madre. Oportunidad para llegar a más " + customerPlural + ".";
-  if (now.getMonth() === 11) return "Diciembre - Fiestas de fin de año. Aumentá tu presencia digital.";
+function seasonalMomentLabel(dateKey: string, customerPlural: string): string | null {
+  const [, monthStr, dayStr] = dateKey.split("-");
+  const month = Number(monthStr) - 1;
+  const day = Number(dayStr);
+  if (sameMonthDay(dateKey, 1, 14)) return "14 de febrero - San Valentín. Buen momento para promociones.";
+  if (sameMonthDay(dateKey, 2, 8)) return "8 de marzo - Día de la Mujer. Oportunidad para campañas especiales.";
+  if (sameMonthDay(dateKey, 2, 21)) return "21 de marzo - Inicio de temporada. Ideal para renovar tu oferta.";
+  if (sameMonthDay(dateKey, 5, 21)) return "21 de junio - Día del Padre. Momento clave para promocionar.";
+  if (sameMonthDay(dateKey, 7, 25)) return "25 de agosto - Fecha especial del rubro. Aprovechá para campañas.";
+  if (sameMonthDay(dateKey, 8, 21)) return "21 de septiembre - Inicio de temporada. Prepará tus servicios.";
+  const year = Number(dateKey.slice(0, 4));
+  if (month === 9 && day === thirdSundayOfOctober(year)) {
+    return "Día de la Madre. Oportunidad para llegar a más " + customerPlural + ".";
+  }
+  if (month === 11) return "Diciembre - Fiestas de fin de año. Aumentá tu presencia digital.";
   return null;
 }
 
 export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOverride?: string) {
-  const [summaryResult, metricsResult, whatsappTemplateResult, voucherAlertsResult, socialLinks, industry, features, pendingOrdersResult] = await Promise.all([
+  // `fetchWhatsappTemplate` salio del Promise.all: Inicio no usa el template en
+  // ningun JSX, era una query por carga sin destino. Las paginas que si lo usan
+  // (agenda y calendario) lo siguen pidiendo por su cuenta.
+  const [summaryResult, metricsResult, voucherAlertsResult, socialLinks, industry, features, pendingOrdersResult] = await Promise.all([
     fetchDashboardSummary(shopIdOverride),
     fetchDashboardMetrics(shopIdOverride),
-    fetchWhatsappTemplate(shopIdOverride),
     fetchTodayVoucherAlerts(shopIdOverride),
     fetchShopLinks(shopIdOverride),
     fetchShopIndustry(shopIdOverride, shopSlugOverride || null),
     getShopFeatures(shopIdOverride as string),
     countPendingStoreOrders(shopIdOverride),
   ]);
-  const whatsappTemplate = whatsappTemplateResult.success ? (whatsappTemplateResult.data ?? DEFAULT_WHATSAPP_TEMPLATE) : DEFAULT_WHATSAPP_TEMPLATE;
 
   if (!shopIdOverride) {
     return <div className="bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 text-sm px-5 py-3 rounded-full border border-red-200/30">Shop ID no disponible</div>;
@@ -115,7 +126,6 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
   const activeOrdersCount = pendingOrdersResult.success ? (pendingOrdersResult.data?.count ?? 0) : 0;
   const labels = INDUSTRY_CONFIG[industry].labels;
   const customerPlural = labels.customerPlural;
-  const servicePlural = labels.servicePlural;
   const metrics = metricsResult.success && metricsResult.data ? metricsResult.data : null;
   const dashboardBasePath = summary.shopSlug ? `/dashboard/${summary.shopSlug}` : "/dashboard";
 
@@ -130,7 +140,9 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
   const extraLoyaltyCustomers = Math.max(0, loyaltyRewardsCount - 1);
   const aiMessages: Array<{ id: string; title: string; body: string; tone: "urgent" | "action" | "insight" | "joke"; href: string }> = [];
 
-  const seasonalLabel = seasonalMomentLabel(new Date(), customerPlural);
+  // Todo lo que sea "hoy" se resuelve con la fecha ART, no con la del server.
+  const todayKey = getArgentinaDateString();
+  const seasonalLabel = seasonalMomentLabel(todayKey, customerPlural);
   if (seasonalLabel) {
     aiMessages.push({
       id: "seasonal",
@@ -306,7 +318,12 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
     { id: "tip-caja", title: "Tip: Caja", body: "Abrí y cerrá caja todos los días. Así controlás que los números siempre cuadren." },
   ];
 
-  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
+  // Dia del año en ART. Antes usaba `new Date().getFullYear()`, que es el del
+  // server: en UTC, entre el 31 de diciembre y la medianoche, daba el año
+  // viejo y `dayOfYear % 2` invertía el tutorial del día.
+  const dayOfYear = Math.floor(
+    (new Date(`${todayKey}T00:00:00-03:00`).getTime() - new Date(`${todayKey.slice(0, 4)}-01-01T00:00:00-03:00`).getTime()) / 86400000,
+  );
 
   const showTutorialTip = TUTORIALS.length > 0 && dayOfYear % 2 === 0;
   if (showTutorialTip) {
@@ -371,9 +388,13 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
     const interval = 10;
     const maxSlots = Math.floor(aiMessages.length / interval) + 1;
     const availableSlots = Math.min(maxSlots, jokeMessages.length);
+    // El shuffle usa la fecha y no `Math.random()`: con Math.random los chistes
+    // cambiaban de lugar en cada recarga de la misma pagina.
     const shuffledSlots = Array.from({ length: maxSlots }, (_, i) => i + 1);
+    let semilla = dayOfYear;
     for (let i = shuffledSlots.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      semilla = (semilla * 9301 + 49297) % 233280;
+      const j = Math.floor((semilla / 233280) * (i + 1));
       [shuffledSlots[i], shuffledSlots[j]] = [shuffledSlots[j], shuffledSlots[i]];
     }
     const slots = shuffledSlots.slice(0, availableSlots).sort((a, b) => a - b);
@@ -411,7 +432,8 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
     "Rendimiento": withDashboardBase("/dashboard/business#estadisticas", dashboardBasePath),
   };
 
-  const today = new Date().toLocaleDateString("es-AR", {
+  const today = new Date(`${todayKey}T12:00:00-03:00`).toLocaleDateString("es-AR", {
+    timeZone: "America/Argentina/Buenos_Aires",
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -532,16 +554,23 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
       </div>
 
       <div className="relative z-10">
+        {/* Los agregados de Inicio tienen tope de filas por volumen. Antes se
+            comian filas en silencio y el Balance mostraba $0 en los meses
+            viejos sin decir nada; ahora el server avisa y se dice aca. */}
+        {(metrics?.trendsTruncated || metrics?.flowByPeriod.month.truncated) && (
+          <p className="mb-3 rounded-2xl bg-amber-100/70 px-4 py-2.5 text-xs leading-snug text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+            Tu local tiene más movimientos de los que se pueden mostrar juntos en un vistazo: los gráficos y el
+            Rendimiento están calculados sobre una parte del período, así que los meses viejos pueden verse más
+            bajos de lo que son.
+          </p>
+        )}
         <DashboardChartsWrapper
           revenueData={metrics?.revenueChart ?? []}
           dailyBreakdown={metrics?.dailyBreakdown ?? []}
-          hourlyBreakdown={metrics?.hourlyBreakdown ?? []}
           weeklyBreakdown={metrics?.weeklyBreakdown ?? []}
-          flowByPeriod={metrics?.flowByPeriod}
           topServicesData={metrics?.topServices ?? []}
           topDiasData={metrics?.topDias ?? []}
           topHorariosData={metrics?.topHorarios ?? []}
-          serviceLabelPlural={servicePlural}
           clientsData={metrics?.monthlyGrowth ?? []}
           monthlyRevenueData={metrics?.revenueChart ?? []}
           healthScore={metrics?.healthScore ?? null}
@@ -627,84 +656,12 @@ export async function DashboardHomeContent(shopIdOverride?: string, shopSlugOver
           .card-enter-right { animation: cardFromRight 0.5s cubic-bezier(0.16,1,0.3,1) both; will-change: transform; }
           .card-enter-left { animation: cardFromLeft 0.5s cubic-bezier(0.16,1,0.3,1) both; will-change: transform; }
         }
-        .flow-mini {
-          position: relative;
-          overflow: hidden;
-          isolation: isolate;
-        }
-        .analytics-card-bg::after {
-          content: "";
-          position: absolute;
-          inset: 0;
-          border-radius: inherit;
-          pointer-events: none;
-          background:
-            radial-gradient(120% 60% at 0% 100%, rgba(16,185,129,0.1) 0%, transparent 60%),
-            radial-gradient(120% 60% at 100% 0%, rgba(244,114,182,0.1) 0%, transparent 62%);
-          background-size: 160% 120%, 160% 120%;
-          animation: analyticsCardWave 18s linear infinite;
-          opacity: 0.65;
-        }
-        .flow-mini::before {
-          content: "";
-          position: absolute;
-          inset: -35%;
-          border-radius: inherit;
-          background:
-            linear-gradient(112deg, transparent 22%, rgba(255,255,255,0.34) 48%, transparent 74%),
-            linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.02) 52%, rgba(0,0,0,0.1) 100%);
-          background-size: 220% 100%, 100% 100%;
-          animation: flowMiniSheen 5.2s cubic-bezier(0.28, 0.16, 0.2, 1) infinite;
-          pointer-events: none;
-        }
-        .flow-mini::after {
-          content: "";
-          position: absolute;
-          inset: 0;
-          border-radius: inherit;
-          background: linear-gradient(90deg, rgba(255,255,255,0.12), rgba(255,255,255,0));
-          opacity: 0.4;
-          pointer-events: none;
-        }
-        .flow-mini-pos {
-          background: linear-gradient(90deg, rgba(52,211,153,0.7) 0%, rgba(16,185,129,0.86) 100%);
-        }
-        .flow-mini-neg {
-          background: linear-gradient(90deg, rgba(251,146,160,0.7) 0%, rgba(244,114,182,0.86) 100%);
-        }
-        @keyframes flowMiniSheen {
-          0% { background-position: 170% 0, 0 0; }
-          58% { background-position: 20% 0, 0 0; }
-          100% { background-position: -90% 0, 0 0; }
-        }
-        @keyframes analyticsCardWave {
-          0% { background-position: 0% 100%, 100% 0%; }
-          100% { background-position: 100% 100%, 0% 0%; }
-        }
         .dashboard-shopname-hero {
           animation: shopNameSlideIn 180ms cubic-bezier(0.2, 0.9, 0.25, 1) both;
         }
         @keyframes shopNameSlideIn {
           from { opacity: 0; transform: translate3d(16px, -8px, 0) scale(0.985); }
           to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
-        }
-        .social-tag-hero {
-          animation: socialTagReveal 680ms cubic-bezier(0.22, 1, 0.36, 1) both,
-                     socialTagShimmer 7s ease-in-out 1s infinite;
-          will-change: transform, filter, background-position;
-        }
-        .social-tag-hero:hover {
-          transform: translateY(-2px) scale(1.02);
-          filter: saturate(1.15) brightness(1.05);
-          animation-duration: 680ms, 2.5s;
-        }
-        @keyframes socialTagReveal {
-          from { opacity: 0; transform: translate3d(10px, 0, 0); }
-          to { opacity: 1; transform: translate3d(0, 0, 0); }
-        }
-        @keyframes socialTagShimmer {
-          0%, 100% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
         }
       `}</style>
     </div>

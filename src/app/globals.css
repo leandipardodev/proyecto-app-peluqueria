@@ -370,6 +370,31 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 /*
+ * Check de liquidacion (dashboard > Caja > Equipo): no es un cuadrado con un
+ * tick adentro sino solo el trazo, dibujado de punta a punta. `pathLength="1"`
+ * en el <path> normaliza el largo, asi que el dasharray de 1 equivale al 100%
+ * de la curva y el offset la borra entera.
+ */
+@keyframes liq-check-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes liq-check-pop {
+  0% { transform: scale(0.4) rotate(-14deg); opacity: 0; }
+  60% { transform: scale(1.14) rotate(3deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+/* Mancha de color de los elementos blob (check y boton Calcular). */
+@keyframes blob-morph {
+  0%, 100% { border-radius: 62% 38% 45% 55% / 58% 42% 56% 44%; transform: scale(1); }
+  25% { border-radius: 40% 60% 62% 38% / 62% 38% 60% 40%; transform: scale(1.12); }
+  50% { border-radius: 55% 45% 36% 64% / 40% 62% 38% 60%; transform: scale(0.94); }
+  75% { border-radius: 36% 64% 55% 45% / 60% 44% 58% 42%; transform: scale(1.08); }
+}
+
+/*
  * Titulo de categoria del dashboard: se escribe letra por letra de izquierda a
  * derecha. El `from` con blur y una leve rotacion le dan el toque premium; el
  * retardo por letra lo pasa el componente (components/ui/page-title.tsx).

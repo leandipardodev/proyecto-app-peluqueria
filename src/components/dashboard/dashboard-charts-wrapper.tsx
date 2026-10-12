@@ -24,17 +24,10 @@ const MonthlyGrowthCard = dynamicImport(() => import("@/components/dashboard/mon
 interface DashboardChartsWrapperProps {
   revenueData: Array<{ month: string; income: number; expenses: number }>;
   dailyBreakdown: Array<{ dateKey: string; income: number; expenses: number }>;
-  hourlyBreakdown: Array<{ hour: string; income: number; expenses: number }>;
   weeklyBreakdown: Array<{ weekKey: string; income: number; expenses: number }>;
-  flowByPeriod?: {
-    today: { income: number; expenses: number };
-    week: { income: number; expenses: number };
-    month: { income: number; expenses: number };
-  };
   topServicesData: Array<{ name: string; count: number }>;
   topDiasData: Array<{ name: string; count: number }>;
   topHorariosData: Array<{ name: string; count: number }>;
-  serviceLabelPlural?: string;
   clientsData: ClientPoint[];
   monthlyRevenueData: RevenuePoint[];
   healthScore: number | null;
@@ -47,7 +40,7 @@ export default function DashboardChartsWrapper(props: DashboardChartsWrapperProp
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <div className="lg:col-span-2 min-w-0 h-full">
-        <RevenueChart data={props.revenueData} dailyBreakdown={props.dailyBreakdown} hourlyBreakdown={props.hourlyBreakdown} weeklyBreakdown={props.weeklyBreakdown} flowByPeriod={props.flowByPeriod} isStaff={props.isStaff} />
+        <RevenueChart data={props.revenueData} dailyBreakdown={props.dailyBreakdown} weeklyBreakdown={props.weeklyBreakdown} isStaff={props.isStaff} />
       </div>
       <div className="lg:col-span-1 space-y-4 min-w-0">
         <DemandaCarousel topServices={props.topServicesData} topDias={props.topDiasData} topHorarios={props.topHorariosData} />

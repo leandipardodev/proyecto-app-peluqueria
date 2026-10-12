@@ -8,13 +8,7 @@ import { StatePanel } from "@/components/ui/state-panel";
 type RevenueChartProps = {
   data: Array<{ month: string; income: number; expenses: number }>;
   dailyBreakdown: Array<{ dateKey: string; income: number; expenses: number }>;
-  hourlyBreakdown: Array<{ hour: string; income: number; expenses: number }>;
   weeklyBreakdown: Array<{ weekKey: string; income: number; expenses: number }>;
-  flowByPeriod?: {
-    today: { income: number; expenses: number };
-    week: { income: number; expenses: number };
-    month: { income: number; expenses: number };
-  };
   isStaff?: boolean;
 };
 
@@ -39,10 +33,6 @@ function formatDayLabel(value: string): string {
   return DAY_LABELS[d.getUTCDay()];
 }
 
-function formatHourLabel(value: string): string {
-  return `${value}:00`;
-}
-
 function formatWeekLabel(value: string): string {
   const d = new Date(value + "T12:00:00-03:00");
   return `${d.getUTCDate()}/${d.getUTCMonth() + 1}`;
@@ -51,10 +41,12 @@ function formatWeekLabel(value: string): string {
 const PERIODS = ["today", "week", "month"] as const;
 type Period = (typeof PERIODS)[number];
 
+// Las etiquetas dicen lo que muestran. Antes la primera se llamaba "Hoy" pero
+// dibujaba los 7 dias de la semana (`dailyBreakdown`), asi que mentia.
 const PERIOD_LABELS: Record<Period, string> = {
-  today: "Hoy",
-  week: "Semana",
-  month: "Mes",
+  today: "Semana",
+  week: "8 Semanas",
+  month: "6 Meses",
 };
 
 const SWIPE_DISTANCE = 48;
@@ -66,7 +58,7 @@ function wrapIndex(index: number, length: number): number {
   return ((index % length) + length) % length;
 }
 
-export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, weeklyBreakdown, flowByPeriod, isStaff }: RevenueChartProps) {
+export default function RevenueChart({ data, dailyBreakdown, weeklyBreakdown, isStaff }: RevenueChartProps) {
   const [hoveredBar, setHoveredBar] = useState<string | null>(null);
   const [period, setPeriod] = useState<Period>("today");
   const [chartDir, setChartDir] = useState(1);
@@ -119,17 +111,13 @@ export default function RevenueChart({ data, dailyBreakdown, hourlyBreakdown, we
   const hasData = chartData.length > 0 && chartData.some((d) => d.income > 0 || d.expenses > 0);
 
   const totals = useMemo(() => {
-    const lastMonth = data[data.length - 1];
-    const fallback = {
-      today: { income: lastMonth?.income ?? 0, expenses: lastMonth?.expenses ?? 0 },
-      week: { income: lastMonth?.income ?? 0, expenses: lastMonth?.expenses ?? 0 },
-      month: { income: lastMonth?.income ?? 0, expenses: lastMonth?.expenses ?? 0 },
-    };
-    return {
-      income: (flowByPeriod ?? fallback)[period].income,
-      expenses: (flowByPeriod ?? fallback)[period].expenses,
-    };
-  }, [data, flowByPeriod, period]);
+    // Los tiles se suman de las barras, no de `flowByPeriod`: antes los tiles de
+    // la primera pestaña venían de `flowByPeriod.today` (solo hoy) mientras las
+    // barras eran los 7 dias, y las dos cosas de la misma card no coincidian.
+    const income = chartData.reduce((s, d) => s + (d.income || 0), 0);
+    const expenses = chartData.reduce((s, d) => s + (d.expenses || 0), 0);
+    return { income, expenses };
+  }, [chartData]);
 
   const netResult = totals.income - totals.expenses;
 

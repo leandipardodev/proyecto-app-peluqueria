@@ -59,9 +59,12 @@ export default async function DashboardShopFinancesPage({
       userId={user.id}
       shopId={shopId}
       initialData={result.success ? result.data ?? null : null}
-      initialStaffProduction={staffResult.success ? staffResult.data ?? [] : []}
+      initialStaffProduction={staffResult.success ? staffResult.data?.rows ?? [] : []}
+      initialStaffProductionTruncated={staffResult.success ? staffResult.data?.truncated ?? false : false}
       initialCashSession={cashResult.success ? cashResult.data ?? null : null}
-      initialCashMovements={movesResult.success ? movesResult.data ?? [] : []}
+      initialCashMovements={movesResult.success ? movesResult.data?.rows ?? [] : []}
+      initialCashMovementsTotal={movesResult.success ? movesResult.data?.totalCount ?? 0 : 0}
+      initialCashMovementsTruncated={movesResult.success ? movesResult.data?.truncated ?? false : false}
       initialCashSessionsHistory={historyResult.success ? historyResult.data ?? [] : []}
       initialStaffLiquidations={liqResult.success ? liqResult.data ?? [] : []}
       initialFrom={from}
