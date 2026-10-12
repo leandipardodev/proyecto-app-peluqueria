@@ -108,11 +108,31 @@ describe("fetchPublicAvailableSlots", () => {
     expect(res.data!.every((s) => s.staffIds.length === 1 && s.staffIds[0] === "s1")).toBe(true);
   });
 
-  it("consulta staff_schedules con el day_of_week correcto para la fecha (bug #5)", async () => {
-    await fetchPublicAvailableSlots("shop-1", 60, date);
-    const chain = queryChains["staff_schedules"] as { eq: ReturnType<typeof vi.fn> };
-    expect(chain).toBeDefined();
-    expect(chain.eq).toHaveBeenCalledWith("day_of_week", 2);
+  it("usa el horario del dia correcto de la semana (bug #5)", async () => {
+    // Antes este test clavaba la forma de la query (`.eq("day_of_week", 2)`).
+    // Ahora se piden TODOS los dias y se filtra en memoria, asi que lo que
+    // importa es que se aplique el de la fecha pedida: un martes con un
+    // horario de martes y otro de miercoles tiene que usar el del martes.
+    adminClientMock.mockResolvedValue(
+      makeAdmin({
+        ...defaultRoutes(),
+        staff_schedules: [
+          { staff_id: "s1", day_of_week: 2, is_active: true, start_time: "10:00", end_time: "13:00", break_start: null, break_end: null },
+          { staff_id: "s1", day_of_week: 3, is_active: true, start_time: "18:00", end_time: "19:00", break_start: null, break_end: null },
+          { staff_id: "s2", day_of_week: 3, is_active: true, start_time: "09:00", end_time: "10:00", break_start: null, break_end: null },
+        ],
+      })
+    );
+    const res = await fetchPublicAvailableSlots("shop-1", 60, date);
+    expect(res.success).toBe(true);
+    if (!res.success) return;
+    const horas = res.data.map((s) => s.start);
+    // s1 trabaja de 10 a 13 (martes); el de miercoles (18-19) no se aplica.
+    expect(horas).toContain(isoAt(date, 10, 0));
+    expect(horas).toContain(isoAt(date, 12, 0));
+    expect(horas).not.toContain(isoAt(date, 18, 0));
+    // s2 solo tiene miercoles: no aparece en un martes.
+    expect(res.data.every((s) => !s.staffIds.includes("s2"))).toBe(true);
   });
 
   it("aplica override del local: cerrado devuelve vacio", async () => {

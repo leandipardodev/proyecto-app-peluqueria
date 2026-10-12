@@ -450,13 +450,18 @@ export async function fetchPublicAvailableSlots(
     const staffIdsToQuery = poolIds;
     const { data: staffSchedules } = await admin
       .from("staff_schedules")
-      .select("staff_id, is_active, start_time, end_time, break_start, break_end")
-      .in("staff_id", staffIdsToQuery)
-      .eq("day_of_week", dayIndex);
+      .select("staff_id, day_of_week, is_active, start_time, end_time, break_start, break_end")
+      .in("staff_id", staffIdsToQuery);
 
+    // Se traen TODOS los dias, no solo el de hoy, para poder distinguir "no
+    // cargo ningun horario" (hereda el del local) de "no trabaja ese dia".
+    // Filtrando por `day_of_week` los dos casos son indistinguibles y un
+    // part-time aparece disponible los dias que no configuro.
     const scheduleMap = new Map<string, StaffScheduleEntry>();
+    const staffWithAnySchedule = new Set<string>();
     for (const s of staffSchedules || []) {
-      scheduleMap.set(s.staff_id, s);
+      staffWithAnySchedule.add(s.staff_id);
+      if (s.day_of_week === dayIndex) scheduleMap.set(s.staff_id, s);
     }
 
     // Fetch date overrides for this date
@@ -535,6 +540,7 @@ export async function fetchPublicAvailableSlots(
       shopCloseMinutes,
       poolIds,
       scheduleMap,
+      staffWithAnySchedule,
       staffOverrideMap,
       allBlocks,
     });
@@ -629,12 +635,14 @@ export async function createPublicAppointment(data: {
     let effectiveDayConfig: { open: boolean; start: string; end: string; break_start?: string | null; break_end?: string | null };
 
     if (data.staffId) {
-      const { data: staffSchedule } = await admin
+      // Se piden TODOS los dias del profesional: con solo el de hoy no se puede
+      // distinguir "no cargo ningun horario" (hereda el del local) de "no trabaja
+      // hoy" (no se lo deja reservar).
+      const { data: staffSchedules } = await admin
         .from("staff_schedules")
-        .select("is_active, start_time, end_time, break_start, break_end")
-        .eq("staff_id", data.staffId)
-        .eq("day_of_week", dayIndex)
-        .maybeSingle();
+        .select("day_of_week, is_active, start_time, end_time, break_start, break_end")
+        .eq("staff_id", data.staffId);
+      const staffSchedule = (staffSchedules || []).find((s) => s.day_of_week === dayIndex) ?? null;
 
       if (staffSchedule) {
         if (!staffSchedule.is_active) {
@@ -655,6 +663,9 @@ export async function createPublicAppointment(data: {
             effectiveDayConfig.start = minutesToHHmm(interStart);
             effectiveDayConfig.end = minutesToHHmm(interEnd);
           }
+        } else if ((staffSchedules || []).length > 0) {
+          // Cargo horarios, pero ninguno es de hoy: hoy no trabaja.
+          return { success: false, error: "El profesional no trabaja este dia" };
         } else {
           effectiveDayConfig = await resolveShopDayConfig(admin, data.shopId, dayIndex, businessHours);
         }
@@ -819,11 +830,17 @@ export async function createPublicAppointment(data: {
       // Get staff schedules for this day
       const { data: daySchedules } = await admin
         .from("staff_schedules")
-        .select("staff_id, is_active, start_time, end_time, break_start, break_end")
+        .select("staff_id, day_of_week, is_active, start_time, end_time, break_start, break_end")
         .in("staff_id", staffIds)
-        .eq("day_of_week", dayIndex);
+        // Se piden todos los dias, no solo el de hoy: asi se puede distinguir "no cargo
+        // ningun horario" (hereda el del local) de "no trabaja hoy" (no se lo auto-asigna).
+        .limit(1000);
 
-      const scheduleMap = new Map((daySchedules || []).map((s) => [s.staff_id, s]));
+      const scheduleMap = new Map(
+        (daySchedules || []).filter((s) => s.day_of_week === dayIndex).map((s) => [s.staff_id, s]),
+      );
+      // Con todos los dias a la vista se puede saltear al que no trabaja hoy.
+      const staffConHorario = new Set((daySchedules || []).map((s) => s.staff_id));
 
       for (const sid of staffIds) {
         // Skip if busy
@@ -835,6 +852,8 @@ export async function createPublicAppointment(data: {
 
         // Check schedule
         const sched = scheduleMap.get(sid);
+        // Cargo horarios pero ninguno es de hoy: no se lo auto-asigna.
+        if (!sched && staffConHorario.has(sid)) continue;
         if (sched) {
           if (!sched.is_active) continue;
           const [ssh, ssm] = sched.start_time.slice(0, 5).split(":").map(Number);
@@ -1133,12 +1152,13 @@ export async function createPublicComboAppointment(data: {
     let effectiveDayConfig: { open: boolean; start: string; end: string; break_start?: string | null; break_end?: string | null };
 
     if (data.staffId) {
-      const { data: staffSchedule } = await admin
+      // Igual que en la reserva simple: todos los dias, para poder decir "no
+      // trabaja hoy" cuando cargo horarios pero ninguno es de este dia.
+      const { data: staffSchedules } = await admin
         .from("staff_schedules")
-        .select("is_active, start_time, end_time, break_start, break_end")
-        .eq("staff_id", data.staffId)
-        .eq("day_of_week", dayIndex)
-        .maybeSingle();
+        .select("day_of_week, is_active, start_time, end_time, break_start, break_end")
+        .eq("staff_id", data.staffId);
+      const staffSchedule = (staffSchedules || []).find((s) => s.day_of_week === dayIndex) ?? null;
 
       if (staffSchedule) {
         if (!staffSchedule.is_active) {
@@ -1159,6 +1179,8 @@ export async function createPublicComboAppointment(data: {
           effectiveDayConfig.start = minutesToHHmm(interStart);
           effectiveDayConfig.end = minutesToHHmm(interEnd);
         }
+      } else if ((staffSchedules || []).length > 0) {
+        return { success: false, error: "El profesional no trabaja este dia" };
       } else {
         effectiveDayConfig = await resolveShopDayConfig(admin, data.shopId, dayIndex, businessHours);
       }
@@ -1312,11 +1334,17 @@ export async function createPublicComboAppointment(data: {
 
       const { data: daySchedules } = await admin
         .from("staff_schedules")
-        .select("staff_id, is_active, start_time, end_time, break_start, break_end")
+        .select("staff_id, day_of_week, is_active, start_time, end_time, break_start, break_end")
         .in("staff_id", staffIds)
-        .eq("day_of_week", dayIndex);
+        // Se piden todos los dias, no solo el de hoy: asi se puede distinguir "no cargo
+        // ningun horario" (hereda el del local) de "no trabaja hoy" (no se lo auto-asigna).
+        .limit(1000);
 
-      const scheduleMap = new Map((daySchedules || []).map((s) => [s.staff_id, s]));
+      const scheduleMap = new Map(
+        (daySchedules || []).filter((s) => s.day_of_week === dayIndex).map((s) => [s.staff_id, s]),
+      );
+      // Con todos los dias a la vista se puede saltear al que no trabaja hoy.
+      const staffConHorario = new Set((daySchedules || []).map((s) => s.staff_id));
 
       // Build staff override map for auto-assign candidate checks
       const comboOverrides = comboOverrideResult.success ? (comboOverrideResult.data || []) : [];
@@ -1335,6 +1363,8 @@ export async function createPublicComboAppointment(data: {
         }
 
         const sched = scheduleMap.get(sid);
+        // Cargo horarios pero ninguno es de hoy: no se lo auto-asigna.
+        if (!sched && staffConHorario.has(sid)) continue;
         if (sched) {
           if (!sched.is_active) continue;
           const [ssh, ssm] = sched.start_time.slice(0, 5).split(":").map(Number);

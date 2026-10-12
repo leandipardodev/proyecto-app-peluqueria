@@ -90,7 +90,13 @@ function makeSuccessAdmin(): never {
       }
 
       if (table === "staff_schedules") {
-        return mockQueryResult({ is_active: true, start_time: "09:00:00", end_time: "20:00:00", break_start: null, break_end: null }, null);
+        // Array y no objeto: la consulta pide TODOS los dias del profesional
+        // (para distinguir "no cargo horarios" de "no trabaja hoy") y el codigo
+        // los filtra por `day_of_week`.
+        return mockQueryResult(
+          [{ day_of_week: 6, is_active: true, start_time: "09:00:00", end_time: "20:00:00", break_start: null, break_end: null }],
+          null,
+        );
       }
 
       if (table === "staff_services") return mockQueryResult([{ service_id: "svc-1" }], null);
@@ -189,7 +195,7 @@ describe("createPublicAppointment - validacion", () => {
   it("rechaza staff inactivo para el dia (bug #3, defensa en profundidad)", async () => {
     adminClientMock.mockResolvedValue(
       makeAdmin({
-        staff_schedules: { is_active: false, start_time: "09:00:00", end_time: "18:00:00", break_start: null, break_end: null },
+        staff_schedules: [{ day_of_week: 2, is_active: false, start_time: "09:00:00", end_time: "18:00:00", break_start: null, break_end: null }],
       })
     );
     const res = await createPublicAppointment({ ...baseAppointment, staffId: "s1" });
@@ -408,7 +414,7 @@ describe("createPublicComboAppointment - validacion", () => {
   it("rechaza staff inactivo para el dia", async () => {
     adminClientMock.mockResolvedValue(
       makeComboAdmin({
-        staff_schedules: { is_active: false, start_time: "09:00:00", end_time: "18:00:00", break_start: null, break_end: null },
+        staff_schedules: [{ day_of_week: 2, is_active: false, start_time: "09:00:00", end_time: "18:00:00", break_start: null, break_end: null }],
       })
     );
     const res = await createPublicComboAppointment({ ...baseCombo, staffId: "s1" });

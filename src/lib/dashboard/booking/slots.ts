@@ -48,7 +48,21 @@ export type ComputeSlotsParams = {
   shopOpenMinutes: number;
   shopCloseMinutes: number;
   poolIds: string[];
+  /** `scheduleMap` con lo del DIA. */
   scheduleMap: Map<string, StaffScheduleEntry>;
+  /**
+   * Quien tiene AL MENOS UNA fila en `staff_schedules`, en cualquier dia.
+   *
+   * Por que hace falta: `staff_schedules` es por dia de la semana. Un
+   * profesional que carga solo martes y jueves tiene fila para esos dos dias y
+   * ninguna para el miercoles. Sin este set, "no hay fila para hoy" se
+   * confundia con "no cargo ningun horario" y caia al horario del local: el
+   * part-time aparecia disponible (y reservable) los dias que nunca configuro.
+   *
+   * Los que no aparecen en el set SI heredan el horario del local, que es lo
+   * que tiene que pasar en un local que todavia no cargo horarios.
+   */
+  staffWithAnySchedule?: Set<string>;
   staffOverrideMap: Map<string, DateOverrideEntry>;
   allBlocks: BlockEntry[];
 };
@@ -64,7 +78,24 @@ function isInBreak(slotStartMinute: number, slotEndMinute: number, breakStart: n
 }
 
 export function computeSlotsForDay(params: ComputeSlotsParams): Slot[] {
-  const { date, serviceDuration, shopDayConfig, shopOpenMinutes, shopCloseMinutes, poolIds, scheduleMap, staffOverrideMap, allBlocks } = params;
+  const { date, serviceDuration, shopDayConfig, shopOpenMinutes, shopCloseMinutes, poolIds, scheduleMap, staffWithAnySchedule, staffOverrideMap, allBlocks } = params;
+
+  /**
+   * Cargo horarios pero ninguno para hoy: hoy no trabaja.
+   *
+   * `staff_schedules` es por dia de la semana, asi que un part-time que cargo
+   * solo martes y jueves tiene filas para esos dos dias y ninguna para el
+   * miercoles. Sin esto, "no hay fila para hoy" se confundia con "no cargo
+   * ningun horario" y caia al horario del local: el part-time aparecia
+   * disponible y reservable los dias que nunca configuro.
+   *
+   * Los que no cargaron ningun horario siguen heredando el del local, que es lo
+   * que tiene que pasar en un local recien armado.
+   */
+  function worksThisDay(sId: string): boolean {
+    if (scheduleMap.has(sId)) return true;
+    return !staffWithAnySchedule?.has(sId);
+  }
 
   const rawDuration = Number.isFinite(serviceDuration) ? Math.round(serviceDuration) : 60;
   const safeDuration = rawDuration <= 0 ? 60 : Math.min(480, Math.max(15, rawDuration));
@@ -95,6 +126,7 @@ export function computeSlotsForDay(params: ComputeSlotsParams): Slot[] {
       }
       return { startMinutes: finalOpenMinutes, closeMinutes: finalCloseMinutes, breakStart, breakEnd };
     }
+    if (!worksThisDay(sId)) return null;
     return {
       startMinutes: shopOpenMinutes,
       closeMinutes: shopCloseMinutes,
@@ -117,6 +149,9 @@ export function computeSlotsForDay(params: ComputeSlotsParams): Slot[] {
   function isStaffAvailableForSlot(sId: string, slotStartMinute: number, slotEndMinute: number, slotStart: Date, slotEnd: Date): boolean {
     const entry = scheduleMap.get(sId);
     if (entry && !entry.is_active) return false;
+    // Mismo criterio que en la rama unipersonal: si cargo horarios pero ninguno
+    // es de hoy, hoy no trabaja.
+    if (!entry && !worksThisDay(sId)) return false;
     let openMin: number;
     let closeMin: number;
     let breakStartMin: number | null = null;
