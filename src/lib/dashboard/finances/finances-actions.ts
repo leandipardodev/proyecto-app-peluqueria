@@ -7,6 +7,7 @@ import { getArgentinaDateString, getArgentinaDayBounds, getArgentinaNow } from "
 import type { ActionResult } from "@/lib/types";
 import "server-only";
 import { createAdminClient } from "../appointments/shared";
+import { collectedAmount } from "../appointments/paid-amount";
 
 type Movement = {
   id: string;
@@ -59,6 +60,23 @@ type StaffRuleRow = {
   overrides_enabled: boolean | null;
 };
 
+/**
+ * `MAX_*` son cortes de seguridad, no de diseño: una peluquería con 6 sillones
+ * pasa facil los 500 turnos por mes que tenia antes, y un `limit` se come filas
+ * en silencio (PostgREST no avisa). Por eso cada consulta pide `count` y las
+ * acciones devuelven un `*Truncated`: la UI avisa "esto es un parcial" en vez
+ * de mostrar un total mas bajo como si fuera el real.
+ */
+const MAX_INCOME_APPOINTMENTS = 5000;
+const MAX_RANGE_MOVEMENTS = 1000;
+const MAX_STAFF_APPOINTMENTS = 5000;
+const MAX_LIQUIDATION_APPOINTMENTS = 5000;
+const MAX_CASH_MOVEMENTS_LIST = 200;
+const MAX_LIQUIDATIONS_HISTORY = 100;
+/** Topes del cierre de caja: aca un truncado graba un numero IRREVERSIBLE. */
+const MAX_SESSION_MOVEMENTS = 5000;
+const MAX_SESSION_APPOINTMENTS = 5000;
+
 export type FinanceData = {
   totalIncome: number;
   totalExpenses: number;
@@ -72,6 +90,10 @@ export type FinanceData = {
     description: string | null;
     created_at: string;
   }>;
+  /** Se llego al tope de turnos del rango: `totalIncome` es un parcial. */
+  incomeTruncated: boolean;
+  /** Se llego al tope de movimientos del rango: los dos totales son parciales. */
+  movementsTruncated: boolean;
 };
 
 export type StaffProduction = {
@@ -97,6 +119,24 @@ export type StaffLiquidationPreview = {
   deductionsAmount: number;
   finalPayable: number;
   itemsCount: number;
+  /** La liquidacion de ese profesional y ese periodo ya estaba pagada: no se toco. */
+  alreadyPaid?: boolean;
+};
+
+/** Fila del Historial: una liquidacion con sus numeros, de cualquier periodo. */
+export type StaffLiquidationHistoryItem = {
+  id: string;
+  staffId: string;
+  staffName: string;
+  periodStart: string;
+  periodEnd: string;
+  status: string;
+  grossRevenue: number;
+  commissionAmount: number;
+  finalPayable: number;
+  paidAmount: number;
+  paidAt: string | null;
+  createdAt: string;
 };
 
 export type StaffLiquidationListItem = {
@@ -197,7 +237,13 @@ async function fetchShopStaff(admin: Awaited<ReturnType<typeof createAdminClient
   return promise;
 }
 
-export async function fetchStaffProduction(fromDate?: string, toDate?: string, shopIdOverride?: string): Promise<ActionResult<StaffProduction[]>> {
+export type StaffProductionResult = {
+  rows: StaffProduction[];
+  /** Se llego al tope de turnos del rango: los Cobrado son parciales. */
+  truncated: boolean;
+};
+
+export async function fetchStaffProduction(fromDate?: string, toDate?: string, shopIdOverride?: string): Promise<ActionResult<StaffProductionResult>> {
   try {
         const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
     if (!shopIdResult.success) return shopIdResult;
@@ -210,16 +256,19 @@ export async function fetchStaffProduction(fromDate?: string, toDate?: string, s
       const staffRows = await fetchShopStaff(admin, shopId);
       return {
         success: true,
-        data: staffRows.map((s) => ({
-          staffId: s.user_id,
-          staffName: s.user_profiles?.name || s.user_profiles?.email || "Sin nombre",
-          staffEmail: s.user_profiles?.email || "",
-          role: s.role,
-          appointmentsCount: 0,
-          paidAppointmentsCount: 0,
-          paidRevenue: 0,
-          avgTicketPaid: 0,
-        })),
+        data: {
+          truncated: false,
+          rows: staffRows.map((s) => ({
+            staffId: s.user_id,
+            staffName: s.user_profiles?.name || s.user_profiles?.email || "Sin nombre",
+            staffEmail: s.user_profiles?.email || "",
+            role: s.role,
+            appointmentsCount: 0,
+            paidAppointmentsCount: 0,
+            paidRevenue: 0,
+            avgTicketPaid: 0,
+          })),
+        },
       };
     }
 
@@ -234,14 +283,14 @@ export async function fetchStaffProduction(fromDate?: string, toDate?: string, s
       fetchShopStaff(admin, shopId),
       admin
         .from("appointments")
-        .select("id, staff_id, service_id, start_time, status, is_paid, service_price, services:service_id(price, name)")
+        .select("id, staff_id, service_id, start_time, status, is_paid, service_price, amount_paid, loyalty_discount_percent_applied, services:service_id(price, name)", { count: "exact" })
         .eq("shop_id", shopId)
         .in("status", ["completed"])
         .eq("is_paid", true)
         .not("staff_id", "is", null)
         .gte("start_time", fromBounds.start.toISOString())
         .lte("start_time", toBounds.end.toISOString())
-        .limit(500),
+        .limit(MAX_STAFF_APPOINTMENTS),
     ]);
 
     if (apptsRes.error) return { success: false, error: apptsRes.error.message };
@@ -266,7 +315,7 @@ export async function fetchStaffProduction(fromDate?: string, toDate?: string, s
       if (!appt.staff_id) continue;
       const row = stats.get(appt.staff_id);
       if (!row) continue;
-      const amount = appt.service_price != null ? Number(appt.service_price) : (toService(appt)?.price || 0);
+      const amount = collectedAmount(appt);
 
       row.appointmentsCount += 1;
       row.paidAppointmentsCount += 1;
@@ -277,7 +326,7 @@ export async function fetchStaffProduction(fromDate?: string, toDate?: string, s
       .map((s) => ({ ...s, avgTicketPaid: s.paidAppointmentsCount > 0 ? s.paidRevenue / s.paidAppointmentsCount : 0 }))
       .sort((a, b) => b.paidRevenue - a.paidRevenue);
 
-    return { success: true, data: list };
+    return { success: true, data: { rows: list, truncated: (apptsRes.count ?? 0) > appointments.length } };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al cargar produccion por staff" };
   }
@@ -356,21 +405,26 @@ export async function createStaffPreLiquidation(formData: FormData, shopIdOverri
         .select("id, model, percentage_rate, fixed_amount, overrides_enabled")
         .eq("shop_id", shopId)
         .eq("staff_user_id", staffUserId)
-        .eq("is_active", true)
-        .is("ends_on", null)
+        // La regla se busca POR PERIODO, no "la vigente". Antes tomaba
+        // `is_active = true AND ends_on IS NULL`, o sea la de hoy: subir a
+        // alguien de 40% a 50% el 15 de octubre re-preciaba setiembre, que ya
+        // estaba liquidado. El modelo tiene `starts_on`/`ends_on` justamente
+        // para esto, asi que se usa.
+        .lte("starts_on", periodEnd)
+        .or(`ends_on.is.null,ends_on.gte.${periodStart}`)
         .order("starts_on", { ascending: false })
         .limit(1)
         .maybeSingle(),
       admin
         .from("appointments")
-        .select("id, staff_id, service_id, start_time, status, is_paid, service_price, services:service_id(price, name)")
+        .select("id, staff_id, service_id, start_time, status, is_paid, service_price, amount_paid, loyalty_discount_percent_applied, services:service_id(price, name)", { count: "exact" })
         .eq("shop_id", shopId)
         .eq("staff_id", staffUserId)
         .eq("status", "completed")
         .eq("is_paid", true)
         .gte("start_time", fromBounds.start.toISOString())
         .lte("start_time", toBounds.end.toISOString())
-        .limit(500),
+        .limit(MAX_LIQUIDATION_APPOINTMENTS),
     ]);
 
     if (apptsRes.error) return { success: false, error: apptsRes.error.message };
@@ -380,6 +434,15 @@ export async function createStaffPreLiquidation(formData: FormData, shopIdOverri
     const defaultRate = rule?.percentage_rate ?? 40;
     const fixed = rule?.fixed_amount ?? 0;
     const appointments = (apptsRes.data || []) as StaffAppointmentRow[];
+
+    // Una liquidacion con el bruto parcial es peor que no liquidar: el monto que
+    // se paga no es el que dice. Se corta el calculo y se pide achicar el rango.
+    if ((apptsRes.count ?? 0) > appointments.length) {
+      return {
+        success: false,
+        error: `Este profesional tiene mas de ${MAX_LIQUIDATION_APPOINTMENTS} turnos pagados en el periodo. No se puede liquidar con el rango tan largo: acortalo o dividi la liquidacion en dos.`,
+      };
+    }
 
     const overrideRateMap = new Map<string, number>();
     if (rule && (rule as any).overrides_enabled && rule.id) {
@@ -400,40 +463,133 @@ export async function createStaffPreLiquidation(formData: FormData, shopIdOverri
     };
 
     const grossRevenue = appointments.reduce((sum, appt) => {
-      const price = appt.service_price != null ? Number(appt.service_price) : (toService(appt)?.price || 0);
+      const price = collectedAmount(appt);
       return sum + price;
     }, 0);
     const commissionAmount = (grossRevenue * defaultRate) / 100 + fixed;
     const finalPayable = Math.max(0, commissionAmount + bonuses - deductions);
 
-    const { data: liquidation, error: liquidationError } = await admin
-      .from("staff_liquidations")
-      .insert({
-        shop_id: shopId,
-        staff_user_id: staffUserId,
-        period_start: periodStart,
-        period_end: periodEnd,
-        status: "draft",
-        gross_revenue: grossRevenue,
-        commission_amount: commissionAmount,
-        bonuses_amount: bonuses,
-        deductions_amount: deductions,
-        final_payable: finalPayable,
-      })
-      .select("id")
-      .single();
+    const amounts = {
+      gross_revenue: grossRevenue,
+      commission_amount: commissionAmount,
+      bonuses_amount: bonuses,
+      deductions_amount: deductions,
+      final_payable: finalPayable,
+    };
 
-    if (liquidationError) return { success: false, error: liquidationError.message };
+    // `idx_staff_liquidations_unique_period` (shop_id, staff_user_id,
+    // period_start, period_end) where status <> 'cancelled' impide dos
+    // liquidaciones del mismo profesional para el mismo periodo. Por eso el
+    // segundo Calcular no duplicaba nada: reventaba con el error crudo del
+    // indice. Ademas recalcular tiene que rehacer el detalle turno a turno.
+    const { data: existing, error: existingError } = await admin
+      .from("staff_liquidations")
+      .select("id, status")
+      .eq("shop_id", shopId)
+      .eq("staff_user_id", staffUserId)
+      .eq("period_start", periodStart)
+      .eq("period_end", periodEnd)
+      .neq("status", "cancelled")
+      .maybeSingle();
+
+    if (existingError) return { success: false, error: existingError.message };
+
+    const staff = staffRows.find((s) => s.user_id === staffUserId);
+    const staffName = staff?.user_profiles?.name || staff?.user_profiles?.email || "Staff";
+    const preview = {
+      staffId: staffUserId,
+      staffName,
+      periodStart,
+      periodEnd,
+      grossRevenue,
+      commissionAmount,
+      bonusesAmount: bonuses,
+      deductionsAmount: deductions,
+      finalPayable,
+      itemsCount: appointments.length,
+    };
+
+    // Una liquidacion pagada ya es un comprobante: recalcular no la revierte ni
+    // la pisa, se avisa.
+    if (existing && existing.status === "paid") {
+      return { success: true, data: { ...preview, liquidationId: existing.id, alreadyPaid: true } };
+    }
+
+    let liquidationId: string;
+    if (existing) {
+      liquidationId = existing.id;
+      const { error: updateError } = await admin
+        .from("staff_liquidations")
+        .update(amounts)
+        .eq("id", liquidationId)
+        .eq("shop_id", shopId);
+      if (updateError) return { success: false, error: updateError.message };
+
+      // Los items son el turno a turno de este calculo. Sin borrarlos primero,
+      // recalcular dejaria el detalle duplicado.
+      const { error: clearItemsError } = await admin
+        .from("staff_liquidation_items")
+        .delete()
+        .eq("liquidation_id", liquidationId);
+      if (clearItemsError) return { success: false, error: clearItemsError.message };
+    } else {
+      const { data: liquidation, error: liquidationError } = await admin
+        .from("staff_liquidations")
+        .insert({
+          shop_id: shopId,
+          staff_user_id: staffUserId,
+          period_start: periodStart,
+          period_end: periodEnd,
+          status: "draft",
+          ...amounts,
+        })
+        .select("id")
+        .single();
+
+      // `23505` es la violacion de `idx_staff_liquidations_unique_period`. Pasa
+      // cuando dos "Calcular" del mismo profesional y periodo llegan juntos (dos
+      // pestanas, o doble clic): los dos leen "no existe" y los dos insertan.
+      // El que pierde cae al camino del update en vez de mostrarle al usuario un
+      // error crudo de Postgres. El indice es parcial (`status <> 'cancelled'`),
+      // asi que no se puede resolver con `onConflict`.
+      if (liquidationError?.code === "23505") {
+        const { data:winner } = await admin
+          .from("staff_liquidations")
+          .select("id")
+          .eq("shop_id", shopId)
+          .eq("staff_user_id", staffUserId)
+          .eq("period_start", periodStart)
+          .eq("period_end", periodEnd)
+          .neq("status", "cancelled")
+          .maybeSingle();
+        if (!winner) return { success: false, error: liquidationError.message };
+        liquidationId = winner.id;
+        const { error: updateError } = await admin
+          .from("staff_liquidations")
+          .update(amounts)
+          .eq("id", liquidationId)
+          .eq("shop_id", shopId);
+        if (updateError) return { success: false, error: updateError.message };
+        const { error: clearItemsError } = await admin
+          .from("staff_liquidation_items")
+          .delete()
+          .eq("liquidation_id", liquidationId);
+        if (clearItemsError) return { success: false, error: clearItemsError.message };
+      } else {
+        if (liquidationError) return { success: false, error: liquidationError.message };
+        liquidationId = liquidation.id;
+      }
+    }
 
     if (appointments.length > 0) {
       const items = appointments.map((appt) => {
         const service = toService(appt);
-        const gross = appt.service_price != null ? Number(appt.service_price) : (service?.price || 0);
+        const gross = collectedAmount(appt);
         const effectiveRate = getRate(appt.service_id);
         const commission = (gross * effectiveRate) / 100;
         return {
           shop_id: shopId,
-          liquidation_id: liquidation.id,
+          liquidation_id: liquidationId,
           appointment_id: appt.id,
           service_id: appt.service_id,
           service_name_snapshot: service?.name || "Servicio",
@@ -450,24 +606,11 @@ export async function createStaffPreLiquidation(formData: FormData, shopIdOverri
       if (itemsError) return { success: false, error: itemsError.message };
     }
 
-    const staff = staffRows.find((s) => s.user_id === staffUserId);
     await revalidateDashboardSegments(shopId, ["/finances"]);
 
     return {
       success: true,
-      data: {
-        liquidationId: liquidation.id,
-        staffId: staffUserId,
-        staffName: staff?.user_profiles?.name || staff?.user_profiles?.email || "Staff",
-        periodStart,
-        periodEnd,
-        grossRevenue,
-        commissionAmount,
-        bonusesAmount: bonuses,
-        deductionsAmount: deductions,
-        finalPayable,
-        itemsCount: appointments.length,
-      },
+      data: { ...preview, liquidationId },
     };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al crear pre-liquidacion" };
@@ -495,8 +638,13 @@ export async function fetchStaffLiquidations(fromDate?: string, toDate?: string,
       .from("staff_liquidations")
       .select("id, staff_user_id, period_start, period_end, status, final_payable, paid_amount, created_at")
       .eq("shop_id", shopId)
-      .gte("period_start", from)
-      .lte("period_end", to)
+      // Solapamiento, no contencion: una liquidacion es de un rango (por ejemplo
+      // toda la semana) y el filtro de la pagina puede ser un solo dia. Con
+      // `period_start >= from` una liquidacion de lunes a domingo nunca entraba
+      // con el filtro en "Hoy", que es el rango por defecto: el professional
+      // aparecia sin liquidacion y su boton Pagar no existia.
+      .lte("period_start", to)
+      .gte("period_end", from)
       .order("created_at", { ascending: false });
 
     if (error) return { success: false, error: error.message };
@@ -522,6 +670,59 @@ export async function fetchStaffLiquidations(fromDate?: string, toDate?: string,
   }
 }
 
+/**
+ * Historial completo, sin filtro de periodo. `fetchStaffLiquidations` exige que
+ * la liquidacion este *dentro* del rango elegido, asi que con el filtro en un
+ * dia noedia ni una: el Historial tiene que traerlas de cualquier fecha.
+ */
+export async function fetchStaffLiquidationsHistory(shopIdOverride?: string): Promise<ActionResult<StaffLiquidationHistoryItem[]>> {
+  try {
+    const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
+    if (!shopIdResult.success) return shopIdResult;
+    const shopId = shopIdResult.data;
+
+    // Staff cannot see liquidation data (economic data of other staff)
+    const roleResult = await getCurrentUserRole(shopId);
+    if (roleResult.success && roleResult.data?.role === "staff") {
+      return { success: true, data: [] };
+    }
+
+    const admin = await createAdminClient();
+    const { data, error } = await admin
+      .from("staff_liquidations")
+      .select("id, staff_user_id, period_start, period_end, status, gross_revenue, commission_amount, final_payable, paid_amount, paid_at, created_at")
+      .eq("shop_id", shopId)
+      .order("created_at", { ascending: false })
+      .limit(MAX_LIQUIDATIONS_HISTORY);
+
+    if (error) return { success: false, error: error.message };
+
+    const staffRows = await fetchShopStaff(admin, shopId);
+    const staffNameMap = new Map(staffRows.map((s) => [s.user_id, s.user_profiles?.name || s.user_profiles?.email || "Staff"]));
+
+    const list = (data || []).map((row) => ({
+      id: row.id as string,
+      staffId: row.staff_user_id as string,
+      // Un profesional dado de baja ya no esta en `shop_memberships`: sin el
+      // nombre quedaria "Staff" y el historial no diria a quien se le pago.
+      staffName: staffNameMap.get(row.staff_user_id as string) || "Profesional dado de baja",
+      periodStart: row.period_start as string,
+      periodEnd: row.period_end as string,
+      status: row.status as string,
+      grossRevenue: Number(row.gross_revenue || 0),
+      commissionAmount: Number(row.commission_amount || 0),
+      finalPayable: Number(row.final_payable || 0),
+      paidAmount: Number(row.paid_amount || 0),
+      paidAt: (row.paid_at as string | null) || null,
+      createdAt: row.created_at as string,
+    }));
+
+    return { success: true, data: list };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Error al cargar el historial" };
+  }
+}
+
 export async function markStaffLiquidationPaid(liquidationId: string, paidAmount: number, shopIdOverride?: string): Promise<ActionResult> {
   try {
         const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "owner");
@@ -529,13 +730,55 @@ export async function markStaffLiquidationPaid(liquidationId: string, paidAmount
     const shopId = shopIdResult.data;
 
     const admin = await createAdminClient();
-    const { error } = await admin
+    // `neq("status","paid")` + `select(...)` hace el filtro en la misma
+    // sentencia: si no vuelve ninguna fila, la liquidacion ya estaba pagada.
+    // Antes hacia un update a ciegas y una segunda llamada de Pagar sobre una
+    // liquidacion ya paga reescribia `paid_at`.
+    //
+    // `paid_amount` llega del cliente, asi que se re-lee el `final_payable` de la
+    // fila: antes un `paid_amount = 0` manipulado dejaba la liquidacion en
+    // "pagada" con $0 pagados y el Historial mostraba ese 0.
+    const { data: updated, error } = await admin
       .from("staff_liquidations")
-      .update({ status: "paid", paid_amount: Math.max(0, paidAmount), paid_at: new Date().toISOString() })
+      .update({ status: "paid", paid_amount: Number(paidAmount) || 0, paid_at: new Date().toISOString() })
       .eq("id", liquidationId)
-      .eq("shop_id", shopId);
+      .eq("shop_id", shopId)
+      .neq("status", "paid")
+      .select("id, staff_user_id, period_start, period_end, final_payable, paid_amount");
 
     if (error) return { success: false, error: error.message };
+    if (!updated || updated.length === 0) {
+      return { success: false, error: "Esta liquidacion ya estaba pagada" };
+    }
+
+    // Pagar la comision es plata que SALE del local, y antes no dejaba ningun
+    // rastro: el Balance de Finanzas y el de Inicio no lo veian, asi que el
+    // resultado del negocio salia inflado por el tamaño del equipo.
+    //
+    // Va a `finances` y NO a `cash_movements`: no se sabe si el dueño paid en
+    // efectivo o por transferencia, y ponerlo en la caja seria inventar que
+    // salio de la caja. Como `finances` no lleva `appointment_id`, lo cuentan
+    // tanto `fetchFlowRange` (Inicio) como `fetchFinanceData` (Caja).
+    const liquidacion = updated[0];
+    const montoPagado = Number(liquidacion.paid_amount || 0);
+    if (montoPagado > 0) {
+      const staffRows = await fetchShopStaff(admin, shopId);
+      const nombre = staffRows.find((s) => s.user_id === liquidacion.staff_user_id)?.user_profiles?.name || "Profesional";
+      const { error: expenseError } = await admin.from("finances").insert({
+        shop_id: shopId,
+        type: "expense",
+        category: "Comisiones",
+        amount: montoPagado,
+        description: `Comisión ${nombre} · ${liquidacion.period_start} a ${liquidacion.period_end}`,
+        happened_at: new Date().toISOString(),
+      });
+      if (expenseError) {
+        // El pago ya quedo registrado. Que falle el asiento no lo deshace, pero
+        // avisarlo evita un Balance sin ver la salida.
+        console.error("[finances] liquidacion pagada sin asiento de gasto:", expenseError.message);
+      }
+    }
+
     await revalidateDashboardSegments(shopId, ["/finances"]);
     return { success: true };
   } catch (e) {
@@ -576,7 +819,7 @@ export async function fetchCashSession(shopIdOverride?: string): Promise<ActionR
     if (data.status === "open") {
       const { data: sessionAppts } = await admin
         .from("appointments")
-        .select("service_price, services:service_id(price)")
+        .select("service_price, amount_paid, loyalty_discount_percent_applied, services:service_id(price)")
         .eq("shop_id", shopId)
         .eq("status", "completed")
         .eq("is_paid", true)
@@ -585,7 +828,7 @@ export async function fetchCashSession(shopIdOverride?: string): Promise<ActionR
         .limit(500);
       appointmentIncome = (sessionAppts || []).reduce((sum, a) => {
         const svc = Array.isArray(a.services) ? a.services[0] : a.services;
-        const amount = a.service_price != null ? Number(a.service_price) : (svc?.price ?? 0);
+        const amount = collectedAmount(a);
         return sum + amount;
       }, 0);
     }
@@ -653,13 +896,25 @@ export async function closeCashSession(formData: FormData, shopIdOverride?: stri
     if (!sessionId) return { success: false, error: "Sesion de caja invalida" };
 
     const admin = await createAdminClient();
-    const { data: moves, error: movesError } = await admin
+    // `count: "exact"` en las dos consultas de abajo. Este es el unico lugar de
+    // la app donde un truncado es IRREVERSIBLE: `expected_amount` y
+    // `difference_amount` se escriben y quedan grabados como el descuadre real
+    // del archivo. Con el `.limit(500)` pelado, un local con mas de 500 turnos
+    // pagados en el dia guardaba un "esperado" calculado sobre un subconjunto
+    // arbitrario, y el Historial de caja mostraba ese numero para siempre.
+    const { data: moves, error: movesError, count: movesCount } = await admin
       .from("cash_movements")
-      .select("movement_type, amount")
+      .select("movement_type, amount", { count: "exact" })
       .eq("shop_id", shopId)
       .eq("cash_session_id", sessionId)
-      .limit(500);
+      .limit(MAX_SESSION_MOVEMENTS);
     if (movesError) return { success: false, error: movesError.message };
+    if ((movesCount ?? 0) > (moves?.length ?? 0)) {
+      return {
+        success: false,
+        error: `Esta caja tiene mas de ${MAX_SESSION_MOVEMENTS} movimientos y no se puede cerrar con un total parcial. Revisá los movimientos de la sesion.`,
+      };
+    }
 
     const { data: session, error: sessionErr } = await admin
       .from("cash_sessions")
@@ -669,19 +924,26 @@ export async function closeCashSession(formData: FormData, shopIdOverride?: stri
       .single();
     if (sessionErr) return { success: false, error: sessionErr.message };
 
-    const { data: sessionAppts } = await admin
+    const { data: sessionAppts, error: apptsError, count: apptsCount } = await admin
       .from("appointments")
-      .select("service_price, services:service_id(price)")
+      .select("service_price, amount_paid, loyalty_discount_percent_applied, services:service_id(price)", { count: "exact" })
       .eq("shop_id", shopId)
       .eq("status", "completed")
       .eq("is_paid", true)
       .gte("start_time", session.opened_at)
       .lte("start_time", getArgentinaNow().toISOString())
-      .limit(500);
+      .limit(MAX_SESSION_APPOINTMENTS);
+    if (apptsError) return { success: false, error: apptsError.message };
+    if ((apptsCount ?? 0) > (sessionAppts?.length ?? 0)) {
+      return {
+        success: false,
+        error: `Esta caja tiene mas de ${MAX_SESSION_APPOINTMENTS} turnos pagados y no se puede cerrar con un total parcial.`,
+      };
+    }
 
     const appointmentIncome = (sessionAppts || []).reduce((sum, a) => {
       const svc = Array.isArray(a.services) ? a.services[0] : a.services;
-      const amount = a.service_price != null ? Number(a.service_price) : (svc?.price ?? 0);
+      const amount = collectedAmount(a);
       return sum + amount;
     }, 0);
 
@@ -763,7 +1025,15 @@ export async function createCashMovement(formData: FormData, shopIdOverride?: st
   }
 }
 
-export async function fetchCashMovements(fromDate?: string, toDate?: string, shopIdOverride?: string): Promise<ActionResult<CashMovementItem[]>> {
+export type CashMovementsResult = {
+  rows: CashMovementItem[];
+  /** Movimientos que hay en el rango, mas alla de los que trae `rows`. */
+  totalCount: number;
+  /** `rows` esta recortado: el modal muestra una parte del periodo. */
+  truncated: boolean;
+};
+
+export async function fetchCashMovements(fromDate?: string, toDate?: string, shopIdOverride?: string): Promise<ActionResult<CashMovementsResult>> {
   try {
         const shopIdResult = await resolveAuthorizedShopId(shopIdOverride, "member");
     if (!shopIdResult.success) return shopIdResult;
@@ -775,27 +1045,32 @@ export async function fetchCashMovements(fromDate?: string, toDate?: string, sho
     const toBounds = getArgentinaDayBounds(to);
 
     const admin = await createAdminClient();
-    const { data, error } = await admin
+    // `count: "exact"` es lo que permite que el modal diga cuantos movimientos
+    // hay de verdad. Antes contaba `data.length`, o sea el limite (50): con 80
+    // movimientos en el periodo la UI decia "50".
+    const { data, error, count } = await admin
       .from("cash_movements")
-      .select("id, movement_type, payment_method, amount, category, description, happened_at")
+      .select("id, movement_type, payment_method, amount, category, description, happened_at", { count: "exact" })
       .eq("shop_id", shopId)
       .gte("happened_at", fromBounds.start.toISOString())
       .lte("happened_at", toBounds.end.toISOString())
       .order("happened_at", { ascending: false })
-      .limit(50);
+      .limit(MAX_CASH_MOVEMENTS_LIST);
     if (error) return { success: false, error: error.message };
+
+    const rows = (data || []).map((m) => ({
+      id: m.id,
+      movementType: m.movement_type,
+      paymentMethod: m.payment_method,
+      amount: Number(m.amount || 0),
+      category: m.category,
+      description: m.description,
+      happenedAt: m.happened_at,
+    }));
 
     return {
       success: true,
-      data: (data || []).map((m) => ({
-        id: m.id,
-        movementType: m.movement_type,
-        paymentMethod: m.payment_method,
-        amount: Number(m.amount || 0),
-        category: m.category,
-        description: m.description,
-        happenedAt: m.happened_at,
-      })),
+      data: { rows, totalCount: count ?? rows.length, truncated: (count ?? rows.length) > rows.length },
     };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Error al cargar movimientos de caja" };
@@ -820,13 +1095,13 @@ export async function fetchFinanceData(fromDate?: string, toDate?: string, shopI
     const [incomeAppts, expensesResult, cashMovesResult] = await Promise.all([
       admin
         .from("appointments")
-        .select("id, start_time, status, service_price, services:service_id(price, name)")
+        .select("id, start_time, status, service_price, amount_paid, loyalty_discount_percent_applied, services:service_id(price, name)", { count: "exact" })
         .eq("shop_id", shopId)
         .eq("status", "completed")
         .eq("is_paid", true)
         .gte("start_time", fromBounds.start.toISOString())
         .lte("start_time", toBounds.end.toISOString())
-        .limit(500),
+        .limit(MAX_INCOME_APPOINTMENTS),
       admin
         .from("finances")
         .select("id, amount, category, description, created_at, happened_at")
@@ -837,11 +1112,11 @@ export async function fetchFinanceData(fromDate?: string, toDate?: string, shopI
         .order("happened_at", { ascending: true }),
       admin
         .from("cash_movements")
-        .select("id, movement_type, amount, category, description, happened_at")
+        .select("id, movement_type, amount, category, description, happened_at", { count: "exact" })
         .eq("shop_id", shopId)
         .gte("happened_at", fromBounds.start.toISOString())
         .lte("happened_at", toBounds.end.toISOString())
-        .limit(200),
+        .limit(MAX_RANGE_MOVEMENTS),
     ]);
 
     if (incomeAppts.error) {
@@ -863,7 +1138,7 @@ export async function fetchFinanceData(fromDate?: string, toDate?: string, shopI
 
     const incomeMovements: Movement[] = incomeRows.map((a) => {
       const svc = Array.isArray(a.services) ? a.services[0] : a.services;
-      const amount = a.service_price != null ? Number(a.service_price) : (svc?.price ?? 0);
+      const amount = collectedAmount(a);
       return {
         id: a.id,
         amount,
@@ -910,6 +1185,10 @@ export async function fetchFinanceData(fromDate?: string, toDate?: string, shopI
 
     const totalIncome = [...incomeMovements, ...manualIncomeMovements].reduce((sum, m) => sum + m.amount, 0);
     const totalExpenses = [...expenseMovements, ...manualExpenseMovements].reduce((sum, m) => sum + m.amount, 0);
+    // `count` cuenta las filas que pasan los filtros ignorando el `limit`, asi
+    // que si supera lo que volvio, se comieron filas.
+    const incomeTruncated = (incomeAppts.count ?? 0) > incomeRows.length;
+    const movementsTruncated = (cashMovesResult.count ?? 0) > cashRows.length;
 
     return {
       success: true,
@@ -926,6 +1205,8 @@ export async function fetchFinanceData(fromDate?: string, toDate?: string, shopI
           description: e.description,
           created_at: e.created_at,
         })),
+        incomeTruncated,
+        movementsTruncated,
       },
     };
   } catch (e) {
@@ -1007,7 +1288,7 @@ export async function fetchCashSessionsHistory(fromDate?: string, toDate?: strin
         (data || []).map((s) =>
           admin
             .from("appointments")
-            .select("service_price, services:service_id(price)")
+            .select("service_price, amount_paid, loyalty_discount_percent_applied, services:service_id(price)")
             .eq("shop_id", shopId)
             .eq("status", "completed")
             .eq("is_paid", true)
@@ -1036,7 +1317,7 @@ export async function fetchCashSessionsHistory(fromDate?: string, toDate?: strin
         const appts = apptsBySession[idx]?.data || [];
         const appointmentIncome = appts.reduce((sum, a) => {
           const svc = Array.isArray(a.services) ? a.services[0] : a.services;
-          return sum + (a.service_price != null ? Number(a.service_price) : (svc?.price ?? 0));
+          return sum + collectedAmount(a);
         }, 0);
 
         return {

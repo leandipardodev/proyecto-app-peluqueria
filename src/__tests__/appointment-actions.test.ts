@@ -406,14 +406,44 @@ describe("autoCompletePastAppointments", () => {
     const shopsChain = chainableQuery({
       maybeSingle: vi.fn().mockResolvedValue({ data: { auto_complete_enabled: true }, error: null }),
     });
+    // Una sola cadena para `appointments`: el select de candidatos, el update de
+    // cada fila y el select de `pending_payment` pasan por la misma. Se
+    // distingue por el orden de los awaits, no por la tabla.
+    // Orden de los awaits sobre la misma cadena:
+    //   1 = select de `confirmed`   -> 1 fila
+    //   2 = update de esa fila
+    //   3 = select de `pending_payment` -> 1 fila
+    //   4 = update de esa fila
     const appointmentsChain = chainableQuery();
+    let awaited = 0;
+    appointmentsChain.then = ((f: (v: unknown) => unknown) => {
+      awaited += 1;
+      const data =
+        awaited === 1
+          ? [{ id: "apt-1", customer_id: null, service_price: 20000, loyalty_discount_percent_applied: 10 }]
+          : awaited === 3
+            ? [{ id: "apt-2", customer_id: null, service_price: 40000, deposit_amount: 3000, loyalty_discount_percent_applied: 0 }]
+            : null;
+      return Promise.resolve({ data, error: null }).then(f);
+    }) as never;
+
     const fromMock = vi.fn((table: string) => (table === "shops" ? shopsChain : appointmentsChain));
     vi.mocked(mockCreateServiceRole).mockResolvedValue({ from: fromMock } as never);
 
     const result = await autoCompletePastAppointments("shop-123");
-    expect(result).toEqual({ success: true, data: { completed: 0, flagged: 0 } });
-    expect(fromMock).toHaveBeenCalledWith("appointments");
-    expect(appointmentsChain.update).toHaveBeenCalled();
+    expect(result).toEqual({ success: true, data: { completed: 2, flagged: 1 } });
+
+    const updates = appointmentsChain.update.mock.calls.map((c) => c[0] as Record<string, unknown>);
+    expect(updates).toHaveLength(2);
+
+    // El turno confirmado ya se hizo: el salon tiene la seña MAS el saldo, asi
+    // que suma el precio de lista menos el descuento de fidelidad (20.000 -10%).
+    expect(updates[0]).toMatchObject({ status: "completed", is_paid: true, auto_completed: true, amount_paid: 18000 });
+
+    // El de `pending_payment` tiene el pago de la seña en vuelo: puede que nunca
+    // se haya cobrado. Sumarle el precio de lista seria reportar $40.000 que no
+    // entraron nunca; entra solo la seña registrada.
+    expect(updates[1]).toMatchObject({ was_pending_payment: true, amount_paid: 3000 });
   });
 
   it("marca auto_completed y excluye turnos ya auto-completados", async () => {
@@ -421,6 +451,15 @@ describe("autoCompletePastAppointments", () => {
       maybeSingle: vi.fn().mockResolvedValue({ data: { auto_complete_enabled: true }, error: null }),
     });
     const appointmentsChain = chainableQuery();
+    let awaited = 0;
+    appointmentsChain.then = ((f: (v: unknown) => unknown) => {
+      awaited += 1;
+      const data =
+        awaited === 1
+          ? [{ id: "apt-1", customer_id: null, service_price: 10000, loyalty_discount_percent_applied: 0 }]
+          : null;
+      return Promise.resolve({ data, error: null }).then(f);
+    }) as never;
     const fromMock = vi.fn((table: string) => (table === "shops" ? shopsChain : appointmentsChain));
     vi.mocked(mockCreateServiceRole).mockResolvedValue({ from: fromMock } as never);
 

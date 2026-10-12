@@ -18,6 +18,7 @@ import {
 import type { Json } from "@/lib/supabase/database.types";
 import { isOverlapViolation } from "@/lib/db/overlap-violation";
 import { type AppointmentStatus, canTransitionStatus, isAppointmentStatus } from "./status";
+import { amountPaidFor, fullServiceAmount, withAmountPaid } from "./paid-amount";
 import "server-only";
 
 export async function createAppointment(formData: FormData, shopId: string): Promise<ActionResult> {
@@ -486,7 +487,7 @@ export async function updateAppointmentStatus(
 
     const { data: currentAppointment, error: currentAppointmentError } = await supabase
       .from("appointments")
-      .select("status, customer_id")
+      .select("status, customer_id, service_price, deposit_amount, loyalty_discount_percent_applied")
       .eq("id", id)
       .eq("shop_id", shopId)
       .maybeSingle();
@@ -506,6 +507,17 @@ export async function updateAppointmentStatus(
     if (isPaid !== undefined) {
       updates.is_paid = isPaid;
     }
+    // `amount_paid` = plata cobrada de verdad. Si el turno queda pagado, el
+    // salon tiene la seña MAS el saldo del mostrador: el total. Si se desmarca,
+    // solo queda lo que se cobro por adelantado.
+    if (updates.is_paid === true) {
+      updates.amount_paid = fullServiceAmount(
+        currentAppointment.service_price,
+        currentAppointment.loyalty_discount_percent_applied,
+      );
+    } else if (updates.is_paid === false) {
+      updates.amount_paid = Math.max(0, Number(currentAppointment.deposit_amount || 0));
+    }
     if (depositAmount !== undefined) {
       if (depositAmount !== null && (Number.isNaN(depositAmount) || depositAmount < 0)) {
         return { success: false, error: "La seña debe ser un monto válido" };
@@ -513,6 +525,18 @@ export async function updateAppointmentStatus(
       updates.deposit_amount = depositAmount;
       if (isPaid === undefined && depositAmount !== null) {
         updates.is_paid = depositAmount > 0;
+        // Registrar una seña no significa que el turno este pagado: significa
+        // que entro esa plata. `settled` va segun el ESTADO del turno, no segun
+        // que haya plata: si se pasa `depositAmount > 0` aca, `amountPaidFor`
+        // devuelve el precio de lista y una seña de $5.000 sobre un servicio de
+        // $20.000 terminaba contando $20.000 de caja. Solo entra el precio de
+        // lista si el turno ya esta saldado (completed).
+        updates.amount_paid = amountPaidFor({
+          settled: status === "completed",
+          servicePrice: currentAppointment.service_price,
+          depositAmount,
+          loyaltyDiscountPercent: currentAppointment.loyalty_discount_percent_applied,
+        });
       }
     }
 
@@ -633,7 +657,7 @@ export async function patchAppointmentQuick(
     const supabase = await createServerClient();
     const { data: appointment, error: aptError } = await supabase
       .from("appointments")
-      .select("id, start_time, end_time, status, customer_id, service_id, staff_id")
+      .select("id, start_time, end_time, status, customer_id, service_id, staff_id, service_price, deposit_amount, loyalty_discount_percent_applied")
       .eq("id", id)
       .eq("shop_id", shopId)
       .maybeSingle();
@@ -702,6 +726,23 @@ export async function patchAppointmentQuick(
     if (patch.status !== undefined) updates.status = patch.status;
     if (patch.status === "completed" && patch.isPaid === undefined) updates.is_paid = true;
     if (patch.isPaid !== undefined) updates.is_paid = patch.isPaid;
+    // El toggle de "pagado" del modal es el camino mas usado para dar por cobrado
+    // un turno, asi que es el que mas importa: marcar pagado significa que el
+    // salon tiene la seña y el saldo, o sea el total.
+    const quedaPagado = updates.is_paid === true;
+    const quedaDesmarcado = updates.is_paid === false;
+    if (quedaPagado || quedaDesmarcado) {
+      const precioFinal =
+        normalizedServiceId !== undefined
+          ? (nextService?.price ?? appointment.service_price)
+          : appointment.service_price;
+      updates.amount_paid = amountPaidFor({
+        settled: quedaPagado,
+        servicePrice: precioFinal,
+        depositAmount: appointment.deposit_amount,
+        loyaltyDiscountPercent: appointment.loyalty_discount_percent_applied,
+      });
+    }
     if (patch.wasPendingPayment !== undefined) updates.was_pending_payment = patch.wasPendingPayment;
     if (normalizedStaffId !== undefined) updates.staff_id = normalizedStaffId;
     if (normalizedServiceId !== undefined) {
@@ -1278,6 +1319,20 @@ const autoCompleteRuns = new Map<string, Promise<AutoCompleteResult>>();
 
 export async function autoCompletePastAppointments(shopId: string): Promise<AutoCompleteResult> {
   if (!shopId) return { success: false, error: "LOCAL_INVALIDO" };
+
+  // Esta accion escribe con el cliente admin (service role), que se saltea la
+  // RLS: sin este chequeo, cualquiera que conozca el ID de un local (y el ID va
+  // en la URL publica de /book/[slug]) podria dispararla y que le marque como
+  // completados y pagados los turnos vencidos que aun estan `confirmed`.
+  const auth = await createServerClient();
+  const {
+    data: { user },
+  } = await auth.auth.getUser();
+  if (!user) return { success: false, error: "SESION_EXPIRADA" };
+  if (!(await canAccessShopId(user.id, shopId))) {
+    return { success: false, error: "SIN_ACCESO_LOCAL" };
+  }
+
   const existing = autoCompleteRuns.get(shopId);
   if (existing) return existing;
   const run = runAutoCompletePastAppointments(shopId).finally(() => {
@@ -1303,29 +1358,79 @@ async function runAutoCompletePastAppointments(shopId: string): Promise<AutoComp
     // quedan marcados con was_pending_payment para que el local pueda reclamar el pago.
     // Los turnos ya auto-completados (auto_completed) quedan excluidos: si alguien los
     // reabre manualmente no vuelven a auto-completarse.
-    const { data: standardData, error: standardError } = await admin
+    //
+    // `amount_paid` se escribe turno por turno y no en un update masivo porque
+    // depende del precio y del descuento de CADA uno: el salon cobro la seña mas
+    // el saldo del mostrador, asi que al completing el turno lo que suma es el
+    // precio de lista menos el descuento de fidelidad.
+    const { data: standardRows, error: standardError } = await admin
       .from("appointments")
-      .update({ status: "completed", is_paid: true, was_pending_payment: false, auto_completed: true, updated_at: nowIso })
+      .select("id, customer_id, service_price, loyalty_discount_percent_applied")
       .eq("shop_id", shopId)
       .in("status", ["confirmed"])
       .eq("auto_completed", false)
       .lt("end_time", nowIso)
-      .select("id, customer_id")
       .limit(AUTO_COMPLETE_BATCH_SIZE);
 
     if (standardError) return { success: false, error: standardError.message };
 
-    const { data: flaggedData, error: flaggedError } = await admin
+    for (const row of standardRows || []) {
+      const { error } = await admin
+        .from("appointments")
+        .update(
+          withAmountPaid(
+            {
+              status: "completed",
+              is_paid: true,
+              was_pending_payment: false,
+              auto_completed: true,
+              updated_at: nowIso,
+            } as const,
+            fullServiceAmount(row.service_price, row.loyalty_discount_percent_applied),
+          ),
+        )
+        .eq("id", row.id)
+        .eq("shop_id", shopId);
+      if (error) return { success: false, error: error.message };
+    }
+    const standardData = standardRows || [];
+
+    const { data: flaggedRows, error: flaggedError } = await admin
       .from("appointments")
-      .update({ status: "completed", is_paid: true, was_pending_payment: true, auto_completed: true, updated_at: nowIso })
+      .select("id, customer_id, service_price, deposit_amount, loyalty_discount_percent_applied")
       .eq("shop_id", shopId)
       .eq("status", "pending_payment")
       .eq("auto_completed", false)
       .lt("end_time", nowIso)
-      .select("id, customer_id")
       .limit(AUTO_COMPLETE_BATCH_SIZE);
 
     if (flaggedError) return { success: false, error: flaggedError.message };
+
+    // Un turno en `pending_payment` tiene el pago de la seña en vuelo: puede que
+    // nunca se haya cobrado. Por eso NO se le suma el precio de lista al
+    // completar: entra solo la seña que figura registrada. Antes sumaba el total
+    // sin que nadie haya entered nada, que es el bug que esta migracion
+    // justamente viene a cerrar.
+    for (const row of flaggedRows || []) {
+      const { error } = await admin
+        .from("appointments")
+        .update(
+          withAmountPaid(
+            {
+              status: "completed",
+              is_paid: true,
+              was_pending_payment: true,
+              auto_completed: true,
+              updated_at: nowIso,
+            },
+            Math.max(0, Number(row.deposit_amount || 0)),
+          ),
+        )
+        .eq("id", row.id)
+        .eq("shop_id", shopId);
+      if (error) return { success: false, error: error.message };
+    }
+    const flaggedData = flaggedRows || [];
 
     const completedData = [...(standardData ?? []), ...(flaggedData ?? [])];
 

@@ -189,6 +189,13 @@ export type AppointmentEnriched = {
   status: string;
   is_paid: boolean;
   was_pending_payment?: boolean;
+  /**
+   * Preferencia de Mercado Pago del turno: la unica senal disponible en la fila para
+   * saber si tiene un pago REGISTRADO. Un turno que perdio el solape en el webhook
+   * queda en `pending_payment` con `is_paid = false` pero con la plata adentro, y sin
+   * esta columna el boton de reembolso no le aparecia al local.
+   */
+  mp_preference_id?: string | null;
   deposit_amount: number | null;
   loyalty_reward_applied?: boolean;
   loyalty_discount_percent_applied?: number;
@@ -313,6 +320,13 @@ export type AppointmentTableRow = {
   status: string;
   is_paid: boolean;
   was_pending_payment?: boolean;
+  /**
+   * Preferencia de Mercado Pago del turno: la unica senal disponible en la fila para
+   * saber si tiene un pago REGISTRADO. Un turno que perdio el solape en el webhook
+   * queda en `pending_payment` con `is_paid = false` pero con la plata adentro, y sin
+   * esta columna el boton de reembolso no le aparecia al local.
+   */
+  mp_preference_id?: string | null;
   deposit_amount: number | null;
   loyalty_reward_applied?: boolean;
   loyalty_discount_percent_applied?: number;

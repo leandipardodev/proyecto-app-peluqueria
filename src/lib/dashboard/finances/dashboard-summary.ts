@@ -17,6 +17,7 @@ import "server-only";
 import { createAdminClient } from "../appointments/shared";
 import { findLargestGap, resolveGapHours, type AgendaGap, type AgendaInterval } from "./agenda-gaps";
 import { buildDemandaBuckets } from "./demanda-buckets";
+import { collectedAmount } from "../appointments/paid-amount";
 
 type NextAppointment = {
   id: string;
@@ -31,7 +32,6 @@ type NextAppointment = {
 
 type DashboardSummary = {
   appointmentsCount: number;
-  revenue: number;
   lowStockCount: number;
   nextAppointments: NextAppointment[];
   loyaltyRewardsReadyCount: number;
@@ -56,7 +56,7 @@ export async function fetchDashboardSummary(shopIdOverride?: string): Promise<Ac
 
     const nowIso = getArgentinaNow().toISOString();
 
-    const [appointmentsToday, revenueToday, lowStock, loyaltyReady, loyaltyRewardCustomers, nextResult, shop] = await Promise.all([
+    const [appointmentsToday, lowStock, loyaltyReady, loyaltyRewardCustomers, nextResult, shop] = await Promise.all([
       supabase
         .from("appointments")
         .select("id, start_time, end_time, status")
@@ -65,15 +65,6 @@ export async function fetchDashboardSummary(shopIdOverride?: string): Promise<Ac
         .lte("start_time", todayEndIso)
         .in("status", APPOINTMENT_STATUS_TODAY_SUMMARY as unknown as string[])
         .order("start_time", { ascending: true }),
-
-      supabase
-        .from("appointments")
-        .select("id, status, is_paid, service_price, services(price)")
-        .eq("shop_id", shopId)
-        .gte("start_time", todayStartIso)
-        .lte("start_time", todayEndIso)
-        .eq("status", "completed")
-        .eq("is_paid", true),
 
       supabase
         .from("stock")
@@ -114,7 +105,6 @@ export async function fetchDashboardSummary(shopIdOverride?: string): Promise<Ac
     ]);
 
     if (appointmentsToday.error) return { success: false, error: appointmentsToday.error.message };
-    if (revenueToday.error) return { success: false, error: revenueToday.error.message };
     if (lowStock.error) return { success: false, error: lowStock.error.message };
     if (loyaltyReady.error) return { success: false, error: loyaltyReady.error.message };
     if (loyaltyRewardCustomers.error) return { success: false, error: loyaltyRewardCustomers.error.message };
@@ -124,13 +114,6 @@ export async function fetchDashboardSummary(shopIdOverride?: string): Promise<Ac
     const loyaltyRewardCustomerNames = (loyaltyRewardCustomers.data ?? [])
       .map((c) => (c.nombre || "").trim())
       .filter(Boolean);
-
-    const revenue = (revenueToday.data ?? []).reduce((sum, a) => {
-      if (a.service_price != null) return sum + Number(a.service_price);
-      const serviceData = a.services as { price?: number } | Array<{ price?: number }> | null;
-      const price = serviceData ? (Array.isArray(serviceData) ? serviceData[0]?.price : serviceData.price) : 0;
-      return sum + (Number(price) || 0);
-    }, 0);
 
     const nextAppointments: NextAppointment[] = (nextResult.data ?? []).map((a: Record<string, unknown>) => ({
         id: a.id as string,
@@ -158,7 +141,6 @@ export async function fetchDashboardSummary(shopIdOverride?: string): Promise<Ac
       success: true,
       data: {
         appointmentsCount: (appointmentsToday.data ?? []).length,
-        revenue,
         lowStockCount: (lowStock.data ?? []).length,
         nextAppointments,
         loyaltyRewardsReadyCount: (loyaltyReady.data ?? []).length,
@@ -173,25 +155,33 @@ export async function fetchDashboardSummary(shopIdOverride?: string): Promise<Ac
   }
 }
 
+/**
+ * Topes de las agregaciones de Inicio. Un `.limit()` sin `count` se come filas en
+ * silencio (PostgREST no avisa), y en un dashboard de 6 meses eso no es un
+ * detalle: son los numeros que el dueño mira para decidir. Con `count` la action
+ * devuelve si el total es parcial y la UI lo dice.
+ */
+const TRENDS_LIMIT = 5000;
+const FLOW_RANGE_LIMIT = 5000;
+
 export type DashboardMetrics = {
   revenueChart: Array<{ month: string; income: number; expenses: number }>;
   dailyBreakdown: Array<{ dateKey: string; income: number; expenses: number }>;
-  hourlyBreakdown: Array<{ hour: string; income: number; expenses: number }>;
   weeklyBreakdown: Array<{ weekKey: string; income: number; expenses: number }>;
-  busiestDay: { day: string; count: number } | null;
-  busiestHour: { hour: string; count: number } | null;
   monthlyGrowth: Array<{ month: string; clients: number; growthPct: number | null }>;
   healthScore: number;
   healthBreakdown: { revenue: number; clients: number; appointments: number };
   flowByPeriod: {
-    today: { income: number; expenses: number };
-    week: { income: number; expenses: number };
-    month: { income: number; expenses: number };
+    today: { income: number; expenses: number; truncated: boolean };
+    week: { income: number; expenses: number; truncated: boolean };
+    month: { income: number; expenses: number; truncated: boolean };
   };
+  /** Alguna de las 5 consultas de 6 meses se corto y los graficos son parciales. */
+  trendsTruncated: boolean;
   topServices: Array<{ name: string; count: number }>;
   topDias: Array<{ name: string; count: number }>;
   topHorarios: Array<{ name: string; count: number }>;
-  stats: { totalClients: number; growth: number | null; totalAppointments: number };
+  stats: { totalClients: number; totalAppointments: number };
 };
 
 async function fetchFlowRange(
@@ -199,33 +189,33 @@ async function fetchFlowRange(
   shopId: string,
   startIso: string,
   endIso: string
-): Promise<{ income: number; expenses: number }> {
+): Promise<{ income: number; expenses: number; truncated: boolean }> {
   const [appointmentsRes, financesRes, cashMovesRes] = await Promise.all([
     admin
       .from("appointments")
-      .select("is_paid, service_price, services!appointments_service_id_fkey(price)")
+      .select("is_paid, service_price, amount_paid, loyalty_discount_percent_applied, services!appointments_service_id_fkey(price)", { count: "exact" })
       .eq("shop_id", shopId)
       .gte("start_time", startIso)
       .lte("start_time", endIso)
       .eq("status", "completed")
-      .limit(1000),
+      .limit(FLOW_RANGE_LIMIT),
     admin
       .from("finances")
-      .select("amount, type, happened_at")
+      .select("amount, type, happened_at", { count: "exact" })
       .eq("shop_id", shopId)
       .is("appointment_id", null)
       .gte("happened_at", startIso)
       .lte("happened_at", endIso)
-      .limit(1000),
+      .limit(FLOW_RANGE_LIMIT),
     admin
       .from("cash_movements")
-      .select("amount, movement_type")
+      .select("amount, movement_type", { count: "exact" })
       .eq("shop_id", shopId)
       .is("appointment_id", null)
       .in("movement_type", ["income", "expense", "withdrawal"])
       .gte("happened_at", startIso)
       .lte("happened_at", endIso)
-      .limit(1000),
+      .limit(FLOW_RANGE_LIMIT),
   ]);
 
   if (appointmentsRes.error) throw new Error(appointmentsRes.error.message);
@@ -234,9 +224,7 @@ async function fetchFlowRange(
 
   const appointmentsIncome = (appointmentsRes.data ?? []).reduce((sum, row) => {
     if (!row.is_paid) return sum;
-    if (row.service_price != null) return sum + Number(row.service_price);
-    const svc = Array.isArray(row.services) ? row.services[0] : row.services;
-    return sum + Number(svc?.price || 0);
+    return sum + collectedAmount(row);
   }, 0);
 
   const cashIncome = (cashMovesRes.data ?? [])
@@ -255,7 +243,15 @@ async function fetchFlowRange(
     .filter((m) => m.movement_type === "expense" || m.movement_type === "withdrawal")
     .reduce((sum, m) => sum + Number(m.amount || 0), 0);
 
-  return { income: appointmentsIncome + manualIncome + cashIncome, expenses: financeExpenses + cashExpenses };
+  // Sin `count`, un local con mas de FLOW_RANGE_LIMIT filas veia los KPI de
+  // Hoy/Semana/Mes mas bajos sin ningun aviso. Con el flag, Inicio puede
+  // decirlo en vez de mentir en silencio.
+  const truncated =
+    ((appointmentsRes.count ?? 0) > (appointmentsRes.data ?? []).length) ||
+    ((financesRes.count ?? 0) > (financesRes.data ?? []).length) ||
+    ((cashMovesRes.count ?? 0) > (cashMovesRes.data ?? []).length);
+
+  return { income: appointmentsIncome + manualIncome + cashIncome, expenses: financeExpenses + cashExpenses, truncated };
 }
 
 export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<ActionResult<DashboardMetrics>> {
@@ -284,41 +280,41 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
     const [apptsRevenueRes, apptsCountRes, financesRes, cashMovesRes, clientsRes, flowToday, flowWeek, flowMonth] = await Promise.all([
       admin
         .from("appointments")
-        .select("date_key_ar, start_time, service_id, is_paid, service_price, services!appointments_service_id_fkey(name, price)")
+        .select("date_key_ar, start_time, service_id, is_paid, service_price, amount_paid, loyalty_discount_percent_applied, services!appointments_service_id_fkey(name, price)", { count: "exact" })
         .eq("shop_id", shopId)
         .gte("start_time", sixMonthsAgo.toISOString())
         .eq("status", "completed")
         // El limit sin order trunca en forma arbitraria: el top 5 era distinto en
         // cada carga. Se ordena para que el corte sea siempre el mismo.
         .order("start_time", { ascending: false })
-        .limit(2000),
+        .limit(TRENDS_LIMIT),
       admin
         .from("appointments")
-        .select("id")
+        .select("id", { count: "exact" })
         .eq("shop_id", shopId)
         .gte("start_time", sixMonthsAgo.toISOString())
         .in("status", ["confirmed", "pending_payment", "completed"])
-        .limit(2000),
+        .limit(TRENDS_LIMIT),
       admin
         .from("finances")
-        .select("amount, type, created_at, happened_at")
+        .select("amount, type, created_at, happened_at", { count: "exact" })
         .eq("shop_id", shopId)
         .is("appointment_id", null)
         .gte("happened_at", sixMonthsAgo.toISOString())
-        .limit(2000),
+        .limit(TRENDS_LIMIT),
       admin
         .from("cash_movements")
-        .select("amount, movement_type, happened_at, created_at")
+        .select("amount, movement_type, happened_at, created_at", { count: "exact" })
         .eq("shop_id", shopId)
         .is("appointment_id", null)
         .gte("happened_at", sixMonthsAgo.toISOString())
-        .limit(2000),
+        .limit(TRENDS_LIMIT),
       admin
         .from("customers")
-        .select("created_at")
+        .select("created_at", { count: "exact" })
         .eq("shop_id", shopId)
         .gte("created_at", sixMonthsAgo.toISOString())
-        .limit(2000),
+        .limit(TRENDS_LIMIT),
       fetchFlowRange(admin, shopId, dayStart.toISOString(), dayEnd.toISOString()),
       fetchFlowRange(admin, shopId, weekStart.toISOString(), dayEnd.toISOString()),
       fetchFlowRange(admin, shopId, monthStart.toISOString(), dayEnd.toISOString()),
@@ -330,38 +326,74 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
     if (cashMovesRes.error) return { success: false, error: cashMovesRes.error.message };
     if (clientsRes.error) return { success: false, error: clientsRes.error.message };
 
+    // Un local de 6 sillones tiene ~30 turnos/dia: en 6 meses son 32.000 filas y
+    // el tope de 5000 se come la mitad del periodo. El grafico de ingresos por
+    // mes mostraba $0 en los meses viejos (porque solo entran las filas de
+    // `finances`/`cash_movements`, que casi no tienen historia) y el Rendimiento
+    // se calculaba sobre el ~15% de los datos. Antes era silencioso.
+    const trendsTruncated =
+      ((apptsRevenueRes.count ?? 0) > (apptsRevenueRes.data ?? []).length) ||
+      ((apptsCountRes.count ?? 0) > (apptsCountRes.data ?? []).length) ||
+      ((financesRes.count ?? 0) > (financesRes.data ?? []).length) ||
+      ((cashMovesRes.count ?? 0) > (cashMovesRes.data ?? []).length) ||
+      ((clientsRes.count ?? 0) > (clientsRes.data ?? []).length);
+
     const incomeByMonth = new Map<string, number>();
     const expensesByMonth = new Map<string, number>();
+
+    // El score de Rendimiento compara el mes actual contra el promedio de los 3
+    // anteriores. Con el mes a medias eso es tramposo: el dia 3 se comparan 3 dias
+    // contra meses enteros y toda peluqueria del mundo sale "Critico". Los mapas
+    // `*Cut` son los mismos numeros pero recortados al dia de hoy, asi que la
+    // comparacion es siempre "mismos dias contra mismos dias".
+    // Caso borde: si el mes anterior tiene menos dias que `diaDelMes`, se toma
+    // completo (no hay dias que comparar).
+    const diaDelMes = Number(todayArKey.slice(8, 10));
+    const incomeByMonthCut = new Map<string, number>();
+    const expensesByMonthCut = new Map<string, number>();
+    const clientsByMonthCut = new Map<string, number>();
+    const apptsByMonthCut = new Map<string, number>();
+    const dentroDelCorte = (dateKey: string | null | undefined): boolean => {
+      if (!dateKey || dateKey.length < 10) return false;
+      return Number(dateKey.slice(8, 10)) <= diaDelMes;
+    };
+    const sumarEn = (map: Map<string, number>, month: string, amount: number) =>
+      map.set(month, (map.get(month) ?? 0) + amount);
 
     for (const apt of apptsRevenueRes.data ?? []) {
       if (!apt.is_paid) continue;
       const month = typeof apt.date_key_ar === "string" ? apt.date_key_ar.slice(0, 7) : null;
       if (!month) continue;
-      const price = apt.service_price != null ? Number(apt.service_price) : (() => {
-        const svc = Array.isArray(apt.services) ? apt.services[0] : apt.services;
-        return svc?.price ?? 0;
-      })();
+      const price = collectedAmount(apt);
       incomeByMonth.set(month, (incomeByMonth.get(month) ?? 0) + price);
+      if (dentroDelCorte(apt.date_key_ar)) sumarEn(incomeByMonthCut, month, price);
+      sumarEn(apptsByMonthCut, month, 1);
     }
 
     for (const fin of financesRes.data ?? []) {
       const dateKey = fin.happened_at || fin.created_at;
       const month = dateKey ? getArgentinaDateKey(dateKey).slice(0, 7) : null;
       if (!month) continue;
+      const dk = dateKey ? getArgentinaDateKey(dateKey) : null;
       if (fin.type === "income") {
         incomeByMonth.set(month, (incomeByMonth.get(month) ?? 0) + fin.amount);
+        if (dentroDelCorte(dk)) sumarEn(incomeByMonthCut, month, fin.amount);
       } else if (fin.type === "expense") {
         expensesByMonth.set(month, (expensesByMonth.get(month) ?? 0) + fin.amount);
+        if (dentroDelCorte(dk)) sumarEn(expensesByMonthCut, month, fin.amount);
       }
     }
 
     for (const mov of cashMovesRes.data ?? []) {
       const month = mov.happened_at ? getArgentinaDateKey(mov.happened_at).slice(0, 7) : null;
       if (!month) continue;
+      const dk = mov.happened_at ? getArgentinaDateKey(mov.happened_at) : null;
       if (mov.movement_type === "income") {
         incomeByMonth.set(month, (incomeByMonth.get(month) ?? 0) + Number(mov.amount || 0));
+        if (dentroDelCorte(dk)) sumarEn(incomeByMonthCut, month, Number(mov.amount || 0));
       } else if (mov.movement_type === "expense" || mov.movement_type === "withdrawal") {
         expensesByMonth.set(month, (expensesByMonth.get(month) ?? 0) + Number(mov.amount || 0));
+        if (dentroDelCorte(dk)) sumarEn(expensesByMonthCut, month, Number(mov.amount || 0));
       }
     }
 
@@ -387,10 +419,7 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
       if (!apt.is_paid) continue;
       const dk = typeof apt.date_key_ar === "string" ? apt.date_key_ar : null;
       if (!dk || !weekDayKeys.includes(dk)) continue;
-      const price = apt.service_price != null ? Number(apt.service_price) : (() => {
-        const svc = Array.isArray(apt.services) ? apt.services[0] : apt.services;
-        return svc?.price ?? 0;
-      })();
+      const price = collectedAmount(apt);
       incomeByDay.set(dk, (incomeByDay.get(dk) ?? 0) + price);
     }
     for (const fin of financesRes.data ?? []) {
@@ -417,53 +446,6 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
       income: incomeByDay.get(dk) ?? 0,
       expenses: expensesByDay.get(dk) ?? 0,
     }));
-
-    const hours = Array.from({ length: 14 }, (_, i) => String(i + 8));
-    const incomeByHour = new Map<string, number>();
-    const expensesByHour = new Map<string, number>();
-    for (const apt of apptsRevenueRes.data ?? []) {
-      if (!apt.is_paid) continue;
-      const dk = typeof apt.date_key_ar === "string" ? apt.date_key_ar : null;
-      if (!dk || dk !== todayArKey) continue;
-      const hour = apt.start_time ? String(new Date(apt.start_time).getUTCHours()).padStart(2, "0") : null;
-      if (!hour || !hours.includes(hour)) continue;
-      const price = apt.service_price != null ? Number(apt.service_price) : (() => {
-        const svc = Array.isArray(apt.services) ? apt.services[0] : apt.services;
-        return svc?.price ?? 0;
-      })();
-      incomeByHour.set(hour, (incomeByHour.get(hour) ?? 0) + price);
-    }
-    for (const fin of financesRes.data ?? []) {
-      const dateKey = fin.happened_at || fin.created_at;
-      if (!dateKey) continue;
-      const dk = getArgentinaDateKey(dateKey);
-      if (dk !== todayArKey) continue;
-      const hour = String(new Date(dateKey).getUTCHours()).padStart(2, "0");
-      if (!hours.includes(hour)) continue;
-      if (fin.type === "income") {
-        incomeByHour.set(hour, (incomeByHour.get(hour) ?? 0) + fin.amount);
-      } else if (fin.type === "expense") {
-        expensesByHour.set(hour, (expensesByHour.get(hour) ?? 0) + fin.amount);
-      }
-    }
-    for (const mov of cashMovesRes.data ?? []) {
-      if (!mov.happened_at) continue;
-      const dk = getArgentinaDateKey(mov.happened_at);
-      if (dk !== todayArKey) continue;
-      const hour = String(new Date(mov.happened_at).getUTCHours()).padStart(2, "0");
-      if (!hours.includes(hour)) continue;
-      if (mov.movement_type === "income") {
-        incomeByHour.set(hour, (incomeByHour.get(hour) ?? 0) + Number(mov.amount || 0));
-      } else if (mov.movement_type === "expense" || mov.movement_type === "withdrawal") {
-        expensesByHour.set(hour, (expensesByHour.get(hour) ?? 0) + Number(mov.amount || 0));
-      }
-    }
-    const hourlyBreakdown = hours.map((hour) => ({
-      hour,
-      income: incomeByHour.get(hour) ?? 0,
-      expenses: expensesByHour.get(hour) ?? 0,
-    }));
-
     const weeksToShow: string[] = [];
     {
       const mondayStart = new Date(weekStart);
@@ -485,10 +467,7 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
       d.setUTCDate(d.getUTCDate() + diff);
       const weekKey = getArgentinaDateKey(d);
       if (!weeksToShow.includes(weekKey)) continue;
-      const price = apt.service_price != null ? Number(apt.service_price) : (() => {
-        const svc = Array.isArray(apt.services) ? apt.services[0] : apt.services;
-        return svc?.price ?? 0;
-      })();
+      const price = collectedAmount(apt);
       incomeByWeek.set(weekKey, (incomeByWeek.get(weekKey) ?? 0) + price);
     }
     for (const fin of financesRes.data ?? []) {
@@ -535,37 +514,36 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
     const topDias = demanda.topDias;
     const topHorarios = demanda.topHorarios;
     const topServices = demanda.topServicios;
-    const busiestDay = demanda.busiestDay;
-    const busiestHour = demanda.busiestHour;
 
     const totalClients = clientsRes.data?.length ?? 0;
     const totalAppointments = apptsCountRes.data?.length ?? 0;
 
     const currentMonth = todayArKey.slice(0, 7);
-    const prevMonthDate = new Date(`${currentMonth}-01T00:00:00-03:00`);
-    prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
-    const prevMonth = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, "0")}`;
 
     const toMonthKey = (value: string | null | undefined) => {
       if (!value) return "";
       return getArgentinaDateKey(value).slice(0, 7);
     };
 
-    const currentMonthClients =
-      clientsRes.data?.filter((c) => toMonthKey(c.created_at) === currentMonth).length ?? 0;
-    const prevMonthClients =
-      clientsRes.data?.filter((c) => toMonthKey(c.created_at) === prevMonth).length ?? 0;
-
-    const growth = prevMonthClients > 0 && currentMonthClients > 0 ? Math.round(((currentMonthClients - prevMonthClients) / prevMonthClients) * 100) : null;
-
     const clientsByMonth = new Map<string, number>();
     for (const client of clientsRes.data ?? []) {
       const mk = toMonthKey(client.created_at);
       if (!mk) continue;
       clientsByMonth.set(mk, (clientsByMonth.get(mk) || 0) + 1);
+      if (dentroDelCorte(client.created_at ? getArgentinaDateKey(client.created_at) : null)) {
+        sumarEn(clientsByMonthCut, mk, 1);
+      }
     }
 
-    const monthlyGrowth = [...clientsByMonth.keys()]
+// El mes en curso siempre tiene punto, aunque tenga cero. Sin esto, el ultimo
+    // punto de la serie es el MES PASADO y la card de Inicio mostraba "+13 este
+    // mes" cuando en octubre van cero clientes: el dato existia, pero era de
+    // septiembre.
+    if (!clientsByMonth.has(currentMonth)) {
+      clientsByMonth.set(currentMonth, 0);
+    }
+
+const monthlyGrowth = [...clientsByMonth.keys()]
       .sort()
       .slice(-6)
       .map((month, index, arr) => {
@@ -583,6 +561,7 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
       const month = typeof apt.date_key_ar === "string" ? apt.date_key_ar.slice(0, 7) : null;
       if (!month) continue;
       apptsByMonth.set(month, (apptsByMonth.get(month) || 0) + 1);
+      if (dentroDelCorte(apt.date_key_ar)) sumarEn(apptsByMonthCut, month, 1);
     }
 
     const trailingMonths = (n: number) => {
@@ -603,13 +582,15 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
     const toScore = (ratio: number) => Math.round(ratio / 2);
 
     const [m1, m2, m3] = trailingMonths(3);
-    const avgRevenue = ([m1, m2, m3].reduce((s, m) => s + (incomeByMonth.get(m) ?? 0), 0) / 3);
-    const avgClients = ([m1, m2, m3].reduce((s, m) => s + (clientsByMonth.get(m) ?? 0), 0) / 3);
-    const avgAppts = ([m1, m2, m3].reduce((s, m) => s + (apptsByMonth.get(m) ?? 0), 0) / 3);
+    // Todo el score se arma con los mapas recortados al dia de hoy: el mes actual
+    // contra el mismo tramo de cada uno de los 3 meses anteriores.
+    const avgRevenue = ([m1, m2, m3].reduce((s, m) => s + (incomeByMonthCut.get(m) ?? 0), 0) / 3);
+    const avgClients = ([m1, m2, m3].reduce((s, m) => s + (clientsByMonthCut.get(m) ?? 0), 0) / 3);
+    const avgAppts = ([m1, m2, m3].reduce((s, m) => s + (apptsByMonthCut.get(m) ?? 0), 0) / 3);
 
-    const revScore = toScore(compRatio(incomeByMonth.get(currentMonth) ?? 0, avgRevenue));
-    const cliScore = toScore(compRatio(clientsByMonth.get(currentMonth) ?? 0, avgClients));
-    const apptScore = toScore(compRatio(apptsByMonth.get(currentMonth) ?? 0, avgAppts));
+    const revScore = toScore(compRatio(incomeByMonthCut.get(currentMonth) ?? 0, avgRevenue));
+    const cliScore = toScore(compRatio(clientsByMonthCut.get(currentMonth) ?? 0, avgClients));
+    const apptScore = toScore(compRatio(apptsByMonthCut.get(currentMonth) ?? 0, avgAppts));
 
     const healthScore = Math.min(
       Math.round(revScore * 0.4 + cliScore * 0.3 + apptScore * 0.3),
@@ -621,10 +602,7 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
       data: {
         revenueChart,
         dailyBreakdown,
-        hourlyBreakdown,
         weeklyBreakdown,
-        busiestDay: busiestDay ? { day: busiestDay.name, count: busiestDay.count } : null,
-        busiestHour: busiestHour ? { hour: busiestHour.name, count: busiestHour.count } : null,
         monthlyGrowth,
         healthScore,
         healthBreakdown: { revenue: revScore, clients: cliScore, appointments: apptScore },
@@ -636,7 +614,8 @@ export async function fetchDashboardMetrics(shopIdOverride?: string): Promise<Ac
         topServices,
         topDias,
         topHorarios,
-        stats: { totalClients, growth, totalAppointments },
+        trendsTruncated,
+        stats: { totalClients, totalAppointments },
       },
     };
   } catch (e) {

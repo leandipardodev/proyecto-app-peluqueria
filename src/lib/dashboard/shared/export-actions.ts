@@ -3,6 +3,7 @@
 import { createServerClient } from "@/lib/supabase/server";
 import { canAccessShopId, getCachedUser, getCurrentUserRole } from "@/lib/dashboard/auth/server";
 import type { ActionResult } from "@/lib/types";
+import { collectedAmount } from "@/lib/dashboard/appointments/paid-amount";
 import "server-only";
 
 async function requireOwnerAccess(shopId: string): Promise<ActionResult<string>> {
@@ -94,7 +95,7 @@ export async function fetchExportFinances(
     const [apptsResult, expensesResult, movementsResult] = await Promise.all([
       supabase
         .from("appointments")
-        .select("service_price, services(price)")
+        .select("service_price, amount_paid, loyalty_discount_percent_applied, services(price)")
         .eq("shop_id", shopId)
         .eq("status", "completed")
         .eq("is_paid", true)
@@ -120,7 +121,7 @@ export async function fetchExportFinances(
     if (movementsResult.error) return { success: false, error: movementsResult.error.message };
 
     const appointmentIncome = (apptsResult.data || []).reduce((s, a) => {
-      if (a.service_price != null) return s + Number(a.service_price);
+      return s + collectedAmount(a);
       const svc = a.services as { price?: number } | null;
       return s + (svc?.price || 0);
     }, 0);
@@ -173,7 +174,7 @@ export async function fetchExportStaffProduction(
 
     const { data: appointments, error: apptError } = await supabase
       .from("appointments")
-      .select("staff_id, service_price, services(price), is_paid")
+      .select("staff_id, service_price, amount_paid, loyalty_discount_percent_applied, services(price), is_paid")
       .eq("shop_id", shopId)
       .gte("start_time", from)
       .lte("start_time", to);
@@ -185,7 +186,7 @@ export async function fetchExportStaffProduction(
       const paidRevenue = staffAppts
         .filter((a) => a.is_paid)
         .reduce((s, a) => {
-          if (a.service_price != null) return s + Number(a.service_price);
+          return s + collectedAmount(a);
           const svc = a.services as { price?: number } | null;
           return s + (svc?.price || 0);
         }, 0);

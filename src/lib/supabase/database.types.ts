@@ -109,6 +109,7 @@ export type Database = {
       }
       appointments: {
         Row: {
+          amount_paid: number | null
           auto_completed: boolean
           created_at: string | null
           custom_service_duration: number | null
@@ -137,6 +138,7 @@ export type Database = {
           was_pending_payment: boolean
         }
         Insert: {
+          amount_paid?: number | null
           auto_completed?: boolean
           created_at?: string | null
           custom_service_duration?: number | null
@@ -165,6 +167,7 @@ export type Database = {
           was_pending_payment?: boolean
         }
         Update: {
+          amount_paid?: number | null
           auto_completed?: boolean
           created_at?: string | null
           custom_service_duration?: number | null

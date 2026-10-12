@@ -26,6 +26,7 @@ type Appointment = {
   status: string;
   is_paid: boolean;
   was_pending_payment?: boolean;
+  mp_preference_id?: string | null;
   deposit_amount?: number | null;
   loyalty_reward_applied?: boolean;
   loyalty_discount_percent_applied?: number;
@@ -1068,11 +1069,23 @@ export default function AppointmentDetailModal({
             ) : null}
           </div>
 
-          <div className="border-t border-zinc-200 dark:border-zinc-800 pt-5 space-y-4">
+<div className="border-t border-zinc-200 dark:border-zinc-800 pt-5 space-y-4">
+            {/* El boton aparece con `is_paid` O con una preferencia de MP: un turno
+                que perdio el solape en el webhook queda en `pending_payment` con
+                `is_paid = false` pero con el pago registrado, y era justamente
+                ese el caso sin salida para el local. Si la preferencia existe pero
+                no se pago, la accion lo dice ("no tiene ningun pago registrado").
+                Sobre el boton de pagado manual sigue mandando `localPaid`. */}
+            {!localPaid && appointment?.mp_preference_id && (
+              <p className="rounded-xl bg-amber-50 px-3 py-2 text-[11px] leading-snug text-amber-800 dark:bg-amber-900/25 dark:text-amber-300">
+                Este turno tiene una preferencia de Mercado Pago pero figura como no pagado. Si el cliente ya
+                transferió, revisá el pago antes de marcarlo.
+              </p>
+            )}
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-700 dark:text-gray-300">Pago</span>
+              <span className="text-sm text-gray-700 dark:text-zinc-300">Pago</span>
               <div className="flex items-center gap-2">
-                {localPaid && (
+                {(localPaid || !!appointment?.mp_preference_id) && (
                   <button
                     onClick={handleRefundClick}
                     disabled={pending}

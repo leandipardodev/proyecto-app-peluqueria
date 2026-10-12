@@ -15,7 +15,7 @@ export async function fetchAppointments(startDate: string, endDate: string, shop
 
     const { data, error } = await supabase
       .from("appointments")
-      .select("id, customer_id, staff_id, service_id, custom_service_name, custom_service_duration, start_time, end_time, status, is_paid, was_pending_payment, deposit_amount, loyalty_reward_applied, loyalty_discount_percent_applied, recurring_group_id, notes")
+      .select("id, customer_id, staff_id, service_id, custom_service_name, custom_service_duration, start_time, end_time, status, is_paid, was_pending_payment, mp_preference_id, deposit_amount, loyalty_reward_applied, loyalty_discount_percent_applied, recurring_group_id, notes")
       .eq("shop_id", shopId)
       .gte("start_time", startDate)
       .lte("start_time", endDate)
@@ -85,7 +85,7 @@ export async function fetchAppointmentGroup(
     if (dateKey && customerId) {
       const query = supabase
         .from("appointments")
-        .select("id, customer_id, staff_id, service_id, custom_service_name, custom_service_duration, start_time, end_time, date_key_ar, status, is_paid, was_pending_payment, deposit_amount, loyalty_reward_applied, loyalty_discount_percent_applied, recurring_group_id, notes")
+        .select("id, customer_id, staff_id, service_id, custom_service_name, custom_service_duration, start_time, end_time, date_key_ar, status, is_paid, was_pending_payment, mp_preference_id, deposit_amount, loyalty_reward_applied, loyalty_discount_percent_applied, recurring_group_id, notes")
         .eq("shop_id", shopId)
         .eq("customer_id", customerId)
         .eq("date_key_ar", dateKey)
@@ -218,7 +218,7 @@ export async function fetchAllAppointmentsForTable(
     const upcomingOnly = options?.upcomingOnly === true;
     let appointmentsQuery = admin
       .from("appointments")
-      .select("id, start_time, end_time, status, is_paid, was_pending_payment, deposit_amount, loyalty_reward_applied, loyalty_discount_percent_applied, recurring_group_id, customer_id, staff_id, service_id, custom_service_name")
+      .select("id, start_time, end_time, status, is_paid, was_pending_payment, mp_preference_id, deposit_amount, loyalty_reward_applied, loyalty_discount_percent_applied, recurring_group_id, customer_id, staff_id, service_id, custom_service_name")
       .eq("shop_id", shopId)
       .neq("status", "cancelled")
       .order("start_time", { ascending: true });
@@ -270,6 +270,7 @@ export async function fetchAllAppointmentsForTable(
       status: apt.status,
       is_paid: apt.is_paid,
       was_pending_payment: apt.was_pending_payment ?? false,
+      mp_preference_id: apt.mp_preference_id ?? null,
       deposit_amount: apt.deposit_amount,
       loyalty_reward_applied: apt.loyalty_reward_applied,
       loyalty_discount_percent_applied: apt.loyalty_discount_percent_applied,
