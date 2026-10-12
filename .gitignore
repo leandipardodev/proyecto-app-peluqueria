@@ -47,3 +47,12 @@ test-results/
 .playwright-report.json
 .perf-reports/
 .perf-reports-auth/
+
+# Capturas sueltas de depuracion (WhatsApp, Screenshots)
+*.jpeg
+*.png
+
+# ...pero las del sitio son assets, no capturas
+!public/**/*.png
+!src/app/*.png
+!favicon/**/*.png
