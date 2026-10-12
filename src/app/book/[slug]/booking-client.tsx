@@ -36,6 +36,7 @@ import { fetchPublicAvailableSlots, createPublicAppointment, createPublicComboAp
 import type { PublicStoreProduct } from "@/lib/dashboard/store/public-store-actions";
 import { productColor } from "@/lib/dashboard/store/product-color";
 import QRCode from "qrcode";
+import ShareBookingButton from "@/components/book/share-booking-button";
 import GoogleSignInButton from "@/components/auth/google-sign-in-button";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
@@ -3833,6 +3834,27 @@ className={`relative w-full max-w-sm max-h-[86dvh] overflow-y-auto ${templateSty
                   >
                     Nueva reserva
                   </button>
+                </motion.div>
+
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.45 }}
+                  className={`text-sm ${templateStyles.meta}`}
+                >
+                  ¿Querés que alguien más reserve? Copiá el link y compartilo por donde quieras.
+                </motion.p>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                  className="flex justify-center"
+                >
+                  <ShareBookingButton
+                    slug={shop.slug}
+                    className={`px-6 py-2.5 rounded-full text-sm font-medium transition-all border ${templateStyles.ghostBtn}`}
+                  />
                 </motion.div>
               </div>
               <motion.div

@@ -5,6 +5,7 @@ import BookingClient from "./booking-client";
 import { absoluteUrl } from "@/lib/seo";
 import { DEFAULT_BOOKING_TEMPLATE, BOOKING_TEMPLATE_PRESETS, type BookingTemplateId } from "@/lib/booking/theme-presets";
 import { resolveIndustry } from "@/lib/industry/resolve";
+import { INDUSTRY_CONFIG } from "@/lib/industry/config";
 import { getShopFeatures } from "@/lib/industry/features";
 
 async function createAdminClient() {
@@ -34,7 +35,7 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-zinc-100 to-white dark:from-zinc-950 dark:to-black">
         <div className="bg-white dark:bg-zinc-900 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 p-10 text-center max-w-md">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-            Peluquería no encontrada
+            Local no encontrado
           </h1>
           <p className="text-zinc-500 dark:text-zinc-400">
             El enlace que seguiste no es válido.
@@ -97,21 +98,33 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
     staffServicesMap[row.staff_id].push(row.service_id);
   }
 
+  const { data: bookingTheme } = await admin
+    .from("shop_booking_theme")
+    .select("template_id, section_order, section_service_order, logo_url, hero_title")
+    .eq("shop_id", shop.id)
+    .maybeSingle();
+
+  const bookingLogoUrl = (bookingTheme?.logo_url as string | null) || null;
+
   const localBusinessJsonLd = {
     "@context": "https://schema.org",
-    "@type": "HairSalon",
+    "@type": INDUSTRY_CONFIG[resolveIndustry(shop.industry || null)].schemaType,
     name: shop.nombre,
     description: shop.description || `Reserva de turnos online en ${shop.nombre}`,
     url: absoluteUrl(`/book/${shop.slug}`),
-    image: absoluteUrl("/hero.png"),
+    // El card del local, no el hero de Klip: en los resultados de Google la
+    // imagen que acompaña al negocio tiene que ser la del negocio.
+    image: absoluteUrl(`/book/${shop.slug}/og`),
     telephone: shop.phone || undefined,
-    address: shop.address
-      ? {
-          "@type": "PostalAddress",
-          streetAddress: shop.address,
-          addressCountry: "AR",
-        }
-      : undefined,
+    address:
+      shop.address || shop.localidad
+        ? {
+            "@type": "PostalAddress",
+            streetAddress: shop.address || undefined,
+            addressLocality: shop.localidad || undefined,
+            addressCountry: "AR",
+          }
+        : undefined,
     sameAs: shop.instagram_url ? [shop.instagram_url] : undefined,
     makesOffer: services.filter((service) => !service.hide_price).map((service) => ({
       "@type": "Offer",
@@ -123,12 +136,6 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
       priceCurrency: "ARS",
     })),
   };
-
-  const { data: bookingTheme } = await admin
-    .from("shop_booking_theme")
-    .select("template_id, section_order, section_service_order, logo_url, hero_title")
-    .eq("shop_id", shop.id)
-    .maybeSingle();
 
   const features = await getShopFeatures(shop.id);
 
@@ -174,7 +181,7 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
           bankCvuCb: shop.bank_cvu_cbu || "",
           bankAlias: shop.bank_alias || "",
           bankName: shop.bank_name || "",
-          logoUrl: (bookingTheme?.logo_url as string | null) || "",
+          logoUrl: bookingLogoUrl || "",
           heroTitle: (bookingTheme?.hero_title as string | null) || "",
           sectionOrder: Array.isArray((bookingTheme as { section_order?: string[] } | null)?.section_order)
             ? (((bookingTheme as { section_order?: string[] }).section_order || [])
