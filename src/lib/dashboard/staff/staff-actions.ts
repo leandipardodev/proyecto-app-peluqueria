@@ -641,14 +641,16 @@ export async function updateStaffPayMode(
     if (error) return { success: false, error: error.message };
 
     if (newRule && overridesEnabled && serviceOverrides.length > 0) {
-      const rows = serviceOverrides
-        .filter((o) => o.percentageRate > 0)
-        .map((o) => ({
-          shop_id: shopId,
-          compensation_rule_id: newRule.id,
-          service_id: o.serviceId,
-          percentage_rate: Math.min(100, Math.max(0, o.percentageRate)),
-        }));
+      // Sin filtro de 0%: un override en 0 significa "este servicio no genera
+      // comision", que es una decision valida del dueno. Antes se descartaba en
+      // silencio y `getRate` caia en la tasa general, o sea que el profesional
+      // cobraba por un servicio que el dueno habia marcado como exento.
+      const rows = serviceOverrides.map((o) => ({
+        shop_id: shopId,
+        compensation_rule_id: newRule.id,
+        service_id: o.serviceId,
+        percentage_rate: Math.min(100, Math.max(0, o.percentageRate)),
+      }));
       if (rows.length > 0) {
         const { error: ovError } = await admin.from("staff_commission_overrides").insert(rows);
         if (ovError) return { success: false, error: ovError.message };
@@ -871,14 +873,13 @@ export async function upsertStaffCommissionOverrides(
     if (deleteError) return { success: false, error: deleteError.message };
 
     if (overrides.length > 0) {
-      const rows = overrides
-        .filter((o) => o.percentageRate > 0)
-        .map((o) => ({
-          shop_id: shopId,
-          compensation_rule_id: ruleId,
-          service_id: o.serviceId,
-          percentage_rate: Math.min(100, Math.max(0, o.percentageRate)),
-        }));
+      // Mismo criterio que arriba: un 0% es una excepcion intentional.
+      const rows = overrides.map((o) => ({
+        shop_id: shopId,
+        compensation_rule_id: ruleId,
+        service_id: o.serviceId,
+        percentage_rate: Math.min(100, Math.max(0, o.percentageRate)),
+      }));
       if (rows.length > 0) {
         const { error: insertError } = await admin.from("staff_commission_overrides").insert(rows);
         if (insertError) return { success: false, error: insertError.message };

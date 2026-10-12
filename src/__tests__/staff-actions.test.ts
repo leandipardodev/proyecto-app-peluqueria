@@ -209,6 +209,49 @@ describe("updateStaffPayMode", () => {
     const result = await updateStaffPayMode("staff-1", { payModel: "percentage", percentageRate: 40, fixedAmount: 0 });
     expect(result).toEqual({ success: false, error: "SESION_EXPIRADA" });
   });
+
+  it("guarda el override de 0%: es un servicio exento de comisión", async () => {
+    // El bug: los overrides con 0% se filtraban antes de insertar, asi que un
+    // servicio marcado como exento no existia y `getRate` caia en la tasa
+    // general. El profesional cobraba comision por un servicio que el dueno
+    // habia marcado sin comision.
+    vi.mocked(mockCreateServerClient).mockResolvedValue(makeOwnerCheckClient());
+    const overrideInserts: Record<string, unknown>[] = [];
+    vi.mocked(mockCreateServiceRole).mockResolvedValue({
+      from: vi.fn((table: string) => {
+        if (table === "staff_compensation_rules") {
+          return chainableQuery({
+            insert: vi.fn(() => chainableQuery({ single: vi.fn().mockResolvedValue({ data: { id: "rule-1" }, error: null }) })),
+          });
+        }
+        if (table === "staff_commission_overrides") {
+          return chainableQuery({
+            insert: vi.fn((rows: Record<string, unknown>[]) => {
+              overrideInserts.push(...rows);
+              return chainableQuery();
+            }),
+          });
+        }
+        return chainableQuery();
+      }),
+    } as never);
+
+    const result = await updateStaffPayMode("staff-1", {
+      payModel: "percentage",
+      percentageRate: 40,
+      fixedAmount: 0,
+      overridesEnabled: true,
+      serviceOverrides: [
+        { serviceId: "srv-color", percentageRate: 0 },
+        { serviceId: "srv-corte", percentageRate: 25 },
+      ],
+    });
+
+    expect(result).toEqual({ success: true });
+    expect(overrideInserts).toHaveLength(2);
+    expect(overrideInserts).toContainEqual(expect.objectContaining({ service_id: "srv-color", percentage_rate: 0 }));
+    expect(overrideInserts).toContainEqual(expect.objectContaining({ service_id: "srv-corte", percentage_rate: 25 }));
+  });
 });
 
 // ---------------------------------------------------------------------------
