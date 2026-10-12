@@ -20,7 +20,6 @@ export type PartnerPortalShop = {
   commissionPercent: number;
   commissionMonths: number;
   paymentsTracked: number;
-  monthsPaid: number;
   commissionGenerated: number;
   commissionPending: number;
   commissionPaid: number;
@@ -53,7 +52,6 @@ export type PartnerDashboard = {
   payouts: PartnerPayoutRow[];
   totals: {
     shops: number;
-    monthsPaid: number;
     commissionGenerated: number;
     commissionPending: number;
     commissionPaid: number;
@@ -157,7 +155,6 @@ export async function getPartnerDashboard(partnerId: string): Promise<PartnerDas
       commissionPercent: Number(attr.commission_percent_snapshot),
       commissionMonths: Number(attr.commission_months_snapshot),
       paymentsTracked: shopLedger.length,
-      monthsPaid: shopLedger.length,
       commissionGenerated: sum(shopLedger),
       commissionPending: sum(shopLedger.filter((l) => l.status === "pending")),
       commissionPaid: sum(shopLedger.filter((l) => l.status === "paid")),
@@ -261,7 +258,6 @@ export async function getPartnerDashboard(partnerId: string): Promise<PartnerDas
     payouts,
     totals: {
       shops: shops.length,
-      monthsPaid: ledger.length,
       commissionGenerated: totalGenerated,
       commissionPending: totalPending,
       commissionPaid: totalPaid,

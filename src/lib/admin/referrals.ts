@@ -92,15 +92,33 @@ type PayoutRow = {
   created_at: string;
 };
 
-export type AmountSource = "payment_event" | "checkout_join" | "unknown";
+/**
+ * De donde sale el neto de cada fila del ledger.
+ *
+ * - payment_event: los montos reales que devuelve el webhook de Mercado Pago
+ * - checkout_join: el neto se cruzo con el pago del checkout
+ * - unknown: no se pudo determinar; la fila queda needs_review con comision 0
+ * - manual_review: un humano cargo el neto verificado desde el panel
+ */
+export type AmountSource = "payment_event" | "checkout_join" | "unknown" | "manual_review";
+
+/**
+ * Los cuatro estados que permite el CHECK de la base (migracion 113). paid y
+ * cancelled son terminales: no se recalculan ni se borran, son el historial
+ * contable.
+ */
+export type LedgerStatus = "pending" | "needs_review" | "paid" | "cancelled";
 
 /**
  * `needs_review` no es un estado "pendiente de pago": es un pago del que NO se
  * conoce el neto y por lo tanto la comision es 0 hasta que un humano lo cargue.
  * Existe para que un pago sin dato real sea visible en el panel en vez de
  * liquidarse con un numero inventado.
+ *
+ * Los drafts del sync y las listas "Te debo" / "A revisar" solo reciben filas en
+ * estos dos estados, asi que usan el tipo angosto.
  */
-export type LedgerStatus = "pending" | "needs_review";
+export type OpenLedgerStatus = Extract<LedgerStatus, "pending" | "needs_review">;
 
 export type LedgerDraft = {
   partner_id: string;
@@ -116,7 +134,7 @@ export type LedgerDraft = {
   commission_percent: number;
   commission_amount: number;
   amount_source: AmountSource;
-  status: LedgerStatus;
+  status: OpenLedgerStatus;
 };
 
 export type PartnerSummary = {
@@ -165,7 +183,7 @@ export type PendingTransferItem = {
   commissionPercent: number;
   commissionAmount: number;
   amountSource: AmountSource | null;
-  status: LedgerStatus;
+  status: OpenLedgerStatus;
   payoutAlias: string | null;
   payoutCbu: string | null;
   paidAt: string;
@@ -659,7 +677,7 @@ export async function fetchReferralsAdminOverview(): Promise<ReferralsAdminOverv
       commissionPercent: Number(l.commission_percent),
       commissionAmount: round2(Number(l.commission_amount || 0)),
       amountSource: (l.amount_source as AmountSource | null) ?? null,
-      status: (l.status as LedgerStatus) ?? "pending",
+      status: (l.status as OpenLedgerStatus) ?? "pending",
       payoutAlias: partner?.payout_alias || null,
       payoutCbu: partner?.payout_cbu || null,
       paidAt: l.payment_applied_at,
