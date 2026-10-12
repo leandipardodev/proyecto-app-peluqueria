@@ -24,7 +24,7 @@
     "filesystem-mcp": {
       "enabled": true,
       "type": "local",
-      "command": ["npx", "-y", "@modelcontextprotocol/server-filesystem", "C:\\Users\\leand\\OneDrive\\Documentos\\klip"]
+      "command": ["npx", "-y", "@modelcontextprotocol/server-filesystem", "C:\\Users\\leand\\Documentos\\klip"]
     }
   }
 }
