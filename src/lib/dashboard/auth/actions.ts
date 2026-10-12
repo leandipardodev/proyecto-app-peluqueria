@@ -9,6 +9,8 @@ import { trackProductEvent } from "@/lib/analytics/product-events";
 import { resolveIndustry } from "@/lib/industry/resolve";
 import { DEFAULT_ASSIGN_STAFF_LATER } from "@/lib/industry/types";
 import { sendVerificationCode, verifyEmailCode } from "@/lib/dashboard/auth/verification-actions";
+import { REFERRAL_CODE_COOKIE } from "@/lib/referrals/partner-auth";
+import { attributeShopFromReferralCookie } from "@/lib/referrals/attribute-from-cookie";
 import "server-only";
 
 function generateShopSlug(name: string): string {
@@ -281,7 +283,17 @@ export async function completeRegistration(
       );
     } catch (listErr) { console.error("[auth-actions] allowlist upsert error:", listErr); }
 
+    // Si el local se dio de alta desde un link /r/<codigo>, lo atribuimos al
+    // vendedor. Va acá, ya pasado todo lo que puede fallar con rollback, y en
+    // un try/catch propio: el referidos nunca puede impedir que se cree el
+    // local. Sin esto, todo alta por email dejaba al vendedor sin comision y
+    // sin ningun error en pantalla.
     const cookieStore = await cookies();
+    await attributeShopFromReferralCookie({
+      shopId: createdShop.id,
+      cookieValue: cookieStore.get(REFERRAL_CODE_COOKIE)?.value,
+    });
+
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

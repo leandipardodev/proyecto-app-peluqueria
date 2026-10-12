@@ -110,5 +110,8 @@ export async function GET(
     // atribucion queda para cuando cree el local.
   }
 
+  // El parametro ?ref=1 no lo lee ninguna ruta: es un marcador para que se vea de
+  // donde viene el visitante al mirar /register. Lo que hace el trabajo real es la
+  // cookie klip_ref que va en el mismo redirect, leida en los dos caminos de alta.
   return redirectTo(targetUrl(request, "/register", { ref: "1" }), partner.id);
 }

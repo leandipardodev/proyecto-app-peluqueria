@@ -7,8 +7,8 @@ import { DEFAULT_ASSIGN_STAFF_LATER } from "@/lib/industry/types";
 import { DASHBOARD_LEGACY_SEGMENTS_SET } from "@/lib/dashboard/shared/legacy-segments";
 import { safeInternalPath } from "@/lib/auth-redirect";
 import { trackProductEvent } from "@/lib/analytics/product-events";
-import { attributeShopToPartner, recordReferralLinkClick } from "@/lib/admin/referrals";
-import { REFERRAL_CODE_COOKIE, verifyReferralCookieToken } from "@/lib/referrals/partner-auth";
+import { attributeShopFromReferralCookie } from "@/lib/referrals/attribute-from-cookie";
+import { REFERRAL_CODE_COOKIE } from "@/lib/referrals/partner-auth";
 
 const TRIAL_DAYS = 15;
 
@@ -48,31 +48,6 @@ function createAdminClient() {
       persistSession: false,
     },
   });
-}
-
-/**
- * Si el local se dio de alta desde un link /r/<codigo>, lo atribuye al
- * vendedor. Va en un try/catch propio: si el referidos esta caido, el local
- * igual se tiene que crear. No borra la cookie, asi el link sigue siendo
- * reintentable.
- */
-async function attributeNewShopFromReferralLink(shopId: string, request: NextRequest) {
-  try {
-    const partnerId = verifyReferralCookieToken(request.cookies.get(REFERRAL_CODE_COOKIE)?.value);
-    if (!partnerId) return;
-
-    const result = await attributeShopToPartner({ shopId, partnerId });
-    if (result.outcome === "not_a_shop" || !result.code) return;
-
-    await recordReferralLinkClick({
-      partnerId,
-      shopId,
-      code: result.code,
-      outcome: result.outcome,
-    });
-  } catch (error) {
-    console.error("[auth/callback] referral attribution failed:", error);
-  }
 }
 
 function buildDashboardRedirectPath(nextPath: string | null, slug: string | null): string {
@@ -376,7 +351,10 @@ export async function GET(request: NextRequest) {
 
       existingProfile = { user_id: user.id, shop_id: createdShop.id, role: "owner" };
 
-      await attributeNewShopFromReferralLink(createdShop.id, request);
+      await attributeShopFromReferralCookie({
+        shopId: createdShop.id,
+        cookieValue: request.cookies.get(REFERRAL_CODE_COOKIE)?.value,
+      });
     }
 
     if (!existingProfile) {
