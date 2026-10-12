@@ -1,4 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "Política de Privacidad",
+  description:
+    "Cómo Klip trata los datos personales de usuarios y clientes conforme a la Ley 25.326 de Protección de Datos Personales de la República Argentina.",
+  alternates: { canonical: "/privacidad" },
+};
 
 export default function PrivacidadPage() {
   return (

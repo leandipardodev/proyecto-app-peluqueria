@@ -4,8 +4,12 @@ import { DEFAULT_FEATURES } from "@/lib/industry/types";
 export type IndustryConfig = {
   key: Industry;
   displayName: string;
-  landingPath: `/${string}`;
   features: IndustryFeatures;
+  /**
+   * schema.org type para el JSON-LD del local. Klip no es solo peluquería:
+   * hardcodear "HairSalon" etiquetaba mal a masajistas, psicólogos y canchas.
+   */
+  schemaType: string;
   labels: {
     customerSingular: string;
     customerPlural: string;
@@ -20,8 +24,8 @@ export const INDUSTRY_CONFIG: Record<Industry, IndustryConfig> = {
   peluqueria: {
     key: "peluqueria",
     displayName: "Peluqueria",
-    landingPath: "/peluqueria",
     features: DEFAULT_FEATURES.peluqueria,
+    schemaType: "HairSalon",
     labels: {
       customerSingular: "Cliente",
       customerPlural: "Clientes",
@@ -34,8 +38,8 @@ export const INDUSTRY_CONFIG: Record<Industry, IndustryConfig> = {
   psicologo: {
     key: "psicologo",
     displayName: "Psicologia",
-    landingPath: "/psicologo",
     features: DEFAULT_FEATURES.psicologo,
+    schemaType: "MedicalBusiness",
     labels: {
       customerSingular: "Paciente",
       customerPlural: "Pacientes",
@@ -48,8 +52,8 @@ export const INDUSTRY_CONFIG: Record<Industry, IndustryConfig> = {
   masajista: {
     key: "masajista",
     displayName: "Masajes",
-    landingPath: "/masajista",
     features: DEFAULT_FEATURES.masajista,
+    schemaType: "HealthAndBeautyBusiness",
     labels: {
       customerSingular: "Cliente",
       customerPlural: "Clientes",
@@ -62,8 +66,8 @@ export const INDUSTRY_CONFIG: Record<Industry, IndustryConfig> = {
   canchas: {
     key: "canchas",
     displayName: "Canchas",
-    landingPath: "/canchas",
     features: DEFAULT_FEATURES.canchas,
+    schemaType: "SportsActivityLocation",
     labels: {
       customerSingular: "Jugador",
       customerPlural: "Jugadores",

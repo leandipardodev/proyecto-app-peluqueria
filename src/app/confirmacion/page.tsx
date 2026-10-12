@@ -1,4 +1,14 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+// Página transaccional con `?status=`: no tiene valor de búsqueda y cada
+// variante de query es un duplicado. Antes heredaba `canonical: "/"` del root
+// layout, que la compete con la home.
+export const metadata: Metadata = {
+  title: "Confirmación",
+  robots: { index: false, follow: true },
+  alternates: { canonical: "/confirmacion" },
+};
 
 interface ConfirmacionPageProps {
   searchParams: Promise<{ status?: string; slug?: string }>;
@@ -69,7 +79,7 @@ export default async function ConfirmacionPage({ searchParams }: ConfirmacionPag
         </div>
 
         <p className="mt-6 text-xs text-gray-400">
-          Klip — Sistema de gestión para peluquerías
+          Klip — Software de turnos y reservas online
         </p>
       </div>
     </div>

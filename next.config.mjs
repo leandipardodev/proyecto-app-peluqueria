@@ -78,6 +78,24 @@ const nextConfig = {
       },
     ],
   },
+  // Klip paso de ser vertical (peluquerias/barberias) a horizontal: una sola
+  // landing, `/`. Las landings por rubro se redirigen con 301 para no perder el
+  // link equity ni las impressions de las URLs ya indexadas.
+  async redirects() {
+    return [
+      "/peluqueria",
+      "/psicologo",
+      "/masajista",
+      "/canchas",
+      "/software-para-peluquerias",
+      "/sistema-para-barberias",
+      "/agenda-de-turnos-peluqueria",
+    ].map((source) => ({
+      source,
+      destination: "/",
+      statusCode: 301,
+    }));
+  },
   async headers() {
     const csp = [
       "default-src 'self'",

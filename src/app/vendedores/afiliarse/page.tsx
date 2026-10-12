@@ -1,7 +1,15 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, Mail, TrendingUp } from "lucide-react";
 
 export const dynamic = "force-static";
+
+export const metadata: Metadata = {
+  title: "Afiliatete como vendedor",
+  description:
+    "Sumate al equipo de vendedores de Klip sin costo ni exclusividad: referenciá locales, ganá comisión por cada suscripción y gestioná todo desde tu propio panel.",
+  alternates: { canonical: "/vendedores/afiliarse" },
+};
 
 const SOPORTE_EMAIL = "soporte@klip.com.ar";
 
