@@ -57,6 +57,7 @@ export default async function BillingPage({ params }: { params: Promise<{ shopSl
   return (
     <BillingClient
       shopId={shopId}
+      monthlyPrice={monthlyPrice}
       shopName={shop.nombre || ""}
       planExpiry={shop.plan_expiry}
       active={shop.active ?? false}

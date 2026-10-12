@@ -19,6 +19,12 @@ interface SubscriptionInfo {
 
 interface Props {
   shopId: string;
+  /**
+   * Precio real del plan, de `site_settings`. Estaba hardcodeado en $25.000 en
+   * dos textos de esta pantalla: si el admin cambiaba el precio, el cliente
+   * veia el viejo mientras el checkout cobraba el nuevo.
+   */
+  monthlyPrice: number;
   shopName: string;
   planExpiry: string | null;
   active: boolean;
@@ -26,7 +32,7 @@ interface Props {
   events: BillingEvent[];
 }
 
-export default function BillingClient({ shopId, shopName, planExpiry, active, subscription, events }: Props) {
+export default function BillingClient({ shopId, monthlyPrice, shopName, planExpiry, active, subscription, events }: Props) {
   const [loading, setLoading] = useState(false);
   const [subLoading, setSubLoading] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
@@ -138,7 +144,7 @@ export default function BillingClient({ shopId, shopName, planExpiry, active, su
           </div>
           <div>
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Plan Mensual</h2>
-            <p className="text-sm text-gray-500 dark:text-zinc-400">$25.000 ARS / mes</p>
+            <p className="text-sm text-gray-500 dark:text-zinc-400">{monthlyPrice.toLocaleString("es-AR")} ARS / mes</p>
           </div>
           <div className="ml-auto">
             {active && !isExpired ? (
@@ -202,7 +208,7 @@ export default function BillingClient({ shopId, shopName, planExpiry, active, su
         <div className="space-y-2 text-sm text-gray-600 dark:text-zinc-400 mb-4">
           <p className="flex items-center gap-2">
             <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
-            Se debitan $25.000 ARS cada mes automáticamente
+            Se debitan {monthlyPrice.toLocaleString("es-AR")} ARS cada mes automáticamente
           </p>
           <p className="flex items-center gap-2">
             <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
