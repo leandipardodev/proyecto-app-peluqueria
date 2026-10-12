@@ -11,6 +11,7 @@ import { createLogContext, logInfo, logWarn, logError } from "@/lib/api-logger";
 import { withRetry } from "@/lib/retry";
 import crypto from "crypto";
 import { createAdminClient } from "@/lib/dashboard/appointments/shared";
+import { withAmountPaid } from "@/lib/dashboard/appointments/paid-amount";
 import { restoreOrderStock } from "@/lib/dashboard/store/stock";
 import { completedBookingCache } from "@/lib/booking-cache";
 import { extractMpAppliedAmounts } from "@/lib/payments/mp-amounts";
@@ -284,6 +285,38 @@ export async function POST(request: NextRequest) {
       }
 
       if (action === "preapproval.authorized") {
+        // CLAIM PRIMERO (migracion 110). Antes se extendia `plan_expiry` y recien
+        // despues se insertaba el evento del ledger, asi que cada reintento de MP
+        // (cada 15 min, para siempre) regalaba un mes. El `upsert` de
+        // `shop_subscriptions` no lo frenaba: su onConflict es `preapproval_id`,
+        // o sea que un reintento sobrescribe la misma fila y no viola ningun
+        // indice. Es el mismo fix que se aplico a `subscription_charged` en las
+        // migraciones 102 y 108; aqui faltaba.
+        const { error: claimError } = await admin.from("shop_billing_events").insert({
+          shop_id: shopId,
+          actor_user_id: null,
+          event_type: "subscription_auto_activated",
+          payload: { preapproval_id: resourceId },
+        });
+
+        if (claimError && isUniqueViolation(claimError)) {
+          // Ya se aplico esta autorizacion. Es el camino normal de un reintento.
+          logInfo(log, "subscription_auto_activated ya aplicado; reintento ignorado", {
+            preapproval_id: resourceId,
+          });
+          return NextResponse.json({ ok: true });
+        }
+
+        if (claimError) {
+          // Sin ledger no hay respaldo del mes que se va a sumar: no se extiende.
+          logError(log, "No se pudo guardar subscription_auto_activated", {
+            error: claimError.message,
+            preapproval_id: resourceId,
+          });
+          return NextResponse.json({ ok: false, error: "activation_event_failed" }, { status: 500 });
+        }
+
+        // Claim exitoso: recien ahora se extiende el plan.
         await admin.from("shop_subscriptions").upsert(
           {
             shop_id: shopId,
@@ -319,13 +352,6 @@ export async function POST(request: NextRequest) {
             })
             .eq("id", shopId);
         }
-
-        await admin.from("shop_billing_events").insert({
-          shop_id: shopId,
-          actor_user_id: null,
-          event_type: "subscription_auto_activated",
-          payload: { preapproval_id: resourceId },
-        });
       } else if (action === "preapproval.cancelled") {
         await admin
           .from("shop_subscriptions")
@@ -1008,17 +1034,79 @@ export async function POST(request: NextRequest) {
     // El turno principal siempre se procesa: es el external_reference del pago.
     const allAppointmentIds: string[] = Array.from(new Set([appointment.id, ...source]));
 
-    // Update all linked appointments
+    // CLAIM PRIMERO. Antes el update de `is_paid` corria antes que el lock, asi
+    // que en una notificacion duplicada el update se re-aplicaba y el 23505 del
+    // indice se ignoraba en silencio. Consecuencia real: si un turno se
+    // reembolsaba (is_paid -> false) y despues llegaba un reintento, el turno
+    // volvia a `is_paid = true` y reaparecia como cobrado en Ingresos, Finanzas,
+    // produccion del empleado y comision. Para siempre, porque no hay corte.
+        if (paymentResult.status === "approved") {
+      const { error: lockError } = await withRetry(
+        () => admin.from("shop_billing_events").insert({
+          shop_id: appointment.shop_id,
+          actor_user_id: null,
+          event_type: "appointment_payment_applied",
+          payload: {
+            payment_id: normalizedPaymentId,
+            appointment_id: appointment.id,
+            // El set completo de turnos que cubre este pago. Sin esto, un
+            // reembolso no puede saber a quien desmarcar: `refund.total()`
+            // devuelve el 100% del pago y antes solo se desmarcaba el principal.
+            paid_appointment_ids: allAppointmentIds,
+            status: paymentResult.status,
+            external_reference: paymentResult.external_reference,
+          },
+        }).then((r) => r as { error: unknown }),
+        { retries: 1, delayMs: 500 }
+      );
+
+      if (lockError) {
+        if (!isUniqueViolation(lockError)) {
+          throw lockError;
+        }
+        // Ya se aplico este pago. El update de abajo NO se corre: si se corriera,
+        // un reintento despues de un reembolso volveria a poner `is_paid = true`
+        // en un turno que el local ya devolvio.
+        logInfo(log, "appointment_payment_applied ya registrado; reintento ignorado", {
+          payment_id: normalizedPaymentId,
+          appointment_id: appointment.id,
+        });
+        return NextResponse.json({ ok: true });
+      }
+    }
+
+    // Update all linked appointments (solo si el lock de arriba quedo libre)
+    //
+    // `amount_paid` es lo que pago Mercado Pago EN ESTE PAGO, no el precio de
+    // lista. Con seña activada la preferencia se crea por el monto de la seña
+    // (ver `createPaymentPreference`), asi que antes de esto se reportaba la
+    // plata de la seña como si fueran los $40.000 del servicio.
+    //
+    // Ojo: una preferencia de combo o carrito cubre VARIOS turnos con UN solo
+    // pago. El monto del pago se divide por la cantidad de turnos del set para no
+    // asignarle el total a cada uno: el `sum(amount_paid)` del set tiene que dar
+    // lo que entro, no ese total multiplicado.
+    const pagoAprobado = paymentResult.status === "approved";
+    const montoDelPago = Number((paymentResult as { transaction_amount?: number | null }).transaction_amount || 0);
+    const partePorTurno = allAppointmentIds.length > 0 ? Math.round((montoDelPago / allAppointmentIds.length) * 100) / 100 : 0;
+
     for (const aptId of allAppointmentIds) {
       const { error: updateError } = await withRetry(
         () => admin
           .from("appointments")
-          .update({
-            status,
-            is_paid: paymentResult.status === "approved",
-            mp_preference_id: preferenceId,
-            updated_at: new Date().toISOString(),
-          })
+          .update(
+            withAmountPaid(
+              {
+                status,
+                is_paid: pagoAprobado,
+                mp_preference_id: preferenceId,
+                updated_at: new Date().toISOString(),
+              },
+              // Solo si el pago fue aprobado: un pago pendiente o cancelado no
+              // aumento la plata cobrada.
+              pagoAprobado ? partePorTurno : 0,
+            ),
+          )
           .eq("id", aptId)
           .eq("shop_id", appointment.shop_id)
           .in("status", ["pending_payment", "confirmed"])
@@ -1028,7 +1116,7 @@ export async function POST(request: NextRequest) {
 
       if (updateError) {
         // 23P01 = la constraint de la migracion 109. Pasa cuando dos carritos
-        //-conviven sobre el mismo horario (pending_payment queda fuera del
+        // conviven sobre el mismo horario (pending_payment queda fuera del
         // predicado a proposito, por la retencion de 10 minutos) y este ya fue
         // tomado. El cliente ya pago: no se tira el pago, se deja el turno para
         // que lo resuelva el local y se sigue con el resto.
@@ -1043,31 +1131,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Insert billing event after successful appointment update
-    if (paymentResult.status === "approved") {
-      const { error: lockError } = await withRetry(
-        () => admin.from("shop_billing_events").insert({
-          shop_id: appointment.shop_id,
-          actor_user_id: null,
-          event_type: "appointment_payment_applied",
-          payload: {
-            payment_id: normalizedPaymentId,
-            appointment_id: appointment.id,
-            status: paymentResult.status,
-            external_reference: paymentResult.external_reference,
-          },
-        }).then((r) => r as { error: unknown }),
-        { retries: 1, delayMs: 500 }
-      );
-
-      if (lockError) {
-        if (!isUniqueViolation(lockError)) {
-          throw lockError;
-        }
-        // Unique violation means billing event already recorded — appointment is already updated, safe to return OK
-      }
-    }
-
     await admin.from("mercadopago_logs").insert({
       shop_id: appointment.shop_id,
       appointment_id: appointment.id,
@@ -1075,6 +1138,7 @@ export async function POST(request: NextRequest) {
       event_type: "payment_webhook",
       payload: {
         payment_id: normalizedPaymentId,
+        paid_appointment_ids: allAppointmentIds,
         status: paymentResult.status,
         external_reference: paymentResult.external_reference,
       },

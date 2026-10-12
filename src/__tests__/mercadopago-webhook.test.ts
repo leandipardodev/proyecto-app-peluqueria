@@ -622,6 +622,47 @@ describe("mercadopago-webhook POST — pending booking flow", () => {
 });
 
 describe("mercadopago-webhook POST — regular appointment flow", () => {
+  it("no reaplica el pago si el lock del ledger ya estaba tomado", async () => {
+    // El bug: el update de `is_paid` corria ANTES del lock, y el 23505 se
+    // ignoraba en silencio. Entonces un reintento de MP que llegaba despues de
+    // un reembolso volvía a poner `is_paid = true` en un turno ya devuelto, y
+    // ese turno reaparecía como cobrado para siempre en Ingresos, Finanzas,
+    // produccion y comision.
+    mockPaymentGet.mockResolvedValue({
+      status: "approved",
+      external_reference: "apt-ya-reembolsado",
+      metadata: {},
+      order: null,
+    });
+
+    const update = vi.fn(() => chainableQuery());
+    const lockTomado = vi.fn(() => {
+      const chain = chainableQuery();
+      chain.then = ((onfulfilled: (v: unknown) => unknown) =>
+        Promise.resolve({ data: null, error: { code: "23505", message: "duplicate key" } }).then(onfulfilled)) as never;
+      return chain;
+    });
+    vi.mocked(mockCreateServiceRole).mockResolvedValue({
+      from: vi.fn((table: string) => {
+        if (table === "appointments") {
+          return chainableQuery({
+            maybeSingle: vi.fn().mockResolvedValue({ data: { id: "apt-ya-reembolsado", shop_id: "shop-123" }, error: null }),
+            update,
+          });
+        }
+        if (table === "shop_billing_events") return chainableQuery({ insert: lockTomado });
+        if (table === "mercadopago_logs") return chainableQuery({ insert: vi.fn(() => chainableQuery()) });
+        return chainableQuery();
+      }),
+    } as never);
+
+    const res = await POST(createNextRequest({ type: "payment", data: { id: "pay-retry" } }));
+
+    expect(res.status).toBe(200);
+    // Lo que cambia es esto: el turno NO se toca cuando el pago ya estaba aplicado.
+    expect(update).not.toHaveBeenCalled();
+  });
+
   it("updates appointment status to confirmed when payment is approved", async () => {
     mockPaymentGet.mockResolvedValue({
       status: "approved",
@@ -1211,6 +1252,7 @@ describe("mercadopago-webhook POST - subscription_charged (auto-cargo)", () => {
   it("activa el mes con preapproval.authorized", async () => {
     const upsert = vi.fn();
     const update = vi.fn(() => chainableQuery());
+    const eventInserts = vi.fn(() => chainableQuery({ insert: eventInserts }));
     vi.mocked(mockCreateServiceRole).mockResolvedValue({
       from: vi.fn((table: string) => {
         if (table === "shop_subscriptions") return chainableQuery({ upsert });
@@ -1220,6 +1262,7 @@ describe("mercadopago-webhook POST - subscription_charged (auto-cargo)", () => {
             update,
           });
         }
+        if (table === "shop_billing_events") return chainableQuery({ insert: eventInserts });
         return chainableQuery();
       }),
     } as never);
@@ -1240,8 +1283,158 @@ describe("mercadopago-webhook POST - subscription_charged (auto-cargo)", () => {
     expect(res.status).toBe(200);
     expect(mockPreApprovalGet).toHaveBeenCalledWith({ id: "pre-9" });
     expect(upsert).toHaveBeenCalledTimes(1);
+    expect(eventInserts).toHaveBeenCalledTimes(1);
+    expect(eventInserts.mock.calls[0][0]).toMatchObject({
+      event_type: "subscription_auto_activated",
+      payload: { preapproval_id: "pre-9" },
+    });
     expect(update).toHaveBeenCalledTimes(1);
     expect(update.mock.calls[0][0].active).toBe(true);
+  });
+
+  it("un reintento del mismo preapproval NO regala otro mes", async () => {
+    // MP reintenta la notificacion cada 15 min y para siempre. Antes se
+    // extendia `plan_expiry` antes de escribir el ledger y sin nada que lo
+    // reclamara, asi que cada reintento sumaba un mes (migracion 110).
+    const upsert = vi.fn();
+    const update = vi.fn(() => chainableQuery());
+    let yaReclamado = false;
+    // `chainableQuery()` sobrescribe `then` DESPUES de aplicar los overrides, asi
+    // que un error por override no se ve al awaitear. Hay que armar la cadena a
+    // mano para que el segundo insert resuelva con el 23505 del indice unico.
+    const eventInserts = vi.fn(() => {
+      const chain = chainableQuery();
+      if (yaReclamado) {
+        chain.then = ((onfulfilled: (v: unknown) => unknown) =>
+          Promise.resolve({ data: null, error: { code: "23505", message: "duplicate key" } }).then(onfulfilled)) as never;
+      } else {
+        yaReclamado = true;
+      }
+      return chain;
+    });
+    vi.mocked(mockCreateServiceRole).mockResolvedValue({
+      from: vi.fn((table: string) => {
+        if (table === "shop_subscriptions") return chainableQuery({ upsert });
+        if (table === "shops") {
+          return chainableQuery({
+            maybeSingle: vi.fn().mockResolvedValue({ data: { id: "shop-123", plan_expiry: null }, error: null }),
+            update,
+          });
+        }
+        if (table === "shop_billing_events") return chainableQuery({ insert: eventInserts });
+        return chainableQuery();
+      }),
+    } as never);
+    mockPreApprovalGet.mockReset();
+    mockPreApprovalGet.mockResolvedValue({
+      external_reference: "shop_sub_auto:shop-123",
+      payer_id: "payer-1",
+    });
+
+    const body = {
+      type: "subscription_preapproval",
+      action: "preapproval.authorized",
+      data: { id: "pre-9" },
+    };
+
+    const primera = await POST(createNextRequest(body));
+    const segunda = await POST(createNextRequest(body));
+
+    // La primera autorizacion extiende el mes; la segunda se come el indice
+    // unico y sale 200 sin tocar `plan_expiry` ni la suscripcion.
+    expect(primera.status).toBe(200);
+    expect(segunda.status).toBe(200);
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(upsert).toHaveBeenCalledTimes(1);
+  });
+
+  it("un preapproval NUEVO del mismo local si extiende el plan", async () => {
+    // La clave del claim es el preapproval, no el local: re-activar la
+    // suscripcion genera un preapproval nuevo y tiene que contar como un mes
+    // nuevo, no como un reintento.
+    const upsert = vi.fn();
+    const update = vi.fn(() => chainableQuery());
+    const eventInserts = vi.fn(() => chainableQuery());
+    vi.mocked(mockCreateServiceRole).mockResolvedValue({
+      from: vi.fn((table: string) => {
+        if (table === "shop_subscriptions") return chainableQuery({ upsert });
+        if (table === "shops") {
+          return chainableQuery({
+            maybeSingle: vi.fn().mockResolvedValue({ data: { id: "shop-123", plan_expiry: null }, error: null }),
+            update,
+          });
+        }
+        if (table === "shop_billing_events") return chainableQuery({ insert: eventInserts });
+        return chainableQuery();
+      }),
+    } as never);
+    mockPreApprovalGet.mockReset();
+    mockPreApprovalGet.mockResolvedValue({
+      external_reference: "shop_sub_auto:shop-123",
+      payer_id: "payer-1",
+    });
+
+    await POST(
+      createNextRequest({
+        type: "subscription_preapproval",
+        action: "preapproval.authorized",
+        data: { id: "pre-9" },
+      }),
+    );
+    await POST(
+      createNextRequest({
+        type: "subscription_preapproval",
+        action: "preapproval.authorized",
+        data: { id: "pre-10" },
+      }),
+    );
+
+    expect(update).toHaveBeenCalledTimes(2);
+    expect(eventInserts).toHaveBeenCalledTimes(2);
+    expect(eventInserts.mock.calls[1][0]).toMatchObject({ payload: { preapproval_id: "pre-10" } });
+  });
+
+  it("no extiende el plan si el claim del ledger falla", async () => {
+    // Sin ledger no hay respaldo del mes que se suma. Un 500 hace que MP
+    // reintente, que es justo lo que queremos.
+    const upsert = vi.fn();
+    const update = vi.fn(() => chainableQuery());
+    const claimFallando = vi.fn(() => {
+      const chain = chainableQuery();
+      chain.then = ((onfulfilled: (v: unknown) => unknown) =>
+        Promise.resolve({ data: null, error: { code: "XX000", message: "db down" } }).then(onfulfilled)) as never;
+      return chain;
+    });
+    vi.mocked(mockCreateServiceRole).mockResolvedValue({
+      from: vi.fn((table: string) => {
+        if (table === "shop_subscriptions") return chainableQuery({ upsert });
+        if (table === "shops") {
+          return chainableQuery({
+            maybeSingle: vi.fn().mockResolvedValue({ data: { id: "shop-123", plan_expiry: null }, error: null }),
+            update,
+          });
+        }
+        if (table === "shop_billing_events") return chainableQuery({ insert: claimFallando });
+        return chainableQuery();
+      }),
+    } as never);
+    mockPreApprovalGet.mockReset();
+    mockPreApprovalGet.mockResolvedValue({
+      external_reference: "shop_sub_auto:shop-123",
+      payer_id: "payer-1",
+    });
+
+    const res = await POST(
+      createNextRequest({
+        type: "subscription_preapproval",
+        action: "preapproval.authorized",
+        data: { id: "pre-9" },
+      }),
+    );
+
+    expect(res.status).toBe(500);
+    expect(update).not.toHaveBeenCalled();
+    expect(upsert).not.toHaveBeenCalled();
   });
 
   it("no inserta nada si la suscripcion no esta autorizada", async () => {
