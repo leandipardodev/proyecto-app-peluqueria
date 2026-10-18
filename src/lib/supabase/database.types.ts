@@ -1682,6 +1682,7 @@ export type Database = {
           pay_at_shop: boolean
           phone: string | null
           plan_expiry: string | null
+          show_store_step: boolean
           slug: string
           tiktok_url: string | null
           updated_at: string | null
@@ -1728,6 +1729,7 @@ export type Database = {
           pay_at_shop?: boolean
           phone?: string | null
           plan_expiry?: string | null
+          show_store_step?: boolean
           slug: string
           tiktok_url?: string | null
           updated_at?: string | null
@@ -1774,6 +1776,7 @@ export type Database = {
           pay_at_shop?: boolean
           phone?: string | null
           plan_expiry?: string | null
+          show_store_step?: boolean
           slug?: string
           tiktok_url?: string | null
           updated_at?: string | null

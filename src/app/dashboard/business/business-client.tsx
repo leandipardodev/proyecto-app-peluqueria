@@ -24,6 +24,7 @@ import {
   disconnectMercadoPagoOauthAction,
   updateBookingDepositPolicyAction,
   updateAssignStaffLater,
+  updateShowStoreStep,
   updateWhatsappTemplateAction,
   updateBusinessHours,
   updateBankTransferSettings,
@@ -157,9 +158,13 @@ function buildFlowSteps(
   storeEnabled: boolean,
   hasStoreProducts: boolean,
   payAtShop: boolean,
-): { number: string; label: string; on: boolean; reason?: string; hint: string }[] {
+  showStoreStep: boolean,
+): { number: string; label: string; on: boolean; reason?: string; hint: string; detached?: boolean }[] {
   const storeOn = storeEnabled && hasStoreProducts;
   const paymentOn = payAtShop === false;
+  // Con la tienda apagada como paso, deja de ser parte de la secuencia: el
+  // cliente entra solo desde el boton "Tienda" en /book, y puede saltearla.
+  const storeDetached = storeOn && !showStoreStep;
   return [
     { number: "1", label: "Servicios", on: servicesCount > 0, reason: servicesCount === 0 ? "Sin servicios cargados" : undefined, hint: "Se skipea automáticamente si tenés solo 1 servicio" },
     {
@@ -175,13 +180,28 @@ function buildFlowSteps(
     },
     { number: "3", label: "Fecha y hora", on: true, hint: "No se puede desactivar" },
     { number: "4", label: "Tus datos", on: true, hint: "No se puede desactivar" },
-    { number: "5", label: "Tienda", on: storeOn, reason: !storeEnabled ? "Tienda apagada" : !hasStoreProducts ? "Sin productos para la venta" : undefined, hint: "Se desactiva apagando la tienda de productos online" },
-    { number: "6", label: "Pago", on: paymentOn, reason: paymentOn ? undefined : "Pago en el local activado", hint: "Se desactiva eligiendo pago en el local" },
-    { number: "7", label: "Listo", on: true, hint: "No se puede desactivar" },
+    {
+      number: storeDetached ? "" : "5",
+      label: "Tienda",
+      on: storeOn,
+      detached: storeDetached,
+      reason: !storeEnabled
+        ? "Tienda apagada"
+        : !hasStoreProducts
+          ? "Sin productos para la venta"
+          : storeDetached
+            ? "Se entra solo desde el botón Tienda"
+            : undefined,
+      hint: storeDetached
+        ? "La tienda no figura como paso del flujo: el cliente entra desde el botón Tienda y puede saltearla."
+        : "Se desactiva apagando la tienda de productos online",
+    },
+    { number: storeDetached ? "5" : "6", label: "Pago", on: paymentOn, reason: paymentOn ? undefined : "Pago en el local activado", hint: "Se desactiva eligiendo pago en el local" },
+    { number: storeDetached ? "6" : "7", label: "Listo", on: true, hint: "No se puede desactivar" },
   ];
 }
 
-function FlowStepChip({ step }: { step: { number: string; label: string; on: boolean; hint: string } }) {
+function FlowStepChip({ step }: { step: { number: string; label: string; on: boolean; hint: string; detached?: boolean } }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
   const bubbleRef = useRef<HTMLSpanElement>(null);
@@ -242,20 +262,24 @@ function FlowStepChip({ step }: { step: { number: string; label: string; on: boo
         aria-label={`${step.label}: ${step.hint}`}
         onClick={() => setOpen((v) => !v)}
         className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
-          step.on
+          step.on && !step.detached
             ? "bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800"
             : "bg-zinc-100 dark:bg-zinc-800/60 text-zinc-400 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700/60"
-        }`}
+        } ${step.detached ? "border-dashed" : ""}`}
       >
-        <span
-          className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold shrink-0 ${
-            step.on
-              ? "bg-violet-600 text-white"
-              : "bg-zinc-300 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400"
-          }`}
-        >
-          {step.number}
-        </span>
+        {step.number ? (
+          <span
+            className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold shrink-0 ${
+              step.on && !step.detached
+                ? "bg-violet-600 text-white"
+                : "bg-zinc-300 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400"
+            }`}
+          >
+            {step.number}
+          </span>
+        ) : (
+          <Store className="w-3.5 h-3.5 shrink-0" />
+        )}
         {step.label}
       </button>
       {open && pos && createPortal(
@@ -554,6 +578,10 @@ export default function BusinessClient({
   );
   const [storeSaving, setStoreSaving] = useState(false);
   const [storeConfirmOpen, setStoreConfirmOpen] = useState(false);
+  // Mismo criterio que la tienda: la prop puede venir de un payload RSC con
+  // hasta 5 minutos de cache, asi que el estado local tiene prioridad.
+  const [showStoreStepState, setShowStoreStepState] = useState(data?.show_store_step ?? true);
+  const [showStoreStepSaving, setShowStoreStepSaving] = useState(false);
   const [bookingDepositAmount, setBookingDepositAmount] = useState(String(data?.booking_deposit_amount ?? 3000));
   const [payAtShop, setPayAtShop] = useState(data?.pay_at_shop ?? false);
   const [bankTransferEnabled, setBankTransferEnabled] = useState(data?.bank_transfer_enabled ?? false);
@@ -594,6 +622,22 @@ export default function BusinessClient({
   const staffList = initialStaff;
   const staffCount = initialStaff.length;
   const hasStoreProducts = (storeProductCount ?? 0) > 0;
+
+  // El diagrama de "Pasos de la reserva". Se calcula aparte para poder separar
+  // la tienda de la secuencia numerada cuando deja de ser un paso.
+  const flowSteps = useMemo(
+    () =>
+      buildFlowSteps(
+        initialServices.length,
+        staffCount,
+        showStaffStep,
+        storeEnabledState,
+        hasStoreProducts,
+        payAtShop,
+        showStoreStepState,
+      ),
+    [initialServices.length, staffCount, showStaffStep, storeEnabledState, hasStoreProducts, payAtShop, showStoreStepState],
+  );
 
   const loadOverrides = useCallback(async () => {
     const start = new Date();
@@ -1338,6 +1382,25 @@ export default function BusinessClient({
     showSuccess("Tienda online apagada");
   }
 
+  async function handleShowStoreStepChange(enabled: boolean) {
+    if (!canEditShop || showStoreStepSaving) return;
+    const prev = showStoreStepState;
+    setShowStoreStepState(enabled);
+    setShowStoreStepSaving(true);
+    const result = await updateShowStoreStep(enabled);
+    setShowStoreStepSaving(false);
+    if (!result.success) {
+      setShowStoreStepState(prev);
+      showError(result.error);
+      return;
+    }
+    showSuccess(
+      enabled
+        ? "La tienda vuelve a ser un paso de la reserva"
+        : "La tienda ahora se abre desde el botón",
+    );
+  }
+
   async function handleSavePublicInfo(e: React.FormEvent) {
     e.preventDefault();
     if (isSaving) return;
@@ -1978,15 +2041,56 @@ export default function BusinessClient({
                     </div>
                   </div>
 
+                  {/* Switch 3: la tienda como paso del flujo. Solo tiene sentido
+                      mientras la tienda online este prendida. */}
+                  {storeEnabledState && (
+                    <div className="rounded-2xl border bg-white dark:bg-zinc-900 p-5 space-y-3 transition-all duration-300 border-white/20 dark:border-white/10 mt-3">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">Mostrar paso de tienda</p>
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                            {showStoreStepState
+                              ? "La tienda aparece como un paso más: después de cargar los datos y antes de pagar."
+                              : "La tienda no aparece como paso. Tu cliente entra desde el botón Tienda y puede saltearla."}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={showStoreStepState}
+                          onClick={() => { if (canEditShop) void handleShowStoreStepChange(!showStoreStepState); }}
+                          disabled={!canEditShop || showStoreStepSaving}
+                          className={`relative w-12 h-7 rounded-full transition-colors duration-200 shrink-0 ${
+                            showStoreStepState ? "bg-violet-600" : "bg-zinc-300 dark:bg-zinc-700"
+                          } ${!canEditShop ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+                        >
+                          <span
+                            className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-all duration-200 ${
+                              showStoreStepState ? "left-6" : "left-1"
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Diagrama de pasos */}
                   <div className="mt-5">
                     <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2 uppercase tracking-wide">Pasos de la reserva</p>
                     <div className="flex flex-wrap items-center gap-y-2">
-                      {buildFlowSteps(initialServices.length, staffCount, showStaffStep, storeEnabledState, hasStoreProducts, payAtShop).map((step, idx) => (
+                      {flowSteps.filter((step) => !step.detached).map((step, idx) => (
                         <span key={step.label} className="inline-flex items-center">
                           {idx > 0 && (
                             <ArrowRight className="w-4 h-4 mx-1.5 text-zinc-300 dark:text-zinc-500 shrink-0" strokeWidth={2.5} />
                           )}
+                          <FlowStepChip step={step} />
+                        </span>
+                      ))}
+                      {/* La tienda queda fuera de la secuencia: se llega desde el
+                          boton "Tienda" y no ocupa un numero. */}
+                      {flowSteps.filter((step) => step.detached).map((step) => (
+                        <span key={step.label} className="inline-flex items-center">
+                          <span className="mx-2 text-zinc-300 dark:text-zinc-600 select-none" aria-hidden="true">· · ·</span>
                           <FlowStepChip step={step} />
                         </span>
                       ))}

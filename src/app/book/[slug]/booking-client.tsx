@@ -85,6 +85,8 @@ interface BookingClientProps {
   mpConnected: boolean;
     payAtShop: boolean;
     assignStaffLater: boolean;
+    /** El local muestra la tienda como un paso mas del flujo, antes de pagar. */
+    showStoreStep: boolean;
     businessHours?: Record<string, { open: boolean }> | null;
     bankTransferEnabled: boolean;
     bookingDepositEnabled: boolean;
@@ -1267,6 +1269,11 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   const pagoStep = storeEnabled ? 5 : 4;
   const totalSteps = storeEnabled ? 6 : 5;
   const isStoreOnly = storeEnabled && !hasServices;
+  // La tienda puede existir como paso alcanzable pero fuera de la secuencia: en
+  // ese caso solo se llega por el boton "Tienda". Con `isStoreOnly` se fuerza a
+  // que sea parte del flujo, porque el local vende solo productos y sin el paso
+  // no habria ninguna reserva que hacer.
+  const storeStepShown = storeEnabled && (isStoreOnly || shop.showStoreStep !== false);
   const datosFilled = customerName.trim().includes(" ") && customerEmail.trim().length > 0 && customerPhone.trim().length > 0;
   const storeItemsCount = Object.keys(storeCart).length;
 
@@ -1279,12 +1286,23 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
       "Tienda",
       "Pago",
     ];
+    // Con la tienda apagada como paso, el indice 4 sigue siendo la pantalla de
+    // tienda (se llega por el boton "Tienda"), asi que el titulo se mantiene.
     return storeEnabled ? titles : titles.filter((_, i) => i !== 4);
   }, [serviceWordLower, staffWordLower, storeEnabled]);
 
-  const barProgress = storeEnabled
-    ? step === 0 ? 0 : step === 1 ? 0.2 : step === 2 ? 0.4 : step === 3 ? 0.6 : step === 4 ? 0.8 : 1
-    : step === 0 ? 0 : step === 1 ? 0.2 : step === 2 ? 0.6 : step === 3 ? 0.8 : 1;
+  // El progreso se calcula sobre los pasos que el cliente realmente recorre.
+  const barProgress = (() => {
+    if (!storeEnabled) {
+      return step === 0 ? 0 : step === 1 ? 0.2 : step === 2 ? 0.6 : step === 3 ? 0.8 : 1;
+    }
+    if (!storeStepShown) {
+      // La tienda no es un paso: el indice 4 es una parada accesoria por el
+      // boton, asi que se queda en el mismo progreso que "Tus datos".
+      return step === 0 ? 0 : step === 1 ? 0.2 : step === 2 ? 0.4 : step === 3 ? 0.8 : step === 4 ? 0.8 : 1;
+    }
+    return step === 0 ? 0 : step === 1 ? 0.2 : step === 2 ? 0.4 : step === 3 ? 0.6 : step === 4 ? 0.8 : 1;
+  })();
 
   const todayDate = useMemo(() => {
     const todayStr = getArgentinaDateString();
@@ -1591,7 +1609,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
       const stepPhoneErr = validatePhone(customerPhone);
       if (stepPhoneErr) { setPhoneError(stepPhoneErr); return; }
 
-      if (storeEnabled && !isStoreOnly) {
+      if (storeEnabled && !isStoreOnly && storeStepShown) {
         setStoreArrivedViaButton(false);
         if (hasStoreItems) {
           handleConfirm();
