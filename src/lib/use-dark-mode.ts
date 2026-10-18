@@ -88,15 +88,7 @@ function applyDarkWithOverlay(nextDark: boolean) {
     });
 
     letterAnims[letterAnims.length - 1].onfinish = () => {
-      logo.animate(
-        [
-          { filter: "drop-shadow(0 0 0px #0071E3)" },
-          { filter: "drop-shadow(0 0 18px #0071E3)" },
-          { filter: "drop-shadow(0 0 0px #0071E3)" },
-        ],
-        { duration: 600, easing: "ease-in-out" },
-      );
-
+      // Sin resplandor: las letras entran, se quedan quietas un momento y salen.
       setTimeout(() => {
         const exitAnims = letters.map((el, i) => {
           const mid = (letters.length - 1) / 2;
