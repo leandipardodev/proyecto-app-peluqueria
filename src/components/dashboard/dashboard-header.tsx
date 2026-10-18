@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, Search, Moon, Sun, Gauge, Repeat2, Check, Volume2, VolumeX, Sparkles, Bell, Bug, CircleHelp, LogOut, KeyRound, GraduationCap, ChevronRight } from "lucide-react";
+import { Menu, Search, Moon, Sun, Gauge, Repeat2, Check, Volume2, VolumeX, Bell, Bug, CircleHelp, LogOut, KeyRound, GraduationCap, ChevronRight } from "lucide-react";
 import { useState, useRef, useEffect, useLayoutEffect, useTransition, useMemo, useCallback, memo, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -29,6 +29,31 @@ import { getIndustrySearchKeywords, getInitials, normalizeSearchText, scoreQuery
 import BaseModal from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { TUTORIALES_GUIDE } from "@/components/tutoriales/tutoriales-data";
+
+/**
+ * Estilo de los botones de la grilla 2x2 del menu del avatar.
+ * `active` marca los toggles prendidos (modo oscuro, animaciones, sonido); las
+ * acciones puras, como Ayuda, van siempre en estado neutro.
+ */
+function menuTileClass(active: boolean) {
+  return `flex flex-col items-center justify-center gap-1.5 rounded-xl border px-2 py-3 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${
+    active
+      ? "border-violet-200/40 bg-violet-50/40 text-violet-800 dark:border-violet-800/30 dark:bg-violet-950/30 dark:text-violet-200"
+      : "border-white/20 text-gray-800 hover:bg-zinc-50 dark:border-white/10 dark:text-gray-100 dark:hover:bg-zinc-800/50"
+  }`;
+}
+
+/**
+ * Resplandor de las zonas de interes del header: boton hamburguesa, nombre del
+ * local y notificaciones.
+ *
+ * El header ya no tiene fondo propio, asi que cada zona lleva su propia luz. El
+ * ::before va con -z-10 y `isolate` para quedar detras del contenido de la zona
+ * pero por delante de la pagina, y el blur lo convierte en un halo suave en vez
+ * de un rectangulo.
+ */
+const HEADER_GLOW =
+  "relative isolate before:pointer-events-none before:absolute before:-inset-1.5 before:-z-10 before:content-[''] before:rounded-full before:bg-white/80 before:blur-md dark:before:bg-zinc-950/80";
 
 interface DashboardHeaderProps {
   shopName: string;
@@ -646,7 +671,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
     <>
       <header
         ref={headerElRef}
-        className="dashboard-mobile-header absolute inset-x-0 top-0 z-50 flex items-center gap-4 shadow-sm border-b border-white/10 dark:border-white/5 px-4 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.5rem)] touch-pan-x [overscroll-behavior-y:none] lg:px-6 lg:pt-2.5"
+        className="dashboard-mobile-header absolute inset-x-0 top-0 z-50 flex items-center gap-4 px-4 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.5rem)] touch-pan-x [overscroll-behavior-y:none] lg:px-6 lg:pt-2.5"
       >
         <button
           ref={inHeaderMenuRef}
@@ -655,14 +680,14 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
           aria-label="Abrir menú de navegación"
           aria-hidden={headerFloating}
           tabIndex={headerFloating ? -1 : 0}
-          className={`min-[1367px]:hidden p-2 rounded-xl text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/5 transition-all duration-200 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${
+          className={`min-[1367px]:hidden p-2 rounded-xl text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/5 transition-all duration-200 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${HEADER_GLOW} ${
             headerFloating ? "pointer-events-none" : ""
           }`}
         >
           <Menu className="w-5 h-5" strokeWidth={1.5} />
         </button>
 
-        <div className="flex items-center gap-2 shrink-0" style={{ transform: "translateY(calc(var(--hp, 0) * 26px))", opacity: "calc((1 - var(--hp, 0)) * (1 - var(--hp, 0)))" }}>
+        <div className={`flex items-center gap-2 shrink-0 ${HEADER_GLOW}`} style={{ transform: "translateY(calc(var(--hp, 0) * 26px))", opacity: "calc((1 - var(--hp, 0)) * (1 - var(--hp, 0)))" }}>
           <div className="relative group" ref={shopMenuRef}>
             <button
               type="button"
@@ -990,7 +1015,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                 setNotifOpen((v) => !v);
               }}
               onMouseDown={(e) => e.stopPropagation()}
-              className="relative p-2 rounded-xl text-zinc-400 hover:text-zinc-600 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/5 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
+              className={`p-2 rounded-xl text-zinc-400 hover:text-zinc-600 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/5 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${HEADER_GLOW}`}
               aria-label="Notificaciones"
               whileTap={{ scale: 0.95 }}
             >
@@ -1087,6 +1112,59 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                   ) : (
                     <p className="text-[10px] text-rose-400 mt-0.5 font-medium">Sin pagos registrados</p>
                   )}
+                </div>
+                <div className="p-3 space-y-3">
+                  {/* Accesos rapidos: 4 iconos en grilla 2x2 */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      aria-pressed={dark}
+                      onClick={() => { haptic(6); toggleDark(); }}
+                      className={menuTileClass(dark)}
+                    >
+                      {dark ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                      <span>Modo oscuro</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      aria-pressed={!performanceMode}
+                      onClick={() => { haptic(6); togglePerformanceMode(); }}
+                      className={menuTileClass(!performanceMode)}
+                    >
+                      <Gauge className="h-4 w-4" />
+                      <span>Animaciones</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      aria-pressed={!soundMuted}
+                      onClick={() => {
+                        haptic(6);
+                        const nextMuted = !soundMuted;
+                        setMuted(nextMuted);
+                        setSoundMuted(nextMuted);
+                      }}
+                      className={menuTileClass(!soundMuted)}
+                    >
+                      {soundMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                      <span>Sonido</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        window.dispatchEvent(new CustomEvent("dashboard:open-help"));
+                      }}
+                      className={menuTileClass(false)}
+                    >
+                      <CircleHelp className="h-4 w-4" />
+                      <span>Ayuda</span>
+                    </button>
+                  </div>
+
+                  {/* Suscripcion: sin el icono de brillito */}
                   <motion.button
                     type="button"
                     onClick={() => {
@@ -1101,11 +1179,11 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                         `width=${w},height=${h},left=${left},top=${top},menubar=no,toolbar=no,location=no`
                       );
                     }}
-                    className="relative mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-violet-200/60 bg-gradient-to-r from-violet-600 to-amber-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition-shadow hover:shadow-violet-400/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
+                    className="relative flex w-full items-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-violet-600 to-amber-500 px-3 py-2.5 text-sm font-semibold text-white shadow-lg transition-shadow hover:shadow-violet-400/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
                     whileTap={{ scale: 0.97 }}
                   >
                     <motion.div
-                      className="pointer-events-none absolute inset-0 rounded-2xl"
+                      className="pointer-events-none absolute inset-0 rounded-xl"
                       animate={{
                         boxShadow: [
                           "inset 0 0 12px rgba(255,255,255,0.3), 0 0 8px rgba(139,92,246,0.2)",
@@ -1115,8 +1193,7 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                       }}
                       transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
                     />
-                    <Sparkles className="relative z-10 h-4 w-4" />
-                    <span className="relative z-10">Suscripción</span>
+                    <span className="relative z-10 flex-1 text-left">Suscripción</span>
                     <motion.span
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wider text-amber-200"
                       animate={{ opacity: [0.5, 1, 0.5] }}
@@ -1125,123 +1202,64 @@ const DashboardHeader = memo(function DashboardHeader({ shopName, userName, user
                       Plan
                     </motion.span>
                   </motion.button>
+
+                  {/* Tutoriales */}
                   <button
                     type="button"
                     onClick={() => {
                       setMenuOpen(false);
-                      setShowPasswordModal(true);
+                      router.push(TUTORIALES_GUIDE.href);
                     }}
-                    className="mt-2 flex w-full items-center gap-2 rounded-xl border border-white/20 dark:border-white/10 px-3 py-2 text-sm text-gray-800 dark:text-gray-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
+                    className="relative flex w-full items-center gap-2 overflow-hidden rounded-xl px-3 py-2.5 text-sm font-semibold text-white shadow-lg transition-shadow hover:shadow-[#0071E3]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 bg-gradient-to-r from-[#0071E3] via-[#2563eb] to-[#7c3aed]"
                   >
-                    <KeyRound className="w-4 h-4 text-zinc-400" />
-                    Cambiar contraseña
+                    <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_120%_at_20%_0%,rgba(255,255,255,0.28),transparent_55%)]" />
+                    <GraduationCap className="relative h-4 w-4" />
+                    <span className="relative flex-1 text-left">{TUTORIALES_GUIDE.menuLabel}</span>
+                    <ChevronRight className="relative h-4 w-4 opacity-80" />
                   </button>
-                </div>
-                <div className="p-3 space-y-3">
+
+                  {/* Cuenta: cambiar contraseña arriba de cerrar sesión, y el bug
+                      como solo icono al lado de cerrar sesión */}
+                  <div className="border-t border-white/20 dark:border-white/10 pt-3">
                     <button
                       type="button"
                       onClick={() => {
                         setMenuOpen(false);
-                        router.push(TUTORIALES_GUIDE.href);
+                        setShowPasswordModal(true);
                       }}
-                      className="relative flex w-full items-center gap-2 overflow-hidden rounded-xl px-3 py-2.5 text-sm font-semibold text-white shadow-lg transition-shadow hover:shadow-[#0071E3]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 bg-gradient-to-r from-[#0071E3] via-[#2563eb] to-[#7c3aed]"
+                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-gray-800 dark:text-gray-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
                     >
-                      <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_120%_at_20%_0%,rgba(255,255,255,0.28),transparent_55%)]" />
-                      <GraduationCap className="relative h-4 w-4" />
-                      <span className="relative flex-1 text-left">{TUTORIALES_GUIDE.menuLabel}</span>
-                      <ChevronRight className="relative h-4 w-4 opacity-80" />
+                      <KeyRound className="w-4 h-4 text-zinc-400" />
+                      Cambiar contraseña
                     </button>
-                    <div className="flex items-center justify-between rounded-xl border border-white/20 dark:border-white/10 px-3 py-2">
-                    <span className="text-sm text-gray-800 dark:text-gray-100">Modo oscuro</span>
-                    <button
-                      type="button"
-                      onClick={toggleDark}
-                      className={`relative w-10 h-5 rounded-full transition-colors ${dark ? "bg-violet-600" : "bg-gray-300"}`}
-                    >
-                      <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${dark ? "translate-x-5" : "translate-x-0"}`} />
-                    </button>
-                  </div>
 
-                  <div className={`flex items-center justify-between rounded-xl border px-3 py-2 transition-all duration-300 ${performanceMode ? "border-white/20 dark:border-white/10" : "border-violet-200/40 dark:border-violet-800/30 bg-violet-50/40 dark:bg-violet-950/30"}`}>
-                    <div className="flex items-center gap-2 text-sm">
-                      <Sparkles className={`w-4 h-4 ${performanceMode ? "text-zinc-400 dark:text-zinc-500" : "text-violet-500"}`} />
-                      <span className={performanceMode ? "text-gray-800 dark:text-gray-100" : "text-violet-800 dark:text-violet-200 font-medium"}>Animaciones</span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        disabled={logoutPending}
+                        onClick={() => {
+                          setMenuOpen(false);
+                          handleLogoutClick();
+                        }}
+                        className="flex flex-1 items-center gap-2 rounded-xl px-3 py-2 text-sm text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 disabled:opacity-50"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Cerrar sesión
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Reportar bug"
+                        title="Reportar bug"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          window.dispatchEvent(new CustomEvent("dashboard:open-bug-report"));
+                        }}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-400 transition-colors hover:bg-zinc-50 hover:text-zinc-600 dark:hover:bg-zinc-800/50 dark:hover:text-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
+                      >
+                        <Bug className="w-4 h-4" />
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        haptic(6);
-                        togglePerformanceMode();
-                      }}
-                      className={`relative w-10 h-5 rounded-full transition-colors ${performanceMode ? "bg-gray-300" : "bg-violet-600"}`}
-                    >
-                      <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${performanceMode ? "translate-x-0" : "translate-x-5"}`} />
-                    </button>
                   </div>
-
-                  <div className="flex items-center justify-between rounded-xl border border-white/20 dark:border-white/10 px-3 py-2">
-                    <div className="flex items-center gap-2 text-sm text-gray-800 dark:text-gray-100">
-                      {soundMuted ? <VolumeX className="w-4 h-4 text-zinc-400" /> : <Volume2 className="w-4 h-4 text-sky-500" />}
-                      Sonido/Vibración
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        haptic(6);
-                        const nextMuted = !soundMuted;
-                        setMuted(nextMuted);
-                        setSoundMuted(nextMuted);
-                      }}
-                      className={`relative w-10 h-5 rounded-full transition-colors ${soundMuted ? "bg-gray-300" : "bg-sky-600"}`}
-                    >
-                      <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${soundMuted ? "translate-x-0" : "translate-x-5"}`} />
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-2 pt-1">
-                    <button
-                      type="button"
-                      aria-label="Ayuda"
-                      title="Ayuda"
-                      onClick={() => {
-                        setMenuOpen(false);
-                        window.dispatchEvent(new CustomEvent("dashboard:open-help"));
-                      }}
-                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-white/20 dark:border-white/10 px-3 py-2 text-sm text-gray-800 dark:text-gray-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
-                    >
-                      <CircleHelp className="w-4 h-4 text-zinc-400" />
-                      <span>Ayuda</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      aria-label="Reportar bug"
-                      title="Reportar bug"
-                      onClick={() => {
-                        setMenuOpen(false);
-                        window.dispatchEvent(new CustomEvent("dashboard:open-bug-report"));
-                      }}
-                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-white/20 dark:border-white/10 px-3 py-2 text-sm text-gray-800 dark:text-gray-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
-                    >
-                      <Bug className="w-4 h-4 text-zinc-400" />
-                      <span>Bug</span>
-                    </button>
-                  </div>
-
-                <div className="border-t border-white/20 dark:border-white/10 pt-3">
-                  <button
-                    type="button"
-                    disabled={logoutPending}
-                    onClick={() => {
-                      setMenuOpen(false);
-                      handleLogoutClick();
-                    }}
-                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 disabled:opacity-50"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Cerrar sesión
-                  </button>
-                </div>
                 </div>
               </motion.div>
               )}

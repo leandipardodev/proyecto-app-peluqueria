@@ -260,14 +260,14 @@ export const TUTORIALS_PAGE = {
  *                 del cual el boton flotante desaparece. Con 50, la guia deja
  *                 de mostrarse.
  *   - label:      texto que muestra el boton flotante.
- *   - menuLabel:  texto del item destacado "Web de tutoriales" en el menu del
- *                 avatar del dashboard.
+ *   - menuLabel:  texto del item destacado "Tutoriales" en el menu del avatar
+ *                 del dashboard.
  *   - href:       a donde navega (la web de tutoriales).
  * ---------------------------------------------------------------------------
  */
 export const TUTORIALES_GUIDE = {
   threshold: 50,
   label: "Guía",
-  menuLabel: "Web de tutoriales",
+  menuLabel: "Tutoriales",
   href: "/tutoriales",
 };
