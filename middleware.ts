@@ -35,12 +35,30 @@ function hasSessionCookie(request: NextRequest): boolean {
   return request.cookies.getAll().some((c) => c.name.startsWith("sb-"));
 }
 
+// Presupuesto total del middleware. Vercel corta a los 25s con 504
+// (MIDDLEWARE_INVOCATION_TIMEOUT); este limite es la red de seguridad para que
+// nunca lleguemos ahi aunque una dependencia externa se cuelgue.
+const MIDDLEWARE_BUDGET_MS = 8_000;
+
 export async function middleware(request: NextRequest) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
   try {
-    return await middlewareHandler(request);
+    const budgetExceeded = new Promise<NextResponse>((resolve) => {
+      timer = setTimeout(() => {
+        console.error(
+          `[middleware] Budget of ${MIDDLEWARE_BUDGET_MS}ms exceeded — allowing request through`
+        );
+        resolve(NextResponse.next());
+      }, MIDDLEWARE_BUDGET_MS);
+    });
+
+    return await Promise.race([middlewareHandler(request), budgetExceeded]);
   } catch (err) {
     console.error("[middleware] Unhandled error — allowing request through:", err);
     return NextResponse.next();
+  } finally {
+    clearTimeout(timer);
   }
 }
 

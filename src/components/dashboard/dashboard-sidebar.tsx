@@ -63,19 +63,6 @@ interface DashboardSidebarProps {
   onNavigate?: () => void;
 }
 
-/**
- * `router.prefetch` acepta `onInvalidate` en runtime, pero el tipo de Next lo
- * declara con `kind` obligatorio y `PrefetchKind` no se exporta desde
- * `next/navigation`, asi que se tipa el metodo por su cuenta en vez de importar
- * tipos internos del paquete. El runtime resuelve `kind` por su cuenta
- * (`options?.kind ?? PrefetchKind.AUTO`).
- */
-type PrefetchWithInvalidate = (href: string, options?: { onInvalidate?: () => void }) => void;
-
-function makePrefetcher(router: ReturnType<typeof useRouter>): PrefetchWithInvalidate {
-  return (href, options) => (router.prefetch as PrefetchWithInvalidate)(href, options);
-}
-
 const DashboardSidebar = memo(function DashboardSidebar({
   userName,
   className = "",
@@ -89,9 +76,8 @@ const DashboardSidebar = memo(function DashboardSidebar({
   const customerPlural = INDUSTRY_CONFIG[industry].labels.customerPlural;
   const isStaff = user?.role === "staff";
   const bankTransferEnabled = Boolean(shop?.bankTransferEnabled);
-  // Sin memo, el array cambia de identidad en cada render y el efecto de
-  // prefetch de abajo se vuelve a disparar: 8 renders RSC de paginas
-  // force-dynamic por cada render del sidebar.
+  // Sin memo, el array cambia de identidad en cada render y vuelve a re-renderizar
+  // todos los items del menu.
   const resolvedNavItems = useMemo(
     () =>
       [
@@ -125,45 +111,14 @@ const DashboardSidebar = memo(function DashboardSidebar({
     } catch { setNeedsSetup(true); }
   }, [shop?.slug, pathname]);
 
-  // Los targets no dependen de la ruta actual: antes se re-prefetcheaban las 8
-  // paginas en cada navegacion (y antes de eso, en cada render del sidebar).
-  // Cada prefetch de una pagina force-dynamic es un render RSC completo, o sea
-  // ~10 queries contra Supabase por destino.
-  const prefetchTargets = useMemo(
-    () =>
-      resolvedNavItems.map(({ href }) =>
-        href === "/dashboard" ? dashboardBasePath : `${dashboardBasePath}${href.replace("/dashboard", "")}`
-      ),
-    [resolvedNavItems, dashboardBasePath]
-  );
-
-  useEffect(() => {
-    // `onInvalidate` es el mecanismo de Next para esto: se dispara cuando la
-    // entrada prefetchada de esta URL queda obsoleta y hay que volver a pedirla.
-    // Hace falta porque `router.refresh()` (y cualquier otra invalidacion) sube
-    // la version GLOBAL del Client Cache, sin mirar la ruta: borra el prefetch de
-    // las 8 secciones y de todas las tiendas de la pestana. Antes solo se
-    // re-prefetcheaba con `pingVisibleLinks`, que solo cubre links visibles, y en
-    // mobile el sidebar esta desmontado con el menu cerrado, asi que no habia
-    // quien los recuperara.
-    const prefetchWithInvalidate = makePrefetcher(router);
-
-    const runPrefetch = () => {
-      for (const href of prefetchTargets) {
-        const rePrefetch = () => prefetchWithInvalidate(href, { onInvalidate: rePrefetch });
-        prefetchWithInvalidate(href, { onInvalidate: rePrefetch });
-      }
-    };
-
-    const idle = (window as Window & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback;
-    if (idle) {
-      const id = idle(runPrefetch, { timeout: 1200 });
-      return () => window.cancelIdleCallback?.(id);
-    }
-
-    const timeoutId = window.setTimeout(runPrefetch, 250);
-    return () => window.clearTimeout(timeoutId);
-  }, [prefetchTargets, router]);
+  // No se prefetchean las 8 secciones al abrir el dashboard: cada `prefetch={true}`
+  // de una pagina force-dynamic es un render RSC completo (~10 queries a Supabase)
+  // y los 8 juntos saturaban la base, que es lo que terminaba en 504 del
+  // middleware. Ahora se prefetchea solo el link que el usuario apunta (hover o
+  // foco), y el `loading.tsx` de cada seccion cubre la navegacion.
+  const prefetchOnIntent = (href: string, active: boolean) => {
+    if (!active) router.prefetch(href);
+  };
 
   const navContainerVariants = performanceMode
     ? { hidden: {}, show: {} }
@@ -217,8 +172,10 @@ const DashboardSidebar = memo(function DashboardSidebar({
               >
                   <Link
                     href={targetHref}
-                    prefetch={true}
+                    prefetch={false}
                     draggable={false}
+                    onMouseEnter={() => prefetchOnIntent(targetHref, isActive)}
+                    onFocus={() => prefetchOnIntent(targetHref, isActive)}
                     // `onMouseDown` es solo feedback: sonido, vibracion y el
                     // evento de transicion. El cierre va en `onClick`, porque
                     // cerrarlo aca hacia que el panel se moviera antes del
