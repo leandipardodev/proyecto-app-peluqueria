@@ -1220,6 +1220,10 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
   useEffect(() => { selectedPaymentMethodRef.current = selectedPaymentMethod; }, [selectedPaymentMethod]);
   const [bankTransferDetails, setBankTransferDetails] = useState<{ cvuCb: string; alias: string; bankName: string } | null>(null);
   const [bankTransferWhatsAppMessage, setBankTransferWhatsAppMessage] = useState<string | null>(null);
+  // Al clickear "Avisar por WhatsApp" se abre la app en otra pestaña y la reserva
+  // avanza a la pantalla de éxito (calendar + calificanos). El ref evita disparar
+  // el avance dos veces si el cliente clickea de más.
+  const whatsappAdvancedRef = useRef(false);
 
   const pendingAppointmentIdsRef = useRef<string[]>([]);
   const confirmLockRef = useRef(false);
@@ -3557,6 +3561,11 @@ className={`relative w-full max-w-sm max-h-[86dvh] overflow-y-auto ${templateSty
                                           rel="noopener noreferrer"
                                           whileHover={{ scale: 1.02 }}
                                           whileTap={{ scale: 0.98 }}
+                                          onClick={() => {
+                                            if (whatsappAdvancedRef.current) return;
+                                            whatsappAdvancedRef.current = true;
+                                            completeFlow();
+                                          }}
                                           className="flex items-center justify-center gap-2 w-full rounded-xl px-4 py-3 text-sm font-bold bg-[#25D366] text-white shadow-lg shadow-[#25D366]/25"
                                         >
                                           <WhatsappIcon className="w-4 h-4" />
