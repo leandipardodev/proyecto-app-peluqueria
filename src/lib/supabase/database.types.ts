@@ -1667,6 +1667,7 @@ export type Database = {
           facebook_url: string | null
           features_override: Json | null
           google_maps_url: string | null
+          google_review_url: string | null
           id: string
           industry: string
           instagram_url: string | null
@@ -1714,6 +1715,7 @@ export type Database = {
           facebook_url?: string | null
           features_override?: Json | null
           google_maps_url?: string | null
+          google_review_url?: string | null
           id?: string
           industry?: string
           instagram_url?: string | null
@@ -1761,6 +1763,7 @@ export type Database = {
           facebook_url?: string | null
           features_override?: Json | null
           google_maps_url?: string | null
+          google_review_url?: string | null
           id?: string
           industry?: string
           instagram_url?: string | null

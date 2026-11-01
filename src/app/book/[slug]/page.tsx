@@ -106,6 +106,21 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
 
   const bookingLogoUrl = (bookingTheme?.logo_url as string | null) || null;
 
+  // google_review_url vive en una columna que puede no existir todavia si la
+  // migracion 115 no se aplico: query aparte y tolerante al fallo, para que el
+  // restante de la pagina no dependa del estado de la schema.
+  let googleReviewUrl = "";
+  {
+    const reviewRes = await admin
+      .from("shops")
+      .select("google_review_url")
+      .eq("id", shop.id)
+      .maybeSingle();
+    if (!reviewRes.error && reviewRes.data) {
+      googleReviewUrl = (reviewRes.data as { google_review_url?: string | null }).google_review_url || "";
+    }
+  }
+
   const localBusinessJsonLd = {
     "@context": "https://schema.org",
     "@type": INDUSTRY_CONFIG[resolveIndustry(shop.industry || null)].schemaType,
@@ -166,6 +181,7 @@ export default async function BookPage({ params, searchParams }: BookPageProps) 
           city: shop.localidad || "",
           phone: shop.phone || "",
           instagramUrl: shop.instagram_url || "",
+          googleReviewUrl,
           slug: shop.slug || "",
           industry: resolveIndustry((shop as { industry?: string | null }).industry || null),
           mpPublicKey: shop.mp_public_key || "",

@@ -27,6 +27,7 @@ import {
   ShoppingBag,
   Sparkles,
   Trash2,
+  Star,
   UserRound,
   X,
   ZoomIn,
@@ -77,6 +78,8 @@ interface BookingClientProps {
     city: string;
     phone: string;
     instagramUrl: string;
+    /** Link directo al form de reseñas de Google del local (opcional). */
+    googleReviewUrl: string;
     slug: string;
     industry: Industry;
     mpPublicKey: string;
@@ -1551,6 +1554,15 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     const dates = `${toGoogleDate(selectedSlot.start)}/${toGoogleDate(selectedSlot.end)}`;
     return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&details=${encodeURIComponent(details)}&location=${encodeURIComponent(location)}&dates=${encodeURIComponent(dates)}`;
   }, [selectedSlot, cart, selectedCombo, shop.name, shop.address]);
+
+  // Si el local configuro el link de reseñas (placeid de Google) se abre el
+  // formulario directo de "escribir resena". Si no, cae a la ficha de Maps
+  // donde el cliente deja la resena igual.
+  const googleReviewUrl = useMemo(() => {
+    if (shop.googleReviewUrl) return shop.googleReviewUrl;
+    const query = shop.city ? `${shop.name}, ${shop.city}` : shop.name;
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+  }, [shop.googleReviewUrl, shop.name, shop.city]);
 
   const filteredSlots = useMemo(() => {
     if (!selectedDate) return availableSlots;
@@ -3833,21 +3845,30 @@ className={`relative w-full max-w-sm max-h-[86dvh] overflow-y-auto ${templateSty
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.35 }}
-                  className="flex flex-col sm:flex-row items-center justify-center gap-3"
+                  className="mx-auto flex w-full max-w-xs flex-col items-center justify-center gap-3"
                 >
                   {googleCalendarUrl && (
                     <a
                       href={googleCalendarUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all ${templateStyles.calendar}`}
+                      className={`flex w-full items-center justify-center rounded-full px-5 py-2.5 text-sm font-medium transition-all ${templateStyles.calendar}`}
                     >
                       Agregar a Calendar
                     </a>
                   )}
+                  <a
+                    href={googleReviewUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`inline-flex w-full items-center justify-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-medium transition-all border ${templateStyles.ghostBtn}`}
+                  >
+                    <Star className="w-4 h-4" />
+                    ¿Te gusta nuestro servicio? Calificanos {"<3"}
+                  </a>
                   <button
                     onClick={handleReset}
-                    className={`px-6 py-2.5 rounded-full text-sm font-medium transition-all border ${templateStyles.ghostBtn}`}
+                    className={`w-full rounded-full px-6 py-2.5 text-sm font-medium transition-all border ${templateStyles.ghostBtn}`}
                   >
                     Nueva reserva
                   </button>

@@ -21,6 +21,7 @@ export type BusinessData = {
   instagram_url: string | null;
   facebook_url: string | null;
   tiktok_url: string | null;
+  google_review_url: string | null;
   mp_public_key: string;
   whatsapp_template: string;
   loyalty_enabled: boolean;
@@ -57,6 +58,23 @@ export async function fetchBusinessData(shopIdOverride?: string): Promise<Action
 
     if (error || !data) return { success: false, error: error?.message || "Local no encontrado" };
 
+    // La columna google_review_url puede no existir si la migracion 115 no se
+    // aplico: query tolerante al fallo para no romper todo el dashboard.
+    let google_review_url: string | null = null;
+    try {
+      const reviewAdmin = await createAdminClient();
+      const reviewRes = await reviewAdmin
+        .from("shops")
+        .select("google_review_url")
+        .eq("id", shopId)
+        .maybeSingle();
+      if (!reviewRes.error && reviewRes.data) {
+        google_review_url = (reviewRes.data as { google_review_url?: string | null }).google_review_url || null;
+      }
+    } catch {
+      // Columna aun no migrada: queda null.
+    }
+
     return {
       success: true,
         data: {
@@ -69,6 +87,7 @@ export async function fetchBusinessData(shopIdOverride?: string): Promise<Action
         instagram_url: data.instagram_url || null,
         facebook_url: (data as { facebook_url?: string | null }).facebook_url || null,
         tiktok_url: (data as { tiktok_url?: string | null }).tiktok_url || null,
+        google_review_url,
         mp_public_key: (data.mp_public_key as string) || "",
         whatsapp_template: (data.whatsapp_template as string) || DEFAULT_WHATSAPP_TEMPLATE,
         loyalty_enabled: data.loyalty_enabled !== false,
@@ -110,13 +129,25 @@ export async function updateBusinessInfo(formData: FormData): Promise<ActionResu
     const instagram_url = formData.get("instagram_url") as string || null;
     const facebook_url = formData.get("facebook_url") as string || null;
     const tiktok_url = formData.get("tiktok_url") as string || null;
+    const google_review_url = formData.get("google_review_url") as string || null;
 
     const { error } = await admin
       .from("shops")
-      .update({ nombre, description, address, localidad, phone, instagram_url, facebook_url, tiktok_url, updated_at: new Date().toISOString() })
+      .update({ nombre, description, address, localidad, phone, instagram_url, facebook_url, tiktok_url, google_review_url, updated_at: new Date().toISOString() })
       .eq("id", shopId!);
 
-    if (error) return { success: false, error: error.message };
+    // Si la migracion 115 no se aplico todavia, la update con la columna nueva
+    // falla por columna inexistente: reintentar sin ella para no bloquear todo
+    // el guardado del negocio.
+    if (error?.message?.match(/google_review_url|Could not find the 'google_review_url' column/i)) {
+      const { error: retryError } = await admin
+        .from("shops")
+        .update({ nombre, description, address, localidad, phone, instagram_url, facebook_url, tiktok_url, updated_at: new Date().toISOString() })
+        .eq("id", shopId!);
+      if (retryError) return { success: false, error: retryError.message };
+    } else if (error) {
+      return { success: false, error: error.message };
+    }
     await revalidateDashboardSegments(shopId, ["/business"]);
     return { success: true };
   } catch (e) {

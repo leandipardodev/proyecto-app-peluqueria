@@ -527,6 +527,7 @@ export default function BusinessClient({
   const [instagramUrl, setInstagramUrl] = useState(data?.instagram_url || "");
   const [facebookUrl, setFacebookUrl] = useState(data?.facebook_url || "");
   const [tiktokUrl, setTiktokUrl] = useState(data?.tiktok_url || "");
+  const [googleReviewUrl, setGoogleReviewUrl] = useState(data?.google_review_url || "");
   // Snapshot de la informacion publica YA persistida. Antes se comparaba contra
   // `data`, que tambien muta desde acciones sueltas (desconectar Mercado Pago,
   // refresh posterior al OAuth): al moverse esa base, isPublicInfoDirty volvia a
@@ -539,6 +540,7 @@ export default function BusinessClient({
     instagramUrl: data?.instagram_url || "",
     facebookUrl: data?.facebook_url || "",
     tiktokUrl: data?.tiktok_url || "",
+    googleReviewUrl: data?.google_review_url || "",
   }));
   const isPublicInfoDirty = useMemo(() =>
     name !== savedPublicInfo.name ||
@@ -547,8 +549,9 @@ export default function BusinessClient({
     phone !== savedPublicInfo.phone ||
     instagramUrl !== savedPublicInfo.instagramUrl ||
     facebookUrl !== savedPublicInfo.facebookUrl ||
-    tiktokUrl !== savedPublicInfo.tiktokUrl,
-  [name, address, localidad, phone, instagramUrl, facebookUrl, tiktokUrl, savedPublicInfo]);
+    tiktokUrl !== savedPublicInfo.tiktokUrl ||
+    googleReviewUrl !== savedPublicInfo.googleReviewUrl,
+  [name, address, localidad, phone, instagramUrl, facebookUrl, tiktokUrl, googleReviewUrl, savedPublicInfo]);
   const [whatsappTemplate, setWhatsappTemplate] = useState(data?.whatsapp_template || "");
   const whatsappRef = useRef<HTMLTextAreaElement>(null);
   const insertWhatsappTag = useTagInsert(whatsappRef, whatsappTemplate, setWhatsappTemplate);
@@ -929,6 +932,7 @@ export default function BusinessClient({
         instagramUrl?: string;
         facebookUrl?: string;
         tiktokUrl?: string;
+        googleReviewUrl?: string;
         whatsappTemplate?: string;
         bookingDepositEnabled?: boolean;
         bookingDepositAmount?: string;
@@ -941,6 +945,7 @@ export default function BusinessClient({
       if (typeof draft.instagramUrl === "string") setInstagramUrl(draft.instagramUrl);
       if (typeof draft.facebookUrl === "string") setFacebookUrl(draft.facebookUrl);
       if (typeof draft.tiktokUrl === "string") setTiktokUrl(draft.tiktokUrl);
+      if (typeof draft.googleReviewUrl === "string") setGoogleReviewUrl(draft.googleReviewUrl);
       if (typeof draft.whatsappTemplate === "string") setWhatsappTemplate(draft.whatsappTemplate);
       if (typeof draft.bookingDepositEnabled === "boolean") setBookingDepositEnabled(draft.bookingDepositEnabled);
       if (typeof draft.bookingDepositAmount === "string") setBookingDepositAmount(draft.bookingDepositAmount);
@@ -1082,6 +1087,7 @@ export default function BusinessClient({
           instagramUrl,
           facebookUrl,
           tiktokUrl,
+          googleReviewUrl,
           whatsappTemplate,
           bookingDepositEnabled,
           bookingDepositAmount,
@@ -1101,6 +1107,7 @@ export default function BusinessClient({
     instagramUrl,
     facebookUrl,
     tiktokUrl,
+    googleReviewUrl,
     whatsappTemplate,
     bookingDepositEnabled,
     bookingDepositAmount,
@@ -1163,10 +1170,11 @@ export default function BusinessClient({
     formData.set("instagram_url", instagramUrl);
     formData.set("facebook_url", facebookUrl);
     formData.set("tiktok_url", tiktokUrl);
+    formData.set("google_review_url", googleReviewUrl);
 
     const info = await updateBusinessInfo(formData);
     if (info.success) {
-      setSavedPublicInfo({ name, address, localidad, phone, instagramUrl, facebookUrl, tiktokUrl });
+      setSavedPublicInfo({ name, address, localidad, phone, instagramUrl, facebookUrl, tiktokUrl, googleReviewUrl });
     } else {
       failures.push(info.error);
     }
@@ -1414,6 +1422,7 @@ export default function BusinessClient({
       formData.set("instagram_url", instagramUrl);
       formData.set("facebook_url", facebookUrl);
       formData.set("tiktok_url", tiktokUrl);
+      formData.set("google_review_url", googleReviewUrl);
 
       const result = await updateBusinessInfo(formData);
       if (!result.success) {
@@ -1434,8 +1443,9 @@ export default function BusinessClient({
           instagram_url: instagramUrl,
           facebook_url: facebookUrl,
           tiktok_url: tiktokUrl,
+          google_review_url: googleReviewUrl,
         } : prev);
-        setSavedPublicInfo({ name, address, localidad, phone, instagramUrl, facebookUrl, tiktokUrl });
+        setSavedPublicInfo({ name, address, localidad, phone, instagramUrl, facebookUrl, tiktokUrl, googleReviewUrl });
       }
     } catch (e) {
       playError();
@@ -1883,6 +1893,22 @@ export default function BusinessClient({
                     className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
                     placeholder="https://tiktok.com/@tu-local"
                   />
+                </div>
+                <div className="sm:col-span-3">
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1.5 cursor-pointer flex items-center gap-1.5">
+                    <Link2 className="w-3.5 h-3.5 text-zinc-400" />
+                    Reseñas de Google (opcional)
+                  </label>
+                  <input
+                    value={googleReviewUrl}
+                    onChange={(e) => setGoogleReviewUrl(e.target.value)}
+                    disabled={!canEditShop}
+                    className="w-full rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm text-gray-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
+                    placeholder="https://search.google.com/local/writereview?placeid=..."
+                  />
+                  <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                    Link del formulario de resena de tu ficha de Google. Al confirmar un turno el cliente lo recibe para calificarte.
+                  </p>
                 </div>
               </div>
             </div>
