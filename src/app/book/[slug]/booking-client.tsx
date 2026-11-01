@@ -2111,6 +2111,7 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     // Transferencia: misma logica que el combo arriba — no se crea preferencia
     // de MP y el mensaje de WhatsApp sale de los datos bancarios del local.
     if (paymentMethod === "bank_transfer") {
+      setSubmitting(false);
       setCreatingPreference(false);
       pendingAppointmentIdsRef.current = cartResult.ids;
       setSelectedPaymentMethod("bank_transfer");
