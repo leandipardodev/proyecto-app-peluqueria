@@ -2056,6 +2056,25 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
       }
       if (!comboResult.data) { setSubmitting(false); setCreatingPreference(false); setError("No se pudo crear el turno"); return; }
 
+      // Transferencia: no se crea preferencia de Mercado Pago. Los turnos
+      // quedan pending_payment y el local los confirma cuando verifica la
+      // transferencia. Sin esto, la eleccion de transferencia en un turno de
+      // servicios caia en el camino de MP y el botón de WhatsApp quedaba muerto.
+      pendingAppointmentIdsRef.current = comboResult.data.appointmentIds;
+      if (paymentMethod === "bank_transfer") {
+        setSubmitting(false);
+        setCreatingPreference(false);
+        setSelectedPaymentMethod("bank_transfer");
+        setBankTransferDetails({ cvuCb: shop.bankCvuCb, alias: shop.bankAlias, bankName: shop.bankName });
+        setBankTransferWhatsAppMessage(
+          previewIsDeposit
+            ? `Hola ${shop.name}, reservé turno y pagué la seña de ${formatARSAmount(previewChargeAmount)} por transferencia. Quedo a la espera de confirmación.`
+            : `Hola ${shop.name}, reservé turno por ${formatARSAmount(previewChargeAmount)} y pagué por transferencia. Quedo a la espera de confirmación.`
+        );
+        setStep(pagoStep);
+        return;
+      }
+
       const { createPaymentPreference } = await import("@/lib/dashboard/booking/public-booking-actions");
       const prefResult = await createPaymentPreference({
         appointmentId: comboResult.data.appointmentIds[0],
@@ -2088,6 +2107,22 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
 
     const cartResult = await createCartAppointments("pending_payment", formattedPhone, payableItems);
     if (cartResult === null) { setCreatingPreference(false); handleLoginRequired(); return; }
+
+    // Transferencia: misma logica que el combo arriba — no se crea preferencia
+    // de MP y el mensaje de WhatsApp sale de los datos bancarios del local.
+    if (paymentMethod === "bank_transfer") {
+      setCreatingPreference(false);
+      pendingAppointmentIdsRef.current = cartResult.ids;
+      setSelectedPaymentMethod("bank_transfer");
+      setBankTransferDetails({ cvuCb: shop.bankCvuCb, alias: shop.bankAlias, bankName: shop.bankName });
+      setBankTransferWhatsAppMessage(
+        previewIsDeposit
+          ? `Hola ${shop.name}, reservé turno y pagué la seña de ${formatARSAmount(previewChargeAmount)} por transferencia. Quedo a la espera de confirmación.`
+          : `Hola ${shop.name}, reservé turno por ${formatARSAmount(previewChargeAmount)} y pagué por transferencia. Quedo a la espera de confirmación.`
+      );
+      setStep(pagoStep);
+      return;
+    }
 
     const { createPaymentPreference } = await import("@/lib/dashboard/booking/public-booking-actions");
     const prefResult = await createPaymentPreference({
