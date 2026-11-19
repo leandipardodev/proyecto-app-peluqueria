@@ -610,7 +610,7 @@ export async function POST(request: NextRequest) {
 
       const { data: booking } = await admin
         .from("pending_bookings")
-        .select("id, shop_id, status, customer_phone, customer_email, customer_name, service_id, start_time, end_time, created_at, expires_at, staff_id, deposit_amount, mp_preference_id, ip_address")
+        .select("id, shop_id, status, customer_phone, customer_email, customer_name, authenticated_user_id, service_id, start_time, end_time, created_at, expires_at, staff_id, deposit_amount, mp_preference_id, ip_address, intent_type, payload, payment_amount, payment_method")
         .eq("id", bookingId)
         .maybeSingle();
 
@@ -625,6 +625,9 @@ export async function POST(request: NextRequest) {
       }
 
       const normalizedPaymentId = String(paymentId);
+      const intentType = String((booking as any).intent_type || "single");
+      const intentPayload = ((booking as any).payload && typeof (booking as any).payload === "object" ? (booking as any).payload : {}) as Record<string, any>;
+      const isMultiIntent = intentType === "cart" || intentType === "combo" || intentType === "combined";
 
       if (paymentResult.status === "approved") {
         // Atomically claim this pending_booking — only one request succeeds
@@ -650,6 +653,7 @@ export async function POST(request: NextRequest) {
             payment_id: normalizedPaymentId,
             pending_booking_id: booking.id,
             status: paymentResult.status,
+            intent_type: intentType,
           },
         });
 
@@ -671,6 +675,7 @@ export async function POST(request: NextRequest) {
             .update({
               nombre: booking.customer_name,
               email: booking.customer_email || null,
+              ...(booking.authenticated_user_id ? { user_id: booking.authenticated_user_id } : {}),
               updated_at: new Date().toISOString(),
             })
             .eq("id", id);
@@ -686,6 +691,7 @@ export async function POST(request: NextRequest) {
             .from("customers")
             .insert({
               shop_id: booking.shop_id,
+              user_id: booking.authenticated_user_id || null,
               nombre: booking.customer_name,
               telefono: booking.customer_phone,
               email: booking.customer_email || null,
@@ -714,7 +720,6 @@ export async function POST(request: NextRequest) {
         // Re-check slot availability — may have been taken since pending_booking was created
         const startStr = booking.start_time;
         const endStr = booking.end_time;
-
         let conflictQuery = admin
           .from("appointments")
           .select("id")
@@ -722,24 +727,14 @@ export async function POST(request: NextRequest) {
           .not("status", "eq", "cancelled")
           .lt("start_time", endStr)
           .gt("end_time", startStr);
-
         if (booking.staff_id) {
           conflictQuery = conflictQuery.eq("staff_id", booking.staff_id);
         }
-
         const { data: conflict } = await conflictQuery.limit(1);
-
         if (conflict && conflict.length > 0) {
           await admin.from("pending_bookings").update({ status: "expired" }).eq("id", booking.id);
           return NextResponse.json({ ok: true });
         }
-
-        // Create appointment
-        const { data: service } = await admin
-          .from("services")
-          .select("name, price")
-          .eq("id", booking.service_id)
-          .maybeSingle();
 
         const { data: shop } = await admin
           .from("shops")
@@ -747,58 +742,249 @@ export async function POST(request: NextRequest) {
           .eq("id", booking.shop_id)
           .maybeSingle();
 
-        const { data: createdAppointment, error: aptError } = await admin
-          .from("appointments")
-          .insert({
-            shop_id: booking.shop_id,
-            customer_id: customerId,
-            staff_id: booking.staff_id || null,
-            service_id: booking.service_id,
-            service_price: service?.price ?? null,
-            start_time: booking.start_time,
-            end_time: booking.end_time,
-            date_key_ar: getArgentinaDateKey(booking.start_time),
-            status: "confirmed",
-            is_paid: true,
-            deposit_amount: booking.deposit_amount,
-            mp_preference_id: booking.mp_preference_id,
-          })
-          .select("id")
-          .single();
-
-        if (aptError) throw aptError;
-
-        // Cache the IP so repeat bookings from this IP trigger login_required
-        if (booking.ip_address) {
-          const ipKey = `completed-booking:${booking.ip_address}:${booking.shop_id}`;
-          completedBookingCache.set(ipKey, true);
-        }
-
-        // Send confirmation email
-        if (booking.customer_email) {
+        const sendConfirmation = async (serviceName: string, startTime: string, endTime: string) => {
+          if (!booking.customer_email) return;
           const shopData = shop as { nombre?: string | null; address?: string | null; localidad?: string | null; google_maps_url?: string | null; phone?: string | null; instagram_url?: string | null; whatsapp_template?: string | null } | null;
-          const serviceName = (service as { name?: string | null } | null)?.name || "Servicio";
           const locationParts = [shopData?.address?.trim(), shopData?.localidad?.trim()].filter(Boolean);
           const shopAddress = locationParts.length > 0 ? locationParts.join(", ") : undefined;
           const mapsUrl = shopData?.google_maps_url?.trim() || undefined;
           const cleanPhone = shopData?.phone?.replace(/^\+/, "").replace(/\D/g, "") || "";
           const whatsappUrl = cleanPhone.length >= 7 ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(shopData?.whatsapp_template || "Hola! Quiero consultar sobre un turno")}` : undefined;
-
           sendAppointmentConfirmationEmail({
             to: booking.customer_email,
             customerName: booking.customer_name,
             shopName: shopData?.nombre || "Klip",
             serviceName,
             shopAddress,
-            startTime: booking.start_time,
-            endTime: booking.end_time,
+            startTime,
+            endTime,
             mapsUrl,
             instagramUrl: shopData?.instagram_url?.trim() || undefined,
             whatsappUrl,
           }).catch((err) => console.error("[webhook] confirmation email error:", err));
+        };
+
+        if (!isMultiIntent) {
+          // Legacy/single intent
+          const { data: service } = await admin
+            .from("services")
+            .select("name, price")
+            .eq("id", booking.service_id)
+            .maybeSingle();
+
+          const { error: aptError } = await admin
+            .from("appointments")
+            .insert({
+              shop_id: booking.shop_id,
+              customer_id: customerId,
+              staff_id: booking.staff_id || null,
+              service_id: booking.service_id,
+              service_price: service?.price ?? null,
+              start_time: booking.start_time,
+              end_time: booking.end_time,
+              date_key_ar: getArgentinaDateKey(booking.start_time),
+              status: "confirmed",
+              is_paid: true,
+              deposit_amount: booking.deposit_amount,
+              mp_preference_id: booking.mp_preference_id,
+              mp_payment_id: normalizedPaymentId,
+            })
+            .select("id")
+            .single();
+
+          if (aptError) throw aptError;
+
+          if (booking.ip_address) {
+            const ipKey = `completed-booking:${booking.ip_address}:${booking.shop_id}`;
+            completedBookingCache.set(ipKey, true);
+          }
+
+          await sendConfirmation((service as { name?: string | null } | null)?.name || "Servicio", booking.start_time, booking.end_time);
+          return NextResponse.json({ ok: true });
         }
 
-        return NextResponse.json({ ok: true });
+        if (intentType === "cart") {
+          const items = Array.isArray(intentPayload.items) ? intentPayload.items : [];
+          if (items.length === 0) throw new Error("Cart intent without items");
+          const serviceIds = items.map((it: any) => it.serviceId).filter(Boolean);
+          const { data: dbServices } = await admin.from("services").select("id, name, price").in("id", serviceIds);
+          const svcMap = new Map((dbServices || []).map((s: any) => [s.id, s]));
+          const createdIds: string[] = [];
+          for (let i = 0; i < items.length; i++) {
+            const it = items[i];
+            const svc = svcMap.get(it.serviceId);
+            const startTime = String(it.startTime || booking.start_time);
+            const endTime = String(it.endTime || booking.end_time);
+            const { data: created, error: cErr } = await admin.from("appointments").insert({
+              shop_id: booking.shop_id,
+              customer_id: customerId,
+              staff_id: booking.staff_id || null,
+              service_id: it.serviceId,
+              service_price: svc?.price ?? null,
+              start_time: startTime,
+              end_time: endTime,
+              date_key_ar: getArgentinaDateKey(startTime),
+              status: "confirmed",
+              is_paid: true,
+              deposit_amount: i === 0 ? booking.deposit_amount : null,
+              mp_preference_id: booking.mp_preference_id,
+              mp_payment_id: normalizedPaymentId,
+            }).select("id").single();
+            if (cErr || !created) {
+              if (createdIds.length > 0) await admin.from("appointments").delete().in("id", createdIds);
+              throw cErr || new Error("No se pudo crear turno del carrito");
+            }
+            createdIds.push(created.id);
+          }
+          if (booking.ip_address) {
+            const ipKey = `completed-booking:${booking.ip_address}:${booking.shop_id}`;
+            completedBookingCache.set(ipKey, true);
+          }
+          const firstSvc = svcMap.get(items[0]?.serviceId);
+          const serviceName = items.length === 1 ? (firstSvc?.name || "Servicio") : `${items.length} servicios`;
+          await sendConfirmation(serviceName, booking.start_time, booking.end_time);
+          return NextResponse.json({ ok: true });
+        }
+
+        if (intentType === "combo") {
+          const comboId = intentPayload.comboId as string | undefined;
+          const serviceIds = Array.isArray(intentPayload.serviceIds) ? (intentPayload.serviceIds as string[]) : [];
+          if (!comboId || serviceIds.length === 0) throw new Error("Combo intent incompleto");
+          const { data: comboRow } = await admin.from("combos").select("id, name, price, active, shop_id").eq("id", comboId).eq("shop_id", booking.shop_id).maybeSingle();
+          if (!comboRow || !comboRow.active) throw new Error("Combo no disponible");
+          const { data: links } = await admin.from("combo_services").select("service_id").eq("combo_id", comboId);
+          const linkIds = (links || []).map((l: any) => l.service_id);
+          const reqSet = new Set(serviceIds);
+          if (linkIds.length !== reqSet.size || linkIds.some((id: string) => !reqSet.has(id))) throw new Error("Servicios del combo inválidos");
+          const { data: svcRows } = await admin.from("services").select("id, name, duration_minutes, price, shop_id").in("id", serviceIds);
+          const svcById = new Map((svcRows || []).map((s: any) => [s.id, s]));
+          if (svcById.size !== serviceIds.length) throw new Error("Servicios del combo no encontrados");
+          const ordered = serviceIds.map((id) => svcById.get(id)).filter(Boolean) as any[];
+          const comboPrice = Number(comboRow.price) || 0;
+          const totalOriginal = ordered.reduce((sum, s) => sum + (Number(s.price) || 0), 0);
+          const prorated: number[] = ordered.map((s) => {
+            const raw = totalOriginal > 0 ? (comboPrice * (Number(s.price) || 0)) / totalOriginal : comboPrice / ordered.length;
+            return Math.round(raw * 100) / 100;
+          });
+          const diff = Math.round((comboPrice - prorated.reduce((a, b) => a + b, 0)) * 100) / 100;
+          if (prorated.length > 0 && Math.abs(diff) > 0) prorated[prorated.length - 1] = Math.round((prorated[prorated.length - 1] + diff) * 100) / 100;
+          const startMs = new Date(booking.start_time).getTime();
+          let running = 0; const createdIds: string[] = [];
+          for (let i = 0; i < ordered.length; i++) {
+            const svc = ordered[i];
+            const aptStart = new Date(startMs + running * 60000).toISOString();
+            const aptEnd = new Date(startMs + (running + Number(svc.duration_minutes || 0)) * 60000).toISOString();
+            const { data: created, error: cErr } = await admin.from("appointments").insert({
+              shop_id: booking.shop_id, customer_id: customerId, staff_id: booking.staff_id || null, service_id: svc.id,
+              service_price: prorated[i], start_time: aptStart, end_time: aptEnd, date_key_ar: getArgentinaDateKey(booking.start_time),
+              status: "confirmed", is_paid: true, deposit_amount: i === 0 ? booking.deposit_amount : null,
+              mp_preference_id: booking.mp_preference_id, mp_payment_id: normalizedPaymentId,
+            }).select("id").single();
+            if (cErr || !created) {
+              if (createdIds.length > 0) await admin.from("appointments").delete().in("id", createdIds);
+              throw cErr || new Error("No se pudo crear turno del combo");
+            }
+            createdIds.push(created.id); running += Number(svc.duration_minutes || 0);
+          }
+          if (booking.ip_address) {
+            const ipKey = `completed-booking:${booking.ip_address}:${booking.shop_id}`;
+            completedBookingCache.set(ipKey, true);
+          }
+          await sendConfirmation(comboRow.name || "Combo", booking.start_time, booking.end_time);
+          return NextResponse.json({ ok: true });
+        }
+
+        if (intentType === "combined") {
+          const storeItems = Array.isArray(intentPayload.store_items) ? intentPayload.store_items : [];
+          const servicePart = intentPayload.service as Record<string, any> | undefined;
+          if (!servicePart || storeItems.length === 0) throw new Error("Combined intent incompleto");
+          const orderRes = await createStoreOrderRecord({
+            shopId: booking.shop_id,
+            items: storeItems.map((it: any) => ({ productId: String(it.productId), quantity: Number(it.quantity) || 0 })),
+            customerName: booking.customer_name,
+            customerEmail: booking.customer_email || "",
+            customerPhone: booking.customer_phone,
+          });
+          if (!orderRes.success || !orderRes.data) throw new Error(!orderRes.success ? orderRes.error : "No se pudo crear pedido");
+          const { orderId } = orderRes.data;
+          const createdAppointmentIds: string[] = [];
+          let serviceName = "Servicio";
+          try {
+            if (servicePart.kind === "combo") {
+              const comboId = servicePart.comboId as string;
+              const serviceIds = Array.isArray(servicePart.serviceIds) ? (servicePart.serviceIds as string[]) : [];
+              const { data: comboRow } = await admin.from("combos").select("id, name, price, active, shop_id").eq("id", comboId).eq("shop_id", booking.shop_id).maybeSingle();
+              if (!comboRow || !comboRow.active) throw new Error("Combo no disponible");
+              const { data: links } = await admin.from("combo_services").select("service_id").eq("combo_id", comboId);
+              const linkIds = (links || []).map((l: any) => l.service_id);
+              const reqSet = new Set(serviceIds);
+              if (linkIds.length !== reqSet.size || linkIds.some((id: string) => !reqSet.has(id))) throw new Error("Servicios del combo inválidos");
+              const { data: svcRows } = await admin.from("services").select("id, name, duration_minutes, price, shop_id").in("id", serviceIds);
+              const svcById = new Map((svcRows || []).map((s: any) => [s.id, s]));
+              const ordered = serviceIds.map((id) => svcById.get(id)).filter(Boolean) as any[];
+              serviceName = comboRow.name || "Combo";
+              const comboPrice = Number(comboRow.price) || 0;
+              const totalOriginal = ordered.reduce((sum, s) => sum + (Number(s.price) || 0), 0);
+              const prorated: number[] = ordered.map((s) => {
+                const raw = totalOriginal > 0 ? (comboPrice * (Number(s.price) || 0)) / totalOriginal : comboPrice / ordered.length;
+                return Math.round(raw * 100) / 100;
+              });
+              const diff = Math.round((comboPrice - prorated.reduce((a, b) => a + b, 0)) * 100) / 100;
+              if (prorated.length > 0 && Math.abs(diff) > 0) prorated[prorated.length - 1] = Math.round((prorated[prorated.length - 1] + diff) * 100) / 100;
+              let running = 0; const startMs = new Date(booking.start_time).getTime();
+              for (let i = 0; i < ordered.length; i++) {
+                const svc = ordered[i];
+                const aptStart = new Date(startMs + running * 60000).toISOString();
+                const aptEnd = new Date(startMs + (running + Number(svc.duration_minutes || 0)) * 60000).toISOString();
+                const { data: created, error: cErr } = await admin.from("appointments").insert({
+                  shop_id: booking.shop_id, customer_id: customerId, staff_id: booking.staff_id || null, service_id: svc.id,
+                  service_price: prorated[i], start_time: aptStart, end_time: aptEnd, date_key_ar: getArgentinaDateKey(booking.start_time),
+                  status: "confirmed", is_paid: true, deposit_amount: i === 0 ? (intentPayload.service_deposit ?? booking.deposit_amount) : null,
+                  mp_preference_id: booking.mp_preference_id, mp_payment_id: normalizedPaymentId,
+                }).select("id").single();
+                if (cErr || !created) throw cErr || new Error("No se pudo crear turno");
+                createdAppointmentIds.push(created.id); running += Number(svc.duration_minutes || 0);
+              }
+            } else {
+              const items = Array.isArray(servicePart.items) ? servicePart.items : [];
+              const serviceIds = items.map((it: any) => it.serviceId).filter(Boolean);
+              const { data: dbServices } = await admin.from("services").select("id, name, price").in("id", serviceIds);
+              const svcMap = new Map((dbServices || []).map((s: any) => [s.id, s]));
+              serviceName = items.length === 1 ? (svcMap.get(items[0]?.serviceId)?.name || "Servicio") : `${items.length} servicios`;
+              for (let i = 0; i < items.length; i++) {
+                const it = items[i]; const svc = svcMap.get(it.serviceId);
+                const { data: created, error: cErr } = await admin.from("appointments").insert({
+                  shop_id: booking.shop_id, customer_id: customerId, staff_id: booking.staff_id || null, service_id: it.serviceId,
+                  service_price: svc?.price ?? null, start_time: String(it.startTime || booking.start_time), end_time: String(it.endTime || booking.end_time),
+                  date_key_ar: getArgentinaDateKey(String(it.startTime || booking.start_time)),
+                  status: "confirmed", is_paid: true, deposit_amount: i === 0 ? (intentPayload.service_deposit ?? booking.deposit_amount) : null,
+                  mp_preference_id: booking.mp_preference_id, mp_payment_id: normalizedPaymentId,
+                }).select("id").single();
+                if (cErr || !created) throw cErr || new Error("No se pudo crear turno");
+                createdAppointmentIds.push(created.id);
+              }
+            }
+          } catch (e) {
+            if (createdAppointmentIds.length > 0) await admin.from("appointments").delete().in("id", createdAppointmentIds);
+            try { await restoreOrderStock(admin, booking.shop_id, orderId); await admin.from("orders").delete().eq("id", orderId).eq("shop_id", booking.shop_id); } catch {}
+            throw e;
+          }
+          await admin.from("orders").update({
+            status: "paid",
+            mp_payment_id: normalizedPaymentId,
+            mp_preference_id: booking.mp_preference_id,
+            payment_method: "mercadopago",
+            updated_at: new Date().toISOString(),
+          }).eq("id", orderId).eq("shop_id", booking.shop_id);
+          if (booking.ip_address) {
+            const ipKey = `completed-booking:${booking.ip_address}:${booking.shop_id}`;
+            completedBookingCache.set(ipKey, true);
+          }
+          await sendConfirmation(serviceName, booking.start_time, booking.end_time);
+          return NextResponse.json({ ok: true });
+        }
+
+        throw new Error(`Tipo de intención no soportado: ${intentType}`);
       } else {
         // Payment not approved — mark booking as expired/cancelled
         const cancelStatus = paymentResult.status === "cancelled" ? "cancelled" : "expired";

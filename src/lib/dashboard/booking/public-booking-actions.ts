@@ -2196,3 +2196,1099 @@ export async function createCombinedCheckout(
     };
   }
 }
+
+// â”€â”€â”€ MP booking intents (phase 2): no appointments before payment approval â”€â”€â”€
+
+type MpIntentServiceItem = { id: string; name: string; duration_minutes: number; price: number; startTime?: string; endTime?: string };
+
+type CreateMpServiceIntentInput = {
+  shopId: string;
+  shopSlug: string;
+  /** Payable services in order (hidden-price/at-shop services must be booked separately as confirmed). */
+  services: MpIntentServiceItem[];
+  staffId?: string;
+  customerName: string;
+  customerEmail?: string;
+  customerPhone: string;
+  authenticatedUserId?: string;
+  startTime: string;
+  /** Overall end time of the block covering all payable items (use when items are not contiguous in the original cart). */
+  endTime?: string;
+};
+
+type CreateMpComboIntentInput = {
+  shopId: string;
+  shopSlug: string;
+  comboId: string;
+  comboName: string;
+  comboPrice: number;
+  services: { id: string; name: string; duration_minutes: number; price: number }[];
+  staffId?: string;
+  customerName: string;
+  customerEmail?: string;
+  customerPhone: string;
+  authenticatedUserId?: string;
+  startTime: string;
+};
+
+type CreateMpIntentOutput = {
+  intentId: string;
+  initPoint: string;
+  preferenceId: string;
+  chargedAmount: number;
+  isDeposit: boolean;
+};
+
+type CreateMpCombinedIntentInput = {
+  shopId: string;
+  shopSlug: string;
+  customerName: string;
+  customerEmail?: string;
+  customerPhone: string;
+  authenticatedUserId?: string;
+  staffId?: string;
+  startTime: string;
+  combo?: {
+    comboId: string;
+    comboName: string;
+    comboPrice: number;
+    services: { id: string; name: string; duration_minutes: number; price: number }[];
+    totalDuration: number;
+  };
+  cartServices?: MpIntentServiceItem[];
+  storeItems: StoreCheckoutItem[];
+};
+
+type CreateMpCombinedIntentOutput = {
+  intentId: string;
+  orderId?: never;
+  appointmentIds?: never;
+  serviceAmount: number;
+  productsAmount: number;
+  totalAmount: number;
+  chargedAmount: number;
+  isDeposit: boolean;
+  initPoint: string;
+  preferenceId: string;
+};
+
+function mpBaseUrls(shopSlug: string) {
+  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || "https://klip.com.ar").replace(/\/+$/, "");
+  const encodedSlug = encodeURIComponent(shopSlug);
+  return {
+    baseUrl,
+    successUrl: `${baseUrl}/confirmacion?status=success&slug=${encodedSlug}`,
+    pendingUrl: `${baseUrl}/confirmacion?status=pending&slug=${encodedSlug}`,
+    failureUrl: `${baseUrl}/confirmacion?status=failure&slug=${encodedSlug}`,
+    canUseBackUrls: /^https?:\/\//.test(baseUrl) && !/localhost|127\.0\.0\.1/.test(baseUrl),
+  };
+}
+
+async function createMpPreferenceForIntent(params: {
+  admin: Awaited<ReturnType<typeof createAdminClient>>;
+  shopId: string;
+  shopSlug: string;
+  intentId: string;
+  title: string;
+  unitPrice: number;
+  isDeposit: boolean;
+  customerEmail?: string;
+  metadata: Record<string, unknown>;
+  items?: Array<{ id: string; title: string; description?: string; quantity: number; unit_price: number; currency_id: "ARS" }>;
+}) {
+  const { data: shop } = await params.admin
+    .from("shops")
+    .select("mp_access_token")
+    .eq("id", params.shopId)
+    .maybeSingle();
+
+  const shopMpToken = resolveShopMpToken(shop);
+  if (!shopMpToken.ok) return { success: false as const, error: shopMpToken.error };
+
+  const paymentMethods = buildMpPaymentMethods(await fetchShopMpPaymentConfig(params.admin, params.shopId));
+  const { baseUrl, successUrl, pendingUrl, failureUrl, canUseBackUrls } = mpBaseUrls(params.shopSlug);
+  const notificationUrl = buildShopNotificationUrl(baseUrl, params.shopId);
+  const shouldSendWebhook = notificationUrl.startsWith("https://");
+
+  const client = new MercadoPagoConfig({ accessToken: shopMpToken.accessToken });
+  const preference = new Preference(client);
+  const preferenceResult = await preference.create({
+    body: {
+      items: params.items ?? [
+        {
+          id: params.intentId,
+          title: params.isDeposit ? `SeÃ±a - ${params.title}` : params.title,
+          description: `${params.isDeposit ? "SeÃ±a" : "Turno"} - ${params.title}`,
+          quantity: 1,
+          unit_price: params.unitPrice,
+          currency_id: "ARS",
+        },
+      ],
+      ...(params.customerEmail?.trim() ? { payer: { email: params.customerEmail.trim() } } : {}),
+      back_urls: canUseBackUrls ? { success: successUrl, pending: pendingUrl, failure: failureUrl } : undefined,
+      auto_return: canUseBackUrls ? "approved" : undefined,
+      external_reference: `pending_booking:${params.intentId}`,
+      notification_url: shouldSendWebhook ? notificationUrl : undefined,
+      ...(paymentMethods ? { payment_methods: paymentMethods } : {}),
+      metadata: {
+        ...params.metadata,
+        intent_id: params.intentId,
+        shop_id: params.shopId,
+      },
+    },
+  });
+
+  if (!preferenceResult.id || !preferenceResult.init_point) {
+    return { success: false as const, error: "No se pudo crear la preferencia de pago" };
+  }
+
+  return {
+    success: true as const,
+    data: { initPoint: preferenceResult.init_point, preferenceId: preferenceResult.id },
+  };
+}
+
+export async function createMpServiceBookingIntent(
+  input: CreateMpServiceIntentInput
+): Promise<ActionResult<CreateMpIntentOutput>> {
+  try {
+    if (!input.services || input.services.length === 0) {
+      return { success: false, error: "No seleccionaste servicios" };
+    }
+
+    const headersList = await headers();
+    const ip = headersList.get("x-forwarded-for")?.split(",")[0]?.trim() || headersList.get("x-real-ip") || "unknown";
+    const ipKey = `completed-booking:${ip}:${input.shopId}`;
+    if (completedBookingCache.has(ipKey) && !input.authenticatedUserId) {
+      return { success: false, error: "login_required" };
+    }
+
+    const admin = await createAdminClient();
+    const startDate = new Date(input.startTime);
+    if (Number.isNaN(startDate.getTime())) return { success: false, error: "Horario invalido" };
+
+    if (input.customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.customerEmail)) {
+      return { success: false, error: "Email invÃ¡lido" };
+    }
+    const cleanPhone = input.customerPhone.replace(/\D/g, "");
+    if (cleanPhone.length < 7 || cleanPhone.length > 15) return { success: false, error: "TelÃ©fono invÃ¡lido" };
+    const customerName = input.customerName.trim();
+    if (customerName.length < 2 || customerName.length > 100) return { success: false, error: "Nombre invÃ¡lido" };
+
+    const totalDuration = input.services.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+    if (totalDuration <= 0) return { success: false, error: "DuraciÃ³n invÃ¡lida" };
+    let overallEnd = new Date(startDate.getTime() + totalDuration * 60000).toISOString();
+    if (input.endTime) {
+      const parsedEnd = new Date(input.endTime);
+      if (!Number.isNaN(parsedEnd.getTime()) && parsedEnd > startDate) {
+        overallEnd = parsedEnd.toISOString();
+      }
+    }
+
+    const bookingDate = getArgentinaDateKey(input.startTime);
+    const todayAr = getArgentinaDateString();
+    if (bookingDate < todayAr) return { success: false, error: "No se puede reservar en una fecha pasada" };
+    if (bookingDate === todayAr) {
+      const nowMinutes = getArgentinaMinutesSinceMidnight(new Date());
+      const bookingMinutes = getArgentinaMinutesSinceMidnight(input.startTime);
+      if (bookingMinutes < nowMinutes) return { success: false, error: "No se puede reservar en un horario pasado" };
+    }
+
+    // Load service data from DB (trusted)
+    const serviceIds = input.services.map((s) => s.id);
+    const { data: dbServices } = await admin
+      .from("services")
+      .select("id, name, duration_minutes, price, hide_price, shop_id")
+      .in("id", serviceIds);
+    const byId = new Map((dbServices || []).map((s) => [s.id, s]));
+    for (const sid of serviceIds) {
+      const s = byId.get(sid);
+      if (!s || s.shop_id !== input.shopId) return { success: false, error: "Servicio no disponible" };
+      if (!s.duration_minutes || s.duration_minutes <= 0) return { success: false, error: "DuraciÃ³n invÃ¡lida" };
+    }
+
+    const items = input.services.map((s) => {
+      const db = byId.get(s.id)!;
+      return {
+        serviceId: db.id,
+        name: db.name,
+        durationMinutes: db.duration_minutes!,
+        price: Number(db.price) || 0,
+        hidePrice: !!db.hide_price,
+      };
+    });
+    // MP intent should only include payable services; caller must have booked at-shop ones separately.
+    if (items.some((i) => i.hidePrice)) {
+      return { success: false, error: "Los servicios a convenir no se cobran online" };
+    }
+
+    const { data: shopHoursRow } = await admin.from("shops").select("business_hours").eq("id", input.shopId).maybeSingle();
+    const businessHours = shopHoursRow?.business_hours;
+    const dayIndex = getWeekdayFromDateString(bookingDate);
+    const startMinutes = getArgentinaMinutesSinceMidnight(input.startTime);
+    const endMinutes = getArgentinaMinutesSinceMidnight(overallEnd);
+
+    // Resolve staff (similar to combo/cart block)
+    let resolvedStaffId = input.staffId || null;
+    if (resolvedStaffId) {
+      const { data: staffServiceRows } = await admin.from("staff_services").select("service_id").eq("staff_id", resolvedStaffId);
+      if (staffServiceRows && staffServiceRows.length > 0) {
+        const assignedSet = new Set(staffServiceRows.map((r) => r.service_id));
+        const ok = items.every((it) => assignedSet.has(it.serviceId));
+        if (!ok) return { success: false, error: "El profesional no realiza uno de los servicios seleccionados" };
+      }
+    }
+
+    // Resolve effective schedule for block (use provided staff or find one)
+    let effectiveDayConfig: { open: boolean; start: string; end: string; break_start?: string | null; break_end?: string | null };
+
+    const resolveBlockSchedule = async (staffId: string | null) => {
+      if (staffId) {
+        const { data: staffSchedules } = await admin
+          .from("staff_schedules")
+          .select("day_of_week, is_active, start_time, end_time, break_start, break_end")
+          .eq("staff_id", staffId);
+        const staffSchedule = (staffSchedules || []).find((s) => s.day_of_week === dayIndex) ?? null;
+        if (staffSchedule) {
+          if (!staffSchedule.is_active) return { ok: false as const, error: "El profesional no trabaja este dia" };
+          const cfg = {
+            open: true,
+            start: staffSchedule.start_time.slice(0, 5),
+            end: staffSchedule.end_time.slice(0, 5),
+            break_start: staffSchedule.break_start?.slice(0, 5) ?? null,
+            break_end: staffSchedule.break_end?.slice(0, 5) ?? null,
+          };
+          const shopConfig = await resolveShopDayConfig(admin, input.shopId, dayIndex, businessHours);
+          if (shopConfig.open) {
+            cfg.start = minutesToHHmm(Math.max(hhmmToMinutes(cfg.start), hhmmToMinutes(shopConfig.start)));
+            cfg.end = minutesToHHmm(Math.min(hhmmToMinutes(cfg.end), hhmmToMinutes(shopConfig.end)));
+          }
+          return { ok: true as const, cfg };
+        } else if ((staffSchedules || []).length > 0) {
+          return { ok: false as const, error: "El profesional no trabaja este dia" };
+        } else {
+          return { ok: true as const, cfg: await resolveShopDayConfig(admin, input.shopId, dayIndex, businessHours) };
+        }
+      }
+      return { ok: true as const, cfg: await resolveShopDayConfig(admin, input.shopId, dayIndex, businessHours) };
+    };
+
+    if (resolvedStaffId) {
+      const sched = await resolveBlockSchedule(resolvedStaffId);
+      if (!sched.ok) return { success: false, error: sched.error };
+      effectiveDayConfig = sched.cfg;
+    } else {
+      effectiveDayConfig = await resolveShopDayConfig(admin, input.shopId, dayIndex, businessHours);
+    }
+
+    // Apply date overrides
+    const overrideResult = await fetchPublicShopDateOverrides(input.shopId, bookingDate, bookingDate);
+    if (overrideResult.success && overrideResult.data) {
+      const shopOverride = overrideResult.data.find((o) => o.staff_id === null);
+      if (shopOverride) {
+        if (shopOverride.is_closed) return { success: false, error: "El local esta cerrado este dia" };
+        if (shopOverride.start_time && shopOverride.end_time) {
+          effectiveDayConfig.start = minutesToHHmm(Math.max(hhmmToMinutes(effectiveDayConfig.start), hhmmToMinutes(shopOverride.start_time)));
+          effectiveDayConfig.end = minutesToHHmm(Math.min(hhmmToMinutes(effectiveDayConfig.end), hhmmToMinutes(shopOverride.end_time)));
+        }
+        if (shopOverride.break_start && shopOverride.break_end) {
+          const bs = hhmmToMinutes(shopOverride.break_start); const be = hhmmToMinutes(shopOverride.break_end);
+          const st = hhmmToMinutes(effectiveDayConfig.start); const en = hhmmToMinutes(effectiveDayConfig.end);
+          if (st < bs && bs < be && be < en) { effectiveDayConfig.break_start = shopOverride.break_start; effectiveDayConfig.break_end = shopOverride.break_end; }
+        }
+      }
+      if (resolvedStaffId) {
+        const staffOverride = overrideResult.data.find((o) => o.staff_id === resolvedStaffId);
+        if (staffOverride) {
+          if (staffOverride.is_closed) return { success: false, error: "El profesional no trabaja este dia" };
+          if (staffOverride.start_time && staffOverride.end_time) {
+            effectiveDayConfig.start = minutesToHHmm(Math.max(hhmmToMinutes(effectiveDayConfig.start), hhmmToMinutes(staffOverride.start_time)));
+            effectiveDayConfig.end = minutesToHHmm(Math.min(hhmmToMinutes(effectiveDayConfig.end), hhmmToMinutes(staffOverride.end_time)));
+          }
+          if (staffOverride.break_start && staffOverride.break_end) {
+            const bs = hhmmToMinutes(staffOverride.break_start); const be = hhmmToMinutes(staffOverride.break_end);
+            const st = hhmmToMinutes(effectiveDayConfig.start); const en = hhmmToMinutes(effectiveDayConfig.end);
+            if (st < bs && bs < be && be < en) { effectiveDayConfig.break_start = staffOverride.break_start; effectiveDayConfig.break_end = staffOverride.break_end; }
+          }
+        }
+      }
+    }
+
+    if (!effectiveDayConfig.open) {
+      return { success: false, error: resolvedStaffId ? "El profesional no trabaja en este horario" : "El local esta cerrado en ese horario" };
+    }
+    const openMinutes = hhmmToMinutes(effectiveDayConfig.start);
+    const closeMinutes = hhmmToMinutes(effectiveDayConfig.end);
+    if (openMinutes >= closeMinutes || startMinutes < openMinutes || endMinutes > closeMinutes) {
+      return { success: false, error: "El horario seleccionado esta fuera del horario de atencion" };
+    }
+    if (effectiveDayConfig.break_start && effectiveDayConfig.break_end) {
+      const breakStart = hhmmToMinutes(effectiveDayConfig.break_start);
+      const breakEnd = hhmmToMinutes(effectiveDayConfig.break_end);
+      if (startMinutes < breakEnd && endMinutes > breakStart) {
+        return { success: false, error: "El horario seleccionado coincide con el descanso" };
+      }
+    }
+
+    // Auto-assign staff if needed
+    if (!resolvedStaffId) {
+      const overrides = overrideResult.success ? (overrideResult.data || []) : [];
+      const staffOverrideMap = new Map<string, (typeof overrides)[0]>();
+      for (const o of overrides) if (o.staff_id) staffOverrideMap.set(o.staff_id, o);
+
+      const { data: allStaff } = await admin
+        .from("shop_memberships").select("user_id")
+        .eq("shop_id", input.shopId).eq("is_active", true).in("role", ["owner", "staff"]);
+      const staffIds = (allStaff || []).map((m) => m.user_id);
+      const { data: allStaffServices } = await admin.from("staff_services").select("staff_id, service_id").in("staff_id", staffIds);
+      const servicesByStaff = new Map<string, Set<string>>();
+      for (const row of allStaffServices || []) {
+        if (!servicesByStaff.has(row.staff_id)) servicesByStaff.set(row.staff_id, new Set());
+        servicesByStaff.get(row.staff_id)!.add(row.service_id);
+      }
+
+      const [{ data: conflictingAppts }, { data: pendingConflicts }, { data: daySchedules }] = await Promise.all([
+        admin.from("appointments").select("staff_id, status, created_at").eq("shop_id", input.shopId)
+          .lt("start_time", overallEnd).gt("end_time", input.startTime).not("status", "eq", "cancelled").not("staff_id", "is", null),
+        admin.from("pending_bookings").select("staff_id").eq("shop_id", input.shopId).eq("status", "pending")
+          .gt("expires_at", new Date().toISOString()).lt("start_time", overallEnd).gt("end_time", input.startTime).not("staff_id", "is", null),
+        admin.from("staff_schedules").select("staff_id, day_of_week, is_active, start_time, end_time, break_start, break_end").in("staff_id", staffIds).limit(1000),
+      ]);
+      const busyStaffIds = new Set<string>();
+      for (const apt of conflictingAppts || []) if (apt.staff_id && shouldBlockSlot(apt.status, apt.created_at)) busyStaffIds.add(apt.staff_id);
+      for (const pb of pendingConflicts || []) if (pb.staff_id) busyStaffIds.add(pb.staff_id);
+      const scheduleMap = new Map((daySchedules || []).filter((s) => s.day_of_week === dayIndex).map((s) => [s.staff_id, s]));
+      const staffConHorario = new Set((daySchedules || []).map((s) => s.staff_id));
+
+      for (const sid of staffIds) {
+        if (busyStaffIds.has(sid)) continue;
+        const assignedServices = servicesByStaff.get(sid);
+        if (assignedServices && assignedServices.size > 0) {
+          if (!items.every((it) => assignedServices.has(it.serviceId))) continue;
+        }
+        const sched = scheduleMap.get(sid);
+        if (!sched && staffConHorario.has(sid)) continue;
+        if (sched) {
+          if (!sched.is_active) continue;
+          const so = hhmmToMinutes(sched.start_time.slice(0, 5)); const sc = hhmmToMinutes(sched.end_time.slice(0, 5));
+          if (startMinutes < so || endMinutes > sc) continue;
+          if (sched.break_start && sched.break_end) {
+            const bs = hhmmToMinutes(sched.break_start.slice(0, 5)); const be = hhmmToMinutes(sched.break_end.slice(0, 5));
+            if (startMinutes < be && endMinutes > bs) continue;
+          }
+        }
+        const staffOv = staffOverrideMap.get(sid);
+        if (staffOv && staffOv.break_start && staffOv.break_end) {
+          const bs = hhmmToMinutes(staffOv.break_start); const be = hhmmToMinutes(staffOv.break_end);
+          if (startMinutes < be && endMinutes > bs) continue;
+        }
+        resolvedStaffId = sid;
+        break;
+      }
+      if (!resolvedStaffId) return { success: false, error: "No hay profesionales disponibles para este turno" };
+
+      // re-resolve schedule for chosen staff + overrides
+      const schedRes = await resolveBlockSchedule(resolvedStaffId);
+      if (!schedRes.ok) return { success: false, error: "No hay profesionales disponibles para este turno" };
+      effectiveDayConfig = schedRes.cfg;
+      // re-apply staff override on resolved staff
+      const staffOv = (overrideResult.success ? overrideResult.data || [] : []).find((o) => o.staff_id === resolvedStaffId);
+      if (staffOv) {
+        if (staffOv.is_closed) return { success: false, error: "No hay profesionales disponibles para este turno" };
+        if (staffOv.start_time && staffOv.end_time) {
+          effectiveDayConfig.start = minutesToHHmm(Math.max(hhmmToMinutes(effectiveDayConfig.start), hhmmToMinutes(staffOv.start_time)));
+          effectiveDayConfig.end = minutesToHHmm(Math.min(hhmmToMinutes(effectiveDayConfig.end), hhmmToMinutes(staffOv.end_time)));
+        }
+      }
+      const openM = hhmmToMinutes(effectiveDayConfig.start); const closeM = hhmmToMinutes(effectiveDayConfig.end);
+      if (startMinutes < openM || endMinutes > closeM) return { success: false, error: "No hay profesionales disponibles para este turno" };
+      if (effectiveDayConfig.break_start && effectiveDayConfig.break_end) {
+        const bs = hhmmToMinutes(effectiveDayConfig.break_start); const be = hhmmToMinutes(effectiveDayConfig.break_end);
+        if (startMinutes < be && endMinutes > bs) return { success: false, error: "No hay profesionales disponibles para este turno" };
+      }
+    }
+
+    // Conflict checks (appointments + pending_bookings)
+    const [{ data: conflicts }, { data: pendingConflicts }] = await Promise.all([
+      admin.from("appointments").select("id, status, created_at").eq("shop_id", input.shopId).eq("staff_id", resolvedStaffId)
+        .lt("start_time", overallEnd).gt("end_time", input.startTime).not("status", "eq", "cancelled"),
+      admin.from("pending_bookings").select("id").eq("shop_id", input.shopId).eq("staff_id", resolvedStaffId).eq("status", "pending")
+        .gt("expires_at", new Date().toISOString()).lt("start_time", overallEnd).gt("end_time", input.startTime),
+    ]);
+    const hasBlockingConflict = (conflicts || []).some((apt) => shouldBlockSlot(apt.status as string | null | undefined, apt.created_at as string | null | undefined));
+    if (hasBlockingConflict || (pendingConflicts && pendingConflicts.length > 0)) return { success: false, error: "slot_taken" };
+
+    // Pricing (from DB)
+    const serviceAmount = items.reduce((sum, it) => sum + it.price, 0);
+    if (serviceAmount <= 0) return { success: false, error: "No hay nada para cobrar" };
+
+    const { data: shopPolicy } = await admin.from("shops").select("booking_deposit_enabled, booking_deposit_amount").eq("id", input.shopId).maybeSingle();
+    const depositEnabled = shopPolicy?.booking_deposit_enabled !== false;
+    const configuredDeposit = Math.max(0, Number(shopPolicy?.booking_deposit_amount ?? 0));
+    const chargeAmount = depositEnabled
+      ? Math.max(1, Math.min(serviceAmount, configuredDeposit > 0 ? configuredDeposit : serviceAmount))
+      : Math.max(1, serviceAmount);
+    const isDeposit = depositEnabled && chargeAmount < serviceAmount;
+
+    // Build timed items for payload (preserve provided times if valid, else sequence from start)
+    let cursor = startDate.getTime();
+    const timedItems = items.map((it, idx) => {
+      const providedStart = input.services[idx]?.startTime;
+      const providedEnd = input.services[idx]?.endTime;
+      const stDate = providedStart ? new Date(providedStart) : new Date(cursor);
+      const enDate = providedEnd ? new Date(providedEnd) : new Date(stDate.getTime() + it.durationMinutes * 60000);
+      const st = !Number.isNaN(stDate.getTime()) ? stDate.toISOString() : new Date(cursor).toISOString();
+      const en = !Number.isNaN(enDate.getTime()) && new Date(enDate.toISOString()).getTime() > new Date(st).getTime()
+        ? enDate.toISOString()
+        : new Date(new Date(st).getTime() + it.durationMinutes * 60000).toISOString();
+      cursor = new Date(st).getTime() + it.durationMinutes * 60000;
+      return { ...it, startTime: st, endTime: en };
+    });
+    // Ensure overallEnd covers all timed items
+    const maxEndMs = Math.max(new Date(overallEnd).getTime(), ...timedItems.map((it) => new Date(it.endTime).getTime()));
+    if (Number.isFinite(maxEndMs) && maxEndMs > new Date(input.startTime).getTime()) {
+      overallEnd = new Date(maxEndMs).toISOString();
+    }
+
+    const { data: intent, error: intentError } = await admin
+      .from("pending_bookings")
+      .insert({
+        shop_id: input.shopId,
+        service_id: items[0].serviceId,
+        staff_id: resolvedStaffId,
+        customer_name: customerName,
+        customer_email: input.customerEmail?.trim() || null,
+        customer_phone: input.customerPhone,
+        authenticated_user_id: input.authenticatedUserId || null,
+        start_time: input.startTime,
+        end_time: overallEnd,
+        deposit_amount: chargeAmount,
+        status: "pending",
+        payment_method: "mp",
+        payment_amount: chargeAmount,
+        ip_address: ip,
+        intent_type: items.length === 1 ? "single" : "cart",
+        payload: {
+          kind: items.length === 1 ? "single" : "cart",
+          items: timedItems,
+          service_amount: serviceAmount,
+        },
+        expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      })
+      .select("id")
+      .single();
+
+    if (intentError || !intent) return { success: false, error: intentError?.message || "No se pudo crear la reserva pendiente" };
+
+    const title = items.length === 1 ? items[0].name : `${items.length} servicios`;
+    const pref = await createMpPreferenceForIntent({
+      admin,
+      shopId: input.shopId,
+      shopSlug: input.shopSlug,
+      intentId: intent.id,
+      title,
+      unitPrice: chargeAmount,
+      isDeposit,
+      customerEmail: input.customerEmail,
+      metadata: {
+        type: "booking_intent",
+        intent_type: items.length === 1 ? "single" : "cart",
+      },
+    });
+    if (!pref.success) {
+      await admin.from("pending_bookings").delete().eq("id", intent.id);
+      return { success: false, error: pref.error };
+    }
+
+    await admin.from("pending_bookings").update({ mp_preference_id: pref.data.preferenceId }).eq("id", intent.id);
+
+    return {
+      success: true,
+      data: {
+        intentId: intent.id,
+        initPoint: pref.data.initPoint,
+        preferenceId: pref.data.preferenceId,
+        chargedAmount: chargeAmount,
+        isDeposit,
+      },
+    };
+  } catch (e) {
+    console.error("[createMpServiceBookingIntent] error:", e);
+    return { success: false, error: e instanceof Error ? e.message : "Error al iniciar el pago" };
+  }
+}
+
+// (helper removed - inline checks used above)
+
+export async function createMpComboBookingIntent(
+  input: CreateMpComboIntentInput
+): Promise<ActionResult<CreateMpIntentOutput>> {
+  try {
+    const headersList = await headers();
+    const ip = headersList.get("x-forwarded-for")?.split(",")[0]?.trim() || headersList.get("x-real-ip") || "unknown";
+    const ipKey = `completed-booking:${ip}:${input.shopId}`;
+    if (completedBookingCache.has(ipKey) && !input.authenticatedUserId) {
+      return { success: false, error: "login_required" };
+    }
+
+    const admin = await createAdminClient();
+    const startDate = new Date(input.startTime);
+    if (Number.isNaN(startDate.getTime())) return { success: false, error: "Horario invalido" };
+    if (input.customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.customerEmail)) return { success: false, error: "Email invalido" };
+    const cleanPhone = input.customerPhone.replace(/\D/g, "");
+    if (cleanPhone.length < 7 || cleanPhone.length > 15) return { success: false, error: "Telefono invalido" };
+    const customerName = input.customerName.trim();
+    if (customerName.length < 2 || customerName.length > 100) return { success: false, error: "Nombre invalido" };
+
+    const combo = await resolveComboFromDb(admin, input.shopId, input.comboId, input.services.map((s) => s.id));
+    if (!combo) return { success: false, error: "El combo no esta disponible" };
+
+    const totalDuration = combo.services.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+    if (totalDuration <= 0) return { success: false, error: "Duracion invalida" };
+    const overallEnd = new Date(startDate.getTime() + totalDuration * 60000).toISOString();
+
+    const bookingDate = getArgentinaDateKey(input.startTime);
+    const todayAr = getArgentinaDateString();
+    if (bookingDate < todayAr) return { success: false, error: "No se puede reservar en una fecha pasada" };
+    if (bookingDate === todayAr) {
+      const nowMinutes = getArgentinaMinutesSinceMidnight(new Date());
+      const bookingMinutes = getArgentinaMinutesSinceMidnight(input.startTime);
+      if (bookingMinutes < nowMinutes) return { success: false, error: "No se puede reservar en un horario pasado" };
+    }
+
+    const dayIndex = getWeekdayFromDateString(bookingDate);
+    const startMinutes = getArgentinaMinutesSinceMidnight(input.startTime);
+    const endMinutes = getArgentinaMinutesSinceMidnight(overallEnd);
+    const { data: shopHoursRow } = await admin.from("shops").select("business_hours").eq("id", input.shopId).maybeSingle();
+    const businessHours = shopHoursRow?.business_hours;
+
+    let resolvedStaffId = input.staffId || null;
+    if (resolvedStaffId) {
+      const { data: staffServiceRows } = await admin.from("staff_services").select("service_id").eq("staff_id", resolvedStaffId);
+      if (staffServiceRows && staffServiceRows.length > 0) {
+        const assigned = combo.services.every((svc) => staffServiceRows.some((r) => r.service_id === svc.id));
+        if (!assigned) return { success: false, error: "El profesional no realiza uno de los servicios del combo" };
+      }
+    }
+
+    const resolveBlockSchedule = async (staffId: string | null) => {
+      if (staffId) {
+        const { data: staffSchedules } = await admin.from("staff_schedules").select("day_of_week, is_active, start_time, end_time, break_start, break_end").eq("staff_id", staffId);
+        const staffSchedule = (staffSchedules || []).find((s) => s.day_of_week === dayIndex) ?? null;
+        if (staffSchedule) {
+          if (!staffSchedule.is_active) return { ok: false as const, error: "El profesional no trabaja este dia" };
+          const cfg = { open: true, start: staffSchedule.start_time.slice(0, 5), end: staffSchedule.end_time.slice(0, 5), break_start: staffSchedule.break_start?.slice(0, 5) ?? null, break_end: staffSchedule.break_end?.slice(0, 5) ?? null };
+          const shopConfig = await resolveShopDayConfig(admin, input.shopId, dayIndex, businessHours);
+          if (shopConfig.open) {
+            cfg.start = minutesToHHmm(Math.max(hhmmToMinutes(cfg.start), hhmmToMinutes(shopConfig.start)));
+            cfg.end = minutesToHHmm(Math.min(hhmmToMinutes(cfg.end), hhmmToMinutes(shopConfig.end)));
+          }
+          return { ok: true as const, cfg };
+        } else if ((staffSchedules || []).length > 0) {
+          return { ok: false as const, error: "El profesional no trabaja este dia" };
+        }
+      }
+      return { ok: true as const, cfg: await resolveShopDayConfig(admin, input.shopId, dayIndex, businessHours) };
+    };
+
+    let effectiveDayConfig: { open: boolean; start: string; end: string; break_start?: string | null; break_end?: string | null };
+    if (resolvedStaffId) {
+      const sched = await resolveBlockSchedule(resolvedStaffId);
+      if (!sched.ok) return { success: false, error: sched.error };
+      effectiveDayConfig = sched.cfg;
+    } else {
+      effectiveDayConfig = await resolveShopDayConfig(admin, input.shopId, dayIndex, businessHours);
+    }
+
+    const overrideResult = await fetchPublicShopDateOverrides(input.shopId, bookingDate, bookingDate);
+    const applyOverrides = (cfg: typeof effectiveDayConfig, staffId: string | null) => {
+      const out = { ...cfg };
+      if (overrideResult.success && overrideResult.data) {
+        const shopOverride = overrideResult.data.find((o) => o.staff_id === null);
+        if (shopOverride) {
+          if (shopOverride.is_closed) return { closed: true as const, error: "El local esta cerrado este dia" };
+          if (shopOverride.start_time && shopOverride.end_time) {
+            out.start = minutesToHHmm(Math.max(hhmmToMinutes(out.start), hhmmToMinutes(shopOverride.start_time)));
+            out.end = minutesToHHmm(Math.min(hhmmToMinutes(out.end), hhmmToMinutes(shopOverride.end_time)));
+          }
+          if (shopOverride.break_start && shopOverride.break_end) {
+            const bs = hhmmToMinutes(shopOverride.break_start), be = hhmmToMinutes(shopOverride.break_end);
+            const st = hhmmToMinutes(out.start), en = hhmmToMinutes(out.end);
+            if (st < bs && bs < be && be < en) { out.break_start = shopOverride.break_start; out.break_end = shopOverride.break_end; }
+          }
+        }
+        if (staffId) {
+          const staffOverride = overrideResult.data.find((o) => o.staff_id === staffId);
+          if (staffOverride) {
+            if (staffOverride.is_closed) return { closed: true as const, error: "El profesional no trabaja este dia" };
+            if (staffOverride.start_time && staffOverride.end_time) {
+              out.start = minutesToHHmm(Math.max(hhmmToMinutes(out.start), hhmmToMinutes(staffOverride.start_time)));
+              out.end = minutesToHHmm(Math.min(hhmmToMinutes(out.end), hhmmToMinutes(staffOverride.end_time)));
+            }
+            if (staffOverride.break_start && staffOverride.break_end) {
+              const bs = hhmmToMinutes(staffOverride.break_start), be = hhmmToMinutes(staffOverride.break_end);
+              const st = hhmmToMinutes(out.start), en = hhmmToMinutes(out.end);
+              if (st < bs && bs < be && be < en) { out.break_start = staffOverride.break_start; out.break_end = staffOverride.break_end; }
+            }
+          }
+        }
+      }
+      return { closed: false as const, cfg: out };
+    };
+
+    const applied = applyOverrides(effectiveDayConfig, resolvedStaffId);
+    if (applied.closed) return { success: false, error: applied.error };
+    effectiveDayConfig = applied.cfg;
+
+    const validateBlockAgainstConfig = (cfg: { open: boolean; start: string; end: string; break_start?: string | null; break_end?: string | null }) => {
+      if (!cfg.open) return false;
+      const o = hhmmToMinutes(cfg.start), c = hhmmToMinutes(cfg.end);
+      if (o >= c || startMinutes < o || endMinutes > c) return false;
+      if (cfg.break_start && cfg.break_end) {
+        const bs = hhmmToMinutes(cfg.break_start), be = hhmmToMinutes(cfg.break_end);
+        if (startMinutes < be && endMinutes > bs) return false;
+      }
+      return true;
+    };
+
+    if (!resolvedStaffId) {
+      // Auto-assign staff for combo block
+      const { data: allStaff } = await admin.from("shop_memberships").select("user_id").eq("shop_id", input.shopId).eq("is_active", true).in("role", ["owner", "staff"]);
+      const staffIds = (allStaff || []).map((m) => m.user_id);
+      const { data: allStaffServices } = await admin.from("staff_services").select("staff_id, service_id").in("staff_id", staffIds);
+      const servicesByStaff = new Map<string, Set<string>>();
+      for (const row of allStaffServices || []) {
+        if (!servicesByStaff.has(row.staff_id)) servicesByStaff.set(row.staff_id, new Set());
+        servicesByStaff.get(row.staff_id)!.add(row.service_id);
+      }
+      const [{ data: conflictingAppts }, { data: pendingConflicts }, { data: daySchedules }] = await Promise.all([
+        admin.from("appointments").select("staff_id, status, created_at").eq("shop_id", input.shopId).lt("start_time", overallEnd).gt("end_time", input.startTime).not("status", "eq", "cancelled").not("staff_id", "is", null),
+        admin.from("pending_bookings").select("staff_id").eq("shop_id", input.shopId).eq("status", "pending").gt("expires_at", new Date().toISOString()).lt("start_time", overallEnd).gt("end_time", input.startTime).not("staff_id", "is", null),
+        admin.from("staff_schedules").select("staff_id, day_of_week, is_active, start_time, end_time, break_start, break_end").in("staff_id", staffIds).limit(1000),
+      ]);
+      const busyStaffIds = new Set<string>();
+      for (const apt of conflictingAppts || []) if (apt.staff_id && shouldBlockSlot(apt.status, apt.created_at)) busyStaffIds.add(apt.staff_id);
+      for (const pb of pendingConflicts || []) if (pb.staff_id) busyStaffIds.add(pb.staff_id);
+      const scheduleMap = new Map((daySchedules || []).filter((s) => s.day_of_week === dayIndex).map((s) => [s.staff_id, s]));
+      const staffConHorario = new Set((daySchedules || []).map((s) => s.staff_id));
+
+      for (const sid of staffIds) {
+        if (busyStaffIds.has(sid)) continue;
+        const assignedServices = servicesByStaff.get(sid);
+        if (assignedServices && assignedServices.size > 0) {
+          if (!combo.services.every((svc) => assignedServices.has(svc.id))) continue;
+        }
+        const sched = scheduleMap.get(sid);
+        if (!sched && staffConHorario.has(sid)) continue;
+        const baseSched = await resolveBlockSchedule(sid);
+        if (!baseSched.ok) continue;
+        const ov = applyOverrides(baseSched.cfg, sid);
+        if (ov.closed) continue;
+        if (!validateBlockAgainstConfig(ov.cfg)) continue;
+        resolvedStaffId = sid;
+        effectiveDayConfig = ov.cfg;
+        break;
+      }
+      if (!resolvedStaffId) return { success: false, error: "No hay profesionales disponibles para este turno" };
+    } else {
+      if (!validateBlockAgainstConfig(effectiveDayConfig)) {
+        return { success: false, error: "El horario seleccionado esta fuera del horario de atencion" };
+      }
+    }
+
+    // Final conflict checks
+    const [{ data: conflicts }, { data: pendingConflicts }] = await Promise.all([
+      admin.from("appointments").select("id, status, created_at").eq("shop_id", input.shopId).eq("staff_id", resolvedStaffId).lt("start_time", overallEnd).gt("end_time", input.startTime).not("status", "eq", "cancelled"),
+      admin.from("pending_bookings").select("id").eq("shop_id", input.shopId).eq("staff_id", resolvedStaffId).eq("status", "pending").gt("expires_at", new Date().toISOString()).lt("start_time", overallEnd).gt("end_time", input.startTime),
+    ]);
+    const hasBlockingConflict = (conflicts || []).some((apt) => shouldBlockSlot(apt.status as string | null | undefined, apt.created_at as string | null | undefined));
+    if (hasBlockingConflict || (pendingConflicts && pendingConflicts.length > 0)) return { success: false, error: "slot_taken" };
+
+    // Pricing (combo price from DB)
+    const serviceAmount = Math.max(0, Number(combo.price) || 0);
+    if (serviceAmount <= 0) return { success: false, error: "No hay nada para cobrar" };
+    const { data: shopPolicy } = await admin.from("shops").select("booking_deposit_enabled, booking_deposit_amount").eq("id", input.shopId).maybeSingle();
+    const depositEnabled = shopPolicy?.booking_deposit_enabled !== false;
+    const configuredDeposit = Math.max(0, Number(shopPolicy?.booking_deposit_amount ?? 0));
+    const chargeAmount = depositEnabled ? Math.max(1, Math.min(serviceAmount, configuredDeposit > 0 ? configuredDeposit : serviceAmount)) : Math.max(1, serviceAmount);
+    const isDeposit = depositEnabled && chargeAmount < serviceAmount;
+
+    const { data: intent, error: intentError } = await admin.from("pending_bookings").insert({
+      shop_id: input.shopId,
+      service_id: combo.services[0].id,
+      staff_id: resolvedStaffId,
+      customer_name: customerName,
+      customer_email: input.customerEmail?.trim() || null,
+      customer_phone: input.customerPhone,
+      authenticated_user_id: input.authenticatedUserId || null,
+      start_time: input.startTime,
+      end_time: overallEnd,
+      deposit_amount: chargeAmount,
+      status: "pending",
+      payment_method: "mp",
+      payment_amount: chargeAmount,
+      ip_address: ip,
+      intent_type: "combo",
+      payload: {
+        kind: "combo",
+        comboId: combo.name ? input.comboId : input.comboId, // keep id
+        combo_id: input.comboId,
+        comboIdResolved: input.comboId,
+        serviceIds: combo.services.map((s) => s.id),
+        service_amount: serviceAmount,
+        service_deposit: chargeAmount,
+      },
+      expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+    }).select("id").single();
+    if (intentError || !intent) return { success: false, error: intentError?.message || "No se pudo crear la reserva pendiente" };
+
+    // Normalize payload comboId key for webhook (it expects comboId)
+    await admin.from("pending_bookings").update({ payload: { kind: "combo", comboId: input.comboId, serviceIds: combo.services.map((s) => s.id), service_amount: serviceAmount, service_deposit: chargeAmount } }).eq("id", intent.id);
+
+    const pref = await createMpPreferenceForIntent({
+      admin,
+      shopId: input.shopId,
+      shopSlug: input.shopSlug,
+      intentId: intent.id,
+      title: combo.name || "Combo",
+      unitPrice: chargeAmount,
+      isDeposit,
+      customerEmail: input.customerEmail,
+      metadata: { type: "booking_intent", intent_type: "combo" },
+    });
+    if (!pref.success) {
+      await admin.from("pending_bookings").delete().eq("id", intent.id);
+      return { success: false, error: pref.error };
+    }
+    await admin.from("pending_bookings").update({ mp_preference_id: pref.data.preferenceId }).eq("id", intent.id);
+
+    return { success: true, data: { intentId: intent.id, initPoint: pref.data.initPoint, preferenceId: pref.data.preferenceId, chargedAmount: chargeAmount, isDeposit } };
+  } catch (e) {
+    console.error("[createMpComboBookingIntent] error:", e);
+    return { success: false, error: e instanceof Error ? e.message : "Error al iniciar el pago" };
+  }
+}
+export async function createMpCombinedBookingIntent(
+  input: CreateMpCombinedIntentInput
+): Promise<ActionResult<CreateMpCombinedIntentOutput>> {
+  try {
+    const headersList = await headers();
+    const ip = headersList.get("x-forwarded-for")?.split(",")[0]?.trim() || headersList.get("x-real-ip") || "unknown";
+    const ipKey = `completed-booking:${ip}:${input.shopId}`;
+    if (completedBookingCache.has(ipKey) && !input.authenticatedUserId) {
+      return { success: false, error: "login_required" };
+    }
+
+    const admin = await createAdminClient();
+    const startDate = new Date(input.startTime);
+    if (Number.isNaN(startDate.getTime())) return { success: false, error: "Horario invalido" };
+    if (input.customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.customerEmail)) return { success: false, error: "Email invalido" };
+    const cleanPhone = input.customerPhone.replace(/\D/g, "");
+    if (cleanPhone.length < 7 || cleanPhone.length > 15) return { success: false, error: "Telefono invalido" };
+    const customerName = input.customerName.trim();
+    if (customerName.length < 2 || customerName.length > 100) return { success: false, error: "Nombre invalido" };
+
+    const storeItems = (input.storeItems || []).filter((i) => i.productId && Number.isInteger(i.quantity) && i.quantity > 0);
+    if (storeItems.length === 0) return { success: false, error: "No seleccionaste productos" };
+
+    // Validate store stock and compute product totals (no decrement)
+    const productIds = [...new Set(storeItems.map((i) => i.productId))];
+    const { data: products, error: productsError } = await admin
+      .from("stock")
+      .select("id, nombre_producto, price, quantity")
+      .eq("shop_id", input.shopId)
+      .eq("for_sale", true)
+      .eq("visible", true)
+      .in("id", productIds);
+    if (productsError) return { success: false, error: productsError.message };
+    const productById = new Map((products || []).map((p) => [p.id, p]));
+    const lineItems: Array<{ id: string; title: string; description: string; quantity: number; unit_price: number; currency_id: "ARS"; productId: string; name: string }> = [];
+    for (const item of storeItems) {
+      const product = productById.get(item.productId);
+      if (!product) return { success: false, error: "Producto no disponible" };
+      const stockQuantity = Number(product.quantity ?? 0);
+      if (stockQuantity < item.quantity) return { success: false, error: `No hay suficiente stock de "${product.nombre_producto}"` };
+      const unitPrice = Number(product.price) || 0;
+      lineItems.push({ id: product.id, title: product.nombre_producto, description: product.nombre_producto, quantity: item.quantity, unit_price: unitPrice, currency_id: "ARS", productId: product.id, name: product.nombre_producto });
+    }
+    const productsAmount = lineItems.reduce((sum, li) => sum + li.unit_price * li.quantity, 0);
+    if (productsAmount <= 0) return { success: false, error: "El total del pedido es invalido" };
+
+    // Resolve service part and compute service amount (from DB)
+    let resolvedStaffId = input.staffId || null;
+    let serviceTitle = "Servicio";
+    let serviceAmount = 0;
+    let servicePayload: any = null;
+    let overallEnd = "";
+    const bookingStart = input.startTime;
+
+    const bookingDate = getArgentinaDateKey(input.startTime);
+    const todayAr = getArgentinaDateString();
+    if (bookingDate < todayAr) return { success: false, error: "No se puede reservar en una fecha pasada" };
+    if (bookingDate === todayAr) {
+      const nowMinutes = getArgentinaMinutesSinceMidnight(new Date());
+      const bookingMinutes = getArgentinaMinutesSinceMidnight(input.startTime);
+      if (bookingMinutes < nowMinutes) return { success: false, error: "No se puede reservar en un horario pasado" };
+    }
+
+    const dayIndex = getWeekdayFromDateString(bookingDate);
+    const { data: shopHoursRow } = await admin.from("shops").select("business_hours, booking_deposit_enabled, booking_deposit_amount").eq("id", input.shopId).maybeSingle();
+    const businessHours = shopHoursRow?.business_hours;
+    const depositEnabled = shopHoursRow?.booking_deposit_enabled !== false;
+    const configuredDeposit = Math.max(0, Number(shopHoursRow?.booking_deposit_amount ?? 0));
+
+    const resolveBlockSchedule = async (staffId: string | null) => {
+      if (staffId) {
+        const { data: staffSchedules } = await admin.from("staff_schedules").select("day_of_week, is_active, start_time, end_time, break_start, break_end").eq("staff_id", staffId);
+        const staffSchedule = (staffSchedules || []).find((s) => s.day_of_week === dayIndex) ?? null;
+        if (staffSchedule) {
+          if (!staffSchedule.is_active) return { ok: false as const, error: "El profesional no trabaja este dia" };
+          const cfg = { open: true, start: staffSchedule.start_time.slice(0, 5), end: staffSchedule.end_time.slice(0, 5), break_start: staffSchedule.break_start?.slice(0, 5) ?? null, break_end: staffSchedule.break_end?.slice(0, 5) ?? null };
+          const shopConfig = await resolveShopDayConfig(admin, input.shopId, dayIndex, businessHours);
+          if (shopConfig.open) {
+            cfg.start = minutesToHHmm(Math.max(hhmmToMinutes(cfg.start), hhmmToMinutes(shopConfig.start)));
+            cfg.end = minutesToHHmm(Math.min(hhmmToMinutes(cfg.end), hhmmToMinutes(shopConfig.end)));
+          }
+          return { ok: true as const, cfg };
+        } else if ((staffSchedules || []).length > 0) {
+          return { ok: false as const, error: "El profesional no trabaja este dia" };
+        }
+      }
+      return { ok: true as const, cfg: await resolveShopDayConfig(admin, input.shopId, dayIndex, businessHours) };
+    };
+
+    if (input.combo) {
+      const combo = await resolveComboFromDb(admin, input.shopId, input.combo.comboId, input.combo.services.map((s) => s.id));
+      if (!combo) return { success: false, error: "El combo no esta disponible" };
+      const totalDuration = combo.services.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+      if (totalDuration <= 0) return { success: false, error: "Duracion invalida" };
+      overallEnd = new Date(startDate.getTime() + totalDuration * 60000).toISOString();
+      serviceTitle = combo.name || "Combo";
+      serviceAmount = Math.max(0, Number(combo.price) || 0);
+      if (serviceAmount <= 0) return { success: false, error: "No hay nada para cobrar" };
+      servicePayload = { kind: "combo", comboId: input.combo.comboId, serviceIds: combo.services.map((s) => s.id) };
+    } else if (input.cartServices && input.cartServices.length > 0) {
+      const serviceIds = input.cartServices.map((s) => s.id);
+      const { data: dbServices } = await admin.from("services").select("id, name, duration_minutes, price, hide_price, shop_id").in("id", serviceIds);
+      const byId = new Map((dbServices || []).map((s) => [s.id, s]));
+      const items: Array<{ serviceId: string; name: string; durationMinutes: number; price: number; startTime: string; endTime: string }> = [];
+      let cursor = startDate.getTime();
+      for (const s of input.cartServices) {
+        const db = byId.get(s.id);
+        if (!db || db.shop_id !== input.shopId) return { success: false, error: "Servicio no disponible" };
+        const dur = Number(db.duration_minutes) || 0;
+        if (dur <= 0) return { success: false, error: "Duracion invalida" };
+        const st = new Date(cursor).toISOString();
+        cursor += dur * 60000;
+        const en = new Date(cursor).toISOString();
+        items.push({ serviceId: db.id, name: db.name, durationMinutes: dur, price: Number(db.price) || 0, startTime: st, endTime: en });
+      }
+      // Combined checkout in current flow excludes hide_price services from paid amount; if hide_price appears, this path is not used by client (client handles separately)
+      overallEnd = new Date(cursor).toISOString();
+      serviceAmount = items.reduce((sum, it) => sum + it.price, 0);
+      if (serviceAmount <= 0) return { success: false, error: "No hay nada para cobrar" };
+      serviceTitle = items.length === 1 ? items[0].name : `${items.length} servicios`;
+      servicePayload = { kind: "cart", items };
+    } else {
+      return { success: false, error: "No seleccionaste servicios ni combo" };
+    }
+
+    const startMinutes = getArgentinaMinutesSinceMidnight(bookingStart);
+    const endMinutes = getArgentinaMinutesSinceMidnight(overallEnd);
+
+    const overrideResult = await fetchPublicShopDateOverrides(input.shopId, bookingDate, bookingDate);
+    const applyOverrides = (cfg: { open: boolean; start: string; end: string; break_start?: string | null; break_end?: string | null }, staffId: string | null) => {
+      const out = { ...cfg };
+      if (overrideResult.success && overrideResult.data) {
+        const shopOverride = overrideResult.data.find((o) => o.staff_id === null);
+        if (shopOverride) {
+          if (shopOverride.is_closed) return { closed: true as const, error: "El local esta cerrado este dia" };
+          if (shopOverride.start_time && shopOverride.end_time) {
+            out.start = minutesToHHmm(Math.max(hhmmToMinutes(out.start), hhmmToMinutes(shopOverride.start_time)));
+            out.end = minutesToHHmm(Math.min(hhmmToMinutes(out.end), hhmmToMinutes(shopOverride.end_time)));
+          }
+          if (shopOverride.break_start && shopOverride.break_end) {
+            const bs = hhmmToMinutes(shopOverride.break_start), be = hhmmToMinutes(shopOverride.break_end);
+            const st = hhmmToMinutes(out.start), en = hhmmToMinutes(out.end);
+            if (st < bs && bs < be && be < en) { out.break_start = shopOverride.break_start; out.break_end = shopOverride.break_end; }
+          }
+        }
+        if (staffId) {
+          const staffOverride = overrideResult.data.find((o) => o.staff_id === staffId);
+          if (staffOverride) {
+            if (staffOverride.is_closed) return { closed: true as const, error: "El profesional no trabaja este dia" };
+            if (staffOverride.start_time && staffOverride.end_time) {
+              out.start = minutesToHHmm(Math.max(hhmmToMinutes(out.start), hhmmToMinutes(staffOverride.start_time)));
+              out.end = minutesToHHmm(Math.min(hhmmToMinutes(out.end), hhmmToMinutes(staffOverride.end_time)));
+            }
+            if (staffOverride.break_start && staffOverride.break_end) {
+              const bs = hhmmToMinutes(staffOverride.break_start), be = hhmmToMinutes(staffOverride.break_end);
+              const st = hhmmToMinutes(out.start), en = hhmmToMinutes(out.end);
+              if (st < bs && bs < be && be < en) { out.break_start = staffOverride.break_start; out.break_end = staffOverride.break_end; }
+            }
+          }
+        }
+      }
+      return { closed: false as const, cfg: out };
+    };
+
+    const validateBlockAgainstConfig = (cfg: { open: boolean; start: string; end: string; break_start?: string | null; break_end?: string | null }) => {
+      if (!cfg.open) return false;
+      const o = hhmmToMinutes(cfg.start), c = hhmmToMinutes(cfg.end);
+      if (o >= c || startMinutes < o || endMinutes > c) return false;
+      if (cfg.break_start && cfg.break_end) {
+        const bs = hhmmToMinutes(cfg.break_start), be = hhmmToMinutes(cfg.break_end);
+        if (startMinutes < be && endMinutes > bs) return false;
+      }
+      return true;
+    };
+
+    let effectiveDayConfig: { open: boolean; start: string; end: string; break_start?: string | null; break_end?: string | null };
+    if (resolvedStaffId) {
+      const sched = await resolveBlockSchedule(resolvedStaffId);
+      if (!sched.ok) return { success: false, error: sched.error };
+      const ov = applyOverrides(sched.cfg, resolvedStaffId);
+      if (ov.closed) return { success: false, error: ov.error };
+      effectiveDayConfig = ov.cfg;
+      if (!validateBlockAgainstConfig(effectiveDayConfig)) return { success: false, error: "El horario seleccionado esta fuera del horario de atencion" };
+    } else {
+      effectiveDayConfig = await resolveShopDayConfig(admin, input.shopId, dayIndex, businessHours);
+      const ov = applyOverrides(effectiveDayConfig, null);
+      if (ov.closed) return { success: false, error: ov.error };
+      effectiveDayConfig = ov.cfg;
+      // Auto-assign staff
+      const { data: allStaff } = await admin.from("shop_memberships").select("user_id").eq("shop_id", input.shopId).eq("is_active", true).in("role", ["owner", "staff"]);
+      const staffIds = (allStaff || []).map((m) => m.user_id);
+      const { data: allStaffServices } = await admin.from("staff_services").select("staff_id, service_id").in("staff_id", staffIds);
+      const servicesByStaff = new Map<string, Set<string>>();
+      for (const row of allStaffServices || []) {
+        if (!servicesByStaff.has(row.staff_id)) servicesByStaff.set(row.staff_id, new Set());
+        servicesByStaff.get(row.staff_id)!.add(row.service_id);
+      }
+      const neededServiceIds = servicePayload.kind === "combo" ? servicePayload.serviceIds : (servicePayload.items || []).map((it: any) => it.serviceId);
+      const [{ data: conflictingAppts }, { data: pendingConflicts }, { data: daySchedules }] = await Promise.all([
+        admin.from("appointments").select("staff_id, status, created_at").eq("shop_id", input.shopId).lt("start_time", overallEnd).gt("end_time", bookingStart).not("status", "eq", "cancelled").not("staff_id", "is", null),
+        admin.from("pending_bookings").select("staff_id").eq("shop_id", input.shopId).eq("status", "pending").gt("expires_at", new Date().toISOString()).lt("start_time", overallEnd).gt("end_time", bookingStart).not("staff_id", "is", null),
+        admin.from("staff_schedules").select("staff_id, day_of_week, is_active, start_time, end_time, break_start, break_end").in("staff_id", staffIds).limit(1000),
+      ]);
+      const busyStaffIds = new Set<string>();
+      for (const apt of conflictingAppts || []) if (apt.staff_id && shouldBlockSlot(apt.status, apt.created_at)) busyStaffIds.add(apt.staff_id);
+      for (const pb of pendingConflicts || []) if (pb.staff_id) busyStaffIds.add(pb.staff_id);
+      const scheduleMap = new Map((daySchedules || []).filter((s) => s.day_of_week === dayIndex).map((s) => [s.staff_id, s]));
+      const staffConHorario = new Set((daySchedules || []).map((s) => s.staff_id));
+
+      for (const sid of staffIds) {
+        if (busyStaffIds.has(sid)) continue;
+        const assignedServices = servicesByStaff.get(sid);
+        if (assignedServices && assignedServices.size > 0) {
+          if (!neededServiceIds.every((id: string) => assignedServices.has(id))) continue;
+        }
+        const sched = scheduleMap.get(sid);
+        if (!sched && staffConHorario.has(sid)) continue;
+        const baseSched = await resolveBlockSchedule(sid);
+        if (!baseSched.ok) continue;
+        const ov2 = applyOverrides(baseSched.cfg, sid);
+        if (ov2.closed) continue;
+        if (!validateBlockAgainstConfig(ov2.cfg)) continue;
+        resolvedStaffId = sid;
+        effectiveDayConfig = ov2.cfg;
+        break;
+      }
+      if (!resolvedStaffId) return { success: false, error: "No hay profesionales disponibles para este turno" };
+    }
+
+    // Conflict checks
+    const [{ data: conflicts }, { data: pendingConflicts }] = await Promise.all([
+      admin.from("appointments").select("id, status, created_at").eq("shop_id", input.shopId).eq("staff_id", resolvedStaffId).lt("start_time", overallEnd).gt("end_time", bookingStart).not("status", "eq", "cancelled"),
+      admin.from("pending_bookings").select("id").eq("shop_id", input.shopId).eq("staff_id", resolvedStaffId).eq("status", "pending").gt("expires_at", new Date().toISOString()).lt("start_time", overallEnd).gt("end_time", bookingStart),
+    ]);
+    const hasBlockingConflict = (conflicts || []).some((apt) => shouldBlockSlot(apt.status as string | null | undefined, apt.created_at as string | null | undefined));
+    if (hasBlockingConflict || (pendingConflicts && pendingConflicts.length > 0)) return { success: false, error: "slot_taken" };
+
+    const depositCharge = depositEnabled
+      ? Math.max(1, Math.min(serviceAmount, configuredDeposit > 0 ? configuredDeposit : serviceAmount))
+      : Math.max(1, serviceAmount);
+    const isDeposit = depositEnabled && depositCharge < serviceAmount;
+    const chargedAmount = depositCharge + productsAmount;
+    const totalAmount = serviceAmount + productsAmount;
+
+    const primaryServiceId = servicePayload.kind === "combo" ? servicePayload.serviceIds[0] : servicePayload.items[0].serviceId;
+
+    const { data: intent, error: intentError } = await admin.from("pending_bookings").insert({
+      shop_id: input.shopId,
+      service_id: primaryServiceId,
+      staff_id: resolvedStaffId,
+      customer_name: customerName,
+      customer_email: input.customerEmail?.trim() || null,
+      customer_phone: input.customerPhone,
+      authenticated_user_id: input.authenticatedUserId || null,
+      start_time: bookingStart,
+      end_time: overallEnd,
+      deposit_amount: chargedAmount, // total charged now (service deposit portion + products)
+      status: "pending",
+      payment_method: "mp",
+      payment_amount: chargedAmount,
+      ip_address: ip,
+      intent_type: "combined",
+      payload: {
+        kind: "combined",
+        service: servicePayload,
+        store_items: storeItems.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+        service_amount: serviceAmount,
+        products_amount: productsAmount,
+        total_amount: totalAmount,
+        service_deposit: depositCharge,
+        is_deposit: isDeposit,
+      },
+      expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+    }).select("id").single();
+    if (intentError || !intent) return { success: false, error: intentError?.message || "No se pudo crear la reserva pendiente" };
+
+    const prefItems = [
+      {
+        id: intent.id,
+        title: isDeposit ? `Se�a - ${serviceTitle}` : serviceTitle,
+        description: `${isDeposit ? "Se�a" : "Turno"} - ${serviceTitle}`,
+        quantity: 1,
+        unit_price: depositCharge,
+        currency_id: "ARS" as const,
+      },
+      ...lineItems.map((li) => ({ id: li.productId, title: li.name, description: li.name, quantity: li.quantity, unit_price: li.unit_price, currency_id: "ARS" as const })),
+    ];
+
+    const pref = await createMpPreferenceForIntent({
+      admin,
+      shopId: input.shopId,
+      shopSlug: input.shopSlug,
+      intentId: intent.id,
+      title: serviceTitle,
+      unitPrice: chargedAmount,
+      isDeposit,
+      customerEmail: input.customerEmail,
+      items: prefItems,
+      metadata: { type: "booking_intent", intent_type: "combined" },
+    });
+    if (!pref.success) {
+      await admin.from("pending_bookings").delete().eq("id", intent.id);
+      return { success: false, error: pref.error };
+    }
+    await admin.from("pending_bookings").update({ mp_preference_id: pref.data.preferenceId }).eq("id", intent.id);
+
+    return {
+      success: true,
+      data: {
+        intentId: intent.id,
+        serviceAmount,
+        productsAmount,
+        totalAmount,
+        chargedAmount,
+        isDeposit,
+        initPoint: pref.data.initPoint,
+        preferenceId: pref.data.preferenceId,
+      },
+    };
+  } catch (e) {
+    console.error("[createMpCombinedBookingIntent] error:", e);
+    return { success: false, error: e instanceof Error ? e.message : "Error al iniciar el pago" };
+  }
+}

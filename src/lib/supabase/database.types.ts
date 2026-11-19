@@ -895,8 +895,10 @@ export type Database = {
           end_time: string
           expires_at: string
           id: string
+          intent_type: string
           ip_address: string | null
           mp_preference_id: string | null
+          payload: Json
           payment_amount: number | null
           payment_method: string
           service_id: string
@@ -915,8 +917,10 @@ export type Database = {
           end_time: string
           expires_at?: string
           id?: string
+          intent_type?: string
           ip_address?: string | null
           mp_preference_id?: string | null
+          payload?: Json
           payment_amount?: number | null
           payment_method?: string
           service_id: string
@@ -935,8 +939,10 @@ export type Database = {
           end_time?: string
           expires_at?: string
           id?: string
+          intent_type?: string
           ip_address?: string | null
           mp_preference_id?: string | null
+          payload?: Json
           payment_amount?: number | null
           payment_method?: string
           service_id?: string

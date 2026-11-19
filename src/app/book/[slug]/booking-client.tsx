@@ -1882,15 +1882,61 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     // Combined checkout: appointment(s) + store order paid together
     if (hasStoreItems && hasServices && !hasHiddenPriceService) {
       setCreatingPreference(true);
-      const { createCombinedCheckout } = await import("@/lib/dashboard/booking/public-booking-actions");
-      const result = await createCombinedCheckout({
+
+      if (paymentMethod === "bank_transfer") {
+        const { createCombinedCheckout } = await import("@/lib/dashboard/booking/public-booking-actions");
+        const result = await createCombinedCheckout({
+          shopId: shop.id,
+          shopSlug: shop.slug,
+          customerName: customerName.trim(),
+          customerEmail: customerEmail.trim() || undefined,
+          customerPhone: formattedPhone,
+          authenticatedUserId: user?.id,
+          paymentMethod,
+          staffId: staffForAppointment?.id,
+          startTime: selectedSlot!.start,
+          combo: selectedCombo
+            ? {
+                comboId: selectedCombo.id,
+                comboName: selectedCombo.name,
+                comboPrice: selectedCombo.price,
+                services: selectedCombo.services.map((s) => ({ id: s.id, name: s.name, duration_minutes: s.duration_minutes, price: s.price })),
+                totalDuration: selectedCombo.total_duration,
+              }
+            : undefined,
+          cartServices: !selectedCombo && cart.length > 0
+            ? cart.map((s) => ({ id: s.id, name: s.name, duration_minutes: s.duration_minutes, price: s.price }))
+            : undefined,
+          storeItems,
+        });
+        setSubmitting(false); setCreatingPreference(false);
+        if (!result.success || !result.data) { setError(result.error || "No se pudo iniciar el pago"); return; }
+        const data = result.data;
+        pendingAppointmentIdsRef.current = data.appointmentIds;
+        setChargedAmount(data.chargedAmount);
+        setIsDepositPayment(data.isDeposit);
+        if (data.bankTransfer) {
+          setSelectedPaymentMethod("bank_transfer");
+          setBankTransferDetails({ cvuCb: data.bankTransfer.cbu, alias: data.bankTransfer.alias, bankName: data.bankTransfer.bankName });
+          setBankTransferWhatsAppMessage(
+            `Hola ${shop.name}, reservé turno por ${formatARSAmount(data.totalAmount)} y pagué por transferencia. Quedo a la espera de confirmación.`
+          );
+          setStep(pagoStep);
+          return;
+        }
+        setError("No se pudo iniciar el pago. Intenta de nuevo.");
+        return;
+      }
+
+      // MP online: intención combinada (sin turnos/pedido visibles antes del pago)
+      const { createMpCombinedBookingIntent } = await import("@/lib/dashboard/booking/public-booking-actions");
+      const intentResult = await createMpCombinedBookingIntent({
         shopId: shop.id,
         shopSlug: shop.slug,
         customerName: customerName.trim(),
         customerEmail: customerEmail.trim() || undefined,
         customerPhone: formattedPhone,
         authenticatedUserId: user?.id,
-        paymentMethod,
         staffId: staffForAppointment?.id,
         startTime: selectedSlot!.start,
         combo: selectedCombo
@@ -1908,30 +1954,20 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
         storeItems,
       });
       setSubmitting(false); setCreatingPreference(false);
-      if (!result.success) { setError(result.error || "No se pudo iniciar el pago"); return; }
-      if (!result.data) { setError("No se pudo iniciar el pago"); return; }
-      const data = result.data;
-      pendingAppointmentIdsRef.current = data.appointmentIds;
-      setChargedAmount(data.chargedAmount);
-      setIsDepositPayment(data.isDeposit);
-      if (paymentMethod === "mp" && data.initPoint) {
-        setPaymentPreferenceId(data.preferenceId ?? null);
-        setPaymentInitPoint(data.initPoint);
-        setStep(pagoStep);
+      if (!intentResult.success || !intentResult.data) {
+        if (intentResult.error === "login_required") { handleLoginRequired(); return; }
+        setError(intentResult.error || "No se pudo iniciar el pago");
         return;
       }
-      if (paymentMethod === "bank_transfer" && data.bankTransfer) {
-        setBankTransferDetails({ cvuCb: data.bankTransfer.cbu, alias: data.bankTransfer.alias, bankName: data.bankTransfer.bankName });
-        setBankTransferWhatsAppMessage(
-          `Hola ${shop.name}, reservé turno por ${formatARSAmount(data.totalAmount)} y pagué por transferencia. Quedo a la espera de confirmación.`
-        );
-        setStep(pagoStep);
-        return;
-      }
-      setError("No se pudo iniciar el pago. Intenta de nuevo.");
+      pendingAppointmentIdsRef.current = [];
+      setSelectedPaymentMethod("mp");
+      setChargedAmount(intentResult.data.chargedAmount);
+      setIsDepositPayment(intentResult.data.isDeposit);
+      setPaymentPreferenceId(intentResult.data.preferenceId);
+      setPaymentInitPoint(intentResult.data.initPoint);
+      setStep(pagoStep);
       return;
     }
-
     // Services with hidden price are pay-at-shop only: book them locally and
     // charge only the store items online
     if (hasStoreItems && hasServices && hasHiddenPriceService) {
@@ -2038,34 +2074,30 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
     // Paid flow
     if (selectedCombo) {
       setCreatingPreference(true);
-      const comboResult = await createPublicComboAppointment({
-        shopId: shop.id,
-        comboId: selectedCombo.id,
-        comboName: selectedCombo.name,
-        comboPrice: selectedCombo.price,
-        services: selectedCombo.services,
-        staffId: staffForAppointment?.id,
-        customerName: customerName.trim(),
-        customerEmail: customerEmail.trim() || undefined,
-        customerPhone: formattedPhone,
-        authenticatedUserId: user?.id,
-        startTime: selectedSlot.start,
-        status: "pending_payment",
-      });
-      if (!comboResult.success) {
-        setSubmitting(false); setCreatingPreference(false);
-        if (comboResult.error === "login_required") { handleLoginRequired(); return; }
-        if (await maybeRetrySlotTaken(comboResult.error)) return;
-        setError(comboResult.error || "No se pudo crear el turno"); return;
-      }
-      if (!comboResult.data) { setSubmitting(false); setCreatingPreference(false); setError("No se pudo crear el turno"); return; }
 
-      // Transferencia: no se crea preferencia de Mercado Pago. Los turnos
-      // quedan pending_payment y el local los confirma cuando verifica la
-      // transferencia. Sin esto, la eleccion de transferencia en un turno de
-      // servicios caia en el camino de MP y el botón de WhatsApp quedaba muerto.
-      pendingAppointmentIdsRef.current = comboResult.data.appointmentIds;
       if (paymentMethod === "bank_transfer") {
+        const comboResult = await createPublicComboAppointment({
+          shopId: shop.id,
+          comboId: selectedCombo.id,
+          comboName: selectedCombo.name,
+          comboPrice: selectedCombo.price,
+          services: selectedCombo.services,
+          staffId: staffForAppointment?.id,
+          customerName: customerName.trim(),
+          customerEmail: customerEmail.trim() || undefined,
+          customerPhone: formattedPhone,
+          authenticatedUserId: user?.id,
+          startTime: selectedSlot.start,
+          status: "pending_payment",
+        });
+        if (!comboResult.success) {
+          setSubmitting(false); setCreatingPreference(false);
+          if (comboResult.error === "login_required") { handleLoginRequired(); return; }
+          if (await maybeRetrySlotTaken(comboResult.error)) return;
+          setError(comboResult.error || "No se pudo crear el turno"); return;
+        }
+        if (!comboResult.data) { setSubmitting(false); setCreatingPreference(false); setError("No se pudo crear el turno"); return; }
+        pendingAppointmentIdsRef.current = comboResult.data.appointmentIds;
         setSubmitting(false);
         setCreatingPreference(false);
         setSelectedPaymentMethod("bank_transfer");
@@ -2079,45 +2111,111 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
         return;
       }
 
-      const { createPaymentPreference } = await import("@/lib/dashboard/booking/public-booking-actions");
-      const prefResult = await createPaymentPreference({
-        appointmentId: comboResult.data.appointmentIds[0],
+      // MP online: crear intención pendiente (sin turnos visibles) y preferencia de pago.
+      const { createMpComboBookingIntent } = await import("@/lib/dashboard/booking/public-booking-actions");
+      const intentResult = await createMpComboBookingIntent({
         shopId: shop.id,
         shopSlug: shop.slug,
         comboId: selectedCombo.id,
-        comboAppointmentIds: comboResult.data.appointmentIds,
+        comboName: selectedCombo.name,
+        comboPrice: selectedCombo.price,
+        services: selectedCombo.services.map((s) => ({ id: s.id, name: s.name, duration_minutes: s.duration_minutes, price: s.price })),
+        staffId: staffForAppointment?.id,
+        customerName: customerName.trim(),
+        customerEmail: customerEmail.trim() || undefined,
+        customerPhone: formattedPhone,
+        authenticatedUserId: user?.id,
+        startTime: selectedSlot.start,
       });
       setSubmitting(false); setCreatingPreference(false);
-      if (!prefResult.success) { setError(prefResult.error || "No se pudo iniciar el pago"); return; }
-      if (!prefResult.data) { setError("No se pudo iniciar el pago"); return; }
-      pendingAppointmentIdsRef.current = comboResult.data.appointmentIds;
-      setPaymentPreferenceId(prefResult.data.preferenceId);
-      setPaymentInitPoint(prefResult.data.initPoint);
-      setChargedAmount(prefResult.data.chargedAmount ?? null);
-      setIsDepositPayment(Boolean(prefResult.data.isDeposit));
+      if (!intentResult.success || !intentResult.data) {
+        if (intentResult.error === "login_required") { handleLoginRequired(); return; }
+        setError(intentResult.error || "No se pudo iniciar el pago");
+        return;
+      }
+      pendingAppointmentIdsRef.current = [];
+      setSelectedPaymentMethod("mp");
+      setPaymentPreferenceId(intentResult.data.preferenceId);
+      setPaymentInitPoint(intentResult.data.initPoint);
+      setChargedAmount(intentResult.data.chargedAmount ?? null);
+      setIsDepositPayment(Boolean(intentResult.data.isDeposit));
       setStep(pagoStep);
       return;
     }
-
     // Cart paid flow — book hidden-price services at shop, pay online for the rest
     setCreatingPreference(true);
     const atShopItems = cart.filter((s) => s.hide_price);
     const payableItems = cart.filter((s) => !s.hide_price);
 
+    // Compute timed slots for each cart item in original order
+    let cursorMs = new Date(selectedSlot!.start).getTime();
+    const cartTimed = cart.map((svc) => {
+      const st = new Date(cursorMs).toISOString();
+      cursorMs += svc.duration_minutes * 60000;
+      return { svc, startTime: st, endTime: new Date(cursorMs).toISOString() };
+    });
+    const atShopTimed = cartTimed.filter((x) => x.svc.hide_price);
+    const payableTimed = cartTimed.filter((x) => !x.svc.hide_price);
+
     if (atShopItems.length > 0) {
-      const atShopResult = await createCartAppointments("confirmed", formattedPhone, atShopItems);
-      if (atShopResult === null) { setCreatingPreference(false); handleLoginRequired(); return; }
+      // Book at-shop items as confirmed in their correct time slots
+      const createdAtShopIds: string[] = [];
+      for (let i = 0; i < atShopTimed.length; i++) {
+        const { svc, startTime, endTime } = atShopTimed[i];
+        const result = await createPublicAppointment({
+          shopId: shop.id,
+          serviceId: svc.id,
+          staffId: staffForAppointment?.id,
+          customerName: customerName.trim(),
+          customerEmail: customerEmail.trim() || undefined,
+          customerPhone: formattedPhone,
+          authenticatedUserId: user?.id,
+          skipRepeatCache: i < atShopTimed.length - 1 || payableTimed.length > 0,
+          startTime,
+          endTime,
+          status: "confirmed",
+        });
+        if (!result.success) {
+          await rollbackAppointments(createdAtShopIds);
+          setCreatingPreference(false);
+          if (result.error === "login_required") { handleLoginRequired(); return; }
+          setError(result.error || "No se pudo reservar el turno");
+          return;
+        }
+        if (result.data?.appointmentId) createdAtShopIds.push(result.data.appointmentId);
+      }
     }
 
-    const cartResult = await createCartAppointments("pending_payment", formattedPhone, payableItems);
-    if (cartResult === null) { setCreatingPreference(false); handleLoginRequired(); return; }
-
-    // Transferencia: misma logica que el combo arriba — no se crea preferencia
-    // de MP y el mensaje de WhatsApp sale de los datos bancarios del local.
     if (paymentMethod === "bank_transfer") {
+      // Bank transfer: keep creating pending_payment appointments for payable items (manual confirmation flow)
+      const createdPayableIds: string[] = [];
+      for (let i = 0; i < payableTimed.length; i++) {
+        const { svc, startTime, endTime } = payableTimed[i];
+        const result = await createPublicAppointment({
+          shopId: shop.id,
+          serviceId: svc.id,
+          staffId: staffForAppointment?.id,
+          customerName: customerName.trim(),
+          customerEmail: customerEmail.trim() || undefined,
+          customerPhone: formattedPhone,
+          authenticatedUserId: user?.id,
+          skipRepeatCache: i < payableTimed.length - 1,
+          startTime,
+          endTime,
+          status: "pending_payment",
+        });
+        if (!result.success) {
+          await rollbackAppointments(createdPayableIds);
+          setCreatingPreference(false);
+          if (result.error === "login_required") { handleLoginRequired(); return; }
+          setError(result.error || "No se pudo reservar el turno");
+          return;
+        }
+        if (result.data?.appointmentId) createdPayableIds.push(result.data.appointmentId);
+      }
       setSubmitting(false);
       setCreatingPreference(false);
-      pendingAppointmentIdsRef.current = cartResult.ids;
+      pendingAppointmentIdsRef.current = createdPayableIds;
       setSelectedPaymentMethod("bank_transfer");
       setBankTransferDetails({ cvuCb: shop.bankCvuCb, alias: shop.bankAlias, bankName: shop.bankName });
       setBankTransferWhatsAppMessage(
@@ -2129,21 +2227,31 @@ const BookingClient = memo(function BookingClient({ shop, services, servicesErro
       return;
     }
 
-    const { createPaymentPreference } = await import("@/lib/dashboard/booking/public-booking-actions");
-    const prefResult = await createPaymentPreference({
-      appointmentId: cartResult.ids[0],
+    // MP online: crear intención pendiente para servicios pagables (sin turnos visibles)
+    const { createMpServiceBookingIntent } = await import("@/lib/dashboard/booking/public-booking-actions");
+    const intentResult = await createMpServiceBookingIntent({
       shopId: shop.id,
       shopSlug: shop.slug,
-      comboAppointmentIds: cartResult.ids,
+      services: payableTimed.map(({ svc }) => ({ id: svc.id, name: svc.name, duration_minutes: svc.duration_minutes, price: svc.price })),
+      staffId: staffForAppointment?.id,
+      customerName: customerName.trim(),
+      customerEmail: customerEmail.trim() || undefined,
+      customerPhone: formattedPhone,
+      authenticatedUserId: user?.id,
+      startTime: payableTimed[0]?.startTime || selectedSlot!.start,
     });
     setSubmitting(false); setCreatingPreference(false);
-    if (!prefResult.success) { setError(prefResult.error || "No se pudo iniciar el pago"); return; }
-    if (!prefResult.data) { setError("No se pudo iniciar el pago"); return; }
-    pendingAppointmentIdsRef.current = cartResult.ids;
-    setPaymentPreferenceId(prefResult.data.preferenceId);
-    setPaymentInitPoint(prefResult.data.initPoint);
-    setChargedAmount(prefResult.data.chargedAmount ?? null);
-    setIsDepositPayment(Boolean(prefResult.data.isDeposit));
+    if (!intentResult.success || !intentResult.data) {
+      if (intentResult.error === "login_required") { handleLoginRequired(); return; }
+      setError(intentResult.error || "No se pudo iniciar el pago");
+      return;
+    }
+    pendingAppointmentIdsRef.current = [];
+    setSelectedPaymentMethod("mp");
+    setPaymentPreferenceId(intentResult.data.preferenceId);
+    setPaymentInitPoint(intentResult.data.initPoint);
+    setChargedAmount(intentResult.data.chargedAmount ?? null);
+    setIsDepositPayment(Boolean(intentResult.data.isDeposit));
     setStep(pagoStep);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Error inesperado al procesar el turno";
